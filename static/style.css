@@ -160,11 +160,6 @@ body::before {
   background: rgba(0,212,255,0.08);
   border-color: rgba(0,212,255,0.18);
 }
-.nav-right .nav-logout {
-  color: var(--text);
-  font-size: 0.8rem;
-  opacity: 0.6;
-}
 .nav-right .nav-logout:hover {
   color: var(--error);
   background: rgba(255,77,109,0.07);
