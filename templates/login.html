@@ -28,6 +28,9 @@
     <h1>Вход</h1>
     <p>Введите email и пароль для входа</p>
 
+    {% if info %}
+    <div class="success-msg">{{ info }}</div>
+    {% endif %}
     {% if error %}
     <div class="error-msg">{{ error }}</div>
     {% endif %}
@@ -51,6 +54,13 @@
       </div>
       <button type="submit" class="auth-btn-primary">Войти</button>
     </form>
+
+    <div style="text-align:right;margin-top:10px">
+      <a href="/forgot-password" style="font-size:0.8rem;color:var(--text-faint);text-decoration:none;transition:color .2s"
+         onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-faint)'">
+        Забыли пароль?
+      </a>
+    </div>
 
     <div class="auth-footer">
       Нет аккаунта? <a href="/register">Зарегистрироваться</a>

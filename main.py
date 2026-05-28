@@ -8,8 +8,8 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
-from database import get_db, init_db, User, Resume, ToolAccess
-from auth import hash_password, verify_password, create_token, get_current_user
+from database import get_db, init_db, migrate_db, User, Resume, ToolAccess
+from auth import hash_password, verify_password, create_token, get_current_user, generate_token
 
 load_dotenv()
 
@@ -17,8 +17,10 @@ app = FastAPI(title="EnergyDess Tools")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-MODEL = os.getenv("MODEL", "anthropic/claude-haiku-4-5")
+OPENROUTER_API_KEY  = os.getenv("OPENROUTER_API_KEY", "")
+MODEL               = os.getenv("MODEL", "anthropic/claude-haiku-4-5")
+UNISENDER_API_KEY   = os.getenv("UNISENDER_API_KEY", "")
+BASE_URL            = os.getenv("BASE_URL", "https://energydess.ru")
 
 TOOLS = [
     {
@@ -60,9 +62,31 @@ def user_has_access(user: User, tool_id: str, db: Session) -> bool:
     ).first() is not None
 
 
+async def send_email(to: str, subject: str, html: str):
+    if not UNISENDER_API_KEY:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(
+                "https://go1.unisender.ru/ru/transactional/api/v1/email/send.json",
+                headers={"X-API-Key": UNISENDER_API_KEY, "Content-Type": "application/json"},
+                json={"message": {
+                    "recipients": [{"email": to}],
+                    "from_email": f"noreply@{BASE_URL.replace('https://','').replace('http://','')}",
+                    "from_name": "EnergyDess",
+                    "subject": subject,
+                    "body": {"html": html},
+                    "track_links": 0, "track_read": 0,
+                }},
+            )
+    except Exception:
+        pass
+
+
 @app.on_event("startup")
 def startup():
     init_db()
+    migrate_db()
 
 
 # ── Главная / Landing ─────────────────────────────────────────────────────────
@@ -109,8 +133,18 @@ async def register(
         return templates.TemplateResponse(request=request, name="register.html",
                                           context={"error": "Email уже зарегистрирован"})
 
+    from datetime import timedelta
     is_first = db.query(User).count() == 0
-    user = User(email=email, password_hash=hash_password(password), is_admin=is_first)
+    vtok = generate_token()
+    vexp = datetime.utcnow() + timedelta(hours=24)
+    user = User(
+        email=email,
+        password_hash=hash_password(password),
+        is_admin=is_first,
+        is_verified=True if is_first else False,
+        verification_token=None if is_first else vtok,
+        verification_token_expires=None if is_first else vexp,
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -119,9 +153,31 @@ async def register(
     db.add(resume)
     db.commit()
 
+    if not is_first:
+        link = f"{BASE_URL}/verify/{vtok}"
+        await send_email(
+            to=email,
+            subject="Подтвердите регистрацию на EnergyDess",
+            html=f"""
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#07070f;border-radius:16px;border:1px solid rgba(255,255,255,0.08)">
+  <div style="font-size:1.5rem;font-weight:800;margin-bottom:8px;color:#dde2f0">⚡ EnergyDess</div>
+  <div style="color:#5a6888;font-size:0.875rem;margin-bottom:24px">Подтверждение регистрации</div>
+  <p style="color:#dde2f0;line-height:1.6;margin-bottom:24px">
+    Для завершения регистрации перейдите по ссылке ниже. Ссылка действует 24 часа.
+  </p>
+  <a href="{link}"
+     style="display:inline-block;padding:13px 28px;background:linear-gradient(135deg,#7c4dff,#00d4ff);color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:0.95rem">
+    Подтвердить email →
+  </a>
+  <p style="color:#2a3050;font-size:0.78rem;margin-top:24px">
+    Если вы не регистрировались на EnergyDess — просто проигнорируйте это письмо.
+  </p>
+</div>""",
+        )
+        return RedirectResponse("/verify-pending", status_code=302)
+
     token = create_token(user.id)
-    redirect_to = "/profile" if is_first else "/profile"
-    response = RedirectResponse(redirect_to, status_code=302)
+    response = RedirectResponse("/profile", status_code=302)
     response.set_cookie("access_token", token, httponly=True, max_age=60 * 60 * 24 * 30, samesite="lax")
     return response
 
@@ -129,10 +185,19 @@ async def register(
 # ── Вход ──────────────────────────────────────────────────────────────────────
 
 @app.get("/login")
-async def login_page(request: Request, user=Depends(get_current_user)):
+async def login_page(request: Request, user=Depends(get_current_user),
+                     verified: str = None, error: str = None):
     if user:
         return RedirectResponse("/", status_code=302)
-    return templates.TemplateResponse(request=request, name="login.html", context={"error": None})
+    msg = None
+    if verified:
+        msg = "✓ Email подтверждён — теперь можно войти"
+    elif error == "bad_token":
+        msg = "Неверная ссылка подтверждения"
+    elif error == "expired_token":
+        msg = "Ссылка устарела — зарегистрируйтесь заново"
+    return templates.TemplateResponse(request=request, name="login.html",
+                                      context={"error": None, "info": msg})
 
 
 @app.post("/login")
@@ -149,6 +214,10 @@ async def login(
         return templates.TemplateResponse(request=request, name="login.html",
                                           context={"error": "Неверный email или пароль"})
 
+    if user.is_verified is False:
+        return templates.TemplateResponse(request=request, name="login.html",
+                                          context={"error": "Сначала подтвердите email — проверьте почту"})
+
     token = create_token(user.id)
     response = RedirectResponse("/", status_code=302)
     response.set_cookie("access_token", token, httponly=True, max_age=60 * 60 * 24 * 30, samesite="lax")
@@ -162,6 +231,106 @@ async def logout():
     response = RedirectResponse("/", status_code=302)
     response.delete_cookie("access_token")
     return response
+
+
+# ── Email verification ────────────────────────────────────────────────────────
+
+@app.get("/verify-pending")
+async def verify_pending(request: Request):
+    return templates.TemplateResponse(request=request, name="verify_pending.html")
+
+
+@app.get("/verify/{token}")
+async def verify_email(token: str, db: Session = Depends(get_db)):
+    from datetime import datetime as dt
+    user = db.query(User).filter(User.verification_token == token).first()
+    if not user:
+        return RedirectResponse("/login?error=bad_token", status_code=302)
+    if user.verification_token_expires and user.verification_token_expires < dt.utcnow():
+        return RedirectResponse("/login?error=expired_token", status_code=302)
+    user.is_verified = True
+    user.verification_token = None
+    user.verification_token_expires = None
+    db.commit()
+    return RedirectResponse("/login?verified=1", status_code=302)
+
+
+# ── Forgot / Reset password ───────────────────────────────────────────────────
+
+@app.get("/forgot-password")
+async def forgot_page(request: Request):
+    return templates.TemplateResponse(request=request, name="forgot_password.html",
+                                      context={"sent": False, "error": None})
+
+
+@app.post("/forgot-password")
+async def forgot_post(request: Request, email: str = Form(...), db: Session = Depends(get_db)):
+    from datetime import timedelta
+    email = email.strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+    if user:
+        rtok = generate_token()
+        user.reset_token = rtok
+        user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
+        db.commit()
+        link = f"{BASE_URL}/reset-password/{rtok}"
+        await send_email(
+            to=email,
+            subject="Сброс пароля EnergyDess",
+            html=f"""
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#07070f;border-radius:16px;border:1px solid rgba(255,255,255,0.08)">
+  <div style="font-size:1.5rem;font-weight:800;margin-bottom:8px;color:#dde2f0">⚡ EnergyDess</div>
+  <div style="color:#5a6888;font-size:0.875rem;margin-bottom:24px">Сброс пароля</div>
+  <p style="color:#dde2f0;line-height:1.6;margin-bottom:24px">
+    Для установки нового пароля перейдите по ссылке. Ссылка действует 1 час.
+  </p>
+  <a href="{link}"
+     style="display:inline-block;padding:13px 28px;background:linear-gradient(135deg,#7c4dff,#00d4ff);color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:0.95rem">
+    Сбросить пароль →
+  </a>
+  <p style="color:#2a3050;font-size:0.78rem;margin-top:24px">
+    Если вы не запрашивали сброс — просто проигнорируйте это письмо.
+  </p>
+</div>""",
+        )
+    return templates.TemplateResponse(request=request, name="forgot_password.html",
+                                      context={"sent": True, "error": None})
+
+
+@app.get("/reset-password/{token}")
+async def reset_page(token: str, request: Request, db: Session = Depends(get_db)):
+    from datetime import datetime as dt
+    user = db.query(User).filter(User.reset_token == token).first()
+    if not user or (user.reset_token_expires and user.reset_token_expires < dt.utcnow()):
+        return templates.TemplateResponse(request=request, name="reset_password.html",
+                                          context={"token": token, "error": "Ссылка недействительна или устарела", "done": False})
+    return templates.TemplateResponse(request=request, name="reset_password.html",
+                                      context={"token": token, "error": None, "done": False})
+
+
+@app.post("/reset-password/{token}")
+async def reset_post(
+    token: str, request: Request,
+    password: str = Form(...), password2: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    from datetime import datetime as dt
+    user = db.query(User).filter(User.reset_token == token).first()
+    if not user or (user.reset_token_expires and user.reset_token_expires < dt.utcnow()):
+        return templates.TemplateResponse(request=request, name="reset_password.html",
+                                          context={"token": token, "error": "Ссылка недействительна", "done": False})
+    if password != password2:
+        return templates.TemplateResponse(request=request, name="reset_password.html",
+                                          context={"token": token, "error": "Пароли не совпадают", "done": False})
+    if len(password) < 6:
+        return templates.TemplateResponse(request=request, name="reset_password.html",
+                                          context={"token": token, "error": "Минимум 6 символов", "done": False})
+    user.password_hash = hash_password(password)
+    user.reset_token = None
+    user.reset_token_expires = None
+    db.commit()
+    return templates.TemplateResponse(request=request, name="reset_password.html",
+                                      context={"token": token, "error": None, "done": True})
 
 
 # ── Профиль ───────────────────────────────────────────────────────────────────

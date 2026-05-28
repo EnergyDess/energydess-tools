@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
+import sqlite3
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./app.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
@@ -16,6 +17,11 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     display_name = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    is_verified = Column(Boolean, nullable=True)
+    verification_token = Column(String, nullable=True)
+    verification_token_expires = Column(DateTime, nullable=True)
+    reset_token = Column(String, nullable=True)
+    reset_token_expires = Column(DateTime, nullable=True)
 
 
 class Resume(Base):
@@ -42,3 +48,20 @@ def get_db():
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+
+
+def migrate_db():
+    conn = sqlite3.connect("./app.db")
+    for col in [
+        "ALTER TABLE users ADD COLUMN is_verified BOOLEAN",
+        "ALTER TABLE users ADD COLUMN verification_token VARCHAR",
+        "ALTER TABLE users ADD COLUMN verification_token_expires DATETIME",
+        "ALTER TABLE users ADD COLUMN reset_token VARCHAR",
+        "ALTER TABLE users ADD COLUMN reset_token_expires DATETIME",
+    ]:
+        try:
+            conn.execute(col)
+        except Exception:
+            pass
+    conn.commit()
+    conn.close()

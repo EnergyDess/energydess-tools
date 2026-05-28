@@ -1,4 +1,5 @@
 import bcrypt
+import secrets
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from fastapi import Cookie, Depends
@@ -22,6 +23,10 @@ def verify_password(plain: str, hashed: str) -> bool:
 def create_token(user_id: int) -> str:
     expire = datetime.utcnow() + timedelta(days=TOKEN_EXPIRE_DAYS)
     return jwt.encode({"sub": str(user_id), "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def generate_token() -> str:
+    return secrets.token_urlsafe(32)
 
 
 def get_current_user(access_token: str = Cookie(default=None), db: Session = Depends(get_db)):
