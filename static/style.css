@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap');
 
 @property --border-angle {
   syntax: '<angle>';
@@ -29,11 +29,12 @@
   --radius:       16px;
   --radius-sm:    10px;
   --radius-xs:    6px;
-  --font:         'Syne', sans-serif;
+  --font:         'Manrope', sans-serif;
+  --font-display: 'Syne', sans-serif;
   --font-mono:    'DM Mono', monospace;
 }
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; overflow-x: hidden; }
 
 body {
   font-family: var(--font);
@@ -118,13 +119,13 @@ body::before {
 .nav-links a {
   color: var(--text-dim);
   text-decoration: none;
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   font-weight: 500;
-  padding: 6px 16px;
+  padding: 7px 17px;
   border-radius: 99px;
   border: 1px solid transparent;
   transition: all 0.2s;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
 }
 .nav-links a:hover {
   color: var(--text);
@@ -141,13 +142,13 @@ body::before {
 .nav-right a {
   color: var(--text-dim);
   text-decoration: none;
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   font-weight: 500;
-  padding: 6px 16px;
+  padding: 7px 17px;
   border-radius: 99px;
   border: 1px solid transparent;
   transition: all 0.2s;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
 }
 .nav-right a:hover {
   color: var(--text);
@@ -194,9 +195,9 @@ body::before {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent) 0%, #0090cc 100%);
-  color: #000;
-  box-shadow: 0 4px 20px rgba(0,212,255,0.25), 0 0 0 0 rgba(0,212,255,0);
+  background: linear-gradient(135deg, var(--accent2) 0%, var(--accent) 100%);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(124,77,255,0.3);
   position: relative;
   overflow: hidden;
 }
@@ -204,16 +205,16 @@ body::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+  background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent);
   opacity: 0;
   transition: opacity 0.2s;
 }
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0,212,255,0.38);
+  box-shadow: 0 8px 32px rgba(124,77,255,0.4), 0 0 60px rgba(0,212,255,0.15);
 }
 .btn-primary:hover::after { opacity: 1; }
-.btn-primary:active { transform: translateY(0); box-shadow: 0 4px 16px rgba(0,212,255,0.2); }
+.btn-primary:active { transform: translateY(0); box-shadow: 0 4px 16px rgba(124,77,255,0.25); }
 .btn-primary:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -437,8 +438,8 @@ label {
 
 .auth-btn-primary {
   width: 100%;
-  background: linear-gradient(135deg, var(--accent) 0%, #0090cc 100%);
-  color: #000;
+  background: linear-gradient(135deg, var(--accent2) 0%, rgba(0,212,255,0.85) 100%);
+  color: #fff;
   border: none;
   border-radius: var(--radius-sm);
   padding: 14px;
@@ -446,14 +447,14 @@ label {
   font-weight: 700;
   font-family: var(--font);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.22s;
   margin-top: 8px;
-  letter-spacing: 0.01em;
-  box-shadow: 0 4px 20px rgba(0,212,255,0.25);
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 24px rgba(124,77,255,0.3);
 }
 .auth-btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0,212,255,0.38);
+  box-shadow: 0 8px 36px rgba(124,77,255,0.45), 0 0 60px rgba(0,212,255,0.12);
 }
 
 .auth-footer { text-align: center; margin-top: 24px; font-size: 0.875rem; color: var(--text-dim); }
@@ -548,10 +549,11 @@ html.light .nav-logo:hover .nav-logo-symbol {
 }
 
 html.light .btn-primary {
-  background: linear-gradient(135deg, var(--accent) 0%, #0077aa 100%);
-  box-shadow: 0 4px 20px rgba(0,153,204,0.22);
+  background: linear-gradient(135deg, var(--accent2) 0%, var(--accent) 100%);
+  box-shadow: 0 4px 20px rgba(102,68,221,0.28);
+  color: #fff;
 }
-html.light .btn-primary:hover { box-shadow: 0 8px 32px rgba(0,153,204,0.35); }
+html.light .btn-primary:hover { box-shadow: 0 8px 32px rgba(102,68,221,0.4); }
 html.light .btn-secondary { background: rgba(0,0,0,0.04); color: var(--text-dim); border-color: var(--border); }
 html.light .btn-secondary:hover { background: rgba(0,0,0,0.08); color: var(--text); border-color: var(--border-hi); }
 
