@@ -5,11 +5,10 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from bs4 import BeautifulSoup
 import httpx
 import os
-import re
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
-from database import get_db, init_db, User, Resume
+from database import get_db, init_db, User, Resume, ToolAccess
 from auth import hash_password, verify_password, create_token, get_current_user
 
 load_dotenv()
@@ -21,17 +20,64 @@ templates = Jinja2Templates(directory="templates")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 MODEL = os.getenv("MODEL", "anthropic/claude-haiku-4-5")
 
+TOOLS = [
+    {
+        "id": "hh",
+        "name": "HH Помощник",
+        "icon": "📝",
+        "color": "purple",
+        "url": "/hh",
+        "desc": "Вставь текст вакансии — получи готовое сопроводительное письмо под твоё резюме за 30 секунд.",
+        "active": True,
+    },
+    {
+        "id": "workout",
+        "name": "Программа тренировок",
+        "icon": "💪",
+        "color": "blue",
+        "url": "#",
+        "desc": "Персональный план тренировок с учётом целей, уровня и расписания.",
+        "active": False,
+    },
+    {
+        "id": "nutrition",
+        "name": "Калькулятор питания",
+        "icon": "🥗",
+        "color": "green",
+        "url": "#",
+        "desc": "Подсчёт калорий и БЖУ, дневник питания, подбор рациона под цели.",
+        "active": False,
+    },
+]
+
+
+def user_has_access(user: User, tool_id: str, db: Session) -> bool:
+    if user.is_admin:
+        return True
+    return db.query(ToolAccess).filter(
+        ToolAccess.user_id == user.id,
+        ToolAccess.tool_id == tool_id
+    ).first() is not None
+
 
 @app.on_event("startup")
 def startup():
     init_db()
 
 
-# ── Главная ──────────────────────────────────────────────────────────────────
+# ── Главная / Landing ─────────────────────────────────────────────────────────
 
 @app.get("/")
-async def index(request: Request, user=Depends(get_current_user)):
-    return templates.TemplateResponse(request=request, name="index.html", context={"user": user})
+async def index(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return templates.TemplateResponse(request=request, name="landing.html")
+
+    tools_with_access = [
+        {**t, "has_access": user_has_access(user, t["id"], db)}
+        for t in TOOLS
+    ]
+    return templates.TemplateResponse(request=request, name="index.html",
+                                      context={"user": user, "tools": tools_with_access})
 
 
 # ── Регистрация ───────────────────────────────────────────────────────────────
@@ -63,7 +109,8 @@ async def register(
         return templates.TemplateResponse(request=request, name="register.html",
                                           context={"error": "Email уже зарегистрирован"})
 
-    user = User(email=email, password_hash=hash_password(password))
+    is_first = db.query(User).count() == 0
+    user = User(email=email, password_hash=hash_password(password), is_admin=is_first)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -73,7 +120,8 @@ async def register(
     db.commit()
 
     token = create_token(user.id)
-    response = RedirectResponse("/profile", status_code=302)
+    redirect_to = "/profile" if is_first else "/profile"
+    response = RedirectResponse(redirect_to, status_code=302)
     response.set_cookie("access_token", token, httponly=True, max_age=60 * 60 * 24 * 30, samesite="lax")
     return response
 
@@ -111,7 +159,7 @@ async def login(
 
 @app.get("/logout")
 async def logout():
-    response = RedirectResponse("/login", status_code=302)
+    response = RedirectResponse("/", status_code=302)
     response.delete_cookie("access_token")
     return response
 
@@ -143,30 +191,83 @@ async def profile_save(
     else:
         resume.resume_text = resume_text
     db.commit()
-    resume_obj = db.query(Resume).filter(Resume.user_id == user.id).first()
+    resume = db.query(Resume).filter(Resume.user_id == user.id).first()
     return templates.TemplateResponse(request=request, name="profile.html",
-                                      context={"user": user, "resume": resume_obj, "saved": True})
+                                      context={"user": user, "resume": resume, "saved": True})
+
+
+# ── Админ панель ──────────────────────────────────────────────────────────────
+
+@app.get("/admin")
+async def admin_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user or not user.is_admin:
+        return RedirectResponse("/", status_code=302)
+
+    users = db.query(User).filter(User.id != user.id).order_by(User.created_at).all()
+    accesses = db.query(ToolAccess).all()
+    access_set = {(a.user_id, a.tool_id) for a in accesses}
+
+    users_data = []
+    for u in users:
+        users_data.append({
+            "id": u.id,
+            "email": u.email,
+            "created_at": u.created_at,
+            "tools": {t["id"]: (u.id, t["id"]) in access_set for t in TOOLS},
+        })
+
+    return templates.TemplateResponse(request=request, name="admin.html",
+                                      context={"user": user, "users": users_data, "tools": TOOLS})
+
+
+@app.post("/admin/toggle")
+async def admin_toggle(
+    request: Request,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not user or not user.is_admin:
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+
+    data = await request.json()
+    target_user_id = int(data["user_id"])
+    tool_id = data["tool_id"]
+
+    existing = db.query(ToolAccess).filter(
+        ToolAccess.user_id == target_user_id,
+        ToolAccess.tool_id == tool_id
+    ).first()
+
+    if existing:
+        db.delete(existing)
+        db.commit()
+        return JSONResponse({"access": False})
+    else:
+        db.add(ToolAccess(user_id=target_user_id, tool_id=tool_id))
+        db.commit()
+        return JSONResponse({"access": True})
 
 
 # ── HH Помощник ───────────────────────────────────────────────────────────────
 
 @app.get("/hh")
-async def hh_page(request: Request, user=Depends(get_current_user)):
+async def hh_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse("/login", status_code=302)
+    if not user_has_access(user, "hh", db):
+        return RedirectResponse("/?locked=hh", status_code=302)
     return templates.TemplateResponse(request=request, name="hh.html", context={"user": user})
 
 
 # ── API: загрузка вакансии ────────────────────────────────────────────────────
 
 @app.post("/api/fetch-url")
-async def fetch_url(request: Request, user=Depends(get_current_user)):
-    if not user:
-        return JSONResponse({"error": "Необходима авторизация"}, status_code=401)
+async def fetch_url(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user or not user_has_access(user, "hh", db):
+        return JSONResponse({"error": "Нет доступа"}, status_code=403)
 
     data = await request.json()
     url = data.get("url", "").strip()
-
     if not url:
         return JSONResponse({"error": "Вставь ссылку на вакансию"}, status_code=400)
     if not url.startswith(("http://", "https://")):
@@ -184,30 +285,25 @@ async def fetch_url(request: Request, user=Depends(get_current_user)):
             )
         if resp.status_code != 200:
             return JSONResponse({"error": f"Сайт вернул ошибку {resp.status_code}. Скопируй текст вручную."}, status_code=400)
-
         text = _extract_text(resp.text)
         if len(text) < 100:
             return JSONResponse({"error": "Не удалось извлечь текст. Скопируй вручную."}, status_code=400)
-        if len(text) > 8000:
-            text = text[:8000]
-        return JSONResponse({"text": text})
-
+        return JSONResponse({"text": text[:8000]})
     except httpx.TimeoutException:
-        return JSONResponse({"error": "Сайт не ответил вовремя. Скопируй текст вручную."}, status_code=504)
+        return JSONResponse({"error": "Сайт не ответил. Скопируй текст вручную."}, status_code=504)
     except Exception as e:
-        return JSONResponse({"error": f"Не удалось загрузить страницу: {str(e)}"}, status_code=500)
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 # ── API: генерация письма ─────────────────────────────────────────────────────
 
 @app.post("/api/generate-letter")
 async def generate_letter(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    if not user:
-        return JSONResponse({"error": "Необходима авторизация"}, status_code=401)
+    if not user or not user_has_access(user, "hh", db):
+        return JSONResponse({"error": "Нет доступа"}, status_code=403)
 
     data = await request.json()
     job_text = data.get("job_text", "").strip()
-
     if not job_text:
         return JSONResponse({"error": "Вставь текст вакансии"}, status_code=400)
     if not OPENROUTER_API_KEY:
@@ -215,7 +311,6 @@ async def generate_letter(request: Request, user=Depends(get_current_user), db: 
 
     resume_obj = db.query(Resume).filter(Resume.user_id == user.id).first()
     resume_text = resume_obj.resume_text if resume_obj else ""
-
     if not resume_text.strip():
         return JSONResponse({"error": "Сначала добавь своё резюме в профиле"}, status_code=400)
 
@@ -229,21 +324,17 @@ async def generate_letter(request: Request, user=Depends(get_current_user), db: 
 
 Напиши ТОЛЬКО основной текст письма (100-180 слов). Строгие правила:
 
-НАЧАЛО — первая строка письма ВСЕГДА должна начинаться с "Здравствуйте, меня зовут" и имени из резюме.
+НАЧАЛО — первая строка ВСЕГДА начинается с "Здравствуйте, меня зовут" и имени из резюме.
 
 ОСНОВНОЙ ТЕКСТ:
 - После приветствия — живое, цепляющее продолжение, покажи понимание сути вакансии
 - Выдели 2-3 конкретных пункта опыта, максимально соответствующих требованиям
-- Если в вакансии есть конкретные вопросы к кандидату — ответь на них
 - Пиши от первого лица, живым языком, без штампов и клише
-- Не используй слова: синергия, результативный, коммуникабельный, стрессоустойчивый, ответственный
-- Тон: уверенный профессионал, не заискивающий
+- Не используй: синергия, результативный, коммуникабельный, стрессоустойчивый, ответственный
+- Тон: уверенный профессионал
 
-КОНЕЦ — если в резюме есть ссылки на портфолио, добавь их в конце.
-
-ЗАПРЕЩЕНО:
-- Любая подпись ("С уважением" и т.п.)
-- Вводные фразы типа "Вот письмо:", "Конечно!"
+КОНЕЦ — если в резюме есть ссылки на портфолио, добавь их.
+ЗАПРЕЩЕНО: любая подпись, вводные фразы типа "Вот письмо:"
 """
 
     try:
@@ -265,30 +356,22 @@ async def generate_letter(request: Request, user=Depends(get_current_user), db: 
             )
         if response.status_code != 200:
             return JSONResponse({"error": f"Ошибка OpenRouter: {response.text}"}, status_code=500)
-
-        result = response.json()
-        letter = result["choices"][0]["message"]["content"].strip()
+        letter = response.json()["choices"][0]["message"]["content"].strip()
         return JSONResponse({"letter": letter})
-
     except httpx.TimeoutException:
         return JSONResponse({"error": "Превышено время ожидания. Попробуй ещё раз."}, status_code=504)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
-# ── Утилиты ───────────────────────────────────────────────────────────────────
-
 def _extract_text(html: str) -> str:
     soup = BeautifulSoup(html, "lxml")
     for tag in soup(["script", "style", "nav", "footer", "header", "aside", "meta", "noscript"]):
         tag.decompose()
-    text = soup.get_text(separator="\n")
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    seen = set()
-    clean = []
+    lines = [l.strip() for l in soup.get_text(separator="\n").splitlines() if l.strip()]
+    seen, clean = set(), []
     for line in lines:
-        if len(line) < 3 or line in seen:
-            continue
-        seen.add(line)
-        clean.append(line)
+        if len(line) >= 3 and line not in seen:
+            seen.add(line)
+            clean.append(line)
     return "\n".join(clean)

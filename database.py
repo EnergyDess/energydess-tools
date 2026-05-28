@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 
@@ -13,6 +13,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
+    is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -21,6 +22,13 @@ class Resume(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, unique=True, nullable=False)
     resume_text = Column(Text, default="")
+
+
+class ToolAccess(Base):
+    __tablename__ = "tool_access"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    tool_id = Column(String, nullable=False)
 
 
 def get_db():

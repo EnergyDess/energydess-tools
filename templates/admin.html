@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Админ — EnergyDess</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .admin-wrap { max-width: 900px; margin: 0 auto; padding: 60px 20px; }
+    .admin-wrap h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
+    .admin-wrap .subtitle { color: var(--text-dim); font-size: 0.95rem; margin-bottom: 40px; }
+
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-dim);
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      padding: 14px 24px;
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-faint);
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 16px 24px;
+      font-size: 0.875rem;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .email-cell { color: var(--text); font-weight: 500; }
+    .date-cell { color: var(--text-faint); font-size: 0.8rem; }
+
+    /* Toggle */
+    .toggle {
+      position: relative;
+      width: 38px; height: 22px;
+      cursor: pointer;
+      display: inline-block;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      background: var(--bg3);
+      border: 1px solid var(--border-hi);
+      border-radius: 99px;
+      transition: all 0.2s;
+    }
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      left: 3px; top: 50%;
+      transform: translateY(-50%);
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--text-faint);
+      transition: all 0.2s;
+    }
+    .toggle input:checked + .toggle-track {
+      background: rgba(124,58,237,0.3);
+      border-color: var(--accent);
+    }
+    .toggle input:checked + .toggle-track::after {
+      left: calc(100% - 17px);
+      background: #a78bfa;
+    }
+
+    .empty-state {
+      padding: 60px 24px;
+      text-align: center;
+      color: var(--text-faint);
+      font-size: 0.9rem;
+    }
+
+    .nav-right { display: flex; align-items: center; gap: 4px; }
+    .nav-right a { color: var(--text-dim); text-decoration: none; font-size: 0.875rem; padding: 7px 12px; border-radius: 7px; transition: all 0.2s; }
+    .nav-right a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .nav-right .nav-logout { color: var(--text-faint); }
+    .nav-right .nav-logout:hover { color: var(--error); }
+    .active-link { color: var(--text) !important; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 0.875rem;
+      color: var(--text);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.3s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">⚡ EnergyDess</a>
+  <div class="nav-right">
+    <a href="/">Главная</a>
+    <a href="/profile">Профиль</a>
+    <a href="/admin" class="active-link" style="color:#a78bfa">Админ</a>
+    <a href="/logout" class="nav-logout">Выйти</a>
+  </div>
+</nav>
+
+<div class="admin-wrap">
+  <h1>Панель управления</h1>
+  <p class="subtitle">Управляйте доступом пользователей к инструментам</p>
+
+  <div class="card">
+    <div class="card-header">Пользователи ({{ users|length }})</div>
+
+    {% if users %}
+    <table>
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Дата регистрации</th>
+          {% for tool in tools %}
+          <th>{{ tool.name }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td class="email-cell">{{ u.email }}</td>
+          <td class="date-cell">{{ u.created_at.strftime('%d.%m.%Y') if u.created_at else '—' }}</td>
+          {% for tool in tools %}
+          <td>
+            <label class="toggle">
+              <input type="checkbox"
+                     {% if u.tools[tool.id] %}checked{% endif %}
+                     onchange="toggleAccess({{ u.id }}, '{{ tool.id }}', this)">
+              <span class="toggle-track"></span>
+            </label>
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">Пока нет зарегистрированных пользователей</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+async function toggleAccess(userId, toolId, checkbox) {
+  try {
+    const res = await fetch('/admin/toggle', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({user_id: userId, tool_id: toolId})
+    });
+    const data = await res.json();
+    if (!res.ok) { checkbox.checked = !checkbox.checked; return; }
+    showToast(data.access ? '✓ Доступ выдан' : '✗ Доступ закрыт');
+  } catch {
+    checkbox.checked = !checkbox.checked;
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+
+</body>
+</html>

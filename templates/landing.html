@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EnergyDess — AI-инструменты</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    /* Hero */
+    .hero {
+      padding: 120px 20px 80px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -100px; left: 50%;
+      transform: translateX(-50%);
+      width: 800px; height: 500px;
+      background: radial-gradient(ellipse, rgba(124,58,237,0.2) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(124,58,237,0.12);
+      border: 1px solid rgba(124,58,237,0.25);
+      color: #a78bfa;
+      border-radius: 99px;
+      padding: 6px 16px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      margin-bottom: 24px;
+      color: var(--text);
+    }
+    .hero h1 .grad {
+      background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 50%, #34d399 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-sub {
+      font-size: 1.1rem;
+      color: var(--text-dim);
+      max-width: 540px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+    .hero-btns {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn-main {
+      background: var(--accent);
+      color: #fff;
+      padding: 14px 32px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: opacity 0.2s, transform 0.2s;
+      box-shadow: 0 0 32px rgba(124,58,237,0.35);
+    }
+    .btn-main:hover { opacity: 0.88; transform: translateY(-2px); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-dim);
+      padding: 14px 32px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      text-decoration: none;
+      border: 1px solid var(--border-hi);
+      transition: all 0.2s;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+
+    /* Features */
+    .features {
+      padding: 80px 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .features-label {
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 16px;
+    }
+    .features h2 {
+      text-align: center;
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 60px;
+      color: var(--text);
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      transition: border-color 0.25s, transform 0.25s;
+    }
+    .feature-card:hover {
+      border-color: rgba(124,58,237,0.3);
+      transform: translateY(-3px);
+    }
+    .feature-icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 18px;
+    }
+    .ic-purple { background: rgba(124,58,237,0.15); }
+    .ic-blue   { background: rgba(37,99,235,0.15); }
+    .ic-green  { background: rgba(16,185,129,0.12); }
+    .feature-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+    .feature-card p {
+      font-size: 0.875rem;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+    .coming-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-faint);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      margin-top: 14px;
+    }
+
+    /* CTA */
+    .cta {
+      text-align: center;
+      padding: 80px 20px 120px;
+    }
+    .cta h2 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 16px;
+    }
+    .cta p {
+      color: var(--text-dim);
+      margin-bottom: 36px;
+      font-size: 1rem;
+    }
+
+    /* Nav override */
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .nav-link { color: var(--text-dim); text-decoration: none; font-size: 0.9rem; padding: 8px 14px; transition: color 0.2s; }
+    .nav-link:hover { color: var(--text); }
+    .nav-btn {
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    .nav-btn:hover { opacity: 0.85; }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">⚡ EnergyDess</a>
+  <div class="nav-actions">
+    <a href="/login" class="nav-link">Войти</a>
+    <a href="/register" class="nav-btn">Регистрация</a>
+  </div>
+</nav>
+
+<main>
+  <section class="hero">
+    <div class="hero-eyebrow">✦ Personal AI Tools</div>
+    <h1>Инструменты<br>для <span class="grad">умной жизни</span></h1>
+    <p class="hero-sub">Набор AI-помощников, которые берут на себя рутину — от поиска работы до здорового образа жизни. Всё в одном месте, под ваши данные.</p>
+    <div class="hero-btns">
+      <a href="/register" class="btn-main">Начать бесплатно →</a>
+      <a href="/login" class="btn-ghost">Уже есть аккаунт</a>
+    </div>
+  </section>
+
+  <section class="features">
+    <p class="features-label">Что внутри</p>
+    <h2>Инструменты, которые работают на вас</h2>
+    <div class="features-grid">
+
+      <div class="feature-card">
+        <div class="feature-icon ic-purple">📝</div>
+        <h3>HH Помощник</h3>
+        <p>Вставь ссылку на вакансию — получи готовое сопроводительное письмо, написанное под твоё резюме и конкретные требования работодателя.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon ic-blue">💪</div>
+        <h3>Программа тренировок</h3>
+        <p>Персональный план тренировок с учётом твоих целей, уровня и доступного времени. Прогрессия нагрузок, трекинг результатов.</p>
+        <span class="coming-badge">Скоро</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon ic-green">🥗</div>
+        <h3>Калькулятор питания</h3>
+        <p>Подсчёт калорий и БЖУ, дневник питания, подбор рациона под цели. Просто и без лишнего — только то, что реально нужно.</p>
+        <span class="coming-badge">Скоро</span>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="cta">
+    <h2>Готов попробовать?</h2>
+    <p>Регистрация занимает 30 секунд. Доступ выдаётся вручную.</p>
+    <a href="/register" class="btn-main">Создать аккаунт →</a>
+  </section>
+</main>
+
+</body>
+</html>
