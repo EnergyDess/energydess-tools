@@ -6,6 +6,8 @@
   <title>HH Помощник — EnergyDess</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <script src="/static/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
   <style>
     .page-header { padding: 52px 0 32px; }
@@ -214,16 +216,20 @@
   </style>
 </head>
 <body>
+<script src="/static/effects.js"></script>
 
 <nav class="nav">
-  <a href="/" class="nav-logo">⚡ EnergyDess</a>
-  <div class="nav-right" style="display:flex;align-items:center;gap:4px">
-    <a href="/" style="color:var(--text-dim);text-decoration:none;font-size:.875rem;padding:7px 12px;border-radius:7px;transition:all .2s">Главная</a>
-    <a href="/hh" style="color:var(--text);text-decoration:none;font-size:.875rem;padding:7px 12px;border-radius:7px;transition:all .2s">HH Помощник</a>
+  <a href="/" class="nav-logo">
+    <span class="nav-logo-symbol">⚡</span>
+    <span>EnergyDess</span>
+  </a>
+  <div class="nav-right">
+    <a href="/">Главная</a>
+    <a href="/hh" class="active">HH Помощник</a>
     {% if user.is_admin %}
-    <a href="/admin" style="color:#a78bfa;text-decoration:none;font-size:.875rem;padding:7px 12px;border-radius:7px;transition:all .2s">Админ</a>
+    <a href="/admin" class="admin-link">Админ</a>
     {% endif %}
-    <a href="/logout" style="color:var(--text-faint);text-decoration:none;font-size:.875rem;padding:7px 12px;border-radius:7px;transition:all .2s">Выйти</a>
+    <a href="/logout" class="nav-logout">Выйти</a>
   </div>
 </nav>
 

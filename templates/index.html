@@ -6,43 +6,102 @@
   <title>EnergyDess — Инструменты</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <script src="/static/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
   <style>
+    /* ── Hero ── */
     .hero {
-      padding: 80px 0 56px;
+      padding: 88px 0 60px;
       text-align: center;
       position: relative;
-      overflow: hidden;
     }
-    .hero::before {
-      content: '';
-      position: absolute;
-      top: -60px; left: 50%;
-      transform: translateX(-50%);
-      width: 700px; height: 400px;
-      background: radial-gradient(ellipse, rgba(124,58,237,0.15) 0%, transparent 70%);
-      pointer-events: none;
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(0,212,255,0.2);
+      border-radius: 99px;
+      padding: 6px 18px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+      animation: fadeDown 0.6s ease both;
     }
-    .hero h1 {
-      font-size: clamp(2rem, 4vw, 3rem);
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      line-height: 1.15;
-      margin-bottom: 14px;
+    .hero-eyebrow-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+      animation: dotPulse 2.2s ease infinite;
     }
-    .hero h1 span {
-      background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
+    @keyframes dotPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.75); }
+    }
+
+    .hero-title {
+      font-size: clamp(2.4rem, 5vw, 4rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.08;
+      margin-bottom: 18px;
+    }
+    .hero-line {
+      display: block;
+      animation: fadeUp 0.65s cubic-bezier(.22,1,.36,1) both;
+    }
+    .hero-line:nth-child(2) { animation-delay: 0.1s; }
+    .hero-accent {
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
-    .hero p { font-size: 1rem; color: var(--text-dim); }
 
+    .hero-sub {
+      font-size: 1rem;
+      color: var(--text-dim);
+      animation: fadeUp 0.65s ease both;
+      animation-delay: 0.2s;
+      letter-spacing: 0.01em;
+    }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 28px;
+      animation: fadeUp 0.5s ease both;
+      animation-delay: 0.25s;
+    }
+    .section-header h2 {
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      font-weight: 500;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .section-line {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--border) 0%, transparent 100%);
+    }
+
+    /* ── Tool cards grid ── */
     .tools-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 20px;
-      padding-bottom: 80px;
+      gap: 16px;
+      padding-bottom: 100px;
     }
 
     .tool-card {
@@ -55,52 +114,80 @@
       display: flex;
       flex-direction: column;
       gap: 14px;
-      transition: all 0.25s;
+      transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
       position: relative;
       overflow: hidden;
+      opacity: 0;
+      animation: cardReveal 0.6s cubic-bezier(.22,1,.36,1) both;
     }
+
+    /* stagger each card */
+    .tool-card:nth-child(1) { animation-delay: 0.3s; }
+    .tool-card:nth-child(2) { animation-delay: 0.38s; }
+    .tool-card:nth-child(3) { animation-delay: 0.46s; }
+    .tool-card:nth-child(4) { animation-delay: 0.54s; }
+    .tool-card:nth-child(5) { animation-delay: 0.62s; }
+    .tool-card:nth-child(6) { animation-delay: 0.7s; }
+
+    @keyframes cardReveal {
+      from { opacity: 0; transform: translateY(28px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Glow layer on hover */
     .tool-card::before {
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, rgba(124,58,237,0.05), transparent 60%);
+      background: linear-gradient(135deg, rgba(0,212,255,0.04), transparent 60%);
       opacity: 0;
-      transition: opacity 0.25s;
+      transition: opacity 0.3s;
     }
+
+    /* Shimmer sweep */
+    .tool-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 60%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0,212,255,0.04), transparent);
+      transition: none;
+    }
+
     .tool-card.unlocked:hover {
-      border-color: rgba(124,58,237,0.4);
-      transform: translateY(-3px);
-      box-shadow: 0 16px 48px rgba(0,0,0,0.45), 0 0 0 1px rgba(124,58,237,0.15);
+      border-color: rgba(0,212,255,0.22);
+      transform: translateY(-5px);
+      box-shadow:
+        0 24px 64px rgba(0,0,0,0.5),
+        0 0 0 1px rgba(0,212,255,0.1),
+        0 0 40px rgba(0,212,255,0.04);
     }
     .tool-card.unlocked:hover::before { opacity: 1; }
+    .tool-card.unlocked:hover::after {
+      animation: shimmerSweep 0.8s ease forwards;
+    }
+    @keyframes shimmerSweep {
+      to { left: 160%; }
+    }
 
-    .tool-card.locked {
-      opacity: 0.55;
-      cursor: default;
-      pointer-events: none;
-    }
-    .tool-card.coming {
-      opacity: 0.4;
-      cursor: default;
-      pointer-events: none;
-    }
+    .tool-card.locked  { opacity: 0.4; cursor: default; pointer-events: none; }
+    .tool-card.coming  { opacity: 0.3; cursor: default; pointer-events: none; }
 
     .tool-icon {
-      width: 48px; height: 48px;
+      width: 46px; height: 46px;
       border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
       flex-shrink: 0;
+      position: relative;
     }
-    .ic-purple { background: rgba(124,58,237,0.15); }
-    .ic-blue   { background: rgba(37,99,235,0.15); }
-    .ic-green  { background: rgba(16,185,129,0.12); }
-    .ic-orange { background: rgba(245,158,11,0.12); }
+    .ic-purple { background: var(--accent2-dim); box-shadow: 0 0 20px rgba(124,77,255,0.1); }
+    .ic-blue   { background: var(--accent-dim);  box-shadow: 0 0 20px rgba(0,212,255,0.1);  }
+    .ic-green  { background: rgba(0,229,160,0.1); box-shadow: 0 0 20px rgba(0,229,160,0.07); }
+    .ic-orange { background: rgba(255,184,48,0.1); box-shadow: 0 0 20px rgba(255,184,48,0.07); }
 
-    .tool-title { font-size: 1.05rem; font-weight: 600; color: var(--text); }
-    .tool-desc { font-size: 0.875rem; color: var(--text-dim); line-height: 1.55; flex: 1; }
+    .tool-title { font-size: 1rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+    .tool-desc  { font-size: 0.855rem; color: var(--text-dim); line-height: 1.55; flex: 1; }
 
     .tool-footer {
       display: flex;
@@ -109,34 +196,26 @@
       padding-top: 14px;
       border-top: 1px solid var(--border);
     }
-    .tool-arrow { font-size: 1rem; color: var(--text-faint); transition: transform 0.2s, color 0.2s; }
-    .tool-card.unlocked:hover .tool-arrow { transform: translateX(4px); color: #a78bfa; }
-
-    .lock-icon { font-size: 0.95rem; color: var(--text-faint); }
-
-    .section-header {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      margin-bottom: 28px;
+    .tool-arrow {
+      font-size: 0.95rem;
+      color: var(--text-faint);
+      transition: transform 0.25s, color 0.25s;
     }
-    .section-header h2 { font-size: 1.2rem; font-weight: 600; color: var(--text); }
-    .section-line { flex: 1; height: 1px; background: var(--border); }
+    .tool-card.unlocked:hover .tool-arrow { transform: translateX(5px); color: var(--accent); }
+    .lock-icon { font-size: 0.9rem; color: var(--text-faint); }
 
     /* Nav */
-    .nav-right { display: flex; align-items: center; gap: 4px; }
-    .nav-right a { color: var(--text-dim); text-decoration: none; font-size: 0.875rem; padding: 7px 12px; border-radius: 7px; transition: all 0.2s; }
-    .nav-right a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-    .nav-right a.active { color: var(--text); }
     .nav-right .nav-logout { color: var(--text-faint); }
-    .nav-right .nav-logout:hover { color: var(--error); }
-    .admin-link { color: #a78bfa !important; }
   </style>
 </head>
 <body>
+<script src="/static/effects.js"></script>
 
 <nav class="nav">
-  <a href="/" class="nav-logo">⚡ EnergyDess</a>
+  <a href="/" class="nav-logo">
+    <span class="nav-logo-symbol">⚡</span>
+    <span>EnergyDess</span>
+  </a>
   <div class="nav-right">
     <a href="/" class="active">Главная</a>
     <a href="/profile">Профиль</a>
@@ -149,8 +228,15 @@
 
 <main class="container">
   <section class="hero">
-    <h1>Мои инструменты<br>для <span>умной работы</span></h1>
-    <p>Привет, {{ user.display_name or user.email.split('@')[0] }} 👋</p>
+    <div class="hero-eyebrow">
+      <span class="hero-eyebrow-dot"></span>
+      AI Tools Portal
+    </div>
+    <h1 class="hero-title">
+      <span class="hero-line">Мои инструменты</span>
+      <span class="hero-line hero-accent">для умной работы</span>
+    </h1>
+    <p class="hero-sub">Привет, {{ user.display_name or user.email.split('@')[0] }} 👋</p>
   </section>
 
   <div class="section-header">
@@ -189,7 +275,7 @@
           <div class="tool-title">{{ tool.name }}</div>
           <div class="tool-desc">{{ tool.desc }}</div>
           <div class="tool-footer">
-            <span class="badge" style="background:rgba(255,255,255,0.04);color:var(--text-faint);border:1px solid var(--border)">Нет доступа</span>
+            <span class="badge" style="background:rgba(255,255,255,0.03);color:var(--text-faint);border:1px solid var(--border)">Нет доступа</span>
             <span class="lock-icon">🔒</span>
           </div>
         </div>

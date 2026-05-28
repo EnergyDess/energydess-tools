@@ -6,6 +6,8 @@
   <title>Админ — EnergyDess</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <script src="/static/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
   <style>
     .admin-wrap { max-width: 900px; margin: 0 auto; padding: 60px 20px; }
@@ -116,9 +118,13 @@
   </style>
 </head>
 <body>
+<script src="/static/effects.js"></script>
 
 <nav class="nav">
-  <a href="/" class="nav-logo">⚡ EnergyDess</a>
+  <a href="/" class="nav-logo">
+    <span class="nav-logo-symbol">⚡</span>
+    <span>EnergyDess</span>
+  </a>
   <div class="nav-right">
     <a href="/">Главная</a>
     <a href="/profile">Профиль</a>
