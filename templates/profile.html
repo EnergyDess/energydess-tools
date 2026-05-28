@@ -101,6 +101,24 @@
     <h2>Аккаунт</h2>
     <p class="hint">Ваш email для входа</p>
     <div class="email-badge">✉ {{ user.email }}</div>
+
+    <div style="margin-top:28px">
+      <h2 style="margin-bottom:6px">Отображаемое имя</h2>
+      <p class="hint">Так сайт будет к вам обращаться. Если не указать — используется часть email.</p>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <input type="text" id="display-name-input"
+               value="{{ user.display_name or '' }}"
+               placeholder="{{ user.email.split('@')[0] }}"
+               maxlength="30"
+               style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 14px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;transition:border-color .2s;box-sizing:border-box"
+               onfocus="this.style.borderColor='var(--accent)'"
+               onblur="this.style.borderColor=''"
+               onkeydown="if(event.key==='Enter')saveName()">
+        <button type="button" id="name-btn" onclick="saveName()" class="btn-primary"
+                style="padding:11px 22px;font-size:0.875rem;white-space:nowrap;margin-top:0">Сохранить</button>
+      </div>
+      <div id="name-status" style="font-size:0.8rem;margin-top:8px;min-height:1.2em"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -117,5 +135,34 @@
     </form>
   </div>
 </div>
+<script>
+async function saveName() {
+  const name   = document.getElementById('display-name-input').value.trim();
+  const btn    = document.getElementById('name-btn');
+  const status = document.getElementById('name-status');
+  btn.disabled = true;
+  btn.textContent = 'Сохраняю...';
+  try {
+    const res = await fetch('/api/save-display-name', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name}),
+    });
+    if (res.ok) {
+      status.style.color = '#34d399';
+      status.textContent = '✓ Имя сохранено';
+      setTimeout(() => status.textContent = '', 2500);
+    } else {
+      status.style.color = '#fca5a5';
+      status.textContent = '⚠ Ошибка сохранения';
+    }
+  } catch {
+    status.style.color = '#fca5a5';
+    status.textContent = '⚠ Ошибка сети';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Сохранить';
+}
+</script>
 </body>
 </html>

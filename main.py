@@ -261,6 +261,20 @@ async def hh_page(request: Request, user=Depends(get_current_user), db: Session 
                                       context={"user": user, "resume": resume})
 
 
+# ── API: сохранение отображаемого имени ──────────────────────────────────────
+
+@app.post("/api/save-display-name")
+async def save_display_name(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    data = await request.json()
+    name = data.get("name", "").strip()
+    user_obj = db.query(User).filter(User.id == user.id).first()
+    user_obj.display_name = name or None
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
 # ── API: загрузка вакансии ────────────────────────────────────────────────────
 
 @app.post("/api/fetch-url")
