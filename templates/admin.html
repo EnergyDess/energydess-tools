@@ -133,7 +133,16 @@
   <p class="subtitle">Управляйте доступом пользователей к инструментам</p>
 
   <div class="card">
-    <div class="card-header">Пользователи ({{ users|length }})</div>
+    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <span>Пользователи (<span id="user-count">{{ users|length }}</span>)</span>
+      <div style="position:relative;flex:1;max-width:280px;min-width:180px">
+        <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--text-dim);pointer-events:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="user-search" placeholder="Поиск по email..."
+          oninput="filterUsers(this.value)"
+          style="width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px 7px 34px;color:var(--text);font-size:0.83rem;font-family:inherit;outline:none;transition:border-color .2s"
+          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor=''">
+      </div>
+    </div>
 
     {% if users %}
     <table>
@@ -194,6 +203,19 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function filterUsers(q) {
+  const rows = document.querySelectorAll('tbody tr');
+  const s = q.trim().toLowerCase();
+  let visible = 0;
+  rows.forEach(row => {
+    const email = row.querySelector('.email-cell')?.textContent.toLowerCase() || '';
+    const show  = !s || email.includes(s);
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('user-count').textContent = s ? visible + '/' + rows.length : rows.length;
 }
 </script>
 
