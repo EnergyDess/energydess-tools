@@ -9,3 +9,5 @@ sqlalchemy
 bcrypt
 python-jose[cryptography]
 python-multipart
+pypdf
+python-docx

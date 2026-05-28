@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Depends, Form
+from fastapi import FastAPI, Request, Depends, Form, UploadFile, File
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -256,7 +256,9 @@ async def hh_page(request: Request, user=Depends(get_current_user), db: Session 
         return RedirectResponse("/login", status_code=302)
     if not user_has_access(user, "hh", db):
         return RedirectResponse("/?locked=hh", status_code=302)
-    return templates.TemplateResponse(request=request, name="hh.html", context={"user": user})
+    resume = db.query(Resume).filter(Resume.user_id == user.id).first()
+    return templates.TemplateResponse(request=request, name="hh.html",
+                                      context={"user": user, "resume": resume})
 
 
 # ── API: загрузка вакансии ────────────────────────────────────────────────────
@@ -362,6 +364,68 @@ async def generate_letter(request: Request, user=Depends(get_current_user), db: 
         return JSONResponse({"error": "Превышено время ожидания. Попробуй ещё раз."}, status_code=504)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── API: сохранение резюме ────────────────────────────────────────────────────
+
+@app.post("/api/save-resume")
+async def save_resume_api(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    data = await request.json()
+    text = data.get("text", "")
+    resume = db.query(Resume).filter(Resume.user_id == user.id).first()
+    if not resume:
+        resume = Resume(user_id=user.id, resume_text=text)
+        db.add(resume)
+    else:
+        resume.resume_text = text
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+# ── API: загрузка файла резюме ────────────────────────────────────────────────
+
+@app.post("/api/upload-resume")
+async def upload_resume_file(
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+
+    name = (file.filename or "").lower()
+    content = await file.read()
+
+    try:
+        if name.endswith(".pdf"):
+            text = _extract_pdf(content)
+        elif name.endswith((".docx", ".doc")):
+            text = _extract_docx(content)
+        else:
+            return JSONResponse({"error": "Поддерживаются только PDF и DOCX"}, status_code=400)
+
+        if not text.strip():
+            return JSONResponse({"error": "Не удалось извлечь текст. Попробуй PDF."}, status_code=400)
+
+        return JSONResponse({"text": text})
+    except Exception as e:
+        return JSONResponse({"error": f"Ошибка чтения файла: {str(e)}"}, status_code=500)
+
+
+def _extract_pdf(content: bytes) -> str:
+    import io
+    from pypdf import PdfReader
+    reader = PdfReader(io.BytesIO(content))
+    return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+
+def _extract_docx(content: bytes) -> str:
+    import io
+    from docx import Document
+    doc = Document(io.BytesIO(content))
+    return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
 
 
 def _extract_text(html: str) -> str:

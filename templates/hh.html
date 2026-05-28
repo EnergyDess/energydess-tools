@@ -6,396 +6,223 @@
   <title>HH Помощник — EnergyDess</title>
   <link rel="stylesheet" href="/static/style.css">
   <style>
-    .page-header {
-      padding: 52px 0 40px;
-    }
-
+    .page-header { padding: 52px 0 32px; }
     .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.85rem;
-      color: var(--text-faint);
-      text-decoration: none;
-      margin-bottom: 24px;
-      transition: color 0.2s;
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.85rem; color: var(--text-faint); text-decoration: none;
+      margin-bottom: 24px; transition: color 0.2s;
     }
-
     .back-link:hover { color: var(--text-dim); }
-
-    .page-header h1 {
-      font-size: 2rem;
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      margin-bottom: 10px;
-    }
-
+    .page-header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 10px; }
     .page-header h1 span {
       background: linear-gradient(135deg, #a78bfa, #60a5fa);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     }
+    .page-header p { color: var(--text-dim); font-size: 0.95rem; }
 
-    .page-header p {
-      color: var(--text-dim);
-      font-size: 0.95rem;
-    }
-
-    /* Основной лейаут */
-    .workspace {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      padding-bottom: 60px;
-    }
-
-    @media (max-width: 900px) {
-      .workspace { grid-template-columns: 1fr; }
-    }
-
-    /* Панель ввода */
-    .panel {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    .panel-card {
+    /* ── Резюме (коллапс) ─────────────────────────────── */
+    .resume-card {
       background: var(--bg2);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+    .resume-toggle {
+      width: 100%;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px;
+      background: none; border: none; cursor: pointer;
+      font-family: inherit; color: inherit; text-align: left;
+      transition: background 0.15s; gap: 12px;
+    }
+    .resume-toggle:hover { background: rgba(255,255,255,0.025); }
+    .resume-toggle-left { display: flex; align-items: center; gap: 10px; }
+    .resume-toggle-title { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+    .resume-badge {
+      font-size: 0.72rem; font-weight: 500;
+      padding: 3px 10px; border-radius: 99px;
+    }
+    .resume-badge-ok   { background: rgba(16,185,129,0.12); color: #6ee7b7;  border: 1px solid rgba(16,185,129,0.22); }
+    .resume-badge-warn { background: rgba(245,158,11,0.1);  color: #fbbf24;  border: 1px solid rgba(245,158,11,0.2);  }
+    .resume-chevron { width: 18px; height: 18px; color: var(--text-faint); transition: transform 0.25s; flex-shrink: 0; }
+    .resume-chevron.open { transform: rotate(180deg); }
+
+    .resume-body { overflow: hidden; transition: max-height 0.3s ease; }
+    .resume-body-inner {
+      padding: 0 24px 20px;
+      display: flex; flex-direction: column; gap: 12px;
+      border-top: 1px solid var(--border);
     }
 
-    .panel-title {
-      font-size: 0.8rem;
-      font-weight: 700;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .panel-title::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-
-    /* Вкладки */
-    .tabs {
-      display: flex;
-      gap: 4px;
-      background: var(--bg3);
+    .upload-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 4px; }
+    .upload-label {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 8px 14px;
+      background: var(--bg3); border: 1px solid var(--border-hi);
       border-radius: var(--radius-sm);
-      padding: 4px;
+      font-size: 0.82rem; font-weight: 500; color: var(--text-dim);
+      cursor: pointer; transition: all 0.2s; white-space: nowrap;
     }
+    .upload-label:hover { border-color: rgba(124,58,237,0.4); color: var(--text); }
+    .upload-label svg { width: 15px; height: 15px; }
+    .upload-sep { font-size: 0.8rem; color: var(--text-faint); }
+    .upload-status { font-size: 0.8rem; }
+    .upload-status.ok  { color: #34d399; }
+    .upload-status.err { color: #fca5a5; }
 
+    #resume-textarea {
+      width: 100%; min-height: 180px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px 14px;
+      color: var(--text); font-size: 0.875rem; font-family: inherit;
+      line-height: 1.6; resize: vertical; outline: none;
+      transition: border-color 0.2s; box-sizing: border-box;
+    }
+    #resume-textarea:focus { border-color: var(--accent); }
+
+    .resume-footer { display: flex; align-items: center; justify-content: space-between; }
+    .resume-chars  { font-size: 0.75rem; color: var(--text-faint); }
+
+    /* ── Workspace ──────────────────────────────────────── */
+    .workspace {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 24px; padding-bottom: 60px;
+    }
+    @media (max-width: 900px) { .workspace { grid-template-columns: 1fr; } }
+
+    .panel { display: flex; flex-direction: column; gap: 20px; }
+    .panel-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .panel-title {
+      font-size: 0.8rem; font-weight: 700; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .tabs { display: flex; gap: 4px; background: var(--bg3); border-radius: var(--radius-sm); padding: 4px; }
     .tab-btn {
-      flex: 1;
-      padding: 8px 12px;
-      border: none;
-      border-radius: 6px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-family: inherit;
-      background: transparent;
-      color: var(--text-faint);
+      flex: 1; padding: 8px 12px; border: none; border-radius: 6px;
+      font-size: 0.82rem; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; font-family: inherit;
+      background: transparent; color: var(--text-faint);
     }
+    .tab-btn.active { background: var(--bg2); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+    .tab-btn:hover:not(.active) { color: var(--text-dim); }
 
-    .tab-btn.active {
-      background: var(--bg2);
-      color: var(--text);
-      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-    }
-
-    .tab-btn:hover:not(.active) {
-      color: var(--text-dim);
-    }
-
-    /* Панели вкладок */
     .tab-panel { display: none; }
     .tab-panel.active { display: flex; flex-direction: column; gap: 10px; }
 
-    /* Поле текста */
-    #job-input {
-      min-height: 300px;
-      font-size: 0.875rem;
-    }
+    #job-input { min-height: 300px; font-size: 0.875rem; }
 
-    /* Поле URL */
-    .url-row {
-      display: flex;
-      gap: 8px;
-    }
-
-    .url-row input {
-      flex: 1;
-      height: 44px;
-      padding: 0 14px;
-    }
-
-    .fetch-btn {
-      height: 44px;
-      padding: 0 16px;
-      white-space: nowrap;
-      font-size: 0.85rem;
-    }
+    .url-row { display: flex; gap: 8px; }
+    .url-row input { flex: 1; height: 44px; padding: 0 14px; }
+    .fetch-btn { height: 44px; padding: 0 16px; white-space: nowrap; font-size: 0.85rem; }
 
     .fetched-preview {
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 12px 14px;
-      font-size: 0.8rem;
-      color: var(--text-dim);
-      max-height: 180px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      line-height: 1.5;
-      display: none;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px 14px;
+      font-size: 0.8rem; color: var(--text-dim);
+      max-height: 180px; overflow-y: auto;
+      white-space: pre-wrap; line-height: 1.5; display: none;
     }
-
     .fetched-preview.visible { display: block; }
 
-    .fetch-status {
-      font-size: 0.8rem;
-      display: none;
-      align-items: center;
-      gap: 6px;
-    }
-
+    .fetch-status { font-size: 0.8rem; display: none; align-items: center; gap: 6px; }
     .fetch-status.visible { display: flex; }
     .fetch-status.ok  { color: #34d399; }
     .fetch-status.err { color: #fca5a5; }
 
-    .char-count {
-      font-size: 0.75rem;
-      color: var(--text-faint);
-      text-align: right;
-      margin-top: -4px;
-    }
+    .char-count { font-size: 0.75rem; color: var(--text-faint); text-align: right; margin-top: -4px; }
+    .generate-btn { width: 100%; padding: 15px; font-size: 0.95rem; }
 
-    /* Кнопка генерации */
-    .generate-btn {
-      width: 100%;
-      padding: 15px;
-      font-size: 0.95rem;
-    }
-
-    /* Подсказки */
     .tips {
       background: rgba(124,58,237,0.07);
       border: 1px solid rgba(124,58,237,0.15);
-      border-radius: var(--radius-sm);
-      padding: 14px 16px;
+      border-radius: var(--radius-sm); padding: 14px 16px;
     }
+    .tips-title { font-size: 0.75rem; font-weight: 700; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .tips ul { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+    .tips ul li { font-size: 0.8rem; color: var(--text-dim); padding-left: 14px; position: relative; }
+    .tips ul li::before { content: '·'; position: absolute; left: 4px; color: #7c3aed; }
 
-    .tips-title {
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: #a78bfa;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 8px;
-    }
-
-    .tips ul {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-
-    .tips ul li {
-      font-size: 0.8rem;
-      color: var(--text-dim);
-      padding-left: 14px;
-      position: relative;
-    }
-
-    .tips ul li::before {
-      content: '·';
-      position: absolute;
-      left: 4px;
-      color: #7c3aed;
-    }
-
-    /* Панель результата */
     .result-panel {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      min-height: 500px;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px;
+      display: flex; flex-direction: column; gap: 16px; min-height: 500px;
     }
+    .result-header { display: flex; align-items: center; justify-content: space-between; }
+    .result-actions { display: flex; gap: 8px; align-items: center; }
 
-    .result-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .result-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    /* Пустое состояние */
     .empty-state {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 14px;
-      text-align: center;
-      padding: 40px 20px;
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 14px; text-align: center; padding: 40px 20px;
     }
-
     .empty-icon {
-      width: 64px; height: 64px;
-      border-radius: 16px;
-      background: rgba(124,58,237,0.1);
-      border: 1px solid rgba(124,58,237,0.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.8rem;
+      width: 64px; height: 64px; border-radius: 16px;
+      background: rgba(124,58,237,0.1); border: 1px solid rgba(124,58,237,0.2);
+      display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
     }
+    .empty-state h3 { font-size: 1rem; font-weight: 600; color: var(--text); }
+    .empty-state p { font-size: 0.85rem; color: var(--text-faint); max-width: 260px; }
 
-    .empty-state h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    .empty-state p {
-      font-size: 0.85rem;
-      color: var(--text-faint);
-      max-width: 260px;
-    }
-
-    /* Загрузка */
-    .loading-state {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      display: none;
-    }
-
-    .loading-bar {
-      width: 200px;
-      height: 3px;
-      background: var(--bg3);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
+    .loading-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; display: none; }
+    .loading-bar { width: 200px; height: 3px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
     .loading-bar-inner {
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-      border-radius: 3px;
-      animation: progress 2s ease-in-out infinite;
+      height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 3px; animation: progress 2s ease-in-out infinite;
     }
-
     @keyframes progress {
-      0%   { width: 0%; margin-left: 0; }
+      0%   { width: 0%;  margin-left: 0; }
       50%  { width: 70%; margin-left: 0; }
-      100% { width: 0%; margin-left: 100%; }
+      100% { width: 0%;  margin-left: 100%; }
     }
+    .loading-text { font-size: 0.875rem; color: var(--text-dim); }
 
-    .loading-text {
-      font-size: 0.875rem;
-      color: var(--text-dim);
-    }
-
-    /* Текст письма */
     .letter-content {
-      flex: 1;
-      font-size: 0.9rem;
-      line-height: 1.8;
-      color: var(--text);
-      white-space: pre-wrap;
-      display: none;
-      animation: fadeIn 0.4s ease;
+      flex: 1; font-size: 0.9rem; line-height: 1.8; color: var(--text);
+      white-space: pre-wrap; display: none; animation: fadeIn 0.4s ease;
     }
+    .letter-content a { color: #a78bfa; text-decoration: none; }
+    .letter-content a:hover { text-decoration: underline; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* Ссылки внутри письма */
-    .letter-content a {
-      color: #a78bfa;
-      text-decoration: none;
-    }
-
-    .letter-content a:hover {
-      text-decoration: underline;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Ошибка */
     .error-state { display: none; }
 
-    /* Статистика письма */
-    .letter-stats {
-      display: flex;
-      gap: 16px;
-      padding-top: 14px;
-      border-top: 1px solid var(--border);
-      display: none;
-    }
+    .letter-stats { display: flex; gap: 16px; padding-top: 14px; border-top: 1px solid var(--border); display: none; }
+    .stat { display: flex; flex-direction: column; gap: 2px; }
+    .stat-value { font-size: 1rem; font-weight: 700; color: var(--text); }
+    .stat-label { font-size: 0.7rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
 
-    .stat {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 11px 18px;
+      font-size: 0.875rem; color: var(--text);
+      opacity: 0; transform: translateY(8px);
+      transition: all 0.3s; pointer-events: none; z-index: 100;
     }
-
-    .stat-value {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--text);
-    }
-
-    .stat-label {
-      font-size: 0.7rem;
-      color: var(--text-faint);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
+    .toast.show { opacity: 1; transform: translateY(0); }
   </style>
 </head>
 <body>
 
 <nav class="nav">
   <a href="/" class="nav-logo">⚡ EnergyDess</a>
-  <ul class="nav-links">
-    <li><a href="/">Главная</a></li>
-    <li><a href="/hh" class="active">HH Помощник</a></li>
-    {% if user %}
-    <li><a href="/profile">Профиль</a></li>
-    <li><a href="/logout" style="color:var(--text-faint)">Выйти</a></li>
+  <div class="nav-right" style="display:flex;align-items:center;gap:4px">
+    <a href="/" style="color:var(--text-dim);text-decoration:none;font-size:.875rem;padding:7px 12px;border-radius:7px;transition:all .2s">Главная</a>
+    <a href="/hh" style="color:var(--text);text-decoration:none;font-size:.875rem;padding:7px 12px;border-radius:7px;transition:all .2s">HH Помощник</a>
+    {% if user.is_admin %}
+    <a href="/admin" style="color:#a78bfa;text-decoration:none;font-size:.875rem;padding:7px 12px;border-radius:7px;transition:all .2s">Админ</a>
     {% endif %}
-  </ul>
+    <a href="/logout" style="color:var(--text-faint);text-decoration:none;font-size:.875rem;padding:7px 12px;border-radius:7px;transition:all .2s">Выйти</a>
+  </div>
 </nav>
 
 <main class="container">
@@ -405,6 +232,49 @@
     <p>Вставь текст или ссылку на вакансию — получи сопроводительное письмо за 10 секунд</p>
   </div>
 
+  <!-- Резюме (коллапс) -->
+  {% set has_resume = resume and resume.resume_text %}
+  <div class="resume-card">
+    <button class="resume-toggle" type="button" onclick="toggleResume()">
+      <div class="resume-toggle-left">
+        <span>📄</span>
+        <span class="resume-toggle-title">Моё резюме</span>
+        <span class="resume-badge {{ 'resume-badge-ok' if has_resume else 'resume-badge-warn' }}" id="resume-badge">
+          {%- if has_resume -%}✓ {{ resume.resume_text|length }} символов{%- else -%}Не добавлено{%- endif -%}
+        </span>
+      </div>
+      <svg class="resume-chevron {% if not has_resume %}open{% endif %}" id="resume-chevron"
+           viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+           stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </button>
+    <div class="resume-body" id="resume-body" style="max-height: {{ '0px' if has_resume else '700px' }}">
+      <div class="resume-body-inner">
+        <div class="upload-row">
+          <label class="upload-label" for="resume-file">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Загрузить PDF / DOCX
+            <input type="file" id="resume-file" accept=".pdf,.doc,.docx" style="display:none" onchange="uploadResumeFile(this)">
+          </label>
+          <span class="upload-sep">или вставьте текст ниже</span>
+          <span class="upload-status" id="upload-status"></span>
+        </div>
+        <textarea id="resume-textarea"
+          placeholder="Имя, должность, опыт работы, навыки, проекты, ссылки на портфолио..."
+          oninput="updateResumeChars()">{{ resume.resume_text if has_resume else '' }}</textarea>
+        <div class="resume-footer">
+          <span class="resume-chars" id="resume-chars">{{ (resume.resume_text|length)|string + ' симв.' if has_resume else '0 симв.' }}</span>
+          <button class="btn btn-primary" style="padding:9px 20px;font-size:.875rem" type="button" id="resume-save-btn" onclick="saveResume()">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="workspace">
 
     <!-- Левая панель: ввод -->
@@ -412,29 +282,19 @@
       <div class="panel-card">
         <div class="panel-title">Вакансия</div>
 
-        <!-- Вкладки -->
         <div class="tabs">
           <button class="tab-btn active" onclick="switchTab('text')">📋 Текст</button>
           <button class="tab-btn" onclick="switchTab('url')">🔗 Ссылка</button>
         </div>
 
-        <!-- Вкладка: текст -->
         <div class="tab-panel active" id="tab-text">
-          <textarea
-            id="job-input"
-            placeholder="Вставь сюда описание вакансии с HH или любого другого сайта...&#10;&#10;Чем полнее текст — тем точнее письмо."
-          ></textarea>
+          <textarea id="job-input" placeholder="Вставь сюда описание вакансии с HH или любого другого сайта...&#10;&#10;Чем полнее текст — тем точнее письмо."></textarea>
           <div class="char-count"><span id="char-count">0</span> символов</div>
         </div>
 
-        <!-- Вкладка: ссылка -->
         <div class="tab-panel" id="tab-url">
           <div class="url-row">
-            <input
-              type="text"
-              id="url-input"
-              placeholder="https://hh.ru/vacancy/..."
-            />
+            <input type="text" id="url-input" placeholder="https://hh.ru/vacancy/..."/>
             <button class="btn btn-secondary fetch-btn" id="fetch-btn" onclick="fetchUrl()">
               <span id="fetch-icon">↓</span> Загрузить
             </button>
@@ -469,37 +329,30 @@
           <button class="copy-btn" id="copy-btn" onclick="copyLetter()">
             <span>⎘</span> Копировать
           </button>
-          <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.8rem;" onclick="generateLetter()">
+          <button class="btn btn-secondary" style="padding:6px 12px;font-size:0.8rem" onclick="generateLetter()">
             ↻ Перегенерировать
           </button>
         </div>
       </div>
 
-      <!-- Пустое состояние -->
       <div class="empty-state" id="empty-state">
         <div class="empty-icon">✦</div>
         <h3>Здесь появится письмо</h3>
         <p>Вставь текст или ссылку на вакансию и нажми кнопку</p>
       </div>
 
-      <!-- Загрузка -->
       <div class="loading-state" id="loading-state">
         <div class="spinner" style="width:32px;height:32px;border-width:3px"></div>
-        <div class="loading-bar">
-          <div class="loading-bar-inner"></div>
-        </div>
+        <div class="loading-bar"><div class="loading-bar-inner"></div></div>
         <div class="loading-text" id="loading-text">Анализирую вакансию и резюме...</div>
       </div>
 
-      <!-- Ошибка -->
       <div class="error-state" id="error-state">
         <div class="alert alert-error" id="error-msg"></div>
       </div>
 
-      <!-- Результат -->
       <div class="letter-content" id="letter-content"></div>
 
-      <!-- Статистика -->
       <div class="letter-stats" id="letter-stats">
         <div class="stat">
           <div class="stat-value" id="word-count">—</div>
@@ -515,30 +368,111 @@
   </div>
 </main>
 
+<div class="toast" id="toast"></div>
+
 <script>
-  // ── Состояние ──
-  let activeTab = 'text';
+  // ── Резюме ──
+  let resumeOpen = {{ 'false' if has_resume else 'true' }};
+
+  function toggleResume() {
+    resumeOpen = !resumeOpen;
+    document.getElementById('resume-body').style.maxHeight = resumeOpen ? '700px' : '0px';
+    document.getElementById('resume-chevron').classList.toggle('open', resumeOpen);
+  }
+
+  function updateResumeChars() {
+    const v = document.getElementById('resume-textarea').value;
+    document.getElementById('resume-chars').textContent = v.length.toLocaleString('ru') + ' симв.';
+  }
+
+  async function uploadResumeFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const status = document.getElementById('upload-status');
+    status.className = 'upload-status';
+    status.textContent = 'Читаю файл...';
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    try {
+      const res  = await fetch('/api/upload-resume', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        status.className = 'upload-status err';
+        status.textContent = '⚠ ' + data.error;
+      } else {
+        document.getElementById('resume-textarea').value = data.text;
+        updateResumeChars();
+        status.className = 'upload-status ok';
+        status.textContent = `✓ ${data.text.length.toLocaleString('ru')} символов — нажмите Сохранить`;
+      }
+    } catch {
+      status.className = 'upload-status err';
+      status.textContent = '⚠ Ошибка сети';
+    }
+    input.value = '';
+  }
+
+  async function saveResume() {
+    const text = document.getElementById('resume-textarea').value;
+    const btn  = document.getElementById('resume-save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Сохраняю...';
+
+    try {
+      const res = await fetch('/api/save-resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (res.ok) {
+        const badge = document.getElementById('resume-badge');
+        if (text.trim()) {
+          badge.className = 'resume-badge resume-badge-ok';
+          badge.textContent = `✓ ${text.length} символов`;
+          resumeOpen = false;
+          document.getElementById('resume-body').style.maxHeight = '0px';
+          document.getElementById('resume-chevron').classList.remove('open');
+        } else {
+          badge.className = 'resume-badge resume-badge-warn';
+          badge.textContent = 'Не добавлено';
+        }
+        document.getElementById('upload-status').textContent = '';
+        showToast('✓ Резюме сохранено');
+      } else {
+        showToast('⚠ Ошибка сохранения');
+      }
+    } catch {
+      showToast('⚠ Ошибка сети');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Сохранить';
+  }
+
+  // ── Вакансия ──
+  let activeTab  = 'text';
   let fetchedText = '';
 
-  const jobInput       = document.getElementById('job-input');
-  const charCountEl    = document.getElementById('char-count');
-  const generateBtn    = document.getElementById('generate-btn');
-  const btnIcon        = document.getElementById('btn-icon');
-  const btnText        = document.getElementById('btn-text');
-  const emptyState     = document.getElementById('empty-state');
-  const loadingState   = document.getElementById('loading-state');
-  const loadingText    = document.getElementById('loading-text');
-  const errorState     = document.getElementById('error-state');
-  const letterContent  = document.getElementById('letter-content');
-  const letterStats    = document.getElementById('letter-stats');
-  const resultActions  = document.getElementById('result-actions');
-  const errorMsg       = document.getElementById('error-msg');
+  const jobInput      = document.getElementById('job-input');
+  const charCountEl   = document.getElementById('char-count');
+  const generateBtn   = document.getElementById('generate-btn');
+  const btnIcon       = document.getElementById('btn-icon');
+  const btnText       = document.getElementById('btn-text');
+  const emptyState    = document.getElementById('empty-state');
+  const loadingState  = document.getElementById('loading-state');
+  const loadingText   = document.getElementById('loading-text');
+  const errorState    = document.getElementById('error-state');
+  const letterContent = document.getElementById('letter-content');
+  const letterStats   = document.getElementById('letter-stats');
+  const resultActions = document.getElementById('result-actions');
+  const errorMsg      = document.getElementById('error-msg');
 
   jobInput.addEventListener('input', () => {
     charCountEl.textContent = jobInput.value.length.toLocaleString('ru');
   });
 
-  // ── Вкладки ──
   function switchTab(tab) {
     activeTab = tab;
     document.querySelectorAll('.tab-btn').forEach((b, i) => {
@@ -548,13 +482,9 @@
     document.getElementById('tab-url').classList.toggle('active', tab === 'url');
   }
 
-  // ── Загрузка по ссылке ──
   async function fetchUrl() {
-    const url = document.getElementById('url-input').value.trim();
-    if (!url) {
-      document.getElementById('url-input').focus();
-      return;
-    }
+    const url       = document.getElementById('url-input').value.trim();
+    if (!url) { document.getElementById('url-input').focus(); return; }
 
     const fetchBtn  = document.getElementById('fetch-btn');
     const fetchIcon = document.getElementById('fetch-icon');
@@ -575,7 +505,6 @@
         body: JSON.stringify({ url }),
       });
       const data = await res.json();
-
       if (!res.ok || data.error) {
         status.className = 'fetch-status visible err';
         status.textContent = '⚠ ' + data.error;
@@ -586,7 +515,7 @@
         preview.textContent = data.text.substring(0, 600) + (data.text.length > 600 ? '\n...' : '');
         preview.classList.add('visible');
       }
-    } catch (e) {
+    } catch {
       status.className = 'fetch-status visible err';
       status.textContent = '⚠ Ошибка сети';
     } finally {
@@ -595,7 +524,6 @@
     }
   }
 
-  // ── Результат: состояния ──
   function setState(state) {
     emptyState.style.display    = state === 'empty'   ? 'flex'  : 'none';
     loadingState.style.display  = state === 'loading' ? 'flex'  : 'none';
@@ -605,10 +533,8 @@
     resultActions.style.display = state === 'result'  ? 'flex'  : 'none';
   }
 
-  // ── Генерация ──
   async function generateLetter() {
     let text = '';
-
     if (activeTab === 'text') {
       text = jobInput.value.trim();
       if (!text) {
@@ -645,21 +571,17 @@
         errorMsg.textContent = '⚠ ' + (data.error || 'Неизвестная ошибка');
         setState('error');
       } else {
-        // рендерим ссылки кликабельными
         const html = data.letter
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
           .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
         letterContent.innerHTML = html;
 
         const plain = data.letter;
-        const words = plain.trim().split(/\s+/).length;
-        document.getElementById('word-count').textContent = words;
+        document.getElementById('word-count').textContent = plain.trim().split(/\s+/).length;
         document.getElementById('char-count-result').textContent = plain.length;
         setState('result');
       }
-    } catch (e) {
+    } catch {
       errorMsg.textContent = '⚠ Ошибка сети. Проверь подключение.';
       setState('error');
     } finally {
@@ -669,10 +591,8 @@
     }
   }
 
-  // ── Копирование (копируем plaintext, не HTML) ──
   function copyLetter() {
-    const text = letterContent.innerText;
-    navigator.clipboard.writeText(text).then(() => {
+    navigator.clipboard.writeText(letterContent.innerText).then(() => {
       const btn = document.getElementById('copy-btn');
       btn.classList.add('copied');
       btn.innerHTML = '<span>✓</span> Скопировано';
@@ -683,15 +603,15 @@
     });
   }
 
-  // ── Enter в поле ссылки ──
-  document.getElementById('url-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') fetchUrl();
-  });
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
 
-  // ── Ctrl+Enter — генерация ──
-  jobInput.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') generateLetter();
-  });
+  document.getElementById('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') fetchUrl(); });
+  jobInput.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') generateLetter(); });
 </script>
 
 </body>
