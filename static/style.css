@@ -169,10 +169,10 @@ body::before {
   border-color: rgba(255,77,109,0.15);
 }
 .admin-link { color: var(--accent2) !important; }
-.admin-link:hover {
+.admin-link:hover, .admin-link.active {
   color: #b39dff !important;
-  background: rgba(124,77,255,0.08) !important;
-  border-color: rgba(124,77,255,0.2) !important;
+  background: rgba(124,77,255,0.1) !important;
+  border-color: rgba(124,77,255,0.22) !important;
 }
 
 /* ── Buttons ──────────────────────────────────────────────── */
