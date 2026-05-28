@@ -171,6 +171,13 @@
   <ul class="nav-links">
     <li><a href="/" class="active">Главная</a></li>
     <li><a href="/hh">HH Помощник</a></li>
+    {% if user %}
+    <li><a href="/profile">Профиль</a></li>
+    <li><a href="/logout" style="color:var(--text-faint)">Выйти</a></li>
+    {% else %}
+    <li><a href="/login">Войти</a></li>
+    <li><a href="/register" class="badge badge-purple" style="padding:6px 14px;text-decoration:none">Регистрация</a></li>
+    {% endif %}
   </ul>
 </nav>
 

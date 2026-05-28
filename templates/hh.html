@@ -391,6 +391,10 @@
   <ul class="nav-links">
     <li><a href="/">Главная</a></li>
     <li><a href="/hh" class="active">HH Помощник</a></li>
+    {% if user %}
+    <li><a href="/profile">Профиль</a></li>
+    <li><a href="/logout" style="color:var(--text-faint)">Выйти</a></li>
+    {% endif %}
   </ul>
 </nav>
 

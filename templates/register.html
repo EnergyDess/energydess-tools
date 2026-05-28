@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Регистрация — EnergyDess</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .auth-wrap {
+      min-height: calc(100vh - 65px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+    .auth-box {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px;
+      width: 100%;
+      max-width: 420px;
+    }
+    .auth-box h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+    .auth-box p { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 32px; }
+    .form-group { margin-bottom: 18px; }
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    .form-group input {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-group input:focus { border-color: var(--accent); }
+    .btn-primary {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 13px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      margin-top: 8px;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+    .auth-footer {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 0.875rem;
+      color: var(--text-dim);
+    }
+    .auth-footer a { color: #a78bfa; text-decoration: none; }
+    .error-msg {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #fca5a5;
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-size: 0.875rem;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+<nav class="nav">
+  <a href="/" class="nav-logo">⚡ EnergyDess</a>
+  <ul class="nav-links">
+    <li><a href="/login">Войти</a></li>
+  </ul>
+</nav>
+
+<div class="auth-wrap">
+  <div class="auth-box">
+    <h1>Регистрация</h1>
+    <p>Создайте аккаунт для доступа к инструментам</p>
+
+    {% if error %}
+    <div class="error-msg">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/register">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email" placeholder="you@example.com" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Пароль</label>
+        <input type="password" name="password" placeholder="Минимум 6 символов" required autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label>Повторите пароль</label>
+        <input type="password" name="password2" placeholder="••••••••" required autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn-primary">Создать аккаунт</button>
+    </form>
+
+    <div class="auth-footer">
+      Уже есть аккаунт? <a href="/login">Войти</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Профиль — EnergyDess</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .profile-wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 60px 20px;
+    }
+    .profile-wrap h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
+    .profile-wrap .subtitle { color: var(--text-dim); margin-bottom: 40px; font-size: 0.95rem; }
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+    .card h2 { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
+    .card .hint { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 20px; }
+    .email-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      color: var(--text-dim);
+    }
+    textarea {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      color: var(--text);
+      font-size: 0.875rem;
+      font-family: inherit;
+      line-height: 1.6;
+      resize: vertical;
+      outline: none;
+      min-height: 280px;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: var(--accent); }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 12px 28px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      margin-top: 16px;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+    .success-msg {
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.3);
+      color: #6ee7b7;
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-size: 0.875rem;
+      margin-bottom: 16px;
+    }
+    .logout-link {
+      color: var(--text-faint);
+      font-size: 0.85rem;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .logout-link:hover { color: var(--error); }
+  </style>
+</head>
+<body>
+<nav class="nav">
+  <a href="/" class="nav-logo">⚡ EnergyDess</a>
+  <ul class="nav-links">
+    <li><a href="/">Главная</a></li>
+    <li><a href="/hh">HH Помощник</a></li>
+    <li><a href="/profile" class="active">Профиль</a></li>
+    <li><a href="/logout" class="logout-link">Выйти</a></li>
+  </ul>
+</nav>
+
+<div class="profile-wrap">
+  <h1>Профиль</h1>
+  <p class="subtitle">Управляйте своими данными для работы инструментов</p>
+
+  <div class="card">
+    <h2>Аккаунт</h2>
+    <p class="hint">Ваш email для входа</p>
+    <div class="email-badge">✉ {{ user.email }}</div>
+  </div>
+
+  <div class="card">
+    <h2>Моё резюме</h2>
+    <p class="hint">Вставьте текст резюме — он будет использоваться при генерации сопроводительных писем. Можно в любом формате, чем подробнее — тем лучше письмо.</p>
+
+    {% if saved %}
+    <div class="success-msg">✓ Резюме сохранено</div>
+    {% endif %}
+
+    <form method="post" action="/profile">
+      <textarea name="resume_text" placeholder="Вставьте текст вашего резюме сюда...">{{ resume.resume_text if resume else '' }}</textarea>
+      <button type="submit" class="btn-primary">Сохранить резюме</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

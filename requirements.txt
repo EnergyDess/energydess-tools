@@ -5,3 +5,7 @@ python-dotenv
 jinja2
 beautifulsoup4
 lxml
+sqlalchemy
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart
