@@ -111,42 +111,69 @@ body::before {
 
 .nav-links {
   display: flex;
-  gap: 2px;
+  gap: 6px;
   list-style: none;
 }
 
 .nav-links a {
   color: var(--text-dim);
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 500;
-  padding: 7px 13px;
-  border-radius: var(--radius-xs);
-  transition: all 0.18s;
-  letter-spacing: 0.01em;
+  padding: 6px 16px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  letter-spacing: 0.02em;
 }
-
-.nav-links a:hover,
-.nav-links a.active {
+.nav-links a:hover {
   color: var(--text);
-  background: rgba(255,255,255,0.06);
+  border-color: var(--border-hi);
+  background: rgba(255,255,255,0.05);
+}
+.nav-links a.active {
+  color: var(--accent);
+  background: rgba(0,212,255,0.08);
+  border-color: rgba(0,212,255,0.18);
 }
 
-.nav-right { display: flex; align-items: center; gap: 2px; }
+.nav-right { display: flex; align-items: center; gap: 6px; }
 .nav-right a {
   color: var(--text-dim);
   text-decoration: none;
-  font-size: 0.875rem;
-  padding: 7px 13px;
-  border-radius: var(--radius-xs);
-  transition: all 0.18s;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 6px 16px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  letter-spacing: 0.02em;
 }
-.nav-right a:hover { color: var(--text); background: rgba(255,255,255,0.06); }
-.nav-right a.active { color: var(--text); }
-.nav-right .nav-logout { color: var(--text-faint); }
-.nav-right .nav-logout:hover { color: var(--error); background: rgba(255,77,109,0.07); }
+.nav-right a:hover {
+  color: var(--text);
+  border-color: var(--border-hi);
+  background: rgba(255,255,255,0.05);
+}
+.nav-right a.active {
+  color: var(--accent);
+  background: rgba(0,212,255,0.08);
+  border-color: rgba(0,212,255,0.18);
+}
+.nav-right .nav-logout {
+  color: var(--text-faint);
+  font-size: 0.8rem;
+}
+.nav-right .nav-logout:hover {
+  color: var(--error);
+  background: rgba(255,77,109,0.07);
+  border-color: rgba(255,77,109,0.15);
+}
 .admin-link { color: var(--accent2) !important; }
-.admin-link:hover { color: #a78bfa !important; }
+.admin-link:hover {
+  color: #b39dff !important;
+  background: rgba(124,77,255,0.08) !important;
+  border-color: rgba(124,77,255,0.2) !important;
+}
 
 /* ── Buttons ──────────────────────────────────────────────── */
 .btn {
@@ -506,10 +533,11 @@ html.light .nav {
   background: rgba(242,243,250,0.85);
   border-bottom-color: var(--border);
 }
-html.light .nav-links a:hover,
-html.light .nav-links a.active { background: rgba(0,0,0,0.05); color: var(--text); }
-html.light .nav-right a:hover  { background: rgba(0,0,0,0.05); color: var(--text); }
-html.light .nav-right .nav-logout:hover { background: rgba(200,0,30,0.06); }
+html.light .nav-links a:hover   { border-color: var(--border-hi); background: rgba(0,0,0,0.05); color: var(--text); }
+html.light .nav-links a.active  { background: rgba(0,153,204,0.09); border-color: rgba(0,153,204,0.2); }
+html.light .nav-right a:hover   { border-color: var(--border-hi); background: rgba(0,0,0,0.05); color: var(--text); }
+html.light .nav-right a.active  { background: rgba(0,153,204,0.09); border-color: rgba(0,153,204,0.2); }
+html.light .nav-right .nav-logout:hover { background: rgba(200,0,30,0.06); border-color: rgba(200,0,30,0.12); }
 html.light #theme-toggle:hover { background: rgba(0,0,0,0.05); }
 
 html.light .nav-logo-symbol {
