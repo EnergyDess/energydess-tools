@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, Depends, Form, UploadFile, File
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -19,7 +20,7 @@ templates = Jinja2Templates(directory="templates")
 
 OPENROUTER_API_KEY  = os.getenv("OPENROUTER_API_KEY", "")
 MODEL               = os.getenv("MODEL", "anthropic/claude-haiku-4-5")
-UNISENDER_API_KEY   = os.getenv("UNISENDER_API_KEY", "")
+RESEND_API_KEY      = os.getenv("RESEND_API_KEY", "")
 BASE_URL            = os.getenv("BASE_URL", "https://energydess.ru")
 
 TOOLS = [
@@ -63,21 +64,22 @@ def user_has_access(user: User, tool_id: str, db: Session) -> bool:
 
 
 async def send_email(to: str, subject: str, html: str):
-    if not UNISENDER_API_KEY:
+    if not RESEND_API_KEY:
         return
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             await client.post(
-                "https://go1.unisender.ru/ru/transactional/api/v1/email/send.json",
-                headers={"X-API-Key": UNISENDER_API_KEY, "Content-Type": "application/json"},
-                json={"message": {
-                    "recipients": [{"email": to}],
-                    "from_email": f"noreply@{BASE_URL.replace('https://','').replace('http://','')}",
-                    "from_name": "EnergyDess",
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {RESEND_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "from": "EnergyDess <noreply@energydess.ru>",
+                    "to": [to],
                     "subject": subject,
-                    "body": {"html": html},
-                    "track_links": 0, "track_read": 0,
-                }},
+                    "html": html,
+                },
             )
     except Exception:
         pass
@@ -125,15 +127,14 @@ async def register(
 
     if password != password2:
         return templates.TemplateResponse(request=request, name="register.html",
-                                          context={"error": "Пароли не совпадают"})
+                                          context={"error": "Пароли не совпадают", "email": email})
     if len(password) < 6:
         return templates.TemplateResponse(request=request, name="register.html",
-                                          context={"error": "Пароль минимум 6 символов"})
+                                          context={"error": "Пароль минимум 6 символов", "email": email})
     if db.query(User).filter(User.email == email).first():
         return templates.TemplateResponse(request=request, name="register.html",
-                                          context={"error": "Email уже зарегистрирован"})
+                                          context={"error": "Email уже зарегистрирован", "email": email})
 
-    from datetime import timedelta
     is_first = db.query(User).count() == 0
     vtok = generate_token()
     vexp = datetime.utcnow() + timedelta(hours=24)
@@ -242,11 +243,10 @@ async def verify_pending(request: Request):
 
 @app.get("/verify/{token}")
 async def verify_email(token: str, db: Session = Depends(get_db)):
-    from datetime import datetime as dt
     user = db.query(User).filter(User.verification_token == token).first()
     if not user:
         return RedirectResponse("/login?error=bad_token", status_code=302)
-    if user.verification_token_expires and user.verification_token_expires < dt.utcnow():
+    if user.verification_token_expires and user.verification_token_expires < datetime.utcnow():
         return RedirectResponse("/login?error=expired_token", status_code=302)
     user.is_verified = True
     user.verification_token = None
@@ -265,7 +265,6 @@ async def forgot_page(request: Request):
 
 @app.post("/forgot-password")
 async def forgot_post(request: Request, email: str = Form(...), db: Session = Depends(get_db)):
-    from datetime import timedelta
     email = email.strip().lower()
     user = db.query(User).filter(User.email == email).first()
     if user:
@@ -299,9 +298,8 @@ async def forgot_post(request: Request, email: str = Form(...), db: Session = De
 
 @app.get("/reset-password/{token}")
 async def reset_page(token: str, request: Request, db: Session = Depends(get_db)):
-    from datetime import datetime as dt
     user = db.query(User).filter(User.reset_token == token).first()
-    if not user or (user.reset_token_expires and user.reset_token_expires < dt.utcnow()):
+    if not user or (user.reset_token_expires and user.reset_token_expires < datetime.utcnow()):
         return templates.TemplateResponse(request=request, name="reset_password.html",
                                           context={"token": token, "error": "Ссылка недействительна или устарела", "done": False})
     return templates.TemplateResponse(request=request, name="reset_password.html",
@@ -314,9 +312,8 @@ async def reset_post(
     password: str = Form(...), password2: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    from datetime import datetime as dt
     user = db.query(User).filter(User.reset_token == token).first()
-    if not user or (user.reset_token_expires and user.reset_token_expires < dt.utcnow()):
+    if not user or (user.reset_token_expires and user.reset_token_expires < datetime.utcnow()):
         return templates.TemplateResponse(request=request, name="reset_password.html",
                                           context={"token": token, "error": "Ссылка недействительна", "done": False})
     if password != password2:
