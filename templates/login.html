@@ -21,19 +21,9 @@
       width: 100%;
       max-width: 420px;
     }
-    .auth-box h1 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-    .auth-box p {
-      color: var(--text-dim);
-      font-size: 0.9rem;
-      margin-bottom: 32px;
-    }
-    .form-group {
-      margin-bottom: 18px;
-    }
+    .auth-box h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+    .auth-box p { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 32px; }
+    .form-group { margin-bottom: 18px; }
     .form-group label {
       display: block;
       font-size: 0.85rem;
@@ -52,10 +42,29 @@
       font-family: inherit;
       outline: none;
       transition: border-color 0.2s;
+      box-sizing: border-box;
     }
-    .form-group input:focus {
-      border-color: var(--accent);
+    .form-group input:focus { border-color: var(--accent); }
+
+    .input-wrap { position: relative; }
+    .input-wrap input { padding-right: 44px; }
+    .eye-btn {
+      position: absolute;
+      right: 0; top: 0; bottom: 0;
+      width: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-faint);
+      transition: color 0.2s;
+      padding: 0;
     }
+    .eye-btn:hover { color: var(--text-dim); }
+    .eye-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
     .btn-primary {
       width: 100%;
       background: var(--accent);
@@ -77,10 +86,7 @@
       font-size: 0.875rem;
       color: var(--text-dim);
     }
-    .auth-footer a {
-      color: #a78bfa;
-      text-decoration: none;
-    }
+    .auth-footer a { color: #a78bfa; text-decoration: none; }
     .error-msg {
       background: rgba(239,68,68,0.1);
       border: 1px solid rgba(239,68,68,0.3);
@@ -116,7 +122,15 @@
       </div>
       <div class="form-group">
         <label>Пароль</label>
-        <input type="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+        <div class="input-wrap">
+          <input type="password" id="pwd" name="password" placeholder="••••••••" required autocomplete="current-password">
+          <button type="button" class="eye-btn" onclick="toggleEye('pwd', this)" tabindex="-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
       </div>
       <button type="submit" class="btn-primary">Войти</button>
     </form>
@@ -126,5 +140,19 @@
     </div>
   </div>
 </div>
+
+<script>
+function toggleEye(inputId, btn) {
+  const input = document.getElementById(inputId);
+  const svg = btn.querySelector('svg');
+  if (input.type === 'password') {
+    input.type = 'text';
+    svg.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>';
+  } else {
+    input.type = 'password';
+    svg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  }
+}
+</script>
 </body>
 </html>

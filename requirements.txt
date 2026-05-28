@@ -6,6 +6,6 @@ jinja2
 beautifulsoup4
 lxml
 sqlalchemy
-passlib[bcrypt]
+bcrypt
 python-jose[cryptography]
 python-multipart
