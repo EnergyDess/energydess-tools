@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EnergyDess — Инструменты</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    /* Герой */
+    .hero {
+      padding: 100px 0 70px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -60px; left: 50%;
+      transform: translateX(-50%);
+      width: 700px; height: 400px;
+      background: radial-gradient(ellipse, rgba(124,58,237,0.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-tag {
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.2rem, 5vw, 3.5rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 1.05rem;
+      color: var(--text-dim);
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    /* Сетка инструментов */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      padding-bottom: 80px;
+    }
+
+    .tool-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      transition: all 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tool-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(124,58,237,0.05), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+
+    .tool-card:hover {
+      border-color: rgba(124,58,237,0.4);
+      transform: translateY(-3px);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.45), 0 0 0 1px rgba(124,58,237,0.15);
+    }
+
+    .tool-card:hover::before { opacity: 1; }
+
+    .tool-card.coming-soon {
+      opacity: 0.45;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .tool-icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .tool-icon.purple { background: rgba(124,58,237,0.15); }
+    .tool-icon.blue   { background: rgba(37,99,235,0.15); }
+    .tool-icon.green  { background: rgba(16,185,129,0.12); }
+    .tool-icon.orange { background: rgba(245,158,11,0.12); }
+
+    .tool-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .tool-desc {
+      font-size: 0.875rem;
+      color: var(--text-dim);
+      line-height: 1.55;
+      flex: 1;
+    }
+
+    .tool-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .tool-arrow {
+      font-size: 1rem;
+      color: var(--text-faint);
+      transition: transform 0.2s, color 0.2s;
+    }
+
+    .tool-card:hover .tool-arrow {
+      transform: translateX(4px);
+      color: #a78bfa;
+    }
+
+    /* Секция заголовок */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    .section-header h2 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .section-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">⚡ EnergyDess</a>
+  <ul class="nav-links">
+    <li><a href="/" class="active">Главная</a></li>
+    <li><a href="/hh">HH Помощник</a></li>
+  </ul>
+</nav>
+
+<main class="container">
+  <section class="hero">
+    <div class="hero-tag">
+      <span class="badge badge-purple">✦ Personal Tools</span>
+    </div>
+    <h1>Мои инструменты<br>для <span>умной работы</span></h1>
+    <p>Набор персональных AI-помощников, которые экономят время и делают рутину проще.</p>
+  </section>
+
+  <div class="section-header">
+    <h2>Доступные инструменты</h2>
+    <div class="section-line"></div>
+    <span class="badge badge-green">1 активен</span>
+  </div>
+
+  <div class="tools-grid">
+
+    <a href="/hh" class="tool-card">
+      <div class="tool-icon purple">📝</div>
+      <div>
+        <div class="tool-title">HH Помощник</div>
+      </div>
+      <div class="tool-desc">
+        Вставь текст вакансии — получи готовое сопроводительное письмо, заточенное под твоё резюме и конкретные требования работодателя.
+      </div>
+      <div class="tool-footer">
+        <span class="badge badge-purple">Активен</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </a>
+
+    <div class="tool-card coming-soon">
+      <div class="tool-icon blue">💪</div>
+      <div>
+        <div class="tool-title">Программа тренировок</div>
+      </div>
+      <div class="tool-desc">
+        Персональный план тренировок в зале с учётом твоих целей, уровня и расписания. Прогрессия нагрузок, трекинг результатов.
+      </div>
+      <div class="tool-footer">
+        <span class="badge badge-blue">Скоро</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </div>
+
+    <div class="tool-card coming-soon">
+      <div class="tool-icon green">🥗</div>
+      <div>
+        <div class="tool-title">Калькулятор питания</div>
+      </div>
+      <div class="tool-desc">
+        Подсчёт калорий и БЖУ, дневник питания, подбор рациона под цели. Простой и без лишнего.
+      </div>
+      <div class="tool-footer">
+        <span class="badge badge-blue">Скоро</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </div>
+
+    <div class="tool-card coming-soon">
+      <div class="tool-icon orange">⚡</div>
+      <div>
+        <div class="tool-title">Следующий инструмент</div>
+      </div>
+      <div class="tool-desc">
+        Место для нового инструмента. Идеи добавляются по мере необходимости.
+      </div>
+      <div class="tool-footer">
+        <span class="badge badge-blue">Скоро</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+</body>
+</html>

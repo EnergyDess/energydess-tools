@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HH Помощник — EnergyDess</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .page-header {
+      padding: 52px 0 40px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      color: var(--text-faint);
+      text-decoration: none;
+      margin-bottom: 24px;
+      transition: color 0.2s;
+    }
+
+    .back-link:hover { color: var(--text-dim); }
+
+    .page-header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 10px;
+    }
+
+    .page-header h1 span {
+      background: linear-gradient(135deg, #a78bfa, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .page-header p {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+    }
+
+    /* Основной лейаут */
+    .workspace {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      padding-bottom: 60px;
+    }
+
+    @media (max-width: 900px) {
+      .workspace { grid-template-columns: 1fr; }
+    }
+
+    /* Панель ввода */
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .panel-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .panel-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Вкладки */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg3);
+      border-radius: var(--radius-sm);
+      padding: 4px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+      background: transparent;
+      color: var(--text-faint);
+    }
+
+    .tab-btn.active {
+      background: var(--bg2);
+      color: var(--text);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+
+    .tab-btn:hover:not(.active) {
+      color: var(--text-dim);
+    }
+
+    /* Панели вкладок */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: flex; flex-direction: column; gap: 10px; }
+
+    /* Поле текста */
+    #job-input {
+      min-height: 300px;
+      font-size: 0.875rem;
+    }
+
+    /* Поле URL */
+    .url-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .url-row input {
+      flex: 1;
+      height: 44px;
+      padding: 0 14px;
+    }
+
+    .fetch-btn {
+      height: 44px;
+      padding: 0 16px;
+      white-space: nowrap;
+      font-size: 0.85rem;
+    }
+
+    .fetched-preview {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      max-height: 180px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      display: none;
+    }
+
+    .fetched-preview.visible { display: block; }
+
+    .fetch-status {
+      font-size: 0.8rem;
+      display: none;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .fetch-status.visible { display: flex; }
+    .fetch-status.ok  { color: #34d399; }
+    .fetch-status.err { color: #fca5a5; }
+
+    .char-count {
+      font-size: 0.75rem;
+      color: var(--text-faint);
+      text-align: right;
+      margin-top: -4px;
+    }
+
+    /* Кнопка генерации */
+    .generate-btn {
+      width: 100%;
+      padding: 15px;
+      font-size: 0.95rem;
+    }
+
+    /* Подсказки */
+    .tips {
+      background: rgba(124,58,237,0.07);
+      border: 1px solid rgba(124,58,237,0.15);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+    }
+
+    .tips-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #a78bfa;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .tips ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .tips ul li {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      padding-left: 14px;
+      position: relative;
+    }
+
+    .tips ul li::before {
+      content: '·';
+      position: absolute;
+      left: 4px;
+      color: #7c3aed;
+    }
+
+    /* Панель результата */
+    .result-panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 500px;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .result-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* Пустое состояние */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .empty-icon {
+      width: 64px; height: 64px;
+      border-radius: 16px;
+      background: rgba(124,58,237,0.1);
+      border: 1px solid rgba(124,58,237,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+    }
+
+    .empty-state h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .empty-state p {
+      font-size: 0.85rem;
+      color: var(--text-faint);
+      max-width: 260px;
+    }
+
+    /* Загрузка */
+    .loading-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      display: none;
+    }
+
+    .loading-bar {
+      width: 200px;
+      height: 3px;
+      background: var(--bg3);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .loading-bar-inner {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 3px;
+      animation: progress 2s ease-in-out infinite;
+    }
+
+    @keyframes progress {
+      0%   { width: 0%; margin-left: 0; }
+      50%  { width: 70%; margin-left: 0; }
+      100% { width: 0%; margin-left: 100%; }
+    }
+
+    .loading-text {
+      font-size: 0.875rem;
+      color: var(--text-dim);
+    }
+
+    /* Текст письма */
+    .letter-content {
+      flex: 1;
+      font-size: 0.9rem;
+      line-height: 1.8;
+      color: var(--text);
+      white-space: pre-wrap;
+      display: none;
+      animation: fadeIn 0.4s ease;
+    }
+
+    /* Ссылки внутри письма */
+    .letter-content a {
+      color: #a78bfa;
+      text-decoration: none;
+    }
+
+    .letter-content a:hover {
+      text-decoration: underline;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Ошибка */
+    .error-state { display: none; }
+
+    /* Статистика письма */
+    .letter-stats {
+      display: flex;
+      gap: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+      display: none;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .stat-value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">⚡ EnergyDess</a>
+  <ul class="nav-links">
+    <li><a href="/">Главная</a></li>
+    <li><a href="/hh" class="active">HH Помощник</a></li>
+  </ul>
+</nav>
+
+<main class="container">
+  <div class="page-header">
+    <a href="/" class="back-link">← Все инструменты</a>
+    <h1>HH <span>Помощник</span></h1>
+    <p>Вставь текст или ссылку на вакансию — получи сопроводительное письмо за 10 секунд</p>
+  </div>
+
+  <div class="workspace">
+
+    <!-- Левая панель: ввод -->
+    <div class="panel">
+      <div class="panel-card">
+        <div class="panel-title">Вакансия</div>
+
+        <!-- Вкладки -->
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchTab('text')">📋 Текст</button>
+          <button class="tab-btn" onclick="switchTab('url')">🔗 Ссылка</button>
+        </div>
+
+        <!-- Вкладка: текст -->
+        <div class="tab-panel active" id="tab-text">
+          <textarea
+            id="job-input"
+            placeholder="Вставь сюда описание вакансии с HH или любого другого сайта...&#10;&#10;Чем полнее текст — тем точнее письмо."
+          ></textarea>
+          <div class="char-count"><span id="char-count">0</span> символов</div>
+        </div>
+
+        <!-- Вкладка: ссылка -->
+        <div class="tab-panel" id="tab-url">
+          <div class="url-row">
+            <input
+              type="text"
+              id="url-input"
+              placeholder="https://hh.ru/vacancy/..."
+            />
+            <button class="btn btn-secondary fetch-btn" id="fetch-btn" onclick="fetchUrl()">
+              <span id="fetch-icon">↓</span> Загрузить
+            </button>
+          </div>
+          <div class="fetch-status" id="fetch-status"></div>
+          <div class="fetched-preview" id="fetched-preview"></div>
+        </div>
+
+        <button class="btn btn-primary generate-btn" id="generate-btn" onclick="generateLetter()">
+          <span id="btn-icon">✦</span>
+          <span id="btn-text">Написать письмо</span>
+        </button>
+      </div>
+
+      <div class="tips">
+        <div class="tips-title">💡 Советы</div>
+        <ul>
+          <li>Текст: вставляй полное описание — требования, задачи, условия</li>
+          <li>Ссылка: работает для большинства сайтов с вакансиями</li>
+          <li>HH.ru может блокировать загрузку — тогда копируй текст вручную</li>
+          <li>Если в вакансии есть вопросы — ответы попадут в письмо</li>
+          <li>Ctrl+Enter — быстрая генерация</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Правая панель: результат -->
+    <div class="result-panel" id="result-panel">
+      <div class="result-header">
+        <div class="panel-title" style="flex:1">Сопроводительное письмо</div>
+        <div class="result-actions" id="result-actions" style="display:none">
+          <button class="copy-btn" id="copy-btn" onclick="copyLetter()">
+            <span>⎘</span> Копировать
+          </button>
+          <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.8rem;" onclick="generateLetter()">
+            ↻ Перегенерировать
+          </button>
+        </div>
+      </div>
+
+      <!-- Пустое состояние -->
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">✦</div>
+        <h3>Здесь появится письмо</h3>
+        <p>Вставь текст или ссылку на вакансию и нажми кнопку</p>
+      </div>
+
+      <!-- Загрузка -->
+      <div class="loading-state" id="loading-state">
+        <div class="spinner" style="width:32px;height:32px;border-width:3px"></div>
+        <div class="loading-bar">
+          <div class="loading-bar-inner"></div>
+        </div>
+        <div class="loading-text" id="loading-text">Анализирую вакансию и резюме...</div>
+      </div>
+
+      <!-- Ошибка -->
+      <div class="error-state" id="error-state">
+        <div class="alert alert-error" id="error-msg"></div>
+      </div>
+
+      <!-- Результат -->
+      <div class="letter-content" id="letter-content"></div>
+
+      <!-- Статистика -->
+      <div class="letter-stats" id="letter-stats">
+        <div class="stat">
+          <div class="stat-value" id="word-count">—</div>
+          <div class="stat-label">слов</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="char-count-result">—</div>
+          <div class="stat-label">символов</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+  // ── Состояние ──
+  let activeTab = 'text';
+  let fetchedText = '';
+
+  const jobInput       = document.getElementById('job-input');
+  const charCountEl    = document.getElementById('char-count');
+  const generateBtn    = document.getElementById('generate-btn');
+  const btnIcon        = document.getElementById('btn-icon');
+  const btnText        = document.getElementById('btn-text');
+  const emptyState     = document.getElementById('empty-state');
+  const loadingState   = document.getElementById('loading-state');
+  const loadingText    = document.getElementById('loading-text');
+  const errorState     = document.getElementById('error-state');
+  const letterContent  = document.getElementById('letter-content');
+  const letterStats    = document.getElementById('letter-stats');
+  const resultActions  = document.getElementById('result-actions');
+  const errorMsg       = document.getElementById('error-msg');
+
+  jobInput.addEventListener('input', () => {
+    charCountEl.textContent = jobInput.value.length.toLocaleString('ru');
+  });
+
+  // ── Вкладки ──
+  function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+      b.classList.toggle('active', (i === 0) === (tab === 'text'));
+    });
+    document.getElementById('tab-text').classList.toggle('active', tab === 'text');
+    document.getElementById('tab-url').classList.toggle('active', tab === 'url');
+  }
+
+  // ── Загрузка по ссылке ──
+  async function fetchUrl() {
+    const url = document.getElementById('url-input').value.trim();
+    if (!url) {
+      document.getElementById('url-input').focus();
+      return;
+    }
+
+    const fetchBtn  = document.getElementById('fetch-btn');
+    const fetchIcon = document.getElementById('fetch-icon');
+    const status    = document.getElementById('fetch-status');
+    const preview   = document.getElementById('fetched-preview');
+
+    fetchBtn.disabled = true;
+    fetchIcon.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span>';
+    status.className = 'fetch-status visible';
+    status.textContent = 'Загружаю страницу...';
+    preview.classList.remove('visible');
+    fetchedText = '';
+
+    try {
+      const res  = await fetch('/api/fetch-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        status.className = 'fetch-status visible err';
+        status.textContent = '⚠ ' + data.error;
+      } else {
+        fetchedText = data.text;
+        status.className = 'fetch-status visible ok';
+        status.textContent = `✓ Загружено ${data.text.length.toLocaleString('ru')} символов`;
+        preview.textContent = data.text.substring(0, 600) + (data.text.length > 600 ? '\n...' : '');
+        preview.classList.add('visible');
+      }
+    } catch (e) {
+      status.className = 'fetch-status visible err';
+      status.textContent = '⚠ Ошибка сети';
+    } finally {
+      fetchBtn.disabled = false;
+      fetchIcon.textContent = '↓';
+    }
+  }
+
+  // ── Результат: состояния ──
+  function setState(state) {
+    emptyState.style.display    = state === 'empty'   ? 'flex'  : 'none';
+    loadingState.style.display  = state === 'loading' ? 'flex'  : 'none';
+    errorState.style.display    = state === 'error'   ? 'block' : 'none';
+    letterContent.style.display = state === 'result'  ? 'block' : 'none';
+    letterStats.style.display   = state === 'result'  ? 'flex'  : 'none';
+    resultActions.style.display = state === 'result'  ? 'flex'  : 'none';
+  }
+
+  // ── Генерация ──
+  async function generateLetter() {
+    let text = '';
+
+    if (activeTab === 'text') {
+      text = jobInput.value.trim();
+      if (!text) {
+        jobInput.focus();
+        jobInput.style.borderColor = 'var(--error)';
+        setTimeout(() => { jobInput.style.borderColor = ''; }, 1500);
+        return;
+      }
+    } else {
+      if (!fetchedText) {
+        document.getElementById('url-input').focus();
+        document.getElementById('url-input').style.borderColor = 'var(--error)';
+        setTimeout(() => { document.getElementById('url-input').style.borderColor = ''; }, 1500);
+        return;
+      }
+      text = fetchedText;
+    }
+
+    generateBtn.disabled = true;
+    btnIcon.innerHTML = '<span class="spinner"></span>';
+    btnText.textContent = 'Генерирую...';
+    loadingText.textContent = 'Анализирую вакансию и резюме...';
+    setState('loading');
+
+    try {
+      const res  = await fetch('/api/generate-letter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_text: text }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        errorMsg.textContent = '⚠ ' + (data.error || 'Неизвестная ошибка');
+        setState('error');
+      } else {
+        // рендерим ссылки кликабельными
+        const html = data.letter
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+        letterContent.innerHTML = html;
+
+        const plain = data.letter;
+        const words = plain.trim().split(/\s+/).length;
+        document.getElementById('word-count').textContent = words;
+        document.getElementById('char-count-result').textContent = plain.length;
+        setState('result');
+      }
+    } catch (e) {
+      errorMsg.textContent = '⚠ Ошибка сети. Проверь подключение.';
+      setState('error');
+    } finally {
+      generateBtn.disabled = false;
+      btnIcon.textContent = '✦';
+      btnText.textContent = 'Написать письмо';
+    }
+  }
+
+  // ── Копирование (копируем plaintext, не HTML) ──
+  function copyLetter() {
+    const text = letterContent.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copy-btn');
+      btn.classList.add('copied');
+      btn.innerHTML = '<span>✓</span> Скопировано';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.innerHTML = '<span>⎘</span> Копировать';
+      }, 2000);
+    });
+  }
+
+  // ── Enter в поле ссылки ──
+  document.getElementById('url-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') fetchUrl();
+  });
+
+  // ── Ctrl+Enter — генерация ──
+  jobInput.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') generateLetter();
+  });
+</script>
+
+</body>
+</html>
