@@ -17,6 +17,9 @@
   var REPEL_F   = 2.2;   // repulsion force
   var DAMP      = 0.93;  // velocity damping
 
+  var prevW = 0;
+  var resizeTimer;
+
   function resize() {
     W = canvas.width  = window.innerWidth;
     H = canvas.height = window.innerHeight;
@@ -56,7 +59,6 @@
         var dx = a.x - b.x,  dy = a.y - b.y;
         var d  = Math.sqrt(dx * dx + dy * dy);
         if (d < CONNECT) {
-          // Linear falloff — fully opaque at d=0, 0 at d=CONNECT
           var alpha = (1 - d / CONNECT) * LINE_MAX;
           ctx.beginPath();
           ctx.strokeStyle = 'rgba(' + C + ',' + alpha.toFixed(3) + ')';
@@ -71,9 +73,8 @@
     // ── Nodes ─────────────────────────────────────────────────
     for (var i = 0; i < particles.length; i++) {
       var p  = particles[i];
-      var gr = p.r * 2.4;  // glow radius — small and crisp
+      var gr = p.r * 2.4;
 
-      // Glow halo
       var g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, gr);
       g.addColorStop(0,    'rgba(' + C + ',' + (NODE_BASE * 0.55) + ')');
       g.addColorStop(0.4,  'rgba(' + C + ',' + (NODE_BASE * 0.18) + ')');
@@ -83,7 +84,6 @@
       ctx.fillStyle = g;
       ctx.fill();
 
-      // Solid core
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(' + C + ',' + NODE_BASE + ')';
@@ -128,10 +128,25 @@
   }
 
   resize();
+  prevW = W;
   makeParticles();
   tick();
 
-  window.addEventListener('resize',     function () { resize(); makeParticles(); });
+  window.addEventListener('resize', function () {
+    // Debounce — mobile fires resize on every scroll (address bar hide/show)
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      var newW = window.innerWidth;
+      resize();
+      // Only remake particles when WIDTH changes (real resize or orientation change).
+      // Height-only change = mobile address bar — keep existing particles.
+      if (Math.abs(newW - prevW) > 20) {
+        prevW = newW;
+        makeParticles();
+      }
+    }, 200);
+  });
+
   window.addEventListener('mousemove',  function (e) { mouse.x = e.clientX; mouse.y = e.clientY; });
   window.addEventListener('mouseleave', function ()  { mouse.x = -9999; mouse.y = -9999; });
 })();
