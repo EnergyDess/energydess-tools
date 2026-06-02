@@ -91,6 +91,17 @@ async def not_found_handler(request: Request, exc: HTTPException):
     return templates.TemplateResponse(request=request, name="404.html", status_code=404)
 
 
+@app.post("/deploy-hook")
+async def deploy_hook(request: Request):
+    token = request.headers.get("X-Deploy-Token", "")
+    expected = os.getenv("DEPLOY_SECRET", "")
+    if not expected or token != expected:
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+    import subprocess
+    subprocess.Popen(["bash", "-c", "sleep 2 && cd /var/www/energydess && git pull origin main && systemctl restart energydess"])
+    return JSONResponse({"ok": True})
+
+
 @app.on_event("startup")
 def startup():
     init_db()
