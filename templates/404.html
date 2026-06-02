@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Страница не найдена — EnergyDess</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <script src="/static/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .not-found {
+      min-height: calc(100vh - 60px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .not-found-code {
+      font-family: var(--font-display);
+      font-size: clamp(6rem, 20vw, 10rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 50%, #34d399 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 24px;
+    }
+    .not-found h1 {
+      font-size: clamp(1.2rem, 3vw, 1.8rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+    .not-found p {
+      color: var(--text-dim);
+      font-size: 1rem;
+      max-width: 380px;
+      line-height: 1.6;
+      margin-bottom: 40px;
+    }
+    .not-found-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn-main {
+      background: linear-gradient(135deg, #7c4dff 0%, #00d4ff 100%);
+      color: #fff;
+      padding: 13px 28px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.22s;
+      box-shadow: 0 4px 20px rgba(124,77,255,0.3);
+    }
+    .btn-main:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(124,77,255,0.45);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-dim);
+      padding: 13px 28px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      text-decoration: none;
+      border: 1px solid var(--border-hi);
+      transition: all 0.2s;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.22); }
+  </style>
+</head>
+<body>
+<script src="/static/effects.js"></script>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="nav-logo-symbol">⚡</span>
+    <span>EnergyDess</span>
+  </a>
+</nav>
+
+<div class="not-found">
+  <div class="not-found-code">404</div>
+  <h1>Страница не найдена</h1>
+  <p>Кажется, такой страницы не существует или она была перемещена.</p>
+  <div class="not-found-actions">
+    <a href="/" class="btn-main">На главную →</a>
+    <a href="/login" class="btn-ghost">Войти</a>
+  </div>
+</div>
+
+</body>
+</html>

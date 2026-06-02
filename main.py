@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request, Depends, Form, UploadFile, File
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.exceptions import HTTPException
 from bs4 import BeautifulSoup
 import httpx
 import os
@@ -83,6 +84,11 @@ async def send_email(to: str, subject: str, html: str):
             )
     except Exception:
         pass
+
+
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc: HTTPException):
+    return templates.TemplateResponse(request=request, name="404.html", status_code=404)
 
 
 @app.on_event("startup")

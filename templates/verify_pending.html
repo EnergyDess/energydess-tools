@@ -9,6 +9,49 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .verify-icon {
+      width: 72px; height: 72px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(124,77,255,0.18), rgba(0,212,255,0.12));
+      border: 1px solid rgba(124,77,255,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem;
+      margin: 0 auto 24px;
+      box-shadow: 0 0 40px rgba(124,77,255,0.12);
+    }
+    .verify-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      text-align: left;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 20px;
+      margin: 20px 0;
+    }
+    .verify-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+    .verify-step-num {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: rgba(124,77,255,0.15);
+      border: 1px solid rgba(124,77,255,0.25);
+      color: #a78bfa;
+      font-size: 0.7rem;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+  </style>
 </head>
 <body>
 <script src="/static/effects.js"></script>
@@ -22,17 +65,32 @@
 
 <div class="auth-wrap">
   <div class="auth-box" style="text-align:center">
-    <div style="font-size:2.5rem;margin-bottom:16px">✉️</div>
-    <h1 style="margin-bottom:10px">Проверьте почту</h1>
-    <p style="margin-bottom:28px">
-      Мы отправили письмо с ссылкой для подтверждения.<br>
-      Перейдите по ссылке из письма чтобы активировать аккаунт.
+    <div class="verify-icon">✉️</div>
+    <h1 style="margin-bottom:8px">Проверьте почту</h1>
+    <p style="color:var(--text-dim);font-size:0.95rem;margin-bottom:4px">
+      Мы отправили письмо с ссылкой для подтверждения.
     </p>
-    <p style="font-size:0.82rem;color:var(--text-faint);margin-bottom:24px">
-      Письмо может прийти в течение нескольких минут.<br>
-      Проверьте папку «Спам» если не видите.
+
+    <div class="verify-steps">
+      <div class="verify-step">
+        <div class="verify-step-num">1</div>
+        <span>Откройте письмо от <strong style="color:var(--text)">noreply@energydess.ru</strong></span>
+      </div>
+      <div class="verify-step">
+        <div class="verify-step-num">2</div>
+        <span>Нажмите кнопку «Подтвердить email»</span>
+      </div>
+      <div class="verify-step">
+        <div class="verify-step-num">3</div>
+        <span>Войдите на сайт — всё готово</span>
+      </div>
+    </div>
+
+    <p style="font-size:0.8rem;color:var(--text-faint);margin-bottom:24px">
+      Не видите письмо? Проверьте папку «Спам».
     </p>
-    <a href="/login" style="color:var(--accent);font-size:0.875rem;text-decoration:none">
+    <a href="/login" style="color:var(--accent);font-size:0.875rem;text-decoration:none;transition:opacity 0.2s"
+       onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">
       ← Вернуться к входу
     </a>
   </div>

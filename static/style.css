@@ -490,10 +490,15 @@ label {
 
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .nav { padding: 0 20px; }
+  .nav { padding: 0 16px; }
   .container { padding: 0 16px; }
   .nav-links a { padding: 6px 9px; font-size: 0.8rem; }
-  .auth-box { padding: 32px 24px; }
+  .auth-box { padding: 32px 20px; }
+
+  /* Nav: сжать ссылки на мобилке */
+  .nav-right { gap: 2px; }
+  .nav-right a { padding: 6px 10px; font-size: 0.8rem; }
+  .nav-right .nav-hide-mobile { display: none; }
 }
 
 /* ═══════════════════════════════════════════════════════════
