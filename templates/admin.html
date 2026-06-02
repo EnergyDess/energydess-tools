@@ -13,6 +13,14 @@
     .admin-wrap { max-width: 900px; margin: 0 auto; padding: 60px 20px; }
     .admin-wrap h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
     .admin-wrap .subtitle { color: var(--text-dim); font-size: 0.95rem; margin-bottom: 40px; }
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    @media (max-width: 640px) {
+      .admin-wrap { padding: 36px 16px; }
+      .admin-wrap h1 { font-size: 1.4rem; }
+      th, td { padding: 12px 16px; }
+      .card-header { flex-direction: column; align-items: flex-start !important; }
+      .card-header > div { max-width: 100% !important; width: 100%; }
+    }
 
     .card {
       background: var(--bg3);
@@ -139,12 +147,13 @@
         <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--text-dim);pointer-events:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="user-search" placeholder="Поиск по email..."
           oninput="filterUsers(this.value)"
-          style="width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px 7px 34px;color:var(--text);font-size:0.83rem;font-family:inherit;outline:none;transition:border-color .2s"
-          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor=''">
+          style="width:100%;background:var(--bg3);border:1px solid var(--border-hi);border-radius:var(--radius-sm);padding:9px 12px 9px 34px;color:var(--text);font-size:0.875rem;font-family:inherit;outline:none;transition:border-color .2s"
+          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border-hi)'">
       </div>
     </div>
 
     {% if users %}
+    <div class="table-scroll">
     <table>
       <thead>
         <tr>
@@ -174,6 +183,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <div class="empty-state">Пока нет зарегистрированных пользователей</div>
     {% endif %}

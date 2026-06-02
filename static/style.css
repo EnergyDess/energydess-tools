@@ -264,7 +264,7 @@ textarea:focus, input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(0,212,255,0.1);
 }
-textarea::placeholder, input::placeholder { color: var(--text-faint); }
+textarea::placeholder, input::placeholder { color: rgba(221,226,240,0.3); }
 
 label {
   display: block;
@@ -499,6 +499,11 @@ label {
   .nav-right { gap: 2px; }
   .nav-right a { padding: 6px 10px; font-size: 0.8rem; }
   .nav-right .nav-hide-mobile { display: none; }
+
+  /* Auth pages */
+  .auth-box h1 { font-size: 1.3rem; }
+  .form-group input { font-size: 1rem; padding: 14px; }
+  .auth-btn-primary { padding: 16px; font-size: 1rem; }
 }
 
 /* ═══════════════════════════════════════════════════════════

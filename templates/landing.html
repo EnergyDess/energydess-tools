@@ -207,6 +207,19 @@
       transition: opacity 0.2s;
     }
     .nav-btn:hover { opacity: 0.85; }
+
+    @media (max-width: 640px) {
+      .hero { padding: 72px 16px 52px; }
+      .hero-sub { font-size: 1rem; }
+      .hero-btns { flex-direction: column; align-items: stretch; gap: 10px; }
+      .btn-main, .btn-ghost { text-align: center; padding: 15px 24px; }
+      .features { padding: 52px 16px; }
+      .features-grid { grid-template-columns: 1fr; }
+      .feature-card { padding: 22px; }
+      .cta { padding: 52px 16px 80px; }
+      .nav-link { display: none; }
+      .nav-btn { padding: 8px 14px; font-size: 0.82rem; }
+    }
   </style>
 </head>
 <body>
@@ -264,7 +277,7 @@
 
   <section class="cta">
     <h2>Готов попробовать?</h2>
-    <p>Регистрация занимает 30 секунд. Бесплатно.</p>
+    <p>Регистрация занимает 30 секунд. Доступ по приглашению.</p>
     <a href="/register" class="btn-main">Создать аккаунт →</a>
   </section>
 </main>
