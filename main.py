@@ -10,7 +10,7 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
-from database import get_db, init_db, migrate_db, User, Resume, ToolAccess
+from database import get_db, init_db, migrate_db, User, Resume, ToolAccess, EnshroudedSlot
 from auth import hash_password, verify_password, create_token, get_current_user, generate_token
 
 load_dotenv()
@@ -32,6 +32,15 @@ TOOLS = [
         "color": "purple",
         "url": "/hh",
         "desc": "Вставь текст вакансии — получи готовое сопроводительное письмо под твоё резюме за 30 секунд.",
+        "active": True,
+    },
+    {
+        "id": "enshrouded",
+        "name": "Enshrouded",
+        "icon": "🛡",
+        "color": "orange",
+        "url": "/enshrouded",
+        "desc": "Трекер доспехов Enshrouded — отмечай собранные сеты, редкость и уровни предметов.",
         "active": True,
     },
     {
@@ -434,6 +443,83 @@ async def admin_toggle(
         db.add(ToolAccess(user_id=target_user_id, tool_id=tool_id))
         db.commit()
         return JSONResponse({"access": True})
+
+
+# ── Enshrouded Трекер ─────────────────────────────────────────────────────────
+
+@app.get("/enshrouded")
+async def enshrouded_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    if not user_has_access(user, "enshrouded", db):
+        return RedirectResponse("/?locked=enshrouded", status_code=302)
+    return templates.TemplateResponse(request=request, name="enshrouded.html", context={"user": user})
+
+
+@app.get("/api/enshrouded/state")
+async def get_enshrouded_state(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    slots = db.query(EnshroudedSlot).filter(EnshroudedSlot.user_id == user.id).all()
+    result = {}
+    for s in slots:
+        if s.set_id not in result:
+            result[s.set_id] = {}
+        result[s.set_id][s.slot_id] = {
+            "owned": s.owned,
+            "rarity": s.rarity,
+            "level": s.level,
+            "duplicates": s.duplicates,
+        }
+    return JSONResponse(result)
+
+
+@app.post("/api/enshrouded/slot")
+async def update_enshrouded_slot(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    data = await request.json()
+    set_id = data.get("set_id")
+    slot_id = data.get("slot_id")
+    if not set_id or not slot_id:
+        return JSONResponse({"error": "Нет set_id или slot_id"}, status_code=400)
+    slot = db.query(EnshroudedSlot).filter(
+        EnshroudedSlot.user_id == user.id,
+        EnshroudedSlot.set_id == set_id,
+        EnshroudedSlot.slot_id == slot_id,
+    ).first()
+    if not slot:
+        slot = EnshroudedSlot(user_id=user.id, set_id=set_id, slot_id=slot_id)
+        db.add(slot)
+    slot.owned = data.get("owned", False)
+    slot.rarity = data.get("rarity", "common")
+    slot.level = data.get("level") or None
+    slot.duplicates = data.get("duplicates", 0)
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+@app.post("/api/enshrouded/import")
+async def import_enshrouded_state(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    data = await request.json()
+    for set_id, slots in data.items():
+        for slot_id, slot_data in slots.items():
+            slot = db.query(EnshroudedSlot).filter(
+                EnshroudedSlot.user_id == user.id,
+                EnshroudedSlot.set_id == set_id,
+                EnshroudedSlot.slot_id == slot_id,
+            ).first()
+            if not slot:
+                slot = EnshroudedSlot(user_id=user.id, set_id=set_id, slot_id=slot_id)
+                db.add(slot)
+            slot.owned = slot_data.get("owned", False)
+            slot.rarity = slot_data.get("rarity", "common")
+            slot.level = slot_data.get("level") or None
+            slot.duplicates = slot_data.get("duplicates", 0)
+    db.commit()
+    return JSONResponse({"ok": True, "imported": sum(len(v) for v in data.values())})
 
 
 # ── HH Помощник ───────────────────────────────────────────────────────────────

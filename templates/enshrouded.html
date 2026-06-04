@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enshrouded — EnergyDess</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <script src="/static/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    /* ── Enshrouded colour tokens ─────────────────────────── */
+    :root {
+      --ens-accent:    #c8922a;
+      --ens-dim:       #7a5518;
+      --ens-border:    #2a2420;
+      --ens-border-hi: #473c2c;
+      --r-common:    #8a8a8a;
+      --r-uncommon:  #4db86a;
+      --r-rare:      #4a9fdf;
+      --r-epic:      #b06fd4;
+      --r-legendary: #f5a623;
+      --c-complete:  #5aaa6a;
+      --c-smith:     #d48a2a;
+      --c-hunt:      #5db86e;
+      --c-alch:      #a870ce;
+      --c-world:     #5a9fd4;
+      --c-special:   #d469b8;
+    }
+
+    /* ── ENS Header (sticky) ──────────────────────────────── */
+    .ens-header {
+      position: sticky;
+      top: 60px;
+      z-index: 50;
+      background: rgba(7,7,15,0.95);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--ens-border);
+      padding: 0 24px;
+    }
+    .ens-hrow1 { display:flex; align-items:center; gap:18px; padding:12px 0 8px; }
+    .ens-brand { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+    .ens-brand-logo {
+      width:34px; height:34px; border-radius:7px;
+      background:linear-gradient(135deg,#5a3a10,var(--ens-accent));
+      display:flex; align-items:center; justify-content:center;
+    }
+    .ens-brand-text h2 { font-size:1rem; font-weight:800; color:var(--ens-accent); letter-spacing:.1em; text-transform:uppercase; line-height:1; font-family:var(--font-display); }
+    .ens-brand-text small { font-size:.65rem; color:var(--text-dim); letter-spacing:.04em; }
+    .ens-search-wrap { flex:1; max-width:340px; position:relative; }
+    .ens-search-ico { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-dim); pointer-events:none; }
+    #searchInput {
+      width:100%; padding:8px 12px 8px 32px;
+      background:var(--bg3); border:1px solid var(--border);
+      border-radius:8px; color:var(--text); font-size:.82rem; font-family:inherit;
+      outline:none; transition:border-color .18s;
+    }
+    #searchInput::placeholder { color:rgba(221,226,240,0.3); }
+    #searchInput:focus { border-color:var(--ens-dim); }
+    .ens-hstats { margin-left:auto; display:flex; gap:20px; }
+    .ens-hstat { text-align:center; }
+    .ens-hstat-v { display:block; font-size:1.35rem; font-weight:800; color:var(--ens-accent); line-height:1; }
+    .ens-hstat-l { font-size:.68rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; margin-top:3px; }
+
+    /* ── Migrate banner ───────────────────────────────────── */
+    #migrate-banner {
+      display:none;
+      background: rgba(200,146,42,0.1);
+      border: 1px solid rgba(200,146,42,0.3);
+      border-radius: var(--radius-sm);
+      padding: 12px 18px;
+      margin: 16px 24px 0;
+      font-size:0.875rem;
+      color:var(--text);
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      flex-wrap:wrap;
+    }
+    #migrate-banner.hidden { display:none !important; }
+    #migrate-banner p { color: var(--text-dim); font-size:0.85rem; }
+    .migrate-btn {
+      background: linear-gradient(135deg, #7a5518, var(--ens-accent));
+      color:#fff; border:none; border-radius:var(--radius-sm);
+      padding:8px 18px; font-size:0.82rem; font-weight:600; font-family:inherit;
+      cursor:pointer; transition:opacity .2s; white-space:nowrap;
+    }
+    .migrate-btn:hover { opacity:.85; }
+
+    /* ── Tabs ─────────────────────────────────────────────── */
+    .ens-tabs { display:flex; gap:4px; padding-bottom:10px; overflow-x:auto; }
+    .ens-tabs::-webkit-scrollbar { height:0; }
+    .tab { display:flex; align-items:center; gap:5px; padding:5px 12px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-dim); cursor:pointer; font-size:.78rem; font-family:inherit; white-space:nowrap; transition:all .15s; }
+    .tab:hover { color:var(--text); border-color:var(--border-hi); }
+    .tab.active[data-cat="all"]        { background:#231d13; border-color:var(--ens-accent); color:var(--ens-accent);  font-weight:700; }
+    .tab.active[data-cat="blacksmith"] { background:#1e1508; border-color:var(--c-smith);    color:var(--c-smith);    font-weight:700; }
+    .tab.active[data-cat="huntress"]   { background:#0b1a0d; border-color:var(--c-hunt);     color:var(--c-hunt);     font-weight:700; }
+    .tab.active[data-cat="alchemist"]  { background:#170d22; border-color:var(--c-alch);     color:var(--c-alch);     font-weight:700; }
+    .tab.active[data-cat="world"]      { background:#0b1522; border-color:var(--c-world);    color:var(--c-world);    font-weight:700; }
+    .tab.active[data-cat="special"]    { background:#1f0d1c; border-color:var(--c-special);  color:var(--c-special);  font-weight:700; }
+    .tab-cnt { background:rgba(255,255,255,.07); border-radius:9px; padding:1px 6px; font-size:.68rem; }
+
+    /* ── Main grid ────────────────────────────────────────── */
+    .ens-main { padding:22px 24px; max-width:1560px; margin:0 auto; }
+    .cat-sec { margin-bottom:38px; }
+    .cat-hdr { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+    .cat-ico { width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+    .cat-sec[data-cat="blacksmith"] .cat-ico { background:rgba(212,138,42,.15); border:1px solid rgba(212,138,42,.35); }
+    .cat-sec[data-cat="huntress"]   .cat-ico { background:rgba( 93,184,110,.15); border:1px solid rgba( 93,184,110,.35); }
+    .cat-sec[data-cat="alchemist"]  .cat-ico { background:rgba(168,112,206,.15); border:1px solid rgba(168,112,206,.35); }
+    .cat-sec[data-cat="world"]      .cat-ico { background:rgba( 90,159,212,.15); border:1px solid rgba( 90,159,212,.35); }
+    .cat-sec[data-cat="special"]    .cat-ico { background:rgba(212,105,184,.15); border:1px solid rgba(212,105,184,.35); }
+    .cat-name { font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.12em; }
+    .cat-sub  { font-size:.67rem; color:var(--text-dim); }
+    .cat-sec[data-cat="blacksmith"] .cat-name { color:var(--c-smith);   }
+    .cat-sec[data-cat="huntress"]   .cat-name { color:var(--c-hunt);    }
+    .cat-sec[data-cat="alchemist"]  .cat-name { color:var(--c-alch);    }
+    .cat-sec[data-cat="world"]      .cat-name { color:var(--c-world);   }
+    .cat-sec[data-cat="special"]    .cat-name { color:var(--c-special); }
+    .cat-line { flex:1; height:1px; }
+    .cat-sec[data-cat="blacksmith"] .cat-line { background:linear-gradient(90deg,rgba(212,138,42,.3),transparent); }
+    .cat-sec[data-cat="huntress"]   .cat-line { background:linear-gradient(90deg,rgba( 93,184,110,.3),transparent); }
+    .cat-sec[data-cat="alchemist"]  .cat-line { background:linear-gradient(90deg,rgba(168,112,206,.3),transparent); }
+    .cat-sec[data-cat="world"]      .cat-line { background:linear-gradient(90deg,rgba( 90,159,212,.3),transparent); }
+    .cat-sec[data-cat="special"]    .cat-line { background:linear-gradient(90deg,rgba(212,105,184,.3),transparent); }
+    .sets-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(282px,1fr)); gap:10px; }
+
+    /* ── Set Card ─────────────────────────────────────────── */
+    .set-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; overflow:hidden; transition:border-color .18s,background .18s; }
+    .set-card:hover { background:var(--bg3); border-color:var(--ens-border-hi); }
+    .set-card.done { border-color:rgba(90,170,106,.4); }
+    .cat-sec[data-cat="special"] .set-card { border-color:rgba(212,105,184,.15); }
+    .cat-sec[data-cat="special"] .set-card:hover { border-color:rgba(212,105,184,.35); }
+    .cat-sec[data-cat="special"] .set-card.done { border-color:rgba(212,105,184,.6); }
+
+    .card-banner { width:100%; height:220px; overflow:hidden; position:relative; background:linear-gradient(160deg,#1e1912 0%,#0e0c0a 100%); display:none; }
+    .card-banner.loaded { display:block; }
+    .card-banner img { width:100%; height:100%; object-fit:cover; object-position:center 15%; display:block; }
+    .cat-sec[data-cat="special"]   .card-banner { background:linear-gradient(160deg,#200c1c 0%,#0e0c0a 100%); }
+    .cat-sec[data-cat="huntress"]  .card-banner { background:linear-gradient(160deg,#0a1a0d 0%,#0e0c0a 100%); }
+    .cat-sec[data-cat="alchemist"] .card-banner { background:linear-gradient(160deg,#170a22 0%,#0e0c0a 100%); }
+    .cat-sec[data-cat="world"]     .card-banner { background:linear-gradient(160deg,#0a1420 0%,#0e0c0a 100%); }
+
+    .card-body { padding:13px; }
+    .card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:9px; }
+    .card-name { font-size:.92rem; font-weight:700; line-height:1.2; color:var(--text); }
+    .card-meta { display:flex; align-items:center; gap:5px; font-size:.67rem; color:var(--text-dim); margin-top:3px; flex-wrap:wrap; }
+    .card-dot { width:5px; height:5px; border-radius:50%; display:inline-block; flex-shrink:0; }
+    .cat-sec[data-cat="blacksmith"] .card-dot { background:var(--c-smith);   }
+    .cat-sec[data-cat="huntress"]   .card-dot { background:var(--c-hunt);    }
+    .cat-sec[data-cat="alchemist"]  .card-dot { background:var(--c-alch);    }
+    .cat-sec[data-cat="world"]      .card-dot { background:var(--c-world);   }
+    .cat-sec[data-cat="special"]    .card-dot { background:var(--c-special); }
+    .lvl-tag { font-size:.62rem; color:var(--text-dim); background:rgba(255,255,255,.05); border:1px solid var(--border); border-radius:4px; padding:1px 5px; }
+    .card-prog { font-size:.72rem; font-weight:700; color:var(--text-dim); flex-shrink:0; }
+    .card-prog.done { color:var(--c-complete); }
+    .cat-sec[data-cat="special"] .card-prog.done { color:var(--c-special); }
+    .pbar { height:3px; background:var(--border); border-radius:2px; overflow:hidden; margin-bottom:11px; }
+    .pbar-f { height:100%; border-radius:2px; transition:width .28s ease; }
+    .pbar-f.partial  { background:linear-gradient(90deg,var(--ens-dim),var(--ens-accent)); }
+    .pbar-f.complete { background:linear-gradient(90deg,#3d884d,var(--c-complete)); }
+    .cat-sec[data-cat="special"] .pbar-f.complete { background:linear-gradient(90deg,#8a2070,var(--c-special)); }
+
+    /* ── Slots ────────────────────────────────────────────── */
+    .slots { display:flex; gap:6px; }
+    .slot { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; }
+    .slot-box { width:42px; height:42px; border-radius:7px; border:1.5px solid var(--border); background:var(--bg); display:flex; align-items:center; justify-content:center; position:relative; transition:all .15s; user-select:none; }
+    .slot-box svg { color:var(--text-faint); transition:color .15s; }
+    .slot:hover .slot-box { border-color:var(--border-hi); background:var(--bg3); }
+    .slot:hover .slot-box svg { color:var(--text-dim); }
+    .slot.r-common    .slot-box { border-color:var(--r-common);    background:#131313; }
+    .slot.r-uncommon  .slot-box { border-color:var(--r-uncommon);  background:#0a160d; box-shadow:0 0 8px rgba(77,184,106,.22); }
+    .slot.r-rare      .slot-box { border-color:var(--r-rare);      background:#0c1620; box-shadow:0 0 8px rgba(74,159,223,.22); }
+    .slot.r-epic      .slot-box { border-color:var(--r-epic);      background:#180e22; box-shadow:0 0 8px rgba(176,111,212,.22); }
+    .slot.r-legendary .slot-box { border-color:var(--r-legendary); background:#1e1308; box-shadow:0 0 10px rgba(245,166,35,.32); animation:lglow 2.5s ease-in-out infinite; }
+    .slot.r-common    .slot-box svg { color:var(--r-common);    }
+    .slot.r-uncommon  .slot-box svg { color:var(--r-uncommon);  }
+    .slot.r-rare      .slot-box svg { color:var(--r-rare);      }
+    .slot.r-epic      .slot-box svg { color:var(--r-epic);      }
+    .slot.r-legendary .slot-box svg { color:var(--r-legendary); }
+    @keyframes lglow { 0%,100%{box-shadow:0 0 10px rgba(245,166,35,.32);} 50%{box-shadow:0 0 18px rgba(245,166,35,.55);} }
+    .slot-lvl { position:absolute; bottom:1px; right:3px; font-size:.5rem; font-weight:800; color:var(--ens-accent); line-height:1; }
+    .slot-lbl { font-size:.58rem; color:var(--text-dim); text-align:center; line-height:1.2; }
+    .slot-dupe { position:absolute; top:1px; left:3px; font-size:.46rem; font-weight:900; color:#fff; background:rgba(200,146,42,.9); border-radius:3px; padding:0 3px; line-height:1.5; pointer-events:none; }
+    .cat-sec[data-cat="special"] .slot.owned .slot-box { border-color:var(--c-special); background:rgba(212,105,184,.12); box-shadow:0 0 9px rgba(212,105,184,.3); }
+    .cat-sec[data-cat="special"] .slot.owned .slot-box svg { color:var(--c-special); }
+
+    /* ── Popup ────────────────────────────────────────────── */
+    #overlay { display:none; position:fixed; inset:0; z-index:900; background:rgba(0,0,0,.55); backdrop-filter:blur(3px); }
+    #popup {
+      display:none; position:fixed; z-index:1000;
+      background:var(--bg2); border:1px solid var(--border-hi);
+      border-radius:14px; padding:18px; width:270px;
+      box-shadow:0 24px 60px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.04);
+      top:50%; left:50%; transform:translate(-50%,-50%);
+      max-height:90vh; overflow-y:auto;
+    }
+    .pop-set  { font-size:.62rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em; margin-bottom:2px; }
+    .pop-slot { font-size:.9rem; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:6px; color:var(--text); }
+    .toggle-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    .toggle-lbl { font-size:.82rem; color:var(--text); }
+    .tog { width:38px; height:21px; border-radius:11px; background:var(--bg3); border:1px solid var(--border); position:relative; cursor:pointer; transition:background .18s; }
+    .tog.on { background:var(--ens-dim); border-color:var(--ens-accent); }
+    .tog-k { width:15px; height:15px; background:var(--text-dim); border-radius:50%; position:absolute; top:2px; left:2px; transition:transform .18s,background .18s; }
+    .tog.on .tog-k { transform:translateX(17px); background:var(--text); }
+    .pop-div  { height:1px; background:var(--border); margin:10px 0; }
+    .pop-sect { font-size:.62rem; text-transform:uppercase; letter-spacing:.07em; color:var(--text-dim); margin-bottom:7px; }
+    .rar-grid { display:flex; flex-direction:column; gap:4px; margin-bottom:12px; }
+    .r-btn { display:flex; align-items:center; gap:8px; padding:6px 9px; border-radius:5px; border:1px solid var(--border); background:transparent; cursor:pointer; font-size:.75rem; font-family:inherit; color:var(--text-dim); transition:all .15s; }
+    .r-btn:hover { color:var(--text); border-color:var(--border-hi); }
+    .r-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+    .r-dot.d-common    { background:var(--r-common);    }
+    .r-dot.d-uncommon  { background:var(--r-uncommon);  }
+    .r-dot.d-rare      { background:var(--r-rare);      }
+    .r-dot.d-epic      { background:var(--r-epic);      }
+    .r-dot.d-legendary { background:var(--r-legendary); }
+    .r-btn[data-r="common"].sel    { border-color:var(--r-common);    color:var(--r-common);    background:rgba(138,138,138,.08); }
+    .r-btn[data-r="uncommon"].sel  { border-color:var(--r-uncommon);  color:var(--r-uncommon);  background:rgba( 77,184,106,.08); }
+    .r-btn[data-r="rare"].sel      { border-color:var(--r-rare);      color:var(--r-rare);      background:rgba( 74,159,223,.08); }
+    .r-btn[data-r="epic"].sel      { border-color:var(--r-epic);      color:var(--r-epic);      background:rgba(176,111,212,.08); }
+    .r-btn[data-r="legendary"].sel { border-color:var(--r-legendary); color:var(--r-legendary); background:rgba(245,166, 35,.08); }
+    .lvl-row { display:flex; align-items:center; gap:8px; }
+    .lvl-lbl { font-size:.82rem; color:var(--text); }
+    .lvl-in { width:62px; background:var(--bg3); border:1px solid var(--border); border-radius:5px; color:var(--text); font-size:.82rem; font-family:inherit; padding:5px 8px; outline:none; transition:border-color .18s; }
+    .lvl-in:focus { border-color:var(--ens-dim); }
+    .dupe-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    .dupe-ctrl { display:flex; align-items:center; gap:7px; }
+    .dupe-btn { width:26px; height:26px; border-radius:5px; border:1px solid var(--border-hi); background:var(--bg3); color:var(--text); font-size:1.05rem; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; font-family:inherit; transition:background .15s; flex-shrink:0; }
+    .dupe-btn:hover { background:var(--bg4); border-color:var(--ens-dim); }
+    #dupeVal { font-size:.92rem; font-weight:800; min-width:20px; text-align:center; color:var(--ens-accent); }
+
+    /* ── Image zoom ───────────────────────────────────────── */
+    #img-zoom { position:fixed; left:-9999px; top:-9999px; z-index:800; background:var(--bg2); border:1px solid var(--border-hi); border-radius:12px; overflow:hidden; box-shadow:0 24px 70px rgba(0,0,0,.92); pointer-events:none; opacity:0; transition:opacity .15s ease; }
+    #img-zoom.show { opacity:1; }
+    #img-zoom img { display:block; }
+
+    .no-res { text-align:center; padding:60px 24px; color:var(--text-dim); }
+    .no-res-ico { font-size:2.8rem; opacity:.35; margin-bottom:12px; }
+
+    /* ── Loading ──────────────────────────────────────────── */
+    #ens-loading { text-align:center; padding:80px 24px; color:var(--text-dim); display:flex; flex-direction:column; align-items:center; gap:16px; }
+
+    @media (max-width:640px) {
+      .ens-main { padding:14px; }
+      .ens-header { padding:0 14px; }
+      .ens-hstats { display:none; }
+      .sets-grid { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+<script src="/static/effects.js"></script>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="nav-logo-symbol">⚡</span>
+    <span>EnergyDess</span>
+  </a>
+  <div class="nav-right">
+    <a href="/" class="nav-hide-mobile">Главная</a>
+    <a href="/profile">Профиль</a>
+    {% if user.is_admin %}
+    <a href="/admin" class="admin-link">Админ</a>
+    {% endif %}
+    <a href="/logout" class="nav-logout">Выйти</a>
+  </div>
+</nav>
+
+<div class="ens-header">
+  <div class="ens-hrow1">
+    <div class="ens-brand">
+      <div class="ens-brand-logo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+      <div class="ens-brand-text">
+        <h2>Enshrouded</h2>
+        <small>Трекер доспехов</small>
+      </div>
+    </div>
+    <div class="ens-search-wrap">
+      <svg class="ens-search-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="text" id="searchInput" placeholder="Поиск по названию сета…" autocomplete="off">
+    </div>
+    <div class="ens-hstats">
+      <div class="ens-hstat"><span class="ens-hstat-v" id="stPieces">0/0</span><span class="ens-hstat-l">Предметов</span></div>
+      <div class="ens-hstat"><span class="ens-hstat-v" id="stDone">0</span><span class="ens-hstat-l">Сетов собрано</span></div>
+    </div>
+  </div>
+  <div class="ens-tabs">
+    <button class="tab active" data-cat="all">Все <span class="tab-cnt" id="tc-all">0</span></button>
+    <button class="tab" data-cat="blacksmith">⚒ Кузнец <span class="tab-cnt" id="tc-blacksmith">0</span></button>
+    <button class="tab" data-cat="huntress">🏹 Охотница <span class="tab-cnt" id="tc-huntress">0</span></button>
+    <button class="tab" data-cat="alchemist">⚗ Алхимик <span class="tab-cnt" id="tc-alchemist">0</span></button>
+    <button class="tab" data-cat="world">🗺 Мир <span class="tab-cnt" id="tc-world">0</span></button>
+    <button class="tab" data-cat="special">✨ Спецпредметы <span class="tab-cnt" id="tc-special">0</span></button>
+  </div>
+</div>
+
+<div id="migrate-banner" class="hidden">
+  <div>
+    <strong style="color:var(--ens-accent)">Найдены локальные данные</strong>
+    <p>В браузере есть сохранённый прогресс. Перенести его в аккаунт?</p>
+  </div>
+  <button class="migrate-btn" id="migrate-btn">Перенести данные →</button>
+</div>
+
+<div class="ens-main" id="ens-main">
+  <div id="ens-loading">
+    <div class="spinner" style="width:32px;height:32px;border-width:3px;border-top-color:var(--ens-accent)"></div>
+    <span>Загружаю коллекцию…</span>
+  </div>
+  <main id="main" style="display:none"></main>
+</div>
+
+<div id="img-zoom"><img id="img-zoom-img" src="" alt=""></div>
+<div id="overlay"></div>
+<div id="popup">
+  <div class="pop-set"  id="popSet"></div>
+  <div class="pop-slot" id="popSlot"></div>
+  <div class="toggle-row">
+    <span class="toggle-lbl">Есть в наличии</span>
+    <div class="tog" id="popTog"><div class="tog-k"></div></div>
+  </div>
+  <div class="dupe-row">
+    <span class="toggle-lbl">Дубликаты</span>
+    <div class="dupe-ctrl">
+      <button class="dupe-btn" id="dupeDown">−</button>
+      <span id="dupeVal">0</span>
+      <button class="dupe-btn" id="dupeUp">+</button>
+    </div>
+  </div>
+  <div id="popBody">
+    <div class="pop-div"></div>
+    <div class="pop-sect">Редкость</div>
+    <div class="rar-grid">
+      <button class="r-btn" data-r="common">   <span class="r-dot d-common"></span>    Обычный</button>
+      <button class="r-btn" data-r="uncommon"> <span class="r-dot d-uncommon"></span>  Необычный</button>
+      <button class="r-btn" data-r="rare">     <span class="r-dot d-rare"></span>      Редкий</button>
+      <button class="r-btn" data-r="epic">     <span class="r-dot d-epic"></span>      Эпический</button>
+      <button class="r-btn" data-r="legendary"><span class="r-dot d-legendary"></span> Легендарный</button>
+    </div>
+    <div class="pop-sect">Уровень предмета</div>
+    <div class="lvl-row">
+      <span class="lvl-lbl">Уровень</span>
+      <input class="lvl-in" id="popLvl" type="number" min="1" max="100" placeholder="—">
+    </div>
+  </div>
+</div>
+
+<script>
+const SVG = {
+  head:   '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 13 Q4 5 12 5 Q20 5 20 13"/><line x1="3" y1="13" x2="21" y2="13"/><line x1="3" y1="17" x2="21" y2="17"/></svg>',
+  chest:  '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 4 L4 10 L4 20 L20 20 L20 10 L19 4 Z"/><line x1="12" y1="4" x2="12" y2="20"/><path d="M5 4 Q8 7 12 7 Q16 7 19 4"/></svg>',
+  gloves: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="5" y="10" width="14" height="10" rx="2"/><line x1="7" y1="5.5" x2="7" y2="11"/><line x1="10.5" y1="4" x2="10.5" y2="11"/><line x1="14" y1="5" x2="14" y2="11"/><line x1="17.5" y1="6.5" x2="17.5" y2="11"/></svg>',
+  legs:   '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3" y="4" width="7" height="16" rx="2"/><rect x="14" y="4" width="7" height="16" rx="2"/></svg>',
+  feet:   '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 4 L7 16 L4 20 L20 20 L20 17 L11 17 L11 4 Z"/></svg>',
+};
+
+const SLOT_DEFS = [
+  { id:'head',   label:'Шлем'      },
+  { id:'chest',  label:'Нагрудник' },
+  { id:'gloves', label:'Перчатки'  },
+  { id:'legs',   label:'Поножи'    },
+  { id:'feet',   label:'Ботинки'   },
+];
+
+const CRAFTERS = {
+  blacksmith: { name:'Кузнец',           sub:'Крафт',             ico:'⚒'  },
+  huntress:   { name:'Охотница',         sub:'Крафт',             ico:'🏹' },
+  alchemist:  { name:'Алхимик',          sub:'Крафт',             ico:'⚗'  },
+  world:      { name:'Найдено в мире',   sub:'Находка',           ico:'🗺' },
+  special:    { name:'Спецпредметы',     sub:'События / Магазин', ico:'✨' },
+};
+
+const SETS = [
+  { id:'bs_fur',     nameRu:'Меховой доспех',       name:'Fur Armor',          crafter:'blacksmith', lvl:5  },
+  { id:'bs_rf',      nameRu:'Начинающий боец',      name:'Rising Fighter',     crafter:'blacksmith', lvl:7  },
+  { id:'bs_adv',     nameRu:'Авантюрист',           name:'Adventurer',         crafter:'blacksmith', lvl:13 },
+  { id:'bs_tank',    nameRu:'Костолом',             name:'Tank',               crafter:'blacksmith', lvl:13 },
+  { id:'bs_merc',    nameRu:'Наёмник',              name:'Mercenary',          crafter:'blacksmith', lvl:18 },
+  { id:'bs_guard',   nameRu:'Страж',                name:'Guardian',           crafter:'blacksmith', lvl:18 },
+  { id:'bs_blk',     nameRu:'Чёрный страж',         name:'Blackguard',         crafter:'blacksmith', lvl:18 },
+  { id:'bs_sold',    nameRu:'Солдат',               name:'Soldier',            crafter:'blacksmith', lvl:23 },
+  { id:'bs_rogue',   nameRu:'Разбойник',            name:'Rogue',              crafter:'blacksmith', lvl:23 },
+  { id:'bs_ward',    nameRu:'Блюститель',           name:'Warden',             crafter:'blacksmith', lvl:23 },
+  { id:'bs_mtn',     nameRu:'Горная тень',          name:"Mountain's Shadow",  crafter:'blacksmith', lvl:33 },
+  { id:'bs_wolf',    nameRu:'Волчий клык',          name:"Wolf's Fang",        crafter:'blacksmith', lvl:33 },
+  { id:'bs_bull',    nameRu:'Бронзовый бык',        name:'Brazen Bull',        crafter:'blacksmith', lvl:33 },
+  { id:'bs_sun',     nameRu:'Пронзающее солнце',    name:'Sunpiercer',         crafter:'blacksmith', lvl:43 },
+  { id:'bs_gold',    nameRu:'Золотой оплот',        name:'Golden Bulwark',     crafter:'blacksmith', lvl:43 },
+  { id:'ht_scout',   nameRu:'Лазутчик',             name:'Scout',              crafter:'huntress',   lvl:8  },
+  { id:'ht_trail',   nameRu:'Следопыт',             name:'Ranger',             crafter:'huntress',   lvl:13 },
+  { id:'ht_shoot',   nameRu:'Стрелок',              name:'Archer',             crafter:'huntress',   lvl:13, noWiki:true },
+  { id:'ht_plague',  nameRu:'Вестник чумы',         name:'Plaguebringer',      crafter:'huntress',   lvl:18 },
+  { id:'ht_hunt',    nameRu:'Охотник',              name:'Hunter',             crafter:'huntress',   lvl:18 },
+  { id:'ht_marks',   nameRu:'Меткий стрелок',       name:'Marksman',           crafter:'huntress',   lvl:18, noWiki:true },
+  { id:'ht_ass',     nameRu:'Убийца',               name:'Assassin',           crafter:'huntress',   lvl:23 },
+  { id:'ht_deer',    nameRu:'Ловец оленей',         name:'Deerstalker',        crafter:'huntress',   lvl:23 },
+  { id:'ht_sharp',   nameRu:'Снайпер',              name:'Sharpshooter',       crafter:'huntress',   lvl:23, noWiki:true },
+  { id:'ht_frost',   nameRu:'Хладнокровный рубака', name:'Frostbite Slasher',  crafter:'huntress',   lvl:33 },
+  { id:'ht_horn',    nameRu:'Горнорог',             name:'Alpine Antler',      crafter:'huntress',   lvl:33 },
+  { id:'ht_tblazer', nameRu:'Первопроходец',        name:'Trailblazer',        crafter:'huntress',   lvl:33 },
+  { id:'ht_quet',    nameRu:'Охотник на кецалей',   name:'Quetzal Hunter',     crafter:'huntress',   lvl:43 },
+  { id:'ht_blood',   nameRu:'Кровавое перо',        name:'Bloodfeather',       crafter:'huntress',   lvl:43 },
+  { id:'ht_skull',   nameRu:'Охотник за черепами',  name:'Skull Stalker',      crafter:'huntress',   lvl:43 },
+  { id:'al_appr',    nameRu:'Ученик алхимика',      name:'Alchemist Apprentice', crafter:'alchemist', lvl:13 },
+  { id:'al_heal',    nameRu:'Целитель',             name:'Healer',             crafter:'alchemist',  lvl:13 },
+  { id:'al_mage',    nameRu:'Маг',                  name:'Mage',               crafter:'alchemist',  lvl:13 },
+  { id:'al_herb',    nameRu:'Травник',              name:'Herbalist',          crafter:'alchemist',  lvl:18 },
+  { id:'al_wiz',     nameRu:'Чародей',              name:'Magician',           crafter:'alchemist',  lvl:18, noWiki:true },
+  { id:'al_omen',    nameRu:'Предвестие',           name:'Omen',               crafter:'alchemist',  lvl:18 },
+  { id:'al_lock',    nameRu:'Колдун',               name:'Warlock',            crafter:'alchemist',  lvl:23 },
+  { id:'al_sage',    nameRu:'Мудрец',               name:'Sage',               crafter:'alchemist',  lvl:23 },
+  { id:'al_arch',    nameRu:'Архимаг',              name:'Archmage',           crafter:'alchemist',  lvl:23 },
+  { id:'al_hail',    nameRu:'Градобой',             name:'Hailcaster',         crafter:'alchemist',  lvl:33 },
+  { id:'al_pearl',   nameRu:'Перламутровое касание',name:'Pearlfrost Mentor',  crafter:'alchemist',  lvl:33 },
+  { id:'al_thaum',   nameRu:'Чудотворец',           name:'Thaumaturge',        crafter:'alchemist',  lvl:33 },
+  { id:'al_wave',    nameRu:'Заклинатель волн',     name:'Waveborne Ritualist',crafter:'alchemist',  lvl:43 },
+  { id:'al_tide',    nameRu:'Зов приливов',         name:'Tidecaller',         crafter:'alchemist',  lvl:43 },
+  { id:'w_worn',     nameRu:'Изношенные штаны',     name:'Worn Pants',         crafter:'world',      lvl:1,  pieces:['legs'], noWiki:true },
+  { id:'w_ragged',   nameRu:'Потрёпанный',          name:'Ragged',             crafter:'world',      lvl:3  },
+  { id:'w_wand',     nameRu:'Обувь бродяги',        name:"Wanderer's Boots",   crafter:'world',      lvl:9,  pieces:['feet'],   wikiImg:"Wanderer's_Boots.png" },
+  { id:'w_warrior',  nameRu:'Воитель',              name:'Warrior',            crafter:'world',      lvl:13 },
+  { id:'sp_gnorth',  nameRu:'Страж Севера',         name:'Guard of the North', crafter:'world',      lvl:13 },
+  { id:'w_wizard',   nameRu:'Волшебник',            name:'Wizard',             crafter:'world',      lvl:13 },
+  { id:'w_archer',   nameRu:'Лучник',               name:'Archer',             crafter:'world',      lvl:13, noWiki:true },
+  { id:'w_knight',   nameRu:'Рыцарь',               name:'Knight',             crafter:'world',      lvl:18 },
+  { id:'w_fowler',   nameRu:'Птицелов',             name:'Fowler',             crafter:'world',      lvl:18 },
+  { id:'w_mystic',   nameRu:'Тайновидец',           name:'Mystic',             crafter:'world',      lvl:18 },
+  { id:'w_hawk',     nameRu:'Ястреб',               name:'Hawk',               crafter:'world',      lvl:23 },
+  { id:'w_gloom',    nameRu:'Мрачный монарх',       name:'Gloom Monarch',      crafter:'world',      lvl:23 },
+  { id:'w_spell',    nameRu:'Разрушитель чар',      name:'Spellbreaker',       crafter:'world',      lvl:23, wikiImg:'Spellbinder_Set.png' },
+  { id:'sp_edead',   nameRu:'Элитный комплект умертвий', name:'Elite Hollow',  crafter:'world',      lvl:23 },
+  { id:'w_paladin',  nameRu:'Паладин света',        name:'Radiant Paladin',    crafter:'world',      lvl:25 },
+  { id:'w_eagle',    nameRu:'Орлиное Oko',           name:'Eagle Eye',          crafter:'world',      lvl:25 },
+  { id:'w_elder',    nameRu:'Старейшина',           name:'Elder',              crafter:'world',      lvl:25 },
+  { id:'w_gtsword',  nameRu:'Перчатки для двуручного меча', name:'Greatsword Gauntlets', crafter:'world', lvl:45, pieces:['gloves'], wikiImg:'Greatsword_Gauntlets.png' },
+  { id:'w_frozen',   nameRu:'Морозные перчатки',    name:'Frozen Gauntlets',   crafter:'world',      lvl:45, pieces:['gloves'], wikiImg:'Frozen_Gauntlets.png' },
+  { id:'w_flaming',  nameRu:'Пылающие перчатки',    name:'Flaming Gauntlets',  crafter:'world',      lvl:45, pieces:['gloves'], wikiImg:'Flaming_Gauntlets.png' },
+  { id:'w_drakian',  nameRu:'Драккская обувь',       name:'Drakian Boots',      crafter:'world',      lvl:45, pieces:['feet'],   wikiImg:'Drakian_Boots.png' },
+  { id:'sp_snake',   nameRu:'Воин-змея',            name:'Serpent Warrior',    crafter:'special' },
+  { id:'sp_noble',   nameRu:'Знать',                name:'Noble Dress',        crafter:'special' },
+  { id:'sp_flame',   nameRu:'Пакт пламени',         name:'Flame Pact',         crafter:'special' },
+  { id:'sp_peasant', nameRu:'Крестьянин',           name:'Farmer',             crafter:'special', pieces:['head','chest','legs','feet'] },
+  { id:'sp_grave',   nameRu:'Могильщик',            name:'Gravedigger',        crafter:'special', pieces:['head','chest','legs','feet'] },
+  { id:'sp_royal',   nameRu:'Королевский комплект', name:'Royal',              crafter:'special' },
+  { id:'sp_explor',  nameRu:'Исследователь',        name:'Explorer',           crafter:'special' },
+  { id:'sp_hope',    nameRu:'Цветущая надежда',     name:'Efflorescent Hope',  crafter:'special' },
+  { id:'sp_milk',    nameRu:'Доярка',               name:'Milkmaid',           crafter:'special', pieces:['head','chest','feet'] },
+  { id:'sp_maid',    nameRu:'Горничная',            name:'Maid',               crafter:'special', pieces:['head','chest'] },
+  { id:'sp_emp',     nameRu:'Ученик эмпиреев',      name:'Scholar Of The Empyrean', crafter:'special', noWiki:true },
+  { id:'sp_smith',   nameRu:'Кузнец',               name:'Blacksmith',         crafter:'special', pieces:['head','chest','legs','feet'] },
+  { id:'sp_hunter',  nameRu:'Охотник',              name:'Hunter Outfit',      crafter:'special', pieces:['head','chest','legs','feet'] },
+  { id:'sp_hats',    nameRu:'Комплект головных уборов', name:'Hat Collection', crafter:'special', noWiki:true,
+    custom:[
+      { id:'h_minstrel', label:'Менестрель', svg:'head' },
+      { id:'h_merchant', label:'Торговец',   svg:'head' },
+      { id:'h_scarf',    label:'Платок',     svg:'head' },
+      { id:'h_tricorn',  label:'Треуголка',  svg:'head' },
+    ]
+  },
+  { id:'sp_flamapp', nameRu:'Ученик юного пламени', name:'Scholar Of The Young Flame', crafter:'special' },
+  { id:'sp_fluffy',  nameRu:'Пушистый комплект',    name:'Fluffy',             crafter:'special' },
+  { id:'sp_winter',  nameRu:'Зимний комплект',      name:'Winterly',           crafter:'special' },
+  { id:'sp_jester',  nameRu:'Шутовской колпак',     name:'Jester Hat',         crafter:'special', pieces:['head'], wikiImg:"Jester_Hat.png" },
+  { id:'sp_daydead', nameRu:'Сочельник',             name:"Hollow's Eve",       crafter:'special' },
+  { id:'sp_siren',   nameRu:'Искатель сирен',       name:'Siren Seeker',       crafter:'special' },
+  { id:'sp_capt',    nameRu:'Сюртук капитана',      name:"Captain's Coat",     crafter:'special', pieces:['chest'], wikiImg:"Captain's_Coat.png" },
+  { id:'sp_lumber',  nameRu:'Лесоруб',              name:'Lumberer',           crafter:'special', noWiki:true },
+  { id:'sp_rose',    nameRu:'Кровавая роза',        name:'Blood Rose',         crafter:'special' },
+  { id:'sp_summer',  nameRu:'Комплект летних игр',  name:'Summer Games',       crafter:'special' },
+  { id:'sp_sunny',   nameRu:'Комплект любителя солнца', name:'Sunny Loungewear', crafter:'special', noWiki:true, pieces:['chest','legs','feet'] },
+];
+
+function getPieces(set) {
+  if (set.custom) return set.custom.map(c=>({id:c.id,label:c.label,svg:SVG[c.svg||'head']}));
+  const ids = set.pieces||['head','chest','gloves','legs','feet'];
+  return ids.map(id=>({...SLOT_DEFS.find(s=>s.id===id),svg:SVG[id]}));
+}
+
+/* ── State (server-backed) ────────────────────────────── */
+let state = {};
+let activeTab = 'all';
+let query = '';
+let popCtx = null;
+const LOCAL_KEY = 'enshrouded_tracker_v3';
+
+function getSlot(sid,slid) { return state[sid]?.[slid]||{owned:false,rarity:'common',level:null,duplicates:0}; }
+
+function mutSlot(sid,slid,patch) {
+  (state[sid]??={})[slid] = {...getSlot(sid,slid),...patch};
+  const d = state[sid][slid];
+  fetch('/api/enshrouded/slot',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({set_id:sid,slot_id:slid,owned:d.owned,rarity:d.rarity,level:d.level,duplicates:d.duplicates})
+  }).catch(()=>{});
+}
+
+function progress(set) {
+  const pieces=getPieces(set);
+  const owned=pieces.filter(p=>getSlot(set.id,p.id).owned).length;
+  return {owned,total:pieces.length};
+}
+
+/* ── Load state from server ───────────────────────────── */
+async function loadState() {
+  try {
+    const res = await fetch('/api/enshrouded/state');
+    const data = await res.json();
+    state = data;
+
+    const localRaw = localStorage.getItem(LOCAL_KEY);
+    if (localRaw) {
+      const localData = JSON.parse(localRaw);
+      const hasLocal = Object.keys(localData).some(k=>Object.values(localData[k]).some(v=>v.owned));
+      const hasServer = Object.keys(data).some(k=>Object.values(data[k]).some(v=>v.owned));
+      if (hasLocal && !hasServer) {
+        const banner = document.getElementById('migrate-banner');
+        banner.classList.remove('hidden');
+        document.getElementById('migrate-btn').onclick = ()=>migrateLocal(localData);
+      }
+    }
+  } catch(e) {
+    const localRaw = localStorage.getItem(LOCAL_KEY);
+    state = localRaw ? JSON.parse(localRaw) : {};
+  }
+  document.getElementById('ens-loading').style.display='none';
+  document.getElementById('main').style.display='';
+  updateTabCounts();
+  renderMain();
+  updateStats();
+}
+
+async function migrateLocal(localData) {
+  const btn = document.getElementById('migrate-btn');
+  btn.textContent = 'Переношу…';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/enshrouded/import',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(localData)
+    });
+    const d = await res.json();
+    state = localData;
+    renderMain(); updateStats();
+    document.getElementById('migrate-banner').classList.add('hidden');
+    localStorage.removeItem(LOCAL_KEY);
+  } catch(e) {
+    btn.textContent = 'Ошибка — попробуй ещё раз';
+    btn.disabled = false;
+  }
+}
+
+/* ── Render ───────────────────────────────────────────── */
+function visible() {
+  return SETS.filter(s=>{
+    if(activeTab!=='all'&&s.crafter!==activeTab) return false;
+    if(query){const q=query.toLowerCase();return s.nameRu.toLowerCase().includes(q)||s.name.toLowerCase().includes(q);}
+    return true;
+  });
+}
+
+function renderMain() {
+  const sets=visible();
+  const main=document.getElementById('main');
+  if(!sets.length){main.innerHTML=`<div class="no-res"><div class="no-res-ico">🔍</div>Ничего не найдено по запросу «${query}»</div>`;return;}
+  const order=['blacksmith','huntress','alchemist','world','special'];
+  const grouped={};
+  sets.forEach(s=>(grouped[s.crafter]??=[]).push(s));
+  main.innerHTML=order.filter(c=>grouped[c]).map(c=>renderSection(c,grouped[c])).join('');
+  bindSlots();
+}
+
+function renderSection(cat,sets) {
+  const c=CRAFTERS[cat];
+  return `<section class="cat-sec" data-cat="${cat}">
+    <div class="cat-hdr"><div class="cat-ico">${c.ico}</div><div><div class="cat-name">${c.name}</div><div class="cat-sub">${c.sub} · ${sets.length} ${pl(sets.length)}</div></div><div class="cat-line"></div></div>
+    <div class="sets-grid">${sets.map(s=>renderCard(s)).join('')}</div>
+  </section>`;
+}
+
+function renderCard(set) {
+  const p=progress(set);
+  const pct=(p.owned/p.total*100).toFixed(1);
+  const done=p.owned===p.total;
+  const pieces=getPieces(set);
+  const isSpecial=set.crafter==='special';
+  const slotsHtml=pieces.map(sl=>{
+    const d=getSlot(set.id,sl.id);
+    const cls=d.owned?(isSpecial?'owned':'r-'+d.rarity):'';
+    const lvl=d.owned&&d.level&&!isSpecial?`<span class="slot-lvl">${d.level}</span>`:'';
+    const dupe=d.duplicates>0?`<span class="slot-dupe">+${d.duplicates}</span>`:'';
+    return `<div class="slot ${cls}" data-set="${set.id}" data-slot="${sl.id}"><div class="slot-box">${sl.svg}${lvl}${dupe}</div><div class="slot-lbl">${sl.label}</div></div>`;
+  }).join('');
+  const lvlTag=set.lvl?`<span class="lvl-tag">lvl ${set.lvl}</span>`:'';
+  const sid=set.id;
+  const wikiFile=!set.noWiki&&(set.wikiImg||(set.name?set.name.replace(/\s+/g,'_')+'_Set.png':null));
+  const wikiUrl=wikiFile?`https://enshrouded.wiki.gg/images/${wikiFile}`:null;
+  const firstSrc=wikiUrl||`/static/enshrouded/${sid}.jpg`;
+  const errChain=wikiUrl
+    ?`if(this.step===undefined){this.step=1;this.src='/static/enshrouded/${sid}.jpg'}else if(this.step===1){this.step=2;this.src='/static/enshrouded/${sid}.png'}else{this.closest('.card-banner').remove()}`
+    :`if(!this.src.endsWith('.png')){this.src='/static/enshrouded/${sid}.png'}else{this.closest('.card-banner').remove()}`;
+  const bannerHtml=`<div class="card-banner"><img src="${firstSrc}" alt="" onload="this.closest('.card-banner').classList.add('loaded')" onerror="${errChain}"></div>`;
+  return `<div class="set-card ${done?'done':''}" data-id="${set.id}">${bannerHtml}<div class="card-body"><div class="card-top"><div><div class="card-name">${set.nameRu}</div><div class="card-meta"><span class="card-dot"></span><span>${set.name||''}</span>${lvlTag}</div></div><div class="card-prog ${done?'done':''}">${p.owned}/${p.total}</div></div><div class="pbar"><div class="pbar-f ${done?'complete':p.owned?'partial':''}" style="width:${pct}%"></div></div><div class="slots">${slotsHtml}</div></div></div>`;
+}
+
+function pl(n){if(n%10===1&&n%100!==11)return'сет';if(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))return'сета';return'сетов';}
+
+function updateStats(){
+  let owned=0,total=0,done=0;
+  SETS.forEach(s=>{const p=progress(s);owned+=p.owned;total+=p.total;if(p.owned===p.total)done++;});
+  document.getElementById('stPieces').textContent=`${owned}/${total}`;
+  document.getElementById('stDone').textContent=`${done}/${SETS.length}`;
+}
+
+function updateTabCounts(){
+  const cats=['blacksmith','huntress','alchemist','world','special'];
+  document.getElementById('tc-all').textContent=SETS.length;
+  cats.forEach(c=>{document.getElementById(`tc-${c}`).textContent=SETS.filter(s=>s.crafter===c).length;});
+}
+
+/* ── Popup ────────────────────────────────────────────── */
+function openPopup(setId,slotId) {
+  popCtx={setId,slotId};
+  const set=SETS.find(s=>s.id===setId);
+  const pieces=getPieces(set);
+  const sl=pieces.find(p=>p.id===slotId);
+  const d=getSlot(setId,slotId);
+  const isSpecial=set.crafter==='special';
+  document.getElementById('popSet').textContent=set.nameRu;
+  document.getElementById('popSlot').innerHTML=sl.svg.replace(/width="20" height="20"/,'width="16" height="16"')+' '+sl.label;
+  document.getElementById('popBody').style.display=(!isSpecial&&d.owned)?'block':'none';
+  document.getElementById('dupeVal').textContent=d.duplicates||0;
+  document.getElementById('popTog').classList.toggle('on',d.owned);
+  document.querySelectorAll('.r-btn').forEach(b=>b.classList.toggle('sel',b.dataset.r===d.rarity));
+  document.getElementById('popLvl').value=d.level||'';
+  document.getElementById('popup').style.display='block';
+  document.getElementById('overlay').style.display='block';
+}
+
+function closePopup(){document.getElementById('popup').style.display='none';document.getElementById('overlay').style.display='none';popCtx=null;}
+
+/* ── Partial refresh ──────────────────────────────────── */
+function refreshSlot(setId,slotId){
+  const el=document.querySelector(`.slot[data-set="${setId}"][data-slot="${slotId}"]`);
+  if(!el)return;
+  const d=getSlot(setId,slotId);
+  const set=SETS.find(s=>s.id===setId);
+  const sl=getPieces(set).find(p=>p.id===slotId);
+  const isSpecial=set.crafter==='special';
+  el.className=`slot ${d.owned?(isSpecial?'owned':'r-'+d.rarity):''}`;
+  const dupe=d.duplicates>0?`<span class="slot-dupe">+${d.duplicates}</span>`:'';
+  el.querySelector('.slot-box').innerHTML=sl.svg+(d.owned&&d.level&&!isSpecial?`<span class="slot-lvl">${d.level}</span>`:'')+dupe;
+  refreshCard(setId);
+}
+
+function refreshCard(setId){
+  const card=document.querySelector(`.set-card[data-id="${setId}"]`);
+  if(!card)return;
+  const set=SETS.find(s=>s.id===setId);
+  const p=progress(set);
+  const pct=(p.owned/p.total*100).toFixed(1);
+  const done=p.owned===p.total;
+  card.classList.toggle('done',done);
+  const prog=card.querySelector('.card-prog');
+  if(prog){prog.textContent=`${p.owned}/${p.total}`;prog.className=`card-prog ${done?'done':''}`;}
+  const fill=card.querySelector('.pbar-f');
+  if(fill){fill.style.width=pct+'%';fill.className=`pbar-f ${done?'complete':p.owned?'partial':''}`;}
+  updateStats();
+}
+
+/* ── Slot click ───────────────────────────────────────── */
+function bindSlots(){
+  document.querySelectorAll('.slot').forEach(el=>{
+    el.addEventListener('click',e=>{e.stopPropagation();openPopup(el.dataset.set,el.dataset.slot);});
+  });
+}
+
+/* ── Tabs & search ────────────────────────────────────── */
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab=btn.dataset.cat;
+    renderMain();
+  });
+});
+document.getElementById('searchInput').addEventListener('input',e=>{query=e.target.value.trim();renderMain();});
+document.getElementById('overlay').addEventListener('click',closePopup);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePopup();});
+
+/* ── Popup controls ───────────────────────────────────── */
+document.getElementById('popTog').addEventListener('click',()=>{
+  if(!popCtx)return;
+  const{setId,slotId}=popCtx;
+  const nv=!getSlot(setId,slotId).owned;
+  mutSlot(setId,slotId,{owned:nv});
+  const togSet=SETS.find(s=>s.id===setId);
+  document.getElementById('popTog').classList.toggle('on',nv);
+  document.getElementById('popBody').style.display=(nv&&togSet.crafter!=='special')?'block':'none';
+  refreshSlot(setId,slotId);
+});
+
+document.querySelectorAll('.r-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    if(!popCtx)return;
+    const{setId,slotId}=popCtx;
+    mutSlot(setId,slotId,{owned:true,rarity:btn.dataset.r});
+    document.querySelectorAll('.r-btn').forEach(b=>b.classList.toggle('sel',b.dataset.r===btn.dataset.r));
+    document.getElementById('popTog').classList.add('on');
+    document.getElementById('popBody').style.display='block';
+    refreshSlot(setId,slotId);
+  });
+});
+
+document.getElementById('dupeDown').addEventListener('click',()=>{
+  if(!popCtx)return;
+  const{setId,slotId}=popCtx;
+  const nv=Math.max(0,(getSlot(setId,slotId).duplicates||0)-1);
+  mutSlot(setId,slotId,{duplicates:nv});
+  document.getElementById('dupeVal').textContent=nv;
+  refreshSlot(setId,slotId);
+});
+
+document.getElementById('dupeUp').addEventListener('click',()=>{
+  if(!popCtx)return;
+  const{setId,slotId}=popCtx;
+  const nv=Math.min(9,(getSlot(setId,slotId).duplicates||0)+1);
+  mutSlot(setId,slotId,{duplicates:nv});
+  document.getElementById('dupeVal').textContent=nv;
+  refreshSlot(setId,slotId);
+});
+
+document.getElementById('popLvl').addEventListener('change',e=>{
+  if(!popCtx)return;
+  const{setId,slotId}=popCtx;
+  mutSlot(setId,slotId,{owned:true,level:e.target.value?+e.target.value:null});
+  document.getElementById('popTog').classList.add('on');
+  document.getElementById('popBody').style.display='block';
+  refreshSlot(setId,slotId);
+});
+
+/* ── Image zoom ───────────────────────────────────────── */
+const zoomEl=document.getElementById('img-zoom');
+const zoomImg=document.getElementById('img-zoom-img');
+let zoomCurrent=null;
+
+document.getElementById('main').addEventListener('mousemove',e=>{
+  const banner=e.target.closest('.card-banner.loaded');
+  if(banner===zoomCurrent)return;
+  zoomCurrent=banner;
+  if(!banner){zoomEl.classList.remove('show');return;}
+  const src=banner.querySelector('img')?.src;
+  if(!src)return;
+  zoomEl.classList.remove('show');
+  zoomImg.src=src;
+  const tryShow=(captured)=>{
+    if(zoomCurrent!==captured)return;
+    const nw=zoomImg.naturalWidth,nh=zoomImg.naturalHeight;
+    if(nw&&nh){const maxW=520,maxH=700;let w=maxW,h=Math.round(maxW*nh/nw);if(h>maxH){h=maxH;w=Math.round(maxH*nw/nh);}zoomImg.style.width=w+'px';zoomImg.style.height=h+'px';}
+    positionZoom(captured);zoomEl.classList.add('show');
+  };
+  if(zoomImg.complete&&zoomImg.naturalWidth>0){requestAnimationFrame(()=>tryShow(banner));}
+  else{zoomImg.onload=()=>requestAnimationFrame(()=>tryShow(banner));zoomImg.onerror=()=>{};}
+});
+
+document.getElementById('main').addEventListener('mouseleave',()=>{zoomCurrent=null;zoomEl.classList.remove('show');});
+
+function positionZoom(anchor){
+  const r=anchor.getBoundingClientRect();
+  const zw=zoomEl.offsetWidth+2,zh=zoomEl.offsetHeight+2;
+  let left=r.right+14;
+  if(left+zw>window.innerWidth-8)left=r.left-zw-14;
+  if(left<8)left=8;
+  let top=Math.max(8,r.top-20);
+  if(top+zh>window.innerHeight-8)top=window.innerHeight-zh-8;
+  zoomEl.style.left=left+'px';zoomEl.style.top=top+'px';
+}
+
+/* ── Init ─────────────────────────────────────────────── */
+loadState();
+</script>
+</body>
+</html>

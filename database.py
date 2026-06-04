@@ -38,6 +38,18 @@ class ToolAccess(Base):
     tool_id = Column(String, nullable=False)
 
 
+class EnshroudedSlot(Base):
+    __tablename__ = "enshrouded_slots"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    set_id = Column(String, nullable=False)
+    slot_id = Column(String, nullable=False)
+    owned = Column(Boolean, default=False)
+    rarity = Column(String, default="common")
+    level = Column(Integer, nullable=True)
+    duplicates = Column(Integer, default=0)
+
+
 def get_db():
     db = SessionLocal()
     try:
