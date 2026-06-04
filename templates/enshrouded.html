@@ -354,54 +354,65 @@
     /* ── Loading ──────────────────────────────────────────── */
     #ens-loading { text-align:center; padding:80px 24px; color:var(--text-dim); display:flex; flex-direction:column; align-items:center; gap:16px; }
 
-    /* ── Atmosphere ───────────────────────────────────────── */
-    .ens-atmosphere { position:fixed; inset:0; z-index:0; pointer-events:none; }
+    /* ── Atmosphere — inset:-20% чтобы анимации не создавали чёрные края ── */
+    .ens-atmosphere { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
     .ens-atmosphere::before {
-      content:''; position:absolute; inset:0;
+      content:''; position:absolute; inset:-20%;
       background:
-        radial-gradient(ellipse 80% 60% at 10% 90%,  rgba(160,60,8,.22)   0%, transparent 55%),
-        radial-gradient(ellipse 60% 70% at 90% 10%,  rgba(70,25,110,.18)  0%, transparent 50%),
-        radial-gradient(ellipse 100% 35% at 50% 110%, rgba(140,55,5,.3)   0%, transparent 55%),
-        radial-gradient(ellipse 45% 45% at 5%  30%,  rgba(25,50,90,.1)    0%, transparent 50%),
-        radial-gradient(ellipse 30% 30% at 85% 75%,  rgba(80,30,120,.12)  0%, transparent 45%);
+        radial-gradient(ellipse 60% 50% at 15% 80%,  rgba(160,60,8,.28)  0%, transparent 50%),
+        radial-gradient(ellipse 50% 60% at 88% 12%,  rgba(70,25,110,.22) 0%, transparent 48%),
+        radial-gradient(ellipse 80% 30% at 50% 110%, rgba(140,55,5,.32)  0%, transparent 50%),
+        radial-gradient(ellipse 40% 45% at 5%  25%,  rgba(20,45,85,.12)  0%, transparent 48%),
+        radial-gradient(ellipse 35% 35% at 88% 72%,  rgba(80,28,115,.14) 0%, transparent 44%);
       animation: atmDrift1 28s ease-in-out infinite alternate;
     }
     .ens-atmosphere::after {
-      content:''; position:absolute; inset:0;
+      content:''; position:absolute; inset:-20%;
       background:
-        radial-gradient(ellipse 70% 50% at 30% 70%, rgba(180,80,10,.14) 0%, transparent 50%),
-        radial-gradient(ellipse 50% 60% at 75% 30%, rgba(55,20,85,.1)   0%, transparent 50%),
-        radial-gradient(ellipse 60% 30% at 50% 100%,rgba(110,45,5,.18)  0%, transparent 50%);
-      filter: blur(50px);
-      animation: atmDrift2 20s ease-in-out infinite alternate-reverse;
+        radial-gradient(ellipse 60% 45% at 32% 68%, rgba(180,80,10,.16) 0%, transparent 48%),
+        radial-gradient(ellipse 45% 55% at 72% 28%, rgba(55,18,80,.12)  0%, transparent 48%),
+        radial-gradient(ellipse 55% 28% at 50% 95%, rgba(120,48,5,.2)   0%, transparent 48%);
+      filter: blur(60px);
+      animation: atmDrift2 22s ease-in-out infinite alternate-reverse;
     }
     @keyframes atmDrift1 {
-      0%   { transform: translate(0,0) scale(1); }
-      33%  { transform: translate(-2%,2%) scale(1.02); }
-      66%  { transform: translate(1.5%,-1.5%) scale(.99); }
-      100% { transform: translate(-1.5%,-2.5%) scale(1.03); }
+      0%   { transform: translate(0,0); }
+      50%  { transform: translate(-3%,4%); }
+      100% { transform: translate(4%,-3%); }
     }
     @keyframes atmDrift2 {
-      0%   { transform: translate(0,0) scale(1); }
-      50%  { transform: translate(3%,-2%) scale(1.08); }
-      100% { transform: translate(-2%,3%) scale(1.05); }
+      0%   { transform: translate(0,0); }
+      50%  { transform: translate(4%,-3%); }
+      100% { transform: translate(-3%,4%); }
     }
-    .ens-embers { position:absolute; inset:0; overflow:hidden; }
+
+    /* Слой зернистости для текстуры */
+    .ens-grain {
+      position:fixed; inset:0; z-index:0; pointer-events:none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+      opacity: .6;
+    }
+
+    /* Искры */
+    .ens-embers { position:absolute; inset:0; }
     .ember {
       position:absolute; border-radius:50%;
-      background: radial-gradient(circle at 40% 35%,
-        rgba(255,200,80,.95) 0%, rgba(230,120,20,.8) 35%,
-        rgba(180,60,5,.4) 65%, transparent 100%);
-      filter: blur(.8px);
+      background: radial-gradient(circle at 38% 32%,
+        rgba(255,210,90,1) 0%,
+        rgba(240,130,20,.85) 30%,
+        rgba(190,60,5,.45) 60%,
+        transparent 100%);
+      filter: blur(.6px);
       animation: emberFloat linear infinite;
       will-change: transform, opacity;
     }
     @keyframes emberFloat {
       0%   { transform:translateY(0) translateX(0); opacity:0; }
-      8%   { opacity:.9; }
-      50%  { transform:translateY(-50vh) translateX(calc(var(--dx)*.5)) rotate(180deg); opacity:.7; }
-      85%  { opacity:.4; }
-      100% { transform:translateY(-105vh) translateX(var(--dx)) rotate(360deg); opacity:0; }
+      6%   { opacity:1; }
+      50%  { transform:translateY(-52vh) translateX(calc(var(--dx)*.5)); opacity:.75; }
+      85%  { opacity:.35; }
+      100% { transform:translateY(-108vh) translateX(var(--dx)); opacity:0; }
     }
 
     /* ── z-index ──────────────────────────────────────────── */
@@ -481,6 +492,68 @@
     .tab.active[data-cat="world"]      { background:rgba(5,15,25,.9);  border-color:rgba(90,159,212,.6); color:var(--c-world);   font-weight:700; box-shadow:0 0 12px rgba(90,159,212,.15); }
     .tab.active[data-cat="special"]    { background:rgba(28,5,25,.9);  border-color:rgba(212,105,184,.6);color:var(--c-special); font-weight:700; box-shadow:0 0 12px rgba(212,105,184,.15); }
     .tab-cnt { background:rgba(255,255,255,.06); border-radius:99px; padding:1px 7px; font-size:.66rem; font-family:var(--font-mono); }
+
+    /* ── Hero banner ──────────────────────────────────────── */
+    .ens-hero {
+      position:relative; height:200px; overflow:hidden;
+      display:flex; align-items:center; justify-content:center;
+      border-bottom:1px solid rgba(160,80,10,.18);
+    }
+    .ens-hero-fog {
+      position:absolute; inset:0; pointer-events:none;
+    }
+    .ens-hero-fog::before, .ens-hero-fog::after {
+      content:''; position:absolute;
+    }
+    /* Fog layer 1 — warm bottom */
+    .ens-hero-fog-1 {
+      background:
+        radial-gradient(ellipse 100% 60% at 50% 120%, rgba(160,70,8,.55) 0%, transparent 55%),
+        radial-gradient(ellipse 80%  40% at 20%  80%, rgba(120,50,5,.35) 0%, transparent 50%),
+        radial-gradient(ellipse 80%  40% at 80%  80%, rgba(100,40,5,.3)  0%, transparent 50%);
+      animation: fogRoll1 12s ease-in-out infinite alternate;
+    }
+    /* Fog layer 2 — cool purple */
+    .ens-hero-fog-2 {
+      background:
+        radial-gradient(ellipse 60% 50% at 15% 40%, rgba(60,20,90,.3)  0%, transparent 50%),
+        radial-gradient(ellipse 60% 50% at 85% 30%, rgba(50,15,80,.25) 0%, transparent 50%);
+      filter:blur(30px);
+      animation: fogRoll2 15s ease-in-out infinite alternate-reverse;
+    }
+    /* Fog layer 3 — top vignette */
+    .ens-hero-fog-3 {
+      background: linear-gradient(180deg, rgba(5,3,8,.9) 0%, transparent 40%, transparent 60%, rgba(5,3,8,.95) 100%);
+    }
+    @keyframes fogRoll1 { 0%{transform:translateX(-3%) scaleX(1)} 100%{transform:translateX(3%) scaleX(1.06)} }
+    @keyframes fogRoll2 { 0%{transform:translateX(4%)} 100%{transform:translateX(-4%)} }
+
+    .ens-hero-content { position:relative; z-index:2; text-align:center; }
+    .ens-hero-eyebrow {
+      font-size:.65rem; font-weight:700; letter-spacing:.2em;
+      text-transform:uppercase; color:rgba(200,140,40,.6);
+      margin-bottom:12px; font-family:var(--font-mono);
+    }
+    .ens-hero-title {
+      font-size:clamp(2rem,5vw,3.4rem); font-weight:800;
+      letter-spacing:.06em; text-transform:uppercase;
+      font-family:var(--font-display); line-height:1;
+      color:#e8a830;
+      text-shadow:
+        0 0 40px rgba(200,130,20,.7),
+        0 0 80px rgba(160,80,10,.4),
+        0 0 120px rgba(120,50,5,.2);
+      margin-bottom:14px;
+    }
+    .ens-hero-divider {
+      display:flex; align-items:center; gap:14px; justify-content:center;
+    }
+    .ens-hero-divider::before, .ens-hero-divider::after {
+      content:''; width:60px; height:1px;
+      background:linear-gradient(90deg,transparent,rgba(200,140,40,.5));
+    }
+    .ens-hero-divider::after { background:linear-gradient(90deg,rgba(200,140,40,.5),transparent); }
+    .ens-hero-divider span { font-size:.68rem; color:rgba(180,120,40,.6); letter-spacing:.12em; font-weight:600; text-transform:uppercase; }
 
     /* ── Main ─────────────────────────────────────────────── */
     .ens-main { padding:28px; max-width:1600px; margin:0 auto; position:relative; z-index:1; }
@@ -690,6 +763,7 @@
 <div class="ens-atmosphere">
   <div class="ens-embers" id="ens-embers"></div>
 </div>
+<div class="ens-grain"></div>
 
 <nav class="nav">
   <a href="/" class="nav-logo">
@@ -739,6 +813,17 @@
   </div>
 </div>
 
+
+<div class="ens-hero">
+  <div class="ens-hero-fog ens-hero-fog-1"></div>
+  <div class="ens-hero-fog ens-hero-fog-2"></div>
+  <div class="ens-hero-fog ens-hero-fog-3"></div>
+  <div class="ens-hero-content">
+    <div class="ens-hero-eyebrow">Личный архив</div>
+    <div class="ens-hero-title">Архив доспехов</div>
+    <div class="ens-hero-divider"><span>Enshrouded</span></div>
+  </div>
+</div>
 
 <div class="ens-main" id="ens-main">
   <div id="ens-loading">
@@ -1274,20 +1359,27 @@ async function doImport() {
 (function spawnEmbers() {
   const container = document.getElementById('ens-embers');
   if (!container) return;
+  const colors = [
+    'radial-gradient(circle at 38% 32%, rgba(255,215,90,1) 0%, rgba(240,130,20,.85) 30%, rgba(190,60,5,.45) 60%, transparent 100%)',
+    'radial-gradient(circle at 40% 35%, rgba(255,160,40,1) 0%, rgba(220,80,10,.8) 35%, rgba(160,40,5,.4) 65%, transparent 100%)',
+    'radial-gradient(circle at 35% 30%, rgba(255,240,180,1) 0%, rgba(240,180,60,.85) 30%, rgba(200,100,10,.4) 60%, transparent 100%)',
+    'radial-gradient(circle at 40% 35%, rgba(255,100,20,.9) 0%, rgba(200,50,5,.75) 35%, rgba(140,20,5,.35) 65%, transparent 100%)',
+  ];
   function spawn() {
     const e = document.createElement('div');
     e.className = 'ember';
-    const size = 2 + Math.random() * 4;
+    const size = 4 + Math.random() * 10;
     const x = Math.random() * 100;
-    const dur = 8 + Math.random() * 14;
-    const delay = Math.random() * 12;
-    const dx = (Math.random() - 0.5) * 120;
-    e.style.cssText = `width:${size}px;height:${size}px;left:${x}%;bottom:-20px;--dx:${dx}px;animation-duration:${dur}s;animation-delay:${delay}s;opacity:0`;
+    const dur = 7 + Math.random() * 12;
+    const delay = Math.random() * 4;
+    const dx = (Math.random() - 0.5) * 160;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    e.style.cssText = `width:${size}px;height:${size}px;left:${x}%;bottom:-20px;--dx:${dx}px;animation-duration:${dur}s;animation-delay:${delay}s;opacity:0;background:${color}`;
     container.appendChild(e);
-    setTimeout(() => e.remove(), (dur + delay) * 1000);
+    setTimeout(() => e.remove(), (dur + delay + 1) * 1000);
   }
-  for (let i = 0; i < 18; i++) spawn();
-  setInterval(spawn, 800);
+  for (let i = 0; i < 35; i++) spawn();
+  setInterval(spawn, 400);
 })();
 
 /* ── Init ─────────────────────────────────────────────── */

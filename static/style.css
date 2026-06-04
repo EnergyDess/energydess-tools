@@ -50,7 +50,7 @@ body {
 body::before {
   content: '';
   position: fixed;
-  inset: 0;
+  inset: -15%;  /* перекрываем края чтобы translate/scale не оставляли чёрных полос */
   background:
     radial-gradient(ellipse 80% 60% at 10% 15%, rgba(0,212,255,0.045) 0%, transparent 55%),
     radial-gradient(ellipse 60% 80% at 88% 80%, rgba(124,77,255,0.065) 0%, transparent 55%),
