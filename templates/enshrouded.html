@@ -614,10 +614,15 @@
       background:linear-gradient(135deg,rgba(220,170,50,.04) 0%,transparent 40%,transparent 60%,rgba(180,120,20,.03) 100%);
     }
 
-    /* ── Banner ───────────────────────────────────────────── */
-    .card-banner { width:100%; height:220px; overflow:hidden; position:relative; background:linear-gradient(160deg,#1c1408 0%,#0e0a04 100%); display:none; }
-    .card-banner.loaded { display:block; }
-    .card-banner img { width:100%; height:100%; object-fit:cover; object-position:center 15%; display:block; }
+    /* ── Banner — всегда 220px, картинка проявляется через opacity ── */
+    .card-banner {
+      width:100%; height:220px; overflow:hidden; position:relative;
+      background:linear-gradient(160deg,#1c1408 0%,#0e0a04 100%);
+      display:block; /* всегда виден, высота зарезервирована */
+    }
+    .card-banner.no-img { height:0; overflow:hidden; }
+    .card-banner img { width:100%; height:100%; object-fit:cover; object-position:center 15%; display:block; opacity:0; transition:opacity 0.22s ease; }
+    .card-banner.loaded img { opacity:1; }
     .card-banner::after { content:''; position:absolute; bottom:0; left:0; right:0; height:80px; background:linear-gradient(0deg,rgba(10,7,4,.95) 0%,transparent 100%); pointer-events:none; }
     .cat-sec[data-cat="special"]   .card-banner { background:linear-gradient(160deg,#1e0818 0%,#0e0a04 100%); }
     .cat-sec[data-cat="huntress"]  .card-banner { background:linear-gradient(160deg,#081806 0%,#0e0a04 100%); }
@@ -1130,9 +1135,10 @@ function renderCard(set) {
   const wikiFile=!set.noWiki&&(set.wikiImg||(set.name?set.name.replace(/\s+/g,'_')+'_Set.png':null));
   const wikiUrl=wikiFile?`https://enshrouded.wiki.gg/images/${wikiFile}`:null;
   const firstSrc=wikiUrl||`/static/enshrouded/${sid}.jpg`;
+  // При ошибке — схлопываем баннер (no-img), не удаляем, чтобы не было layout-скачка
   const errChain=wikiUrl
-    ?`if(this.step===undefined){this.step=1;this.src='/static/enshrouded/${sid}.jpg'}else if(this.step===1){this.step=2;this.src='/static/enshrouded/${sid}.png'}else{this.closest('.card-banner').remove()}`
-    :`if(!this.src.endsWith('.png')){this.src='/static/enshrouded/${sid}.png'}else{this.closest('.card-banner').remove()}`;
+    ?`if(this.step===undefined){this.step=1;this.src='/static/enshrouded/${sid}.jpg'}else if(this.step===1){this.step=2;this.src='/static/enshrouded/${sid}.png'}else{this.closest('.card-banner').classList.add('no-img')}`
+    :`if(!this.src.endsWith('.png')){this.src='/static/enshrouded/${sid}.png'}else{this.closest('.card-banner').classList.add('no-img')}`;
   const bannerHtml=`<div class="card-banner"><img src="${firstSrc}" alt="" onload="this.closest('.card-banner').classList.add('loaded')" onerror="${errChain}"></div>`;
   return `<div class="set-card ${done?'done':''}" data-id="${set.id}">${bannerHtml}<div class="card-body"><div class="card-top"><div><div class="card-name">${set.nameRu}</div><div class="card-meta"><span class="card-dot"></span><span>${set.name||''}</span>${lvlTag}</div></div><div class="card-prog ${done?'done':''}">${p.owned}/${p.total}</div></div><div class="pbar"><div class="pbar-f ${done?'complete':p.owned?'partial':''}" style="width:${pct}%"></div></div><div class="slots">${slotsHtml}</div></div></div>`;
 }
