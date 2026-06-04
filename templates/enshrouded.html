@@ -719,9 +719,9 @@
     #dupeVal { font-size:.95rem; font-weight:800; min-width:22px; text-align:center; color:#e8a830; font-family:var(--font-mono); text-shadow:0 0 10px rgba(200,140,30,.4); }
 
     /* ── Image zoom ───────────────────────────────────────── */
-    #img-zoom { position:fixed; left:-9999px; top:-9999px; z-index:800; background:rgba(12,8,4,.95); border:1px solid rgba(160,100,20,.4); border-radius:12px; overflow:hidden; box-shadow:0 32px 80px rgba(0,0,0,.9),0 0 30px rgba(160,90,10,.15); pointer-events:none; opacity:0; transition:opacity .15s; }
+    #img-zoom { position:fixed; left:-9999px; top:-9999px; z-index:800; background:rgba(10,7,3,.97); border:1px solid rgba(180,120,30,.45); border-top:2px solid rgba(200,140,40,.5); border-radius:12px; overflow:hidden; box-shadow:0 32px 80px rgba(0,0,0,.9),0 0 40px rgba(160,90,10,.18); pointer-events:none; opacity:0; transition:opacity .15s; }
     #img-zoom.show { opacity:1; }
-    #img-zoom img { display:block; }
+    #img-zoom img { display:block; width:100%; height:100%; object-fit:contain; object-position:center; }
 
     /* ── No results / Loading ─────────────────────────────── */
     .no-res { text-align:center; padding:80px 24px; color:rgba(140,100,50,.6); }
@@ -1283,8 +1283,14 @@ document.getElementById('main').addEventListener('mousemove',e=>{
   zoomImg.src=src;
   const tryShow=(captured)=>{
     if(zoomCurrent!==captured)return;
-    const nw=zoomImg.naturalWidth,nh=zoomImg.naturalHeight;
-    if(nw&&nh){const maxW=520,maxH=700;let w=maxW,h=Math.round(maxW*nh/nw);if(h>maxH){h=maxH;w=Math.round(maxH*nw/nh);}zoomImg.style.width=w+'px';zoomImg.style.height=h+'px';}
+    // Единый контейнер для всех картинок — вики и локальных
+    const ZOOM_W=480, ZOOM_H=340;
+    zoomEl.style.width=ZOOM_W+'px';
+    zoomEl.style.height=ZOOM_H+'px';
+    zoomImg.style.width='100%';
+    zoomImg.style.height='100%';
+    zoomImg.style.objectFit='contain';
+    zoomImg.style.objectPosition='center';
     positionZoom(captured);zoomEl.classList.add('show');
   };
   if(zoomImg.complete&&zoomImg.naturalWidth>0){requestAnimationFrame(()=>tryShow(banner));}
