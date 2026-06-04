@@ -853,17 +853,16 @@ async function doImport() {
   const btn = document.getElementById('import-do-btn');
   if (!raw) return;
   let data;
-  try {
-    // убираем внешние кавычки которые добавляет Chrome DevTools
-    if ((raw.startsWith("'") && raw.endsWith("'")) || (raw.startsWith('"') && raw.endsWith('"'))) {
-      raw = raw.slice(1, -1);
-    }
-    let parsed = JSON.parse(raw);
-    if (typeof parsed === 'string') parsed = JSON.parse(parsed);
-    data = parsed;
-  } catch(e) {
+  const tryParse = (s) => { try { return JSON.parse(s); } catch { return null; } };
+  // несколько стратегий: прямой парсинг, обрезка одиночных кавычек, двойных, обоих
+  data = tryParse(raw)
+      || tryParse(raw.replace(/^'([\s\S]*)'$/, '$1'))
+      || tryParse(raw.replace(/^"([\s\S]*)"$/, '$1'))
+      || tryParse(raw.slice(1, -1));
+  if (typeof data === 'string') data = tryParse(data);
+  if (!data || typeof data !== 'object') {
     btn.textContent = '⚠ Неверный формат JSON';
-    setTimeout(()=>{ btn.textContent = 'Импортировать →'; }, 3000);
+    setTimeout(()=>{ btn.textContent = 'Импортировать →'; btn.disabled = false; }, 3000);
     return;
   }
   btn.textContent = 'Импортирую…';
