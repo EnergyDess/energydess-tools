@@ -91,6 +91,11 @@ async def not_found_handler(request: Request, exc: HTTPException):
     return templates.TemplateResponse(request=request, name="404.html", status_code=404)
 
 
+@app.api_route("/health", methods=["GET", "HEAD"])
+async def health():
+    return JSONResponse({"status": "ok"})
+
+
 @app.post("/deploy-hook")
 async def deploy_hook(request: Request):
     token = request.headers.get("X-Deploy-Token", "")
