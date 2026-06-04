@@ -457,7 +457,7 @@
       border-radius:8px; color:#d4b070; font-size:.85rem; font-family:inherit;
       outline:none; transition:border-color .2s,box-shadow .2s;
     }
-    #searchInput::placeholder { color:rgba(160,90,20,.4); }
+    #searchInput::placeholder { color:rgba(200,140,60,.55); }
     #searchInput:focus { border-color:rgba(200,140,40,.5); box-shadow:0 0 0 3px rgba(200,120,20,.1),0 0 20px rgba(200,100,10,.08); }
     .ens-hstats { margin-left:auto; display:flex; gap:12px; align-items:center; }
     .ens-hstat {
@@ -813,17 +813,6 @@
   </div>
 </div>
 
-
-<div class="ens-hero">
-  <div class="ens-hero-fog ens-hero-fog-1"></div>
-  <div class="ens-hero-fog ens-hero-fog-2"></div>
-  <div class="ens-hero-fog ens-hero-fog-3"></div>
-  <div class="ens-hero-content">
-    <div class="ens-hero-eyebrow">Личный архив</div>
-    <div class="ens-hero-title">Архив доспехов</div>
-    <div class="ens-hero-divider"><span>Enshrouded</span></div>
-  </div>
-</div>
 
 <div class="ens-main" id="ens-main">
   <div id="ens-loading">
@@ -1355,31 +1344,111 @@ async function doImport() {
   btn.disabled = false;
 }
 
-/* ── Ember particles ──────────────────────────────────── */
-(function spawnEmbers() {
-  const container = document.getElementById('ens-embers');
-  if (!container) return;
-  const colors = [
-    'radial-gradient(circle at 38% 32%, rgba(255,215,90,1) 0%, rgba(240,130,20,.85) 30%, rgba(190,60,5,.45) 60%, transparent 100%)',
-    'radial-gradient(circle at 40% 35%, rgba(255,160,40,1) 0%, rgba(220,80,10,.8) 35%, rgba(160,40,5,.4) 65%, transparent 100%)',
-    'radial-gradient(circle at 35% 30%, rgba(255,240,180,1) 0%, rgba(240,180,60,.85) 30%, rgba(200,100,10,.4) 60%, transparent 100%)',
-    'radial-gradient(circle at 40% 35%, rgba(255,100,20,.9) 0%, rgba(200,50,5,.75) 35%, rgba(140,20,5,.35) 65%, transparent 100%)',
+/* ── Canvas ember system with mouse repulsion ─────────── */
+(function() {
+  const cv = document.createElement('canvas');
+  cv.style.cssText = 'position:fixed;inset:0;z-index:0;pointer-events:none;';
+  document.body.insertBefore(cv, document.body.firstChild);
+  const ctx = cv.getContext('2d');
+  let W, H;
+  const mouse = { x:-9999, y:-9999 };
+  const PALETTE = [
+    [255,215,90],  [255,180,50],
+    [255,140,30],  [255,100,20],
+    [255,240,160], [240,80,10],
   ];
-  function spawn() {
-    const e = document.createElement('div');
-    e.className = 'ember';
-    const size = 4 + Math.random() * 10;
-    const x = Math.random() * 100;
-    const dur = 7 + Math.random() * 12;
-    const delay = Math.random() * 4;
-    const dx = (Math.random() - 0.5) * 160;
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    e.style.cssText = `width:${size}px;height:${size}px;left:${x}%;bottom:-20px;--dx:${dx}px;animation-duration:${dur}s;animation-delay:${delay}s;opacity:0;background:${color}`;
-    container.appendChild(e);
-    setTimeout(() => e.remove(), (dur + delay + 1) * 1000);
+  const REPEL_R = 130, REPEL_F = 3.0, MAX = 55;
+  let embers = [];
+
+  function resize() {
+    W = cv.width  = window.innerWidth;
+    H = cv.height = window.innerHeight;
   }
-  for (let i = 0; i < 35; i++) spawn();
-  setInterval(spawn, 400);
+
+  function make() {
+    const c = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+    const baseVy = -(0.35 + Math.random() * 0.75);
+    return {
+      x: Math.random() * W, y: H + 10,
+      vx: (Math.random()-0.5) * 0.3,
+      vy: baseVy, bvy: baseVy,
+      bvx: (Math.random()-0.5) * 0.25,
+      r: 2 + Math.random() * 5,
+      op: 0, maxOp: 0.55 + Math.random() * 0.45,
+      life: 0, maxLife: 220 + Math.random() * 320,
+      c,
+    };
+  }
+
+  function tick() {
+    ctx.clearRect(0, 0, W, H);
+
+    while (embers.length < MAX) embers.push(make());
+
+    for (let i = embers.length-1; i >= 0; i--) {
+      const e = embers[i];
+      e.life++;
+
+      // Fade in/out
+      const fadeIn = 35, fadeOut = 50;
+      if (e.life < fadeIn) e.op = (e.life/fadeIn) * e.maxOp;
+      else if (e.life > e.maxLife - fadeOut) e.op = ((e.maxLife-e.life)/fadeOut) * e.maxOp;
+      else e.op = e.maxOp;
+
+      // Mouse repulsion
+      const dx = e.x - mouse.x, dy = e.y - mouse.y;
+      const d  = Math.sqrt(dx*dx + dy*dy);
+      if (d < REPEL_R && d > 1) {
+        const f = (1 - d/REPEL_R) ** 2 * REPEL_F;
+        e.vx += dx/d * f;
+        e.vy += dy/d * f * 0.4;
+      }
+
+      // Damp back — vx to base, vy always upward
+      e.vx = e.vx * 0.94 + e.bvx * 0.06;
+      e.vy = e.vy * 0.96 + e.bvy * 0.04;
+      if (e.vy > -0.08) e.vy = -0.08; // always upward
+
+      // Speed cap
+      const spd = Math.sqrt(e.vx*e.vx + e.vy*e.vy);
+      if (spd > 5) { e.vx = e.vx/spd*5; e.vy = e.vy/spd*5; }
+
+      e.x += e.vx; e.y += e.vy;
+
+      if (e.y < -25 || e.life > e.maxLife) { embers.splice(i,1); continue; }
+
+      // Draw glow + core
+      const [r,g,b] = e.c;
+      const gr = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.r * 3);
+      gr.addColorStop(0,   `rgba(${r},${g},${b},${(e.op).toFixed(3)})`);
+      gr.addColorStop(0.35,`rgba(${r},${Math.round(g*.55)},10,${(e.op*.55).toFixed(3)})`);
+      gr.addColorStop(1,   `rgba(${Math.round(r*.4)},10,0,0)`);
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.r*3, 0, Math.PI*2);
+      ctx.fillStyle = gr;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.r*.55, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${Math.min(e.op*1.4,1).toFixed(3)})`;
+      ctx.fill();
+    }
+    requestAnimationFrame(tick);
+  }
+
+  resize();
+  // Pre-seed embers at random heights
+  for (let i = 0; i < 40; i++) {
+    const e = make();
+    e.y = Math.random() * H;
+    e.life = Math.floor(Math.random() * 180);
+    embers.push(e);
+  }
+  tick();
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  window.addEventListener('mouseleave', () => { mouse.x = -9999; mouse.y = -9999; });
 })();
 
 /* ── Init ─────────────────────────────────────────────── */
