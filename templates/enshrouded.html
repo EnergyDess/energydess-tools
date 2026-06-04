@@ -723,8 +723,8 @@
     #img-zoom.show { opacity:1; }
     #img-zoom img { display:block; width:100%; height:100%; object-fit:contain; object-position:center; }
 
-    /* ── Main content transition ──────────────────────────── */
-    #main { transition: opacity 0.12s ease; }
+    /* ── Isolate main grid repaints ──────────────────────── */
+    #main { contain: layout paint; }
 
     /* ── No results / Loading ─────────────────────────────── */
     .no-res { text-align:center; padding:80px 24px; color:rgba(140,100,50,.6); }
@@ -1093,20 +1093,15 @@ function visible() {
 function renderMain() {
   const sets=visible();
   const main=document.getElementById('main');
-  // Мгновенно скрываем, обновляем DOM, затем показываем — без мерцания
-  main.style.opacity='0';
-  requestAnimationFrame(()=>{
-    if(!sets.length){
-      main.innerHTML=`<div class="no-res"><div class="no-res-ico">🔍</div>Ничего не найдено по запросу «${query}»</div>`;
-    } else {
-      const order=['blacksmith','huntress','alchemist','world','special'];
-      const grouped={};
-      sets.forEach(s=>(grouped[s.crafter]??=[]).push(s));
-      main.innerHTML=order.filter(c=>grouped[c]).map(c=>renderSection(c,grouped[c])).join('');
-      bindSlots();
-    }
-    requestAnimationFrame(()=>{ main.style.opacity='1'; });
-  });
+  if(!sets.length){
+    main.innerHTML=`<div class="no-res"><div class="no-res-ico">🔍</div>Ничего не найдено по запросу «${query}»</div>`;
+    return;
+  }
+  const order=['blacksmith','huntress','alchemist','world','special'];
+  const grouped={};
+  sets.forEach(s=>(grouped[s.crafter]??=[]).push(s));
+  main.innerHTML=order.filter(c=>grouped[c]).map(c=>renderSection(c,grouped[c])).join('');
+  bindSlots();
 }
 
 function renderSection(cat,sets) {
@@ -1223,11 +1218,7 @@ document.querySelectorAll('.tab').forEach(btn=>{
     renderMain();
   });
 });
-let searchTimer;
-document.getElementById('searchInput').addEventListener('input',e=>{
-  clearTimeout(searchTimer);
-  searchTimer=setTimeout(()=>{ query=e.target.value.trim(); renderMain(); }, 120);
-});
+document.getElementById('searchInput').addEventListener('input',e=>{query=e.target.value.trim();renderMain();});
 document.getElementById('overlay').addEventListener('click',closePopup);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closePopup();});
 
