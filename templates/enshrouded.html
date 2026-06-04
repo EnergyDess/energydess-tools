@@ -854,8 +854,11 @@ async function doImport() {
   if (!raw) return;
   let data;
   try {
+    // убираем внешние кавычки которые добавляет Chrome DevTools
+    if ((raw.startsWith("'") && raw.endsWith("'")) || (raw.startsWith('"') && raw.endsWith('"'))) {
+      raw = raw.slice(1, -1);
+    }
     let parsed = JSON.parse(raw);
-    // если пользователь вставил строку с escape-символами (результат getItem)
     if (typeof parsed === 'string') parsed = JSON.parse(parsed);
     data = parsed;
   } catch(e) {
