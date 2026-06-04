@@ -10,6 +10,57 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
   <style>
+    /* ── Скрыть стандартный фон сайта ────────────────────── */
+    #bg-canvas { display: none !important; }
+    body::before { display: none !important; }
+
+    /* ── Enshrouded атмосфера ─────────────────────────────── */
+    body {
+      background: #060402;
+    }
+    .ens-atmosphere {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .ens-atmosphere::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 20% 30%, rgba(160,80,10,0.07) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 70% at 80% 70%, rgba(100,40,5,0.09) 0%, transparent 55%),
+        radial-gradient(ellipse 60% 40% at 50% 100%, rgba(80,30,5,0.05) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 40% at 10% 90%, rgba(120,60,10,0.04) 0%, transparent 50%);
+      animation: fogDrift 30s ease-in-out infinite alternate;
+    }
+    @keyframes fogDrift {
+      0%   { transform: translate(0,0) scale(1); }
+      33%  { transform: translate(-1.5%, 2%) scale(1.02); }
+      66%  { transform: translate(2%, -1.5%) scale(0.98); }
+      100% { transform: translate(-2%, -2%) scale(1.03); }
+    }
+    /* Плавающие искры */
+    .ens-embers {
+      position: absolute;
+      inset: 0;
+    }
+    .ember {
+      position: absolute;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(200,140,40,0.7) 0%, transparent 70%);
+      animation: emberFloat linear infinite;
+      pointer-events: none;
+    }
+    @keyframes emberFloat {
+      0%   { transform: translateY(0) translateX(0) scale(1); opacity: 0; }
+      10%  { opacity: 1; }
+      80%  { opacity: 0.6; }
+      100% { transform: translateY(-100vh) translateX(var(--dx)) scale(0.3); opacity: 0; }
+    }
+
     /* ── Enshrouded colour tokens ─────────────────────────── */
     :root {
       --ens-accent:    #c8922a;
@@ -81,14 +132,16 @@
       border-radius:8px; padding:8px 16px;
     }
     .ens-hstat-v {
-      display:block; font-size:1.6rem; font-weight:800;
+      display:block; font-size:1.5rem; font-weight:700;
       color:var(--ens-accent); line-height:1;
-      font-family:var(--font-display);
+      font-family:var(--font-mono);
+      font-variant-numeric: tabular-nums;
       text-shadow: 0 0 16px rgba(200,146,42,0.4);
+      letter-spacing: 0;
     }
     .ens-hstat-l {
-      font-size:.65rem; color:rgba(200,146,42,0.6);
-      text-transform:uppercase; letter-spacing:.06em; white-space:nowrap; margin-top:4px;
+      font-size:.62rem; color:rgba(200,146,42,0.6);
+      text-transform:uppercase; letter-spacing:.06em; white-space:nowrap; margin-top:5px;
       font-weight:600;
     }
 
@@ -158,7 +211,7 @@
     .tab-cnt { background:rgba(255,255,255,.07); border-radius:9px; padding:1px 6px; font-size:.68rem; }
 
     /* ── Main grid ────────────────────────────────────────── */
-    .ens-main { padding:22px 24px; max-width:1560px; margin:0 auto; }
+    .ens-main { padding:22px 24px; max-width:1560px; margin:0 auto; position:relative; z-index:1; }
     .cat-sec { margin-bottom:38px; }
     .cat-hdr { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
     .cat-ico { width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
@@ -180,7 +233,7 @@
     .cat-sec[data-cat="alchemist"]  .cat-line { background:linear-gradient(90deg,rgba(168,112,206,.3),transparent); }
     .cat-sec[data-cat="world"]      .cat-line { background:linear-gradient(90deg,rgba( 90,159,212,.3),transparent); }
     .cat-sec[data-cat="special"]    .cat-line { background:linear-gradient(90deg,rgba(212,105,184,.3),transparent); }
-    .sets-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(282px,1fr)); gap:10px; }
+    .sets-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
 
     /* ── Set Card ─────────────────────────────────────────── */
     .set-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; overflow:hidden; transition:border-color .18s,background .18s; }
@@ -198,10 +251,10 @@
     .cat-sec[data-cat="alchemist"] .card-banner { background:linear-gradient(160deg,#170a22 0%,#0e0c0a 100%); }
     .cat-sec[data-cat="world"]     .card-banner { background:linear-gradient(160deg,#0a1420 0%,#0e0c0a 100%); }
 
-    .card-body { padding:13px; }
-    .card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:9px; }
-    .card-name { font-size:.92rem; font-weight:700; line-height:1.2; color:var(--text); }
-    .card-meta { display:flex; align-items:center; gap:5px; font-size:.67rem; color:var(--text-dim); margin-top:3px; flex-wrap:wrap; }
+    .card-body { padding:18px; }
+    .card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+    .card-name { font-size:1.05rem; font-weight:700; line-height:1.2; color:var(--text); }
+    .card-meta { display:flex; align-items:center; gap:5px; font-size:.75rem; color:var(--text-dim); margin-top:4px; flex-wrap:wrap; }
     .card-dot { width:5px; height:5px; border-radius:50%; display:inline-block; flex-shrink:0; }
     .cat-sec[data-cat="blacksmith"] .card-dot { background:var(--c-smith);   }
     .cat-sec[data-cat="huntress"]   .card-dot { background:var(--c-hunt);    }
@@ -221,8 +274,8 @@
     /* ── Slots ────────────────────────────────────────────── */
     .slots { display:flex; gap:6px; }
     .slot { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; }
-    .slot-box { width:42px; height:42px; border-radius:7px; border:1.5px solid var(--border); background:var(--bg); display:flex; align-items:center; justify-content:center; position:relative; transition:all .15s; user-select:none; }
-    .slot-box svg { color:var(--text-faint); transition:color .15s; }
+    .slot-box { width:54px; height:54px; border-radius:9px; border:1.5px solid var(--border); background:var(--bg); display:flex; align-items:center; justify-content:center; position:relative; transition:all .15s; user-select:none; }
+    .slot-box svg { color:var(--text-faint); transition:color .15s; width:24px; height:24px; }
     .slot:hover .slot-box { border-color:var(--border-hi); background:var(--bg3); }
     .slot:hover .slot-box svg { color:var(--text-dim); }
     .slot.r-common    .slot-box { border-color:var(--r-common);    background:#131313; }
@@ -236,8 +289,8 @@
     .slot.r-epic      .slot-box svg { color:var(--r-epic);      }
     .slot.r-legendary .slot-box svg { color:var(--r-legendary); }
     @keyframes lglow { 0%,100%{box-shadow:0 0 10px rgba(245,166,35,.32);} 50%{box-shadow:0 0 18px rgba(245,166,35,.55);} }
-    .slot-lvl { position:absolute; bottom:1px; right:3px; font-size:.5rem; font-weight:800; color:var(--ens-accent); line-height:1; }
-    .slot-lbl { font-size:.58rem; color:var(--text-dim); text-align:center; line-height:1.2; }
+    .slot-lvl { position:absolute; bottom:2px; right:4px; font-size:.6rem; font-weight:800; color:var(--ens-accent); line-height:1; font-family:var(--font-mono); }
+    .slot-lbl { font-size:.65rem; color:var(--text-dim); text-align:center; line-height:1.2; margin-top:2px; }
     .slot-dupe { position:absolute; top:1px; left:3px; font-size:.46rem; font-weight:900; color:#fff; background:rgba(200,146,42,.9); border-radius:3px; padding:0 3px; line-height:1.5; pointer-events:none; }
     .cat-sec[data-cat="special"] .slot.owned .slot-box { border-color:var(--c-special); background:rgba(212,105,184,.12); box-shadow:0 0 9px rgba(212,105,184,.3); }
     .cat-sec[data-cat="special"] .slot.owned .slot-box svg { color:var(--c-special); }
@@ -307,6 +360,11 @@
 </head>
 <body>
 <script src="/static/effects.js"></script>
+
+<!-- Enshrouded atmosphere -->
+<div class="ens-atmosphere">
+  <div class="ens-embers" id="ens-embers"></div>
+</div>
 
 <nav class="nav">
   <a href="/" class="nav-logo">
@@ -886,6 +944,26 @@ async function doImport() {
   btn.textContent = 'Импортировать →';
   btn.disabled = false;
 }
+
+/* ── Ember particles ──────────────────────────────────── */
+(function spawnEmbers() {
+  const container = document.getElementById('ens-embers');
+  if (!container) return;
+  function spawn() {
+    const e = document.createElement('div');
+    e.className = 'ember';
+    const size = 2 + Math.random() * 4;
+    const x = Math.random() * 100;
+    const dur = 8 + Math.random() * 14;
+    const delay = Math.random() * 12;
+    const dx = (Math.random() - 0.5) * 120;
+    e.style.cssText = `width:${size}px;height:${size}px;left:${x}%;bottom:-20px;--dx:${dx}px;animation-duration:${dur}s;animation-delay:${delay}s;opacity:0`;
+    container.appendChild(e);
+    setTimeout(() => e.remove(), (dur + delay) * 1000);
+  }
+  for (let i = 0; i < 18; i++) spawn();
+  setInterval(spawn, 800);
+})();
 
 /* ── Init ─────────────────────────────────────────────── */
 loadState();
