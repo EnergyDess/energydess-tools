@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean, Float
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 import sqlite3
@@ -48,6 +48,102 @@ class EnshroudedSlot(Base):
     rarity = Column(String, default="common")
     level = Column(Integer, nullable=True)
     duplicates = Column(Integer, default=0)
+
+
+class NutritionProfile(Base):
+    __tablename__ = "nutrition_profiles"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, unique=True, nullable=False, index=True)
+    gender = Column(String, default="male")
+    age = Column(Integer, nullable=True)
+    weight_kg = Column(Float, nullable=True)
+    height_cm = Column(Float, nullable=True)
+    goal = Column(String, default="maintain")  # lose/maintain/gain
+    activity_level = Column(String, default="moderate")  # sedentary/light/moderate/active/very_active
+    calorie_goal = Column(Integer, nullable=True)
+    protein_goal = Column(Integer, nullable=True)
+    fat_goal = Column(Integer, nullable=True)
+    carb_goal = Column(Integer, nullable=True)
+    water_goal_ml = Column(Integer, default=2000)
+    target_weight_kg = Column(Float, nullable=True)
+    start_weight_kg = Column(Float, nullable=True)
+
+
+class FoodLog(Base):
+    __tablename__ = "food_logs"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    log_date = Column(String, nullable=False)
+    meal_type = Column(String, nullable=False)  # breakfast/lunch/dinner/snack
+    food_name = Column(String, nullable=False)
+    brand = Column(String, nullable=True)
+    grams = Column(Float, nullable=False)
+    calories = Column(Float, nullable=False)
+    protein = Column(Float, default=0)
+    fat = Column(Float, default=0)
+    carbs = Column(Float, default=0)
+    barcode = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CustomFood(Base):
+    __tablename__ = "custom_foods"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    brand = Column(String, nullable=True)
+    barcode = Column(String, nullable=True)
+    calories_per_100g = Column(Float, nullable=False)
+    protein_per_100g = Column(Float, default=0)
+    fat_per_100g = Column(Float, default=0)
+    carbs_per_100g = Column(Float, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CustomRecipe(Base):
+    __tablename__ = "custom_recipes"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    total_grams = Column(Float, nullable=False, default=100)
+    calories = Column(Float, nullable=False, default=0)
+    protein = Column(Float, default=0)
+    fat = Column(Float, default=0)
+    carbs = Column(Float, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RecipeIngredient(Base):
+    __tablename__ = "recipe_ingredients"
+    id = Column(Integer, primary_key=True)
+    recipe_id = Column(Integer, nullable=False, index=True)
+    food_name = Column(String, nullable=False)
+    grams = Column(Float, nullable=False)
+    calories = Column(Float, nullable=False)
+    protein = Column(Float, default=0)
+    fat = Column(Float, default=0)
+    carbs = Column(Float, default=0)
+
+
+class WaterLog(Base):
+    __tablename__ = "water_logs"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    log_date = Column(String, nullable=False)
+    amount_ml = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class WeightLog(Base):
+    __tablename__ = "weight_logs"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    log_date = Column(String, nullable=False)
+    weight_kg = Column(Float, nullable=True)
+    waist_cm = Column(Float, nullable=True)
+    hips_cm = Column(Float, nullable=True)
+    chest_cm = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 def get_db():

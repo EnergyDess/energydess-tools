@@ -7,10 +7,13 @@ from fastapi.exceptions import HTTPException
 from bs4 import BeautifulSoup
 import httpx
 import os
+import base64
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
-from database import get_db, init_db, migrate_db, User, Resume, ToolAccess, EnshroudedSlot
+from database import (get_db, init_db, migrate_db, User, Resume, ToolAccess, EnshroudedSlot,
+                      NutritionProfile, FoodLog, CustomFood, CustomRecipe, RecipeIngredient,
+                      WaterLog, WeightLog)
 from auth import hash_password, verify_password, create_token, get_current_user, generate_token
 
 load_dotenv()
@@ -55,12 +58,12 @@ TOOLS = [
     },
     {
         "id": "nutrition",
-        "name": "Калькулятор питания",
+        "name": "Дневник питания",
         "icon": "🥗",
         "color": "green",
-        "url": "#",
-        "desc": "Подсчёт калорий и БЖУ, дневник питания, подбор рациона под цели.",
-        "active": False,
+        "url": "/nutrition",
+        "desc": "Дневник еды, счётчик КБЖУ, штрих-код сканер, трекер веса и AI-анализ рациона.",
+        "active": True,
     },
 ]
 
@@ -739,3 +742,610 @@ def _extract_text(html: str) -> str:
             seen.add(line)
             clean.append(line)
     return "\n".join(clean)
+
+
+# ── Nutrition: helpers ────────────────────────────────────────────────────────
+
+def _calc_tdee(gender: str, age: int, weight_kg: float, height_cm: float,
+               activity_level: str, goal: str) -> dict:
+    if gender == "female":
+        bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age - 161
+    else:
+        bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age + 5
+    multipliers = {
+        "sedentary": 1.2, "light": 1.375, "moderate": 1.55,
+        "active": 1.725, "very_active": 1.9,
+    }
+    tdee = bmr * multipliers.get(activity_level, 1.55)
+    if goal == "lose":
+        cal = int(tdee * 0.82)
+    elif goal == "gain":
+        cal = int(tdee * 1.15)
+    else:
+        cal = int(tdee)
+    protein = int(weight_kg * 2.0)
+    fat = int(cal * 0.25 / 9)
+    carbs = max(0, int((cal - protein * 4 - fat * 9) / 4))
+    water = int(weight_kg * 35)
+    return {"calories": cal, "protein": protein, "fat": fat, "carbs": carbs, "water_ml": water}
+
+
+async def _off_search(query: str) -> list:
+    url = "https://world.openfoodfacts.org/cgi/search.pl"
+    params = {
+        "search_terms": query, "search_simple": 1, "action": "process",
+        "json": 1, "page_size": 25,
+        "fields": "product_name,product_name_ru,brands,nutriments",
+        "lc": "ru", "cc": "ru",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            r = await client.get(url, params=params)
+        products = r.json().get("products", [])
+    except Exception:
+        return []
+    results = []
+    for p in products:
+        name = p.get("product_name_ru") or p.get("product_name", "")
+        if not name:
+            continue
+        n = p.get("nutriments", {})
+        kcal = n.get("energy-kcal_100g") or n.get("energy-kcal") or 0
+        if not kcal:
+            continue
+        results.append({
+            "name": name.strip(),
+            "brand": (p.get("brands") or "").split(",")[0].strip(),
+            "calories": round(float(kcal), 1),
+            "protein": round(float(n.get("proteins_100g", 0)), 1),
+            "fat": round(float(n.get("fat_100g", 0)), 1),
+            "carbs": round(float(n.get("carbohydrates_100g", 0)), 1),
+        })
+    return results
+
+
+async def _off_barcode(code: str) -> dict | None:
+    url = f"https://world.openfoodfacts.org/api/v0/product/{code}.json"
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            r = await client.get(url)
+        data = r.json()
+    except Exception:
+        return None
+    if data.get("status") != 1:
+        return None
+    p = data.get("product", {})
+    n = p.get("nutriments", {})
+    name = p.get("product_name_ru") or p.get("product_name", "")
+    kcal = n.get("energy-kcal_100g") or n.get("energy-kcal") or 0
+    if not name or not kcal:
+        return None
+    return {
+        "name": name.strip(),
+        "brand": (p.get("brands") or "").split(",")[0].strip(),
+        "calories": round(float(kcal), 1),
+        "protein": round(float(n.get("proteins_100g", 0)), 1),
+        "fat": round(float(n.get("fat_100g", 0)), 1),
+        "carbs": round(float(n.get("carbohydrates_100g", 0)), 1),
+        "barcode": code,
+    }
+
+
+def _diary_totals(logs: list) -> dict:
+    meals = {"breakfast": [], "lunch": [], "dinner": [], "snack": []}
+    for lg in logs:
+        meals.get(lg.meal_type, meals["snack"]).append({
+            "id": lg.id, "name": lg.food_name, "brand": lg.brand or "",
+            "grams": lg.grams, "calories": round(lg.calories, 1),
+            "protein": round(lg.protein, 1), "fat": round(lg.fat, 1),
+            "carbs": round(lg.carbs, 1),
+        })
+    totals = {
+        "calories": round(sum(l.calories for l in logs), 1),
+        "protein": round(sum(l.protein for l in logs), 1),
+        "fat": round(sum(l.fat for l in logs), 1),
+        "carbs": round(sum(l.carbs for l in logs), 1),
+    }
+    return {"meals": meals, "totals": totals}
+
+
+# ── Nutrition: page ───────────────────────────────────────────────────────────
+
+@app.get("/nutrition")
+async def nutrition_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    if not user_has_access(user, "nutrition", db):
+        return RedirectResponse("/?locked=nutrition", status_code=302)
+    return templates.TemplateResponse(request=request, name="nutrition.html", context={"user": user})
+
+
+# ── Nutrition: profile ────────────────────────────────────────────────────────
+
+@app.get("/nutrition/api/profile")
+async def nut_get_profile(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    p = db.query(NutritionProfile).filter(NutritionProfile.user_id == user.id).first()
+    if not p:
+        return JSONResponse({"exists": False})
+    return JSONResponse({
+        "exists": True,
+        "gender": p.gender, "age": p.age, "weight_kg": p.weight_kg,
+        "height_cm": p.height_cm, "goal": p.goal, "activity_level": p.activity_level,
+        "calorie_goal": p.calorie_goal, "protein_goal": p.protein_goal,
+        "fat_goal": p.fat_goal, "carb_goal": p.carb_goal,
+        "water_goal_ml": p.water_goal_ml,
+        "target_weight_kg": p.target_weight_kg, "start_weight_kg": p.start_weight_kg,
+    })
+
+
+@app.post("/nutrition/api/profile")
+async def nut_save_profile(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    data = await request.json()
+    gender = data.get("gender", "male")
+    age = int(data.get("age", 25))
+    weight_kg = float(data.get("weight_kg", 70))
+    height_cm = float(data.get("height_cm", 170))
+    goal = data.get("goal", "maintain")
+    activity_level = data.get("activity_level", "moderate")
+    target_weight = data.get("target_weight_kg")
+
+    targets = _calc_tdee(gender, age, weight_kg, height_cm, activity_level, goal)
+
+    p = db.query(NutritionProfile).filter(NutritionProfile.user_id == user.id).first()
+    if not p:
+        p = NutritionProfile(user_id=user.id)
+        db.add(p)
+    p.gender = gender
+    p.age = age
+    p.weight_kg = weight_kg
+    p.height_cm = height_cm
+    p.goal = goal
+    p.activity_level = activity_level
+    p.calorie_goal = targets["calories"]
+    p.protein_goal = targets["protein"]
+    p.fat_goal = targets["fat"]
+    p.carb_goal = targets["carbs"]
+    p.water_goal_ml = targets["water_ml"]
+    if target_weight:
+        p.target_weight_kg = float(target_weight)
+    if not p.start_weight_kg:
+        p.start_weight_kg = weight_kg
+    db.commit()
+    return JSONResponse({"ok": True, "targets": targets})
+
+
+# ── Nutrition: diary ──────────────────────────────────────────────────────────
+
+@app.get("/nutrition/api/diary")
+async def nut_diary(date: str = None, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    d = date or datetime.now().strftime("%Y-%m-%d")
+    logs = db.query(FoodLog).filter(FoodLog.user_id == user.id, FoodLog.log_date == d).order_by(FoodLog.created_at).all()
+    water_logs = db.query(WaterLog).filter(WaterLog.user_id == user.id, WaterLog.log_date == d).all()
+    water_ml = sum(w.amount_ml for w in water_logs)
+
+    profile = db.query(NutritionProfile).filter(NutritionProfile.user_id == user.id).first()
+    diary = _diary_totals(logs)
+    diary["water_ml"] = water_ml
+    diary["water_logs"] = [{"id": w.id, "amount_ml": w.amount_ml} for w in water_logs]
+    diary["goals"] = {
+        "calories": profile.calorie_goal if profile else 2000,
+        "protein": profile.protein_goal if profile else 100,
+        "fat": profile.fat_goal if profile else 65,
+        "carbs": profile.carb_goal if profile else 250,
+        "water_ml": profile.water_goal_ml if profile else 2000,
+    }
+    return JSONResponse(diary)
+
+
+@app.post("/nutrition/api/log-food")
+async def nut_log_food(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    data = await request.json()
+    grams = float(data.get("grams", 100))
+    cal_per_100 = float(data.get("calories", 0))
+    protein_per_100 = float(data.get("protein", 0))
+    fat_per_100 = float(data.get("fat", 0))
+    carbs_per_100 = float(data.get("carbs", 0))
+    log = FoodLog(
+        user_id=user.id,
+        log_date=data.get("date", datetime.now().strftime("%Y-%m-%d")),
+        meal_type=data.get("meal_type", "breakfast"),
+        food_name=data.get("name", ""),
+        brand=data.get("brand", "") or None,
+        grams=grams,
+        calories=round(cal_per_100 * grams / 100, 1),
+        protein=round(protein_per_100 * grams / 100, 1),
+        fat=round(fat_per_100 * grams / 100, 1),
+        carbs=round(carbs_per_100 * grams / 100, 1),
+        barcode=data.get("barcode") or None,
+    )
+    db.add(log)
+    db.commit()
+    return JSONResponse({"ok": True, "id": log.id})
+
+
+@app.delete("/nutrition/api/log-food/{log_id}")
+async def nut_delete_food(log_id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    log = db.query(FoodLog).filter(FoodLog.id == log_id, FoodLog.user_id == user.id).first()
+    if log:
+        db.delete(log)
+        db.commit()
+    return JSONResponse({"ok": True})
+
+
+# ── Nutrition: water ──────────────────────────────────────────────────────────
+
+@app.post("/nutrition/api/water")
+async def nut_log_water(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    data = await request.json()
+    amount = int(data.get("amount_ml", 200))
+    date = data.get("date", datetime.now().strftime("%Y-%m-%d"))
+    entry = WaterLog(user_id=user.id, log_date=date, amount_ml=amount)
+    db.add(entry)
+    db.commit()
+    total = sum(w.amount_ml for w in db.query(WaterLog).filter(
+        WaterLog.user_id == user.id, WaterLog.log_date == date).all())
+    return JSONResponse({"ok": True, "total_ml": total})
+
+
+@app.delete("/nutrition/api/water/{log_id}")
+async def nut_delete_water(log_id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    entry = db.query(WaterLog).filter(WaterLog.id == log_id, WaterLog.user_id == user.id).first()
+    if entry:
+        db.delete(entry)
+        db.commit()
+    return JSONResponse({"ok": True})
+
+
+# ── Nutrition: food search ────────────────────────────────────────────────────
+
+@app.get("/nutrition/api/search")
+async def nut_search(q: str = "", user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    if not q.strip():
+        return JSONResponse({"results": []})
+    custom = db.query(CustomFood).filter(
+        CustomFood.user_id == user.id,
+        CustomFood.name.ilike(f"%{q}%")
+    ).limit(5).all()
+    custom_results = [{
+        "name": f.name, "brand": f.brand or "", "source": "custom",
+        "calories": f.calories_per_100g, "protein": f.protein_per_100g,
+        "fat": f.fat_per_100g, "carbs": f.carbs_per_100g,
+    } for f in custom]
+    off_results = await _off_search(q)
+    return JSONResponse({"results": custom_results + off_results[:20]})
+
+
+@app.get("/nutrition/api/barcode/{code}")
+async def nut_barcode(code: str, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    custom = db.query(CustomFood).filter(
+        CustomFood.user_id == user.id, CustomFood.barcode == code).first()
+    if custom:
+        return JSONResponse({
+            "found": True, "source": "custom",
+            "name": custom.name, "brand": custom.brand or "",
+            "calories": custom.calories_per_100g, "protein": custom.protein_per_100g,
+            "fat": custom.fat_per_100g, "carbs": custom.carbs_per_100g, "barcode": code,
+        })
+    result = await _off_barcode(code)
+    if result:
+        return JSONResponse({"found": True, "source": "off", **result})
+    return JSONResponse({"found": False, "barcode": code})
+
+
+@app.get("/nutrition/api/recent-foods")
+async def nut_recent(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    logs = db.query(FoodLog).filter(FoodLog.user_id == user.id).order_by(
+        FoodLog.created_at.desc()).limit(200).all()
+    seen, results = set(), []
+    for lg in logs:
+        key = lg.food_name.lower()
+        if key not in seen:
+            seen.add(key)
+            results.append({
+                "name": lg.food_name, "brand": lg.brand or "",
+                "calories": round(lg.calories / lg.grams * 100, 1),
+                "protein": round(lg.protein / lg.grams * 100, 1),
+                "fat": round(lg.fat / lg.grams * 100, 1),
+                "carbs": round(lg.carbs / lg.grams * 100, 1),
+            })
+        if len(results) >= 20:
+            break
+    return JSONResponse({"results": results})
+
+
+@app.get("/nutrition/api/frequent-foods")
+async def nut_frequent(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    from collections import Counter
+    logs = db.query(FoodLog).filter(FoodLog.user_id == user.id).all()
+    counts = Counter(lg.food_name for lg in logs)
+    top_names = [name for name, _ in counts.most_common(20)]
+    results = []
+    for name in top_names:
+        lg = next((l for l in logs if l.food_name == name), None)
+        if lg:
+            results.append({
+                "name": lg.food_name, "brand": lg.brand or "",
+                "calories": round(lg.calories / lg.grams * 100, 1),
+                "protein": round(lg.protein / lg.grams * 100, 1),
+                "fat": round(lg.fat / lg.grams * 100, 1),
+                "carbs": round(lg.carbs / lg.grams * 100, 1),
+                "count": counts[name],
+            })
+    return JSONResponse({"results": results})
+
+
+# ── Nutrition: custom foods ───────────────────────────────────────────────────
+
+@app.post("/nutrition/api/custom-food")
+async def nut_create_custom_food(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    data = await request.json()
+    food = CustomFood(
+        user_id=user.id,
+        name=data.get("name", "").strip(),
+        brand=data.get("brand", "").strip() or None,
+        barcode=data.get("barcode", "").strip() or None,
+        calories_per_100g=float(data.get("calories", 0)),
+        protein_per_100g=float(data.get("protein", 0)),
+        fat_per_100g=float(data.get("fat", 0)),
+        carbs_per_100g=float(data.get("carbs", 0)),
+    )
+    db.add(food)
+    db.commit()
+    return JSONResponse({"ok": True, "id": food.id,
+                         "name": food.name, "brand": food.brand or "",
+                         "calories": food.calories_per_100g, "protein": food.protein_per_100g,
+                         "fat": food.fat_per_100g, "carbs": food.carbs_per_100g})
+
+
+# ── Nutrition: recipes ────────────────────────────────────────────────────────
+
+@app.get("/nutrition/api/recipes")
+async def nut_recipes(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    recipes = db.query(CustomRecipe).filter(CustomRecipe.user_id == user.id).order_by(
+        CustomRecipe.created_at.desc()).all()
+    result = []
+    for r in recipes:
+        ingredients = db.query(RecipeIngredient).filter(RecipeIngredient.recipe_id == r.id).all()
+        result.append({
+            "id": r.id, "name": r.name, "total_grams": r.total_grams,
+            "calories": r.calories, "protein": r.protein, "fat": r.fat, "carbs": r.carbs,
+            "ingredients": [{"name": i.food_name, "grams": i.grams, "calories": i.calories,
+                              "protein": i.protein, "fat": i.fat, "carbs": i.carbs}
+                             for i in ingredients],
+        })
+    return JSONResponse({"recipes": result})
+
+
+@app.post("/nutrition/api/recipes")
+async def nut_create_recipe(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    data = await request.json()
+    ingredients = data.get("ingredients", [])
+    total_g = sum(float(i.get("grams", 0)) for i in ingredients)
+    total_cal = sum(float(i.get("calories", 0)) for i in ingredients)
+    total_prot = sum(float(i.get("protein", 0)) for i in ingredients)
+    total_fat = sum(float(i.get("fat", 0)) for i in ingredients)
+    total_carbs = sum(float(i.get("carbs", 0)) for i in ingredients)
+    recipe = CustomRecipe(
+        user_id=user.id, name=data.get("name", "Рецепт"),
+        total_grams=total_g, calories=round(total_cal, 1),
+        protein=round(total_prot, 1), fat=round(total_fat, 1), carbs=round(total_carbs, 1),
+    )
+    db.add(recipe)
+    db.commit()
+    db.refresh(recipe)
+    for ing in ingredients:
+        g = float(ing.get("grams", 0))
+        cal100 = float(ing.get("calories", 0))
+        db.add(RecipeIngredient(
+            recipe_id=recipe.id, food_name=ing.get("name", ""),
+            grams=g, calories=round(cal100 * g / 100, 1),
+            protein=round(float(ing.get("protein", 0)) * g / 100, 1),
+            fat=round(float(ing.get("fat", 0)) * g / 100, 1),
+            carbs=round(float(ing.get("carbs", 0)) * g / 100, 1),
+        ))
+    db.commit()
+    return JSONResponse({"ok": True, "id": recipe.id})
+
+
+@app.delete("/nutrition/api/recipes/{recipe_id}")
+async def nut_delete_recipe(recipe_id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    recipe = db.query(CustomRecipe).filter(
+        CustomRecipe.id == recipe_id, CustomRecipe.user_id == user.id).first()
+    if recipe:
+        db.query(RecipeIngredient).filter(RecipeIngredient.recipe_id == recipe_id).delete()
+        db.delete(recipe)
+        db.commit()
+    return JSONResponse({"ok": True})
+
+
+# ── Nutrition: weight & measurements ─────────────────────────────────────────
+
+@app.get("/nutrition/api/weight")
+async def nut_weight(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    logs = db.query(WeightLog).filter(WeightLog.user_id == user.id).order_by(
+        WeightLog.log_date.desc()).limit(60).all()
+    profile = db.query(NutritionProfile).filter(NutritionProfile.user_id == user.id).first()
+    return JSONResponse({
+        "logs": [{"date": l.log_date, "weight_kg": l.weight_kg,
+                  "waist_cm": l.waist_cm, "hips_cm": l.hips_cm, "chest_cm": l.chest_cm}
+                 for l in logs],
+        "start_weight": profile.start_weight_kg if profile else None,
+        "target_weight": profile.target_weight_kg if profile else None,
+    })
+
+
+@app.post("/nutrition/api/weight")
+async def nut_log_weight(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    data = await request.json()
+    date = data.get("date", datetime.now().strftime("%Y-%m-%d"))
+    existing = db.query(WeightLog).filter(WeightLog.user_id == user.id,
+                                           WeightLog.log_date == date).first()
+    if not existing:
+        existing = WeightLog(user_id=user.id, log_date=date)
+        db.add(existing)
+    if data.get("weight_kg") is not None:
+        existing.weight_kg = float(data["weight_kg"])
+    if data.get("waist_cm") is not None:
+        existing.waist_cm = float(data["waist_cm"])
+    if data.get("hips_cm") is not None:
+        existing.hips_cm = float(data["hips_cm"])
+    if data.get("chest_cm") is not None:
+        existing.chest_cm = float(data["chest_cm"])
+    db.commit()
+    if data.get("weight_kg") is not None:
+        profile = db.query(NutritionProfile).filter(NutritionProfile.user_id == user.id).first()
+        if profile:
+            profile.weight_kg = float(data["weight_kg"])
+            db.commit()
+    return JSONResponse({"ok": True})
+
+
+# ── Nutrition: history / weekly ───────────────────────────────────────────────
+
+@app.get("/nutrition/api/weekly")
+async def nut_weekly(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    today = datetime.now().date()
+    days = []
+    for i in range(6, -1, -1):
+        d = (today - timedelta(days=i)).strftime("%Y-%m-%d")
+        logs = db.query(FoodLog).filter(FoodLog.user_id == user.id, FoodLog.log_date == d).all()
+        days.append({
+            "date": d,
+            "calories": round(sum(l.calories for l in logs), 0),
+            "protein": round(sum(l.protein for l in logs), 1),
+        })
+    return JSONResponse({"days": days})
+
+
+# ── Nutrition: AI advice ──────────────────────────────────────────────────────
+
+@app.post("/nutrition/api/ai-advice")
+async def nut_ai_advice(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user or not user_has_access(user, "nutrition", db):
+        return JSONResponse({"error": "Нет доступа"}, status_code=403)
+    data = await request.json()
+    date = data.get("date", datetime.now().strftime("%Y-%m-%d"))
+    logs = db.query(FoodLog).filter(FoodLog.user_id == user.id, FoodLog.log_date == date).all()
+    water = sum(w.amount_ml for w in db.query(WaterLog).filter(
+        WaterLog.user_id == user.id, WaterLog.log_date == date).all())
+    profile = db.query(NutritionProfile).filter(NutritionProfile.user_id == user.id).first()
+
+    total_cal = sum(l.calories for l in logs)
+    total_prot = sum(l.protein for l in logs)
+    total_fat = sum(l.fat for l in logs)
+    total_carbs = sum(l.carbs for l in logs)
+    goal_cal = profile.calorie_goal if profile else 2000
+    goal_prot = profile.protein_goal if profile else 100
+    goal_fat = profile.fat_goal if profile else 65
+    goal_carbs = profile.carb_goal if profile else 250
+    goal_water = profile.water_goal_ml if profile else 2000
+    goal_name = {"lose": "похудение", "gain": "набор массы", "maintain": "поддержание"}.get(
+        profile.goal if profile else "maintain", "поддержание")
+
+    food_list = "\n".join(
+        f"- {l.food_name}: {l.calories:.0f} ккал | Б:{l.protein:.0f}г Ж:{l.fat:.0f}г У:{l.carbs:.0f}г"
+        for l in logs) or "Ничего не записано"
+
+    prompt = f"""Ты нутрициолог. Проанализируй рацион и дай совет — 3-4 предложения, конкретно.
+
+Цель: {goal_name} | Норма: {goal_cal} ккал, Б:{goal_prot}г Ж:{goal_fat}г У:{goal_carbs}г
+Съедено: {total_cal:.0f} ккал | Б:{total_prot:.0f}г Ж:{total_fat:.0f}г У:{total_carbs:.0f}г
+Вода: {water} мл из {goal_water} мл
+
+Приёмы пищи:
+{food_list}
+
+Укажи что хорошо сделано, чего не хватает, одну конкретную рекомендацию. Только русский язык, никаких списков — просто текст."""
+
+    if not OPENROUTER_API_KEY:
+        return JSONResponse({"advice": "API ключ не настроен."})
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                         "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
+                json={"model": LETTER_MODEL, "messages": [{"role": "user", "content": prompt}],
+                      "temperature": 0.4, "max_tokens": 400},
+                timeout=30.0,
+            )
+        advice = resp.json()["choices"][0]["message"]["content"].strip()
+        return JSONResponse({"advice": advice})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── Nutrition: AI photo ───────────────────────────────────────────────────────
+
+@app.post("/nutrition/api/ai-photo")
+async def nut_ai_photo(file: UploadFile = File(...), user=Depends(get_current_user),
+                       db: Session = Depends(get_db)):
+    if not user or not user_has_access(user, "nutrition", db):
+        return JSONResponse({"error": "Нет доступа"}, status_code=403)
+    content = await file.read()
+    b64 = base64.b64encode(content).decode()
+    ext = (file.filename or "photo.jpg").rsplit(".", 1)[-1].lower()
+    mime = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
+
+    prompt = """На фото еда. Определи что изображено и оцени калорийность на 100г.
+Ответь ТОЛЬКО JSON без ```json и без пояснений:
+{"name":"название блюда","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":300,"note":"краткое пояснение"}"""
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                         "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
+                json={"model": LETTER_MODEL,
+                      "messages": [{"role": "user", "content": [
+                          {"type": "image_url",
+                           "image_url": {"url": f"data:{mime};base64,{b64}"}},
+                          {"type": "text", "text": prompt}
+                      ]}],
+                      "temperature": 0.2, "max_tokens": 200},
+                timeout=30.0,
+            )
+        import json as _json
+        text = resp.json()["choices"][0]["message"]["content"].strip()
+        result = _json.loads(text)
+        return JSONResponse({"ok": True, "food": result})
+    except Exception as e:
+        return JSONResponse({"error": f"Не удалось распознать: {e}"}, status_code=500)
