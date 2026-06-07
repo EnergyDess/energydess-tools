@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/effects.js"></script>
   <style>
     /* ── Nutrition vars ── */
     :root {
@@ -459,217 +460,132 @@
     @keyframes dotB { 0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)} }
 
     /* ═══════════════════════════════════════════════════════════
-       PREMIUM DESKTOP DESIGN  (≥ 1000px)
+       DESKTOP LAYOUT  (≥ 900px) — full horizontal
        ═══════════════════════════════════════════════════════════ */
-    #nut-aurora { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+    /* Sidebar header — hidden on mobile */
+    .sidebar-hd, .sidebar-date { display: none; }
 
-    /* Rotating glowing border ring around the nut-app */
-    .nut-glow-ring {
-      display: none;
-      position: fixed; left: 50%; transform: translateX(-50%);
-      top: 60px; width: 541px; height: calc(100dvh - 60px);
-      z-index: 1; pointer-events: none; overflow: hidden;
-    }
-    .nut-glow-ring::before {
-      content: '';
-      position: absolute; width: 200%; height: 200%;
-      top: 50%; left: 50%;
-      background: conic-gradient(from 0deg,
-        transparent 0deg,
-        rgba(34,197,94,.9) 28deg, rgba(0,212,255,.7) 56deg,
-        transparent 95deg, transparent 175deg,
-        rgba(34,197,94,.9) 208deg, rgba(0,212,255,.7) 236deg,
-        transparent 275deg, transparent 360deg
-      );
-      animation: gRingSpin 8s linear infinite;
-      filter: blur(.5px);
-    }
-    .nut-glow-ring::after {
-      content: ''; position: absolute; inset: 1px; background: var(--bg);
-    }
-    @keyframes gRingSpin {
-      from { transform: translate(-50%,-50%) rotate(0deg); }
-      to   { transform: translate(-50%,-50%) rotate(360deg); }
-    }
+    @media (min-width: 900px) {
+      /* ── Full-width horizontal app ── */
+      .nut-app {
+        flex-direction: row; max-width: none;
+        height: calc(100dvh - 60px); border: none !important; box-shadow: none !important;
+      }
+      .nut-hdr { display: none; }
 
-    /* Side panels */
-    .nut-aside {
-      display: none;
-      position: fixed; top: 60px; height: calc(100dvh - 60px);
-      z-index: 2; pointer-events: none;
-      flex-direction: column; gap: 12px; justify-content: center; padding: 18px;
-    }
-    .nut-aside-l { left: 0; right: calc(50% + 272px); }
-    .nut-aside-r { right: 0; left: calc(50% + 272px); }
+      /* ── Sidebar ── */
+      .nut-nav {
+        flex-direction: column; width: 230px; min-width: 230px;
+        height: 100%; border-top: none; border-right: 1px solid var(--border);
+        padding: 0 10px 10px; gap: 2px; align-items: stretch;
+        justify-content: flex-start; background: rgba(7,7,15,.88);
+        backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+        overflow: hidden;
+      }
+      .sidebar-hd {
+        display: flex; align-items: center; gap: 9px;
+        padding: 18px 12px 13px;
+        font-family: var(--font-display); font-size: .88rem; font-weight: 800;
+        border-bottom: 1px solid var(--border); margin: 0 0 6px;
+        flex-shrink: 0;
+        background: linear-gradient(90deg, var(--nut-g), var(--wat));
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      }
+      .sidebar-hd span:first-child { -webkit-text-fill-color: initial; }
+      .sidebar-date {
+        display: block; font-size: .64rem; color: var(--text-dim);
+        padding: 0 12px 8px; font-family: var(--font-mono); flex-shrink: 0;
+      }
+      .nut-nav-btn {
+        flex-direction: row; height: 46px; width: 100%;
+        padding: 0 14px; justify-content: flex-start;
+        gap: 12px; font-size: .88rem; border-radius: 11px; flex-shrink: 0;
+      }
+      .nut-nav-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
+      .nut-nav-btn:hover:not(.active) { background: rgba(255,255,255,.04); color: var(--text); }
+      .nut-nav-btn.active {
+        background: var(--nut-g-dim) !important; border: 1px solid rgba(34,197,94,.2);
+        color: var(--nut-g) !important;
+      }
+      .nut-nav-btn[data-tab="search"] {
+        background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.18);
+        color: var(--nut-g); margin: 6px 0;
+      }
+      .nut-nav-btn[data-tab="search"]:hover { background: rgba(34,197,94,.18); }
+      .nav-plus { width: 24px; height: 24px; border-radius: 7px; box-shadow: none; margin: 0; flex-shrink: 0; }
+      .nav-plus svg { width: 15px; height: 15px; }
 
-    @media (min-width: 1000px) {
-      .nut-glow-ring { display: block; }
-      .nav { position: relative; z-index: 10; }
-      .nut-app { position: relative; z-index: 3; }
-    }
-    @media (min-width: 1200px) {
-      .nut-aside { display: flex; }
-    }
+      /* ── Content ── */
+      .nut-content { flex: 1; overflow-y: auto; background: transparent; }
+      .nut-tab { padding: 28px 32px 36px; }
 
-    .aside-card {
-      width: 100%; background: rgba(7,7,15,.6);
-      backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
-      border: 1px solid rgba(255,255,255,.07); border-radius: 18px;
-      padding: 20px; position: relative; overflow: hidden;
-      animation: asideIn .8s cubic-bezier(.22,1,.36,1) both;
-    }
-    .nut-aside-r .aside-card:nth-child(2) { animation-delay: .1s; }
-    @keyframes asideIn {
-      from { opacity: 0; transform: translateY(22px); }
-      to   { opacity: 1; transform: none; }
-    }
+      /* ── Column helpers ── */
+      .d-left, .d-right { display: flex; flex-direction: column; gap: 14px; }
 
-    /* Brand card glow accent */
-    .aside-brand::before {
-      content: ''; position: absolute; top: -40px; right: -30px;
-      width: 120px; height: 120px;
-      background: radial-gradient(circle, rgba(34,197,94,.18) 0%, transparent 70%);
-      pointer-events: none;
-    }
-    .aside-icon {
-      font-size: 2.2rem; display: block; margin-bottom: 10px;
-      animation: iconFloat 3.8s ease-in-out infinite alternate;
-    }
-    @keyframes iconFloat {
-      from { transform: translateY(0) rotate(-4deg); }
-      to   { transform: translateY(-7px) rotate(4deg); }
-    }
-    .aside-name {
-      font-family: var(--font-display); font-size: 1.05rem; font-weight: 800;
-      line-height: 1.1; margin-bottom: 12px;
-      background: linear-gradient(135deg, #fff 0%, var(--nut-g) 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    }
-    .aside-quote {
-      font-size: .7rem; color: var(--text-dim); line-height: 1.7; font-style: italic;
-      border-left: 2px solid rgba(34,197,94,.4); padding-left: 10px; margin-bottom: 13px;
-    }
-    .aside-div { height: 1px; background: var(--border); margin-bottom: 11px; }
-    .aside-feats { display: flex; flex-direction: column; gap: 5px; }
-    .aside-feat {
-      display: flex; align-items: center; gap: 8px;
-      font-size: .72rem; color: var(--text-dim); padding: 5px 6px; border-radius: 8px;
-      transition: background .15s, color .15s;
-    }
-    .aside-feat em { font-style: normal; font-size: .85rem; width: 18px; text-align: center; }
+      /* ── DIARY: left panel sticky, right scrolls ── */
+      #tab-diary {
+        display: grid; grid-template-columns: 320px 1fr;
+        gap: 24px; align-items: start;
+      }
+      #tab-diary .d-left { position: sticky; top: 0; }
+      .ring-svg { width: 200px; height: 200px; }
+      .ring-remain { font-size: 2.5rem; }
+      .macros-row { gap: 10px; }
+      .macro-card { padding: 13px 14px; }
+      .macro-val { font-size: .83rem; }
+      .meal-hdr { padding: 14px 16px; }
+      .meal-name { font-size: .95rem; }
+      .food-item { padding: 10px 16px; }
+      .food-name { font-size: .9rem; }
 
-    /* Floating micro-particles inside brand card */
-    .aside-particles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: 18px; }
-    .aside-p {
-      position: absolute; border-radius: 50%; opacity: 0;
-      animation: pFloat linear infinite;
-    }
-    @keyframes pFloat {
-      0%   { opacity: 0; transform: translateY(0) scale(1); }
-      12%  { opacity: .9; }
-      88%  { opacity: .4; }
-      100% { opacity: 0; transform: translateY(-110px) scale(.2); }
-    }
+      /* ── SEARCH: max-width for readability ── */
+      #tab-search { max-width: 800px; }
+      .s-input { height: 48px; font-size: .97rem; }
+      .icon-btn { width: 48px; height: 48px; }
+      .r-item { padding: 13px 16px; }
+      .r-name { font-size: .9rem; }
 
-    /* Live data card */
-    .aside-live-hd {
-      font-size: .63rem; color: var(--text-dim); text-transform: uppercase;
-      letter-spacing: .1em; font-weight: 700; margin-bottom: 14px;
-    }
-    .aside-rows { display: flex; flex-direction: column; gap: 11px; }
-    .aside-row  { display: flex; align-items: center; gap: 8px; }
-    .a-ico { font-size: .88rem; flex-shrink: 0; width: 18px; text-align: center; }
-    .a-bar-wrap { flex: 1; min-width: 0; }
-    .a-lbl  { font-size: .61rem; color: var(--text-dim); margin-bottom: 3px; }
-    .a-bar  { height: 5px; background: rgba(255,255,255,.06); border-radius: 3px; overflow: hidden; }
-    .a-fill { height: 100%; border-radius: 3px; width: 0%; transition: width 1s ease; }
-    .a-val  { font-size: .67rem; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; min-width: 46px; text-align: right; }
+      /* ── HISTORY: left ring+nav, right chart ── */
+      #tab-history {
+        display: grid; grid-template-columns: 300px 1fr;
+        gap: 24px; align-items: start;
+      }
+      #tab-history .d-left { position: sticky; top: 0; }
+      .mini-ring-svg { width: 150px; height: 150px; }
+      #hist-kcal { font-size: 1.6rem !important; }
+      .week-box { padding: 18px; }
+      .week-bars { height: 100px; }
 
-    /* Tip card */
-    .aside-tip {
-      background: linear-gradient(135deg, rgba(34,197,94,.08), rgba(0,212,255,.04)) !important;
-      border-color: rgba(34,197,94,.18) !important;
+      /* ── WEIGHT: left stats, right chart ── */
+      #tab-weight {
+        display: grid; grid-template-columns: 280px 1fr;
+        gap: 24px; align-items: start;
+      }
+      .wt-big { font-size: 3.8rem; }
+      .chart-box { padding: 22px; }
+      .wt-svg { height: 180px; }
+
+      /* ── PROFILE: two equal columns ── */
+      #tab-profile {
+        display: grid; grid-template-columns: 1fr 1fr;
+        gap: 24px; align-items: start;
+      }
+      .f-input { height: 46px; font-size: .95rem; }
+      .radio-btn { height: 44px; font-size: .84rem; }
+      .act-btn { padding: 12px 16px; font-size: .84rem; }
+      .save-btn { height: 52px; font-size: 1rem; }
+
+      /* ── Glassmorphism cards on desktop ── */
+      .card, .meal-card, .water-card, .macro-card, .wt-hero,
+      .m-card, .chart-box, .week-box {
+        background: rgba(7,7,15,.5);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
     }
-    .aside-tip-lbl { font-size: .67rem; color: var(--nut-g); font-weight: 700; margin-bottom: 7px; }
-    .aside-tip-txt { font-size: .72rem; color: var(--text-dim); line-height: 1.65; }
   </style>
 </head>
 <body>
-
-<!-- ── Desktop premium bg elements ──────────────────────────────────────────── -->
-<canvas id="nut-aurora"></canvas>
-<div class="nut-glow-ring" aria-hidden="true"></div>
-
-<!-- LEFT SIDE: branding + features -->
-<aside class="nut-aside nut-aside-l" aria-hidden="true">
-  <div class="aside-card aside-brand">
-    <span class="aside-icon">🌿</span>
-    <div class="aside-name">Дневник<br>питания</div>
-    <div class="aside-quote">"Забота о теле —<br>лучшая инвестиция<br>в себя"</div>
-    <div class="aside-div"></div>
-    <div class="aside-feats">
-      <div class="aside-feat"><em>🔍</em>Поиск в базе OpenFood</div>
-      <div class="aside-feat"><em>📷</em>Сканер штрих-кода</div>
-      <div class="aside-feat"><em>🤖</em>AI-нутрициолог</div>
-      <div class="aside-feat"><em>📊</em>История и отчёты</div>
-      <div class="aside-feat"><em>⚖️</em>Трекер веса</div>
-    </div>
-    <div class="aside-particles" id="ap-particles"></div>
-  </div>
-</aside>
-
-<!-- RIGHT SIDE: live macro progress -->
-<aside class="nut-aside nut-aside-r" aria-hidden="true">
-  <div class="aside-card">
-    <div class="aside-live-hd">Сегодня</div>
-    <div class="aside-rows">
-      <div class="aside-row">
-        <span class="a-ico">⚡</span>
-        <div class="a-bar-wrap">
-          <div class="a-lbl">Калории</div>
-          <div class="a-bar"><div class="a-fill" id="af-cal" style="background:var(--nut-g)"></div></div>
-        </div>
-        <span class="a-val" id="av-cal">—</span>
-      </div>
-      <div class="aside-row">
-        <span class="a-ico">🥩</span>
-        <div class="a-bar-wrap">
-          <div class="a-lbl">Белок</div>
-          <div class="a-bar"><div class="a-fill" id="af-prot" style="background:var(--prot)"></div></div>
-        </div>
-        <span class="a-val" id="av-prot">—</span>
-      </div>
-      <div class="aside-row">
-        <span class="a-ico">🧈</span>
-        <div class="a-bar-wrap">
-          <div class="a-lbl">Жиры</div>
-          <div class="a-bar"><div class="a-fill" id="af-fat" style="background:var(--fat)"></div></div>
-        </div>
-        <span class="a-val" id="av-fat">—</span>
-      </div>
-      <div class="aside-row">
-        <span class="a-ico">🌾</span>
-        <div class="a-bar-wrap">
-          <div class="a-lbl">Углеводы</div>
-          <div class="a-bar"><div class="a-fill" id="af-carb" style="background:var(--carb)"></div></div>
-        </div>
-        <span class="a-val" id="av-carb">—</span>
-      </div>
-      <div class="aside-row">
-        <span class="a-ico">💧</span>
-        <div class="a-bar-wrap">
-          <div class="a-lbl">Вода</div>
-          <div class="a-bar"><div class="a-fill" id="af-water" style="background:var(--wat)"></div></div>
-        </div>
-        <span class="a-val" id="av-water">—</span>
-      </div>
-    </div>
-  </div>
-  <div class="aside-card aside-tip">
-    <div class="aside-tip-lbl">✨ Совет дня</div>
-    <div class="aside-tip-txt" id="aside-tip-txt">Заполните дневник, чтобы начать отслеживать КБЖУ</div>
-  </div>
-</aside>
 
 <!-- ── Site navbar ─────────────────────────────────────────────────────────── -->
 <nav class="nav">
@@ -700,59 +616,59 @@
 
     <!-- ── TAB: DIARY ── -->
     <section class="nut-tab active" id="tab-diary">
-      <div class="ring-wrap">
-        <div class="ring-container">
-          <svg class="ring-svg" viewBox="0 0 160 160">
-            <circle class="ring-track" cx="80" cy="80" r="70"/>
-            <circle class="ring-fill" cx="80" cy="80" r="70" id="ring-fill"/>
-          </svg>
-          <div class="ring-center">
-            <div class="ring-remain" id="ring-remain">—</div>
-            <div class="ring-lbl">ккал осталось</div>
-            <div class="ring-eaten" id="ring-eaten"></div>
+      <div class="d-left">
+        <div class="ring-wrap">
+          <div class="ring-container">
+            <svg class="ring-svg" viewBox="0 0 160 160">
+              <circle class="ring-track" cx="80" cy="80" r="70"/>
+              <circle class="ring-fill" cx="80" cy="80" r="70" id="ring-fill"/>
+            </svg>
+            <div class="ring-center">
+              <div class="ring-remain" id="ring-remain">—</div>
+              <div class="ring-lbl">ккал осталось</div>
+              <div class="ring-eaten" id="ring-eaten"></div>
+            </div>
           </div>
         </div>
+        <div class="macros-row">
+          <div class="macro-card">
+            <div class="macro-label">Белок</div>
+            <div class="macro-bar"><div class="macro-bar-fill" id="bar-prot" style="background:var(--prot);width:0%"></div></div>
+            <div class="macro-val" id="val-prot" style="color:var(--prot)">—</div>
+          </div>
+          <div class="macro-card">
+            <div class="macro-label">Жиры</div>
+            <div class="macro-bar"><div class="macro-bar-fill" id="bar-fat" style="background:var(--fat);width:0%"></div></div>
+            <div class="macro-val" id="val-fat" style="color:var(--fat)">—</div>
+          </div>
+          <div class="macro-card">
+            <div class="macro-label">Углеводы</div>
+            <div class="macro-bar"><div class="macro-bar-fill" id="bar-carb" style="background:var(--carb);width:0%"></div></div>
+            <div class="macro-val" id="val-carb" style="color:var(--carb)">—</div>
+          </div>
+        </div>
+        <div class="water-card">
+          <div class="water-hdr">
+            <span style="font-size:1.1rem">💧</span>
+            <span style="font-size:0.88rem;font-weight:600">Вода</span>
+            <span class="water-val" id="water-val">0 / 2000 мл</span>
+          </div>
+          <div class="water-bar"><div class="water-bar-fill" id="water-bar" style="width:0%"></div></div>
+          <div class="water-btns">
+            <button class="water-btn" onclick="addWater(200)">+200</button>
+            <button class="water-btn" onclick="addWater(250)">+250</button>
+            <button class="water-btn" onclick="addWater(300)">+300</button>
+            <button class="water-btn" onclick="addWater(500)">+500</button>
+          </div>
+        </div>
+        <button class="ai-btn" onclick="openAIChat()">
+          <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Спросить AI-нутрициолога
+        </button>
       </div>
-
-      <div class="macros-row">
-        <div class="macro-card">
-          <div class="macro-label">Белок</div>
-          <div class="macro-bar"><div class="macro-bar-fill" id="bar-prot" style="background:var(--prot);width:0%"></div></div>
-          <div class="macro-val" id="val-prot" style="color:var(--prot)">—</div>
-        </div>
-        <div class="macro-card">
-          <div class="macro-label">Жиры</div>
-          <div class="macro-bar"><div class="macro-bar-fill" id="bar-fat" style="background:var(--fat);width:0%"></div></div>
-          <div class="macro-val" id="val-fat" style="color:var(--fat)">—</div>
-        </div>
-        <div class="macro-card">
-          <div class="macro-label">Углеводы</div>
-          <div class="macro-bar"><div class="macro-bar-fill" id="bar-carb" style="background:var(--carb);width:0%"></div></div>
-          <div class="macro-val" id="val-carb" style="color:var(--carb)">—</div>
-        </div>
+      <div class="d-right">
+        <div id="meals-wrap"></div>
       </div>
-
-      <div class="water-card">
-        <div class="water-hdr">
-          <span style="font-size:1.1rem">💧</span>
-          <span style="font-size:0.88rem;font-weight:600">Вода</span>
-          <span class="water-val" id="water-val">0 / 2000 мл</span>
-        </div>
-        <div class="water-bar"><div class="water-bar-fill" id="water-bar" style="width:0%"></div></div>
-        <div class="water-btns">
-          <button class="water-btn" onclick="addWater(200)">+200</button>
-          <button class="water-btn" onclick="addWater(250)">+250</button>
-          <button class="water-btn" onclick="addWater(300)">+300</button>
-          <button class="water-btn" onclick="addWater(500)">+500</button>
-        </div>
-      </div>
-
-      <div id="meals-wrap"></div>
-
-      <button class="ai-btn" onclick="openAIChat()">
-        <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-        Спросить AI-нутрициолога
-      </button>
     </section>
 
     <!-- ── TAB: SEARCH ── -->
@@ -785,102 +701,116 @@
 
     <!-- ── TAB: HISTORY ── -->
     <section class="nut-tab" id="tab-history">
-      <div class="h-nav">
-        <button class="h-arrow" onclick="histShift(-1)">←</button>
-        <div class="h-date" id="h-date-lbl">Сегодня</div>
-        <button class="h-arrow" onclick="histShift(1)">→</button>
-      </div>
-      <div class="mini-ring-wrap">
-        <div style="position:relative;display:flex;align-items:center;justify-content:center;">
-          <svg class="mini-ring-svg" viewBox="0 0 120 120">
-            <circle class="mini-ring-track" cx="60" cy="60" r="45"/>
-            <circle class="mini-ring-fill" cx="60" cy="60" r="45" id="hist-ring"/>
-          </svg>
-          <div style="position:absolute;text-align:center;">
-            <div id="hist-kcal" style="font-size:1.25rem;font-weight:800;">—</div>
-            <div style="font-size:0.63rem;color:var(--text-dim)">ккал</div>
+      <div class="d-left">
+        <div class="h-nav">
+          <button class="h-arrow" onclick="histShift(-1)">←</button>
+          <div class="h-date" id="h-date-lbl">Сегодня</div>
+          <button class="h-arrow" onclick="histShift(1)">→</button>
+        </div>
+        <div class="mini-ring-wrap">
+          <div style="position:relative;display:flex;align-items:center;justify-content:center;">
+            <svg class="mini-ring-svg" viewBox="0 0 120 120">
+              <circle class="mini-ring-track" cx="60" cy="60" r="45"/>
+              <circle class="mini-ring-fill" cx="60" cy="60" r="45" id="hist-ring"/>
+            </svg>
+            <div style="position:absolute;text-align:center;">
+              <div id="hist-kcal" style="font-size:1.25rem;font-weight:800;">—</div>
+              <div style="font-size:0.63rem;color:var(--text-dim)">ккал</div>
+            </div>
           </div>
         </div>
+        <div id="hist-meals"></div>
       </div>
-      <div id="hist-meals"></div>
-      <div class="week-box">
-        <div class="week-title">7 дней</div>
-        <div class="week-bars" id="week-bars"></div>
+      <div class="d-right">
+        <div class="week-box">
+          <div class="week-title">7 дней</div>
+          <div class="week-bars" id="week-bars"></div>
+        </div>
       </div>
     </section>
 
     <!-- ── TAB: WEIGHT ── -->
     <section class="nut-tab" id="tab-weight">
-      <div class="wt-hero">
-        <div class="wt-big"><span id="cur-wt">—</span> <span class="wt-unit">кг</span></div>
-        <div class="wt-sub" id="wt-sub">Взвешивание не записано</div>
-        <div class="wt-prog" id="wt-prog" style="display:none">
-          <div class="wt-prog-lbl">
-            <span id="wt-start">—</span>
-            <span id="wt-left" style="color:var(--nut-g)">—</span>
-            <span id="wt-target">—</span>
+      <div class="d-left">
+        <div class="wt-hero">
+          <div class="wt-big"><span id="cur-wt">—</span> <span class="wt-unit">кг</span></div>
+          <div class="wt-sub" id="wt-sub">Взвешивание не записано</div>
+          <div class="wt-prog" id="wt-prog" style="display:none">
+            <div class="wt-prog-lbl">
+              <span id="wt-start">—</span>
+              <span id="wt-left" style="color:var(--nut-g)">—</span>
+              <span id="wt-target">—</span>
+            </div>
+            <div class="wt-prog-bar"><div class="wt-prog-fill" id="wt-fill" style="width:0%"></div></div>
           </div>
-          <div class="wt-prog-bar"><div class="wt-prog-fill" id="wt-fill" style="width:0%"></div></div>
         </div>
+        <div class="measures">
+          <div class="m-card"><div class="m-val" id="m-waist">—</div><div class="m-lbl">Талия, см</div></div>
+          <div class="m-card"><div class="m-val" id="m-hips">—</div><div class="m-lbl">Ягодицы, см</div></div>
+          <div class="m-card"><div class="m-val" id="m-chest">—</div><div class="m-lbl">Грудь, см</div></div>
+        </div>
+        <button class="save-btn" style="margin-top:0" onclick="openModal('modal-measure')">📏 Записать замер</button>
       </div>
-      <div class="measures">
-        <div class="m-card"><div class="m-val" id="m-waist">—</div><div class="m-lbl">Талия, см</div></div>
-        <div class="m-card"><div class="m-val" id="m-hips">—</div><div class="m-lbl">Ягодицы, см</div></div>
-        <div class="m-card"><div class="m-val" id="m-chest">—</div><div class="m-lbl">Грудь, см</div></div>
+      <div class="d-right">
+        <div class="chart-box"><div class="week-title">График веса</div><svg class="wt-svg" id="wt-svg"></svg></div>
       </div>
-      <div class="chart-box"><div class="week-title">График веса</div><svg class="wt-svg" id="wt-svg"></svg></div>
-      <button class="save-btn" style="margin-top:0" onclick="openModal('modal-measure')">📏 Записать замер</button>
     </section>
 
     <!-- ── TAB: PROFILE ── -->
     <section class="nut-tab" id="tab-profile">
-      <div class="p-sec">
-        <div class="p-sec-title">Личные данные</div>
-        <div class="f-field">
-          <label class="f-label">Пол</label>
-          <div class="radio-row" id="rg-gender">
-            <button class="radio-btn active" data-val="male"   onclick="setRad(this)">Мужской</button>
-            <button class="radio-btn"        data-val="female" onclick="setRad(this)">Женский</button>
+      <div class="d-left">
+        <div class="p-sec">
+          <div class="p-sec-title">Личные данные</div>
+          <div class="f-field">
+            <label class="f-label">Пол</label>
+            <div class="radio-row" id="rg-gender">
+              <button class="radio-btn active" data-val="male"   onclick="setRad(this)">Мужской</button>
+              <button class="radio-btn"        data-val="female" onclick="setRad(this)">Женский</button>
+            </div>
+          </div>
+          <div class="f-field"><label class="f-label">Возраст</label><input type="number" class="f-input" id="p-age"    placeholder="25" min="10" max="100"></div>
+          <div class="f-field"><label class="f-label">Вес, кг</label><input type="number" class="f-input" id="p-weight" placeholder="70" min="30" max="250" step="0.1"></div>
+          <div class="f-field"><label class="f-label">Рост, см</label><input type="number" class="f-input" id="p-height" placeholder="170" min="120" max="250"></div>
+          <div class="f-field"><label class="f-label">Цель по весу, кг</label><input type="number" class="f-input" id="p-target" placeholder="65" min="30" max="250" step="0.1"></div>
+        </div>
+      </div>
+      <div class="d-right">
+        <div class="p-sec">
+          <div class="p-sec-title">Цель</div>
+          <div class="radio-row" id="rg-goal">
+            <button class="radio-btn"        data-val="lose"     onclick="setRad(this)">Похудение</button>
+            <button class="radio-btn active" data-val="maintain" onclick="setRad(this)">Поддержание</button>
+            <button class="radio-btn"        data-val="gain"     onclick="setRad(this)">Набор</button>
           </div>
         </div>
-        <div class="f-field"><label class="f-label">Возраст</label><input type="number" class="f-input" id="p-age"    placeholder="25" min="10" max="100"></div>
-        <div class="f-field"><label class="f-label">Вес, кг</label><input type="number" class="f-input" id="p-weight" placeholder="70" min="30" max="250" step="0.1"></div>
-        <div class="f-field"><label class="f-label">Рост, см</label><input type="number" class="f-input" id="p-height" placeholder="170" min="120" max="250"></div>
-        <div class="f-field"><label class="f-label">Цель по весу, кг</label><input type="number" class="f-input" id="p-target" placeholder="65" min="30" max="250" step="0.1"></div>
-      </div>
-      <div class="p-sec">
-        <div class="p-sec-title">Цель</div>
-        <div class="radio-row" id="rg-goal">
-          <button class="radio-btn"        data-val="lose"     onclick="setRad(this)">Похудение</button>
-          <button class="radio-btn active" data-val="maintain" onclick="setRad(this)">Поддержание</button>
-          <button class="radio-btn"        data-val="gain"     onclick="setRad(this)">Набор</button>
+        <div class="p-sec">
+          <div class="p-sec-title">Активность</div>
+          <button class="act-btn" data-val="sedentary"  onclick="setAct(this)">😴 Сидячий — офис, мало движения</button>
+          <button class="act-btn" data-val="light"      onclick="setAct(this)">🚶 Лёгкий — прогулки, редкие тренировки</button>
+          <button class="act-btn active" data-val="moderate" onclick="setAct(this)">🏃 Умеренный — тренировки 3-4 раза в неделю</button>
+          <button class="act-btn" data-val="active"     onclick="setAct(this)">💪 Активный — тренировки 5-6 раз</button>
+          <button class="act-btn" data-val="very_active" onclick="setAct(this)">🔥 Очень активный — ежедневно</button>
         </div>
-      </div>
-      <div class="p-sec">
-        <div class="p-sec-title">Активность</div>
-        <button class="act-btn" data-val="sedentary"  onclick="setAct(this)">😴 Сидячий — офис, мало движения</button>
-        <button class="act-btn" data-val="light"      onclick="setAct(this)">🚶 Лёгкий — прогулки, редкие тренировки</button>
-        <button class="act-btn active" data-val="moderate" onclick="setAct(this)">🏃 Умеренный — тренировки 3-4 раза в неделю</button>
-        <button class="act-btn" data-val="active"     onclick="setAct(this)">💪 Активный — тренировки 5-6 раз</button>
-        <button class="act-btn" data-val="very_active" onclick="setAct(this)">🔥 Очень активный — ежедневно</button>
-      </div>
-      <div class="targets-box" id="targets-box" style="display:none">
-        <div class="targets-title">Расчётные нормы</div>
-        <div class="targets-row">
-          <div class="t-item"><div class="t-val" id="t-cal">—</div><div class="t-lbl">ккал/день</div></div>
-          <div class="t-item"><div class="t-val" id="t-prot" style="color:var(--prot)">—г</div><div class="t-lbl">Белок</div></div>
-          <div class="t-item"><div class="t-val" id="t-fat"  style="color:var(--fat)">—г</div><div class="t-lbl">Жиры</div></div>
-          <div class="t-item"><div class="t-val" id="t-carb" style="color:var(--carb)">—г</div><div class="t-lbl">Углеводы</div></div>
-          <div class="t-item"><div class="t-val" id="t-wat"  style="color:var(--wat)">—</div><div class="t-lbl">Вода, мл</div></div>
+        <div class="targets-box" id="targets-box" style="display:none">
+          <div class="targets-title">Расчётные нормы</div>
+          <div class="targets-row">
+            <div class="t-item"><div class="t-val" id="t-cal">—</div><div class="t-lbl">ккал/день</div></div>
+            <div class="t-item"><div class="t-val" id="t-prot" style="color:var(--prot)">—г</div><div class="t-lbl">Белок</div></div>
+            <div class="t-item"><div class="t-val" id="t-fat"  style="color:var(--fat)">—г</div><div class="t-lbl">Жиры</div></div>
+            <div class="t-item"><div class="t-val" id="t-carb" style="color:var(--carb)">—г</div><div class="t-lbl">Углеводы</div></div>
+            <div class="t-item"><div class="t-val" id="t-wat"  style="color:var(--wat)">—</div><div class="t-lbl">Вода, мл</div></div>
+          </div>
         </div>
+        <button class="save-btn" onclick="saveProfile()">Сохранить</button>
       </div>
-      <button class="save-btn" onclick="saveProfile()">Сохранить</button>
     </section>
 
   </div><!-- /nut-content -->
 
-  <!-- Bottom nav -->
+  <!-- Bottom nav / Desktop sidebar -->
   <nav class="nut-nav">
+    <div class="sidebar-hd"><span>🌿</span> Дневник питания</div>
+    <div class="sidebar-date" id="sidebar-date"></div>
     <button class="nut-nav-btn active" data-tab="diary"   onclick="switchTab(this)">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
       Дневник
@@ -1097,13 +1027,12 @@ let searchReqId = 0;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  initAurora();
-  initParticles();
-
-  // Date in header
+  // Date in header and sidebar
   const d = new Date();
-  document.getElementById('hdr-date').textContent =
-    d.toLocaleDateString('ru', {day:'numeric', month:'short', weekday:'short'});
+  const dateStr = d.toLocaleDateString('ru', {day:'numeric', month:'short', weekday:'short'});
+  document.getElementById('hdr-date').textContent = dateStr;
+  const sd = document.getElementById('sidebar-date');
+  if (sd) sd.textContent = dateStr;
 
   const prof = await api('/nutrition/api/profile');
   if (!prof.exists) {
@@ -1730,73 +1659,7 @@ function toast(msg, green=true) {
 // ── Escape ────────────────────────────────────────────────────────────────────
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// ── Desktop Aurora Canvas ─────────────────────────────────────────────────────
-function initAurora() {
-  const c = document.getElementById('nut-aurora');
-  if (!c) return;
-  const ctx = c.getContext('2d');
-  function resize() { c.width = innerWidth; c.height = innerHeight; }
-  resize();
-  window.addEventListener('resize', resize);
-
-  // Orbs: x/y as fraction of canvas, r as fraction of min(W,H)
-  const orbs = [
-    {x:.11, y:.22, r:.38, col:[34,197,94],  spd:5.8e-5, ph:0.0},
-    {x:.90, y:.72, r:.32, col:[0,212,255],  spd:4.6e-5, ph:1.9},
-    {x:.48, y:.97, r:.26, col:[124,77,255], spd:6.7e-5, ph:3.6},
-    {x:.07, y:.65, r:.20, col:[34,197,94],  spd:8.2e-5, ph:1.1},
-    {x:.93, y:.14, r:.23, col:[0,212,255],  spd:3.9e-5, ph:2.4},
-    {x:.32, y:.04, r:.17, col:[124,77,255], spd:7.4e-5, ph:4.2},
-    {x:.72, y:.50, r:.28, col:[34,197,94],  spd:5.1e-5, ph:5.0},
-  ];
-
-  function draw(t) {
-    ctx.clearRect(0, 0, c.width, c.height);
-    const M = Math.min(c.width, c.height);
-    orbs.forEach(o => {
-      const dx = Math.sin(t * o.spd       + o.ph) * 0.055;
-      const dy = Math.cos(t * o.spd * .72 + o.ph) * 0.045;
-      const px = (o.x + dx) * c.width;
-      const py = (o.y + dy) * c.height;
-      const rad = o.r * M;
-      const alpha = 0.038 + Math.sin(t * o.spd * 3.1 + o.ph) * 0.016;
-      const g = ctx.createRadialGradient(px, py, 0, px, py, rad);
-      g.addColorStop(0, `rgba(${o.col},${alpha.toFixed(3)})`);
-      g.addColorStop(.5, `rgba(${o.col},${(alpha*.4).toFixed(3)})`);
-      g.addColorStop(1, 'transparent');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(px, py, rad, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    requestAnimationFrame(draw);
-  }
-  requestAnimationFrame(draw);
-}
-
-// ── Floating particles in brand card ─────────────────────────────────────────
-function initParticles() {
-  const wrap = document.getElementById('ap-particles');
-  if (!wrap) return;
-  const palette = ['rgba(34,197,94,', 'rgba(56,189,248,', 'rgba(255,255,255,'];
-  for (let i = 0; i < 14; i++) {
-    const p = document.createElement('div');
-    const sz = 1.5 + Math.random() * 3;
-    const col = palette[Math.floor(Math.random() * palette.length)];
-    p.className = 'aside-p';
-    p.style.cssText =
-      `width:${sz}px;height:${sz}px;` +
-      `background:${col}0.85);` +
-      `left:${8 + Math.random() * 84}%;` +
-      `bottom:${Math.random() * 25}%;` +
-      `animation-duration:${6 + Math.random() * 9}s;` +
-      `animation-delay:${Math.random() * 8}s;` +
-      `box-shadow:0 0 ${sz*2}px ${col}0.5);`;
-    wrap.appendChild(p);
-  }
-}
-
-// ── Update side panels (called after diary loads) ─────────────────────────────
+// ── Update side panels (no-op if elements not present) ───────────────────────
 const SIDE_TIPS = [
   "Пейте воду за 30 мин до еды — снижает аппетит на 13%",
   "Белок на завтрак продлевает сытость до обеда",
