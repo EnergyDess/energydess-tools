@@ -21,6 +21,7 @@ templates = Jinja2Templates(directory="templates")
 
 OPENROUTER_API_KEY  = os.getenv("OPENROUTER_API_KEY", "")
 MODEL               = os.getenv("MODEL", "anthropic/claude-haiku-4-5")
+LETTER_MODEL        = os.getenv("LETTER_MODEL", "anthropic/claude-sonnet-4-5")
 RESEND_API_KEY      = os.getenv("RESEND_API_KEY", "")
 BASE_URL            = os.getenv("BASE_URL", "https://energydess.ru")
 
@@ -648,7 +649,7 @@ async def generate_letter(request: Request, user=Depends(get_current_user), db: 
                     "X-Title": "EnergyDess HH Helper",
                 },
                 json={
-                    "model": MODEL,
+                    "model": LETTER_MODEL,
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.5,
                     "max_tokens": 900,
