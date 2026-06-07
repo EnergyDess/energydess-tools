@@ -6,445 +6,487 @@
   <title>Дневник питания — EnergyDess</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <script src="/static/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/static/style.css">
   <style>
+    /* ── Nutrition vars ── */
     :root {
-      --nut-g: #22c55e;
+      --nut-g:     #22c55e;
       --nut-g-dim: rgba(34,197,94,.13);
-      --nut-g-glow: rgba(34,197,94,.25);
+      --nut-g-glo: rgba(34,197,94,.25);
       --prot: #f472b6;
       --fat:  #fbbf24;
       --carb: #60a5fa;
       --wat:  #38bdf8;
-      --bg:   #07070f;
-      --surf: #0f101e;
-      --surf2: #181929;
-      --brd:  rgba(255,255,255,.07);
-      --txt:  #dde2f0;
-      --muted:#5a6888;
       --nav-h: 64px;
-      --hdr-h: 56px;
+      --hdr-h: 54px;
+      /* alias style.css tokens for readability */
+      --surf:  var(--bg2);
+      --surf2: var(--bg3);
+      --brd:   var(--border);
+      --txt:   var(--text);
+      --muted: var(--text-dim);
     }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--txt); font-family: 'Inter', system-ui, sans-serif; font-size: 15px; }
+
+    /* ── Body override for app shell ── */
+    body { overflow: hidden; }
+    html, body { height: 100%; }
 
     /* ── App shell ── */
-    .nut-app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; max-width: 540px; margin: 0 auto; position: relative; }
+    .nut-app {
+      display: flex; flex-direction: column;
+      height: calc(100vh - 60px);
+      height: calc(100dvh - 60px);
+      max-width: 540px; margin: 0 auto;
+      position: relative;
+    }
+    @media (min-width: 560px) {
+      .nut-app {
+        border-left:  1px solid var(--border);
+        border-right: 1px solid var(--border);
+        box-shadow: 0 0 80px rgba(34,197,94,.04);
+      }
+    }
 
-    /* ── Header ── */
+    /* ── App header ── */
     .nut-hdr {
       height: var(--hdr-h); min-height: var(--hdr-h);
-      display: flex; align-items: center; gap: 12px;
-      padding: 0 16px;
-      background: var(--surf);
-      border-bottom: 1px solid var(--brd);
-      position: relative; z-index: 10;
+      display: flex; align-items: center; gap: 12px; padding: 0 14px;
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      position: relative; z-index: 10; flex-shrink: 0;
     }
     .nut-hdr-back {
-      width: 36px; height: 36px; border-radius: 10px;
-      background: var(--surf2); border: 1px solid var(--brd);
+      width: 34px; height: 34px; border-radius: 9px;
+      background: var(--bg3); border: 1px solid var(--border);
       display: flex; align-items: center; justify-content: center;
-      color: var(--muted); text-decoration: none; font-size: 1.1rem;
-      flex-shrink: 0;
+      color: var(--text-dim); cursor: pointer; font-size: 1rem;
+      flex-shrink: 0; -webkit-tap-highlight-color: transparent;
+      transition: color .15s;
     }
-    .nut-hdr-title { font-size: 1rem; font-weight: 700; flex: 1; }
-    .nut-hdr-date { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+    .nut-hdr-back:hover { color: var(--text); }
+    .nut-hdr-title { font-size: 0.95rem; font-weight: 700; flex: 1; }
+    .nut-hdr-date  { font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; }
 
     /* ── Content ── */
     .nut-content {
       flex: 1; overflow-y: auto; overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
-      scroll-behavior: smooth;
     }
 
     /* ── Tabs ── */
-    .nut-tab { display: none; padding: 16px 16px 24px; min-height: 100%; animation: fadeIn .2s ease; }
+    .nut-tab { display: none; padding: 14px 14px 24px; min-height: 100%; animation: fadeIn .2s ease; }
     .nut-tab.active { display: block; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 
     /* ── Bottom nav ── */
     .nut-nav {
-      height: var(--nav-h);
-      display: flex; align-items: stretch;
-      background: var(--surf);
-      border-top: 1px solid var(--brd);
-      padding-bottom: env(safe-area-inset-bottom, 0);
+      height: var(--nav-h); display: flex; align-items: stretch;
+      background: var(--bg2); border-top: 1px solid var(--border);
+      padding-bottom: env(safe-area-inset-bottom, 0); flex-shrink: 0;
     }
     .nut-nav-btn {
       flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 3px; background: none; border: none; cursor: pointer;
-      color: var(--muted); font-size: 0.65rem; font-weight: 500;
-      transition: color .15s; padding: 6px 0;
-      -webkit-tap-highlight-color: transparent;
+      color: var(--text-dim); font-size: 0.62rem; font-weight: 500;
+      transition: color .15s; -webkit-tap-highlight-color: transparent;
     }
-    .nut-nav-btn svg { width: 22px; height: 22px; }
+    .nut-nav-btn svg { width: 21px; height: 21px; }
     .nut-nav-btn.active { color: var(--nut-g); }
-    .nut-nav-add { position: relative; }
-    .nut-nav-add .nav-plus {
-      width: 46px; height: 46px; border-radius: 50%;
+    .nav-plus {
+      width: 44px; height: 44px; border-radius: 50%;
       background: var(--nut-g); display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 16px var(--nut-g-glow);
-      margin-bottom: 2px;
+      box-shadow: 0 4px 14px var(--nut-g-glo); margin-bottom: 2px;
     }
-    .nut-nav-add .nav-plus svg { width: 24px; height: 24px; color: #fff; }
+    .nav-plus svg { width: 22px; height: 22px; color: #fff; }
 
-    /* ── Cards ── */
-    .card { background: var(--surf); border: 1px solid var(--brd); border-radius: 16px; overflow: hidden; margin-bottom: 12px; }
-    .card-p { padding: 14px 16px; }
+    /* ── Card base ── */
+    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 10px; }
 
     /* ── Calorie ring ── */
-    .ring-wrap { display: flex; flex-direction: column; align-items: center; padding: 20px 0 4px; }
-    .ring-svg { width: 180px; height: 180px; }
-    .ring-track { fill: none; stroke: var(--surf2); stroke-width: 13; }
+    .ring-wrap { display: flex; justify-content: center; padding: 16px 0 6px; }
+    .ring-container { position: relative; display: flex; align-items: center; justify-content: center; }
+    .ring-svg { width: 170px; height: 170px; }
+    .ring-track { fill: none; stroke: var(--bg3); stroke-width: 13; }
     .ring-fill {
       fill: none; stroke: var(--nut-g); stroke-width: 13; stroke-linecap: round;
       stroke-dasharray: 440; stroke-dashoffset: 440;
       transform-origin: center; transform: rotate(-90deg);
       transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1);
-      filter: drop-shadow(0 0 6px var(--nut-g-glow));
+      filter: drop-shadow(0 0 6px var(--nut-g-glo));
     }
-    .ring-fill.over { stroke: #ef4444; }
-    .ring-center { position: absolute; display: flex; flex-direction: column; align-items: center; }
-    .ring-remain { font-size: 2rem; font-weight: 800; line-height: 1; }
-    .ring-label { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
-    .ring-eaten { font-size: 0.75rem; color: var(--muted); margin-top: 1px; }
-    .ring-container { position: relative; display: flex; align-items: center; justify-content: center; }
+    .ring-fill.over { stroke: #ef4444; filter: drop-shadow(0 0 6px rgba(239,68,68,.4)); }
+    .ring-center { position: absolute; text-align: center; }
+    .ring-remain { font-size: 1.9rem; font-weight: 800; line-height: 1; font-family: var(--font-display); }
+    .ring-lbl  { font-size: 0.68rem; color: var(--text-dim); margin-top: 2px; }
+    .ring-eaten { font-size: 0.72rem; color: var(--text-dim); }
 
     /* ── Macros ── */
-    .macros-row { display: flex; gap: 10px; margin: 12px 0; }
-    .macro-card {
-      flex: 1; background: var(--surf); border: 1px solid var(--brd); border-radius: 12px;
-      padding: 10px 12px;
-    }
-    .macro-label { font-size: 0.68rem; color: var(--muted); margin-bottom: 6px; }
-    .macro-bar { height: 5px; background: var(--surf2); border-radius: 3px; overflow: hidden; margin-bottom: 5px; }
+    .macros-row { display: flex; gap: 8px; margin: 10px 0; }
+    .macro-card { flex: 1; background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 11px; }
+    .macro-label { font-size: 0.65rem; color: var(--text-dim); margin-bottom: 5px; }
+    .macro-bar { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; margin-bottom: 5px; }
     .macro-bar-fill { height: 100%; border-radius: 3px; transition: width .8s ease; }
-    .macro-val { font-size: 0.78rem; font-weight: 600; }
+    .macro-val { font-size: 0.75rem; font-weight: 600; }
 
     /* ── Water ── */
-    .water-card { background: var(--surf); border: 1px solid var(--brd); border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; }
-    .water-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-    .water-icon { font-size: 1.2rem; }
-    .water-title { font-size: 0.9rem; font-weight: 600; }
-    .water-val { margin-left: auto; font-size: 0.85rem; color: var(--wat); font-weight: 700; }
-    .water-bar { height: 8px; background: var(--surf2); border-radius: 4px; overflow: hidden; margin-bottom: 12px; }
-    .water-bar-fill { height: 100%; background: var(--wat); border-radius: 4px; transition: width .6s ease; box-shadow: 0 0 8px rgba(56,189,248,.4); }
-    .water-btns { display: flex; gap: 8px; }
+    .water-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 13px 14px; margin-bottom: 10px; }
+    .water-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+    .water-val { margin-left: auto; font-size: 0.82rem; color: var(--wat); font-weight: 700; }
+    .water-bar { height: 7px; background: var(--bg3); border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
+    .water-bar-fill { height: 100%; background: var(--wat); border-radius: 4px; transition: width .6s ease; box-shadow: 0 0 8px rgba(56,189,248,.35); }
+    .water-btns { display: flex; gap: 7px; }
     .water-btn {
-      flex: 1; height: 36px; background: rgba(56,189,248,.1); border: 1px solid rgba(56,189,248,.2);
-      border-radius: 10px; color: var(--wat); font-size: 0.8rem; font-weight: 600;
-      cursor: pointer; transition: background .15s;
-      -webkit-tap-highlight-color: transparent;
+      flex: 1; height: 34px; background: rgba(56,189,248,.1); border: 1px solid rgba(56,189,248,.2);
+      border-radius: 9px; color: var(--wat); font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .1s;
     }
-    .water-btn:active { background: rgba(56,189,248,.2); }
+    .water-btn:active { background: rgba(56,189,248,.22); }
 
-    /* ── Meal cards ── */
-    .meal-card { background: var(--surf); border: 1px solid var(--brd); border-radius: 16px; margin-bottom: 10px; overflow: hidden; }
+    /* ── Meals ── */
+    .meal-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 9px; overflow: hidden; }
     .meal-hdr {
-      display: flex; align-items: center; gap: 10px; padding: 12px 14px;
-      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      display: flex; align-items: center; gap: 9px; padding: 11px 13px;
+      cursor: default; -webkit-tap-highlight-color: transparent;
     }
-    .meal-icon { font-size: 1.1rem; }
-    .meal-name { font-size: 0.9rem; font-weight: 700; flex: 1; }
-    .meal-kcal { font-size: 0.82rem; color: var(--nut-g); font-weight: 600; }
-    .meal-add-btn {
-      width: 32px; height: 32px; border-radius: 9px;
+    .meal-icon { font-size: 1rem; }
+    .meal-name { font-size: 0.87rem; font-weight: 700; flex: 1; }
+    .meal-kcal { font-size: 0.8rem; color: var(--nut-g); font-weight: 600; }
+    .meal-add {
+      width: 30px; height: 30px; border-radius: 8px;
       background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2);
-      color: var(--nut-g); font-size: 1.3rem; display: flex; align-items: center; justify-content: center;
-      cursor: pointer; flex-shrink: 0; line-height: 1;
-      -webkit-tap-highlight-color: transparent;
+      color: var(--nut-g); font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
     }
-    .meal-items { border-top: 1px solid var(--brd); }
-    .food-item {
-      display: flex; align-items: center; gap: 10px; padding: 10px 14px;
-      border-bottom: 1px solid var(--brd);
-    }
+    .meal-items { border-top: 1px solid var(--border); }
+    .food-item { display: flex; align-items: center; gap: 9px; padding: 9px 13px; border-bottom: 1px solid var(--border); }
     .food-item:last-child { border-bottom: none; }
-    .food-item-info { flex: 1; min-width: 0; }
-    .food-name { font-size: 0.87rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .food-sub { font-size: 0.73rem; color: var(--muted); margin-top: 1px; }
-    .food-kcal { font-size: 0.82rem; color: var(--nut-g); font-weight: 600; white-space: nowrap; }
-    .food-del {
-      width: 28px; height: 28px; border-radius: 8px; background: rgba(239,68,68,.1);
-      border: 1px solid rgba(239,68,68,.2); color: #ef4444; font-size: 1rem;
-      display: flex; align-items: center; justify-content: center; cursor: pointer;
-      flex-shrink: 0; -webkit-tap-highlight-color: transparent;
+    .food-info { flex: 1; min-width: 0; }
+    .food-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .food-sub  { font-size: 0.7rem; color: var(--text-dim); margin-top: 1px; }
+    .food-kcal { font-size: 0.8rem; color: var(--nut-g); font-weight: 600; white-space: nowrap; }
+    .food-del  {
+      width: 26px; height: 26px; border-radius: 7px; background: rgba(239,68,68,.1);
+      border: 1px solid rgba(239,68,68,.2); color: #ef4444;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0; font-size: .95rem; -webkit-tap-highlight-color: transparent;
     }
 
-    /* ── AI btn ── */
+    /* ── AI chat button ── */
     .ai-btn {
-      width: 100%; padding: 14px; border-radius: 14px; border: none;
-      background: linear-gradient(135deg, rgba(34,197,94,.15), rgba(34,197,94,.05));
-      border: 1px solid rgba(34,197,94,.25);
-      color: var(--nut-g); font-size: 0.9rem; font-weight: 600;
-      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-      transition: background .15s; margin-top: 4px;
-      -webkit-tap-highlight-color: transparent;
+      width: 100%; padding: 13px; border-radius: 13px; border: none;
+      background: linear-gradient(135deg, var(--nut-g-dim), rgba(34,197,94,.05));
+      border: 1px solid rgba(34,197,94,.22); color: var(--nut-g);
+      font-size: 0.88rem; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: background .15s; margin-top: 4px; -webkit-tap-highlight-color: transparent;
     }
-    .ai-btn:active { background: rgba(34,197,94,.25); }
+    .ai-btn:active { background: rgba(34,197,94,.22); }
 
-    /* ── Search tab ── */
-    .search-meal-chips { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-    .meal-chip {
-      padding: 7px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
-      background: var(--surf2); border: 1px solid var(--brd); color: var(--muted);
+    /* ── Search ── */
+    .s-chips { display: flex; gap: 7px; margin-bottom: 12px; flex-wrap: wrap; }
+    .s-chip {
+      padding: 6px 13px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
+      background: var(--bg3); border: 1px solid var(--border); color: var(--text-dim);
       cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
     }
-    .meal-chip.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.4); color: var(--nut-g); }
-
-    .search-bar {
-      display: flex; gap: 8px; margin-bottom: 14px;
+    .s-chip.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
+    .s-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+    .s-input {
+      flex: 1; height: 44px; background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 11px; padding: 0 13px; color: var(--text); font-size: 0.93rem;
+      outline: none; transition: border-color .15s; font-family: var(--font);
     }
-    .search-input {
-      flex: 1; height: 46px; background: var(--surf2); border: 1px solid var(--brd);
-      border-radius: 12px; padding: 0 14px; color: var(--txt); font-size: 0.95rem;
-      outline: none; transition: border-color .15s;
-    }
-    .search-input:focus { border-color: var(--nut-g); }
-    .search-input::placeholder { color: var(--muted); }
+    .s-input:focus { border-color: var(--nut-g); }
+    .s-input::placeholder { color: var(--text-dim); }
     .icon-btn {
-      width: 46px; height: 46px; border-radius: 12px; background: var(--surf2);
-      border: 1px solid var(--brd); color: var(--muted); display: flex;
-      align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
-      -webkit-tap-highlight-color: transparent; transition: color .15s, border-color .15s;
+      width: 44px; height: 44px; border-radius: 11px; background: var(--bg3);
+      border: 1px solid var(--border); color: var(--text-dim);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0; transition: color .15s, border-color .15s;
+      -webkit-tap-highlight-color: transparent;
     }
     .icon-btn:active { color: var(--nut-g); border-color: var(--nut-g); }
-    .icon-btn svg { width: 20px; height: 20px; }
-
-    .search-tabs { display: flex; gap: 0; margin-bottom: 12px; background: var(--surf2); border-radius: 10px; padding: 3px; }
-    .search-tab-btn {
-      flex: 1; height: 34px; border-radius: 8px; border: none; background: none;
-      color: var(--muted); font-size: 0.78rem; font-weight: 600; cursor: pointer;
-      transition: all .15s; -webkit-tap-highlight-color: transparent;
+    .icon-btn svg { width: 19px; height: 19px; }
+    .s-tabs { display: flex; background: var(--bg3); border-radius: 9px; padding: 3px; margin-bottom: 11px; }
+    .s-tab {
+      flex: 1; height: 32px; border-radius: 7px; border: none; background: none;
+      color: var(--text-dim); font-size: 0.76rem; font-weight: 600;
+      cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
     }
-    .search-tab-btn.active { background: var(--surf); color: var(--txt); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
-
-    .search-results { display: flex; flex-direction: column; gap: 1px; }
-    .result-item {
-      display: flex; align-items: center; gap: 12px; padding: 12px 14px;
-      background: var(--surf); border-radius: 12px; cursor: pointer;
-      transition: background .1s; -webkit-tap-highlight-color: transparent;
-      margin-bottom: 6px; border: 1px solid var(--brd);
+    .s-tab.active { background: var(--bg2); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+    .r-list { display: flex; flex-direction: column; gap: 6px; }
+    .r-item {
+      display: flex; align-items: center; gap: 11px; padding: 11px 13px;
+      background: var(--bg2); border-radius: 11px; cursor: pointer;
+      transition: background .1s; border: 1px solid var(--border);
+      -webkit-tap-highlight-color: transparent;
     }
-    .result-item:active { background: var(--surf2); }
-    .result-info { flex: 1; min-width: 0; }
-    .result-name { font-size: 0.87rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .result-brand { font-size: 0.72rem; color: var(--muted); }
-    .result-kcal { font-size: 0.82rem; color: var(--nut-g); font-weight: 700; white-space: nowrap; }
-    .result-per { font-size: 0.68rem; color: var(--muted); }
+    .r-item:active { background: var(--bg3); }
+    .r-info { flex: 1; min-width: 0; }
+    .r-name  { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .r-brand { font-size: 0.7rem; color: var(--text-dim); }
+    .r-kcal  { font-size: 0.8rem; color: var(--nut-g); font-weight: 700; white-space: nowrap; }
+    .r-per   { font-size: 0.65rem; color: var(--text-dim); }
+    .empty   { text-align: center; color: var(--text-dim); padding: 28px 16px; font-size: 0.87rem; }
 
-    .empty-hint { text-align: center; color: var(--muted); padding: 32px 16px; font-size: 0.88rem; }
-
-    /* ── History tab ── */
-    .hist-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-    .hist-arrow {
-      width: 36px; height: 36px; border-radius: 10px; background: var(--surf2);
-      border: 1px solid var(--brd); color: var(--txt); font-size: 1.1rem;
+    /* ── History ── */
+    .h-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .h-arrow {
+      width: 34px; height: 34px; border-radius: 9px; background: var(--bg3);
+      border: 1px solid var(--border); color: var(--text); font-size: 1.05rem;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
     }
-    .hist-date { flex: 1; text-align: center; font-size: 0.9rem; font-weight: 700; }
-    .mini-ring-wrap { display: flex; justify-content: center; margin: 8px 0 16px; }
-    .mini-ring-svg { width: 120px; height: 120px; }
-    .mini-ring-track { fill: none; stroke: var(--surf2); stroke-width: 10; }
+    .h-date { flex: 1; text-align: center; font-size: 0.88rem; font-weight: 700; }
+    .mini-ring-wrap { display: flex; justify-content: center; margin: 6px 0 14px; }
+    .mini-ring-svg { width: 110px; height: 110px; }
+    .mini-ring-track { fill: none; stroke: var(--bg3); stroke-width: 10; }
     .mini-ring-fill {
       fill: none; stroke: var(--nut-g); stroke-width: 10; stroke-linecap: round;
-      stroke-dasharray: 282; stroke-dashoffset: 282;
+      stroke-dasharray: 283; stroke-dashoffset: 283;
       transform-origin: center; transform: rotate(-90deg);
       transition: stroke-dashoffset .8s ease;
     }
+    .week-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-top: 14px; }
+    .week-title { font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .07em; font-weight: 600; margin-bottom: 10px; }
+    .week-bars { display: flex; gap: 5px; align-items: flex-end; height: 72px; }
+    .w-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; }
+    .w-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+    .w-bar { width: 100%; border-radius: 4px 4px 0 0; background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.25); min-height: 3px; }
+    .w-bar.today { background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo); }
+    .w-day  { font-size: 0.62rem; color: var(--text-dim); }
+    .w-kcal { font-size: 0.62rem; color: var(--nut-g); font-weight: 600; }
 
-    .week-chart { background: var(--surf); border: 1px solid var(--brd); border-radius: 16px; padding: 16px; margin-top: 16px; }
-    .week-chart-title { font-size: 0.85rem; font-weight: 700; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-size: 0.72rem; }
-    .week-bars { display: flex; gap: 6px; align-items: flex-end; height: 80px; }
-    .week-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; }
-    .week-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
-    .week-bar { width: 100%; border-radius: 5px 5px 0 0; background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.3); min-height: 3px; transition: height .6s ease; }
-    .week-bar.today { background: var(--nut-g); border-color: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glow); }
-    .week-bar-day { font-size: 0.65rem; color: var(--muted); }
-    .week-bar-kcal { font-size: 0.65rem; color: var(--nut-g); font-weight: 600; }
+    /* ── Weight ── */
+    .wt-hero { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 10px; text-align: center; }
+    .wt-big  { font-size: 2.8rem; font-weight: 800; line-height: 1; font-family: var(--font-display); }
+    .wt-unit { font-size: 1.1rem; color: var(--text-dim); font-weight: 400; }
+    .wt-sub  { font-size: 0.75rem; color: var(--text-dim); margin-top: 5px; }
+    .wt-prog { margin-top: 13px; }
+    .wt-prog-lbl { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px; }
+    .wt-prog-bar { height: 7px; background: var(--bg3); border-radius: 4px; overflow: hidden; }
+    .wt-prog-fill { height: 100%; background: var(--nut-g); border-radius: 4px; transition: width .8s ease; box-shadow: 0 0 8px var(--nut-g-glo); }
+    .measures { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 10px 0; }
+    .m-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 11px; padding: 11px 9px; text-align: center; }
+    .m-val { font-size: 1.25rem; font-weight: 700; }
+    .m-lbl { font-size: 0.65rem; color: var(--text-dim); margin-top: 2px; }
+    .chart-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 10px; overflow: hidden; }
+    .wt-svg { width: 100%; height: 90px; overflow: visible; }
 
-    /* ── Weight tab ── */
-    .weight-hero { background: var(--surf); border: 1px solid var(--brd); border-radius: 16px; padding: 20px; margin-bottom: 12px; text-align: center; }
-    .weight-big { font-size: 3rem; font-weight: 800; line-height: 1; }
-    .weight-unit { font-size: 1.2rem; color: var(--muted); font-weight: 400; }
-    .weight-sub { font-size: 0.78rem; color: var(--muted); margin-top: 6px; }
-    .weight-progress { margin-top: 14px; }
-    .weight-prog-labels { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; }
-    .weight-prog-bar { height: 8px; background: var(--surf2); border-radius: 4px; overflow: hidden; }
-    .weight-prog-fill { height: 100%; background: var(--nut-g); border-radius: 4px; transition: width .8s ease; box-shadow: 0 0 8px var(--nut-g-glow); }
-
-    .measures-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 12px 0; }
-    .measure-card { background: var(--surf); border: 1px solid var(--brd); border-radius: 12px; padding: 12px 10px; text-align: center; }
-    .measure-val { font-size: 1.3rem; font-weight: 700; }
-    .measure-label { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
-
-    .chart-card { background: var(--surf); border: 1px solid var(--brd); border-radius: 16px; padding: 16px; margin-bottom: 12px; overflow: hidden; }
-    .weight-svg { width: 100%; height: 100px; overflow: visible; }
-
-    /* ── Profile tab ── */
-    .profile-section { margin-bottom: 20px; }
-    .profile-section-title { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; margin-bottom: 10px; }
-    .form-field { margin-bottom: 12px; }
-    .form-label { font-size: 0.78rem; color: var(--muted); margin-bottom: 6px; display: block; }
-    .form-input {
-      width: 100%; height: 46px; background: var(--surf2); border: 1px solid var(--brd);
-      border-radius: 12px; padding: 0 14px; color: var(--txt); font-size: 0.95rem;
-      outline: none; transition: border-color .15s;
+    /* ── Profile ── */
+    .p-sec { margin-bottom: 18px; }
+    .p-sec-title { font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; margin-bottom: 9px; }
+    .f-label { font-size: 0.76rem; color: var(--text-dim); margin-bottom: 5px; display: block; }
+    .f-input {
+      width: 100%; height: 44px; background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 11px; padding: 0 13px; color: var(--text); font-size: 0.93rem;
+      outline: none; transition: border-color .15s; font-family: var(--font);
     }
-    .form-input:focus { border-color: var(--nut-g); }
-    .radio-group { display: flex; gap: 8px; }
+    .f-input:focus { border-color: var(--nut-g); }
+    .f-field { margin-bottom: 11px; }
+    .radio-row { display: flex; gap: 7px; }
     .radio-btn {
-      flex: 1; height: 42px; border-radius: 11px; border: 1px solid var(--brd);
-      background: var(--surf2); color: var(--muted); font-size: 0.82rem; font-weight: 600;
+      flex: 1; height: 40px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--bg3); color: var(--text-dim); font-size: 0.8rem; font-weight: 600;
       cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
     }
-    .radio-btn.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.4); color: var(--nut-g); }
-    .activity-btn {
-      width: 100%; text-align: left; padding: 11px 14px; border-radius: 11px;
-      border: 1px solid var(--brd); background: var(--surf2); color: var(--muted);
-      font-size: 0.82rem; cursor: pointer; margin-bottom: 6px; transition: all .15s;
-      -webkit-tap-highlight-color: transparent;
+    .radio-btn.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
+    .act-btn {
+      width: 100%; text-align: left; padding: 10px 13px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--bg3); color: var(--text-dim);
+      font-size: 0.8rem; cursor: pointer; margin-bottom: 5px;
+      transition: all .15s; -webkit-tap-highlight-color: transparent; font-family: var(--font);
     }
-    .activity-btn.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.4); color: var(--nut-g); }
-
-    .targets-card { background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2); border-radius: 14px; padding: 14px 16px; margin: 16px 0; }
-    .targets-title { font-size: 0.78rem; color: var(--nut-g); font-weight: 700; margin-bottom: 8px; }
-    .targets-row { display: flex; gap: 8px; }
-    .target-item { flex: 1; text-align: center; }
-    .target-val { font-size: 1.1rem; font-weight: 700; }
-    .target-lbl { font-size: 0.65rem; color: var(--muted); }
-
+    .act-btn.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
+    .targets-box { background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2); border-radius: 13px; padding: 13px 14px; margin: 14px 0; }
+    .targets-title { font-size: 0.76rem; color: var(--nut-g); font-weight: 700; margin-bottom: 8px; }
+    .targets-row { display: flex; gap: 7px; }
+    .t-item { flex: 1; text-align: center; }
+    .t-val { font-size: 1.05rem; font-weight: 700; }
+    .t-lbl { font-size: 0.62rem; color: var(--text-dim); }
     .save-btn {
-      width: 100%; height: 50px; border-radius: 14px; border: none;
-      background: var(--nut-g); color: #fff; font-size: 1rem; font-weight: 700;
-      cursor: pointer; transition: opacity .15s; margin-top: 4px;
-      -webkit-tap-highlight-color: transparent;
+      width: 100%; height: 48px; border-radius: 13px; border: none;
+      background: var(--nut-g); color: #fff; font-size: 0.95rem; font-weight: 700;
+      cursor: pointer; transition: opacity .15s; -webkit-tap-highlight-color: transparent;
     }
     .save-btn:active { opacity: .85; }
 
     /* ── Modals ── */
-    .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200;
+    .modal-ov {
+      position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 200;
       display: flex; align-items: flex-end; justify-content: center;
       opacity: 0; pointer-events: none; transition: opacity .2s;
     }
-    .modal-overlay.open { opacity: 1; pointer-events: all; }
-    .modal-sheet {
-      width: 100%; max-width: 540px; background: var(--surf);
-      border-radius: 20px 20px 0 0; padding: 0 0 env(safe-area-inset-bottom, 16px);
+    .modal-ov.open { opacity: 1; pointer-events: all; }
+    .modal-sh {
+      width: 100%; max-width: 540px; background: var(--bg2);
+      border-radius: 20px 20px 0 0;
+      padding-bottom: env(safe-area-inset-bottom, 14px);
       transform: translateY(100%); transition: transform .25s cubic-bezier(.4,0,.2,1);
-      max-height: 92vh; overflow-y: auto;
+      max-height: 92vh; display: flex; flex-direction: column;
     }
-    .modal-overlay.open .modal-sheet { transform: translateY(0); }
-    .modal-handle { width: 36px; height: 4px; background: var(--brd); border-radius: 2px; margin: 12px auto 0; }
-    .modal-title { font-size: 1rem; font-weight: 700; padding: 14px 18px 10px; }
-    .modal-body { padding: 4px 18px 18px; }
-    .modal-close {
-      position: absolute; right: 14px; top: 14px;
-      width: 30px; height: 30px; border-radius: 50%; background: var(--surf2);
-      border: none; color: var(--muted); font-size: 1.1rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
+    .modal-ov.open .modal-sh { transform: translateY(0); }
+    .modal-drag { width: 36px; height: 4px; background: var(--border-hi); border-radius: 2px; margin: 11px auto 0; flex-shrink: 0; }
+    .modal-hdr {
+      display: flex; align-items: center; padding: 12px 16px 10px;
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
     }
-
-    .portion-food-name { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
-    .portion-per100 { font-size: 0.78rem; color: var(--muted); margin-bottom: 14px; }
-    .grams-input-wrap { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-    .grams-input {
-      width: 100px; height: 50px; background: var(--surf2); border: 1px solid var(--brd);
-      border-radius: 12px; color: var(--txt); font-size: 1.3rem; font-weight: 700;
-      text-align: center; outline: none; transition: border-color .15s;
-    }
-    .grams-input:focus { border-color: var(--nut-g); }
-    .grams-label { color: var(--muted); font-size: 0.9rem; }
-    .quick-grams { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-    .quick-g-btn {
-      padding: 7px 14px; border-radius: 8px; background: var(--surf2); border: 1px solid var(--brd);
-      color: var(--muted); font-size: 0.8rem; cursor: pointer;
-      -webkit-tap-highlight-color: transparent; transition: all .1s;
-    }
-    .quick-g-btn:active { color: var(--nut-g); border-color: var(--nut-g); }
-
-    .calc-box { background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2); border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; }
-    .calc-kcal { font-size: 1.5rem; font-weight: 800; color: var(--nut-g); }
-    .calc-macros { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
-
-    .add-confirm-btn {
-      width: 100%; height: 50px; border-radius: 14px; border: none;
-      background: var(--nut-g); color: #fff; font-size: 1rem; font-weight: 700;
-      cursor: pointer; transition: opacity .15s;
+    .modal-title { font-size: 0.97rem; font-weight: 700; flex: 1; }
+    .modal-x {
+      width: 30px; height: 30px; border-radius: 50%; background: var(--bg3);
+      border: none; color: var(--text-dim); font-size: 1.1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
       -webkit-tap-highlight-color: transparent;
     }
-    .add-confirm-btn:active { opacity: .85; }
+    .modal-body { padding: 14px 16px 0; overflow-y: auto; flex: 1; }
 
-    /* ── Scanner modal ── */
-    #scanner-video-wrap { width: 100%; aspect-ratio: 1; background: #000; border-radius: 12px; overflow: hidden; position: relative; margin-bottom: 14px; }
-    #scanner-video { width: 100%; height: 100%; object-fit: cover; }
-    .scanner-frame { position: absolute; inset: 20%; border: 2px solid var(--nut-g); border-radius: 8px; }
-    .scanner-manual-input { width: 100%; height: 46px; background: var(--surf2); border: 1px solid var(--brd); border-radius: 12px; padding: 0 14px; color: var(--txt); font-size: 0.95rem; outline: none; }
-    .scanner-manual-input:focus { border-color: var(--nut-g); }
-
-    /* ── Custom food modal ── */
-    .custom-food-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-    /* ── AI modal ── */
-    .ai-loader { display: flex; align-items: center; gap: 10px; padding: 20px 0; color: var(--muted); }
-    .ai-dots { display: flex; gap: 4px; }
-    .ai-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--nut-g); animation: dotBounce .8s ease infinite; }
-    .ai-dot:nth-child(2) { animation-delay: .15s; }
-    .ai-dot:nth-child(3) { animation-delay: .3s; }
-    @keyframes dotBounce { 0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)} }
-    .ai-text { font-size: 0.9rem; line-height: 1.65; color: var(--txt); }
-
-    /* ── Recipe modal ── */
-    .recipe-ing-list { margin-bottom: 12px; }
-    .recipe-ing-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--brd); }
-    .recipe-ing-name { flex: 1; font-size: 0.85rem; }
-    .recipe-ing-g { font-size: 0.8rem; color: var(--nut-g); }
-    .recipe-ing-del { color: #ef4444; background: none; border: none; font-size: 1rem; cursor: pointer; }
-    .add-ing-btn {
-      width: 100%; height: 40px; border-radius: 10px; background: var(--surf2);
-      border: 1px solid var(--brd); color: var(--muted); font-size: 0.85rem;
-      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    /* ── Portion modal ── */
+    .por-name { font-size: 0.97rem; font-weight: 700; margin-bottom: 3px; }
+    .por-sub  { font-size: 0.76rem; color: var(--text-dim); margin-bottom: 13px; }
+    .g-wrap   { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+    .g-input  {
+      width: 95px; height: 48px; background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 11px; color: var(--text); font-size: 1.25rem; font-weight: 700;
+      text-align: center; outline: none; transition: border-color .15s;
     }
-
-    .fraction-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-    .frac-btn {
-      padding: 8px 14px; border-radius: 9px; background: var(--surf2); border: 1px solid var(--brd);
-      color: var(--muted); font-size: 0.82rem; cursor: pointer;
+    .g-input:focus { border-color: var(--nut-g); }
+    .g-lbl { color: var(--text-dim); font-size: 0.88rem; }
+    .q-grams { display: flex; gap: 7px; margin-bottom: 14px; flex-wrap: wrap; }
+    .q-btn {
+      padding: 6px 13px; border-radius: 8px; background: var(--bg3); border: 1px solid var(--border);
+      color: var(--text-dim); font-size: 0.78rem; cursor: pointer;
       -webkit-tap-highlight-color: transparent; transition: all .1s;
     }
-    .frac-btn.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.4); color: var(--nut-g); }
+    .q-btn:active { color: var(--nut-g); border-color: var(--nut-g); }
+    .calc-box { background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2); border-radius: 11px; padding: 11px 13px; margin-bottom: 14px; }
+    .calc-kcal   { font-size: 1.45rem; font-weight: 800; color: var(--nut-g); font-family: var(--font-display); }
+    .calc-macros { font-size: 0.76rem; color: var(--text-dim); margin-top: 2px; }
+    .add-btn {
+      width: 100%; height: 48px; border-radius: 13px; border: none;
+      background: var(--nut-g); color: #fff; font-size: 0.95rem; font-weight: 700;
+      cursor: pointer; transition: opacity .15s; margin-bottom: 16px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .add-btn:active { opacity: .85; }
+
+    /* ── Scanner ── */
+    #qr-reader { width: 100%; aspect-ratio: 1; background: #000; border-radius: 11px; overflow: hidden; position: relative; margin-bottom: 12px; }
+    .scan-overlay { position: absolute; inset: 20%; border: 2px solid var(--nut-g); border-radius: 7px; pointer-events: none; }
+    .scan-manual { width: 100%; height: 44px; background: var(--bg3); border: 1px solid var(--border); border-radius: 11px; padding: 0 13px; color: var(--text); font-size: 0.92rem; outline: none; font-family: var(--font); }
+    .scan-manual:focus { border-color: var(--nut-g); }
+
+    /* ── Custom food ── */
+    .cf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+
+    /* ── AI Chat ── */
+    .chat-msgs {
+      overflow-y: auto; padding: 10px 0; display: flex; flex-direction: column; gap: 10px;
+      flex: 1; min-height: 180px;
+    }
+    .chat-msg { max-width: 88%; }
+    .chat-msg.ai   { align-self: flex-start; }
+    .chat-msg.user { align-self: flex-end; }
+    .chat-bubble {
+      padding: 10px 13px; border-radius: 16px;
+      font-size: 0.87rem; line-height: 1.58;
+    }
+    .chat-bubble.ai {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 4px 16px 16px 16px; color: var(--text);
+    }
+    .chat-bubble.user {
+      background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2);
+      border-radius: 16px 4px 16px 16px; color: var(--nut-g);
+    }
+    .chat-input-row {
+      display: flex; gap: 8px; padding: 12px 0 0;
+      border-top: 1px solid var(--border); flex-shrink: 0;
+    }
+    .chat-in {
+      flex: 1; height: 42px; background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0 12px; color: var(--text); font-size: 0.9rem;
+      outline: none; font-family: var(--font);
+    }
+    .chat-in:focus { border-color: var(--nut-g); }
+    .chat-send {
+      width: 42px; height: 42px; background: var(--nut-g); border: none; border-radius: 10px;
+      color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; -webkit-tap-highlight-color: transparent;
+    }
+    .chat-send:active { opacity: .85; }
+    .chat-send svg { width: 18px; height: 18px; }
+
+    /* ── Recipe modals ── */
+    .ing-list { margin-bottom: 10px; }
+    .ing-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .ing-name { flex: 1; font-size: 0.83rem; }
+    .ing-g    { font-size: 0.78rem; color: var(--nut-g); }
+    .ing-del  { color: #ef4444; background: none; border: none; font-size: 1rem; cursor: pointer; padding: 0 4px; }
+    .ing-add-btn {
+      width: 100%; height: 38px; border-radius: 9px; background: var(--bg3);
+      border: 1px solid var(--border); color: var(--text-dim); font-size: 0.83rem;
+      cursor: pointer; -webkit-tap-highlight-color: transparent; font-family: var(--font);
+    }
+    .frac-btns { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
+    .frac-btn {
+      padding: 7px 13px; border-radius: 8px; background: var(--bg3); border: 1px solid var(--border);
+      color: var(--text-dim); font-size: 0.82rem; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; transition: all .1s;
+    }
+    .frac-btn.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
 
     /* ── Measure modal ── */
-    .measure-inputs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .meas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 
     /* ── Toast ── */
     .toast {
-      position: fixed; bottom: calc(var(--nav-h) + 16px); left: 50%; transform: translateX(-50%) translateY(20px);
-      background: var(--surf2); border: 1px solid var(--brd); border-radius: 12px;
-      padding: 10px 18px; font-size: 0.85rem; font-weight: 600;
-      opacity: 0; transition: all .25s; z-index: 300; white-space: nowrap;
-      pointer-events: none;
+      position: fixed; bottom: calc(var(--nav-h) + 14px); left: 50%;
+      transform: translateX(-50%) translateY(14px);
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 11px;
+      padding: 9px 17px; font-size: 0.83rem; font-weight: 600;
+      opacity: 0; transition: all .22s; z-index: 300; white-space: nowrap; pointer-events: none;
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-    .toast.green { border-color: rgba(34,197,94,.4); color: var(--nut-g); }
+    .toast.green { border-color: rgba(34,197,94,.35); color: var(--nut-g); }
 
-    /* ── Spinner ── */
-    .spin { width: 20px; height: 20px; border: 2px solid var(--brd); border-top-color: var(--nut-g); border-radius: 50%; animation: spin .6s linear infinite; }
+    /* ── Spinner / dots ── */
+    .spin { width: 18px; height: 18px; border: 2px solid var(--border-hi); border-top-color: var(--nut-g); border-radius: 50%; animation: spin .6s linear infinite; margin: 0 auto; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .dots { display: flex; gap: 4px; align-items: center; }
+    .dot  { width: 6px; height: 6px; border-radius: 50%; background: var(--nut-g); animation: dotB .8s ease infinite; }
+    .dot:nth-child(2) { animation-delay: .15s; }
+    .dot:nth-child(3) { animation-delay: .3s; }
+    @keyframes dotB { 0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)} }
   </style>
 </head>
 <body>
 
+<!-- ── Site navbar ─────────────────────────────────────────────────────────── -->
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="nav-logo-symbol">⚡</span>
+    <span>EnergyDess</span>
+  </a>
+  <div class="nav-right">
+    <a href="/" class="nav-hide-mobile">Главная</a>
+    <a href="/profile">Профиль</a>
+    {% if user.is_admin %}<a href="/admin" class="admin-link">Админ</a>{% endif %}
+    <a href="/logout" class="nav-logout">Выйти</a>
+  </div>
+</nav>
+
+<!-- ── App shell ──────────────────────────────────────────────────────────── -->
 <div class="nut-app">
-  <!-- Header -->
+
+  <!-- App header -->
   <header class="nut-hdr">
-    <a href="/" class="nut-hdr-back">←</a>
+    <button class="nut-hdr-back" onclick="handleBack()">←</button>
     <span class="nut-hdr-title" id="hdr-title">Дневник питания</span>
     <span class="nut-hdr-date" id="hdr-date"></span>
   </header>
 
-  <!-- Content -->
+  <!-- Scrollable content -->
   <div class="nut-content" id="nut-content">
 
     <!-- ── TAB: DIARY ── -->
@@ -455,9 +497,9 @@
             <circle class="ring-track" cx="80" cy="80" r="70"/>
             <circle class="ring-fill" cx="80" cy="80" r="70" id="ring-fill"/>
           </svg>
-          <div class="ring-center" id="ring-center">
+          <div class="ring-center">
             <div class="ring-remain" id="ring-remain">—</div>
-            <div class="ring-label">ккал осталось</div>
+            <div class="ring-lbl">ккал осталось</div>
             <div class="ring-eaten" id="ring-eaten"></div>
           </div>
         </div>
@@ -482,9 +524,9 @@
       </div>
 
       <div class="water-card">
-        <div class="water-header">
-          <span class="water-icon">💧</span>
-          <span class="water-title">Вода</span>
+        <div class="water-hdr">
+          <span style="font-size:1.1rem">💧</span>
+          <span style="font-size:0.88rem;font-weight:600">Вода</span>
           <span class="water-val" id="water-val">0 / 2000 мл</span>
         </div>
         <div class="water-bar"><div class="water-bar-fill" id="water-bar" style="width:0%"></div></div>
@@ -496,57 +538,49 @@
         </div>
       </div>
 
-      <div id="meals-container"></div>
+      <div id="meals-wrap"></div>
 
-      <button class="ai-btn" onclick="getAIAdvice()">
-        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-        Анализ рациона от ИИ
+      <button class="ai-btn" onclick="openAIChat()">
+        <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Спросить AI-нутрициолога
       </button>
     </section>
 
     <!-- ── TAB: SEARCH ── -->
     <section class="nut-tab" id="tab-search">
-      <div class="search-meal-chips" id="meal-chips">
-        <button class="meal-chip active" data-meal="breakfast" onclick="setSearchMeal(this)">☀️ Завтрак</button>
-        <button class="meal-chip" data-meal="lunch" onclick="setSearchMeal(this)">🌤 Обед</button>
-        <button class="meal-chip" data-meal="dinner" onclick="setSearchMeal(this)">🌙 Ужин</button>
-        <button class="meal-chip" data-meal="snack" onclick="setSearchMeal(this)">🍎 Перекус</button>
+      <div class="s-chips" id="meal-chips">
+        <button class="s-chip active" data-meal="breakfast" onclick="setSearchMeal(this)">☀️ Завтрак</button>
+        <button class="s-chip" data-meal="lunch"     onclick="setSearchMeal(this)">🌤 Обед</button>
+        <button class="s-chip" data-meal="dinner"    onclick="setSearchMeal(this)">🌙 Ужин</button>
+        <button class="s-chip" data-meal="snack"     onclick="setSearchMeal(this)">🍎 Перекус</button>
       </div>
-
-      <div class="search-bar">
-        <input type="search" class="search-input" id="search-input" placeholder="Поиск еды..."
-               oninput="onSearchInput(this.value)" autocomplete="off" enterkeyhint="search">
-        <button class="icon-btn" title="Фото" onclick="openPhotoRecognition()">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/>
-          </svg>
+      <div class="s-bar">
+        <input type="search" class="s-input" id="s-input" placeholder="Поиск еды..."
+               oninput="onSearch(this.value)" autocomplete="off" enterkeyhint="search">
+        <button class="icon-btn" onclick="openPhoto()" title="Фото">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
         </button>
-        <button class="icon-btn" title="Штрих-код" onclick="openScanner()">
+        <button class="icon-btn" onclick="openScanner()" title="Штрих-код">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path d="M3 5v4M3 3h4M21 3h-4M21 5v4M3 19v-4M3 21h4M21 21h-4M21 19v-4M7 8h2v8H7zM11 8h2v8h-2zM15 8h2v8h-2z"/>
+            <path d="M3 5v4M3 3h4M21 3h-4M21 5v4M3 19v-4M3 21h4M21 21h-4M21 19v-4"/><path d="M7 8h2v8H7zM11 8h2v8h-2zM15 8h2v8h-2z"/>
           </svg>
         </button>
       </div>
-
-      <div class="search-tabs">
-        <button class="search-tab-btn active" id="stab-recent" onclick="setSearchTab('recent')">Недавние</button>
-        <button class="search-tab-btn" id="stab-frequent" onclick="setSearchTab('frequent')">Частые</button>
-        <button class="search-tab-btn" id="stab-recipes" onclick="setSearchTab('recipes')">Рецепты</button>
+      <div class="s-tabs">
+        <button class="s-tab active" id="st-recent"   onclick="setSearchTab('recent')">Недавние</button>
+        <button class="s-tab"        id="st-frequent" onclick="setSearchTab('frequent')">Частые</button>
+        <button class="s-tab"        id="st-recipes"  onclick="setSearchTab('recipes')">Рецепты</button>
       </div>
-
-      <div id="search-results-wrap">
-        <div class="empty-hint">Введите название продукта или выберите из списка</div>
-      </div>
+      <div id="s-results"></div>
     </section>
 
     <!-- ── TAB: HISTORY ── -->
     <section class="nut-tab" id="tab-history">
-      <div class="hist-nav">
-        <button class="hist-arrow" onclick="histShift(-1)">←</button>
-        <div class="hist-date" id="hist-date-label">Сегодня</div>
-        <button class="hist-arrow" onclick="histShift(1)">→</button>
+      <div class="h-nav">
+        <button class="h-arrow" onclick="histShift(-1)">←</button>
+        <div class="h-date" id="h-date-lbl">Сегодня</div>
+        <button class="h-arrow" onclick="histShift(1)">→</button>
       </div>
-
       <div class="mini-ring-wrap">
         <div style="position:relative;display:flex;align-items:center;justify-content:center;">
           <svg class="mini-ring-svg" viewBox="0 0 120 120">
@@ -554,132 +588,96 @@
             <circle class="mini-ring-fill" cx="60" cy="60" r="45" id="hist-ring"/>
           </svg>
           <div style="position:absolute;text-align:center;">
-            <div id="hist-kcal" style="font-size:1.3rem;font-weight:800;">—</div>
-            <div style="font-size:0.65rem;color:var(--muted);">ккал</div>
+            <div id="hist-kcal" style="font-size:1.25rem;font-weight:800;">—</div>
+            <div style="font-size:0.63rem;color:var(--text-dim)">ккал</div>
           </div>
         </div>
       </div>
-
-      <div id="hist-meals-container"></div>
-      <div class="week-chart">
-        <div class="week-chart-title">Неделя</div>
+      <div id="hist-meals"></div>
+      <div class="week-box">
+        <div class="week-title">7 дней</div>
         <div class="week-bars" id="week-bars"></div>
       </div>
     </section>
 
     <!-- ── TAB: WEIGHT ── -->
     <section class="nut-tab" id="tab-weight">
-      <div class="weight-hero">
-        <div class="weight-big"><span id="cur-weight">—</span> <span class="weight-unit">кг</span></div>
-        <div class="weight-sub" id="weight-sub">Последнее взвешивание не записано</div>
-        <div class="weight-progress" id="weight-progress-wrap" style="display:none">
-          <div class="weight-prog-labels">
+      <div class="wt-hero">
+        <div class="wt-big"><span id="cur-wt">—</span> <span class="wt-unit">кг</span></div>
+        <div class="wt-sub" id="wt-sub">Взвешивание не записано</div>
+        <div class="wt-prog" id="wt-prog" style="display:none">
+          <div class="wt-prog-lbl">
             <span id="wt-start">—</span>
-            <span id="wt-left" style="color:var(--nut-g)">Осталось: —</span>
+            <span id="wt-left" style="color:var(--nut-g)">—</span>
             <span id="wt-target">—</span>
           </div>
-          <div class="weight-prog-bar"><div class="weight-prog-fill" id="wt-prog-fill" style="width:0%"></div></div>
+          <div class="wt-prog-bar"><div class="wt-prog-fill" id="wt-fill" style="width:0%"></div></div>
         </div>
       </div>
-
-      <div class="measures-grid">
-        <div class="measure-card">
-          <div class="measure-val" id="m-waist">—</div>
-          <div class="measure-label">Талия, см</div>
-        </div>
-        <div class="measure-card">
-          <div class="measure-val" id="m-hips">—</div>
-          <div class="measure-label">Ягодицы, см</div>
-        </div>
-        <div class="measure-card">
-          <div class="measure-val" id="m-chest">—</div>
-          <div class="measure-label">Грудь, см</div>
-        </div>
+      <div class="measures">
+        <div class="m-card"><div class="m-val" id="m-waist">—</div><div class="m-lbl">Талия, см</div></div>
+        <div class="m-card"><div class="m-val" id="m-hips">—</div><div class="m-lbl">Ягодицы, см</div></div>
+        <div class="m-card"><div class="m-val" id="m-chest">—</div><div class="m-lbl">Грудь, см</div></div>
       </div>
-
-      <div class="chart-card" id="weight-chart-card">
-        <div class="week-chart-title">График веса</div>
-        <svg class="weight-svg" id="weight-svg"></svg>
-      </div>
-
-      <button class="save-btn" style="margin-top:0" onclick="openMeasureModal()">
-        📏 Записать замер
-      </button>
+      <div class="chart-box"><div class="week-title">График веса</div><svg class="wt-svg" id="wt-svg"></svg></div>
+      <button class="save-btn" style="margin-top:0" onclick="openModal('modal-measure')">📏 Записать замер</button>
     </section>
 
     <!-- ── TAB: PROFILE ── -->
     <section class="nut-tab" id="tab-profile">
-      <div class="profile-section">
-        <div class="profile-section-title">Личные данные</div>
-        <div class="form-field">
-          <label class="form-label">Пол</label>
-          <div class="radio-group">
-            <button class="radio-btn active" data-val="male" onclick="setRadio('gender',this)">Мужской</button>
-            <button class="radio-btn" data-val="female" onclick="setRadio('gender',this)">Женский</button>
+      <div class="p-sec">
+        <div class="p-sec-title">Личные данные</div>
+        <div class="f-field">
+          <label class="f-label">Пол</label>
+          <div class="radio-row" id="rg-gender">
+            <button class="radio-btn active" data-val="male"   onclick="setRad(this)">Мужской</button>
+            <button class="radio-btn"        data-val="female" onclick="setRad(this)">Женский</button>
           </div>
         </div>
-        <div class="form-field">
-          <label class="form-label">Возраст</label>
-          <input type="number" class="form-input" id="p-age" placeholder="25" min="10" max="100">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Вес, кг</label>
-          <input type="number" class="form-input" id="p-weight" placeholder="70" min="30" max="250" step="0.1">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Рост, см</label>
-          <input type="number" class="form-input" id="p-height" placeholder="170" min="120" max="250">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Целевой вес, кг (необязательно)</label>
-          <input type="number" class="form-input" id="p-target-weight" placeholder="65" min="30" max="250" step="0.1">
+        <div class="f-field"><label class="f-label">Возраст</label><input type="number" class="f-input" id="p-age"    placeholder="25" min="10" max="100"></div>
+        <div class="f-field"><label class="f-label">Вес, кг</label><input type="number" class="f-input" id="p-weight" placeholder="70" min="30" max="250" step="0.1"></div>
+        <div class="f-field"><label class="f-label">Рост, см</label><input type="number" class="f-input" id="p-height" placeholder="170" min="120" max="250"></div>
+        <div class="f-field"><label class="f-label">Цель по весу, кг</label><input type="number" class="f-input" id="p-target" placeholder="65" min="30" max="250" step="0.1"></div>
+      </div>
+      <div class="p-sec">
+        <div class="p-sec-title">Цель</div>
+        <div class="radio-row" id="rg-goal">
+          <button class="radio-btn"        data-val="lose"     onclick="setRad(this)">Похудение</button>
+          <button class="radio-btn active" data-val="maintain" onclick="setRad(this)">Поддержание</button>
+          <button class="radio-btn"        data-val="gain"     onclick="setRad(this)">Набор</button>
         </div>
       </div>
-
-      <div class="profile-section">
-        <div class="profile-section-title">Цель</div>
-        <div class="radio-group">
-          <button class="radio-btn" data-val="lose" onclick="setRadio('goal',this)">Похудение</button>
-          <button class="radio-btn active" data-val="maintain" onclick="setRadio('goal',this)">Поддержание</button>
-          <button class="radio-btn" data-val="gain" onclick="setRadio('goal',this)">Набор</button>
-        </div>
+      <div class="p-sec">
+        <div class="p-sec-title">Активность</div>
+        <button class="act-btn" data-val="sedentary"  onclick="setAct(this)">😴 Сидячий — офис, мало движения</button>
+        <button class="act-btn" data-val="light"      onclick="setAct(this)">🚶 Лёгкий — прогулки, редкие тренировки</button>
+        <button class="act-btn active" data-val="moderate" onclick="setAct(this)">🏃 Умеренный — тренировки 3-4 раза в неделю</button>
+        <button class="act-btn" data-val="active"     onclick="setAct(this)">💪 Активный — тренировки 5-6 раз</button>
+        <button class="act-btn" data-val="very_active" onclick="setAct(this)">🔥 Очень активный — ежедневно</button>
       </div>
-
-      <div class="profile-section">
-        <div class="profile-section-title">Активность</div>
-        <button class="activity-btn" data-val="sedentary" onclick="setActivity(this)">😴 Сидячий — офис, мало движения</button>
-        <button class="activity-btn" data-val="light" onclick="setActivity(this)">🚶 Лёгкий — прогулки, редкие тренировки</button>
-        <button class="activity-btn active" data-val="moderate" onclick="setActivity(this)">🏃 Умеренный — тренировки 3-4 раза в неделю</button>
-        <button class="activity-btn" data-val="active" onclick="setActivity(this)">💪 Активный — тренировки 5-6 раз</button>
-        <button class="activity-btn" data-val="very_active" onclick="setActivity(this)">🔥 Очень активный — ежедневные нагрузки</button>
-      </div>
-
-      <div class="targets-card" id="targets-preview" style="display:none">
+      <div class="targets-box" id="targets-box" style="display:none">
         <div class="targets-title">Расчётные нормы</div>
         <div class="targets-row">
-          <div class="target-item"><div class="target-val" id="t-cal">—</div><div class="target-lbl">ккал/день</div></div>
-          <div class="target-item"><div class="target-val" id="t-prot" style="color:var(--prot)">—г</div><div class="target-lbl">Белок</div></div>
-          <div class="target-item"><div class="target-val" id="t-fat" style="color:var(--fat)">—г</div><div class="target-lbl">Жиры</div></div>
-          <div class="target-item"><div class="target-val" id="t-carb" style="color:var(--carb)">—г</div><div class="target-lbl">Углеводы</div></div>
-          <div class="target-item"><div class="target-val" id="t-water" style="color:var(--wat)">—</div><div class="target-lbl">Вода, мл</div></div>
+          <div class="t-item"><div class="t-val" id="t-cal">—</div><div class="t-lbl">ккал/день</div></div>
+          <div class="t-item"><div class="t-val" id="t-prot" style="color:var(--prot)">—г</div><div class="t-lbl">Белок</div></div>
+          <div class="t-item"><div class="t-val" id="t-fat"  style="color:var(--fat)">—г</div><div class="t-lbl">Жиры</div></div>
+          <div class="t-item"><div class="t-val" id="t-carb" style="color:var(--carb)">—г</div><div class="t-lbl">Углеводы</div></div>
+          <div class="t-item"><div class="t-val" id="t-wat"  style="color:var(--wat)">—</div><div class="t-lbl">Вода, мл</div></div>
         </div>
       </div>
-
-      <button class="save-btn" onclick="saveProfile()">Сохранить профиль</button>
+      <button class="save-btn" onclick="saveProfile()">Сохранить</button>
     </section>
 
   </div><!-- /nut-content -->
 
-  <!-- Bottom Nav -->
+  <!-- Bottom nav -->
   <nav class="nut-nav">
-    <button class="nut-nav-btn active" data-tab="diary" onclick="switchTab(this)">
+    <button class="nut-nav-btn active" data-tab="diary"   onclick="switchTab(this)">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
       Дневник
     </button>
-    <button class="nut-nav-btn nut-nav-add" data-tab="search" onclick="switchTab(this)">
-      <div class="nav-plus">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-      </div>
+    <button class="nut-nav-btn" data-tab="search" onclick="switchTab(this)">
+      <div class="nav-plus"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></div>
       Добавить
     </button>
     <button class="nut-nav-btn" data-tab="history" onclick="switchTab(this)">
@@ -695,279 +693,247 @@
       Профиль
     </button>
   </nav>
-</div>
+</div><!-- /nut-app -->
 
-<!-- ─── MODAL: Add Portion ─── -->
-<div class="modal-overlay" id="modal-portion" onclick="closeModalOnBg(event,'modal-portion')">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div style="position:relative">
-      <div class="modal-title" id="portion-title">Добавить</div>
-      <button class="modal-close" onclick="closeModal('modal-portion')">×</button>
+<!-- ─── MODAL: Portion ─── -->
+<div class="modal-ov" id="modal-portion" onclick="bgClose(event,'modal-portion')">
+  <div class="modal-sh">
+    <div class="modal-drag"></div>
+    <div class="modal-hdr">
+      <span class="modal-title" id="por-title">Добавить</span>
+      <button class="modal-x" onclick="closeModal('modal-portion')">×</button>
     </div>
     <div class="modal-body">
-      <div class="portion-food-name" id="portion-food-name"></div>
-      <div class="portion-per100" id="portion-per100"></div>
-      <div class="grams-input-wrap">
-        <input type="number" class="grams-input" id="grams-input" value="100" min="1" max="5000" oninput="updateCalcBox()">
-        <span class="grams-label">г</span>
+      <div class="por-name" id="por-name"></div>
+      <div class="por-sub"  id="por-sub"></div>
+      <div class="g-wrap">
+        <input type="number" class="g-input" id="g-input" value="100" min="1" max="5000" oninput="updateCalc()">
+        <span class="g-lbl">г</span>
       </div>
-      <div class="quick-grams">
-        <button class="quick-g-btn" onclick="setGrams(50)">50г</button>
-        <button class="quick-g-btn" onclick="setGrams(100)">100г</button>
-        <button class="quick-g-btn" onclick="setGrams(150)">150г</button>
-        <button class="quick-g-btn" onclick="setGrams(200)">200г</button>
-        <button class="quick-g-btn" onclick="setGrams(300)">300г</button>
+      <div class="q-grams">
+        <button class="q-btn" onclick="setG(50)">50г</button>
+        <button class="q-btn" onclick="setG(100)">100г</button>
+        <button class="q-btn" onclick="setG(150)">150г</button>
+        <button class="q-btn" onclick="setG(200)">200г</button>
+        <button class="q-btn" onclick="setG(300)">300г</button>
       </div>
       <div class="calc-box">
-        <div class="calc-kcal" id="calc-kcal">0 ккал</div>
-        <div class="calc-macros" id="calc-macros">Б: 0г  Ж: 0г  У: 0г</div>
+        <div class="calc-kcal"   id="c-kcal">0 ккал</div>
+        <div class="calc-macros" id="c-macros">Б: 0г  Ж: 0г  У: 0г</div>
       </div>
-      <button class="add-confirm-btn" onclick="confirmAddFood()">Добавить в дневник</button>
+      <button class="add-btn" onclick="confirmAdd()">Добавить в дневник</button>
     </div>
   </div>
 </div>
 
-<!-- ─── MODAL: Barcode Scanner ─── -->
-<div class="modal-overlay" id="modal-scanner" onclick="closeModalOnBg(event,'modal-scanner')">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div style="position:relative">
-      <div class="modal-title">Сканировать штрих-код</div>
-      <button class="modal-close" onclick="closeScanner()">×</button>
+<!-- ─── MODAL: Scanner ─── -->
+<div class="modal-ov" id="modal-scanner" onclick="bgClose(event,'modal-scanner')">
+  <div class="modal-sh">
+    <div class="modal-drag"></div>
+    <div class="modal-hdr">
+      <span class="modal-title">Штрих-код</span>
+      <button class="modal-x" onclick="closeScanner()">×</button>
     </div>
     <div class="modal-body">
-      <div id="scanner-video-wrap">
-        <div id="html5-qrcode-reader"></div>
-        <div class="scanner-frame"></div>
-      </div>
-      <div style="color:var(--muted);font-size:0.82rem;margin-bottom:10px;text-align:center;">или введите штрих-код вручную</div>
-      <input class="scanner-manual-input" id="manual-barcode" type="text" placeholder="4600000000000" inputmode="numeric"
-             onkeydown="if(event.key==='Enter') lookupManualBarcode()">
-      <button class="add-confirm-btn" style="margin-top:10px" onclick="lookupManualBarcode()">Найти</button>
+      <div id="qr-reader"><div class="scan-overlay"></div></div>
+      <div style="font-size:.8rem;color:var(--text-dim);text-align:center;margin-bottom:9px">или введите штрих-код вручную</div>
+      <input class="scan-manual" id="barcode-input" type="text" placeholder="4600000000000" inputmode="numeric"
+             onkeydown="if(event.key==='Enter')lookupBarcode()">
+      <button class="add-btn" style="margin-top:10px;margin-bottom:16px" onclick="lookupBarcode()">Найти</button>
     </div>
   </div>
 </div>
 
-<!-- ─── MODAL: Custom Food ─── -->
-<div class="modal-overlay" id="modal-custom-food" onclick="closeModalOnBg(event,'modal-custom-food')">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div style="position:relative">
-      <div class="modal-title">Добавить продукт вручную</div>
-      <button class="modal-close" onclick="closeModal('modal-custom-food')">×</button>
+<!-- ─── MODAL: Custom food ─── -->
+<div class="modal-ov" id="modal-custom" onclick="bgClose(event,'modal-custom')">
+  <div class="modal-sh">
+    <div class="modal-drag"></div>
+    <div class="modal-hdr">
+      <span class="modal-title">Добавить вручную</span>
+      <button class="modal-x" onclick="closeModal('modal-custom')">×</button>
     </div>
     <div class="modal-body">
-      <div class="form-field">
-        <label class="form-label">Название *</label>
-        <input type="text" class="form-input" id="cf-name" placeholder="Куриное филе">
+      <div class="f-field"><label class="f-label">Название *</label><input type="text" class="f-input" id="cf-name" placeholder="Куриное филе"></div>
+      <div class="f-field"><label class="f-label">Бренд</label><input type="text" class="f-input" id="cf-brand" placeholder="Мираторг"></div>
+      <div class="f-field"><label class="f-label">Штрих-код</label><input type="text" class="f-input" id="cf-barcode"></div>
+      <div class="f-label" style="font-weight:600;margin-bottom:8px">КБЖУ на 100г</div>
+      <div class="cf-grid">
+        <div class="f-field"><label class="f-label">Калории *</label><input type="number" class="f-input" id="cf-cal"  placeholder="165"></div>
+        <div class="f-field"><label class="f-label">Белок, г</label><input type="number" class="f-input" id="cf-prot" placeholder="31"></div>
+        <div class="f-field"><label class="f-label">Жиры, г</label><input type="number" class="f-input" id="cf-fat"  placeholder="3.6"></div>
+        <div class="f-field"><label class="f-label">Углеводы, г</label><input type="number" class="f-input" id="cf-carb" placeholder="0"></div>
       </div>
-      <div class="form-field">
-        <label class="form-label">Бренд</label>
-        <input type="text" class="form-input" id="cf-brand" placeholder="Мираторг">
-      </div>
-      <div class="form-field">
-        <label class="form-label">Штрих-код</label>
-        <input type="text" class="form-input" id="cf-barcode" placeholder="4600000000000">
-      </div>
-      <div class="form-label" style="margin-bottom:8px;font-weight:600;">КБЖУ на 100г</div>
-      <div class="custom-food-grid">
-        <div class="form-field">
-          <label class="form-label">Калории *</label>
-          <input type="number" class="form-input" id="cf-cal" placeholder="165">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Белок, г</label>
-          <input type="number" class="form-input" id="cf-prot" placeholder="31">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Жиры, г</label>
-          <input type="number" class="form-input" id="cf-fat" placeholder="3.6">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Углеводы, г</label>
-          <input type="number" class="form-input" id="cf-carb" placeholder="0">
-        </div>
-      </div>
-      <button class="add-confirm-btn" onclick="saveCustomFood()">Сохранить и добавить</button>
+      <button class="add-btn" onclick="saveCustomFood()" style="margin-bottom:16px">Сохранить и добавить</button>
     </div>
   </div>
 </div>
 
-<!-- ─── MODAL: Create Recipe ─── -->
-<div class="modal-overlay" id="modal-recipe-create" onclick="closeModalOnBg(event,'modal-recipe-create')">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div style="position:relative">
-      <div class="modal-title">Новый рецепт</div>
-      <button class="modal-close" onclick="closeModal('modal-recipe-create')">×</button>
+<!-- ─── MODAL: Create recipe ─── -->
+<div class="modal-ov" id="modal-recipe" onclick="bgClose(event,'modal-recipe')">
+  <div class="modal-sh">
+    <div class="modal-drag"></div>
+    <div class="modal-hdr">
+      <span class="modal-title">Новый рецепт</span>
+      <button class="modal-x" onclick="closeModal('modal-recipe')">×</button>
     </div>
     <div class="modal-body">
-      <div class="form-field">
-        <label class="form-label">Название рецепта</label>
-        <input type="text" class="form-input" id="recipe-name" placeholder="Творожная запеканка">
+      <div class="f-field"><label class="f-label">Название</label><input type="text" class="f-input" id="rec-name" placeholder="Творожная запеканка"></div>
+      <div class="f-label" style="font-weight:600;margin-bottom:7px">Ингредиенты</div>
+      <div class="ing-list" id="ing-list"></div>
+      <button class="ing-add-btn" onclick="openSearchForRecipe()">+ Ингредиент</button>
+      <div class="calc-box" style="margin-top:11px">
+        <div class="calc-kcal"   id="rec-kcal">0 ккал</div>
+        <div class="calc-macros" id="rec-macros">Б: 0г  Ж: 0г  У: 0г  — 0г</div>
       </div>
-      <div class="form-label" style="margin-bottom:8px;font-weight:600;">Ингредиенты</div>
-      <div class="recipe-ing-list" id="recipe-ing-list"></div>
-      <button class="add-ing-btn" onclick="openSearchForRecipe()">+ Добавить ингредиент</button>
-      <div class="calc-box" style="margin-top:12px" id="recipe-total-box">
-        <div class="calc-kcal" id="recipe-total-kcal">0 ккал</div>
-        <div class="calc-macros" id="recipe-total-macros">Б: 0г  Ж: 0г  У: 0г  — 0г</div>
-      </div>
-      <button class="add-confirm-btn" onclick="saveRecipe()">Сохранить рецепт</button>
+      <button class="add-btn" onclick="saveRecipe()" style="margin-bottom:16px">Сохранить рецепт</button>
     </div>
   </div>
 </div>
 
-<!-- ─── MODAL: Log Recipe (fraction) ─── -->
-<div class="modal-overlay" id="modal-recipe-log" onclick="closeModalOnBg(event,'modal-recipe-log')">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div style="position:relative">
-      <div class="modal-title" id="recipe-log-title">Добавить рецепт</div>
-      <button class="modal-close" onclick="closeModal('modal-recipe-log')">×</button>
+<!-- ─── MODAL: Log recipe ─── -->
+<div class="modal-ov" id="modal-recipe-log" onclick="bgClose(event,'modal-recipe-log')">
+  <div class="modal-sh">
+    <div class="modal-drag"></div>
+    <div class="modal-hdr">
+      <span class="modal-title" id="rl-title">Рецепт</span>
+      <button class="modal-x" onclick="closeModal('modal-recipe-log')">×</button>
     </div>
     <div class="modal-body">
-      <div style="font-size:0.82rem;color:var(--muted);margin-bottom:10px;">Сколько съели от общего объёма?</div>
-      <div class="fraction-btns" id="fraction-btns">
-        <button class="frac-btn" onclick="setFraction(0.25,this)">¼</button>
-        <button class="frac-btn" onclick="setFraction(0.33,this)">⅓</button>
-        <button class="frac-btn active" onclick="setFraction(0.5,this)">½</button>
-        <button class="frac-btn" onclick="setFraction(0.67,this)">⅔</button>
-        <button class="frac-btn" onclick="setFraction(0.75,this)">¾</button>
-        <button class="frac-btn" onclick="setFraction(1,this)">Всё</button>
+      <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:9px">Сколько съели от общего объёма?</div>
+      <div class="frac-btns" id="frac-btns">
+        <button class="frac-btn" onclick="setFrac(.25,this)">¼</button>
+        <button class="frac-btn" onclick="setFrac(.33,this)">⅓</button>
+        <button class="frac-btn active" onclick="setFrac(.5,this)">½</button>
+        <button class="frac-btn" onclick="setFrac(.67,this)">⅔</button>
+        <button class="frac-btn" onclick="setFrac(.75,this)">¾</button>
+        <button class="frac-btn" onclick="setFrac(1,this)">Всё</button>
       </div>
-      <div class="grams-input-wrap" style="margin-bottom:12px">
-        <input type="number" class="grams-input" id="recipe-frac-pct" value="50" min="1" max="100" oninput="updateRecipeCalcBox()">
-        <span class="grams-label">%</span>
+      <div class="g-wrap" style="margin-bottom:13px">
+        <input type="number" class="g-input" id="frac-pct" value="50" min="1" max="100" oninput="updateRecCalc()">
+        <span class="g-lbl">%</span>
       </div>
-      <div class="calc-box" id="recipe-log-calc">
-        <div class="calc-kcal" id="recipe-log-kcal">0 ккал</div>
-        <div class="calc-macros" id="recipe-log-macros">Б: 0г  Ж: 0г  У: 0г</div>
+      <div class="calc-box">
+        <div class="calc-kcal"   id="rl-kcal">0 ккал</div>
+        <div class="calc-macros" id="rl-macros"></div>
       </div>
-      <button class="add-confirm-btn" onclick="confirmAddRecipe()">Добавить в дневник</button>
+      <button class="add-btn" onclick="confirmAddRecipe()" style="margin-bottom:16px">Добавить</button>
     </div>
   </div>
 </div>
 
-<!-- ─── MODAL: AI Advice ─── -->
-<div class="modal-overlay" id="modal-ai" onclick="closeModalOnBg(event,'modal-ai')">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div style="position:relative">
-      <div class="modal-title">Анализ от ИИ</div>
-      <button class="modal-close" onclick="closeModal('modal-ai')">×</button>
+<!-- ─── MODAL: AI Chat ─── -->
+<div class="modal-ov" id="modal-ai" onclick="bgClose(event,'modal-ai')">
+  <div class="modal-sh" style="max-height:80vh">
+    <div class="modal-drag"></div>
+    <div class="modal-hdr">
+      <span class="modal-title">🥗 AI-нутрициолог</span>
+      <button class="modal-x" onclick="closeModal('modal-ai')">×</button>
     </div>
-    <div class="modal-body" id="ai-modal-body">
-      <div class="ai-loader">
-        <div class="ai-dots"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div></div>
-        <span>Анализирую рацион...</span>
+    <div class="modal-body" style="display:flex;flex-direction:column;padding-bottom:0">
+      <div class="chat-msgs" id="chat-msgs"></div>
+      <div class="chat-input-row" style="padding-bottom:14px">
+        <input type="text" class="chat-in" id="chat-in" placeholder="Задайте вопрос о питании..."
+               onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="chat-send" onclick="sendChat()">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        </button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ─── MODAL: Log Weight/Measures ─── -->
-<div class="modal-overlay" id="modal-measure" onclick="closeModalOnBg(event,'modal-measure')">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div style="position:relative">
-      <div class="modal-title">Записать замер</div>
-      <button class="modal-close" onclick="closeModal('modal-measure')">×</button>
+<!-- ─── MODAL: Measure ─── -->
+<div class="modal-ov" id="modal-measure" onclick="bgClose(event,'modal-measure')">
+  <div class="modal-sh">
+    <div class="modal-drag"></div>
+    <div class="modal-hdr">
+      <span class="modal-title">Записать замер</span>
+      <button class="modal-x" onclick="closeModal('modal-measure')">×</button>
     </div>
     <div class="modal-body">
-      <div class="form-field">
-        <label class="form-label">Вес, кг</label>
-        <input type="number" class="form-input" id="m-weight-input" placeholder="70.5" step="0.1">
+      <div class="f-field"><label class="f-label">Вес, кг</label><input type="number" class="f-input" id="mw-kg"    placeholder="70.5" step="0.1"></div>
+      <div class="f-label" style="font-weight:600;margin-bottom:8px">Замеры тела</div>
+      <div class="meas-grid">
+        <div class="f-field"><label class="f-label">Талия, см</label><input type="number" class="f-input" id="mw-waist" placeholder="80"></div>
+        <div class="f-field"><label class="f-label">Ягодицы, см</label><input type="number" class="f-input" id="mw-hips"  placeholder="95"></div>
+        <div class="f-field"><label class="f-label">Грудь, см</label><input type="number" class="f-input" id="mw-chest" placeholder="90"></div>
       </div>
-      <div class="form-label" style="margin-bottom:8px;font-weight:600;">Замеры тела</div>
-      <div class="measure-inputs-grid">
-        <div class="form-field">
-          <label class="form-label">Талия, см</label>
-          <input type="number" class="form-input" id="m-waist-input" placeholder="80">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Ягодицы, см</label>
-          <input type="number" class="form-input" id="m-hips-input" placeholder="95">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Грудь, см</label>
-          <input type="number" class="form-input" id="m-chest-input" placeholder="90">
-        </div>
-      </div>
-      <button class="add-confirm-btn" onclick="saveMeasurement()">Сохранить</button>
+      <button class="add-btn" onclick="saveMeasure()" style="margin-bottom:16px">Сохранить</button>
     </div>
   </div>
 </div>
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
-
-<!-- Hidden photo input -->
-<input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event)">
+<input type="file" id="photo-in" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event)">
 
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
 const S = {
   today: new Date().toISOString().slice(0,10),
+  activeTab: 'diary',
   diary: null, profile: null,
   searchMeal: 'breakfast',
   searchTab: 'recent',
-  histDate: new Date().toISOString().slice(0,10),
-  // food being portioned
   portionFood: null,
-  // recipe being constructed
-  recipeIngredients: [],
-  // recipe being logged
-  selectedRecipe: null,
-  recipeFraction: 0.5,
-  scannerInstance: null,
-  addingIngredient: false,
+  recipeIngs: [],
+  selRecipe: null, recFrac: 0.5,
+  histDate: new Date().toISOString().slice(0,10),
+  scannerInst: null,
+  addingIng: false,
+  chatHistory: [],
 };
+let searchReqId = 0;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  updateHeaderDate();
-  const prof = await fetchProfile();
+  // Date in header
+  const d = new Date();
+  document.getElementById('hdr-date').textContent =
+    d.toLocaleDateString('ru', {day:'numeric', month:'short', weekday:'short'});
+
+  const prof = await api('/nutrition/api/profile');
   if (!prof.exists) {
-    switchTabById('profile');
-    showToast('Настройте профиль для начала работы', false);
+    goTab('profile');
+    toast('Настройте профиль для начала работы', false);
   } else {
     S.profile = prof;
     loadDiary(S.today);
-    loadWeeklyChart();
   }
   loadSearchTab('recent');
   loadWeightData();
 });
 
-function updateHeaderDate() {
-  const d = new Date();
-  document.getElementById('hdr-date').textContent =
-    d.toLocaleDateString('ru', {day:'numeric', month:'short', weekday:'short'});
-}
-
-// ── Tab switching ─────────────────────────────────────────────────────────────
+// ── Navigation ────────────────────────────────────────────────────────────────
 function switchTab(btn) {
-  const tab = btn.dataset.tab;
-  switchTabById(tab);
+  goTab(btn.dataset.tab);
   document.querySelectorAll('.nut-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 }
-function switchTabById(tab) {
+
+function goTab(tab) {
+  S.activeTab = tab;
   document.querySelectorAll('.nut-tab').forEach(s => s.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
   const titles = {diary:'Дневник питания', search:'Добавить еду', history:'История', weight:'Вес & Замеры', profile:'Профиль'};
   document.getElementById('hdr-title').textContent = titles[tab] || '';
   document.getElementById('nut-content').scrollTop = 0;
-  if (tab === 'history') { loadHistory(S.histDate); loadWeeklyChart(); }
-  if (tab === 'weight') loadWeightData();
-  if (tab === 'search' && S.searchTab === 'recent') loadSearchTab('recent');
+  if (tab === 'history') { loadHistory(S.histDate); loadWeekly(); }
+  if (tab === 'weight')  loadWeightData();
+  if (tab === 'profile') loadProfileForm();
+  if (tab === 'search' && !document.getElementById('s-input').value) loadSearchTab(S.searchTab);
+}
+
+function handleBack() {
+  if (S.activeTab === 'diary') { window.location.href = '/'; return; }
+  goTab('diary');
+  document.querySelectorAll('.nut-nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('[data-tab="diary"]').classList.add('active');
 }
 
 // ── Diary ─────────────────────────────────────────────────────────────────────
 async function loadDiary(date) {
-  const data = await apiFetch(`/nutrition/api/diary?date=${date}`);
+  const data = await api(`/nutrition/api/diary?date=${date}`);
   S.diary = data;
   renderRing(data.totals.calories, data.goals.calories);
   renderMacros(data.totals, data.goals);
@@ -978,668 +944,576 @@ async function loadDiary(date) {
 function renderRing(eaten, goal) {
   const r = 70, circ = 2 * Math.PI * r;
   const pct = Math.min(eaten / (goal || 1), 1.05);
-  const offset = circ * (1 - Math.min(pct, 1));
   const fill = document.getElementById('ring-fill');
   fill.style.strokeDasharray = circ;
-  fill.style.strokeDashoffset = offset;
+  fill.style.strokeDashoffset = circ * (1 - Math.min(pct, 1));
   fill.classList.toggle('over', pct >= 1);
-  const remain = Math.round(goal - eaten);
-  document.getElementById('ring-remain').textContent = remain >= 0 ? remain : '−' + Math.abs(remain);
-  document.getElementById('ring-eaten').textContent = `${Math.round(eaten)} / ${goal} ккал`;
+  const rem = Math.round((goal || 0) - eaten);
+  document.getElementById('ring-remain').textContent = rem >= 0 ? rem : '−'+Math.abs(rem);
+  document.getElementById('ring-eaten').textContent = `${Math.round(eaten)} / ${goal||0} ккал`;
 }
 
 function renderMacros(t, g) {
-  const macros = [
-    {id:'prot', key:'protein', gKey:'protein', color:'var(--prot)'},
-    {id:'fat',  key:'fat',    gKey:'fat',     color:'var(--fat)'},
-    {id:'carb', key:'carbs',  gKey:'carbs',   color:'var(--carb)'},
-  ];
-  macros.forEach(({id, key, gKey}) => {
-    const val = t[key] || 0, goal = g[gKey] || 1;
-    const pct = Math.min(val / goal * 100, 100).toFixed(0);
-    document.getElementById('bar-'+id).style.width = pct + '%';
-    document.getElementById('val-'+id).textContent = `${Math.round(val)}/${goal}г`;
+  [['prot','protein'],['fat','fat'],['carb','carbs']].forEach(([id, key]) => {
+    const v = t[key]||0, goal = g[key]||1;
+    document.getElementById('bar-'+id).style.width = Math.min(v/goal*100,100).toFixed(0)+'%';
+    document.getElementById('val-'+id).textContent = `${Math.round(v)}/${g[key]||0}г`;
   });
 }
 
 function renderWater(ml, goal) {
-  const pct = Math.min(ml / (goal||1) * 100, 100);
   document.getElementById('water-val').textContent = `${ml} / ${goal} мл`;
-  document.getElementById('water-bar').style.width = pct + '%';
+  document.getElementById('water-bar').style.width = Math.min(ml/(goal||1)*100,100)+'%';
 }
 
 const MEALS = [
-  {id:'breakfast', name:'Завтрак', icon:'☀️'},
-  {id:'lunch', name:'Обед', icon:'🌤'},
-  {id:'dinner', name:'Ужин', icon:'🌙'},
-  {id:'snack', name:'Перекус', icon:'🍎'},
+  {id:'breakfast',name:'Завтрак',icon:'☀️'},
+  {id:'lunch',    name:'Обед',   icon:'🌤'},
+  {id:'dinner',   name:'Ужин',   icon:'🌙'},
+  {id:'snack',    name:'Перекус',icon:'🍎'},
 ];
 
 function renderMeals(meals) {
-  const wrap = document.getElementById('meals-container');
-  wrap.innerHTML = MEALS.map(m => {
-    const items = meals[m.id] || [];
-    const total = items.reduce((s, i) => s + i.calories, 0);
+  document.getElementById('meals-wrap').innerHTML = MEALS.map(m => {
+    const items = meals[m.id]||[];
+    const total = items.reduce((s,i)=>s+i.calories,0);
     return `<div class="meal-card">
       <div class="meal-hdr">
         <span class="meal-icon">${m.icon}</span>
         <span class="meal-name">${m.name}</span>
-        <span class="meal-kcal">${total > 0 ? Math.round(total) + ' ккал' : ''}</span>
-        <button class="meal-add-btn" onclick="openSearchFor('${m.id}')">+</button>
+        <span class="meal-kcal">${total>0?Math.round(total)+' ккал':''}</span>
+        <button class="meal-add" onclick="openSearchFor('${m.id}')">+</button>
       </div>
-      ${items.length ? `<div class="meal-items">${items.map(renderFoodItem).join('')}</div>` : ''}
+      ${items.length?`<div class="meal-items">${items.map(foodItemHTML).join('')}</div>`:''}
     </div>`;
   }).join('');
 }
 
-function renderFoodItem(item) {
-  const brand = item.brand ? ` · ${item.brand}` : '';
+function foodItemHTML(item) {
   return `<div class="food-item">
-    <div class="food-item-info">
-      <div class="food-name">${esc(item.name)}${brand ? `<span style="font-weight:400;color:var(--muted);font-size:.72rem"> ${esc(item.brand)}</span>` : ''}</div>
+    <div class="food-info">
+      <div class="food-name">${esc(item.name)}${item.brand?`<span style="font-weight:400;color:var(--text-dim);font-size:.68rem"> · ${esc(item.brand)}</span>`:''}</div>
       <div class="food-sub">${item.grams}г · Б:${item.protein}г Ж:${item.fat}г У:${item.carbs}г</div>
     </div>
     <span class="food-kcal">${Math.round(item.calories)}</span>
-    <button class="food-del" onclick="deleteFood(${item.id})">×</button>
+    <button class="food-del" onclick="delFood(${item.id})">×</button>
   </div>`;
 }
 
-async function deleteFood(id) {
-  await apiFetch(`/nutrition/api/log-food/${id}`, {method:'DELETE'});
-  loadDiary(S.today);
-  showToast('Удалено', true);
+async function delFood(id) {
+  await api(`/nutrition/api/log-food/${id}`,{method:'DELETE'});
+  loadDiary(S.today); toast('Удалено',true);
 }
 
 // ── Water ─────────────────────────────────────────────────────────────────────
 async function addWater(ml) {
-  const data = await apiFetch('/nutrition/api/water', {
-    method:'POST', body: JSON.stringify({amount_ml: ml, date: S.today})
-  });
-  const goal = S.diary?.goals?.water_ml || 2000;
-  renderWater(data.total_ml, goal);
-  if (S.diary) S.diary.water_ml = data.total_ml;
-  showToast(`+${ml} мл воды`, true);
+  const d = await api('/nutrition/api/water',{method:'POST',body:JSON.stringify({amount_ml:ml,date:S.today})});
+  const goal = S.diary?.goals?.water_ml||2000;
+  renderWater(d.total_ml, goal);
+  if (S.diary) S.diary.water_ml = d.total_ml;
+  toast(`+${ml} мл 💧`,true);
 }
 
 // ── Search ────────────────────────────────────────────────────────────────────
 function openSearchFor(mealId) {
-  S.searchMeal = mealId;
-  S.addingIngredient = false;
-  document.querySelectorAll('.meal-chip').forEach(b => {
-    b.classList.toggle('active', b.dataset.meal === mealId);
-  });
-  const navBtn = document.querySelector('[data-tab="search"]');
-  switchTab(navBtn);
-  setTimeout(() => document.getElementById('search-input').focus(), 150);
+  S.searchMeal = mealId; S.addingIng = false;
+  document.querySelectorAll('.s-chip').forEach(b=>b.classList.toggle('active',b.dataset.meal===mealId));
+  goTab('search');
+  document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('[data-tab="search"]').classList.add('active');
+  setTimeout(()=>document.getElementById('s-input').focus(),150);
 }
 
 function openSearchForRecipe() {
-  S.addingIngredient = true;
-  closeModal('modal-recipe-create');
-  const navBtn = document.querySelector('[data-tab="search"]');
-  switchTab(navBtn);
-  setTimeout(() => document.getElementById('search-input').focus(), 150);
+  S.addingIng = true;
+  closeModal('modal-recipe');
+  goTab('search');
+  document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('[data-tab="search"]').classList.add('active');
+  setTimeout(()=>document.getElementById('s-input').focus(),150);
 }
 
 function setSearchMeal(btn) {
-  document.querySelectorAll('.meal-chip').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.s-chip').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   S.searchMeal = btn.dataset.meal;
 }
 
-let searchTimeout;
-function onSearchInput(q) {
-  clearTimeout(searchTimeout);
+let searchTmr;
+function onSearch(q) {
+  clearTimeout(searchTmr);
   if (!q.trim()) { loadSearchTab(S.searchTab); return; }
-  searchTimeout = setTimeout(() => runSearch(q), 350);
+  searchTmr = setTimeout(()=>runSearch(q), 500);
 }
 
 async function runSearch(q) {
-  showSearchLoading();
-  const data = await apiFetch(`/nutrition/api/search?q=${encodeURIComponent(q)}`);
-  renderSearchResults(data.results, false);
+  const myId = ++searchReqId;
+  document.getElementById('s-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
+  const data = await api(`/nutrition/api/search?q=${encodeURIComponent(q)}`);
+  if (myId !== searchReqId) return; // stale — ignore
+  renderResults(data.results||[]);
 }
 
 function setSearchTab(tab) {
   S.searchTab = tab;
-  document.querySelectorAll('.search-tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('stab-' + tab).classList.add('active');
-  document.getElementById('search-input').value = '';
+  document.querySelectorAll('.s-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('st-'+tab).classList.add('active');
+  document.getElementById('s-input').value = '';
+  searchReqId++;
   loadSearchTab(tab);
 }
 
 async function loadSearchTab(tab) {
-  if (tab === 'recipes') { loadRecipesTab(); return; }
-  showSearchLoading();
-  const url = tab === 'recent' ? '/nutrition/api/recent-foods' : '/nutrition/api/frequent-foods';
-  const data = await apiFetch(url);
-  renderSearchResults(data.results, false);
+  if (tab === 'recipes') { loadRecipesList(); return; }
+  document.getElementById('s-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
+  const myId = ++searchReqId;
+  const url = tab==='recent' ? '/nutrition/api/recent-foods' : '/nutrition/api/frequent-foods';
+  const data = await api(url);
+  if (myId !== searchReqId) return;
+  renderResults(data.results||[]);
 }
 
-function showSearchLoading() {
-  document.getElementById('search-results-wrap').innerHTML = `<div class="empty-hint"><div class="spin" style="margin:0 auto"></div></div>`;
-}
-
-async function loadRecipesTab() {
-  showSearchLoading();
-  const data = await apiFetch('/nutrition/api/recipes');
-  const wrap = document.getElementById('search-results-wrap');
-  if (!data.recipes.length) {
-    wrap.innerHTML = `<div class="empty-hint">Нет рецептов. Создайте первый!</div>
-      <button class="save-btn" style="margin-top:12px" onclick="openCreateRecipe()">+ Создать рецепт</button>`;
+async function loadRecipesList() {
+  const myId = ++searchReqId;
+  document.getElementById('s-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
+  const data = await api('/nutrition/api/recipes');
+  if (myId !== searchReqId) return;
+  const wrap = document.getElementById('s-results');
+  if (!data.recipes?.length) {
+    wrap.innerHTML = `<div class="empty">Нет рецептов — создайте первый!</div>
+      <button class="save-btn" style="margin-top:10px" onclick="openCreateRecipe()">+ Создать рецепт</button>`;
     return;
   }
-  wrap.innerHTML = `<button class="ai-btn" style="margin-bottom:12px" onclick="openCreateRecipe()">+ Создать рецепт</button>` +
-    data.recipes.map(r => `
-    <div class="result-item" onclick="openRecipeLog(${JSON.stringify(r).replace(/"/g,'&quot;')})">
-      <div class="result-info">
-        <div class="result-name">${esc(r.name)}</div>
-        <div class="result-brand">${r.ingredients.length} ингр. · ${r.total_grams}г</div>
-      </div>
-      <div>
-        <div class="result-kcal">${Math.round(r.calories)} ккал</div>
-        <div class="result-per">на всё</div>
-      </div>
-      <button onclick="event.stopPropagation();deleteRecipe(${r.id})" style="color:#ef4444;background:none;border:none;font-size:1.1rem;padding:0 4px;cursor:pointer">×</button>
-    </div>`).join('');
+  wrap.innerHTML = `<button class="ai-btn" style="margin-bottom:10px" onclick="openCreateRecipe()">+ Создать рецепт</button>` +
+    `<div class="r-list">` + data.recipes.map(r=>`
+    <div class="r-item" onclick='openRecipeLog(${JSON.stringify(r)})'>
+      <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${r.ingredients.length} ингр. · ${r.total_grams}г</div></div>
+      <div><div class="r-kcal">${Math.round(r.calories)} ккал</div><div class="r-per">на всё</div></div>
+      <button onclick="event.stopPropagation();delRecipe(${r.id})" style="color:#ef4444;background:none;border:none;font-size:1.1rem;padding:4px;cursor:pointer">×</button>
+    </div>`).join('') + `</div>`;
 }
 
-function renderSearchResults(results, isSearch) {
-  const wrap = document.getElementById('search-results-wrap');
-  if (!results.length) {
-    wrap.innerHTML = `<div class="empty-hint">Ничего не найдено</div>`;
-    return;
-  }
-  wrap.innerHTML = results.map(r => `
-    <div class="result-item" onclick="openPortionModal(${JSON.stringify(r).replace(/"/g,'&quot;')})">
-      <div class="result-info">
-        <div class="result-name">${esc(r.name)}</div>
-        <div class="result-brand">${esc(r.brand||'')}</div>
-      </div>
-      <div>
-        <div class="result-kcal">${r.calories} ккал</div>
-        <div class="result-per">на 100г</div>
-      </div>
-    </div>`).join('');
+function renderResults(results) {
+  const wrap = document.getElementById('s-results');
+  if (!results.length) { wrap.innerHTML='<div class="empty">Ничего не найдено</div>'; return; }
+  wrap.innerHTML = `<div class="r-list">`+results.map(r=>`
+    <div class="r-item" onclick='openPortion(${JSON.stringify(r)})'>
+      <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${esc(r.brand||'')}</div></div>
+      <div><div class="r-kcal">${r.calories} ккал</div><div class="r-per">на 100г</div></div>
+    </div>`).join('')+`</div>`;
 }
 
 // ── Portion modal ─────────────────────────────────────────────────────────────
-function openPortionModal(food) {
+function openPortion(food) {
   S.portionFood = food;
-  document.getElementById('portion-title').textContent = S.addingIngredient ? 'Ингредиент' : 'Добавить в ' + {breakfast:'завтрак',lunch:'обед',dinner:'ужин',snack:'перекус'}[S.searchMeal];
-  document.getElementById('portion-food-name').textContent = food.name + (food.brand ? ` · ${food.brand}` : '');
-  document.getElementById('portion-per100').textContent = `На 100г: ${food.calories} ккал | Б:${food.protein}г Ж:${food.fat}г У:${food.carbs}г`;
-  document.getElementById('grams-input').value = 100;
-  updateCalcBox();
+  const mealName = {breakfast:'завтрак',lunch:'обед',dinner:'ужин',snack:'перекус'}[S.searchMeal];
+  document.getElementById('por-title').textContent = S.addingIng ? 'Ингредиент' : 'Добавить в '+mealName;
+  document.getElementById('por-name').textContent = food.name+(food.brand?' · '+food.brand:'');
+  document.getElementById('por-sub').textContent = `На 100г: ${food.calories} ккал | Б:${food.protein}г Ж:${food.fat}г У:${food.carbs}г`;
+  document.getElementById('g-input').value = 100;
+  updateCalc();
   openModal('modal-portion');
 }
 
-function setGrams(g) { document.getElementById('grams-input').value = g; updateCalcBox(); }
+function setG(g) { document.getElementById('g-input').value=g; updateCalc(); }
 
-function updateCalcBox() {
-  const food = S.portionFood;
-  if (!food) return;
-  const g = parseFloat(document.getElementById('grams-input').value) || 0;
-  const k = g / 100;
-  document.getElementById('calc-kcal').textContent = `${Math.round(food.calories * k)} ккал`;
-  document.getElementById('calc-macros').textContent = `Б: ${(food.protein*k).toFixed(1)}г  Ж: ${(food.fat*k).toFixed(1)}г  У: ${(food.carbs*k).toFixed(1)}г`;
+function updateCalc() {
+  const f=S.portionFood; if (!f) return;
+  const g=parseFloat(document.getElementById('g-input').value)||0, k=g/100;
+  document.getElementById('c-kcal').textContent   = `${Math.round(f.calories*k)} ккал`;
+  document.getElementById('c-macros').textContent = `Б: ${(f.protein*k).toFixed(1)}г  Ж: ${(f.fat*k).toFixed(1)}г  У: ${(f.carbs*k).toFixed(1)}г`;
 }
 
-async function confirmAddFood() {
-  const food = S.portionFood;
-  const g = parseFloat(document.getElementById('grams-input').value) || 100;
-  if (S.addingIngredient) {
-    S.recipeIngredients.push({name: food.name, grams: g,
-      calories: food.calories, protein: food.protein, fat: food.fat, carbs: food.carbs});
+async function confirmAdd() {
+  const f=S.portionFood, g=parseFloat(document.getElementById('g-input').value)||100;
+  if (S.addingIng) {
+    S.recipeIngs.push({name:f.name,grams:g,calories:f.calories,protein:f.protein,fat:f.fat,carbs:f.carbs});
     closeModal('modal-portion');
     updateRecipeModal();
-    openModal('modal-recipe-create');
-    S.addingIngredient = false;
+    openModal('modal-recipe');
+    S.addingIng=false;
     return;
   }
-  await apiFetch('/nutrition/api/log-food', {
-    method:'POST',
-    body: JSON.stringify({name: food.name, brand: food.brand||'', grams: g,
-      calories: food.calories, protein: food.protein, fat: food.fat, carbs: food.carbs,
-      meal_type: S.searchMeal, date: S.today, barcode: food.barcode||null})
-  });
+  await api('/nutrition/api/log-food',{method:'POST',body:JSON.stringify({
+    name:f.name,brand:f.brand||'',grams:g,
+    calories:f.calories,protein:f.protein,fat:f.fat,carbs:f.carbs,
+    meal_type:S.searchMeal,date:S.today,barcode:f.barcode||null
+  })});
   closeModal('modal-portion');
   loadDiary(S.today);
-  showToast('Добавлено!', true);
-  const diaryBtn = document.querySelector('[data-tab="diary"]');
-  switchTab(diaryBtn);
+  toast('Добавлено!',true);
+  goTab('diary');
+  document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('[data-tab="diary"]').classList.add('active');
 }
 
 // ── Scanner ───────────────────────────────────────────────────────────────────
 async function openScanner() {
   openModal('modal-scanner');
-  document.getElementById('manual-barcode').value = '';
+  document.getElementById('barcode-input').value='';
   if (!window.Html5Qrcode) {
-    try {
-      await loadScript('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js');
-    } catch(e) { return; }
+    try { await loadScript('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'); } catch(e){ return; }
   }
   try {
-    const scanner = new Html5Qrcode('html5-qrcode-reader');
-    S.scannerInstance = scanner;
-    await scanner.start({facingMode:'environment'}, {fps:10, qrbox:{width:200, height:200}},
-      async (code) => {
-        await scanner.stop();
-        S.scannerInstance = null;
-        closeModal('modal-scanner');
-        await handleBarcodeResult(code);
-      }, () => {}
+    const sc = new Html5Qrcode('qr-reader');
+    S.scannerInst = sc;
+    await sc.start({facingMode:'environment'},{fps:10,qrbox:{width:200,height:200}},
+      async code => { await sc.stop(); S.scannerInst=null; closeModal('modal-scanner'); await handleBarcode(code); },
+      ()=>{}
     );
-  } catch(e) { console.log('Scanner error', e); }
+  } catch(e) { console.log('Scanner',e); }
 }
 
 function closeScanner() {
-  if (S.scannerInstance) {
-    S.scannerInstance.stop().catch(()=>{});
-    S.scannerInstance = null;
-  }
+  if (S.scannerInst) { S.scannerInst.stop().catch(()=>{}); S.scannerInst=null; }
   closeModal('modal-scanner');
 }
 
-async function lookupManualBarcode() {
-  const code = document.getElementById('manual-barcode').value.trim();
+async function lookupBarcode() {
+  const code = document.getElementById('barcode-input').value.trim();
   if (!code) return;
   closeScanner();
-  await handleBarcodeResult(code);
+  await handleBarcode(code);
 }
 
-async function handleBarcodeResult(code) {
-  showToast('Ищу продукт...', false);
-  const data = await apiFetch(`/nutrition/api/barcode/${code}`);
-  if (data.found) {
-    openPortionModal(data);
-  } else {
-    document.getElementById('cf-barcode').value = code;
-    openModal('modal-custom-food');
-    showToast('Продукт не найден — введите вручную', false);
+async function handleBarcode(code) {
+  toast('Ищу продукт...', false);
+  const data = await api(`/nutrition/api/barcode/${code}`);
+  if (data.found) { openPortion(data); }
+  else {
+    document.getElementById('cf-barcode').value=code;
+    openModal('modal-custom');
+    toast('Не найдено — введите вручную', false);
   }
 }
 
 function loadScript(src) {
-  return new Promise((res, rej) => {
-    const s = document.createElement('script'); s.src = src;
-    s.onload = res; s.onerror = rej;
-    document.head.appendChild(s);
-  });
+  return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});
 }
 
 // ── Photo recognition ─────────────────────────────────────────────────────────
-function openPhotoRecognition() {
-  document.getElementById('photo-input').click();
-}
+function openPhoto() { document.getElementById('photo-in').click(); }
 
-async function handlePhoto(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  showToast('Распознаю блюдо...', false);
-  const fd = new FormData();
-  fd.append('file', file);
+async function handlePhoto(e) {
+  const file=e.target.files[0]; if (!file) return;
+  toast('Распознаю блюдо...', false);
+  const fd=new FormData(); fd.append('file',file);
   try {
-    const data = await fetch('/nutrition/api/ai-photo', {method:'POST', body: fd}).then(r => r.json());
+    const data=await fetch('/nutrition/api/ai-photo',{method:'POST',body:fd}).then(r=>r.json());
     if (data.ok) {
-      const food = data.food;
-      openPortionModal({
-        name: food.name, brand: 'Распознано ИИ',
-        calories: food.calories, protein: food.protein||0,
-        fat: food.fat||0, carbs: food.carbs||0,
-      });
-      if (food.estimated_grams) document.getElementById('grams-input').value = food.estimated_grams;
-      updateCalcBox();
-    } else { showToast(data.error || 'Ошибка распознавания', false); }
-  } catch(e) { showToast('Ошибка', false); }
-  event.target.value = '';
+      openPortion({name:data.food.name,brand:'AI',calories:data.food.calories,
+        protein:data.food.protein||0,fat:data.food.fat||0,carbs:data.food.carbs||0});
+      if (data.food.estimated_grams) { document.getElementById('g-input').value=data.food.estimated_grams; updateCalc(); }
+    } else { toast(data.error||'Ошибка распознавания', false); }
+  } catch(e){ toast('Ошибка', false); }
+  e.target.value='';
 }
 
 // ── Custom food ───────────────────────────────────────────────────────────────
 async function saveCustomFood() {
-  const name = document.getElementById('cf-name').value.trim();
-  const cal = parseFloat(document.getElementById('cf-cal').value);
-  if (!name || !cal) { showToast('Заполните название и калории', false); return; }
-  const food = await apiFetch('/nutrition/api/custom-food', {
-    method: 'POST',
-    body: JSON.stringify({
-      name, brand: document.getElementById('cf-brand').value.trim(),
-      barcode: document.getElementById('cf-barcode').value.trim(),
-      calories: cal,
-      protein: parseFloat(document.getElementById('cf-prot').value)||0,
-      fat: parseFloat(document.getElementById('cf-fat').value)||0,
-      carbs: parseFloat(document.getElementById('cf-carb').value)||0,
-    })
-  });
-  closeModal('modal-custom-food');
-  openPortionModal(food);
+  const name=document.getElementById('cf-name').value.trim();
+  const cal=parseFloat(document.getElementById('cf-cal').value);
+  if (!name||!cal) { toast('Заполните название и калории', false); return; }
+  const food=await api('/nutrition/api/custom-food',{method:'POST',body:JSON.stringify({
+    name,brand:document.getElementById('cf-brand').value.trim(),
+    barcode:document.getElementById('cf-barcode').value.trim(),
+    calories:cal,protein:parseFloat(document.getElementById('cf-prot').value)||0,
+    fat:parseFloat(document.getElementById('cf-fat').value)||0,
+    carbs:parseFloat(document.getElementById('cf-carb').value)||0,
+  })});
+  closeModal('modal-custom'); openPortion(food);
 }
 
 // ── Recipes ───────────────────────────────────────────────────────────────────
 function openCreateRecipe() {
-  S.recipeIngredients = [];
-  document.getElementById('recipe-name').value = '';
-  updateRecipeModal();
-  openModal('modal-recipe-create');
+  S.recipeIngs=[]; document.getElementById('rec-name').value='';
+  updateRecipeModal(); openModal('modal-recipe');
 }
 
 function updateRecipeModal() {
-  const list = document.getElementById('recipe-ing-list');
-  list.innerHTML = S.recipeIngredients.map((ing, i) => `
-    <div class="recipe-ing-item">
-      <span class="recipe-ing-name">${esc(ing.name)}</span>
-      <span class="recipe-ing-g">${ing.grams}г</span>
-      <button class="recipe-ing-del" onclick="removeIngredient(${i})">×</button>
+  document.getElementById('ing-list').innerHTML=S.recipeIngs.map((ing,i)=>`
+    <div class="ing-item">
+      <span class="ing-name">${esc(ing.name)}</span>
+      <span class="ing-g">${ing.grams}г</span>
+      <button class="ing-del" onclick="S.recipeIngs.splice(${i},1);updateRecipeModal()">×</button>
     </div>`).join('');
-  const totCal = S.recipeIngredients.reduce((s,i) => s + i.calories*i.grams/100, 0);
-  const totP   = S.recipeIngredients.reduce((s,i) => s + i.protein*i.grams/100, 0);
-  const totF   = S.recipeIngredients.reduce((s,i) => s + i.fat*i.grams/100, 0);
-  const totC   = S.recipeIngredients.reduce((s,i) => s + i.carbs*i.grams/100, 0);
-  const totG   = S.recipeIngredients.reduce((s,i) => s + i.grams, 0);
-  document.getElementById('recipe-total-kcal').textContent = `${Math.round(totCal)} ккал`;
-  document.getElementById('recipe-total-macros').textContent = `Б:${totP.toFixed(1)}г  Ж:${totF.toFixed(1)}г  У:${totC.toFixed(1)}г  — всего ${totG}г`;
+  const totCal=S.recipeIngs.reduce((s,i)=>s+i.calories*i.grams/100,0);
+  const totP  =S.recipeIngs.reduce((s,i)=>s+i.protein*i.grams/100,0);
+  const totF  =S.recipeIngs.reduce((s,i)=>s+i.fat*i.grams/100,0);
+  const totC  =S.recipeIngs.reduce((s,i)=>s+i.carbs*i.grams/100,0);
+  const totG  =S.recipeIngs.reduce((s,i)=>s+i.grams,0);
+  document.getElementById('rec-kcal').textContent   = `${Math.round(totCal)} ккал`;
+  document.getElementById('rec-macros').textContent = `Б:${totP.toFixed(1)}г  Ж:${totF.toFixed(1)}г  У:${totC.toFixed(1)}г  — ${totG}г`;
 }
 
-function removeIngredient(i) { S.recipeIngredients.splice(i,1); updateRecipeModal(); }
-
 async function saveRecipe() {
-  const name = document.getElementById('recipe-name').value.trim();
-  if (!name || !S.recipeIngredients.length) { showToast('Добавьте название и ингредиенты', false); return; }
-  await apiFetch('/nutrition/api/recipes', {
-    method:'POST',
-    body: JSON.stringify({name, ingredients: S.recipeIngredients})
-  });
-  closeModal('modal-recipe-create');
-  showToast('Рецепт сохранён', true);
+  const name=document.getElementById('rec-name').value.trim();
+  if (!name||!S.recipeIngs.length) { toast('Добавьте название и ингредиенты', false); return; }
+  await api('/nutrition/api/recipes',{method:'POST',body:JSON.stringify({name,ingredients:S.recipeIngs})});
+  closeModal('modal-recipe'); toast('Рецепт сохранён!',true);
 }
 
 function openRecipeLog(recipe) {
-  S.selectedRecipe = recipe;
-  S.recipeFraction = 0.5;
-  document.getElementById('recipe-log-title').textContent = recipe.name;
-  document.getElementById('recipe-frac-pct').value = 50;
-  document.querySelectorAll('.frac-btn').forEach(b => b.classList.remove('active'));
+  S.selRecipe=recipe; S.recFrac=0.5;
+  document.getElementById('rl-title').textContent=recipe.name;
+  document.getElementById('frac-pct').value=50;
+  document.querySelectorAll('.frac-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.frac-btn')[2].classList.add('active');
-  updateRecipeCalcBox();
-  openModal('modal-recipe-log');
+  updateRecCalc(); openModal('modal-recipe-log');
 }
 
-function setFraction(f, btn) {
-  S.recipeFraction = f;
-  document.getElementById('recipe-frac-pct').value = Math.round(f*100);
-  document.querySelectorAll('.frac-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  updateRecipeCalcBox();
+function setFrac(f,btn) {
+  S.recFrac=f;
+  document.getElementById('frac-pct').value=Math.round(f*100);
+  document.querySelectorAll('.frac-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); updateRecCalc();
 }
 
-function updateRecipeCalcBox() {
-  const pct = parseFloat(document.getElementById('recipe-frac-pct').value)/100 || 0;
-  S.recipeFraction = pct;
-  const r = S.selectedRecipe;
-  if (!r) return;
-  document.getElementById('recipe-log-kcal').textContent = `${Math.round(r.calories * pct)} ккал`;
-  document.getElementById('recipe-log-macros').textContent =
-    `Б:${(r.protein*pct).toFixed(1)}г  Ж:${(r.fat*pct).toFixed(1)}г  У:${(r.carbs*pct).toFixed(1)}г`;
+function updateRecCalc() {
+  const pct=parseFloat(document.getElementById('frac-pct').value)/100||0;
+  S.recFrac=pct; const r=S.selRecipe; if (!r) return;
+  document.getElementById('rl-kcal').textContent   = `${Math.round(r.calories*pct)} ккал`;
+  document.getElementById('rl-macros').textContent = `Б:${(r.protein*pct).toFixed(1)}г  Ж:${(r.fat*pct).toFixed(1)}г  У:${(r.carbs*pct).toFixed(1)}г`;
 }
 
 async function confirmAddRecipe() {
-  const r = S.selectedRecipe;
-  const pct = S.recipeFraction;
-  await apiFetch('/nutrition/api/log-food', {
-    method:'POST',
-    body: JSON.stringify({
-      name: r.name, brand: 'Рецепт',
-      grams: r.total_grams * pct,
-      calories: r.calories / r.total_grams * 100,
-      protein: r.protein / r.total_grams * 100,
-      fat: r.fat / r.total_grams * 100,
-      carbs: r.carbs / r.total_grams * 100,
-      meal_type: S.searchMeal, date: S.today,
-    })
-  });
-  closeModal('modal-recipe-log');
-  loadDiary(S.today);
-  showToast('Рецепт добавлен!', true);
-  const diaryBtn = document.querySelector('[data-tab="diary"]');
-  switchTab(diaryBtn);
+  const r=S.selRecipe, pct=S.recFrac;
+  await api('/nutrition/api/log-food',{method:'POST',body:JSON.stringify({
+    name:r.name,brand:'Рецепт',
+    grams:r.total_grams*pct,
+    calories:r.calories/r.total_grams*100,
+    protein:r.protein/r.total_grams*100,
+    fat:r.fat/r.total_grams*100,
+    carbs:r.carbs/r.total_grams*100,
+    meal_type:S.searchMeal,date:S.today,
+  })});
+  closeModal('modal-recipe-log'); loadDiary(S.today); toast('Рецепт добавлен!',true);
+  goTab('diary');
+  document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('[data-tab="diary"]').classList.add('active');
 }
 
-async function deleteRecipe(id) {
-  await apiFetch(`/nutrition/api/recipes/${id}`, {method:'DELETE'});
-  loadRecipesTab();
+async function delRecipe(id) {
+  await api(`/nutrition/api/recipes/${id}`,{method:'DELETE'}); loadRecipesList();
 }
 
-// ── AI Advice ─────────────────────────────────────────────────────────────────
-async function getAIAdvice() {
-  document.getElementById('ai-modal-body').innerHTML = `<div class="ai-loader"><div class="ai-dots"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div></div><span>Анализирую рацион...</span></div>`;
+// ── AI Chat ───────────────────────────────────────────────────────────────────
+async function openAIChat() {
+  S.chatHistory=[];
   openModal('modal-ai');
-  const data = await apiFetch('/nutrition/api/ai-advice', {
-    method:'POST', body: JSON.stringify({date: S.today})
-  });
-  document.getElementById('ai-modal-body').innerHTML =
-    data.advice ? `<div class="ai-text">${esc(data.advice)}</div>` :
-    `<div class="ai-text" style="color:var(--muted)">${esc(data.error || 'Ошибка')}</div>`;
+  renderChat();
+  // Auto-send initial analysis
+  await doAIRequest([]);
+}
+
+async function sendChat() {
+  const inp=document.getElementById('chat-in');
+  const q=inp.value.trim(); if (!q) return;
+  inp.value='';
+  S.chatHistory.push({role:'user',content:q});
+  renderChat();
+  await doAIRequest(S.chatHistory.slice());
+}
+
+async function doAIRequest(messages) {
+  S.chatHistory.push({role:'assistant',content:'...'});
+  const idx=S.chatHistory.length-1;
+  renderChat();
+  let data;
+  if (messages.length===0) {
+    // initial analysis
+    data = await api('/nutrition/api/ai-advice',{method:'POST',body:JSON.stringify({date:S.today})});
+    S.chatHistory[idx]={role:'assistant',content: data.advice||data.error||'Ошибка'};
+  } else {
+    data = await api('/nutrition/api/ai-chat',{method:'POST',body:JSON.stringify({messages:messages.slice(0,-1),date:S.today})});
+    S.chatHistory[idx]={role:'assistant',content: data.reply||data.error||'Ошибка'};
+  }
+  renderChat();
+}
+
+function renderChat() {
+  const wrap=document.getElementById('chat-msgs');
+  if (!S.chatHistory.length) {
+    wrap.innerHTML='<div style="text-align:center;padding:24px 0"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>';
+    return;
+  }
+  wrap.innerHTML=S.chatHistory.map(m=>`
+    <div class="chat-msg ${m.role}">
+      <div class="chat-bubble ${m.role}">${m.content==='...'?
+        `<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`:
+        esc(m.content).replace(/\n/g,'<br>')}
+      </div>
+    </div>`).join('');
+  wrap.scrollTop=wrap.scrollHeight;
 }
 
 // ── History ───────────────────────────────────────────────────────────────────
 function histShift(d) {
-  const dt = new Date(S.histDate);
-  dt.setDate(dt.getDate() + d);
-  if (dt > new Date()) return;
-  S.histDate = dt.toISOString().slice(0,10);
-  loadHistory(S.histDate);
+  const dt=new Date(S.histDate); dt.setDate(dt.getDate()+d);
+  if (dt>new Date()) return;
+  S.histDate=dt.toISOString().slice(0,10); loadHistory(S.histDate);
 }
 
 async function loadHistory(date) {
-  const data = await apiFetch(`/nutrition/api/diary?date=${date}`);
-  const label = date === S.today ? 'Сегодня' : new Date(date).toLocaleDateString('ru',{day:'numeric',month:'short',weekday:'short'});
-  document.getElementById('hist-date-label').textContent = label;
-  document.getElementById('hist-kcal').textContent = Math.round(data.totals.calories);
-  // mini ring
-  const r = 45, circ = 2*Math.PI*r;
-  const pct = Math.min(data.totals.calories / (data.goals.calories||1), 1);
-  const ring = document.getElementById('hist-ring');
-  ring.style.strokeDasharray = circ;
-  ring.style.strokeDashoffset = circ*(1-pct);
-  // meals read-only
-  const wrap = document.getElementById('hist-meals-container');
-  wrap.innerHTML = MEALS.map(m => {
-    const items = data.meals[m.id]||[];
-    const total = items.reduce((s,i)=>s+i.calories,0);
+  const data=await api(`/nutrition/api/diary?date=${date}`);
+  const lbl=date===S.today?'Сегодня':new Date(date).toLocaleDateString('ru',{day:'numeric',month:'short',weekday:'short'});
+  document.getElementById('h-date-lbl').textContent=lbl;
+  document.getElementById('hist-kcal').textContent=Math.round(data.totals.calories);
+  const r=45, circ=2*Math.PI*r;
+  const ring=document.getElementById('hist-ring');
+  ring.style.strokeDasharray=circ;
+  ring.style.strokeDashoffset=circ*(1-Math.min(data.totals.calories/(data.goals.calories||1),1));
+  const wrap=document.getElementById('hist-meals');
+  wrap.innerHTML=MEALS.map(m=>{
+    const items=data.meals[m.id]||[];
+    const total=items.reduce((s,i)=>s+i.calories,0);
     if (!items.length) return '';
-    return `<div class="meal-card" style="margin-bottom:8px">
+    return `<div class="meal-card" style="margin-bottom:7px">
       <div class="meal-hdr" style="cursor:default">
         <span class="meal-icon">${m.icon}</span>
         <span class="meal-name">${m.name}</span>
         <span class="meal-kcal">${Math.round(total)} ккал</span>
       </div>
       <div class="meal-items">${items.map(i=>`<div class="food-item">
-        <div class="food-item-info"><div class="food-name">${esc(i.name)}</div>
-        <div class="food-sub">${i.grams}г</div></div>
+        <div class="food-info"><div class="food-name">${esc(i.name)}</div><div class="food-sub">${i.grams}г</div></div>
         <span class="food-kcal">${Math.round(i.calories)}</span>
       </div>`).join('')}</div>
     </div>`;
   }).join('');
 }
 
-async function loadWeeklyChart() {
-  const data = await apiFetch('/nutrition/api/weekly');
-  const bars = document.getElementById('week-bars');
-  if (!bars || !data.days) return;
-  const maxCal = Math.max(...data.days.map(d=>d.calories), 1);
-  const today = S.today;
-  bars.innerHTML = data.days.map(d => {
-    const h = Math.round(d.calories/maxCal*72);
-    const dayName = new Date(d.date).toLocaleDateString('ru',{weekday:'short'});
-    const isToday = d.date === today;
-    return `<div class="week-bar-col">
-      <div class="week-bar-kcal">${d.calories>0?Math.round(d.calories):''}</div>
-      <div class="week-bar-wrap"><div class="week-bar${isToday?' today':''}" style="height:${h}px"></div></div>
-      <div class="week-bar-day">${dayName}</div>
+async function loadWeekly() {
+  const data=await api('/nutrition/api/weekly');
+  const bars=document.getElementById('week-bars'); if (!bars||!data.days) return;
+  const maxC=Math.max(...data.days.map(d=>d.calories),1);
+  bars.innerHTML=data.days.map(d=>{
+    const h=Math.round(d.calories/maxC*64);
+    const day=new Date(d.date).toLocaleDateString('ru',{weekday:'short'});
+    return `<div class="w-col">
+      <div class="w-kcal">${d.calories>0?Math.round(d.calories):''}</div>
+      <div class="w-bar-wrap"><div class="w-bar${d.date===S.today?' today':''}" style="height:${h}px"></div></div>
+      <div class="w-day">${day}</div>
     </div>`;
   }).join('');
 }
 
 // ── Weight ────────────────────────────────────────────────────────────────────
 async function loadWeightData() {
-  const data = await apiFetch('/nutrition/api/weight');
-  const logs = data.logs || [];
-  const latest = logs[0];
+  const data=await api('/nutrition/api/weight');
+  const logs=data.logs||[], latest=logs[0];
   if (latest) {
-    document.getElementById('cur-weight').textContent = latest.weight_kg || '—';
-    document.getElementById('weight-sub').textContent = 'Обновлено: ' + new Date(latest.date).toLocaleDateString('ru',{day:'numeric',month:'long'});
-    document.getElementById('m-waist').textContent = latest.waist_cm || '—';
-    document.getElementById('m-hips').textContent  = latest.hips_cm  || '—';
-    document.getElementById('m-chest').textContent = latest.chest_cm || '—';
+    document.getElementById('cur-wt').textContent=latest.weight_kg||'—';
+    document.getElementById('wt-sub').textContent='Обновлено: '+new Date(latest.date).toLocaleDateString('ru',{day:'numeric',month:'long'});
+    document.getElementById('m-waist').textContent=latest.waist_cm||'—';
+    document.getElementById('m-hips').textContent =latest.hips_cm||'—';
+    document.getElementById('m-chest').textContent=latest.chest_cm||'—';
   }
-  if (data.start_weight && data.target_weight && latest?.weight_kg) {
-    const sw = data.start_weight, tw = data.target_weight, cw = latest.weight_kg;
-    const totalLoss = Math.abs(sw - tw);
-    const done = Math.abs(sw - cw);
-    const pct = Math.min(done/totalLoss*100, 100);
-    document.getElementById('wt-start').textContent = sw + 'кг';
-    document.getElementById('wt-target').textContent = tw + 'кг';
-    document.getElementById('wt-left').textContent = 'Осталось: ' + Math.abs(cw-tw).toFixed(1) + 'кг';
-    document.getElementById('wt-prog-fill').style.width = pct + '%';
-    document.getElementById('weight-progress-wrap').style.display = '';
+  if (data.start_weight&&data.target_weight&&latest?.weight_kg) {
+    const sw=data.start_weight,tw=data.target_weight,cw=latest.weight_kg;
+    const pct=Math.min(Math.abs(sw-cw)/Math.abs(sw-tw)*100,100);
+    document.getElementById('wt-start').textContent=sw+'кг';
+    document.getElementById('wt-target').textContent=tw+'кг';
+    document.getElementById('wt-left').textContent='Осталось: '+Math.abs(cw-tw).toFixed(1)+'кг';
+    document.getElementById('wt-fill').style.width=pct+'%';
+    document.getElementById('wt-prog').style.display='';
   }
-  renderWeightChart(logs.slice(0,14).reverse());
+  drawWeightChart(logs.slice(0,14).reverse());
 }
 
-function renderWeightChart(logs) {
-  const svg = document.getElementById('weight-svg');
-  if (!logs.length) { svg.innerHTML = ''; return; }
-  const w = 400, h = 90, pad = 16;
-  const weights = logs.filter(l=>l.weight_kg).map(l=>l.weight_kg);
-  if (weights.length < 2) return;
-  const minW = Math.min(...weights) - 1, maxW = Math.max(...weights) + 1;
-  const xStep = (w - pad*2) / (logs.length - 1);
-  const yScale = (v) => h - pad - (v - minW)/(maxW - minW) * (h - pad*2);
-  const pts = logs.filter(l=>l.weight_kg).map((l,i)=>`${pad + i*xStep},${yScale(l.weight_kg)}`).join(' ');
-  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-  svg.innerHTML = `
-    <polyline points="${pts}" fill="none" stroke="var(--nut-g)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-    ${logs.filter(l=>l.weight_kg).map((l,i)=>`<circle cx="${pad+i*xStep}" cy="${yScale(l.weight_kg)}" r="4" fill="var(--nut-g)" stroke="var(--surf)" stroke-width="2"/>`).join('')}`;
+function drawWeightChart(logs) {
+  const svg=document.getElementById('wt-svg');
+  const wts=logs.filter(l=>l.weight_kg);
+  if (wts.length<2) { svg.innerHTML=''; return; }
+  const W=400,H=80,pad=14;
+  const min=Math.min(...wts.map(l=>l.weight_kg))-0.5, max=Math.max(...wts.map(l=>l.weight_kg))+0.5;
+  const xS=(W-pad*2)/(wts.length-1), yS=v=>H-pad-(v-min)/(max-min)*(H-pad*2);
+  const pts=wts.map((l,i)=>`${pad+i*xS},${yS(l.weight_kg)}`).join(' ');
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.innerHTML=`<polyline points="${pts}" fill="none" stroke="var(--nut-g)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    ${wts.map((l,i)=>`<circle cx="${pad+i*xS}" cy="${yS(l.weight_kg)}" r="4" fill="var(--nut-g)" stroke="var(--bg2)" stroke-width="2"/>`).join('')}`;
 }
 
-function openMeasureModal() {
-  openModal('modal-measure');
-}
-
-async function saveMeasurement() {
-  const d = {date: S.today};
-  const w = document.getElementById('m-weight-input').value;
-  const wa = document.getElementById('m-waist-input').value;
-  const hi = document.getElementById('m-hips-input').value;
-  const ch = document.getElementById('m-chest-input').value;
-  if (w) d.weight_kg = parseFloat(w);
-  if (wa) d.waist_cm = parseFloat(wa);
-  if (hi) d.hips_cm = parseFloat(hi);
-  if (ch) d.chest_cm = parseFloat(ch);
-  await apiFetch('/nutrition/api/weight', {method:'POST', body: JSON.stringify(d)});
-  closeModal('modal-measure');
-  loadWeightData();
-  showToast('Замер сохранён', true);
+async function saveMeasure() {
+  const d={date:S.today};
+  const w=document.getElementById('mw-kg').value;
+  if (w) d.weight_kg=parseFloat(w);
+  const wa=document.getElementById('mw-waist').value; if(wa) d.waist_cm=parseFloat(wa);
+  const hi=document.getElementById('mw-hips').value;  if(hi) d.hips_cm=parseFloat(hi);
+  const ch=document.getElementById('mw-chest').value; if(ch) d.chest_cm=parseFloat(ch);
+  await api('/nutrition/api/weight',{method:'POST',body:JSON.stringify(d)});
+  closeModal('modal-measure'); loadWeightData(); toast('Замер сохранён',true);
 }
 
 // ── Profile ───────────────────────────────────────────────────────────────────
-async function fetchProfile() {
-  return await apiFetch('/nutrition/api/profile');
-}
-
 async function loadProfileForm() {
-  const data = await fetchProfile();
+  const data=await api('/nutrition/api/profile');
   if (!data.exists) return;
-  document.getElementById('p-age').value = data.age||'';
-  document.getElementById('p-weight').value = data.weight_kg||'';
-  document.getElementById('p-height').value = data.height_cm||'';
-  document.getElementById('p-target-weight').value = data.target_weight_kg||'';
-  document.querySelectorAll('[data-val]').forEach(b => {
-    if (b.closest('.radio-group') && b.dataset.val === data.gender) b.classList.add('active');
-    if (b.closest('.radio-group') && b.dataset.val === data.goal) b.classList.add('active');
-  });
-  document.querySelectorAll('.activity-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.val === data.activity_level);
-  });
-  showTargetsPreview({calories:data.calorie_goal, protein:data.protein_goal, fat:data.fat_goal, carbs:data.carb_goal, water_ml:data.water_goal_ml});
+  document.getElementById('p-age').value    =data.age||'';
+  document.getElementById('p-weight').value =data.weight_kg||'';
+  document.getElementById('p-height').value =data.height_cm||'';
+  document.getElementById('p-target').value =data.target_weight_kg||'';
+  document.querySelectorAll('#rg-gender .radio-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.gender));
+  document.querySelectorAll('#rg-goal .radio-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.goal));
+  document.querySelectorAll('.act-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.activity_level));
+  if (data.calorie_goal) showTargets({calories:data.calorie_goal,protein:data.protein_goal,fat:data.fat_goal,carbs:data.carb_goal,water_ml:data.water_goal_ml});
 }
 
-function setRadio(group, btn) {
-  const container = btn.closest('.radio-group') || btn.parentElement;
-  container.querySelectorAll('.radio-btn').forEach(b => b.classList.remove('active'));
+function setRad(btn) {
+  btn.closest('.radio-row').querySelectorAll('.radio-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function setAct(btn) {
+  document.querySelectorAll('.act-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
 }
 
-function setActivity(btn) {
-  document.querySelectorAll('.activity-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-}
-
-function showTargetsPreview(t) {
-  if (!t || !t.calories) return;
-  document.getElementById('targets-preview').style.display = '';
-  document.getElementById('t-cal').textContent = t.calories;
-  document.getElementById('t-prot').textContent = t.protein + 'г';
-  document.getElementById('t-fat').textContent  = t.fat + 'г';
-  document.getElementById('t-carb').textContent = t.carbs + 'г';
-  document.getElementById('t-water').textContent = t.water_ml;
+function showTargets(t) {
+  if (!t?.calories) return;
+  document.getElementById('targets-box').style.display='';
+  document.getElementById('t-cal').textContent =t.calories;
+  document.getElementById('t-prot').textContent=t.protein+'г';
+  document.getElementById('t-fat').textContent =t.fat+'г';
+  document.getElementById('t-carb').textContent=t.carbs+'г';
+  document.getElementById('t-wat').textContent =t.water_ml;
 }
 
 async function saveProfile() {
-  const gender = document.querySelector('.radio-group:nth-of-type(1) .radio-btn.active')?.dataset?.val || 'male';
-  const goal   = document.querySelector('[data-val="lose"].radio-btn.active, [data-val="maintain"].radio-btn.active, [data-val="gain"].radio-btn.active')?.dataset?.val || 'maintain';
-  const activity = document.querySelector('.activity-btn.active')?.dataset?.val || 'moderate';
-  const age = parseInt(document.getElementById('p-age').value)||25;
-  const weight = parseFloat(document.getElementById('p-weight').value)||70;
-  const height = parseFloat(document.getElementById('p-height').value)||170;
-  const target = document.getElementById('p-target-weight').value;
-  const body = {gender, goal, activity_level: activity, age, weight_kg: weight, height_cm: height};
-  if (target) body.target_weight_kg = parseFloat(target);
-  const data = await apiFetch('/nutrition/api/profile', {method:'POST', body: JSON.stringify(body)});
-  if (data.ok) {
-    showTargetsPreview(data.targets);
-    S.profile = {...body, ...data.targets};
-    showToast('Профиль сохранён!', true);
-    loadDiary(S.today);
-  }
+  const gender=document.querySelector('#rg-gender .radio-btn.active')?.dataset?.val||'male';
+  const goal  =document.querySelector('#rg-goal .radio-btn.active')?.dataset?.val||'maintain';
+  const act   =document.querySelector('.act-btn.active')?.dataset?.val||'moderate';
+  const age=parseInt(document.getElementById('p-age').value)||25;
+  const wt =parseFloat(document.getElementById('p-weight').value)||70;
+  const ht =parseFloat(document.getElementById('p-height').value)||170;
+  const tgt=document.getElementById('p-target').value;
+  const body={gender,goal,activity_level:act,age,weight_kg:wt,height_cm:ht};
+  if (tgt) body.target_weight_kg=parseFloat(tgt);
+  const data=await api('/nutrition/api/profile',{method:'POST',body:JSON.stringify(body)});
+  if (data.ok) { showTargets(data.targets); S.profile={...body,...data.targets}; loadDiary(S.today); toast('Профиль сохранён!',true); }
 }
 
-// ── Modal helpers ─────────────────────────────────────────────────────────────
-function openModal(id) {
-  document.getElementById(id).classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
-  document.body.style.overflow = '';
-}
-function closeModalOnBg(e, id) {
-  if (e.target.id === id) closeModal(id);
+// ── Modal utils ───────────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function bgClose(e,id)  { if (e.target.id===id) closeModal(id); }
+
+// ── Fetch helper ──────────────────────────────────────────────────────────────
+async function api(url, opts={}) {
+  if (opts.body && !opts.headers) opts.headers={'Content-Type':'application/json'};
+  try { return await fetch(url, opts).then(r=>r.json()); }
+  catch(e){ console.error(e); return {}; }
 }
 
-// ── Utils ─────────────────────────────────────────────────────────────────────
-async function apiFetch(url, opts={}) {
-  if (opts.body && !opts.headers) opts.headers = {'Content-Type':'application/json'};
-  try {
-    const r = await fetch(url, opts);
-    return await r.json();
-  } catch(e) { console.error(e); return {}; }
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, green=true) {
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show'+(green?' green':'');
+  clearTimeout(t._t);
+  t._t=setTimeout(()=>{ t.className='toast'; },2400);
 }
 
-function showToast(msg, green=true) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show' + (green ? ' green' : '');
-  clearTimeout(t._timer);
-  t._timer = setTimeout(() => { t.className = 'toast'; }, 2500);
-}
-
-function esc(s) {
-  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// Load profile form on profile tab focus
-document.querySelector('[data-tab="profile"]').addEventListener('click', loadProfileForm);
+// ── Escape ────────────────────────────────────────────────────────────────────
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 </script>
 </body>
 </html>
