@@ -102,6 +102,14 @@
       #job-input { min-height: 200px; }
       .resume-toggle { padding: 12px 16px; }
       .resume-body-inner { padding: 0 16px 16px; }
+      /* Result header: wrap title and action buttons on separate lines */
+      .result-header { flex-wrap: wrap; gap: 8px; }
+      .result-actions { width: 100%; gap: 6px; }
+      .result-actions .copy-btn { flex: 1; justify-content: center; }
+      .result-actions .btn { flex: 1; }
+      /* URL row: prevent overflow */
+      .url-row { flex-wrap: wrap; }
+      .url-row input { min-width: 0; }
     }
 
     .panel { display: flex; flex-direction: column; gap: 20px; }
