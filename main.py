@@ -650,7 +650,7 @@ async def generate_letter(request: Request, user=Depends(get_current_user), db: 
                 json={
                     "model": MODEL,
                     "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.8,
+                    "temperature": 0.5,
                     "max_tokens": 900,
                 },
                 timeout=40.0,
