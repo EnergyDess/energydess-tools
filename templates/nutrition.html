@@ -29,8 +29,7 @@
       --muted: var(--text-dim);
     }
 
-    /* ── Body override for app shell ── */
-    body { overflow: hidden; }
+    /* ── Body: let fixed body::before animation work ── */
     html, body { height: 100%; }
 
     /* ── App shell ── */
@@ -45,7 +44,7 @@
       .nut-app {
         border-left:  1px solid var(--border);
         border-right: 1px solid var(--border);
-        box-shadow: 0 0 80px rgba(34,197,94,.04);
+        box-shadow: 0 0 120px rgba(34,197,94,.09), 0 0 40px rgba(0,212,255,.06);
       }
     }
 
@@ -882,6 +881,7 @@ const S = {
   scannerInst: null,
   addingIng: false,
   chatHistory: [],
+  apiHistory: [],
 };
 let searchReqId = 0;
 
@@ -1299,35 +1299,36 @@ async function delRecipe(id) {
 
 // ── AI Chat ───────────────────────────────────────────────────────────────────
 async function openAIChat() {
-  S.chatHistory=[];
+  S.chatHistory = [];
+  S.apiHistory  = [];
   openModal('modal-ai');
   renderChat();
-  // Auto-send initial analysis
-  await doAIRequest([]);
+  // Initial analysis via ai-advice (no conversation history needed)
+  const data = await api('/nutrition/api/ai-advice', {method:'POST', body:JSON.stringify({date:S.today})});
+  const reply = data.advice || data.error || 'Ошибка';
+  S.chatHistory.push({role:'assistant', content: reply});
+  // Don't push to apiHistory — the food context comes from system prompt
+  renderChat();
 }
 
 async function sendChat() {
-  const inp=document.getElementById('chat-in');
-  const q=inp.value.trim(); if (!q) return;
-  inp.value='';
-  S.chatHistory.push({role:'user',content:q});
+  const inp = document.getElementById('chat-in');
+  const q = inp.value.trim(); if (!q) return;
+  inp.value = '';
+  // Display user message
+  S.chatHistory.push({role:'user', content: q});
+  S.apiHistory.push({role:'user', content: q});
+  // Show thinking placeholder
+  S.chatHistory.push({role:'assistant', content:'...'});
   renderChat();
-  await doAIRequest(S.chatHistory.slice());
-}
-
-async function doAIRequest(messages) {
-  S.chatHistory.push({role:'assistant',content:'...'});
-  const idx=S.chatHistory.length-1;
-  renderChat();
-  let data;
-  if (messages.length===0) {
-    // initial analysis
-    data = await api('/nutrition/api/ai-advice',{method:'POST',body:JSON.stringify({date:S.today})});
-    S.chatHistory[idx]={role:'assistant',content: data.advice||data.error||'Ошибка'};
-  } else {
-    data = await api('/nutrition/api/ai-chat',{method:'POST',body:JSON.stringify({messages:messages.slice(0,-1),date:S.today})});
-    S.chatHistory[idx]={role:'assistant',content: data.reply||data.error||'Ошибка'};
-  }
+  // Call API with proper conversation history (always starts with user message)
+  const data = await api('/nutrition/api/ai-chat', {
+    method:'POST',
+    body: JSON.stringify({messages: S.apiHistory.slice(), date: S.today})
+  });
+  const aiReply = data.reply || data.error || 'Ошибка';
+  S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content: aiReply};
+  S.apiHistory.push({role:'assistant', content: aiReply});
   renderChat();
 }
 
