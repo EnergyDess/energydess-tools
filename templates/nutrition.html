@@ -457,9 +457,219 @@
     .dot:nth-child(2) { animation-delay: .15s; }
     .dot:nth-child(3) { animation-delay: .3s; }
     @keyframes dotB { 0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)} }
+
+    /* ═══════════════════════════════════════════════════════════
+       PREMIUM DESKTOP DESIGN  (≥ 1000px)
+       ═══════════════════════════════════════════════════════════ */
+    #nut-aurora { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+    /* Rotating glowing border ring around the nut-app */
+    .nut-glow-ring {
+      display: none;
+      position: fixed; left: 50%; transform: translateX(-50%);
+      top: 60px; width: 541px; height: calc(100dvh - 60px);
+      z-index: 1; pointer-events: none; overflow: hidden;
+    }
+    .nut-glow-ring::before {
+      content: '';
+      position: absolute; width: 200%; height: 200%;
+      top: 50%; left: 50%;
+      background: conic-gradient(from 0deg,
+        transparent 0deg,
+        rgba(34,197,94,.9) 28deg, rgba(0,212,255,.7) 56deg,
+        transparent 95deg, transparent 175deg,
+        rgba(34,197,94,.9) 208deg, rgba(0,212,255,.7) 236deg,
+        transparent 275deg, transparent 360deg
+      );
+      animation: gRingSpin 8s linear infinite;
+      filter: blur(.5px);
+    }
+    .nut-glow-ring::after {
+      content: ''; position: absolute; inset: 1px; background: var(--bg);
+    }
+    @keyframes gRingSpin {
+      from { transform: translate(-50%,-50%) rotate(0deg); }
+      to   { transform: translate(-50%,-50%) rotate(360deg); }
+    }
+
+    /* Side panels */
+    .nut-aside {
+      display: none;
+      position: fixed; top: 60px; height: calc(100dvh - 60px);
+      z-index: 2; pointer-events: none;
+      flex-direction: column; gap: 12px; justify-content: center; padding: 18px;
+    }
+    .nut-aside-l { left: 0; right: calc(50% + 272px); }
+    .nut-aside-r { right: 0; left: calc(50% + 272px); }
+
+    @media (min-width: 1000px) {
+      .nut-glow-ring { display: block; }
+      .nav { position: relative; z-index: 10; }
+      .nut-app { position: relative; z-index: 3; }
+    }
+    @media (min-width: 1200px) {
+      .nut-aside { display: flex; }
+    }
+
+    .aside-card {
+      width: 100%; background: rgba(7,7,15,.6);
+      backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+      border: 1px solid rgba(255,255,255,.07); border-radius: 18px;
+      padding: 20px; position: relative; overflow: hidden;
+      animation: asideIn .8s cubic-bezier(.22,1,.36,1) both;
+    }
+    .nut-aside-r .aside-card:nth-child(2) { animation-delay: .1s; }
+    @keyframes asideIn {
+      from { opacity: 0; transform: translateY(22px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    /* Brand card glow accent */
+    .aside-brand::before {
+      content: ''; position: absolute; top: -40px; right: -30px;
+      width: 120px; height: 120px;
+      background: radial-gradient(circle, rgba(34,197,94,.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .aside-icon {
+      font-size: 2.2rem; display: block; margin-bottom: 10px;
+      animation: iconFloat 3.8s ease-in-out infinite alternate;
+    }
+    @keyframes iconFloat {
+      from { transform: translateY(0) rotate(-4deg); }
+      to   { transform: translateY(-7px) rotate(4deg); }
+    }
+    .aside-name {
+      font-family: var(--font-display); font-size: 1.05rem; font-weight: 800;
+      line-height: 1.1; margin-bottom: 12px;
+      background: linear-gradient(135deg, #fff 0%, var(--nut-g) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .aside-quote {
+      font-size: .7rem; color: var(--text-dim); line-height: 1.7; font-style: italic;
+      border-left: 2px solid rgba(34,197,94,.4); padding-left: 10px; margin-bottom: 13px;
+    }
+    .aside-div { height: 1px; background: var(--border); margin-bottom: 11px; }
+    .aside-feats { display: flex; flex-direction: column; gap: 5px; }
+    .aside-feat {
+      display: flex; align-items: center; gap: 8px;
+      font-size: .72rem; color: var(--text-dim); padding: 5px 6px; border-radius: 8px;
+      transition: background .15s, color .15s;
+    }
+    .aside-feat em { font-style: normal; font-size: .85rem; width: 18px; text-align: center; }
+
+    /* Floating micro-particles inside brand card */
+    .aside-particles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: 18px; }
+    .aside-p {
+      position: absolute; border-radius: 50%; opacity: 0;
+      animation: pFloat linear infinite;
+    }
+    @keyframes pFloat {
+      0%   { opacity: 0; transform: translateY(0) scale(1); }
+      12%  { opacity: .9; }
+      88%  { opacity: .4; }
+      100% { opacity: 0; transform: translateY(-110px) scale(.2); }
+    }
+
+    /* Live data card */
+    .aside-live-hd {
+      font-size: .63rem; color: var(--text-dim); text-transform: uppercase;
+      letter-spacing: .1em; font-weight: 700; margin-bottom: 14px;
+    }
+    .aside-rows { display: flex; flex-direction: column; gap: 11px; }
+    .aside-row  { display: flex; align-items: center; gap: 8px; }
+    .a-ico { font-size: .88rem; flex-shrink: 0; width: 18px; text-align: center; }
+    .a-bar-wrap { flex: 1; min-width: 0; }
+    .a-lbl  { font-size: .61rem; color: var(--text-dim); margin-bottom: 3px; }
+    .a-bar  { height: 5px; background: rgba(255,255,255,.06); border-radius: 3px; overflow: hidden; }
+    .a-fill { height: 100%; border-radius: 3px; width: 0%; transition: width 1s ease; }
+    .a-val  { font-size: .67rem; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; min-width: 46px; text-align: right; }
+
+    /* Tip card */
+    .aside-tip {
+      background: linear-gradient(135deg, rgba(34,197,94,.08), rgba(0,212,255,.04)) !important;
+      border-color: rgba(34,197,94,.18) !important;
+    }
+    .aside-tip-lbl { font-size: .67rem; color: var(--nut-g); font-weight: 700; margin-bottom: 7px; }
+    .aside-tip-txt { font-size: .72rem; color: var(--text-dim); line-height: 1.65; }
   </style>
 </head>
 <body>
+
+<!-- ── Desktop premium bg elements ──────────────────────────────────────────── -->
+<canvas id="nut-aurora"></canvas>
+<div class="nut-glow-ring" aria-hidden="true"></div>
+
+<!-- LEFT SIDE: branding + features -->
+<aside class="nut-aside nut-aside-l" aria-hidden="true">
+  <div class="aside-card aside-brand">
+    <span class="aside-icon">🌿</span>
+    <div class="aside-name">Дневник<br>питания</div>
+    <div class="aside-quote">"Забота о теле —<br>лучшая инвестиция<br>в себя"</div>
+    <div class="aside-div"></div>
+    <div class="aside-feats">
+      <div class="aside-feat"><em>🔍</em>Поиск в базе OpenFood</div>
+      <div class="aside-feat"><em>📷</em>Сканер штрих-кода</div>
+      <div class="aside-feat"><em>🤖</em>AI-нутрициолог</div>
+      <div class="aside-feat"><em>📊</em>История и отчёты</div>
+      <div class="aside-feat"><em>⚖️</em>Трекер веса</div>
+    </div>
+    <div class="aside-particles" id="ap-particles"></div>
+  </div>
+</aside>
+
+<!-- RIGHT SIDE: live macro progress -->
+<aside class="nut-aside nut-aside-r" aria-hidden="true">
+  <div class="aside-card">
+    <div class="aside-live-hd">Сегодня</div>
+    <div class="aside-rows">
+      <div class="aside-row">
+        <span class="a-ico">⚡</span>
+        <div class="a-bar-wrap">
+          <div class="a-lbl">Калории</div>
+          <div class="a-bar"><div class="a-fill" id="af-cal" style="background:var(--nut-g)"></div></div>
+        </div>
+        <span class="a-val" id="av-cal">—</span>
+      </div>
+      <div class="aside-row">
+        <span class="a-ico">🥩</span>
+        <div class="a-bar-wrap">
+          <div class="a-lbl">Белок</div>
+          <div class="a-bar"><div class="a-fill" id="af-prot" style="background:var(--prot)"></div></div>
+        </div>
+        <span class="a-val" id="av-prot">—</span>
+      </div>
+      <div class="aside-row">
+        <span class="a-ico">🧈</span>
+        <div class="a-bar-wrap">
+          <div class="a-lbl">Жиры</div>
+          <div class="a-bar"><div class="a-fill" id="af-fat" style="background:var(--fat)"></div></div>
+        </div>
+        <span class="a-val" id="av-fat">—</span>
+      </div>
+      <div class="aside-row">
+        <span class="a-ico">🌾</span>
+        <div class="a-bar-wrap">
+          <div class="a-lbl">Углеводы</div>
+          <div class="a-bar"><div class="a-fill" id="af-carb" style="background:var(--carb)"></div></div>
+        </div>
+        <span class="a-val" id="av-carb">—</span>
+      </div>
+      <div class="aside-row">
+        <span class="a-ico">💧</span>
+        <div class="a-bar-wrap">
+          <div class="a-lbl">Вода</div>
+          <div class="a-bar"><div class="a-fill" id="af-water" style="background:var(--wat)"></div></div>
+        </div>
+        <span class="a-val" id="av-water">—</span>
+      </div>
+    </div>
+  </div>
+  <div class="aside-card aside-tip">
+    <div class="aside-tip-lbl">✨ Совет дня</div>
+    <div class="aside-tip-txt" id="aside-tip-txt">Заполните дневник, чтобы начать отслеживать КБЖУ</div>
+  </div>
+</aside>
 
 <!-- ── Site navbar ─────────────────────────────────────────────────────────── -->
 <nav class="nav">
@@ -887,6 +1097,9 @@ let searchReqId = 0;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  initAurora();
+  initParticles();
+
   // Date in header
   const d = new Date();
   document.getElementById('hdr-date').textContent =
@@ -939,6 +1152,7 @@ async function loadDiary(date) {
   renderMacros(data.totals, data.goals);
   renderWater(data.water_ml, data.goals.water_ml);
   renderMeals(data.meals);
+  updateSidePanels(data);
 }
 
 function renderRing(eaten, goal) {
@@ -1515,6 +1729,105 @@ function toast(msg, green=true) {
 
 // ── Escape ────────────────────────────────────────────────────────────────────
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Desktop Aurora Canvas ─────────────────────────────────────────────────────
+function initAurora() {
+  const c = document.getElementById('nut-aurora');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  function resize() { c.width = innerWidth; c.height = innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Orbs: x/y as fraction of canvas, r as fraction of min(W,H)
+  const orbs = [
+    {x:.11, y:.22, r:.38, col:[34,197,94],  spd:5.8e-5, ph:0.0},
+    {x:.90, y:.72, r:.32, col:[0,212,255],  spd:4.6e-5, ph:1.9},
+    {x:.48, y:.97, r:.26, col:[124,77,255], spd:6.7e-5, ph:3.6},
+    {x:.07, y:.65, r:.20, col:[34,197,94],  spd:8.2e-5, ph:1.1},
+    {x:.93, y:.14, r:.23, col:[0,212,255],  spd:3.9e-5, ph:2.4},
+    {x:.32, y:.04, r:.17, col:[124,77,255], spd:7.4e-5, ph:4.2},
+    {x:.72, y:.50, r:.28, col:[34,197,94],  spd:5.1e-5, ph:5.0},
+  ];
+
+  function draw(t) {
+    ctx.clearRect(0, 0, c.width, c.height);
+    const M = Math.min(c.width, c.height);
+    orbs.forEach(o => {
+      const dx = Math.sin(t * o.spd       + o.ph) * 0.055;
+      const dy = Math.cos(t * o.spd * .72 + o.ph) * 0.045;
+      const px = (o.x + dx) * c.width;
+      const py = (o.y + dy) * c.height;
+      const rad = o.r * M;
+      const alpha = 0.038 + Math.sin(t * o.spd * 3.1 + o.ph) * 0.016;
+      const g = ctx.createRadialGradient(px, py, 0, px, py, rad);
+      g.addColorStop(0, `rgba(${o.col},${alpha.toFixed(3)})`);
+      g.addColorStop(.5, `rgba(${o.col},${(alpha*.4).toFixed(3)})`);
+      g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(px, py, rad, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+}
+
+// ── Floating particles in brand card ─────────────────────────────────────────
+function initParticles() {
+  const wrap = document.getElementById('ap-particles');
+  if (!wrap) return;
+  const palette = ['rgba(34,197,94,', 'rgba(56,189,248,', 'rgba(255,255,255,'];
+  for (let i = 0; i < 14; i++) {
+    const p = document.createElement('div');
+    const sz = 1.5 + Math.random() * 3;
+    const col = palette[Math.floor(Math.random() * palette.length)];
+    p.className = 'aside-p';
+    p.style.cssText =
+      `width:${sz}px;height:${sz}px;` +
+      `background:${col}0.85);` +
+      `left:${8 + Math.random() * 84}%;` +
+      `bottom:${Math.random() * 25}%;` +
+      `animation-duration:${6 + Math.random() * 9}s;` +
+      `animation-delay:${Math.random() * 8}s;` +
+      `box-shadow:0 0 ${sz*2}px ${col}0.5);`;
+    wrap.appendChild(p);
+  }
+}
+
+// ── Update side panels (called after diary loads) ─────────────────────────────
+const SIDE_TIPS = [
+  "Пейте воду за 30 мин до еды — снижает аппетит на 13%",
+  "Белок на завтрак продлевает сытость до обеда",
+  "100г шпината — всего 23 ккал и 3г белка",
+  "Медленное жевание снижает потребление на 10-15%",
+  "Дефицит 500 ккал/день ≈ минус 0.5кг в неделю",
+  "Клетчатка замедляет усвоение углеводов",
+  "Omega-3 в рыбе улучшает жировой обмен",
+];
+
+function updateSidePanels(data) {
+  if (!data || !data.totals || !data.goals) return;
+  const t = data.totals, g = data.goals;
+
+  function setRow(fillId, valId, val, goal, unit) {
+    const pct = Math.min((val || 0) / (goal || 1) * 100, 100);
+    const f = document.getElementById(fillId);
+    const v = document.getElementById(valId);
+    if (f) f.style.width = pct.toFixed(0) + '%';
+    if (v) v.textContent = `${Math.round(val||0)}/${goal||0}${unit}`;
+  }
+
+  setRow('af-cal',   'av-cal',   t.calories||0, g.calories||2000, '');
+  setRow('af-prot',  'av-prot',  t.protein||0,  g.protein||80,   'г');
+  setRow('af-fat',   'av-fat',   t.fat||0,      g.fat||60,       'г');
+  setRow('af-carb',  'av-carb',  t.carbs||0,    g.carbs||250,    'г');
+  setRow('af-water', 'av-water', data.water_ml||0, g.water_ml||2000, 'мл');
+
+  const tipEl = document.getElementById('aside-tip-txt');
+  if (tipEl) tipEl.textContent = SIDE_TIPS[new Date().getDay() % SIDE_TIPS.length];
+}
 </script>
 </body>
 </html>
