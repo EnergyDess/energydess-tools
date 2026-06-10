@@ -1503,15 +1503,9 @@ async function delRecipe(id) {
 
 // ── AI Chat ───────────────────────────────────────────────────────────────────
 async function openAIChat() {
-  S.chatHistory = [];
+  S.chatHistory = [{role:'assistant', content: 'Привет! Спрашивай что угодно про твоё питание — отвечу с учётом дневника за сегодня.'}];
   S.apiHistory  = [];
   openModal('modal-ai');
-  renderChat();
-  // Initial analysis via ai-advice (no conversation history needed)
-  const data = await api('/nutrition/api/ai-advice', {method:'POST', body:JSON.stringify({date:S.today})});
-  const reply = data.advice || data.error || 'Ошибка';
-  S.chatHistory.push({role:'assistant', content: reply});
-  // Don't push to apiHistory — the food context comes from system prompt
   renderChat();
 }
 

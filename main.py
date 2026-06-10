@@ -1253,65 +1253,6 @@ async def nut_weekly(user=Depends(get_current_user), db: Session = Depends(get_d
     return JSONResponse({"days": days})
 
 
-# ── Nutrition: AI advice ──────────────────────────────────────────────────────
-
-@app.post("/nutrition/api/ai-advice")
-async def nut_ai_advice(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    if not user or not user_has_access(user, "nutrition", db):
-        return JSONResponse({"error": "Нет доступа"}, status_code=403)
-    data = await request.json()
-    date = data.get("date", datetime.now().strftime("%Y-%m-%d"))
-    logs = db.query(FoodLog).filter(FoodLog.user_id == user.id, FoodLog.log_date == date).all()
-    water = sum(w.amount_ml for w in db.query(WaterLog).filter(
-        WaterLog.user_id == user.id, WaterLog.log_date == date).all())
-    profile = db.query(NutritionProfile).filter(NutritionProfile.user_id == user.id).first()
-
-    total_cal = sum(l.calories for l in logs)
-    total_prot = sum(l.protein for l in logs)
-    total_fat = sum(l.fat for l in logs)
-    total_carbs = sum(l.carbs for l in logs)
-    goal_cal = profile.calorie_goal if profile else 2000
-    goal_prot = profile.protein_goal if profile else 100
-    goal_fat = profile.fat_goal if profile else 65
-    goal_carbs = profile.carb_goal if profile else 250
-    goal_water = profile.water_goal_ml if profile else 2000
-    goal_name = {"lose": "похудение", "gain": "набор массы", "maintain": "поддержание"}.get(
-        profile.goal if profile else "maintain", "поддержание")
-
-    food_list = "\n".join(
-        f"- {l.food_name}: {l.calories:.0f} ккал | Б:{l.protein:.0f}г Ж:{l.fat:.0f}г У:{l.carbs:.0f}г"
-        for l in logs) or "Ничего не записано"
-
-    prompt = f"""Ты нутрициолог. Проанализируй рацион и дай совет — 3-4 предложения, конкретно.
-
-Цель: {goal_name} | Норма: {goal_cal} ккал, Б:{goal_prot}г Ж:{goal_fat}г У:{goal_carbs}г
-Съедено: {total_cal:.0f} ккал | Б:{total_prot:.0f}г Ж:{total_fat:.0f}г У:{total_carbs:.0f}г
-Вода: {water} мл из {goal_water} мл
-
-Приёмы пищи:
-{food_list}
-
-Укажи что хорошо сделано, чего не хватает, одну конкретную рекомендацию. Только русский язык, никаких списков — просто текст."""
-
-    if not OPENROUTER_API_KEY:
-        return JSONResponse({"advice": "API ключ не настроен."})
-
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                         "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
-                json={"model": LETTER_MODEL, "messages": [{"role": "user", "content": prompt}],
-                      "temperature": 0.4, "max_tokens": 400},
-                timeout=30.0,
-            )
-        advice = resp.json()["choices"][0]["message"]["content"].strip()
-        return JSONResponse({"advice": advice})
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
 # ── Nutrition: AI chat ───────────────────────────────────────────────────────
 
 @app.post("/nutrition/api/ai-chat")
