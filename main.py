@@ -1068,6 +1068,16 @@ async def nut_search(q: str = "", user=Depends(get_current_user), db: Session = 
     return JSONResponse({"results": results})
 
 
+@app.get("/nutrition/api/ai-estimate")
+async def nut_ai_estimate(q: str = "", user=Depends(get_current_user)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    if not q.strip():
+        return JSONResponse({"result": None})
+    results = await _ai_food_estimate(q)
+    return JSONResponse({"result": results[0] if results else None})
+
+
 @app.get("/nutrition/api/barcode/{code}")
 async def nut_barcode(code: str, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:

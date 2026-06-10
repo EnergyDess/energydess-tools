@@ -142,6 +142,13 @@
       cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .1s;
     }
     .water-btn:active { background: rgba(56,189,248,.22); }
+    .water-btn-manual {
+      width: 100%; height: 34px; margin-top: 7px; background: var(--bg3);
+      border: 1px solid var(--border); border-radius: 9px; color: var(--text-dim);
+      font-size: 0.78rem; font-weight: 600; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; transition: all .1s;
+    }
+    .water-btn-manual:active { color: var(--wat); border-color: rgba(56,189,248,.3); }
 
     /* ── Meals ── */
     .meal-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 9px; overflow: hidden; }
@@ -230,6 +237,28 @@
     .r-kcal  { font-size: 0.8rem; color: var(--nut-g); font-weight: 700; white-space: nowrap; }
     .r-per   { font-size: 0.65rem; color: var(--text-dim); }
     .empty   { text-align: center; color: var(--text-dim); padding: 28px 16px; font-size: 0.87rem; }
+
+    /* ── AI estimate fallback ── */
+    .ai-estimate-btn {
+      width: 100%; padding: 12px; margin-top: 10px; border-radius: 11px;
+      background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.25);
+      color: var(--nut-g); font-size: 0.82rem; font-weight: 600; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; transition: background .15s;
+    }
+    .ai-estimate-btn:active { background: rgba(34,197,94,.22); }
+
+    /* ── Recipe ingredient banner ── */
+    .recipe-ing-banner {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.25);
+      border-radius: 11px; padding: 10px 13px; margin-bottom: 12px;
+      font-size: 0.82rem; font-weight: 600; color: var(--nut-g);
+    }
+    .recipe-ing-banner button {
+      background: var(--nut-g); color: #fff; border: none; border-radius: 8px;
+      padding: 6px 13px; font-size: 0.78rem; font-weight: 700; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+    }
 
     /* ── History ── */
     .h-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
@@ -720,6 +749,7 @@
             <button class="water-btn" onclick="addWater(300)">+300</button>
             <button class="water-btn" onclick="addWater(500)">+500</button>
           </div>
+          <button class="water-btn-manual" onclick="openWaterManual()">✏️ Ввести вручную</button>
         </div>
         <button class="ai-btn" onclick="openAIChat()">
           <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
@@ -734,6 +764,10 @@
     <!-- ── TAB: SEARCH ── -->
     <section class="nut-tab" id="tab-search">
       <button class="search-back" onclick="handleBack()">← Назад в дневник</button>
+      <div class="recipe-ing-banner" id="recipe-ing-banner" style="display:none">
+        <span>🍳 Поиск ингредиента для рецепта</span>
+        <button onclick="cancelAddIngredient()">Готово</button>
+      </div>
       <div class="s-chips" id="meal-chips">
         <button class="s-chip active" data-meal="breakfast" onclick="setSearchMeal(this)">☀️ Завтрак</button>
         <button class="s-chip" data-meal="lunch"     onclick="setSearchMeal(this)">🌤 Обед</button>
@@ -921,7 +955,7 @@
         <div class="calc-kcal"   id="c-kcal">0 ккал</div>
         <div class="calc-macros" id="c-macros">Б: 0г  Ж: 0г  У: 0г</div>
       </div>
-      <button class="add-btn" onclick="confirmAdd()">Добавить в дневник</button>
+      <button class="add-btn" id="por-add-btn" onclick="confirmAdd()">Добавить в дневник</button>
     </div>
   </div>
 </div>
@@ -964,6 +998,42 @@
         <div class="f-field"><label class="f-label">Углеводы, г</label><input type="number" class="f-input" id="cf-carb" placeholder="0"></div>
       </div>
       <button class="add-btn" onclick="saveCustomFood()" style="margin-bottom:16px">Сохранить и добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL: Manual water ─── -->
+<div class="modal-ov" id="modal-water" onclick="bgClose(event,'modal-water')">
+  <div class="modal-sh">
+    <div class="modal-drag"></div>
+    <div class="modal-hdr">
+      <span class="modal-title">💧 Добавить воду</span>
+      <button class="modal-x" onclick="closeModal('modal-water')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="g-wrap">
+        <input type="number" class="g-input" id="water-input" placeholder="150" min="1" max="5000" onkeydown="if(event.key==='Enter')confirmWaterManual()">
+        <span class="g-lbl">мл</span>
+      </div>
+      <button class="add-btn" onclick="confirmWaterManual()" style="margin-bottom:16px">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL: AI estimate ─── -->
+<div class="modal-ov" id="modal-ai-estimate" onclick="bgClose(event,'modal-ai-estimate')">
+  <div class="modal-sh">
+    <div class="modal-drag"></div>
+    <div class="modal-hdr">
+      <span class="modal-title">✨ Спросить ИИ</span>
+      <button class="modal-x" onclick="closeModal('modal-ai-estimate')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="f-field">
+        <label class="f-label">Опишите блюдо — ИИ оценит КБЖУ</label>
+        <input type="text" class="f-input" id="ai-est-input" placeholder="Шаурма с курицей из ларька на углу" onkeydown="if(event.key==='Enter')runAIEstimate()">
+      </div>
+      <button class="add-btn" id="ai-est-btn" onclick="runAIEstimate()" style="margin-bottom:16px">Оценить КБЖУ</button>
     </div>
   </div>
 </div>
@@ -1115,6 +1185,11 @@ function switchTab(btn) {
 }
 
 function goTab(tab) {
+  if (tab !== 'search' && S.addingIng) {
+    S.addingIng = false;
+    document.getElementById('recipe-ing-banner').style.display = 'none';
+    document.getElementById('meal-chips').style.display = '';
+  }
   S.activeTab = tab;
   document.querySelectorAll('.nut-tab').forEach(s => s.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
@@ -1128,6 +1203,7 @@ function goTab(tab) {
 }
 
 function handleBack() {
+  if (S.addingIng) { cancelAddIngredient(); return; }
   if (S.activeTab === 'diary') { window.location.href = '/'; return; }
   goTab('diary');
   document.querySelectorAll('.nut-nav-btn').forEach(b => b.classList.remove('active'));
@@ -1218,9 +1294,24 @@ async function addWater(ml) {
   toast(`+${ml} мл 💧`,true);
 }
 
+function openWaterManual() {
+  document.getElementById('water-input').value = '';
+  openModal('modal-water');
+  setTimeout(()=>document.getElementById('water-input').focus(),150);
+}
+
+function confirmWaterManual() {
+  const ml = parseInt(document.getElementById('water-input').value) || 0;
+  if (ml <= 0) return;
+  closeModal('modal-water');
+  addWater(ml);
+}
+
 // ── Search ────────────────────────────────────────────────────────────────────
 function openSearchFor(mealId) {
   S.searchMeal = mealId; S.addingIng = false;
+  document.getElementById('recipe-ing-banner').style.display = 'none';
+  document.getElementById('meal-chips').style.display = '';
   document.querySelectorAll('.s-chip').forEach(b=>b.classList.toggle('active',b.dataset.meal===mealId));
   goTab('search');
   document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
@@ -1234,7 +1325,18 @@ function openSearchForRecipe() {
   goTab('search');
   document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector('[data-tab="search"]').classList.add('active');
+  document.getElementById('recipe-ing-banner').style.display = 'flex';
+  document.getElementById('meal-chips').style.display = 'none';
+  setSearchTab('recent');
   setTimeout(()=>document.getElementById('s-input').focus(),150);
+}
+
+function cancelAddIngredient() {
+  S.addingIng = false;
+  document.getElementById('recipe-ing-banner').style.display = 'none';
+  document.getElementById('meal-chips').style.display = '';
+  updateRecipeModal();
+  openModal('modal-recipe');
 }
 
 function setSearchMeal(btn) {
@@ -1252,10 +1354,11 @@ function onSearch(q) {
 
 async function runSearch(q) {
   const myId = ++searchReqId;
+  S.lastQuery = q;
   document.getElementById('s-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
   const data = await api(`/nutrition/api/search?q=${encodeURIComponent(q)}`);
   if (myId !== searchReqId) return; // stale — ignore
-  renderResults(data.results||[]);
+  renderResults(data.results||[], q);
 }
 
 function setSearchTab(tab) {
@@ -1297,14 +1400,33 @@ async function loadRecipesList() {
     </div>`).join('') + `</div>`;
 }
 
-function renderResults(results) {
+function renderResults(results, query) {
   const wrap = document.getElementById('s-results');
-  if (!results.length) { wrap.innerHTML='<div class="empty">Ничего не найдено</div>'; return; }
+  const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openAIEstimate()">✨ Не нашли своё блюдо? Спросить ИИ</button>` : '';
+  if (!results.length) { wrap.innerHTML='<div class="empty">Ничего не найдено</div>'+aiBtn; return; }
   wrap.innerHTML = `<div class="r-list">`+results.map(r=>`
     <div class="r-item" onclick='openPortion(${JSON.stringify(r)})'>
       <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${r.source==='ai' ? '✨ оценка ИИ' : esc(r.brand||'')}</div></div>
       <div><div class="r-kcal">${r.calories} ккал</div><div class="r-per">на 100г</div></div>
-    </div>`).join('')+`</div>`;
+    </div>`).join('')+`</div>`+aiBtn;
+}
+
+function openAIEstimate() {
+  document.getElementById('ai-est-input').value = S.lastQuery || document.getElementById('s-input').value || '';
+  openModal('modal-ai-estimate');
+  setTimeout(()=>document.getElementById('ai-est-input').focus(),150);
+}
+
+async function runAIEstimate() {
+  const q = document.getElementById('ai-est-input').value.trim();
+  if (!q) return;
+  const btn = document.getElementById('ai-est-btn');
+  btn.disabled = true; btn.textContent = 'Думаю…';
+  const data = await api(`/nutrition/api/ai-estimate?q=${encodeURIComponent(q)}`);
+  btn.disabled = false; btn.textContent = 'Оценить КБЖУ';
+  if (!data.result) { toast('Не получилось оценить, попробуйте переформулировать', false); return; }
+  closeModal('modal-ai-estimate');
+  openPortion(data.result);
 }
 
 // ── Portion modal ─────────────────────────────────────────────────────────────
@@ -1312,6 +1434,7 @@ function openPortion(food) {
   S.portionFood = food;
   const mealName = {breakfast:'завтрак',lunch:'обед',dinner:'ужин',snack:'перекус'}[S.searchMeal];
   document.getElementById('por-title').textContent = S.addingIng ? 'Ингредиент' : 'Добавить в '+mealName;
+  document.getElementById('por-add-btn').textContent = S.addingIng ? 'Добавить ингредиент' : 'Добавить в дневник';
   document.getElementById('por-name').textContent = food.name+(food.brand?' · '+food.brand:'');
   document.getElementById('por-sub').textContent = `На 100г: ${food.calories} ккал | Б:${food.protein}г Ж:${food.fat}г У:${food.carbs}г`;
   document.getElementById('g-input').value = 100;
