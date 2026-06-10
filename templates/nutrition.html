@@ -1302,7 +1302,7 @@ function renderResults(results) {
   if (!results.length) { wrap.innerHTML='<div class="empty">Ничего не найдено</div>'; return; }
   wrap.innerHTML = `<div class="r-list">`+results.map(r=>`
     <div class="r-item" onclick='openPortion(${JSON.stringify(r)})'>
-      <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${esc(r.brand||'')}</div></div>
+      <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${r.source==='ai' ? '✨ оценка ИИ' : esc(r.brand||'')}</div></div>
       <div><div class="r-kcal">${r.calories} ккал</div><div class="r-per">на 100г</div></div>
     </div>`).join('')+`</div>`;
 }

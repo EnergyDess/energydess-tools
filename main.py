@@ -770,18 +770,19 @@ def _calc_tdee(gender: str, age: int, weight_kg: float, height_cm: float,
     return {"calories": cal, "protein": protein, "fat": fat, "carbs": carbs, "water_ml": water}
 
 
+_OFF_HEADERS = {"User-Agent": "EnergyDess-Nutrition/1.0 (https://energydess.ru)"}
+
+
 async def _off_search(query: str) -> list:
-    url = "https://world.openfoodfacts.org/cgi/search.pl"
+    url = "https://search.openfoodfacts.org/search"
     params = {
-        "search_terms": query, "search_simple": 1, "action": "process",
-        "json": 1, "page_size": 25,
+        "q": query, "page_size": 25, "langs": "ru,en",
         "fields": "product_name,product_name_ru,brands,nutriments",
-        "lc": "ru", "cc": "ru",
     }
     try:
         async with httpx.AsyncClient(timeout=8) as client:
-            r = await client.get(url, params=params)
-        products = r.json().get("products", [])
+            r = await client.get(url, params=params, headers=_OFF_HEADERS)
+        products = r.json().get("hits", [])
     except Exception:
         return []
     results = []
@@ -793,9 +794,12 @@ async def _off_search(query: str) -> list:
         kcal = n.get("energy-kcal_100g") or n.get("energy-kcal") or 0
         if not kcal:
             continue
+        brands = p.get("brands") or []
+        if isinstance(brands, str):
+            brands = brands.split(",")
         results.append({
             "name": name.strip(),
-            "brand": (p.get("brands") or "").split(",")[0].strip(),
+            "brand": (brands[0] if brands else "").strip(),
             "calories": round(float(kcal), 1),
             "protein": round(float(n.get("proteins_100g", 0)), 1),
             "fat": round(float(n.get("fat_100g", 0)), 1),
@@ -804,11 +808,41 @@ async def _off_search(query: str) -> list:
     return results
 
 
+async def _ai_food_estimate(query: str) -> list:
+    if not OPENROUTER_API_KEY:
+        return []
+    prompt = f"""Оцени пищевую ценность блюда "{query}" на 100 грамм продукта.
+Ответь ТОЛЬКО JSON без ```json и без пояснений:
+{{"name":"уточнённое название блюда","calories":150,"protein":10,"fat":5,"carbs":20}}"""
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                         "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
+                json={"model": MODEL, "messages": [{"role": "user", "content": prompt}],
+                      "temperature": 0.2, "max_tokens": 150},
+            )
+        import json as _json
+        text = resp.json()["choices"][0]["message"]["content"].strip()
+        d = _json.loads(text)
+        return [{
+            "name": str(d.get("name", query)).strip(),
+            "brand": "", "source": "ai",
+            "calories": round(float(d["calories"]), 1),
+            "protein": round(float(d["protein"]), 1),
+            "fat": round(float(d["fat"]), 1),
+            "carbs": round(float(d["carbs"]), 1),
+        }]
+    except Exception:
+        return []
+
+
 async def _off_barcode(code: str) -> dict | None:
     url = f"https://world.openfoodfacts.org/api/v0/product/{code}.json"
     try:
         async with httpx.AsyncClient(timeout=8) as client:
-            r = await client.get(url)
+            r = await client.get(url, headers=_OFF_HEADERS)
         data = r.json()
     except Exception:
         return None
@@ -1028,7 +1062,10 @@ async def nut_search(q: str = "", user=Depends(get_current_user), db: Session = 
         "fat": f.fat_per_100g, "carbs": f.carbs_per_100g,
     } for f in custom]
     off_results = await _off_search(q)
-    return JSONResponse({"results": custom_results + off_results[:20]})
+    results = custom_results + off_results[:20]
+    if not results:
+        results += await _ai_food_estimate(q)
+    return JSONResponse({"results": results})
 
 
 @app.get("/nutrition/api/barcode/{code}")
