@@ -184,6 +184,7 @@
     .ai-btn:active { background: rgba(34,197,94,.22); }
 
     /* ── Search ── */
+    .search-back { display: none; }
     .s-chips { display: flex; gap: 7px; margin-bottom: 12px; flex-wrap: wrap; }
     .s-chip {
       padding: 6px 13px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
@@ -488,18 +489,19 @@
         overflow: hidden;
       }
       .sidebar-hd {
-        display: flex; align-items: center; gap: 10px;
+        display: flex; align-items: center; gap: 8px;
         padding: 22px 12px 14px;
-        font-family: var(--font-display); font-size: .94rem; font-weight: 800;
+        font-family: var(--font-display); font-size: 1rem; font-weight: 800;
+        white-space: nowrap;
         border-bottom: 1px solid var(--border); margin: 0 0 10px;
         flex-shrink: 0;
         background: linear-gradient(90deg, var(--nut-g), var(--wat));
         -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
       }
-      .sidebar-hd span:first-child { -webkit-text-fill-color: initial; font-size: 1.2rem; }
+      .sidebar-hd span:first-child { -webkit-text-fill-color: initial; font-size: 1.3rem; }
       .sidebar-date {
         display: flex; align-items: center; gap: 7px;
-        font-size: .68rem; color: var(--text-dim); text-transform: capitalize;
+        font-size: .82rem; color: var(--text-dim); text-transform: capitalize;
         padding: 0 12px 16px; font-family: var(--font-mono); flex-shrink: 0;
         letter-spacing: .04em;
       }
@@ -509,9 +511,9 @@
       }
       .nut-nav-btn {
         flex: none;
-        flex-direction: row; height: 46px; width: 100%;
+        flex-direction: row; height: 48px; width: 100%;
         padding: 0 14px; justify-content: flex-start;
-        gap: 12px; font-size: .88rem; border-radius: 11px;
+        gap: 12px; font-size: .96rem; border-radius: 11px;
         transition: background .15s, color .15s;
       }
       .nut-nav-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
@@ -553,47 +555,85 @@
       /* ── DIARY: stats panel + 2×2 meal grid, both fit one screen ── */
       #tab-diary.active { display: grid; grid-template-columns: 340px 1fr; gap: 28px; overflow: hidden; }
       .ring-wrap { padding: 4px 0; }
-      .ring-svg { width: 216px; height: 216px; }
-      .ring-remain { font-size: 2.6rem; }
+      .ring-svg { width: 232px; height: 232px; }
+      .ring-remain { font-size: 3.2rem; }
+      .ring-lbl { font-size: .88rem; }
+      .ring-eaten { font-size: .94rem; }
       .macros-row { gap: 10px; }
-      .macro-card { padding: 13px 14px; }
-      .macro-val { font-size: .83rem; }
+      .macro-card { padding: 14px 16px; }
+      .macro-label { font-size: .8rem; }
+      .macro-val { font-size: .98rem; }
+      .water-card { padding: 16px 18px; }
+      .water-val { font-size: 1rem; }
+      .water-btn { height: 38px; font-size: .9rem; }
       #meals-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-content: start; }
       .meal-card { margin-bottom: 0; transition: border-color .15s; }
       .meal-card:hover { border-color: var(--border-hi); }
       .meal-hdr { padding: 14px 16px; }
-      .meal-name { font-size: .95rem; }
+      .meal-icon { font-size: 1.15rem; }
+      .meal-name { font-size: 1.05rem; }
+      .meal-kcal { font-size: .92rem; }
       .meal-items { max-height: 260px; overflow-y: auto; }
       .food-item { padding: 10px 16px; }
-      .food-name { font-size: .9rem; }
+      .food-name { font-size: 1rem; }
+      .food-sub { font-size: .82rem; }
+      .food-kcal { font-size: .92rem; }
 
       /* ── SEARCH: single column, readable width, centered ── */
       #tab-search.active { display: block; overflow-y: auto; max-width: 800px; margin: 0 auto; }
-      .s-input { height: 48px; font-size: .97rem; }
-      .icon-btn { width: 48px; height: 48px; }
-      .r-item { padding: 13px 16px; }
-      .r-name { font-size: .9rem; }
+      .search-back {
+        display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px;
+        padding: 10px 18px; border-radius: 10px; background: var(--bg2);
+        border: 1px solid var(--border); color: var(--text-dim);
+        font-size: .9rem; font-weight: 600; cursor: pointer;
+        transition: color .15s, border-color .15s;
+      }
+      .search-back:hover { color: var(--nut-g); border-color: rgba(34,197,94,.3); }
+      .s-chip { font-size: .88rem; padding: 9px 17px; }
+      .s-input { height: 50px; font-size: 1.05rem; }
+      .icon-btn { width: 50px; height: 50px; }
+      .s-tab { height: 40px; font-size: .88rem; }
+      .r-item { padding: 14px 16px; }
+      .r-name { font-size: 1rem; }
+      .r-brand { font-size: .82rem; }
+      .r-kcal { font-size: .94rem; }
+      .r-per { font-size: .8rem; }
 
       /* ── HISTORY: left ring+meals, right chart fills column ── */
       #tab-history.active { display: grid; grid-template-columns: 300px 1fr; gap: 28px; overflow: hidden; }
-      .mini-ring-svg { width: 150px; height: 150px; }
-      #hist-kcal { font-size: 1.6rem !important; }
+      .h-date { font-size: 1.02rem; }
+      .h-arrow { width: 38px; height: 38px; font-size: 1.15rem; }
+      .mini-ring-svg { width: 168px; height: 168px; }
+      #hist-kcal { font-size: 1.9rem !important; }
       .week-box { padding: 22px; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
+      .week-title { font-size: .85rem; }
       .week-bars { flex: 1; height: auto; min-height: 0; }
+      .w-day, .w-kcal { font-size: .82rem; }
 
       /* ── WEIGHT: left stats, right chart fills column ── */
       #tab-weight.active { display: grid; grid-template-columns: 300px 1fr; gap: 28px; overflow: hidden; }
-      .wt-big { font-size: 3.8rem; }
+      .wt-big { font-size: 4rem; }
+      .wt-sub { font-size: .92rem; }
+      .wt-prog-lbl { font-size: .85rem; }
+      .measures { gap: 12px; }
+      .m-card { padding: 16px 12px; }
+      .m-val { font-size: 1.5rem; }
+      .m-lbl { font-size: .75rem; }
       .chart-box { padding: 24px; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
       .chart-box .week-title { flex-shrink: 0; }
       .wt-svg { flex: 1; width: 100%; height: auto; min-height: 0; }
 
       /* ── PROFILE: two equal columns ── */
       #tab-profile.active { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; overflow: hidden; }
-      .f-input { height: 46px; font-size: .95rem; }
-      .radio-btn { height: 44px; font-size: .84rem; }
-      .act-btn { padding: 12px 16px; font-size: .84rem; }
-      .save-btn { height: 52px; font-size: 1rem; }
+      .p-sec-title { font-size: .82rem; }
+      .f-label { font-size: .88rem; }
+      .f-input { height: 48px; font-size: 1.02rem; }
+      .radio-btn { height: 46px; font-size: .92rem; }
+      .act-btn { padding: 13px 16px; font-size: .92rem; }
+      .targets-title { font-size: .9rem; }
+      .t-val { font-size: 1.3rem; }
+      .t-lbl { font-size: .8rem; }
+      .save-btn { height: 54px; font-size: 1.05rem; }
 
       /* ── Glassmorphism cards on desktop ── */
       .card, .meal-card, .water-card, .macro-card, .wt-hero,
@@ -693,6 +733,7 @@
 
     <!-- ── TAB: SEARCH ── -->
     <section class="nut-tab" id="tab-search">
+      <button class="search-back" onclick="handleBack()">← Назад в дневник</button>
       <div class="s-chips" id="meal-chips">
         <button class="s-chip active" data-meal="breakfast" onclick="setSearchMeal(this)">☀️ Завтрак</button>
         <button class="s-chip" data-meal="lunch"     onclick="setSearchMeal(this)">🌤 Обед</button>
