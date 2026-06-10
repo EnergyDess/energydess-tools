@@ -460,22 +460,27 @@
     @keyframes dotB { 0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)} }
 
     /* ═══════════════════════════════════════════════════════════
-       DESKTOP LAYOUT  (≥ 900px) — full horizontal
+       DESKTOP LAYOUT  (≥ 900px) — single-viewport horizontal app
        ═══════════════════════════════════════════════════════════ */
     /* Sidebar header — hidden on mobile */
     .sidebar-hd, .sidebar-date { display: none; }
 
     @media (min-width: 900px) {
-      /* ── Full-width horizontal app ── */
+      /* The whole app is locked to one viewport — no page-level scroll */
+      html, body { overflow: hidden; }
+
+      /* ── Full-width horizontal app shell ── */
       .nut-app {
         flex-direction: row; max-width: none;
-        height: calc(100dvh - 60px); border: none !important; box-shadow: none !important;
+        height: calc(100dvh - 60px); overflow: hidden;
+        border: none !important; box-shadow: none !important;
       }
       .nut-hdr { display: none; }
 
-      /* ── Sidebar ── */
+      /* ── Sidebar (placed first, on the left) ── */
       .nut-nav {
-        flex-direction: column; width: 230px; min-width: 230px;
+        order: -1;
+        flex-direction: column; width: 240px; min-width: 240px;
         height: 100%; border-top: none; border-right: 1px solid var(--border);
         padding: 0 10px 10px; gap: 2px; align-items: stretch;
         justify-content: flex-start; background: rgba(7,7,15,.88);
@@ -483,23 +488,31 @@
         overflow: hidden;
       }
       .sidebar-hd {
-        display: flex; align-items: center; gap: 9px;
-        padding: 18px 12px 13px;
-        font-family: var(--font-display); font-size: .88rem; font-weight: 800;
-        border-bottom: 1px solid var(--border); margin: 0 0 6px;
+        display: flex; align-items: center; gap: 10px;
+        padding: 22px 12px 14px;
+        font-family: var(--font-display); font-size: .94rem; font-weight: 800;
+        border-bottom: 1px solid var(--border); margin: 0 0 10px;
         flex-shrink: 0;
         background: linear-gradient(90deg, var(--nut-g), var(--wat));
         -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
       }
-      .sidebar-hd span:first-child { -webkit-text-fill-color: initial; }
+      .sidebar-hd span:first-child { -webkit-text-fill-color: initial; font-size: 1.2rem; }
       .sidebar-date {
-        display: block; font-size: .64rem; color: var(--text-dim);
-        padding: 0 12px 8px; font-family: var(--font-mono); flex-shrink: 0;
+        display: flex; align-items: center; gap: 7px;
+        font-size: .68rem; color: var(--text-dim); text-transform: capitalize;
+        padding: 0 12px 16px; font-family: var(--font-mono); flex-shrink: 0;
+        letter-spacing: .04em;
+      }
+      .sidebar-date::before {
+        content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+        background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo);
       }
       .nut-nav-btn {
+        flex: none;
         flex-direction: row; height: 46px; width: 100%;
         padding: 0 14px; justify-content: flex-start;
-        gap: 12px; font-size: .88rem; border-radius: 11px; flex-shrink: 0;
+        gap: 12px; font-size: .88rem; border-radius: 11px;
+        transition: background .15s, color .15s;
       }
       .nut-nav-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
       .nut-nav-btn:hover:not(.active) { background: rgba(255,255,255,.04); color: var(--text); }
@@ -509,67 +522,74 @@
       }
       .nut-nav-btn[data-tab="search"] {
         background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.18);
-        color: var(--nut-g); margin: 6px 0;
+        color: var(--nut-g); margin: 8px 0 10px;
       }
       .nut-nav-btn[data-tab="search"]:hover { background: rgba(34,197,94,.18); }
       .nav-plus { width: 24px; height: 24px; border-radius: 7px; box-shadow: none; margin: 0; flex-shrink: 0; }
       .nav-plus svg { width: 15px; height: 15px; }
 
-      /* ── Content ── */
-      .nut-content { flex: 1; overflow-y: auto; background: transparent; }
-      .nut-tab { padding: 28px 32px 36px; }
-
-      /* ── Column helpers ── */
-      .d-left, .d-right { display: flex; flex-direction: column; gap: 14px; }
-
-      /* ── DIARY: left panel sticky, right scrolls ── */
-      #tab-diary {
-        display: grid; grid-template-columns: 320px 1fr;
-        gap: 24px; align-items: start;
+      /* ── Content area: pinned to viewport height ── */
+      .nut-content {
+        flex: 1; min-width: 0; min-height: 0;
+        overflow: hidden; background: transparent;
       }
-      #tab-diary .d-left { position: sticky; top: 0; }
-      .ring-svg { width: 200px; height: 200px; }
-      .ring-remain { font-size: 2.5rem; }
+      .nut-tab {
+        height: 100%; min-height: 0; box-sizing: border-box;
+        padding: 30px 36px;
+      }
+
+      /* ── Each column scrolls on its own — the page itself never does ── */
+      .d-left, .d-right {
+        display: flex; flex-direction: column; gap: 14px;
+        height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden;
+        padding-right: 6px;
+      }
+      .d-left::-webkit-scrollbar, .d-right::-webkit-scrollbar, #tab-search.active::-webkit-scrollbar { width: 5px; }
+      .d-left::-webkit-scrollbar-thumb, .d-right::-webkit-scrollbar-thumb, #tab-search.active::-webkit-scrollbar-thumb {
+        background: var(--border-hi); border-radius: 3px;
+      }
+      .d-left::-webkit-scrollbar-track, .d-right::-webkit-scrollbar-track, #tab-search.active::-webkit-scrollbar-track { background: transparent; }
+
+      /* ── DIARY: stats panel + 2×2 meal grid, both fit one screen ── */
+      #tab-diary.active { display: grid; grid-template-columns: 340px 1fr; gap: 28px; overflow: hidden; }
+      .ring-wrap { padding: 4px 0; }
+      .ring-svg { width: 216px; height: 216px; }
+      .ring-remain { font-size: 2.6rem; }
       .macros-row { gap: 10px; }
       .macro-card { padding: 13px 14px; }
       .macro-val { font-size: .83rem; }
+      #meals-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-content: start; }
+      .meal-card { margin-bottom: 0; transition: border-color .15s; }
+      .meal-card:hover { border-color: var(--border-hi); }
       .meal-hdr { padding: 14px 16px; }
       .meal-name { font-size: .95rem; }
+      .meal-items { max-height: 260px; overflow-y: auto; }
       .food-item { padding: 10px 16px; }
       .food-name { font-size: .9rem; }
 
-      /* ── SEARCH: max-width for readability ── */
-      #tab-search { max-width: 800px; }
+      /* ── SEARCH: single column, readable width, centered ── */
+      #tab-search.active { display: block; overflow-y: auto; max-width: 800px; margin: 0 auto; }
       .s-input { height: 48px; font-size: .97rem; }
       .icon-btn { width: 48px; height: 48px; }
       .r-item { padding: 13px 16px; }
       .r-name { font-size: .9rem; }
 
-      /* ── HISTORY: left ring+nav, right chart ── */
-      #tab-history {
-        display: grid; grid-template-columns: 300px 1fr;
-        gap: 24px; align-items: start;
-      }
-      #tab-history .d-left { position: sticky; top: 0; }
+      /* ── HISTORY: left ring+meals, right chart fills column ── */
+      #tab-history.active { display: grid; grid-template-columns: 300px 1fr; gap: 28px; overflow: hidden; }
       .mini-ring-svg { width: 150px; height: 150px; }
       #hist-kcal { font-size: 1.6rem !important; }
-      .week-box { padding: 18px; }
-      .week-bars { height: 100px; }
+      .week-box { padding: 22px; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
+      .week-bars { flex: 1; height: auto; min-height: 0; }
 
-      /* ── WEIGHT: left stats, right chart ── */
-      #tab-weight {
-        display: grid; grid-template-columns: 280px 1fr;
-        gap: 24px; align-items: start;
-      }
+      /* ── WEIGHT: left stats, right chart fills column ── */
+      #tab-weight.active { display: grid; grid-template-columns: 300px 1fr; gap: 28px; overflow: hidden; }
       .wt-big { font-size: 3.8rem; }
-      .chart-box { padding: 22px; }
-      .wt-svg { height: 180px; }
+      .chart-box { padding: 24px; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
+      .chart-box .week-title { flex-shrink: 0; }
+      .wt-svg { flex: 1; width: 100%; height: auto; min-height: 0; }
 
       /* ── PROFILE: two equal columns ── */
-      #tab-profile {
-        display: grid; grid-template-columns: 1fr 1fr;
-        gap: 24px; align-items: start;
-      }
+      #tab-profile.active { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; overflow: hidden; }
       .f-input { height: 46px; font-size: .95rem; }
       .radio-btn { height: 44px; font-size: .84rem; }
       .act-btn { padding: 12px 16px; font-size: .84rem; }
@@ -1531,11 +1551,11 @@ async function loadWeekly() {
   const bars=document.getElementById('week-bars'); if (!bars||!data.days) return;
   const maxC=Math.max(...data.days.map(d=>d.calories),1);
   bars.innerHTML=data.days.map(d=>{
-    const h=Math.round(d.calories/maxC*64);
+    const h=Math.round(d.calories/maxC*100);
     const day=new Date(d.date).toLocaleDateString('ru',{weekday:'short'});
     return `<div class="w-col">
       <div class="w-kcal">${d.calories>0?Math.round(d.calories):''}</div>
-      <div class="w-bar-wrap"><div class="w-bar${d.date===S.today?' today':''}" style="height:${h}px"></div></div>
+      <div class="w-bar-wrap"><div class="w-bar${d.date===S.today?' today':''}" style="height:${h}%"></div></div>
       <div class="w-day">${day}</div>
     </div>`;
   }).join('');
@@ -1568,13 +1588,20 @@ function drawWeightChart(logs) {
   const svg=document.getElementById('wt-svg');
   const wts=logs.filter(l=>l.weight_kg);
   if (wts.length<2) { svg.innerHTML=''; return; }
-  const W=400,H=80,pad=14;
+  const W=svg.clientWidth||400, H=svg.clientHeight||90, pad=14;
   const min=Math.min(...wts.map(l=>l.weight_kg))-0.5, max=Math.max(...wts.map(l=>l.weight_kg))+0.5;
   const xS=(W-pad*2)/(wts.length-1), yS=v=>H-pad-(v-min)/(max-min)*(H-pad*2);
   const pts=wts.map((l,i)=>`${pad+i*xS},${yS(l.weight_kg)}`).join(' ');
+  const areaPts=`${pad},${H-pad} ${pts} ${pad+(wts.length-1)*xS},${H-pad}`;
   svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-  svg.innerHTML=`<polyline points="${pts}" fill="none" stroke="var(--nut-g)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-    ${wts.map((l,i)=>`<circle cx="${pad+i*xS}" cy="${yS(l.weight_kg)}" r="4" fill="var(--nut-g)" stroke="var(--bg2)" stroke-width="2"/>`).join('')}`;
+  svg.setAttribute('preserveAspectRatio','none');
+  svg.innerHTML=`<defs><linearGradient id="wtGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="var(--nut-g)" stop-opacity=".22"/>
+      <stop offset="100%" stop-color="var(--nut-g)" stop-opacity="0"/>
+    </linearGradient></defs>
+    <polygon points="${areaPts}" fill="url(#wtGrad)" stroke="none"/>
+    <polyline points="${pts}" fill="none" stroke="var(--nut-g)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+    ${wts.map((l,i)=>`<circle cx="${pad+i*xS}" cy="${yS(l.weight_kg)}" r="4" fill="var(--nut-g)" stroke="var(--bg2)" stroke-width="2" vector-effect="non-scaling-stroke"/>`).join('')}`;
 }
 
 async function saveMeasure() {
