@@ -250,19 +250,6 @@
     }
     .ai-estimate-btn:active { background: rgba(34,197,94,.22); }
 
-    /* ── Recipe ingredient banner ── */
-    .recipe-ing-banner {
-      display: flex; align-items: center; justify-content: space-between; gap: 10px;
-      background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.25);
-      border-radius: 11px; padding: 10px 13px; margin-bottom: 12px;
-      font-size: 0.82rem; font-weight: 600; color: var(--nut-g);
-    }
-    .recipe-ing-banner button {
-      background: var(--nut-g); color: #fff; border: none; border-radius: 8px;
-      padding: 6px 13px; font-size: 0.78rem; font-weight: 700; cursor: pointer;
-      -webkit-tap-highlight-color: transparent; flex-shrink: 0;
-    }
-
     /* ── History ── */
     .h-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
     .h-arrow {
@@ -352,6 +339,12 @@
       opacity: 0; pointer-events: none; transition: opacity .2s;
     }
     .modal-ov.open { opacity: 1; pointer-events: all; }
+    /* Модалки, которые могут открываться поверх других модалок */
+    #modal-recipe-ing   { z-index: 205; }
+    #modal-portion      { z-index: 210; }
+    #modal-ai-estimate  { z-index: 215; }
+    #modal-photo-analyze{ z-index: 215; }
+    .pa-preview { width: 100%; max-height: 240px; object-fit: cover; border-radius: 12px; margin-bottom: 13px; }
     .modal-sh {
       width: 100%; max-width: 540px; background: var(--bg2);
       border-radius: 20px 20px 0 0;
@@ -466,6 +459,36 @@
     }
     .chat-send:active { opacity: .85; }
     .chat-send svg { width: 18px; height: 18px; }
+    .chat-attach-btn {
+      width: 42px; height: 42px; background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text-dim); cursor: pointer; display: flex;
+      align-items: center; justify-content: center; flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent; transition: color .15s, border-color .15s;
+    }
+    .chat-attach-btn:active { color: var(--nut-g); border-color: var(--nut-g); }
+    .chat-attach-btn svg { width: 18px; height: 18px; }
+    .chat-attach-preview {
+      display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin-top: 10px;
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 11px; flex-shrink: 0;
+    }
+    .chat-attach-preview img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
+    .chat-attach-preview span { flex: 1; font-size: 0.8rem; color: var(--text-dim); }
+    .chat-attach-preview button {
+      width: 26px; height: 26px; border-radius: 50%; background: var(--bg2); border: none;
+      color: var(--text-dim); font-size: 1rem; cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent;
+    }
+    /* ── Голосовой ввод ── */
+    .icon-btn.listening { color: #ef4444; border-color: #ef4444; animation: mic-pulse 1s infinite; }
+    @keyframes mic-pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+    /* ── Кнопки выбора приёма пищи в чате ── */
+    .meal-picker-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 9px; }
+    .meal-picker-btns button {
+      padding: 9px 6px; border-radius: 9px; background: var(--bg2); border: 1px solid var(--border);
+      color: var(--text); font-size: 0.8rem; font-weight: 600; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; transition: background .1s, border-color .1s;
+    }
+    .meal-picker-btns button:active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.25); }
 
     /* ── Recipe modals ── */
     .ing-list { margin-bottom: 10px; }
@@ -790,10 +813,6 @@
     <!-- ── TAB: SEARCH ── -->
     <section class="nut-tab" id="tab-search">
       <button class="search-back" onclick="handleBack()">← Назад в дневник</button>
-      <div class="recipe-ing-banner" id="recipe-ing-banner" style="display:none">
-        <span>🍳 Поиск ингредиента для рецепта</span>
-        <button onclick="cancelAddIngredient()">Готово</button>
-      </div>
       <div class="s-chips" id="meal-chips">
         <button class="s-chip active" data-meal="breakfast" onclick="setSearchMeal(this)">☀️ Завтрак</button>
         <button class="s-chip" data-meal="lunch"     onclick="setSearchMeal(this)">🌤 Обед</button>
@@ -929,7 +948,16 @@
     <!-- ── TAB: ASSISTANT ── -->
     <section class="nut-tab" id="tab-assistant">
       <div class="chat-msgs" id="assistant-chat-msgs"></div>
+      <div class="chat-attach-preview" id="chat-attach-preview" style="display:none">
+        <img id="chat-attach-img" alt="">
+        <span>Фото прикреплено</span>
+        <button onclick="clearChatAttachment()">×</button>
+      </div>
       <div class="chat-input-row">
+        <input type="file" id="chat-photo-in" accept="image/*" style="display:none" onchange="onChatAttach(event)">
+        <button class="chat-attach-btn" onclick="document.getElementById('chat-photo-in').click()" title="Прикрепить фото">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+        </button>
         <input type="text" class="chat-in" id="assistant-chat-in" placeholder="Задайте вопрос о питании..."
                onkeydown="if(event.key==='Enter')sendChat('assistant-chat-in')">
         <button class="chat-send" onclick="sendChat('assistant-chat-in')">
@@ -1087,6 +1115,31 @@
   </div>
 </div>
 
+<!-- ─── MODAL: Photo analyze ─── -->
+<div class="modal-ov" id="modal-photo-analyze" onclick="bgClose(event,'modal-photo-analyze')">
+  <div class="modal-sh">
+    <div class="modal-drag"></div>
+    <div class="modal-hdr">
+      <span class="modal-title">📸 Анализ фото</span>
+      <button class="modal-x" onclick="closeModal('modal-photo-analyze')">×</button>
+    </div>
+    <div class="modal-body">
+      <img class="pa-preview" id="pa-preview" alt="">
+      <div class="f-field">
+        <label class="f-label">Опишите блюдо (необязательно)</label>
+        <div class="s-bar" style="margin-bottom:0">
+          <input type="text" class="s-input" id="pa-desc" placeholder="Например: с майонезом, порция побольше..."
+                 onkeydown="if(event.key==='Enter')runPhotoAnalyze()">
+          <button class="icon-btn" id="pa-mic-btn" onclick="startVoiceInput('pa-desc', this)" title="Голосовой ввод">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="add-btn" id="pa-analyze-btn" onclick="runPhotoAnalyze()" style="margin-top:13px;margin-bottom:16px">Анализировать</button>
+    </div>
+  </div>
+</div>
+
 <!-- ─── MODAL: Create recipe ─── -->
 <div class="modal-ov" id="modal-recipe" onclick="bgClose(event,'modal-recipe')">
   <div class="modal-sh">
@@ -1105,6 +1158,28 @@
         <div class="calc-macros" id="rec-macros">Б: 0г  Ж: 0г  У: 0г  — 0г</div>
       </div>
       <button class="add-btn" onclick="saveRecipe()" style="margin-bottom:16px">Сохранить рецепт</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL: Add recipe ingredient (search) ─── -->
+<div class="modal-ov" id="modal-recipe-ing" onclick="bgClose(event,'modal-recipe-ing')">
+  <div class="modal-sh">
+    <div class="modal-drag"></div>
+    <div class="modal-hdr">
+      <span class="modal-title">Добавить ингредиент</span>
+      <button class="modal-x" onclick="closeIngSearch()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="s-bar">
+        <input type="search" class="s-input" id="ring-input" placeholder="Поиск ингредиента..."
+               oninput="onSearchIng(this.value)" autocomplete="off" enterkeyhint="search">
+      </div>
+      <div class="s-tabs">
+        <button class="s-tab active" id="rt-recent"   onclick="setIngTab('recent')">Недавние</button>
+        <button class="s-tab"        id="rt-frequent" onclick="setIngTab('frequent')">Частые</button>
+      </div>
+      <div id="ring-results"></div>
     </div>
   </div>
 </div>
@@ -1203,6 +1278,9 @@ const S = {
   addingIng: false,
   chatHistory: [],
   apiHistory: [],
+  photoFile: null,
+  chatAttachment: null,
+  pendingFoodLog: null,
 };
 let searchReqId = 0;
 
@@ -1235,15 +1313,10 @@ function switchTab(btn) {
 }
 
 function goTab(tab) {
-  if (tab !== 'search' && S.addingIng) {
-    S.addingIng = false;
-    document.getElementById('recipe-ing-banner').style.display = 'none';
-    document.getElementById('meal-chips').style.display = '';
-  }
   S.activeTab = tab;
   document.querySelectorAll('.nut-tab').forEach(s => s.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
-  const titles = {diary:'Дневник питания', search: S.addingIng ? 'Ингредиент рецепта' : 'Добавить еду', history:'История', weight:'Вес & Замеры', profile:'Профиль', assistant:'AI-нутрициолог'};
+  const titles = {diary:'Дневник питания', search:'Добавить еду', history:'История', weight:'Вес & Замеры', profile:'Профиль', assistant:'AI-нутрициолог'};
   document.getElementById('hdr-title').textContent = titles[tab] || '';
   document.getElementById('nut-content').scrollTop = 0;
   if (tab === 'history') { loadHistory(S.histDate); loadWeekly(); }
@@ -1254,7 +1327,6 @@ function goTab(tab) {
 }
 
 function handleBack() {
-  if (S.addingIng) { cancelAddIngredient(); return; }
   if (S.activeTab === 'diary') { window.location.href = '/'; return; }
   goTab('diary');
   document.querySelectorAll('.nut-nav-btn').forEach(b => b.classList.remove('active'));
@@ -1361,8 +1433,6 @@ function confirmWaterManual() {
 // ── Search ────────────────────────────────────────────────────────────────────
 function openSearchFor(mealId) {
   S.searchMeal = mealId; S.addingIng = false;
-  document.getElementById('recipe-ing-banner').style.display = 'none';
-  document.getElementById('meal-chips').style.display = '';
   document.querySelectorAll('.s-chip').forEach(b=>b.classList.toggle('active',b.dataset.meal===mealId));
   goTab('search');
   document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
@@ -1372,22 +1442,14 @@ function openSearchFor(mealId) {
 
 function openSearchForRecipe() {
   S.addingIng = true;
-  closeModal('modal-recipe');
-  goTab('search');
-  document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelector('[data-tab="search"]').classList.add('active');
-  document.getElementById('recipe-ing-banner').style.display = 'flex';
-  document.getElementById('meal-chips').style.display = 'none';
-  setSearchTab('recent');
-  setTimeout(()=>document.getElementById('s-input').focus(),150);
+  openModal('modal-recipe-ing');
+  setIngTab('recent');
+  setTimeout(()=>document.getElementById('ring-input').focus(),150);
 }
 
-function cancelAddIngredient() {
+function closeIngSearch() {
   S.addingIng = false;
-  document.getElementById('recipe-ing-banner').style.display = 'none';
-  document.getElementById('meal-chips').style.display = '';
-  updateRecipeModal();
-  openModal('modal-recipe');
+  closeModal('modal-recipe-ing');
 }
 
 function setSearchMeal(btn) {
@@ -1462,6 +1524,52 @@ function renderResults(results, query) {
     </div>`).join('')+`</div>`+aiBtn;
 }
 
+// ── Recipe ingredient search (отдельная модалка поверх "Создать рецепт") ──────
+let ingSearchTmr, ingSearchReqId = 0;
+function onSearchIng(q) {
+  clearTimeout(ingSearchTmr);
+  if (!q.trim()) { loadIngTab(S.ingTab||'recent'); return; }
+  ingSearchTmr = setTimeout(()=>runSearchIng(q), 500);
+}
+
+async function runSearchIng(q) {
+  const myId = ++ingSearchReqId;
+  S.lastQuery = q;
+  document.getElementById('ring-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
+  const data = await api(`/nutrition/api/search?q=${encodeURIComponent(q)}`);
+  if (myId !== ingSearchReqId) return; // устаревший запрос — игнорируем
+  renderIngResults(data.results||[], q);
+}
+
+function setIngTab(tab) {
+  S.ingTab = tab;
+  document.querySelectorAll('#modal-recipe-ing .s-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('rt-'+tab).classList.add('active');
+  document.getElementById('ring-input').value = '';
+  ingSearchReqId++;
+  loadIngTab(tab);
+}
+
+async function loadIngTab(tab) {
+  document.getElementById('ring-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
+  const myId = ++ingSearchReqId;
+  const url = tab==='recent' ? '/nutrition/api/recent-foods' : '/nutrition/api/frequent-foods';
+  const data = await api(url);
+  if (myId !== ingSearchReqId) return;
+  renderIngResults(data.results||[]);
+}
+
+function renderIngResults(results, query) {
+  const wrap = document.getElementById('ring-results');
+  const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openAIEstimate()">✨ Не нашли своё блюдо? Спросить ИИ</button>` : '';
+  if (!results.length) { wrap.innerHTML='<div class="empty">Ничего не найдено</div>'+aiBtn; return; }
+  wrap.innerHTML = `<div class="r-list">`+results.map(r=>`
+    <div class="r-item" onclick='openPortion(${JSON.stringify(r)})'>
+      <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${r.source==='ai' ? '✨ оценка ИИ' : esc(r.brand||'')}</div></div>
+      <div><div class="r-kcal">${r.calories} ккал</div><div class="r-per">на 100г</div></div>
+    </div>`).join('')+`</div>`+aiBtn;
+}
+
 function openAIEstimate() {
   document.getElementById('ai-est-input').value = S.lastQuery || document.getElementById('s-input').value || '';
   openModal('modal-ai-estimate');
@@ -1526,8 +1634,8 @@ async function confirmAdd() {
     S.recipeIngs.push({name:f.name,grams:g,calories:f.calories,protein:f.protein,fat:f.fat,carbs:f.carbs});
     closeModal('modal-portion');
     updateRecipeModal();
-    openModal('modal-recipe');
-    S.addingIng=false;
+    setIngTab('recent');
+    toast('Ингредиент добавлен', true);
     return;
   }
   await api('/nutrition/api/log-food',{method:'POST',body:JSON.stringify({
@@ -1633,19 +1741,59 @@ function loadScript(src) {
 // ── Photo recognition ─────────────────────────────────────────────────────────
 function openPhoto() { document.getElementById('photo-in').click(); }
 
-async function handlePhoto(e) {
+function handlePhoto(e) {
   const file=e.target.files[0]; if (!file) return;
-  toast('Распознаю блюдо...', false);
-  const fd=new FormData(); fd.append('file',file);
+  S.photoFile = file;
+  const reader = new FileReader();
+  reader.onload = () => {
+    document.getElementById('pa-preview').src = reader.result;
+    document.getElementById('pa-desc').value = '';
+    openModal('modal-photo-analyze');
+    setTimeout(()=>document.getElementById('pa-desc').focus(),150);
+  };
+  reader.readAsDataURL(file);
+  e.target.value='';
+}
+
+async function runPhotoAnalyze() {
+  if (!S.photoFile) return;
+  const btn = document.getElementById('pa-analyze-btn');
+  btn.disabled = true; btn.textContent = 'Анализирую…';
+  const fd = new FormData();
+  fd.append('file', S.photoFile);
+  const desc = document.getElementById('pa-desc').value.trim();
+  if (desc) fd.append('description', desc);
   try {
-    const data=await fetch('/nutrition/api/ai-photo',{method:'POST',body:fd}).then(r=>r.json());
+    const data = await fetch('/nutrition/api/ai-photo',{method:'POST',body:fd}).then(r=>r.json());
     if (data.ok) {
+      closeModal('modal-photo-analyze');
+      S.photoFile = null;
       openPortion({name:data.food.name,brand:'AI',calories:data.food.calories,
         protein:data.food.protein||0,fat:data.food.fat||0,carbs:data.food.carbs||0});
       if (data.food.estimated_grams) { document.getElementById('g-input').value=data.food.estimated_grams; updateCalc(); }
     } else { toast(data.error||'Ошибка распознавания', false); }
-  } catch(e){ toast('Ошибка', false); }
-  e.target.value='';
+  } catch(err) { toast('Ошибка', false); }
+  btn.disabled = false; btn.textContent = 'Анализировать';
+}
+
+// ── Голосовой ввод (Web Speech API) ───────────────────────────────────────────
+function startVoiceInput(inputId, btn) {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) { toast('Голосовой ввод не поддерживается этим браузером', false); return; }
+  const rec = new SpeechRec();
+  rec.lang = 'ru-RU';
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  rec.onresult = (e) => {
+    const text = e.results[0][0].transcript;
+    const inp = document.getElementById(inputId);
+    inp.value = (inp.value ? inp.value.trim()+' ' : '') + text;
+    inp.focus();
+  };
+  rec.onerror = () => toast('Не удалось распознать речь', false);
+  rec.onend = () => btn.classList.remove('listening');
+  btn.classList.add('listening');
+  rec.start();
 }
 
 // ── Custom food ───────────────────────────────────────────────────────────────
@@ -1753,24 +1901,87 @@ async function loadChatHistory() {
 
 async function sendChat(inputId='chat-in') {
   const inp = document.getElementById(inputId);
-  const q = inp.value.trim(); if (!q) return;
+  const q = inp.value.trim();
+  const attachment = S.chatAttachment;
+  if (!q && !attachment) return;
   inp.value = '';
-  S.chatHistory.push({role:'user', content: q});
+  S.chatHistory.push({role:'user', content: q || '📷 Фото блюда'});
   S.chatHistory.push({role:'assistant', content:'...'});
   renderChat();
-  const data = await api('/nutrition/api/ai-chat', {
-    method:'POST',
-    body: JSON.stringify({message: q, date: S.today})
-  });
+  let data;
+  if (attachment) {
+    clearChatAttachment();
+    const fd = new FormData();
+    fd.append('file', attachment);
+    fd.append('message', q);
+    fd.append('date', S.today);
+    data = await fetch('/nutrition/api/ai-chat-photo',{method:'POST',body:fd}).then(r=>r.json());
+  } else {
+    data = await api('/nutrition/api/ai-chat', {
+      method:'POST',
+      body: JSON.stringify({message: q, date: S.today})
+    });
+  }
   const aiReply = data.reply || data.error || 'Ошибка';
   S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content: aiReply};
+  if (data.food) {
+    S.pendingFoodLog = data.food;
+    S.chatHistory.push({role:'assistant', content:'__meal_picker__'});
+  }
   renderChat();
+}
+
+// ── Прикрепление фото к чату ──────────────────────────────────────────────────
+function onChatAttach(e) {
+  const file = e.target.files[0]; if (!file) return;
+  S.chatAttachment = file;
+  const reader = new FileReader();
+  reader.onload = () => {
+    document.getElementById('chat-attach-img').src = reader.result;
+    document.getElementById('chat-attach-preview').style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function clearChatAttachment() {
+  S.chatAttachment = null;
+  document.getElementById('chat-attach-img').src = '';
+  document.getElementById('chat-attach-preview').style.display = 'none';
+}
+
+const MEAL_NAMES = {breakfast:'завтрак', lunch:'обед', dinner:'ужин', snack:'перекус'};
+
+async function logPendingFood(mealType) {
+  const f = S.pendingFoodLog; if (!f) return;
+  const grams = f.estimated_grams || 100;
+  await api('/nutrition/api/log-food',{method:'POST',body:JSON.stringify({
+    name:f.name, brand:'AI', grams,
+    calories:f.calories||0, protein:f.protein||0, fat:f.fat||0, carbs:f.carbs||0,
+    meal_type: mealType, date: S.today,
+  })});
+  S.pendingFoodLog = null;
+  S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content: `Добавлено в ${MEAL_NAMES[mealType]}! ✅`};
+  renderChat();
+  loadDiary(S.today);
+  toast('Добавлено в дневник!', true);
 }
 
 function renderChat() {
   const html = !S.chatHistory.length
     ? '<div style="text-align:center;padding:24px 0"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>'
     : S.chatHistory.map(m=>{
+        if (m.content === '__meal_picker__') {
+          return `<div class="chat-msg ai"><div class="chat-bubble ai">
+            Выберите приём пищи:
+            <div class="meal-picker-btns">
+              <button onclick="logPendingFood('breakfast')">☀️ Завтрак</button>
+              <button onclick="logPendingFood('lunch')">🌤 Обед</button>
+              <button onclick="logPendingFood('dinner')">🌙 Ужин</button>
+              <button onclick="logPendingFood('snack')">🍎 Перекус</button>
+            </div>
+          </div></div>`;
+        }
         const cls = m.role==='user' ? 'user' : 'ai';
         return `<div class="chat-msg ${cls}">
       <div class="chat-bubble ${cls}">${m.content==='...'?

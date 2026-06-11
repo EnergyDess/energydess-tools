@@ -1,3 +1,5 @@
+import json as _json
+import re
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, Depends, Form, UploadFile, File
 from fastapi.templating import Jinja2Templates
@@ -808,6 +810,52 @@ async def _off_search(query: str) -> list:
     return results
 
 
+def _image_mime(file: UploadFile) -> str:
+    """Content-Type из заголовка формы надёжнее имени файла (на телефонах оно часто без расширения)."""
+    if file.content_type and file.content_type.startswith("image/"):
+        return file.content_type
+    ext = (file.filename or "").rsplit(".", 1)[-1].lower() if "." in (file.filename or "") else ""
+    return {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+            "webp": "image/webp", "gif": "image/gif", "heic": "image/heic",
+            "heif": "image/heif"}.get(ext, "image/jpeg")
+
+
+async def _call_vision(b64: str, mime: str, prompt: str, max_tokens: int = 400) -> str:
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                     "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
+            json={"model": LETTER_MODEL,
+                  "messages": [{"role": "user", "content": [
+                      {"type": "image_url",
+                       "image_url": {"url": f"data:{mime};base64,{b64}"}},
+                      {"type": "text", "text": prompt}
+                  ]}],
+                  "temperature": 0.2, "max_tokens": max_tokens},
+            timeout=45.0,
+        )
+    if resp.status_code != 200:
+        raise RuntimeError(f"Ошибка ИИ ({resp.status_code}): {resp.text[:200]}")
+    return resp.json()["choices"][0]["message"]["content"].strip()
+
+
+def _extract_json(text: str) -> dict:
+    """Достаёт JSON-объект из ответа модели, даже если он обёрнут в ```...``` или содержит лишний текст."""
+    text = text.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z]*\n?", "", text)
+        text = re.sub(r"\n?```$", "", text)
+        text = text.strip()
+    try:
+        return _json.loads(text)
+    except _json.JSONDecodeError:
+        m = re.search(r"\{.*\}", text, re.DOTALL)
+        if not m:
+            raise
+        return _json.loads(m.group(0))
+
+
 async def _ai_food_estimate(query: str) -> list:
     if not OPENROUTER_API_KEY:
         return []
@@ -823,9 +871,8 @@ async def _ai_food_estimate(query: str) -> list:
                 json={"model": MODEL, "messages": [{"role": "user", "content": prompt}],
                       "temperature": 0.2, "max_tokens": 150},
             )
-        import json as _json
         text = resp.json()["choices"][0]["message"]["content"].strip()
-        d = _json.loads(text)
+        d = _extract_json(text)
         return [{
             "name": str(d.get("name", query)).strip(),
             "brand": "", "source": "ai",
@@ -1379,37 +1426,66 @@ async def nut_ai_chat(request: Request, user=Depends(get_current_user), db: Sess
 # ── Nutrition: AI photo ───────────────────────────────────────────────────────
 
 @app.post("/nutrition/api/ai-photo")
-async def nut_ai_photo(file: UploadFile = File(...), user=Depends(get_current_user),
-                       db: Session = Depends(get_db)):
+async def nut_ai_photo(file: UploadFile = File(...), description: str = Form(""),
+                       user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user or not user_has_access(user, "nutrition", db):
         return JSONResponse({"error": "Нет доступа"}, status_code=403)
     content = await file.read()
+    if not content:
+        return JSONResponse({"error": "Пустой файл"}, status_code=400)
     b64 = base64.b64encode(content).decode()
-    ext = (file.filename or "photo.jpg").rsplit(".", 1)[-1].lower()
-    mime = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
+    mime = _image_mime(file)
 
-    prompt = """На фото еда. Определи что изображено и оцени калорийность на 100г.
+    extra = f"\nДополнительное описание от пользователя: {description.strip()}" if description.strip() else ""
+    prompt = f"""На фото еда. Определи что изображено и оцени калорийность на 100г.{extra}
 Ответь ТОЛЬКО JSON без ```json и без пояснений:
-{"name":"название блюда","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":300,"note":"краткое пояснение"}"""
+{{"name":"название блюда","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":300,"note":"краткое пояснение"}}"""
 
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                         "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
-                json={"model": LETTER_MODEL,
-                      "messages": [{"role": "user", "content": [
-                          {"type": "image_url",
-                           "image_url": {"url": f"data:{mime};base64,{b64}"}},
-                          {"type": "text", "text": prompt}
-                      ]}],
-                      "temperature": 0.2, "max_tokens": 200},
-                timeout=30.0,
-            )
-        import json as _json
-        text = resp.json()["choices"][0]["message"]["content"].strip()
-        result = _json.loads(text)
+        text = await _call_vision(b64, mime, prompt)
+        result = _extract_json(text)
         return JSONResponse({"ok": True, "food": result})
     except Exception as e:
         return JSONResponse({"error": f"Не удалось распознать: {e}"}, status_code=500)
+
+
+@app.post("/nutrition/api/ai-chat-photo")
+async def nut_ai_chat_photo(file: UploadFile = File(...), message: str = Form(""), date: str = Form(...),
+                            user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user or not user_has_access(user, "nutrition", db):
+        return JSONResponse({"error": "Нет доступа"}, status_code=403)
+    content = await file.read()
+    if not content:
+        return JSONResponse({"error": "Пустой файл"}, status_code=400)
+    b64 = base64.b64encode(content).decode()
+    mime = _image_mime(file)
+    user_text = message.strip()
+
+    comment = f"\nКомментарий пользователя: {user_text}" if user_text else ""
+    prompt = f"""На фото еда, которую съел пользователь.{comment}
+Определи блюдо, оцени калорийность на 100г и примерный вес порции на фото.
+Ответь ТОЛЬКО JSON без ```json и без пояснений:
+{{"name":"название блюда","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":300}}"""
+
+    db.add(ChatMessage(user_id=user.id, role="user", content=user_text or "[фото блюда]"))
+
+    try:
+        text = await _call_vision(b64, mime, prompt)
+        food = _extract_json(text)
+    except Exception as e:
+        reply = f"Не удалось распознать фото: {e}"
+        db.add(ChatMessage(user_id=user.id, role="assistant", content=reply))
+        db.commit()
+        return JSONResponse({"reply": reply})
+
+    grams = food.get("estimated_grams", 100)
+    total_cal = round(food.get("calories", 0) * grams / 100)
+    total_prot = round(food.get("protein", 0) * grams / 100)
+    total_fat = round(food.get("fat", 0) * grams / 100)
+    total_carb = round(food.get("carbs", 0) * grams / 100)
+    reply = (f"Похоже на «{food.get('name', 'блюдо')}»: примерно {total_cal} ккал на ~{grams:.0f}г "
+             f"(Б:{total_prot}г Ж:{total_fat}г У:{total_carb}г). Это какой приём пищи?")
+
+    db.add(ChatMessage(user_id=user.id, role="assistant", content=reply))
+    db.commit()
+    return JSONResponse({"reply": reply, "food": food})
