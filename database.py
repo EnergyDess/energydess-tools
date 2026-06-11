@@ -134,6 +134,15 @@ class WaterLog(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    role = Column(String, nullable=False)  # user/assistant
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class WeightLog(Base):
     __tablename__ = "weight_logs"
     id = Column(Integer, primary_key=True)

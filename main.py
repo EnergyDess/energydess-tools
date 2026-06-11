@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from database import (get_db, init_db, migrate_db, User, Resume, ToolAccess, EnshroudedSlot,
                       NutritionProfile, FoodLog, CustomFood, CustomRecipe, RecipeIngredient,
-                      WaterLog, WeightLog)
+                      WaterLog, WeightLog, ChatMessage)
 from auth import hash_password, verify_password, create_token, get_current_user, generate_token
 
 load_dotenv()
@@ -1302,13 +1302,27 @@ async def nut_weekly(user=Depends(get_current_user), db: Session = Depends(get_d
 
 # ── Nutrition: AI chat ───────────────────────────────────────────────────────
 
+@app.get("/nutrition/api/chat-history")
+async def nut_chat_history(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    msgs = db.query(ChatMessage).filter(ChatMessage.user_id == user.id).order_by(
+        ChatMessage.created_at).limit(100).all()
+    return JSONResponse({"messages": [{"role": m.role, "content": m.content} for m in msgs]})
+
+
 @app.post("/nutrition/api/ai-chat")
 async def nut_ai_chat(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user or not user_has_access(user, "nutrition", db):
         return JSONResponse({"error": "Нет доступа"}, status_code=403)
     data = await request.json()
-    messages = data.get("messages", [])
+    msg = (data.get("message") or "").strip()
     date = data.get("date", datetime.now().strftime("%Y-%m-%d"))
+    if not msg:
+        return JSONResponse({"error": "Пустое сообщение"}, status_code=400)
+
+    history = db.query(ChatMessage).filter(ChatMessage.user_id == user.id).order_by(
+        ChatMessage.created_at).limit(40).all()
 
     logs = db.query(FoodLog).filter(FoodLog.user_id == user.id, FoodLog.log_date == date).all()
     water = sum(w.amount_ml for w in db.query(WaterLog).filter(
@@ -1333,25 +1347,33 @@ async def nut_ai_chat(request: Request, user=Depends(get_current_user), db: Sess
 - Приёмы пищи:
 {food_list}"""
 
-    api_messages = [{"role": "system", "content": system}] + messages
+    api_messages = ([{"role": "system", "content": system}]
+                     + [{"role": h.role, "content": h.content} for h in history]
+                     + [{"role": "user", "content": msg}])
+
+    db.add(ChatMessage(user_id=user.id, role="user", content=msg))
+    db.commit()
 
     if not OPENROUTER_API_KEY:
-        return JSONResponse({"reply": "API ключ не настроен."})
+        reply = "API ключ не настроен."
+    else:
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                             "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
+                    json={"model": LETTER_MODEL, "messages": api_messages,
+                          "temperature": 0.4, "max_tokens": 350},
+                    timeout=30.0,
+                )
+            reply = resp.json()["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
 
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                         "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
-                json={"model": LETTER_MODEL, "messages": api_messages,
-                      "temperature": 0.4, "max_tokens": 350},
-                timeout=30.0,
-            )
-        reply = resp.json()["choices"][0]["message"]["content"].strip()
-        return JSONResponse({"reply": reply})
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+    db.add(ChatMessage(user_id=user.id, role="assistant", content=reply))
+    db.commit()
+    return JSONResponse({"reply": reply})
 
 
 # ── Nutrition: AI photo ───────────────────────────────────────────────────────

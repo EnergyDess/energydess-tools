@@ -77,6 +77,9 @@
     /* ── Tabs ── */
     .nut-tab { display: none; padding: 14px 14px 24px; min-height: 100%; animation: fadeIn .2s ease; }
     .nut-tab.active { display: block; }
+    /* Вкладка ассистента — фикс. высота, прокручивается только лента сообщений */
+    #tab-assistant.active { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+    #tab-assistant .chat-input-row { padding-bottom: 12px; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 
     /* ── Bottom nav ── */
@@ -399,10 +402,15 @@
       -webkit-tap-highlight-color: transparent;
     }
     .add-btn:active { opacity: .85; }
+    .por-save-btn {
+      background: var(--nut-g-dim); color: var(--nut-g); border: 1px solid rgba(34,197,94,.25);
+      margin-bottom: 10px;
+    }
+    .por-save-btn:disabled { opacity: .6; }
 
     /* ── Scanner ── */
     #qr-reader { width: 100%; aspect-ratio: 1; background: #000; border-radius: 11px; overflow: hidden; position: relative; margin-bottom: 12px; }
-    .scan-overlay { position: absolute; inset: 20%; border: 2px solid var(--nut-g); border-radius: 7px; pointer-events: none; }
+    .scan-overlay { position: absolute; inset: 38% 8%; border: 2px solid var(--nut-g); border-radius: 7px; pointer-events: none; }
     .scan-manual { width: 100%; height: 44px; background: var(--bg3); border: 1px solid var(--border); border-radius: 11px; padding: 0 13px; color: var(--text); font-size: 0.92rem; outline: none; font-family: var(--font); }
     .scan-manual:focus { border-color: var(--nut-g); }
 
@@ -610,6 +618,10 @@
 
       /* ── SEARCH: single column, readable width, centered ── */
       #tab-search.active { display: block; overflow-y: auto; max-width: 800px; margin: 0 auto; }
+
+      /* ── ASSISTANT: centered chat column, fills the screen ── */
+      #tab-assistant.active { display: flex; max-width: 760px; margin: 0 auto; width: 100%; }
+      #tab-assistant .chat-bubble { font-size: 0.92rem; }
       .search-back {
         display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px;
         padding: 10px 18px; border-radius: 10px; background: var(--bg2);
@@ -900,6 +912,18 @@
       </div>
     </section>
 
+    <!-- ── TAB: ASSISTANT ── -->
+    <section class="nut-tab" id="tab-assistant">
+      <div class="chat-msgs" id="assistant-chat-msgs"></div>
+      <div class="chat-input-row">
+        <input type="text" class="chat-in" id="assistant-chat-in" placeholder="Задайте вопрос о питании..."
+               onkeydown="if(event.key==='Enter')sendChat('assistant-chat-in')">
+        <button class="chat-send" onclick="sendChat('assistant-chat-in')">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        </button>
+      </div>
+    </section>
+
   </div><!-- /nut-content -->
 
   <!-- Bottom nav / Desktop sidebar -->
@@ -925,6 +949,10 @@
     <button class="nut-nav-btn" data-tab="profile" onclick="switchTab(this)">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       Профиль
+    </button>
+    <button class="nut-nav-btn" data-tab="assistant" onclick="switchTab(this)">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+      Ассистент
     </button>
   </nav>
 </div><!-- /nut-app -->
@@ -955,6 +983,7 @@
         <div class="calc-kcal"   id="c-kcal">0 ккал</div>
         <div class="calc-macros" id="c-macros">Б: 0г  Ж: 0г  У: 0г</div>
       </div>
+      <button class="add-btn por-save-btn" id="por-save-btn" onclick="saveAIFoodToCustom()" style="display:none">💾 Сохранить в свою базу продуктов</button>
       <button class="add-btn" id="por-add-btn" onclick="confirmAdd()">Добавить в дневник</button>
     </div>
   </div>
@@ -1193,13 +1222,14 @@ function goTab(tab) {
   S.activeTab = tab;
   document.querySelectorAll('.nut-tab').forEach(s => s.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
-  const titles = {diary:'Дневник питания', search:'Добавить еду', history:'История', weight:'Вес & Замеры', profile:'Профиль'};
+  const titles = {diary:'Дневник питания', search:'Добавить еду', history:'История', weight:'Вес & Замеры', profile:'Профиль', assistant:'AI-нутрициолог'};
   document.getElementById('hdr-title').textContent = titles[tab] || '';
   document.getElementById('nut-content').scrollTop = 0;
   if (tab === 'history') { loadHistory(S.histDate); loadWeekly(); }
   if (tab === 'weight')  loadWeightData();
   if (tab === 'profile') loadProfileForm();
   if (tab === 'search' && !document.getElementById('s-input').value) loadSearchTab(S.searchTab);
+  if (tab === 'assistant') loadChatHistory();
 }
 
 function handleBack() {
@@ -1438,8 +1468,26 @@ function openPortion(food) {
   document.getElementById('por-name').textContent = food.name+(food.brand?' · '+food.brand:'');
   document.getElementById('por-sub').textContent = `На 100г: ${food.calories} ккал | Б:${food.protein}г Ж:${food.fat}г У:${food.carbs}г`;
   document.getElementById('g-input').value = 100;
+  const saveBtn = document.getElementById('por-save-btn');
+  saveBtn.style.display = food.source === 'ai' ? '' : 'none';
+  saveBtn.disabled = false;
+  saveBtn.textContent = '💾 Сохранить в свою базу продуктов';
   updateCalc();
   openModal('modal-portion');
+}
+
+async function saveAIFoodToCustom() {
+  const f = S.portionFood;
+  const btn = document.getElementById('por-save-btn');
+  btn.disabled = true; btn.textContent = 'Сохраняю…';
+  const saved = await api('/nutrition/api/custom-food', {method:'POST', body: JSON.stringify({
+    name: f.name, brand: f.brand || '', barcode: f.barcode || '',
+    calories: f.calories, protein: f.protein, fat: f.fat, carbs: f.carbs,
+  })});
+  if (!saved.ok) { btn.disabled = false; btn.textContent = '💾 Сохранить в свою базу продуктов'; toast('Не удалось сохранить', false); return; }
+  S.portionFood.source = 'custom';
+  btn.style.display = 'none';
+  toast('Сохранено! Будет находиться при поиске', true);
 }
 
 function setG(g) { document.getElementById('g-input').value=g; updateCalc(); }
@@ -1482,13 +1530,29 @@ async function openScanner() {
     try { await loadScript('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'); } catch(e){ return; }
   }
   try {
-    const sc = new Html5Qrcode('qr-reader');
+    // Ограничиваем форматы только штрих-кодами товаров — без этого
+    // библиотека иногда путает полосы EAN-13 с QR-кодом и выдаёт случайный код
+    const sc = new Html5Qrcode('qr-reader', {
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.ITF, Html5QrcodeSupportedFormats.QR_CODE,
+      ],
+      verbose: false,
+    });
     S.scannerInst = sc;
-    await sc.start({facingMode:'environment'},{fps:10,qrbox:{width:200,height:200}},
+    // Прямоугольная рамка под штрих-код (шире, чем выше)
+    await sc.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:130}},
       async code => { await sc.stop(); S.scannerInst=null; closeModal('modal-scanner'); await handleBarcode(code); },
       ()=>{}
     );
-  } catch(e) { console.log('Scanner',e); }
+  } catch(e) {
+    // Если start() не удался (нет камеры, отказан доступ) — сканер не запущен,
+    // сбрасываем ссылку, иначе closeScanner() вызовет .stop() на нерабочем экземпляре
+    S.scannerInst = null;
+    console.log('Scanner',e);
+  }
 }
 
 function closeScanner() {
@@ -1504,13 +1568,14 @@ async function lookupBarcode() {
 }
 
 async function handleBarcode(code) {
-  toast('Ищу продукт...', false);
+  // Показываем распознанный код — так сразу видно, если сканер прочитал его неверно
+  toast(`Код ${code} — ищу...`, false);
   const data = await api(`/nutrition/api/barcode/${code}`);
   if (data.found) { openPortion(data); }
   else {
     document.getElementById('cf-barcode').value=code;
     openModal('modal-custom');
-    toast('Не найдено — введите вручную', false);
+    toast(`Код ${code} не найден — введите вручную`, false);
   }
 }
 
@@ -1625,48 +1690,55 @@ async function delRecipe(id) {
 }
 
 // ── AI Chat ───────────────────────────────────────────────────────────────────
+// История чата хранится на сервере — открыть можно как через плавающую кнопку,
+// так и через вкладку «Ассистент», везде показывается один и тот же диалог
 async function openAIChat() {
-  S.chatHistory = [{role:'assistant', content: 'Привет! Спрашивай что угодно про твоё питание — отвечу с учётом дневника за сегодня.'}];
-  S.apiHistory  = [];
   openModal('modal-ai');
+  await loadChatHistory();
+}
+
+async function loadChatHistory() {
+  const data = await api('/nutrition/api/chat-history');
+  S.chatHistory = (data.messages && data.messages.length) ? data.messages
+    : [{role:'assistant', content: 'Привет! Спрашивай что угодно про твоё питание — отвечу с учётом дневника за сегодня.'}];
   renderChat();
 }
 
-async function sendChat() {
-  const inp = document.getElementById('chat-in');
+async function sendChat(inputId='chat-in') {
+  const inp = document.getElementById(inputId);
   const q = inp.value.trim(); if (!q) return;
   inp.value = '';
-  // Display user message
   S.chatHistory.push({role:'user', content: q});
-  S.apiHistory.push({role:'user', content: q});
-  // Show thinking placeholder
   S.chatHistory.push({role:'assistant', content:'...'});
   renderChat();
-  // Call API with proper conversation history (always starts with user message)
   const data = await api('/nutrition/api/ai-chat', {
     method:'POST',
-    body: JSON.stringify({messages: S.apiHistory.slice(), date: S.today})
+    body: JSON.stringify({message: q, date: S.today})
   });
   const aiReply = data.reply || data.error || 'Ошибка';
   S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content: aiReply};
-  S.apiHistory.push({role:'assistant', content: aiReply});
   renderChat();
 }
 
 function renderChat() {
-  const wrap=document.getElementById('chat-msgs');
-  if (!S.chatHistory.length) {
-    wrap.innerHTML='<div style="text-align:center;padding:24px 0"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>';
-    return;
-  }
-  wrap.innerHTML=S.chatHistory.map(m=>`
-    <div class="chat-msg ${m.role}">
-      <div class="chat-bubble ${m.role}">${m.content==='...'?
+  const html = !S.chatHistory.length
+    ? '<div style="text-align:center;padding:24px 0"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>'
+    : S.chatHistory.map(m=>{
+        const cls = m.role==='user' ? 'user' : 'ai';
+        return `<div class="chat-msg ${cls}">
+      <div class="chat-bubble ${cls}">${m.content==='...'?
         `<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`:
         esc(m.content).replace(/\n/g,'<br>')}
       </div>
-    </div>`).join('');
-  wrap.scrollTop=wrap.scrollHeight;
+    </div>`;
+      }).join('');
+  // Один и тот же чат может быть открыт и в модалке, и во вкладке — обновляем оба
+  ['chat-msgs','assistant-chat-msgs'].forEach(id=>{
+    const wrap=document.getElementById(id);
+    if (!wrap) return;
+    wrap.innerHTML = html;
+    wrap.scrollTop = wrap.scrollHeight;
+  });
 }
 
 // ── History ───────────────────────────────────────────────────────────────────
