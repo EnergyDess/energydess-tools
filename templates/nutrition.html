@@ -189,7 +189,7 @@
       border: 1px solid rgba(34,197,94,.22); color: var(--nut-g);
       font-size: 0.88rem; font-weight: 600; cursor: pointer;
       display: flex; align-items: center; justify-content: center; gap: 8px;
-      transition: background .15s; margin-top: 4px; -webkit-tap-highlight-color: transparent;
+      transition: background .15s; margin: 4px 0 10px; -webkit-tap-highlight-color: transparent;
     }
     .ai-btn:active { background: rgba(34,197,94,.22); }
 
@@ -409,8 +409,20 @@
     .por-save-btn:disabled { opacity: .6; }
 
     /* ── Scanner ── */
-    #qr-reader { width: 100%; aspect-ratio: 1; background: #000; border-radius: 11px; overflow: hidden; position: relative; margin-bottom: 12px; }
+    /* Html5Qrcode очищает содержимое #qr-reader при инициализации,
+       поэтому рамку и кнопку фонарика выносим в отдельную обёртку */
+    .scan-wrap { width: 100%; aspect-ratio: 1; background: #000; border-radius: 11px; overflow: hidden; position: relative; margin-bottom: 12px; }
+    #qr-reader { width: 100%; height: 100%; }
     .scan-overlay { position: absolute; inset: 38% 8%; border: 2px solid var(--nut-g); border-radius: 7px; pointer-events: none; }
+    .scan-torch-btn {
+      position: absolute; top: 10px; right: 10px; z-index: 5;
+      width: 38px; height: 38px; border-radius: 50%;
+      background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.25);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    .scan-torch-btn.on { background: var(--nut-g); color: #06150c; border-color: var(--nut-g); }
     .scan-manual { width: 100%; height: 44px; background: var(--bg3); border: 1px solid var(--border); border-radius: 11px; padding: 0 13px; color: var(--text); font-size: 0.92rem; outline: none; font-family: var(--font); }
     .scan-manual:focus { border-color: var(--nut-g); }
 
@@ -707,7 +719,9 @@
 
   <!-- App header -->
   <header class="nut-hdr">
-    <button class="nut-hdr-back" onclick="handleBack()">←</button>
+    <button class="nut-hdr-back" onclick="handleBack()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    </button>
     <span class="nut-hdr-title" id="hdr-title">Дневник питания</span>
     <span class="nut-hdr-date" id="hdr-date"></span>
   </header>
@@ -998,7 +1012,13 @@
       <button class="modal-x" onclick="closeScanner()">×</button>
     </div>
     <div class="modal-body">
-      <div id="qr-reader"><div class="scan-overlay"></div></div>
+      <div class="scan-wrap">
+        <div id="qr-reader"></div>
+        <div class="scan-overlay"></div>
+        <button class="scan-torch-btn" id="scan-torch-btn" onclick="toggleTorch()" style="display:none" title="Фонарик">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M15 16v-3.34a4 4 0 10-6 0V16a2 2 0 002 2h2a2 2 0 002-2zM12 2v2M4.93 4.93l1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        </button>
+      </div>
       <div style="font-size:.8rem;color:var(--text-dim);text-align:center;margin-bottom:9px">или введите штрих-код вручную</div>
       <input class="scan-manual" id="barcode-input" type="text" placeholder="4600000000000" inputmode="numeric"
              onkeydown="if(event.key==='Enter')lookupBarcode()">
@@ -1179,6 +1199,7 @@ const S = {
   selRecipe: null, recFrac: 0.5,
   histDate: new Date().toISOString().slice(0,10),
   scannerInst: null,
+  torchOn: false,
   addingIng: false,
   chatHistory: [],
   apiHistory: [],
@@ -1222,7 +1243,7 @@ function goTab(tab) {
   S.activeTab = tab;
   document.querySelectorAll('.nut-tab').forEach(s => s.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
-  const titles = {diary:'Дневник питания', search:'Добавить еду', history:'История', weight:'Вес & Замеры', profile:'Профиль', assistant:'AI-нутрициолог'};
+  const titles = {diary:'Дневник питания', search: S.addingIng ? 'Ингредиент рецепта' : 'Добавить еду', history:'История', weight:'Вес & Замеры', profile:'Профиль', assistant:'AI-нутрициолог'};
   document.getElementById('hdr-title').textContent = titles[tab] || '';
   document.getElementById('nut-content').scrollTop = 0;
   if (tab === 'history') { loadHistory(S.histDate); loadWeekly(); }
@@ -1547,6 +1568,7 @@ async function openScanner() {
       async code => { await sc.stop(); S.scannerInst=null; closeModal('modal-scanner'); await handleBarcode(code); },
       ()=>{}
     );
+    setupTorchButton();
   } catch(e) {
     // Если start() не удался (нет камеры, отказан доступ) — сканер не запущен,
     // сбрасываем ссылку, иначе closeScanner() вызовет .stop() на нерабочем экземпляре
@@ -1555,8 +1577,33 @@ async function openScanner() {
   }
 }
 
+// Показываем кнопку фонарика, только если камера поддерживает torch
+function setupTorchButton() {
+  const btn = document.getElementById('scan-torch-btn');
+  btn.style.display = 'none';
+  btn.classList.remove('on');
+  S.torchOn = false;
+  try {
+    const torch = S.scannerInst.getRunningTrackCameraCapabilities().torchFeature();
+    if (torch.isSupported()) btn.style.display = 'flex';
+  } catch(e) {}
+}
+
+async function toggleTorch() {
+  if (!S.scannerInst) return;
+  try {
+    const torch = S.scannerInst.getRunningTrackCameraCapabilities().torchFeature();
+    S.torchOn = !S.torchOn;
+    await torch.apply(S.torchOn);
+    document.getElementById('scan-torch-btn').classList.toggle('on', S.torchOn);
+  } catch(e) { console.log('Torch',e); }
+}
+
 function closeScanner() {
   if (S.scannerInst) { S.scannerInst.stop().catch(()=>{}); S.scannerInst=null; }
+  document.getElementById('scan-torch-btn').style.display = 'none';
+  document.getElementById('scan-torch-btn').classList.remove('on');
+  S.torchOn = false;
   closeModal('modal-scanner');
 }
 
