@@ -1,3 +1,4 @@
+import asyncio
 import json as _json
 import re
 from datetime import datetime, timedelta
@@ -1548,17 +1549,24 @@ async def nut_transcribe(file: UploadFile = File(...),
     if not content:
         return JSONResponse({"error": "Пустая запись"}, status_code=400)
 
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                "https://api.groq.com/openai/v1/audio/transcriptions",
-                headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
-                files={"file": (file.filename or "voice.webm", content, file.content_type or "audio/webm")},
-                data={"model": "whisper-large-v3-turbo", "language": "ru"},
-            )
-        resp.raise_for_status()
-        text = resp.json().get("text", "").strip()
-    except Exception as e:
-        return JSONResponse({"error": f"Не удалось распознать речь: {e}"}, status_code=500)
+    # Несколько попыток — у VPS периодически рвётся связь с внешними хостами на 1-2 запроса
+    last_error = None
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    "https://api.groq.com/openai/v1/audio/transcriptions",
+                    headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+                    files={"file": (file.filename or "voice.webm", content, file.content_type or "audio/webm")},
+                    data={"model": "whisper-large-v3-turbo", "language": "ru"},
+                )
+            resp.raise_for_status()
+            text = resp.json().get("text", "").strip()
+            return JSONResponse({"text": text})
+        except Exception as e:
+            last_error = e
+            print(f"[transcribe] попытка {attempt+1} не удалась: {e}")
+            if attempt < 2:
+                await asyncio.sleep(2)
 
-    return JSONResponse({"text": text})
+    return JSONResponse({"error": f"Не удалось распознать речь: {last_error}"}, status_code=500)

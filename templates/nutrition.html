@@ -498,40 +498,48 @@
       padding: 0 6px; background: var(--bg2); border-radius: 11px; z-index: 2;
       animation: voice-fade-in .15s ease;
     }
-    .voice-rec-cancel-zone {
-      display: flex; align-items: center; gap: 5px; color: var(--text-dim);
-      font-size: 0.78rem; flex-shrink: 0; white-space: nowrap; transition: color .15s;
-    }
-    .voice-rec-cancel-zone svg { width: 15px; height: 15px; flex-shrink: 0; }
-    .voice-rec-cancel-zone.armed { color: #ef4444; }
-    .voice-rec-trash {
-      width: 32px; height: 32px; border-radius: 50%; background: rgba(239,68,68,.12); border: none;
-      color: #ef4444; display: flex; align-items: center; justify-content: center; cursor: pointer;
-      -webkit-tap-highlight-color: transparent; flex-shrink: 0;
-    }
-    .voice-rec-trash svg { width: 15px; height: 15px; }
     .voice-rec-dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; flex-shrink: 0; animation: mic-pulse 1s infinite; }
+    .voice-rec-dot.paused { animation: none; opacity: .4; background: var(--text-dim); }
     .voice-rec-timer {
       font-size: 0.85rem; font-weight: 700; color: var(--text); flex-shrink: 0;
       min-width: 36px; font-variant-numeric: tabular-nums;
     }
     .voice-rec-wave { flex: 1; height: 28px; min-width: 0; }
     .voice-rec-wave canvas { width: 100%; height: 100%; display: block; }
-    .voice-rec-lock {
-      display: flex; flex-direction: column; align-items: center; gap: 2px;
-      color: var(--text-dim); font-size: 0.62rem; flex-shrink: 0; transition: transform .15s, color .15s;
+    .voice-rec-cancel-hint {
+      display: flex; align-items: center; gap: 4px; color: var(--text-dim);
+      font-size: 0.78rem; flex-shrink: 0; white-space: nowrap; transition: opacity .1s, transform .1s;
     }
-    .voice-rec-lock svg { width: 17px; height: 17px; }
-    .voice-rec-lock.locked { color: var(--nut-g); transform: translateY(-4px); }
-    .voice-rec-stop {
-      width: 32px; height: 32px; border-radius: 50%; background: rgba(34,197,94,.15); border: none;
-      color: var(--nut-g); display: flex; align-items: center; justify-content: center; cursor: pointer;
-      -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+    .voice-rec-cancel-hint svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .voice-rec-cancel-btn {
+      background: none; border: none; padding: 0 2px; cursor: pointer; flex-shrink: 0;
+      font-size: 0.8rem; font-weight: 700; color: #ef4444; font-family: var(--font);
+      -webkit-tap-highlight-color: transparent;
     }
-    .voice-rec-stop svg { width: 13px; height: 13px; }
+    .voice-rec-pause-btn, .voice-rec-send-btn {
+      width: 32px; height: 32px; border-radius: 50%; border: none; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .voice-rec-pause-btn { background: var(--bg3); color: var(--text); }
+    .voice-rec-pause-btn svg { width: 13px; height: 13px; }
+    .voice-rec-pause-btn .vrp-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
+    .voice-rec-send-btn { background: var(--nut-g); color: #fff; }
+    .voice-rec-send-btn svg { width: 14px; height: 14px; }
     .chat-attach-btn.voice-active, .icon-btn.voice-active {
       visibility: hidden;
     }
+    /* Плавающая кнопка-замок над микрофоном — тянем палец вверх, чтобы зафиксировать запись */
+    .voice-lock-float {
+      position: fixed; display: flex; flex-direction: column; align-items: center;
+      gap: 6px; padding: 10px 8px 12px; width: 36px; border-radius: 18px;
+      background: var(--bg3); border: 1px solid var(--border); color: var(--text-dim);
+      z-index: 220; transition: color .15s, background .15s; pointer-events: none;
+    }
+    .voice-lock-float svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .voice-lock-float .vlf-chevron { animation: vlf-bounce 1.2s infinite; }
+    .voice-lock-float.near { color: var(--nut-g); background: var(--nut-g-dim); }
+    @keyframes vlf-bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 
     /* ── Превью голосового сообщения перед отправкой ── */
     .voice-preview-row {
@@ -1974,6 +1982,8 @@ async function runPhotoAnalyze() {
 // mode 'chat'  — после распознавания добавляется голосовой пузырь в чат и идёт ИИ-ответ
 // mode 'field' — распознанный текст просто вставляется в текстовое поле targetId
 const VOICE_BARS = 27;
+const VOICE_LOCK_DY = -70;   // на сколько px нужно потянуть вверх, чтобы зафиксировать запись
+const VOICE_CANCEL_DX = 100; // на сколько px нужно потянуть влево, чтобы отменить запись
 let voiceRec = null;
 
 function attachVoiceButton(btnId, mode, targetId) {
@@ -1986,6 +1996,13 @@ function fmtDur(sec) {
   sec = Math.max(0, Math.round(sec));
   const m = Math.floor(sec/60), s = sec%60;
   return `${m}:${s.toString().padStart(2,'0')}`;
+}
+
+// Реальная длительность записи без учёта времени на паузе
+function voiceElapsedMs(rec) {
+  let paused = rec.pausedMs;
+  if (rec.paused) paused += Date.now() - rec.pauseStart;
+  return (Date.now() - rec.startTime) - paused;
 }
 
 async function voicePress(e, btn, mode, targetId) {
@@ -2019,31 +2036,39 @@ async function voicePress(e, btn, mode, targetId) {
   const overlay = document.createElement('div');
   overlay.className = 'voice-rec-overlay';
   overlay.innerHTML = `
-    <div class="voice-rec-cancel-zone">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
-      Сдвиньте для отмены
-    </div>
     <div class="voice-rec-dot"></div>
     <span class="voice-rec-timer">0:00</span>
     <div class="voice-rec-wave"><canvas></canvas></div>
-    <div class="voice-rec-lock">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 17a2 2 0 100-4 2 2 0 000 4zM7 11V7a5 5 0 0110 0v4M5 11h14v9H5z"/></svg>
-      <span>↑</span>
+    <div class="voice-rec-cancel-hint">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      Влево — отмена
     </div>`;
   container.appendChild(overlay);
   btn.classList.add('voice-active');
 
+  // Плавающая кнопка-замок над микрофоном — тянем палец вверх, чтобы зафиксировать запись
+  const lockFloat = document.createElement('div');
+  lockFloat.className = 'voice-lock-float';
+  lockFloat.innerHTML = `
+    <svg class="vlf-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 17a2 2 0 100-4 2 2 0 000 4zM7 11V7a5 5 0 0110 0v4M5 11h14v9H5z"/></svg>`;
+  const btnRect = btn.getBoundingClientRect();
+  lockFloat.style.left = (btnRect.left + btnRect.width/2 - 18) + 'px';
+  lockFloat.style.top = (btnRect.top - 96) + 'px';
+  document.body.appendChild(lockFloat);
+
   voiceRec = {
-    btn, mode, targetId, container, overlay, recorder, stream, chunks, audioCtx, analyser,
+    btn, mode, targetId, container, overlay, lockFloat, recorder, stream, chunks, audioCtx, analyser,
     startX: e.clientX, startY: e.clientY, startTime: Date.now(),
-    locked: false, amplitudes: [], rafId: null, timerId: null,
+    locked: false, paused: false, pausedMs: 0, pauseStart: 0,
+    amplitudes: [], rafId: null, timerId: null,
   };
 
   recorder.start();
   voiceRec.timerId = setInterval(() => {
     if (!voiceRec) return;
     const el = voiceRec.overlay.querySelector('.voice-rec-timer');
-    if (el) el.textContent = fmtDur((Date.now()-voiceRec.startTime)/1000);
+    if (el) el.textContent = fmtDur(voiceElapsedMs(voiceRec)/1000);
   }, 200);
   voiceLoop();
 
@@ -2055,11 +2080,15 @@ async function voicePress(e, btn, mode, targetId) {
 function voiceLoop() {
   if (!voiceRec) return;
   const rec = voiceRec;
-  const data = new Uint8Array(rec.analyser.fftSize);
-  rec.analyser.getByteTimeDomainData(data);
-  let sum = 0;
-  for (let i=0;i<data.length;i++) { const v=(data[i]-128)/128; sum += v*v; }
-  rec.amplitudes.push(Math.min(1, Math.sqrt(sum/data.length)*4));
+  if (rec.paused) {
+    rec.amplitudes.push(0);
+  } else {
+    const data = new Uint8Array(rec.analyser.fftSize);
+    rec.analyser.getByteTimeDomainData(data);
+    let sum = 0;
+    for (let i=0;i<data.length;i++) { const v=(data[i]-128)/128; sum += v*v; }
+    rec.amplitudes.push(Math.min(1, Math.sqrt(sum/data.length)*4));
+  }
   drawVoiceWave(rec.overlay.querySelector('canvas'), rec.amplitudes);
   rec.rafId = requestAnimationFrame(voiceLoop);
 }
@@ -2086,39 +2115,70 @@ function voiceMove(e) {
   if (!voiceRec || voiceRec.locked) return;
   const dx = e.clientX - voiceRec.startX;
   const dy = e.clientY - voiceRec.startY;
-  const cancelZone = voiceRec.overlay.querySelector('.voice-rec-cancel-zone');
-  if (dy < -60) {
-    voiceRec.locked = true;
-    voiceRec.overlay.querySelector('.voice-rec-lock').classList.add('locked');
-    voiceLock();
-  } else if (dx < -90) {
+
+  // Замочек подтягивается к пальцу, когда тянем вверх, и подсвечивается у цели
+  const lift = Math.max(dy, VOICE_LOCK_DY);
+  voiceRec.lockFloat.style.transform = `translateY(${lift}px)`;
+  voiceRec.lockFloat.classList.toggle('near', dy <= VOICE_LOCK_DY * 0.7);
+
+  // Подсказка "Влево — отмена" уезжает за пальцем и гаснет
+  const hint = voiceRec.overlay.querySelector('.voice-rec-cancel-hint');
+  const cancelProgress = Math.min(1, Math.max(0, -dx / VOICE_CANCEL_DX));
+  hint.style.opacity = String(1 - cancelProgress);
+  hint.style.transform = `translateX(${dx * 0.3}px)`;
+
+  if (dy <= VOICE_LOCK_DY) {
+    voiceLockIn();
+  } else if (-dx >= VOICE_CANCEL_DX) {
     voiceFinish(true);
-  } else {
-    cancelZone.classList.toggle('armed', dx < -40);
   }
 }
 
-// Запись зафиксирована (палец отпущен без остановки) — показываем кнопки "стоп"/"удалить"
-function voiceLock() {
+// Запись зафиксирована (палец отпущен без остановки) — показываем отмену, паузу и отправку
+function voiceLockIn() {
   const rec = voiceRec;
-  rec.overlay.querySelector('.voice-rec-lock').innerHTML = `
-    <button class="voice-rec-stop" onclick="voiceFinish(false)" title="Готово">
-      <svg fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+  rec.locked = true;
+  rec.lockFloat.remove();
+  window.removeEventListener('pointermove', voiceMove);
+  window.removeEventListener('pointerup', voiceRelease);
+  window.removeEventListener('pointercancel', voiceRelease);
+
+  const hint = rec.overlay.querySelector('.voice-rec-cancel-hint');
+  hint.outerHTML = `
+    <button class="voice-rec-cancel-btn" onclick="voiceFinish(true)">Отмена</button>
+    <button class="voice-rec-pause-btn" onclick="voicePauseToggle()" title="Пауза">
+      <svg fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+    </button>
+    <button class="voice-rec-send-btn" onclick="voiceFinish(false)" title="Отправить">
+      <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
     </button>`;
-  rec.overlay.querySelector('.voice-rec-cancel-zone').innerHTML = `
-    <button class="voice-rec-trash" onclick="voiceFinish(true)" title="Отмена">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H6a1 1 0 01-1-1V6h14z"/></svg>
-    </button>`;
+}
+
+// Пауза/продолжение записи после фиксации (красный кругляшок = пауза, тап продолжает запись)
+function voicePauseToggle() {
+  const rec = voiceRec;
+  if (!rec) return;
+  const dot = rec.overlay.querySelector('.voice-rec-dot');
+  const pauseBtn = rec.overlay.querySelector('.voice-rec-pause-btn');
+  if (!rec.paused) {
+    rec.paused = true;
+    rec.pauseStart = Date.now();
+    rec.recorder.pause();
+    dot.classList.add('paused');
+    pauseBtn.title = 'Продолжить';
+    pauseBtn.innerHTML = `<div class="vrp-dot"></div>`;
+  } else {
+    rec.paused = false;
+    rec.pausedMs += Date.now() - rec.pauseStart;
+    rec.recorder.resume();
+    dot.classList.remove('paused');
+    pauseBtn.title = 'Пауза';
+    pauseBtn.innerHTML = `<svg fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>`;
+  }
 }
 
 function voiceRelease() {
-  if (!voiceRec) return;
-  if (voiceRec.locked) {
-    window.removeEventListener('pointermove', voiceMove);
-    window.removeEventListener('pointerup', voiceRelease);
-    window.removeEventListener('pointercancel', voiceRelease);
-    return;
-  }
+  if (!voiceRec || voiceRec.locked) return;
   voiceFinish(false);
 }
 
@@ -2131,8 +2191,9 @@ function voiceFinish(cancelled) {
   window.removeEventListener('pointercancel', voiceRelease);
   clearInterval(rec.timerId);
   cancelAnimationFrame(rec.rafId);
-  const duration = (Date.now()-rec.startTime)/1000;
+  const duration = voiceElapsedMs(rec) / 1000;
   rec.overlay.remove();
+  rec.lockFloat.remove();
   rec.btn.classList.remove('voice-active');
   rec.recorder.onstop = () => {
     rec.stream.getTracks().forEach(t=>t.stop());
