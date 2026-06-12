@@ -219,6 +219,8 @@
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; flex-shrink: 0; transition: color .15s, border-color .15s;
       -webkit-tap-highlight-color: transparent;
+      touch-action: none; -webkit-touch-callout: none;
+      -webkit-user-select: none; user-select: none;
     }
     .icon-btn:active { color: var(--nut-g); border-color: var(--nut-g); }
     .icon-btn svg { width: 19px; height: 19px; }
@@ -358,13 +360,13 @@
     .modal-ov.open .modal-sh { transform: translateY(0); }
     /* Зона захвата шире видимой полоски — иначе пальцем не попасть */
     .modal-drag {
-      width: 100%; height: 28px; flex-shrink: 0; touch-action: none;
+      width: 100%; height: 40px; flex-shrink: 0; touch-action: none;
       display: flex; align-items: center; justify-content: center;
     }
     .modal-drag::after { content: ''; width: 36px; height: 4px; background: var(--border-hi); border-radius: 2px; }
     .modal-hdr {
       display: flex; align-items: center; padding: 12px 16px 10px;
-      border-bottom: 1px solid var(--border); flex-shrink: 0;
+      border-bottom: 1px solid var(--border); flex-shrink: 0; touch-action: none;
     }
     .modal-title { font-size: 0.97rem; font-weight: 700; flex: 1; }
     .modal-x {
@@ -476,6 +478,8 @@
       border-radius: 10px; color: var(--text-dim); cursor: pointer; display: flex;
       align-items: center; justify-content: center; flex-shrink: 0;
       -webkit-tap-highlight-color: transparent; transition: color .15s, border-color .15s;
+      touch-action: none; -webkit-touch-callout: none;
+      -webkit-user-select: none; user-select: none;
     }
     .chat-attach-btn:active { color: var(--nut-g); border-color: var(--nut-g); }
     .chat-attach-btn svg { width: 18px; height: 18px; }
@@ -1990,6 +1994,8 @@ function attachVoiceButton(btnId, mode, targetId) {
   const btn = document.getElementById(btnId);
   if (!btn) return;
   btn.addEventListener('pointerdown', (e) => voicePress(e, btn, mode, targetId));
+  // На Android долгое нажатие иначе открывает системное меню "Копировать" и прерывает запись
+  btn.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
 function fmtDur(sec) {
@@ -2707,21 +2713,24 @@ function bgClose(e,id)  { if (e.target.id===id) closeModal(id); }
 // ── Свайп вниз за "ручку" модалки — закрывает её ──────────────────────────────
 function setupModalDragClose() {
   document.querySelectorAll('.modal-ov').forEach(overlay => {
-    const sheet  = overlay.querySelector('.modal-sh');
-    const handle = overlay.querySelector('.modal-drag');
-    if (!sheet || !handle) return;
+    const sheet = overlay.querySelector('.modal-sh');
+    const drag  = overlay.querySelector('.modal-drag');
+    const hdr   = overlay.querySelector('.modal-hdr');
+    if (!sheet || !drag) return;
     let startY = 0, dy = 0, dragging = false;
-    handle.addEventListener('touchstart', e => {
+    const onStart = e => {
+      // Заголовок — часть зоны свайпа, кроме самой кнопки закрытия
+      if (e.target.closest('.modal-x')) return;
       dragging = true; dy = 0;
       startY = e.touches[0].clientY;
       sheet.style.transition = 'none';
-    }, {passive:true});
-    handle.addEventListener('touchmove', e => {
+    };
+    const onMove = e => {
       if (!dragging) return;
       dy = Math.max(0, e.touches[0].clientY - startY);
       sheet.style.transform = `translateY(${dy}px)`;
       sheet.style.opacity = String(Math.max(1 - dy / (sheet.offsetHeight * 0.8), 0.25));
-    }, {passive:true});
+    };
     const onEnd = () => {
       if (!dragging) return;
       dragging = false;
@@ -2744,8 +2753,13 @@ function setupModalDragClose() {
         setTimeout(() => { sheet.style.transition = ''; }, 200);
       }
     };
-    handle.addEventListener('touchend', onEnd);
-    handle.addEventListener('touchcancel', onEnd);
+    [drag, hdr].forEach(el => {
+      if (!el) return;
+      el.addEventListener('touchstart', onStart, {passive:true});
+      el.addEventListener('touchmove', onMove, {passive:true});
+      el.addEventListener('touchend', onEnd);
+      el.addEventListener('touchcancel', onEnd);
+    });
   });
 }
 

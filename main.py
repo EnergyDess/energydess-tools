@@ -1565,8 +1565,9 @@ async def nut_transcribe(file: UploadFile = File(...),
             return JSONResponse({"text": text})
         except Exception as e:
             last_error = e
-            print(f"[transcribe] попытка {attempt+1} не удалась: {e}")
+            print(f"[transcribe] попытка {attempt+1} не удалась: {type(e).__name__}: {e!r}")
             if attempt < 2:
                 await asyncio.sleep(2)
 
-    return JSONResponse({"error": f"Не удалось распознать речь: {last_error}"}, status_code=500)
+    err_text = f"{type(last_error).__name__}: {last_error}" if last_error else "неизвестная ошибка"
+    return JSONResponse({"error": f"Не удалось распознать речь: {err_text}"}, status_code=500)
