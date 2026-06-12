@@ -20,7 +20,7 @@ jobs:
           expected="${GITHUB_SHA:0:7}"
           echo "Ожидаем commit $expected"
           for i in $(seq 1 48); do
-            actual=$(curl -s -m 10 https://energydess.ru/version | grep -o '"commit":"[a-f0-9]*"' | grep -o '[a-f0-9]*$' || true)
+            actual=$(curl -s -m 10 https://energydess.ru/version | grep -oP '"commit":"\K[a-f0-9]+' || true)
             echo "Попытка $i: на сервере commit $actual"
             if [ "$actual" = "$expected" ]; then
               echo "Деплой подтверждён"
