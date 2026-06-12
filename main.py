@@ -1561,11 +1561,13 @@ async def nut_transcribe(file: UploadFile = File(...),
     if not content:
         return JSONResponse({"error": "Пустая запись"}, status_code=400)
 
-    # Несколько попыток — у VPS периодически рвётся связь с внешними хостами на 1-2 запроса
+    # Несколько попыток — у VPS периодически рвётся связь с внешними хостами на 1-2 запроса.
+    # Read-таймаут увеличен: Groq иногда отвечает дольше 30с на более длинные записи.
     last_error = None
-    for attempt in range(3):
+    timeout = httpx.Timeout(10.0, read=60.0, write=30.0)
+    for attempt in range(2):
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 resp = await client.post(
                     "https://api.groq.com/openai/v1/audio/transcriptions",
                     headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
@@ -1577,8 +1579,11 @@ async def nut_transcribe(file: UploadFile = File(...),
             return JSONResponse({"text": text})
         except Exception as e:
             last_error = e
-            print(f"[transcribe] попытка {attempt+1} не удалась: {type(e).__name__}: {e!r}")
-            if attempt < 2:
+            print(f"[transcribe] попытка {attempt+1} не удалась (размер файла {len(content)} байт, "
+                  f"content_type={file.content_type}): {type(e).__name__}: {e!r}")
+            if isinstance(e, httpx.HTTPStatusError):
+                print(f"[transcribe] ответ Groq: {e.response.status_code} {e.response.text[:300]}")
+            if attempt == 0:
                 await asyncio.sleep(2)
 
     err_text = f"{type(last_error).__name__}: {last_error}" if last_error else "неизвестная ошибка"

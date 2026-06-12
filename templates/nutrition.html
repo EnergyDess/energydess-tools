@@ -521,16 +521,9 @@
     }
     .voice-rec-del { background: rgba(239,68,68,.12); color: #ef4444; }
     .voice-rec-del svg { width: 15px; height: 15px; }
-    .voice-rec-send { background: var(--nut-g); color: #fff; position: relative; }
-    .voice-rec-send svg { width: 17px; height: 17px; position: relative; z-index: 1; }
+    .voice-rec-send { background: var(--nut-g); color: #fff; }
+    .voice-rec-send svg { width: 17px; height: 17px; }
     .voice-rec-send:active { opacity: .9; }
-    /* Свечение вокруг кнопки отправки пульсирует в такт громкости голоса */
-    .voice-rec-send::before {
-      content: ''; position: absolute; inset: -7px; border-radius: 50%;
-      background: var(--nut-g); z-index: 0; pointer-events: none;
-      opacity: calc(var(--pulse, 0) * .45);
-      transform: scale(calc(1 + var(--pulse, 0) * .6));
-    }
     /* Плавающая кнопка паузы/продолжения над кнопкой отправки — без удержания пальца */
     .voice-pause-float {
       position: fixed; width: 40px; height: 40px; border-radius: 50%;
@@ -2037,7 +2030,9 @@ async function voiceStart(btn, mode, targetId) {
     amplitudes: [], rafId: null, timerId: null,
   };
 
-  positionPauseFloat();
+  // Позиционируем после того, как анимация появления отрисуется, иначе геометрия
+  // считается по "стартовому" кадру (scale(.97)) и кнопка съезжает в сторону
+  requestAnimationFrame(() => requestAnimationFrame(positionPauseFloat));
   window.addEventListener('resize', positionPauseFloat);
 
   overlay.querySelector('.voice-rec-del').onclick = voiceCancel;
@@ -2049,16 +2044,18 @@ async function voiceStart(btn, mode, targetId) {
     if (!voiceRec) return;
     const el = voiceRec.overlay.querySelector('.voice-rec-timer');
     if (el) el.textContent = fmtDur(voiceElapsedMs(voiceRec)/1000);
+    positionPauseFloat();
   }, 200);
   voiceLoop();
 }
 
-// Плавающая кнопка-пауза держится прямо над кнопкой отправки
+// Плавающая кнопка-пауза держится точно по центру над кнопкой отправки
 function positionPauseFloat() {
   if (!voiceRec) return;
-  const r = voiceRec.overlay.querySelector('.voice-rec-send').getBoundingClientRect();
-  voiceRec.pauseFloat.style.left = (r.left + r.width/2 - 20) + 'px';
-  voiceRec.pauseFloat.style.top = (r.top - 56) + 'px';
+  const send = voiceRec.overlay.querySelector('.voice-rec-send').getBoundingClientRect();
+  const float = voiceRec.pauseFloat.getBoundingClientRect();
+  voiceRec.pauseFloat.style.left = (send.left + send.width/2 - float.width/2) + 'px';
+  voiceRec.pauseFloat.style.top = (send.top - float.height - 16) + 'px';
 }
 
 // Пауза/продолжение записи без остановки захвата — кнопка меняет цвет и иконку
@@ -2071,7 +2068,6 @@ function voiceTogglePause() {
     rec.recorder.pause();
     cancelAnimationFrame(rec.rafId);
     rec.overlay.querySelector('.voice-rec-dot').classList.add('paused');
-    rec.overlay.querySelector('.voice-rec-send').style.setProperty('--pulse', '0');
     rec.pauseFloat.classList.add('is-paused');
     rec.pauseFloat.title = 'Продолжить';
     rec.pauseFloat.innerHTML = ICON_MIC;
@@ -2097,7 +2093,6 @@ function voiceLoop() {
   const amp = Math.min(1, Math.sqrt(sum/data.length)*4);
   rec.amplitudes.push(amp);
   drawVoiceWave(rec.overlay.querySelector('canvas'), rec.amplitudes);
-  rec.overlay.querySelector('.voice-rec-send').style.setProperty('--pulse', String(amp));
   rec.rafId = requestAnimationFrame(voiceLoop);
 }
 
