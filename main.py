@@ -132,7 +132,14 @@ async def deploy_hook(request: Request):
     if not expected or token != expected:
         return JSONResponse({"error": "Forbidden"}, status_code=403)
     import subprocess
-    subprocess.Popen(["bash", "-c", "sleep 2 && cd /var/www/energydess && git pull origin main && systemctl restart energydess"])
+    # git pull с повторами — у VPS периодически рвётся связь с GitHub
+    script = (
+        "sleep 2 && cd /var/www/energydess && "
+        "(git pull origin main || (sleep 5 && git pull origin main) || (sleep 15 && git pull origin main)) && "
+        "systemctl restart energydess"
+    )
+    log = open("/var/log/energydess-deploy.log", "a")
+    subprocess.Popen(["bash", "-c", script], stdout=log, stderr=subprocess.STDOUT)
     return JSONResponse({"ok": True})
 
 
