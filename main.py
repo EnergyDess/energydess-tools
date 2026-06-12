@@ -111,6 +111,20 @@ async def health():
     return JSONResponse({"status": "ok"})
 
 
+@app.get("/version")
+async def version():
+    import subprocess
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"], cwd=repo_dir,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+    except Exception:
+        commit = "unknown"
+    return JSONResponse({"commit": commit})
+
+
 @app.post("/deploy-hook")
 async def deploy_hook(request: Request):
     token = request.headers.get("X-Deploy-Token", "")

@@ -10,6 +10,23 @@ jobs:
     steps:
       - name: Deploy via webhook
         run: |
-          curl -f -X POST https://energydess.ru/deploy-hook \
+          curl -f -sS -X POST https://energydess.ru/deploy-hook \
             -H "X-Deploy-Token: ${{ secrets.DEPLOY_SECRET }}" \
-            --connect-timeout 15 --retry 5 --retry-delay 5 --retry-all-errors
+            --connect-timeout 10 -m 20 \
+            --retry 15 --retry-delay 8 --retry-all-errors
+
+      - name: Проверить, что сервер обновился до этого коммита
+        run: |
+          expected="${GITHUB_SHA:0:7}"
+          echo "Ожидаем commit $expected"
+          for i in $(seq 1 24); do
+            actual=$(curl -s -m 10 https://energydess.ru/version | grep -o '"commit":"[a-f0-9]*"' | grep -o '[a-f0-9]*$' || true)
+            echo "Попытка $i: на сервере commit $actual"
+            if [ "$actual" = "$expected" ]; then
+              echo "Деплой подтверждён"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Сервер не обновился до $expected за отведённое время"
+          exit 1
