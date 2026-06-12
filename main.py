@@ -1052,6 +1052,28 @@ async def nut_log_food(request: Request, user=Depends(get_current_user), db: Ses
     return JSONResponse({"ok": True, "id": log.id})
 
 
+@app.put("/nutrition/api/log-food/{log_id}")
+async def nut_update_food(log_id: int, request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    log = db.query(FoodLog).filter(FoodLog.id == log_id, FoodLog.user_id == user.id).first()
+    if not log:
+        return JSONResponse({"error": "Не найдено"}, status_code=404)
+    data = await request.json()
+    grams = float(data.get("grams", log.grams))
+    cal_per_100 = float(data.get("calories", 0))
+    protein_per_100 = float(data.get("protein", 0))
+    fat_per_100 = float(data.get("fat", 0))
+    carbs_per_100 = float(data.get("carbs", 0))
+    log.grams = grams
+    log.calories = round(cal_per_100 * grams / 100, 1)
+    log.protein = round(protein_per_100 * grams / 100, 1)
+    log.fat = round(fat_per_100 * grams / 100, 1)
+    log.carbs = round(carbs_per_100 * grams / 100, 1)
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
 @app.delete("/nutrition/api/log-food/{log_id}")
 async def nut_delete_food(log_id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:

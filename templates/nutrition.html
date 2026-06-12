@@ -356,7 +356,12 @@
       max-height: 92vh; display: flex; flex-direction: column;
     }
     .modal-ov.open .modal-sh { transform: translateY(0); }
-    .modal-drag { width: 36px; height: 4px; background: var(--border-hi); border-radius: 2px; margin: 11px auto 0; flex-shrink: 0; }
+    /* Зона захвата шире видимой полоски — иначе пальцем не попасть */
+    .modal-drag {
+      width: 100%; height: 28px; flex-shrink: 0; touch-action: none;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-drag::after { content: ''; width: 36px; height: 4px; background: var(--border-hi); border-radius: 2px; }
     .modal-hdr {
       display: flex; align-items: center; padding: 12px 16px 10px;
       border-bottom: 1px solid var(--border); flex-shrink: 0;
@@ -952,8 +957,8 @@
     <!-- ── TAB: ASSISTANT ── -->
     <section class="nut-tab" id="tab-assistant">
       <div class="chat-msgs" id="assistant-chat-msgs"></div>
-      <div class="chat-attach-preview" id="chat-attach-preview" style="display:none">
-        <img id="chat-attach-img" alt="">
+      <div class="chat-attach-preview" style="display:none">
+        <img class="chat-attach-img" alt="">
         <span>Фото прикреплено</span>
         <button onclick="clearChatAttachment()">×</button>
       </div>
@@ -1232,7 +1237,16 @@
     </div>
     <div class="modal-body" style="display:flex;flex-direction:column;padding-bottom:0">
       <div class="chat-msgs" id="chat-msgs"></div>
+      <div class="chat-attach-preview" style="display:none">
+        <img class="chat-attach-img" alt="">
+        <span>Фото прикреплено</span>
+        <button onclick="clearChatAttachment()">×</button>
+      </div>
       <div class="chat-input-row" style="padding-bottom:14px">
+        <input type="file" id="modal-chat-photo-in" accept="image/*" style="display:none" onchange="onChatAttach(event)">
+        <button class="chat-attach-btn" onclick="document.getElementById('modal-chat-photo-in').click()" title="Прикрепить фото">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+        </button>
         <input type="text" class="chat-in" id="chat-in" placeholder="Задайте вопрос о питании..."
                onkeydown="if(event.key==='Enter')sendChat()">
         <button class="chat-attach-btn" onclick="startVoiceInput('chat-in', this)" title="Голосовой ввод">
@@ -1280,6 +1294,7 @@ const S = {
   searchMeal: 'breakfast',
   searchTab: 'recent',
   portionFood: null,
+  editingFoodId: null,
   recipeIngs: [],
   selRecipe: null, recFrac: 0.5,
   histDate: new Date().toISOString().slice(0,10),
@@ -1406,14 +1421,43 @@ function renderMeals(meals) {
 }
 
 function foodItemHTML(item) {
-  return `<div class="food-item">
+  return `<div class="food-item" onclick="editFoodItem(${item.id})">
     <div class="food-info">
       <div class="food-name">${esc(item.name)}${item.brand?`<span style="font-weight:400;color:var(--text-dim);font-size:.68rem"> · ${esc(item.brand)}</span>`:''}</div>
       <div class="food-sub">${item.grams}г · Б:${item.protein}г Ж:${item.fat}г У:${item.carbs}г</div>
     </div>
     <span class="food-kcal">${Math.round(item.calories)}</span>
-    <button class="food-del" onclick="delFood(${item.id})">×</button>
+    <button class="food-del" onclick="event.stopPropagation();delFood(${item.id})">×</button>
   </div>`;
+}
+
+// ── Редактирование порции уже записанного блюда ────────────────────────────────
+function editFoodItem(id) {
+  let item;
+  for (const arr of Object.values(S.diary.meals)) {
+    item = arr.find(i => i.id === id);
+    if (item) break;
+  }
+  if (!item) return;
+  const g = item.grams > 0 ? item.grams : 100;
+  S.editingFoodId = id;
+  S.addingIng = false;
+  S.portionFood = {
+    name: item.name, brand: item.brand || '',
+    calories: item.calories / g * 100,
+    protein: item.protein / g * 100,
+    fat: item.fat / g * 100,
+    carbs: item.carbs / g * 100,
+  };
+  const f = S.portionFood;
+  document.getElementById('por-title').textContent = 'Редактировать';
+  document.getElementById('por-add-btn').textContent = 'Сохранить';
+  document.getElementById('por-name').textContent = f.name + (f.brand ? ' · ' + f.brand : '');
+  document.getElementById('por-sub').textContent = `На 100г: ${Math.round(f.calories)} ккал | Б:${f.protein.toFixed(1)}г Ж:${f.fat.toFixed(1)}г У:${f.carbs.toFixed(1)}г`;
+  document.getElementById('g-input').value = item.grams;
+  document.getElementById('por-save-btn').style.display = 'none';
+  updateCalc();
+  openModal('modal-portion');
 }
 
 async function delFood(id) {
@@ -1604,6 +1648,7 @@ async function runAIEstimate() {
 // ── Portion modal ─────────────────────────────────────────────────────────────
 function openPortion(food) {
   S.portionFood = food;
+  S.editingFoodId = null;
   const mealName = {breakfast:'завтрак',lunch:'обед',dinner:'ужин',snack:'перекус'}[S.searchMeal];
   document.getElementById('por-title').textContent = S.addingIng ? 'Ингредиент' : 'Добавить в '+mealName;
   document.getElementById('por-add-btn').textContent = S.addingIng ? 'Добавить ингредиент' : 'Добавить в дневник';
@@ -1649,6 +1694,16 @@ async function confirmAdd() {
     updateRecipeModal();
     setIngTab('recent');
     toast('Ингредиент добавлен', true);
+    return;
+  }
+  if (S.editingFoodId) {
+    await api(`/nutrition/api/log-food/${S.editingFoodId}`,{method:'PUT',body:JSON.stringify({
+      grams:g, calories:f.calories,protein:f.protein,fat:f.fat,carbs:f.carbs,
+    })});
+    S.editingFoodId = null;
+    closeModal('modal-portion');
+    loadDiary(S.today);
+    toast('Сохранено!',true);
     return;
   }
   await api('/nutrition/api/log-food',{method:'POST',body:JSON.stringify({
@@ -1993,32 +2048,28 @@ async function onChatAttach(e) {
   const { blob, dataUrl } = await resizeImage(file);
   S.chatAttachment = blob;
   S.chatAttachmentPreview = dataUrl;
-  if (dataUrl) document.getElementById('chat-attach-img').src = dataUrl;
-  document.getElementById('chat-attach-preview').style.display = 'flex';
+  if (dataUrl) document.querySelectorAll('.chat-attach-img').forEach(img=>img.src = dataUrl);
+  document.querySelectorAll('.chat-attach-preview').forEach(el=>el.style.display = 'flex');
 }
 
 function clearChatAttachment() {
   S.chatAttachment = null;
   S.chatAttachmentPreview = null;
-  document.getElementById('chat-attach-img').src = '';
-  document.getElementById('chat-attach-preview').style.display = 'none';
+  document.querySelectorAll('.chat-attach-img').forEach(img=>img.src = '');
+  document.querySelectorAll('.chat-attach-preview').forEach(el=>el.style.display = 'none');
 }
 
 const MEAL_NAMES = {breakfast:'завтрак', lunch:'обед', dinner:'ужин', snack:'перекус'};
 
-async function logPendingFood(mealType) {
+function logPendingFood(mealType) {
   const f = S.pendingFoodLog; if (!f) return;
-  const grams = f.estimated_grams || 100;
-  await api('/nutrition/api/log-food',{method:'POST',body:JSON.stringify({
-    name:f.name, brand:'AI', grams,
-    calories:f.calories||0, protein:f.protein||0, fat:f.fat||0, carbs:f.carbs||0,
-    meal_type: mealType, date: S.today,
-  })});
   S.pendingFoodLog = null;
-  S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content: `Добавлено в ${MEAL_NAMES[mealType]}! ✅`};
+  S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content: `${MEAL_NAMES[mealType]} — уточните порцию и сохраните`};
   renderChat();
-  loadDiary(S.today);
-  toast('Добавлено в дневник!', true);
+  S.searchMeal = mealType;
+  openPortion({name:f.name, brand:'AI', calories:f.calories||0, protein:f.protein||0, fat:f.fat||0, carbs:f.carbs||0});
+  document.getElementById('g-input').value = f.estimated_grams || 100;
+  updateCalc();
 }
 
 function renderChat() {
@@ -2226,15 +2277,28 @@ function setupModalDragClose() {
       if (!dragging) return;
       dy = Math.max(0, e.touches[0].clientY - startY);
       sheet.style.transform = `translateY(${dy}px)`;
+      sheet.style.opacity = String(Math.max(1 - dy / (sheet.offsetHeight * 0.8), 0.25));
     }, {passive:true});
     const onEnd = () => {
       if (!dragging) return;
       dragging = false;
-      sheet.style.transition = '';
-      sheet.style.transform = '';
+      sheet.style.transition = 'transform .2s ease, opacity .2s ease';
       if (dy > sheet.offsetHeight * 0.25) {
-        if (overlay.id === 'modal-scanner') closeScanner();
-        else closeModal(overlay.id);
+        // Уезжает вниз и затухает, и только потом убираем модалку
+        sheet.style.transform = 'translateY(100%)';
+        sheet.style.opacity = '0';
+        setTimeout(() => {
+          if (overlay.id === 'modal-scanner') closeScanner();
+          else closeModal(overlay.id);
+          sheet.style.transition = '';
+          sheet.style.transform = '';
+          sheet.style.opacity = '';
+        }, 200);
+      } else {
+        // Не дотянули — плавно возвращается на место
+        sheet.style.transform = '';
+        sheet.style.opacity = '';
+        setTimeout(() => { sheet.style.transition = ''; }, 200);
       }
     };
     handle.addEventListener('touchend', onEnd);
