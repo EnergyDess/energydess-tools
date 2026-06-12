@@ -486,7 +486,7 @@
       display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent;
     }
     /* ── Голосовой ввод ── */
-    .icon-btn.listening { color: #ef4444; border-color: #ef4444; animation: mic-pulse 1s infinite; }
+    .icon-btn.listening, .chat-attach-btn.listening { color: #ef4444; border-color: #ef4444; animation: mic-pulse 1s infinite; }
     @keyframes mic-pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
     /* ── Кнопки выбора приёма пищи в чате ── */
     .meal-picker-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 9px; }
@@ -964,6 +964,9 @@
         </button>
         <input type="text" class="chat-in" id="assistant-chat-in" placeholder="Задайте вопрос о питании..."
                onkeydown="if(event.key==='Enter')sendChat('assistant-chat-in')">
+        <button class="chat-attach-btn" onclick="startVoiceInput('assistant-chat-in', this)" title="Голосовой ввод">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+        </button>
         <button class="chat-send" onclick="sendChat('assistant-chat-in')">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
         </button>
@@ -1232,6 +1235,9 @@
       <div class="chat-input-row" style="padding-bottom:14px">
         <input type="text" class="chat-in" id="chat-in" placeholder="Задайте вопрос о питании..."
                onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="chat-attach-btn" onclick="startVoiceInput('chat-in', this)" title="Голосовой ввод">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+        </button>
         <button class="chat-send" onclick="sendChat()">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
         </button>
@@ -1291,6 +1297,8 @@ let searchReqId = 0;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  setupModalDragClose();
+
   // Date in header and sidebar
   const d = new Date();
   const dateStr = d.toLocaleDateString('ru', {day:'numeric', month:'short', weekday:'short'});
@@ -2201,6 +2209,38 @@ async function saveProfile() {
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function bgClose(e,id)  { if (e.target.id===id) closeModal(id); }
+
+// ── Свайп вниз за "ручку" модалки — закрывает её ──────────────────────────────
+function setupModalDragClose() {
+  document.querySelectorAll('.modal-ov').forEach(overlay => {
+    const sheet  = overlay.querySelector('.modal-sh');
+    const handle = overlay.querySelector('.modal-drag');
+    if (!sheet || !handle) return;
+    let startY = 0, dy = 0, dragging = false;
+    handle.addEventListener('touchstart', e => {
+      dragging = true; dy = 0;
+      startY = e.touches[0].clientY;
+      sheet.style.transition = 'none';
+    }, {passive:true});
+    handle.addEventListener('touchmove', e => {
+      if (!dragging) return;
+      dy = Math.max(0, e.touches[0].clientY - startY);
+      sheet.style.transform = `translateY(${dy}px)`;
+    }, {passive:true});
+    const onEnd = () => {
+      if (!dragging) return;
+      dragging = false;
+      sheet.style.transition = '';
+      sheet.style.transform = '';
+      if (dy > sheet.offsetHeight * 0.25) {
+        if (overlay.id === 'modal-scanner') closeScanner();
+        else closeModal(overlay.id);
+      }
+    };
+    handle.addEventListener('touchend', onEnd);
+    handle.addEventListener('touchcancel', onEnd);
+  });
+}
 
 // ── Fetch helper ──────────────────────────────────────────────────────────────
 async function api(url, opts={}) {
