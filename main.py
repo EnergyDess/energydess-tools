@@ -1,6 +1,7 @@
 import asyncio
 import json as _json
 import re
+import socket
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, Depends, Form, UploadFile, File
 from fastapi.templating import Jinja2Templates
@@ -20,6 +21,17 @@ from database import (get_db, init_db, migrate_db, User, Resume, ToolAccess, Ens
 from auth import hash_password, verify_password, create_token, get_current_user, generate_token
 
 load_dotenv()
+
+# На сервере не работает IPv6 — если у внешнего хоста (например api.groq.com)
+# резолвер первым отдаёт AAAA-запись, httpx пытается достучаться по IPv6
+# и виснет до таймаута, хотя по IPv4 тот же хост отвечает за миллисекунды.
+# Принудительно отдаём только IPv4-адреса для всех исходящих соединений.
+_orig_getaddrinfo = socket.getaddrinfo
+def _getaddrinfo_ipv4_only(host, *args, **kwargs):
+    results = _orig_getaddrinfo(host, *args, **kwargs)
+    ipv4 = [r for r in results if r[0] == socket.AF_INET]
+    return ipv4 or results
+socket.getaddrinfo = _getaddrinfo_ipv4_only
 
 app = FastAPI(title="EnergyDess Tools")
 app.mount("/static", StaticFiles(directory="static"), name="static")
