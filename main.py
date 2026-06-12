@@ -28,6 +28,7 @@ OPENROUTER_API_KEY  = os.getenv("OPENROUTER_API_KEY", "")
 MODEL               = os.getenv("MODEL", "anthropic/claude-haiku-4-5")
 LETTER_MODEL        = os.getenv("LETTER_MODEL", "anthropic/claude-sonnet-4-5")
 RESEND_API_KEY      = os.getenv("RESEND_API_KEY", "")
+GROQ_API_KEY        = os.getenv("GROQ_API_KEY", "")
 BASE_URL            = os.getenv("BASE_URL", "https://energydess.ru")
 
 TOOLS = [
@@ -1532,3 +1533,32 @@ async def nut_ai_chat_photo(file: UploadFile = File(...), message: str = Form(""
     db.add(ChatMessage(user_id=user.id, role="assistant", content=reply))
     db.commit()
     return JSONResponse({"reply": reply, "food": food})
+
+
+# ── Nutrition: распознавание голосовых сообщений (Groq Whisper) ────────────────
+
+@app.post("/nutrition/api/transcribe")
+async def nut_transcribe(file: UploadFile = File(...),
+                          user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user or not user_has_access(user, "nutrition", db):
+        return JSONResponse({"error": "Нет доступа"}, status_code=403)
+    if not GROQ_API_KEY:
+        return JSONResponse({"error": "Распознавание речи не настроено"}, status_code=503)
+    content = await file.read()
+    if not content:
+        return JSONResponse({"error": "Пустая запись"}, status_code=400)
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                "https://api.groq.com/openai/v1/audio/transcriptions",
+                headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+                files={"file": (file.filename or "voice.webm", content, file.content_type or "audio/webm")},
+                data={"model": "whisper-large-v3-turbo", "language": "ru"},
+            )
+        resp.raise_for_status()
+        text = resp.json().get("text", "").strip()
+    except Exception as e:
+        return JSONResponse({"error": f"Не удалось распознать речь: {e}"}, status_code=500)
+
+    return JSONResponse({"text": text})

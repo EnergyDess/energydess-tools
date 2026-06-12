@@ -205,7 +205,7 @@
       cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
     }
     .s-chip.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
-    .s-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+    .s-bar { display: flex; gap: 8px; margin-bottom: 12px; position: relative; }
     .s-input {
       flex: 1; height: 44px; background: var(--bg3); border: 1px solid var(--border);
       border-radius: 11px; padding: 0 13px; color: var(--text); font-size: 0.93rem;
@@ -456,7 +456,7 @@
     }
     .chat-input-row {
       display: flex; gap: 8px; padding: 12px 0 0;
-      border-top: 1px solid var(--border); flex-shrink: 0;
+      border-top: 1px solid var(--border); flex-shrink: 0; position: relative;
     }
     .chat-in {
       flex: 1; height: 42px; background: var(--bg3); border: 1px solid var(--border);
@@ -490,9 +490,104 @@
       color: var(--text-dim); font-size: 1rem; cursor: pointer; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent;
     }
-    /* ── Голосовой ввод ── */
-    .icon-btn.listening, .chat-attach-btn.listening { color: #ef4444; border-color: #ef4444; animation: mic-pulse 1s infinite; }
+    /* ── Запись голосового сообщения (оверлей вместо строки ввода) ── */
     @keyframes mic-pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+    @keyframes voice-fade-in { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: scale(1); } }
+    .voice-rec-overlay {
+      position: absolute; inset: 0; display: flex; align-items: center; gap: 9px;
+      padding: 0 6px; background: var(--bg2); border-radius: 11px; z-index: 2;
+      animation: voice-fade-in .15s ease;
+    }
+    .voice-rec-cancel-zone {
+      display: flex; align-items: center; gap: 5px; color: var(--text-dim);
+      font-size: 0.78rem; flex-shrink: 0; white-space: nowrap; transition: color .15s;
+    }
+    .voice-rec-cancel-zone svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .voice-rec-cancel-zone.armed { color: #ef4444; }
+    .voice-rec-trash {
+      width: 32px; height: 32px; border-radius: 50%; background: rgba(239,68,68,.12); border: none;
+      color: #ef4444; display: flex; align-items: center; justify-content: center; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+    }
+    .voice-rec-trash svg { width: 15px; height: 15px; }
+    .voice-rec-dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; flex-shrink: 0; animation: mic-pulse 1s infinite; }
+    .voice-rec-timer {
+      font-size: 0.85rem; font-weight: 700; color: var(--text); flex-shrink: 0;
+      min-width: 36px; font-variant-numeric: tabular-nums;
+    }
+    .voice-rec-wave { flex: 1; height: 28px; min-width: 0; }
+    .voice-rec-wave canvas { width: 100%; height: 100%; display: block; }
+    .voice-rec-lock {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      color: var(--text-dim); font-size: 0.62rem; flex-shrink: 0; transition: transform .15s, color .15s;
+    }
+    .voice-rec-lock svg { width: 17px; height: 17px; }
+    .voice-rec-lock.locked { color: var(--nut-g); transform: translateY(-4px); }
+    .voice-rec-stop {
+      width: 32px; height: 32px; border-radius: 50%; background: rgba(34,197,94,.15); border: none;
+      color: var(--nut-g); display: flex; align-items: center; justify-content: center; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+    }
+    .voice-rec-stop svg { width: 13px; height: 13px; }
+    .chat-attach-btn.voice-active, .icon-btn.voice-active {
+      visibility: hidden;
+    }
+
+    /* ── Превью голосового сообщения перед отправкой ── */
+    .voice-preview-row {
+      position: absolute; inset: 0; display: flex; align-items: center; gap: 8px;
+      padding: 0 6px; background: var(--bg2); border-radius: 11px; z-index: 2;
+      animation: voice-fade-in .15s ease;
+    }
+    .voice-preview-del, .voice-preview-play {
+      width: 34px; height: 34px; border-radius: 50%; border: none; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .voice-preview-del  { background: rgba(239,68,68,.12); color: #ef4444; }
+    .voice-preview-del svg { width: 15px; height: 15px; }
+    .voice-preview-play { background: var(--nut-g-dim); color: var(--nut-g); }
+    .voice-preview-play svg { width: 13px; height: 13px; }
+    .voice-preview-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 26px; min-width: 0; overflow: hidden; }
+    .voice-preview-bar { width: 3px; min-height: 3px; background: var(--nut-g); border-radius: 2px; flex-shrink: 0; opacity: .6; }
+    .voice-preview-dur { font-size: 0.8rem; color: var(--text-dim); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .voice-preview-send {
+      width: 42px; height: 42px; border-radius: 10px; background: var(--nut-g); border: none;
+      color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .voice-preview-send svg { width: 18px; height: 18px; }
+    .voice-preview-send:active { opacity: .85; }
+
+    /* ── Голосовое сообщение в чате ── */
+    .voice-bubble { min-width: 200px; }
+    .voice-row { display: flex; align-items: center; gap: 8px; }
+    .voice-play-btn {
+      width: 32px; height: 32px; border-radius: 50%; border: none; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .chat-bubble.user .voice-play-btn { background: rgba(34,197,94,.18); color: var(--nut-g); }
+    .chat-bubble.ai .voice-play-btn   { background: var(--bg2); color: var(--text); }
+    .voice-play-btn svg { width: 13px; height: 13px; }
+    .voice-wave-static { flex: 1; display: flex; align-items: center; gap: 2px; height: 24px; min-width: 0; }
+    .voice-wave-static .vw-bar { width: 3px; border-radius: 2px; flex-shrink: 0; opacity: .55; }
+    .chat-bubble.user .voice-wave-static .vw-bar { background: var(--nut-g); }
+    .chat-bubble.ai .voice-wave-static .vw-bar { background: var(--text-dim); }
+    .voice-dur { font-size: 0.74rem; color: var(--text-dim); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .voice-tr-toggle {
+      margin-top: 7px; background: none; border: none; padding: 0; cursor: pointer;
+      font-size: 0.74rem; font-weight: 700; color: var(--nut-g); font-family: var(--font);
+      display: flex; align-items: center; gap: 3px; -webkit-tap-highlight-color: transparent;
+    }
+    .voice-tr-toggle svg { width: 11px; height: 11px; transition: transform .15s; }
+    .voice-tr-toggle.open svg { transform: rotate(180deg); }
+    .voice-tr-text {
+      display: none; margin-top: 6px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.08);
+      font-size: 0.85rem; line-height: 1.5;
+    }
+    .voice-tr-text.show { display: block; }
+    .voice-transcribing { margin-top: 6px; font-size: 0.78rem; color: var(--text-dim); font-style: italic; }
     /* ── Кнопки выбора приёма пищи в чате ── */
     .meal-picker-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 9px; }
     .meal-picker-btns button {
@@ -969,7 +1064,7 @@
         </button>
         <input type="text" class="chat-in" id="assistant-chat-in" placeholder="Задайте вопрос о питании..."
                onkeydown="if(event.key==='Enter')sendChat('assistant-chat-in')">
-        <button class="chat-attach-btn" onclick="startVoiceInput('assistant-chat-in', this)" title="Голосовой ввод">
+        <button class="chat-attach-btn" id="assistant-chat-mic" title="Голосовое сообщение">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
         </button>
         <button class="chat-send" onclick="sendChat('assistant-chat-in')">
@@ -1142,7 +1237,7 @@
         <div class="s-bar" style="margin-bottom:0">
           <input type="text" class="s-input" id="pa-desc" placeholder="Например: с майонезом, порция побольше..."
                  onkeydown="if(event.key==='Enter')runPhotoAnalyze()">
-          <button class="icon-btn" id="pa-mic-btn" onclick="startVoiceInput('pa-desc', this)" title="Голосовой ввод">
+          <button class="icon-btn" id="pa-mic-btn" title="Голосовое сообщение">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
           </button>
         </div>
@@ -1249,7 +1344,7 @@
         </button>
         <input type="text" class="chat-in" id="chat-in" placeholder="Задайте вопрос о питании..."
                onkeydown="if(event.key==='Enter')sendChat()">
-        <button class="chat-attach-btn" onclick="startVoiceInput('chat-in', this)" title="Голосовой ввод">
+        <button class="chat-attach-btn" id="chat-in-mic" title="Голосовое сообщение">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
         </button>
         <button class="chat-send" onclick="sendChat()">
@@ -1313,6 +1408,9 @@ let searchReqId = 0;
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   setupModalDragClose();
+  attachVoiceButton('assistant-chat-mic', 'chat', 'assistant-chat-in');
+  attachVoiceButton('chat-in-mic', 'chat', 'chat-in');
+  attachVoiceButton('pa-mic-btn', 'field', 'pa-desc');
 
   // Date in header and sidebar
   const d = new Date();
@@ -1872,24 +1970,284 @@ async function runPhotoAnalyze() {
   btn.disabled = false; btn.textContent = 'Анализировать';
 }
 
-// ── Голосовой ввод (Web Speech API) ───────────────────────────────────────────
-function startVoiceInput(inputId, btn) {
-  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRec) { toast('Голосовой ввод не поддерживается этим браузером', false); return; }
-  const rec = new SpeechRec();
-  rec.lang = 'ru-RU';
-  rec.interimResults = false;
-  rec.maxAlternatives = 1;
-  rec.onresult = (e) => {
-    const text = e.results[0][0].transcript;
-    const inp = document.getElementById(inputId);
+// ── Голосовые сообщения (запись + распознавание через Whisper) ─────────────────
+// mode 'chat'  — после распознавания добавляется голосовой пузырь в чат и идёт ИИ-ответ
+// mode 'field' — распознанный текст просто вставляется в текстовое поле targetId
+const VOICE_BARS = 27;
+let voiceRec = null;
+
+function attachVoiceButton(btnId, mode, targetId) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.addEventListener('pointerdown', (e) => voicePress(e, btn, mode, targetId));
+}
+
+function fmtDur(sec) {
+  sec = Math.max(0, Math.round(sec));
+  const m = Math.floor(sec/60), s = sec%60;
+  return `${m}:${s.toString().padStart(2,'0')}`;
+}
+
+async function voicePress(e, btn, mode, targetId) {
+  if (e.button !== undefined && e.button !== 0) return;
+  if (voiceRec) return;
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    toast('Запись голоса не поддерживается этим браузером', false); return;
+  }
+  e.preventDefault();
+  const container = btn.closest('.chat-input-row, .s-bar');
+  if (!container) return;
+
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({audio: true});
+  } catch {
+    toast('Доступ к микрофону не разрешён', false); return;
+  }
+
+  const mime = ['audio/webm;codecs=opus','audio/webm','audio/mp4'].find(t=>MediaRecorder.isTypeSupported(t)) || '';
+  const recorder = new MediaRecorder(stream, mime ? {mimeType: mime} : undefined);
+  const chunks = [];
+  recorder.ondataavailable = (ev) => { if (ev.data.size) chunks.push(ev.data); };
+
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 256;
+  audioCtx.createMediaStreamSource(stream).connect(analyser);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'voice-rec-overlay';
+  overlay.innerHTML = `
+    <div class="voice-rec-cancel-zone">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+      Сдвиньте для отмены
+    </div>
+    <div class="voice-rec-dot"></div>
+    <span class="voice-rec-timer">0:00</span>
+    <div class="voice-rec-wave"><canvas></canvas></div>
+    <div class="voice-rec-lock">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 17a2 2 0 100-4 2 2 0 000 4zM7 11V7a5 5 0 0110 0v4M5 11h14v9H5z"/></svg>
+      <span>↑</span>
+    </div>`;
+  container.appendChild(overlay);
+  btn.classList.add('voice-active');
+
+  voiceRec = {
+    btn, mode, targetId, container, overlay, recorder, stream, chunks, audioCtx, analyser,
+    startX: e.clientX, startY: e.clientY, startTime: Date.now(),
+    locked: false, amplitudes: [], rafId: null, timerId: null,
+  };
+
+  recorder.start();
+  voiceRec.timerId = setInterval(() => {
+    if (!voiceRec) return;
+    const el = voiceRec.overlay.querySelector('.voice-rec-timer');
+    if (el) el.textContent = fmtDur((Date.now()-voiceRec.startTime)/1000);
+  }, 200);
+  voiceLoop();
+
+  window.addEventListener('pointermove', voiceMove);
+  window.addEventListener('pointerup', voiceRelease);
+  window.addEventListener('pointercancel', voiceRelease);
+}
+
+function voiceLoop() {
+  if (!voiceRec) return;
+  const rec = voiceRec;
+  const data = new Uint8Array(rec.analyser.fftSize);
+  rec.analyser.getByteTimeDomainData(data);
+  let sum = 0;
+  for (let i=0;i<data.length;i++) { const v=(data[i]-128)/128; sum += v*v; }
+  rec.amplitudes.push(Math.min(1, Math.sqrt(sum/data.length)*4));
+  drawVoiceWave(rec.overlay.querySelector('canvas'), rec.amplitudes);
+  rec.rafId = requestAnimationFrame(voiceLoop);
+}
+
+function drawVoiceWave(canvas, amplitudes) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h) return;
+  if (canvas.width !== w*dpr || canvas.height !== h*dpr) { canvas.width = w*dpr; canvas.height = h*dpr; }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = '#22c55e';
+  const barW=3, gap=2, n=Math.floor(w/(barW+gap));
+  const data = amplitudes.slice(-n);
+  const pad = n - data.length;
+  data.forEach((v,i)=>{
+    const bh = Math.max(2, v*h);
+    ctx.fillRect((pad+i)*(barW+gap), (h-bh)/2, barW, bh);
+  });
+}
+
+function voiceMove(e) {
+  if (!voiceRec || voiceRec.locked) return;
+  const dx = e.clientX - voiceRec.startX;
+  const dy = e.clientY - voiceRec.startY;
+  const cancelZone = voiceRec.overlay.querySelector('.voice-rec-cancel-zone');
+  if (dy < -60) {
+    voiceRec.locked = true;
+    voiceRec.overlay.querySelector('.voice-rec-lock').classList.add('locked');
+    voiceLock();
+  } else if (dx < -90) {
+    voiceFinish(true);
+  } else {
+    cancelZone.classList.toggle('armed', dx < -40);
+  }
+}
+
+// Запись зафиксирована (палец отпущен без остановки) — показываем кнопки "стоп"/"удалить"
+function voiceLock() {
+  const rec = voiceRec;
+  rec.overlay.querySelector('.voice-rec-lock').innerHTML = `
+    <button class="voice-rec-stop" onclick="voiceFinish(false)" title="Готово">
+      <svg fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+    </button>`;
+  rec.overlay.querySelector('.voice-rec-cancel-zone').innerHTML = `
+    <button class="voice-rec-trash" onclick="voiceFinish(true)" title="Отмена">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H6a1 1 0 01-1-1V6h14z"/></svg>
+    </button>`;
+}
+
+function voiceRelease() {
+  if (!voiceRec) return;
+  if (voiceRec.locked) {
+    window.removeEventListener('pointermove', voiceMove);
+    window.removeEventListener('pointerup', voiceRelease);
+    window.removeEventListener('pointercancel', voiceRelease);
+    return;
+  }
+  voiceFinish(false);
+}
+
+function voiceFinish(cancelled) {
+  if (!voiceRec) return;
+  const rec = voiceRec;
+  voiceRec = null;
+  window.removeEventListener('pointermove', voiceMove);
+  window.removeEventListener('pointerup', voiceRelease);
+  window.removeEventListener('pointercancel', voiceRelease);
+  clearInterval(rec.timerId);
+  cancelAnimationFrame(rec.rafId);
+  const duration = (Date.now()-rec.startTime)/1000;
+  rec.overlay.remove();
+  rec.btn.classList.remove('voice-active');
+  rec.recorder.onstop = () => {
+    rec.stream.getTracks().forEach(t=>t.stop());
+    rec.audioCtx.close();
+    if (cancelled || duration < 0.6) return;
+    const blob = new Blob(rec.chunks, {type: rec.recorder.mimeType || 'audio/webm'});
+    showVoicePreview(rec, blob, duration);
+  };
+  rec.recorder.stop();
+}
+
+function resampleAmplitudes(arr, n) {
+  if (!arr.length) return new Array(n).fill(0.15);
+  const out = [];
+  for (let i=0;i<n;i++) out.push(arr[Math.floor(i/n*arr.length)]);
+  return out;
+}
+
+function showVoicePreview(rec, blob, duration) {
+  const audioUrl = URL.createObjectURL(blob);
+  const bars = resampleAmplitudes(rec.amplitudes, VOICE_BARS);
+  const el = document.createElement('div');
+  el.className = 'voice-preview-row';
+  el.innerHTML = `
+    <button class="voice-preview-del" title="Удалить">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H6a1 1 0 01-1-1V6h14z"/></svg>
+    </button>
+    <button class="voice-preview-play" title="Прослушать">
+      <svg fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <div class="voice-preview-wave">${bars.map(b=>`<div class="voice-preview-bar" style="height:${Math.max(3,b*26)}px"></div>`).join('')}</div>
+    <span class="voice-preview-dur">${fmtDur(duration)}</span>
+    <button class="voice-preview-send" title="Отправить">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+    </button>`;
+  const audio = new Audio(audioUrl);
+  const playPath = el.querySelector('.voice-preview-play path');
+  el.querySelector('.voice-preview-del').onclick = () => {
+    audio.pause(); URL.revokeObjectURL(audioUrl); el.remove();
+  };
+  el.querySelector('.voice-preview-play').onclick = () => {
+    if (audio.paused) { audio.play(); playPath.setAttribute('d','M6 4h4v16H6zM14 4h4v16h-4z'); }
+    else { audio.pause(); playPath.setAttribute('d','M8 5v14l11-7z'); }
+  };
+  audio.onended = () => playPath.setAttribute('d','M8 5v14l11-7z');
+  el.querySelector('.voice-preview-send').onclick = () => {
+    audio.pause();
+    el.remove();
+    sendVoiceMessage(rec.mode, rec.targetId, blob, duration, audioUrl, bars);
+  };
+  rec.container.appendChild(el);
+}
+
+async function transcribeBlob(blob) {
+  const fd = new FormData();
+  fd.append('file', blob, 'voice.webm');
+  try {
+    const resp = await fetch('/nutrition/api/transcribe', {method:'POST', body:fd});
+    const data = await resp.json();
+    return (data.text || '').trim();
+  } catch { return ''; }
+}
+
+async function sendVoiceMessage(mode, targetId, blob, duration, audioUrl, bars) {
+  if (mode === 'field') {
+    const text = await transcribeBlob(blob);
+    URL.revokeObjectURL(audioUrl);
+    if (!text) { toast('Не удалось распознать речь', false); return; }
+    const inp = document.getElementById(targetId);
     inp.value = (inp.value ? inp.value.trim()+' ' : '') + text;
     inp.focus();
-  };
-  rec.onerror = () => toast('Не удалось распознать речь', false);
-  rec.onend = () => btn.classList.remove('listening');
-  btn.classList.add('listening');
-  rec.start();
+    return;
+  }
+  const msg = {role:'user', content:'', voice:true, audioUrl, duration, bars, transcribing:true};
+  S.chatHistory.push(msg);
+  S.chatHistory.push({role:'assistant', content:'...'});
+  renderChat();
+  const text = await transcribeBlob(blob);
+  msg.transcribing = false;
+  msg.content = text;
+  if (!text) {
+    S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content:'Не удалось распознать голосовое сообщение. Попробуйте ещё раз.'};
+    renderChat();
+    return;
+  }
+  renderChat();
+  let data;
+  try {
+    data = await api('/nutrition/api/ai-chat', {method:'POST', body: JSON.stringify({message: text, date: S.today})});
+  } catch {
+    data = { error: 'Не удалось получить ответ. Проверьте соединение.' };
+  }
+  const aiReply = data.reply || data.error || 'Ошибка';
+  S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content: aiReply};
+  if (data.food) {
+    S.pendingFoodLog = data.food;
+    S.chatHistory.push({role:'assistant', content:'__meal_picker__'});
+  }
+  renderChat();
+}
+
+function toggleVoicePlay(btn, idx) {
+  const m = S.chatHistory[idx];
+  if (!m || !m.audioUrl) return;
+  const path = btn.querySelector('path');
+  if (!m._audio) m._audio = new Audio(m.audioUrl);
+  if (m._audio.paused) {
+    document.querySelectorAll('.voice-play-btn path').forEach(p=>p.setAttribute('d','M8 5v14l11-7z'));
+    m._audio.play();
+    path.setAttribute('d','M6 4h4v16H6zM14 4h4v16h-4z');
+    m._audio.onended = () => path.setAttribute('d','M8 5v14l11-7z');
+  } else {
+    m._audio.pause();
+    path.setAttribute('d','M8 5v14l11-7z');
+  }
 }
 
 // ── Custom food ───────────────────────────────────────────────────────────────
@@ -2075,7 +2433,7 @@ function logPendingFood(mealType) {
 function renderChat() {
   const html = !S.chatHistory.length
     ? '<div style="text-align:center;padding:24px 0"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>'
-    : S.chatHistory.map(m=>{
+    : S.chatHistory.map((m,idx)=>{
         if (m.content === '__meal_picker__') {
           return `<div class="chat-msg ai"><div class="chat-bubble ai">
             Выберите приём пищи:
@@ -2086,6 +2444,30 @@ function renderChat() {
               <button onclick="logPendingFood('snack')">🍎 Перекус</button>
             </div>
           </div></div>`;
+        }
+        if (m.voice) {
+          const barsHtml = (m.bars||[]).map(b=>`<div class="vw-bar" style="height:${Math.max(3,b*20)}px"></div>`).join('');
+          const trBlock = m.transcribing
+            ? `<div class="voice-transcribing">Распознаём голосовое...</div>`
+            : m.content
+              ? `<button class="voice-tr-toggle" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('show')">
+                   Показать текст
+                   <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                 </button>
+                 <div class="voice-tr-text">${esc(m.content).replace(/\n/g,'<br>')}</div>`
+              : `<div class="voice-transcribing">Не удалось распознать</div>`;
+          return `<div class="chat-msg user">
+        <div class="chat-bubble user voice-bubble">
+          <div class="voice-row">
+            <button class="voice-play-btn" onclick="toggleVoicePlay(this, ${idx})">
+              <svg fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <div class="voice-wave-static">${barsHtml}</div>
+            <span class="voice-dur">${fmtDur(m.duration)}</span>
+          </div>
+          ${trBlock}
+        </div>
+      </div>`;
         }
         const cls = m.role==='user' ? 'user' : 'ai';
         const imgHtml = m.image ? `<img src="${m.image}" class="chat-bubble-img">` : '';
