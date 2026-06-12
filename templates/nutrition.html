@@ -503,7 +503,6 @@
       animation: voice-fade-in .15s ease;
     }
     .voice-rec-dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; flex-shrink: 0; animation: mic-pulse 1s infinite; }
-    .voice-rec-dot.paused { animation: none; opacity: .4; background: var(--text-dim); }
     .voice-rec-timer {
       font-size: 0.85rem; font-weight: 700; color: var(--text); flex-shrink: 0;
       min-width: 36px; font-variant-numeric: tabular-nums;
@@ -515,21 +514,6 @@
       font-size: 0.78rem; flex-shrink: 0; white-space: nowrap; transition: opacity .1s, transform .1s;
     }
     .voice-rec-cancel-hint svg { width: 14px; height: 14px; flex-shrink: 0; }
-    .voice-rec-cancel-btn {
-      background: none; border: none; padding: 0 2px; cursor: pointer; flex-shrink: 0;
-      font-size: 0.8rem; font-weight: 700; color: #ef4444; font-family: var(--font);
-      -webkit-tap-highlight-color: transparent;
-    }
-    .voice-rec-pause-btn, .voice-rec-send-btn {
-      width: 32px; height: 32px; border-radius: 50%; border: none; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center; cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .voice-rec-pause-btn { background: var(--bg3); color: var(--text); }
-    .voice-rec-pause-btn svg { width: 13px; height: 13px; }
-    .voice-rec-pause-btn .vrp-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
-    .voice-rec-send-btn { background: var(--nut-g); color: #fff; }
-    .voice-rec-send-btn svg { width: 14px; height: 14px; }
     .chat-attach-btn.voice-active, .icon-btn.voice-active {
       visibility: hidden;
     }
@@ -544,6 +528,18 @@
     .voice-lock-float .vlf-chevron { animation: vlf-bounce 1.2s infinite; }
     .voice-lock-float.near { color: var(--nut-g); background: var(--nut-g-dim); }
     @keyframes vlf-bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+    /* После фиксации замочек превращается в кнопку паузы/продолжения — палец больше не нужен */
+    .voice-lock-float.locked {
+      flex-direction: row; width: 44px; height: 44px; padding: 0; border-radius: 50%;
+      pointer-events: auto; cursor: pointer; justify-content: center; align-items: center;
+      background: var(--nut-g); color: #fff; border: none; box-shadow: 0 4px 14px rgba(0,0,0,.35);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .voice-lock-float.locked svg { width: 18px; height: 18px; }
+    .voice-lock-float.locked.is-paused {
+      background: var(--bg3); color: var(--nut-g); border: 1px solid var(--nut-g);
+      animation: mic-pulse 1.4s infinite;
+    }
 
     /* ── Превью голосового сообщения перед отправкой ── */
     .voice-preview-row {
@@ -2068,6 +2064,7 @@ async function voicePress(e, btn, mode, targetId) {
     startX: e.clientX, startY: e.clientY, startTime: Date.now(),
     locked: false, paused: false, pausedMs: 0, pauseStart: 0,
     amplitudes: [], rafId: null, timerId: null,
+    previewUrl: null, previewAudio: null,
   };
 
   recorder.start();
@@ -2140,47 +2137,131 @@ function voiceMove(e) {
   }
 }
 
-// Запись зафиксирована (палец отпущен без остановки) — показываем отмену, паузу и отправку
+// Запись зафиксирована (палец отпущен без остановки) — запись продолжается сама,
+// замочек превращается в кнопку паузы, которую можно нажать без удержания пальца
 function voiceLockIn() {
   const rec = voiceRec;
   rec.locked = true;
-  rec.lockFloat.remove();
   window.removeEventListener('pointermove', voiceMove);
   window.removeEventListener('pointerup', voiceRelease);
   window.removeEventListener('pointercancel', voiceRelease);
 
-  const hint = rec.overlay.querySelector('.voice-rec-cancel-hint');
-  hint.outerHTML = `
-    <button class="voice-rec-cancel-btn" onclick="voiceFinish(true)">Отмена</button>
-    <button class="voice-rec-pause-btn" onclick="voicePauseToggle()" title="Пауза">
-      <svg fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
-    </button>
-    <button class="voice-rec-send-btn" onclick="voiceFinish(false)" title="Отправить">
-      <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-    </button>`;
+  // Подсказку "влево — отмена" убираем, волна занимает всю строку
+  rec.overlay.querySelector('.voice-rec-cancel-hint')?.remove();
+
+  // Плавающая кнопка переезжает чуть выше строки ввода и становится кнопкой паузы
+  const btnRect = rec.btn.getBoundingClientRect();
+  rec.lockFloat.className = 'voice-lock-float locked';
+  rec.lockFloat.style.transform = 'none';
+  rec.lockFloat.style.left = (btnRect.left + btnRect.width/2 - 22) + 'px';
+  rec.lockFloat.style.top = (btnRect.top - 58) + 'px';
+  setVoiceActionIcon(rec, 'pause');
+  rec.lockFloat.onclick = voicePauseForPreview;
 }
 
-// Пауза/продолжение записи после фиксации (красный кругляшок = пауза, тап продолжает запись)
-function voicePauseToggle() {
+// Иконка плавающей кнопки после фиксации: пауза (идёт запись) или микрофон (на паузе)
+function setVoiceActionIcon(rec, kind) {
+  rec.lockFloat.classList.toggle('is-paused', kind === 'mic');
+  rec.lockFloat.innerHTML = kind === 'pause'
+    ? `<svg fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>`
+    : `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>`;
+}
+
+// Забираем накопленные данные без остановки записи — чтобы показать превью на паузе.
+// recorder.ondataavailable уже кладёт кусок в rec.chunks, здесь только ждём этого события
+function voiceRequestSnapshot(rec, cb) {
+  rec.recorder.addEventListener('dataavailable', () => cb(), {once: true});
+  rec.recorder.requestData();
+}
+
+// Нажата кнопка-пауза: останавливаем захват и показываем превью записанного — как в Телеграме
+function voicePauseForPreview() {
   const rec = voiceRec;
-  if (!rec) return;
-  const dot = rec.overlay.querySelector('.voice-rec-dot');
-  const pauseBtn = rec.overlay.querySelector('.voice-rec-pause-btn');
-  if (!rec.paused) {
-    rec.paused = true;
-    rec.pauseStart = Date.now();
-    rec.recorder.pause();
-    dot.classList.add('paused');
-    pauseBtn.title = 'Продолжить';
-    pauseBtn.innerHTML = `<div class="vrp-dot"></div>`;
-  } else {
-    rec.paused = false;
-    rec.pausedMs += Date.now() - rec.pauseStart;
-    rec.recorder.resume();
-    dot.classList.remove('paused');
-    pauseBtn.title = 'Пауза';
-    pauseBtn.innerHTML = `<svg fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>`;
-  }
+  if (!rec || !rec.locked || rec.paused) return;
+  rec.paused = true;
+  rec.pauseStart = Date.now();
+  rec.recorder.pause();
+  cancelAnimationFrame(rec.rafId);
+
+  voiceRequestSnapshot(rec, () => {
+    if (voiceRec !== rec) return;
+    const blob = new Blob(rec.chunks, {type: rec.recorder.mimeType || 'audio/webm'});
+    rec.previewUrl = URL.createObjectURL(blob);
+    rec.previewAudio = new Audio(rec.previewUrl);
+    const bars = resampleAmplitudes(rec.amplitudes, VOICE_BARS);
+    const dur = fmtDur(voiceElapsedMs(rec)/1000);
+
+    rec.overlay.innerHTML = `
+      <button class="voice-preview-del" title="Удалить">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H6a1 1 0 01-1-1V6h14z"/></svg>
+      </button>
+      <button class="voice-preview-play" title="Прослушать">
+        <svg fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <div class="voice-preview-wave">${bars.map(b=>`<div class="voice-preview-bar" style="height:${Math.max(3,b*26)}px"></div>`).join('')}</div>
+      <span class="voice-preview-dur">${dur}</span>
+      <button class="voice-preview-send" title="Отправить">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      </button>`;
+
+    const playPath = rec.overlay.querySelector('.voice-preview-play path');
+    rec.overlay.querySelector('.voice-preview-del').onclick = () => voiceFinish(true);
+    rec.overlay.querySelector('.voice-preview-play').onclick = () => {
+      if (rec.previewAudio.paused) { rec.previewAudio.play(); playPath.setAttribute('d','M6 4h4v16H6zM14 4h4v16h-4z'); }
+      else { rec.previewAudio.pause(); playPath.setAttribute('d','M8 5v14l11-7z'); }
+    };
+    rec.previewAudio.onended = () => playPath.setAttribute('d','M8 5v14l11-7z');
+    rec.overlay.querySelector('.voice-preview-send').onclick = voiceSendFinal;
+
+    // Плавающая кнопка превращается в микрофон — тап продолжает запись
+    setVoiceActionIcon(rec, 'mic');
+    rec.lockFloat.onclick = voiceResumeRecording;
+  });
+}
+
+// Тап по микрофону на паузе — продолжаем запись того же сообщения без удержания пальца
+function voiceResumeRecording() {
+  const rec = voiceRec;
+  if (!rec || !rec.paused) return;
+  if (rec.previewAudio) { rec.previewAudio.pause(); rec.previewAudio = null; }
+  if (rec.previewUrl) { URL.revokeObjectURL(rec.previewUrl); rec.previewUrl = null; }
+
+  rec.pausedMs += Date.now() - rec.pauseStart;
+  rec.paused = false;
+  rec.recorder.resume();
+
+  rec.overlay.innerHTML = `
+    <div class="voice-rec-dot"></div>
+    <span class="voice-rec-timer">${fmtDur(voiceElapsedMs(rec)/1000)}</span>
+    <div class="voice-rec-wave"><canvas></canvas></div>`;
+  voiceLoop();
+
+  setVoiceActionIcon(rec, 'pause');
+  rec.lockFloat.onclick = voicePauseForPreview;
+}
+
+// "Отправить" из превью на паузе — завершаем запись и отправляем без повторного превью
+function voiceSendFinal() {
+  if (!voiceRec) return;
+  const rec = voiceRec;
+  voiceRec = null;
+  clearInterval(rec.timerId);
+  cancelAnimationFrame(rec.rafId);
+  const duration = voiceElapsedMs(rec) / 1000;
+  if (rec.previewAudio) rec.previewAudio.pause();
+  if (rec.previewUrl) URL.revokeObjectURL(rec.previewUrl);
+  rec.overlay.remove();
+  rec.lockFloat.remove();
+  rec.btn.classList.remove('voice-active');
+  const bars = resampleAmplitudes(rec.amplitudes, VOICE_BARS);
+  rec.recorder.onstop = () => {
+    rec.stream.getTracks().forEach(t=>t.stop());
+    rec.audioCtx.close();
+    const blob = new Blob(rec.chunks, {type: rec.recorder.mimeType || 'audio/webm'});
+    const audioUrl = URL.createObjectURL(blob);
+    sendVoiceMessage(rec.mode, rec.targetId, blob, duration, audioUrl, bars);
+  };
+  rec.recorder.stop();
 }
 
 function voiceRelease() {
@@ -2198,6 +2279,8 @@ function voiceFinish(cancelled) {
   clearInterval(rec.timerId);
   cancelAnimationFrame(rec.rafId);
   const duration = voiceElapsedMs(rec) / 1000;
+  if (rec.previewAudio) rec.previewAudio.pause();
+  if (rec.previewUrl) URL.revokeObjectURL(rec.previewUrl);
   rec.overlay.remove();
   rec.lockFloat.remove();
   rec.btn.classList.remove('voice-active');
