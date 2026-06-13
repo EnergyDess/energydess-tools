@@ -41,7 +41,6 @@ OPENROUTER_API_KEY  = os.getenv("OPENROUTER_API_KEY", "")
 MODEL               = os.getenv("MODEL", "anthropic/claude-haiku-4-5")
 LETTER_MODEL        = os.getenv("LETTER_MODEL", "anthropic/claude-sonnet-4-5")
 RESEND_API_KEY      = os.getenv("RESEND_API_KEY", "")
-GROQ_API_KEY        = os.getenv("GROQ_API_KEY", "")
 BASE_URL            = os.getenv("BASE_URL", "https://energydess.ru")
 
 TOOLS = [
@@ -1548,31 +1547,46 @@ async def nut_ai_chat_photo(file: UploadFile = File(...), message: str = Form(""
     return JSONResponse({"reply": reply, "food": food})
 
 
-# ── Nutrition: распознавание голосовых сообщений (Groq Whisper) ────────────────
+# ── Nutrition: распознавание голосовых сообщений (Whisper через OpenRouter) ────
+
+# Прямой аплоад файлов на api.groq.com из РФ блокируется DPI (зависают POST >10-30КБ
+# на Cloudflare-хосты). OpenRouter под эту блокировку не попадает, поэтому шлём
+# тот же whisper-large-v3-turbo (провайдер Groq) через него, JSON с base64-аудио.
+_TRANSCRIBE_FORMATS = {
+    "audio/webm": "webm",
+    "audio/ogg": "ogg",
+    "audio/mp4": "m4a",
+    "audio/mpeg": "mp3",
+    "audio/wav": "wav",
+}
 
 @app.post("/nutrition/api/transcribe")
 async def nut_transcribe(file: UploadFile = File(...),
                           user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user or not user_has_access(user, "nutrition", db):
         return JSONResponse({"error": "Нет доступа"}, status_code=403)
-    if not GROQ_API_KEY:
+    if not OPENROUTER_API_KEY:
         return JSONResponse({"error": "Распознавание речи не настроено"}, status_code=503)
     content = await file.read()
     if not content:
         return JSONResponse({"error": "Пустая запись"}, status_code=400)
 
-    # Несколько попыток — у VPS периодически рвётся связь с внешними хостами на 1-2 запроса.
-    # Read-таймаут увеличен: Groq иногда отвечает дольше 30с на более длинные записи.
+    content_type = (file.content_type or "audio/webm").split(";")[0].strip()
+    audio_format = _TRANSCRIBE_FORMATS.get(content_type, "webm")
+
     last_error = None
     timeout = httpx.Timeout(10.0, read=60.0, write=30.0)
     for attempt in range(2):
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 resp = await client.post(
-                    "https://api.groq.com/openai/v1/audio/transcriptions",
-                    headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
-                    files={"file": (file.filename or "voice.webm", content, file.content_type or "audio/webm")},
-                    data={"model": "whisper-large-v3-turbo", "language": "ru"},
+                    "https://openrouter.ai/api/v1/audio/transcriptions",
+                    headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
+                    json={
+                        "input_audio": {"data": base64.b64encode(content).decode("ascii"), "format": audio_format},
+                        "model": "openai/whisper-large-v3-turbo",
+                        "language": "ru",
+                    },
                 )
             resp.raise_for_status()
             text = resp.json().get("text", "").strip()
@@ -1582,7 +1596,7 @@ async def nut_transcribe(file: UploadFile = File(...),
             print(f"[transcribe] попытка {attempt+1} не удалась (размер файла {len(content)} байт, "
                   f"content_type={file.content_type}): {type(e).__name__}: {e!r}")
             if isinstance(e, httpx.HTTPStatusError):
-                print(f"[transcribe] ответ Groq: {e.response.status_code} {e.response.text[:300]}")
+                print(f"[transcribe] ответ OpenRouter: {e.response.status_code} {e.response.text[:300]}")
             if attempt == 0:
                 await asyncio.sleep(2)
 
