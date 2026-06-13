@@ -1386,6 +1386,7 @@ const S = {
   selRecipe: null, recFrac: 0.5,
   histDate: new Date().toISOString().slice(0,10),
   scannerInst: null,
+  scanToken: 0,
   torchOn: false,
   addingIng: false,
   chatHistory: [],
@@ -1832,12 +1833,27 @@ async function confirmAdd() {
 }
 
 // ── Scanner ───────────────────────────────────────────────────────────────────
+// Полностью останавливаем и разбираем предыдущий сканер: stop() сам по себе
+// оставляет в DOM элементы <video>/<canvas> с "замороженным" последним кадром,
+// и при повторном открытии новый экземпляр иногда успевает считать именно этот
+// старый кадр — отсюда баг "при новом сканировании показывается прошлый товар".
+async function stopScanner() {
+  if (!S.scannerInst) return;
+  const sc = S.scannerInst;
+  S.scannerInst = null;
+  try { await sc.stop(); } catch(e) {}
+  try { await sc.clear(); } catch(e) {}
+}
+
 async function openScanner() {
   openModal('modal-scanner');
   document.getElementById('barcode-input').value='';
+  await stopScanner();
+  const myToken = ++S.scanToken;
   if (!window.Html5Qrcode) {
     try { await loadScript('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'); } catch(e){ return; }
   }
+  if (myToken !== S.scanToken) return; // модалку уже закрыли/переоткрыли пока грузился скрипт
   try {
     // Ограничиваем форматы только штрих-кодами товаров — без этого
     // библиотека иногда путает полосы EAN-13 с QR-кодом и выдаёт случайный код
@@ -1853,7 +1869,13 @@ async function openScanner() {
     S.scannerInst = sc;
     // Прямоугольная рамка под штрих-код (шире, чем выше)
     await sc.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:130}},
-      async code => { await sc.stop(); S.scannerInst=null; closeModal('modal-scanner'); await handleBarcode(code); },
+      async code => {
+        if (myToken !== S.scanToken) return; // результат от уже закрытой сессии сканера — игнорируем
+        S.scanToken++;
+        await stopScanner();
+        closeModal('modal-scanner');
+        await handleBarcode(code);
+      },
       ()=>{}
     );
     setupTorchButton();
@@ -1888,7 +1910,8 @@ async function toggleTorch() {
 }
 
 function closeScanner() {
-  if (S.scannerInst) { S.scannerInst.stop().catch(()=>{}); S.scannerInst=null; }
+  S.scanToken++;
+  stopScanner();
   document.getElementById('scan-torch-btn').style.display = 'none';
   document.getElementById('scan-torch-btn').classList.remove('on');
   S.torchOn = false;
@@ -1908,6 +1931,7 @@ async function handleBarcode(code) {
   const data = await api(`/nutrition/api/barcode/${code}`);
   if (data.found) { openPortion(data); }
   else {
+    clearCustomFoodForm();
     document.getElementById('cf-barcode').value=code;
     openModal('modal-custom');
     toast(`Код ${code} не найден — введите вручную`, false);
@@ -2265,6 +2289,12 @@ function toggleVoicePlay(btn, idx) {
 }
 
 // ── Custom food ───────────────────────────────────────────────────────────────
+// Сбрасываем поля формы — иначе при следующем "не найден" сканировании
+// в полях остаются значения предыдущего сохранённого продукта.
+function clearCustomFoodForm() {
+  ['cf-name','cf-brand','cf-barcode','cf-cal','cf-prot','cf-fat','cf-carb'].forEach(id=>document.getElementById(id).value='');
+}
+
 async function saveCustomFood() {
   const name=document.getElementById('cf-name').value.trim();
   const cal=parseFloat(document.getElementById('cf-cal').value);
@@ -2276,6 +2306,7 @@ async function saveCustomFood() {
     fat:parseFloat(document.getElementById('cf-fat').value)||0,
     carbs:parseFloat(document.getElementById('cf-carb').value)||0,
   })});
+  clearCustomFoodForm();
   closeModal('modal-custom'); openPortion(food);
 }
 
