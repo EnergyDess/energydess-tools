@@ -1,0 +1,13 @@
+.git/
+.github/
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+.env
+app.db
+server.log
+server.err
+ssh_*.py
+*.md

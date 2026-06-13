@@ -8,25 +8,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy via webhook
-        run: |
-          curl -f -sS -X POST https://energydess.ru/deploy-hook \
-            -H "X-Deploy-Token: ${{ secrets.DEPLOY_SECRET }}" \
-            --connect-timeout 10 -m 20 \
-            --retry 15 --retry-delay 8 --retry-all-errors
-
-      - name: Проверить, что сервер обновился до этого коммита
-        run: |
-          expected="${GITHUB_SHA:0:7}"
-          echo "Ожидаем commit $expected"
-          for i in $(seq 1 48); do
-            actual=$(curl -s -m 10 https://energydess.ru/version | grep -oP '"commit":"\K[a-f0-9]+' || true)
-            echo "Попытка $i: на сервере commit $actual"
-            if [ "$actual" = "$expected" ]; then
-              echo "Деплой подтверждён"
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "Сервер не обновился до $expected за отведённое время"
-          exit 1
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

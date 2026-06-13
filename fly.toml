@@ -1,0 +1,25 @@
+app = "energydess-tools"
+primary_region = "fra"
+
+[build]
+
+[env]
+  DB_PATH = "/data/app.db"
+  BASE_URL = "https://energydess.ru"
+  MODEL = "anthropic/claude-haiku-4-5"
+  LETTER_MODEL = "anthropic/claude-sonnet-4-5"
+
+[[mounts]]
+  source = "data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

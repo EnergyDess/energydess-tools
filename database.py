@@ -1,9 +1,13 @@
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean, Float
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
+import os
 import sqlite3
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./app.db"
+# DB_PATH задаётся через .env на Fly.io (volume монтируется в /data),
+# по умолчанию — как раньше, файл рядом с кодом
+DB_PATH = os.getenv("DB_PATH", "./app.db")
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -168,7 +172,7 @@ def init_db():
 
 
 def migrate_db():
-    conn = sqlite3.connect("./app.db")
+    conn = sqlite3.connect(DB_PATH)
     for col in [
         "ALTER TABLE users ADD COLUMN is_verified BOOLEAN",
         "ALTER TABLE users ADD COLUMN verification_token VARCHAR",
