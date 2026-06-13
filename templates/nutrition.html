@@ -1093,6 +1093,12 @@
     <div class="modal-body">
       <div class="por-name" id="por-name"></div>
       <div class="por-sub"  id="por-sub"></div>
+      <div class="s-chips" id="por-meal-chips">
+        <button class="s-chip" data-meal="breakfast" onclick="setPorMeal(this)">☀️ Завтрак</button>
+        <button class="s-chip" data-meal="lunch"     onclick="setPorMeal(this)">🌤 Обед</button>
+        <button class="s-chip" data-meal="dinner"    onclick="setPorMeal(this)">🌙 Ужин</button>
+        <button class="s-chip" data-meal="snack"     onclick="setPorMeal(this)">🍎 Перекус</button>
+      </div>
       <div class="g-wrap">
         <input type="number" class="g-input" id="g-input" value="100" min="1" max="5000" oninput="updateCalc()">
         <span class="g-lbl">г</span>
@@ -1358,11 +1364,21 @@
 
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
+// Подсказка приёма пищи по текущему времени — используется как стартовый выбор
+// при сканировании штрих-кода/добавлении из чата, до явного выбора пользователем
+function defaultMealByTime() {
+  const h = new Date().getHours();
+  if (h < 11) return 'breakfast';
+  if (h < 16) return 'lunch';
+  if (h < 21) return 'dinner';
+  return 'snack';
+}
+
 const S = {
   today: new Date().toISOString().slice(0,10),
   activeTab: 'diary',
   diary: null, profile: null,
-  searchMeal: 'breakfast',
+  searchMeal: defaultMealByTime(),
   searchTab: 'recent',
   portionFood: null,
   editingFoodId: null,
@@ -1507,10 +1523,10 @@ function foodItemHTML(item) {
 
 // ── Редактирование порции уже записанного блюда ────────────────────────────────
 function editFoodItem(id) {
-  let item;
-  for (const arr of Object.values(S.diary.meals)) {
+  let item, mealType;
+  for (const [mt, arr] of Object.entries(S.diary.meals)) {
     item = arr.find(i => i.id === id);
-    if (item) break;
+    if (item) { mealType = mt; break; }
   }
   if (!item) return;
   const g = item.grams > 0 ? item.grams : 100;
@@ -1530,6 +1546,7 @@ function editFoodItem(id) {
   document.getElementById('por-sub').textContent = `На 100г: ${Math.round(f.calories)} ккал | Б:${f.protein.toFixed(1)}г Ж:${f.fat.toFixed(1)}г У:${f.carbs.toFixed(1)}г`;
   document.getElementById('g-input').value = item.grams;
   document.getElementById('por-save-btn').style.display = 'none';
+  setPorMealChips(mealType);
   updateCalc();
   openModal('modal-portion');
 }
@@ -1733,8 +1750,28 @@ function openPortion(food) {
   saveBtn.style.display = food.source === 'ai' ? '' : 'none';
   saveBtn.disabled = false;
   saveBtn.textContent = '💾 Сохранить в свою базу продуктов';
+  setPorMealChips(S.addingIng ? null : S.searchMeal);
   updateCalc();
   openModal('modal-portion');
+}
+
+// ── Выбор приёма пищи в модалке порции (добавление/редактирование) ─────────────
+function setPorMealChips(mealId) {
+  const wrap = document.getElementById('por-meal-chips');
+  if (!mealId) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  S.porMeal = mealId;
+  wrap.querySelectorAll('.s-chip').forEach(b=>b.classList.toggle('active', b.dataset.meal===mealId));
+}
+
+function setPorMeal(btn) {
+  document.querySelectorAll('#por-meal-chips .s-chip').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  S.porMeal = btn.dataset.meal;
+  if (!S.editingFoodId && !S.addingIng) {
+    const mealName = {breakfast:'завтрак',lunch:'обед',dinner:'ужин',snack:'перекус'}[S.porMeal];
+    document.getElementById('por-title').textContent = 'Добавить в '+mealName;
+  }
 }
 
 async function saveAIFoodToCustom() {
@@ -1773,6 +1810,7 @@ async function confirmAdd() {
   if (S.editingFoodId) {
     await api(`/nutrition/api/log-food/${S.editingFoodId}`,{method:'PUT',body:JSON.stringify({
       grams:g, calories:f.calories,protein:f.protein,fat:f.fat,carbs:f.carbs,
+      meal_type:S.porMeal,
     })});
     S.editingFoodId = null;
     closeModal('modal-portion');
@@ -1783,7 +1821,7 @@ async function confirmAdd() {
   await api('/nutrition/api/log-food',{method:'POST',body:JSON.stringify({
     name:f.name,brand:f.brand||'',grams:g,
     calories:f.calories,protein:f.protein,fat:f.fat,carbs:f.carbs,
-    meal_type:S.searchMeal,date:S.today,barcode:f.barcode||null
+    meal_type:S.porMeal||S.searchMeal,date:S.today,barcode:f.barcode||null
   })});
   closeModal('modal-portion');
   loadDiary(S.today);

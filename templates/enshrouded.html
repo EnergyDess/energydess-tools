@@ -1146,6 +1146,10 @@ function renderSection(cat,sets) {
   </section>`;
 }
 
+// Эти иконки существуют только в .png — сразу запрашиваем правильное расширение,
+// чтобы не плодить лишние 404 на .jpg в логах
+const PNG_ICONS=new Set(['al_wiz','ht_marks','ht_shoot','sp_hats']);
+
 function renderCard(set) {
   const p=progress(set);
   const pct=(p.owned/p.total*100).toFixed(1);
@@ -1163,7 +1167,7 @@ function renderCard(set) {
   const sid=set.id;
   const wikiFile=!set.noWiki&&(set.wikiImg||(set.name?set.name.replace(/\s+/g,'_')+'_Set.png':null));
   const wikiUrl=wikiFile?`https://enshrouded.wiki.gg/images/${wikiFile}`:null;
-  const firstSrc=wikiUrl||`/static/enshrouded/${sid}.jpg`;
+  const firstSrc=wikiUrl||`/static/enshrouded/${sid}.${PNG_ICONS.has(sid)?'png':'jpg'}`;
   // При ошибке — схлопываем баннер (no-img), не удаляем, чтобы не было layout-скачка
   const errChain=wikiUrl
     ?`if(this.step===undefined){this.step=1;this.src='/static/enshrouded/${sid}.jpg'}else if(this.step===1){this.step=2;this.src='/static/enshrouded/${sid}.png'}else{this.closest('.card-banner').classList.add('no-img')}`

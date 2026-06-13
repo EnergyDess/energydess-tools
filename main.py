@@ -1104,6 +1104,9 @@ async def nut_update_food(log_id: int, request: Request, user=Depends(get_curren
     log.protein = round(protein_per_100 * grams / 100, 1)
     log.fat = round(fat_per_100 * grams / 100, 1)
     log.carbs = round(carbs_per_100 * grams / 100, 1)
+    meal_type = data.get("meal_type")
+    if meal_type in ("breakfast", "lunch", "dinner", "snack"):
+        log.meal_type = meal_type
     db.commit()
     return JSONResponse({"ok": True})
 
