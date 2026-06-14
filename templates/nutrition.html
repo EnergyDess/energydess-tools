@@ -22,12 +22,13 @@
       --wat:  #38bdf8;
       --nav-h: 64px;
       --hdr-h: 54px;
-      /* alias style.css tokens for readability */
-      --surf:  var(--bg2);
-      --surf2: var(--bg3);
-      --brd:   var(--border);
-      --txt:   var(--text);
-      --muted: var(--text-dim);
+      /* Переопределяем фоны карточек/менюшек ярче, чем общие токены style.css —
+         иначе на тёмном фоне страницы карточки сливаются с фоном (см. правки читаемости) */
+      --bg2: #181c30;
+      --bg3: #0f1220;
+      --border: rgba(255,255,255,.10);
+      /* Светлее обычного --text-dim — мелкий текст подписей был почти нечитаемым */
+      --text-dim: #9aa5c7;
     }
 
     /* ── Body: let fixed body::before animation work ── */
@@ -69,7 +70,7 @@
     }
     .nut-hdr-back:hover { color: var(--text); }
     .nut-hdr-title { font-size: 0.95rem; font-weight: 700; flex: 1; }
-    .nut-hdr-date  { font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; }
+    .nut-hdr-date  { font-size: 0.75rem; color: var(--text-dim); font-weight: 600; white-space: nowrap; }
 
     /* ── Content ── */
     .nut-content {
@@ -94,7 +95,7 @@
     .nut-nav-btn {
       flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 3px; background: none; border: none; cursor: pointer;
-      color: var(--text-dim); font-size: 0.62rem; font-weight: 500;
+      color: var(--text-dim); font-size: 0.62rem; font-weight: 600;
       transition: color .15s; -webkit-tap-highlight-color: transparent;
     }
     .nut-nav-btn svg { width: 21px; height: 21px; }
@@ -123,13 +124,13 @@
     .ring-fill.over { stroke: #ef4444; filter: drop-shadow(0 0 6px rgba(239,68,68,.4)); }
     .ring-center { position: absolute; text-align: center; }
     .ring-remain { font-size: 1.9rem; font-weight: 800; line-height: 1; font-family: var(--font-display); }
-    .ring-lbl  { font-size: 0.68rem; color: var(--text-dim); margin-top: 2px; }
-    .ring-eaten { font-size: 0.72rem; color: var(--text-dim); }
+    .ring-lbl  { font-size: 0.68rem; color: var(--text-dim); font-weight: 600; margin-top: 2px; }
+    .ring-eaten { font-size: 0.72rem; color: var(--text-dim); font-weight: 600; }
 
     /* ── Macros ── */
     .macros-row { display: flex; gap: 8px; margin: 10px 0; }
     .macro-card { flex: 1; background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 11px; }
-    .macro-label { font-size: 0.65rem; color: var(--text-dim); margin-bottom: 5px; }
+    .macro-label { font-size: 0.65rem; color: var(--text-dim); font-weight: 600; margin-bottom: 5px; }
     .macro-bar { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; margin-bottom: 5px; }
     .macro-bar-fill { height: 100%; border-radius: 3px; transition: width .8s ease; }
     .macro-val { font-size: 0.75rem; font-weight: 600; }
@@ -175,7 +176,7 @@
     .food-item:last-child { border-bottom: none; }
     .food-info { flex: 1; min-width: 0; }
     .food-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .food-sub  { font-size: 0.7rem; color: var(--text-dim); margin-top: 1px; }
+    .food-sub  { font-size: 0.7rem; color: var(--text-dim); font-weight: 600; margin-top: 1px; }
     .food-kcal { font-size: 0.8rem; color: var(--nut-g); font-weight: 600; white-space: nowrap; }
     .food-del  {
       width: 26px; height: 26px; border-radius: 7px; background: rgba(239,68,68,.1);
@@ -197,11 +198,12 @@
 
     /* ── Search ── */
     .search-back { display: none; }
-    .s-chips { display: flex; gap: 7px; margin-bottom: 12px; flex-wrap: wrap; }
+    .s-chips { display: flex; gap: 7px; margin-bottom: 12px; }
     .s-chip {
-      padding: 6px 13px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
+      flex: 1; padding: 6px 8px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
       background: var(--bg3); border: 1px solid var(--border); color: var(--text-dim);
       cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
+      text-align: center; white-space: nowrap;
     }
     .s-chip.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
     .s-bar { display: flex; gap: 8px; margin-bottom: 12px; position: relative; }
@@ -240,10 +242,10 @@
     .r-item:active { background: var(--bg3); }
     .r-info { flex: 1; min-width: 0; }
     .r-name  { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .r-brand { font-size: 0.7rem; color: var(--text-dim); }
+    .r-brand { font-size: 0.7rem; color: var(--text-dim); font-weight: 600; }
     .r-kcal  { font-size: 0.8rem; color: var(--nut-g); font-weight: 700; white-space: nowrap; }
-    .r-per   { font-size: 0.65rem; color: var(--text-dim); }
-    .empty   { text-align: center; color: var(--text-dim); padding: 28px 16px; font-size: 0.87rem; }
+    .r-per   { font-size: 0.65rem; color: var(--text-dim); font-weight: 600; }
+    .empty   { text-align: center; color: var(--text-dim); font-weight: 600; padding: 28px 16px; font-size: 0.87rem; }
 
     /* ── AI estimate fallback ── */
     .ai-estimate-btn {
@@ -283,30 +285,30 @@
     .w-bar { width: 100%; border-radius: 4px 4px 0 0; background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.25); min-height: 3px; transition: background .15s, box-shadow .15s; }
     .w-bar.today { background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo); }
     .w-col.active .w-bar { background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo); }
-    .w-day  { font-size: 0.62rem; color: var(--text-dim); }
+    .w-day  { font-size: 0.62rem; color: var(--text-dim); font-weight: 600; }
     .w-col.active .w-day { color: var(--nut-g); font-weight: 700; }
     .w-kcal { font-size: 0.62rem; color: var(--nut-g); font-weight: 600; }
 
     /* ── Weight ── */
     .wt-hero { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 10px; text-align: center; }
     .wt-big  { font-size: 2.8rem; font-weight: 800; line-height: 1; font-family: var(--font-display); }
-    .wt-unit { font-size: 1.1rem; color: var(--text-dim); font-weight: 400; }
-    .wt-sub  { font-size: 0.75rem; color: var(--text-dim); margin-top: 5px; }
+    .wt-unit { font-size: 1.1rem; color: var(--text-dim); font-weight: 600; }
+    .wt-sub  { font-size: 0.75rem; color: var(--text-dim); font-weight: 600; margin-top: 5px; }
     .wt-prog { margin-top: 13px; }
-    .wt-prog-lbl { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px; }
+    .wt-prog-lbl { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-dim); font-weight: 600; margin-bottom: 5px; }
     .wt-prog-bar { height: 7px; background: var(--bg3); border-radius: 4px; overflow: hidden; }
     .wt-prog-fill { height: 100%; background: var(--nut-g); border-radius: 4px; transition: width .8s ease; box-shadow: 0 0 8px var(--nut-g-glo); }
     .measures { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 10px 0; }
     .m-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 11px; padding: 11px 9px; text-align: center; }
     .m-val { font-size: 1.25rem; font-weight: 700; }
-    .m-lbl { font-size: 0.65rem; color: var(--text-dim); margin-top: 2px; }
+    .m-lbl { font-size: 0.65rem; color: var(--text-dim); font-weight: 600; margin-top: 2px; }
     .chart-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 10px; overflow: hidden; }
     .wt-svg { width: 100%; height: 90px; overflow: visible; }
 
     /* ── Profile ── */
     .p-sec { margin-bottom: 18px; }
     .p-sec-title { font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; margin-bottom: 9px; }
-    .f-label { font-size: 0.76rem; color: var(--text-dim); margin-bottom: 5px; display: block; }
+    .f-label { font-size: 0.76rem; color: var(--text-dim); font-weight: 600; margin-bottom: 5px; display: block; }
     .f-input {
       width: 100%; height: 44px; background: var(--bg3); border: 1px solid var(--border);
       border-radius: 11px; padding: 0 13px; color: var(--text); font-size: 0.93rem;
@@ -324,7 +326,7 @@
     .act-btn {
       width: 100%; text-align: left; padding: 10px 13px; border-radius: 10px;
       border: 1px solid var(--border); background: var(--bg3); color: var(--text-dim);
-      font-size: 0.8rem; cursor: pointer; margin-bottom: 5px;
+      font-size: 0.8rem; font-weight: 600; cursor: pointer; margin-bottom: 5px;
       transition: all .15s; -webkit-tap-highlight-color: transparent; font-family: var(--font);
     }
     .act-btn.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
@@ -333,7 +335,7 @@
     .targets-row { display: flex; gap: 7px; }
     .t-item { flex: 1; text-align: center; }
     .t-val { font-size: 1.05rem; font-weight: 700; }
-    .t-lbl { font-size: 0.62rem; color: var(--text-dim); }
+    .t-lbl { font-size: 0.62rem; color: var(--text-dim); font-weight: 600; }
     .save-btn {
       width: 100%; height: 48px; border-radius: 13px; border: none;
       background: var(--nut-g); color: #fff; font-size: 0.95rem; font-weight: 700;
@@ -383,7 +385,7 @@
 
     /* ── Portion modal ── */
     .por-name { font-size: 0.97rem; font-weight: 700; margin-bottom: 3px; }
-    .por-sub  { font-size: 0.76rem; color: var(--text-dim); margin-bottom: 13px; }
+    .por-sub  { font-size: 0.76rem; color: var(--text-dim); font-weight: 600; margin-bottom: 13px; }
     .g-wrap   { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
     .g-input  {
       width: 95px; height: 48px; background: var(--bg3); border: 1px solid var(--border);
@@ -391,17 +393,17 @@
       text-align: center; outline: none; transition: border-color .15s;
     }
     .g-input:focus { border-color: var(--nut-g); }
-    .g-lbl { color: var(--text-dim); font-size: 0.88rem; }
+    .g-lbl { color: var(--text-dim); font-size: 0.88rem; font-weight: 600; }
     .q-grams { display: flex; gap: 7px; margin-bottom: 14px; flex-wrap: wrap; }
     .q-btn {
       padding: 6px 13px; border-radius: 8px; background: var(--bg3); border: 1px solid var(--border);
-      color: var(--text-dim); font-size: 0.78rem; cursor: pointer;
+      color: var(--text-dim); font-size: 0.78rem; font-weight: 600; cursor: pointer;
       -webkit-tap-highlight-color: transparent; transition: all .1s;
     }
     .q-btn:active { color: var(--nut-g); border-color: var(--nut-g); }
     .calc-box { background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2); border-radius: 11px; padding: 11px 13px; margin-bottom: 14px; }
     .calc-kcal   { font-size: 1.45rem; font-weight: 800; color: var(--nut-g); font-family: var(--font-display); }
-    .calc-macros { font-size: 0.76rem; color: var(--text-dim); margin-top: 2px; }
+    .calc-macros { font-size: 0.76rem; color: var(--text-dim); font-weight: 600; margin-top: 2px; }
     .add-btn {
       width: 100%; height: 48px; border-radius: 13px; border: none;
       background: var(--nut-g); color: #fff; font-size: 0.95rem; font-weight: 700;
@@ -460,10 +462,21 @@
       display: block; max-width: 200px; width: 100%; border-radius: 10px;
       margin-bottom: 6px; cursor: zoom-in;
     }
-    #modal-img-viewer .modal-sh { background: transparent; box-shadow: none; max-width: none; }
-    #modal-img-viewer .modal-body { padding: 0; display: flex; justify-content: center; }
-    #modal-img-viewer img { max-width: 100%; max-height: 80vh; border-radius: 12px; object-fit: contain; }
-    #modal-img-viewer .modal-hdr { background: transparent; border: none; }
+    #modal-img-viewer { align-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+    #modal-img-viewer .modal-sh {
+      background: transparent; box-shadow: none; max-width: 92vw; width: auto; max-height: none;
+      border-radius: 0; padding-bottom: 0;
+      transform: scale(.94); opacity: 0; transition: transform .2s ease, opacity .2s ease;
+    }
+    #modal-img-viewer.open .modal-sh { transform: scale(1); opacity: 1; }
+    #modal-img-viewer .modal-body { padding: 0; display: flex; justify-content: center; position: relative; }
+    #modal-img-viewer img { max-width: 100%; max-height: 80vh; border-radius: 12px; object-fit: contain; display: block; }
+    #modal-img-viewer .img-close {
+      position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 50%;
+      background: rgba(0,0,0,.55); border: none; color: #fff; font-size: 1.15rem;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
     .chat-input-row {
       display: flex; gap: 8px; padding: 12px 0 0;
       border-top: 1px solid var(--border); flex-shrink: 0; position: relative;
@@ -573,7 +586,7 @@
     .voice-wave-static .vw-bar { width: 3px; border-radius: 2px; flex-shrink: 0; opacity: .55; }
     .chat-bubble.user .voice-wave-static .vw-bar { background: var(--nut-g); }
     .chat-bubble.ai .voice-wave-static .vw-bar { background: var(--text-dim); }
-    .voice-dur { font-size: 0.74rem; color: var(--text-dim); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .voice-dur { font-size: 0.74rem; color: var(--text-dim); font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
     .voice-tr-toggle {
       margin-top: 7px; background: none; border: none; padding: 0; cursor: pointer;
       font-size: 0.74rem; font-weight: 700; color: var(--nut-g); font-family: var(--font);
@@ -586,7 +599,7 @@
       font-size: 0.85rem; line-height: 1.5;
     }
     .voice-tr-text.show { display: block; }
-    .voice-transcribing { margin-top: 6px; font-size: 0.78rem; color: var(--text-dim); font-style: italic; }
+    .voice-transcribing { margin-top: 6px; font-size: 0.78rem; color: var(--text-dim); font-weight: 600; font-style: italic; }
     /* ── Кнопки выбора приёма пищи в чате ── */
     .meal-picker-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 9px; }
     .meal-picker-btns button {
@@ -676,7 +689,7 @@
       .sidebar-hd span:first-child { -webkit-text-fill-color: initial; font-size: 1.3rem; }
       .sidebar-date {
         display: flex; align-items: center; gap: 7px;
-        font-size: .82rem; color: var(--text-dim); text-transform: capitalize;
+        font-size: .82rem; color: var(--text-dim); font-weight: 600; text-transform: capitalize;
         padding: 0 12px 16px; font-family: var(--font-mono); flex-shrink: 0;
         letter-spacing: .04em;
       }
@@ -956,7 +969,7 @@
               </svg>
               <div style="position:absolute;text-align:center;">
                 <div id="hist-kcal" style="font-size:1.25rem;font-weight:800;">—</div>
-                <div style="font-size:0.63rem;color:var(--text-dim)">ккал</div>
+                <div style="font-size:0.63rem;color:var(--text-dim);font-weight:600">ккал</div>
               </div>
             </div>
           </div>
@@ -1172,7 +1185,7 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M15 16v-3.34a4 4 0 10-6 0V16a2 2 0 002 2h2a2 2 0 002-2zM12 2v2M4.93 4.93l1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
         </button>
       </div>
-      <div style="font-size:.8rem;color:var(--text-dim);text-align:center;margin-bottom:9px">или введите штрих-код вручную</div>
+      <div style="font-size:.8rem;color:var(--text-dim);font-weight:600;text-align:center;margin-bottom:9px">или введите штрих-код вручную</div>
       <input class="scan-manual" id="barcode-input" type="text" placeholder="4600000000000" inputmode="numeric"
              onkeydown="if(event.key==='Enter')lookupBarcode()">
       <button class="add-btn" style="margin-top:10px;margin-bottom:16px" onclick="lookupBarcode()">Найти</button>
@@ -1244,11 +1257,9 @@
 <!-- ─── MODAL: Просмотр фото из чата ─── -->
 <div class="modal-ov" id="modal-img-viewer" onclick="bgClose(event,'modal-img-viewer')">
   <div class="modal-sh">
-    <div class="modal-hdr">
-      <button class="modal-x" style="margin-left:auto" onclick="closeModal('modal-img-viewer')">×</button>
-    </div>
     <div class="modal-body">
       <img id="img-viewer-src" src="" alt="Фото из чата">
+      <button class="img-close" onclick="closeModal('modal-img-viewer')">×</button>
     </div>
   </div>
 </div>
@@ -1349,7 +1360,7 @@
       <button class="modal-x" onclick="closeModal('modal-recipe-log')">×</button>
     </div>
     <div class="modal-body">
-      <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:9px">Сколько съели от общего объёма?</div>
+      <div style="font-size:.8rem;color:var(--text-dim);font-weight:600;margin-bottom:9px">Сколько съели от общего объёма?</div>
       <div class="frac-btns" id="frac-btns">
         <button class="frac-btn" onclick="setFrac(.25,this)">¼</button>
         <button class="frac-btn" onclick="setFrac(.33,this)">⅓</button>
@@ -1594,7 +1605,7 @@ function renderMeals(meals) {
 function foodItemHTML(item) {
   return `<div class="food-item" onclick="editFoodItem(${item.id})">
     <div class="food-info">
-      <div class="food-name">${esc(item.name)}${item.brand?`<span style="font-weight:400;color:var(--text-dim);font-size:.68rem"> · ${esc(item.brand)}</span>`:''}</div>
+      <div class="food-name">${esc(item.name)}${item.brand?`<span style="font-weight:600;color:var(--text-dim);font-size:.68rem"> · ${esc(item.brand)}</span>`:''}</div>
       <div class="food-sub">${item.grams}г · Б:${item.protein}г Ж:${item.fat}г У:${item.carbs}г</div>
     </div>
     <span class="food-kcal">${Math.round(item.calories)}</span>
