@@ -385,7 +385,13 @@
 
     /* ── Portion modal ── */
     .por-name { font-size: 0.97rem; font-weight: 700; margin-bottom: 3px; }
-    .por-sub  { font-size: 0.76rem; color: var(--text-dim); font-weight: 600; margin-bottom: 13px; }
+    .por-sub  {
+      font-size: 0.76rem; color: var(--text-dim); font-weight: 600; margin-bottom: 13px;
+      cursor: pointer; display: flex; align-items: center; gap: 5px; -webkit-tap-highlight-color: transparent;
+    }
+    .por-sub::after { content: '✏️'; font-size: .72rem; flex-shrink: 0; }
+    .por-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: -3px 0 14px; }
+    .por-edit-grid .f-field { margin-bottom: 0; }
     .g-wrap   { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
     .g-input  {
       width: 95px; height: 48px; background: var(--bg3); border: 1px solid var(--border);
@@ -464,13 +470,13 @@
     }
     #modal-img-viewer { align-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     #modal-img-viewer .modal-sh {
-      background: transparent; box-shadow: none; max-width: 92vw; width: auto; max-height: none;
+      background: transparent; box-shadow: none; width: 94vw; max-width: 94vw; max-height: none;
       border-radius: 0; padding-bottom: 0;
       transform: scale(.94); opacity: 0; transition: transform .2s ease, opacity .2s ease;
     }
     #modal-img-viewer.open .modal-sh { transform: scale(1); opacity: 1; }
     #modal-img-viewer .modal-body { padding: 0; display: flex; justify-content: center; position: relative; }
-    #modal-img-viewer img { max-width: 100%; max-height: 80vh; border-radius: 12px; object-fit: contain; display: block; }
+    #modal-img-viewer img { max-width: 100%; max-height: 88vh; border-radius: 12px; object-fit: contain; display: block; }
     #modal-img-viewer .img-close {
       position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 50%;
       background: rgba(0,0,0,.55); border: none; color: #fff; font-size: 1.15rem;
@@ -901,6 +907,13 @@
             <div class="macro-val" id="val-carb" style="color:var(--carb)">—</div>
           </div>
         </div>
+        <button class="ai-btn" onclick="openAIChat()">
+          <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Спросить AI-нутрициолога
+        </button>
+      </div>
+      <div class="d-right">
+        <div id="meals-wrap"></div>
         <div class="water-card">
           <div class="water-hdr">
             <span style="font-size:1.1rem">💧</span>
@@ -916,13 +929,6 @@
           </div>
           <button class="water-btn-manual" onclick="openWaterManual()">✏️ Ввести вручную</button>
         </div>
-        <button class="ai-btn" onclick="openAIChat()">
-          <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-          Спросить AI-нутрициолога
-        </button>
-      </div>
-      <div class="d-right">
-        <div id="meals-wrap"></div>
       </div>
     </section>
 
@@ -1141,7 +1147,13 @@
     </div>
     <div class="modal-body">
       <div class="por-name" id="por-name"></div>
-      <div class="por-sub"  id="por-sub"></div>
+      <div class="por-sub"  id="por-sub" onclick="togglePorEdit()" title="Нажмите, чтобы изменить КБЖУ"></div>
+      <div class="por-edit-grid" id="por-edit-grid" style="display:none">
+        <div class="f-field"><label class="f-label">Калории на 100г</label><input type="number" class="f-input" id="pe-kcal" oninput="onPorEdit()"></div>
+        <div class="f-field"><label class="f-label">Белки, г</label><input type="number" class="f-input" id="pe-prot" oninput="onPorEdit()"></div>
+        <div class="f-field"><label class="f-label">Жиры, г</label><input type="number" class="f-input" id="pe-fat" oninput="onPorEdit()"></div>
+        <div class="f-field"><label class="f-label">Углеводы, г</label><input type="number" class="f-input" id="pe-carb" oninput="onPorEdit()"></div>
+      </div>
       <div class="s-chips" id="por-meal-chips">
         <button class="s-chip" data-meal="breakfast" onclick="setPorMeal(this)">☀️ Завтрак</button>
         <button class="s-chip" data-meal="lunch"     onclick="setPorMeal(this)">🌤 Обед</button>
@@ -1626,16 +1638,21 @@ function editFoodItem(id) {
   S.addingIng = false;
   S.portionFood = {
     name: item.name, brand: item.brand || '',
-    calories: item.calories / g * 100,
-    protein: item.protein / g * 100,
-    fat: item.fat / g * 100,
-    carbs: item.carbs / g * 100,
+    calories: Math.round(item.calories / g * 100),
+    protein: +(item.protein / g * 100).toFixed(1),
+    fat: +(item.fat / g * 100).toFixed(1),
+    carbs: +(item.carbs / g * 100).toFixed(1),
   };
   const f = S.portionFood;
   document.getElementById('por-title').textContent = 'Редактировать';
   document.getElementById('por-add-btn').textContent = 'Сохранить';
   document.getElementById('por-name').textContent = f.name + (f.brand ? ' · ' + f.brand : '');
-  document.getElementById('por-sub').textContent = `На 100г: ${Math.round(f.calories)} ккал | Б:${f.protein.toFixed(1)}г Ж:${f.fat.toFixed(1)}г У:${f.carbs.toFixed(1)}г`;
+  document.getElementById('pe-kcal').value = f.calories;
+  document.getElementById('pe-prot').value = f.protein;
+  document.getElementById('pe-fat').value  = f.fat;
+  document.getElementById('pe-carb').value = f.carbs;
+  document.getElementById('por-edit-grid').style.display = 'none';
+  updatePorSub();
   document.getElementById('g-input').value = item.grams;
   document.getElementById('por-save-btn').style.display = 'none';
   setPorMealChips(mealType);
@@ -1836,15 +1853,41 @@ function openPortion(food) {
   document.getElementById('por-title').textContent = S.addingIng ? 'Ингредиент' : 'Добавить в '+mealName;
   document.getElementById('por-add-btn').textContent = S.addingIng ? 'Добавить ингредиент' : 'Добавить в дневник';
   document.getElementById('por-name').textContent = food.name+(food.brand?' · '+food.brand:'');
-  document.getElementById('por-sub').textContent = `На 100г: ${food.calories} ккал | Б:${food.protein}г Ж:${food.fat}г У:${food.carbs}г`;
   document.getElementById('g-input').value = 100;
+  document.getElementById('pe-kcal').value = food.calories;
+  document.getElementById('pe-prot').value = food.protein;
+  document.getElementById('pe-fat').value  = food.fat;
+  document.getElementById('pe-carb').value = food.carbs;
+  document.getElementById('por-edit-grid').style.display = 'none';
+  updatePorSub();
   const saveBtn = document.getElementById('por-save-btn');
-  saveBtn.style.display = food.source === 'ai' ? '' : 'none';
+  saveBtn.style.display = (food.barcode && food.source !== 'custom') ? '' : 'none';
   saveBtn.disabled = false;
   saveBtn.textContent = '💾 Сохранить в свою базу продуктов';
   setPorMealChips(S.addingIng ? null : S.searchMeal);
   updateCalc();
   openModal('modal-portion');
+}
+
+// ── Ручная коррекция КБЖУ на 100г (например, если штрих-код считал не точно) ───
+function updatePorSub() {
+  const f = S.portionFood;
+  document.getElementById('por-sub').textContent = `На 100г: ${f.calories} ккал | Б:${f.protein}г Ж:${f.fat}г У:${f.carbs}г`;
+}
+
+function togglePorEdit() {
+  const grid = document.getElementById('por-edit-grid');
+  grid.style.display = grid.style.display === 'none' ? 'grid' : 'none';
+}
+
+function onPorEdit() {
+  const f = S.portionFood; if (!f) return;
+  f.calories = parseFloat(document.getElementById('pe-kcal').value) || 0;
+  f.protein  = parseFloat(document.getElementById('pe-prot').value) || 0;
+  f.fat      = parseFloat(document.getElementById('pe-fat').value)  || 0;
+  f.carbs    = parseFloat(document.getElementById('pe-carb').value) || 0;
+  updatePorSub();
+  updateCalc();
 }
 
 // ── Выбор приёма пищи в модалке порции (добавление/редактирование) ─────────────
@@ -2575,10 +2618,12 @@ document.addEventListener('click', (e) => {
 });
 
 // ── Прикрепление фото к чату ──────────────────────────────────────────────────
+// Для чата берём более крупное и качественное изображение, чем для фото-анализа —
+// его же показываем при открытии на весь экран, оно не должно быть мыльным
 async function onChatAttach(e) {
   const file = e.target.files[0]; if (!file) return;
   e.target.value = '';
-  const { blob, dataUrl } = await resizeImage(file);
+  const { blob, dataUrl } = await resizeImage(file, 1920, 0.9);
   S.chatAttachment = blob;
   S.chatAttachmentPreview = dataUrl;
   if (dataUrl) document.querySelectorAll('.chat-attach-img').forEach(img=>img.src = dataUrl);
