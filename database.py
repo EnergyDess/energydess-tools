@@ -144,6 +144,7 @@ class ChatMessage(Base):
     user_id = Column(Integer, nullable=False, index=True)
     role = Column(String, nullable=False)  # user/assistant
     content = Column(Text, nullable=False)
+    image_data = Column(Text, nullable=True)  # миниатюра прикреплённого фото (data URL), если было
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -179,6 +180,7 @@ def migrate_db():
         "ALTER TABLE users ADD COLUMN verification_token_expires DATETIME",
         "ALTER TABLE users ADD COLUMN reset_token VARCHAR",
         "ALTER TABLE users ADD COLUMN reset_token_expires DATETIME",
+        "ALTER TABLE chat_messages ADD COLUMN image_data TEXT",
     ]:
         try:
             conn.execute(col)

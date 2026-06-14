@@ -854,6 +854,20 @@ def _image_mime(file: UploadFile) -> str:
             "heif": "image/heif"}.get(ext, "image/jpeg")
 
 
+def _make_thumbnail(content: bytes, max_dim: int = 320, quality: int = 60) -> str | None:
+    """Уменьшенная копия фото для хранения в истории чата (data URL JPEG)."""
+    import io
+    from PIL import Image
+    try:
+        img = Image.open(io.BytesIO(content)).convert("RGB")
+        img.thumbnail((max_dim, max_dim))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=quality)
+        return f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
+    except Exception:
+        return None
+
+
 async def _call_vision(b64: str, mime: str, prompt: str, max_tokens: int = 400) -> str:
     async with httpx.AsyncClient() as client:
         resp = await client.post(
@@ -872,6 +886,21 @@ async def _call_vision(b64: str, mime: str, prompt: str, max_tokens: int = 400) 
     if resp.status_code != 200:
         raise RuntimeError(f"Ошибка ИИ ({resp.status_code}): {resp.text[:200]}")
     return resp.json()["choices"][0]["message"]["content"].strip()
+
+
+_FOOD_BLOCK_RE = re.compile(r"###FOOD_JSON###\s*(\{.*?\})\s*###END_FOOD_JSON###", re.S)
+
+
+def _extract_food_block(text: str):
+    """Достаёт блок ###FOOD_JSON### из ответа ИИ-чата (см. правило добавления еды в system-промпте)."""
+    m = _FOOD_BLOCK_RE.search(text)
+    if not m:
+        return text.strip(), None
+    try:
+        food = _json.loads(m.group(1))
+    except _json.JSONDecodeError:
+        food = None
+    return _FOOD_BLOCK_RE.sub("", text).strip(), food
 
 
 def _extract_json(text: str) -> dict:
@@ -1414,7 +1443,13 @@ async def nut_chat_history(user=Depends(get_current_user), db: Session = Depends
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     msgs = db.query(ChatMessage).filter(ChatMessage.user_id == user.id).order_by(
         ChatMessage.created_at).limit(100).all()
-    return JSONResponse({"messages": [{"role": m.role, "content": m.content} for m in msgs]})
+    result = []
+    for m in msgs:
+        item = {"role": m.role, "content": m.content}
+        if m.image_data:
+            item["image"] = m.image_data
+        result.append(item)
+    return JSONResponse({"messages": result})
 
 
 @app.post("/nutrition/api/ai-chat")
@@ -1451,7 +1486,18 @@ async def nut_ai_chat(request: Request, user=Depends(get_current_user), db: Sess
 - Съедено: {total_cal:.0f} ккал | Б:{total_prot:.0f}г Ж:{total_fat:.0f}г У:{total_carbs:.0f}г
 - Вода: {water} мл
 - Приёмы пищи:
-{food_list}"""
+{food_list}
+
+ЖЁСТКОЕ ПРАВИЛО про добавление еды в дневник: у тебя НЕТ инструмента, который сам добавляет еду — единственный способ добавить блюдо в дневник пользователя — приложить в конце ответа специальный блок (см. формат ниже), который откроет пользователю выбор приёма пищи (завтрак/обед/ужин/перекус).
+Добавляй этот блок, когда:
+- пользователь описал блюдо (название + калорийность хотя бы) и попросил добавить/записать его, ИЛИ
+- ты сам предложил блюдо с оценкой КБЖУ, и пользователь подтвердил ("да", "верно", "добавь", "ок" и т.п.).
+НИКОГДА не пиши "добавил", "записал в дневник", "готово" и т.п. без этого блока — без него ничего не добавится, и пользователь увидит ложь. Если данных о калорийности не хватает — сначала уточни их, не добавляй блок.
+Формат блока (в конце ответа, отдельным фрагментом):
+###FOOD_JSON###
+{{"name":"название блюда","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":100}}
+###END_FOOD_JSON###
+calories/protein/fat/carbs — на 100г продукта, estimated_grams — вес съеденной порции."""
 
     api_messages = ([{"role": "system", "content": system}]
                      + [{"role": h.role, "content": h.content} for h in history]
@@ -1470,16 +1516,17 @@ async def nut_ai_chat(request: Request, user=Depends(get_current_user), db: Sess
                     headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                              "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
                     json={"model": LETTER_MODEL, "messages": api_messages,
-                          "temperature": 0.4, "max_tokens": 350},
+                          "temperature": 0.4, "max_tokens": 500},
                     timeout=30.0,
                 )
             reply = resp.json()["choices"][0]["message"]["content"].strip()
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 
+    reply, food = _extract_food_block(reply)
     db.add(ChatMessage(user_id=user.id, role="assistant", content=reply))
     db.commit()
-    return JSONResponse({"reply": reply})
+    return JSONResponse({"reply": reply, "food": food} if food else {"reply": reply})
 
 
 # ── Nutrition: AI photo ───────────────────────────────────────────────────────
@@ -1519,6 +1566,7 @@ async def nut_ai_chat_photo(file: UploadFile = File(...), message: str = Form(""
     b64 = base64.b64encode(content).decode()
     mime = _image_mime(file)
     user_text = message.strip()
+    thumb = _make_thumbnail(content)
 
     comment = f"\nКомментарий пользователя: {user_text}" if user_text else ""
     prompt = f"""На фото еда, которую съел пользователь.{comment}
@@ -1526,7 +1574,7 @@ async def nut_ai_chat_photo(file: UploadFile = File(...), message: str = Form(""
 Ответь ТОЛЬКО JSON без ```json и без пояснений:
 {{"name":"название блюда","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":300}}"""
 
-    db.add(ChatMessage(user_id=user.id, role="user", content=user_text or "[фото блюда]"))
+    db.add(ChatMessage(user_id=user.id, role="user", content=user_text or "[фото блюда]", image_data=thumb))
 
     try:
         text = await _call_vision(b64, mime, prompt)

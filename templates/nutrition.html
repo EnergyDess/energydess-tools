@@ -454,8 +454,12 @@
     }
     .chat-bubble-img {
       display: block; max-width: 200px; width: 100%; border-radius: 10px;
-      margin-bottom: 6px;
+      margin-bottom: 6px; cursor: zoom-in;
     }
+    #modal-img-viewer .modal-sh { background: transparent; box-shadow: none; max-width: none; }
+    #modal-img-viewer .modal-body { padding: 0; display: flex; justify-content: center; }
+    #modal-img-viewer img { max-width: 100%; max-height: 80vh; border-radius: 12px; object-fit: contain; }
+    #modal-img-viewer .modal-hdr { background: transparent; border: none; }
     .chat-input-row {
       display: flex; gap: 8px; padding: 12px 0 0;
       border-top: 1px solid var(--border); flex-shrink: 0; position: relative;
@@ -494,6 +498,21 @@
       color: var(--text-dim); font-size: 1rem; cursor: pointer; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent;
     }
+    /* ── Меню "Камера / Галерея" у кнопки-скрепки ── */
+    .attach-wrap { position: relative; flex-shrink: 0; }
+    .attach-menu {
+      position: absolute; bottom: calc(100% + 8px); left: 0; display: none; flex-direction: column;
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4); overflow: hidden; z-index: 60; min-width: 168px;
+      animation: voice-fade-in .12s ease;
+    }
+    .attach-menu button {
+      display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 14px;
+      background: none; border: none; color: var(--text); font-size: 0.85rem; text-align: left;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .attach-menu button:active { background: var(--bg2); color: var(--nut-g); }
+    .attach-menu svg { width: 18px; height: 18px; flex-shrink: 0; }
     /* ── Запись голосового сообщения (оверлей вместо строки ввода) ── */
     @keyframes mic-pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
     @keyframes voice-fade-in { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: scale(1); } }
@@ -1034,10 +1053,23 @@
         <button onclick="clearChatAttachment()">×</button>
       </div>
       <div class="chat-input-row">
-        <input type="file" id="chat-photo-in" accept="image/*" style="display:none" onchange="onChatAttach(event)">
-        <button class="chat-attach-btn" onclick="document.getElementById('chat-photo-in').click()" title="Прикрепить фото">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
-        </button>
+        <div class="attach-wrap">
+          <input type="file" id="chat-photo-in" accept="image/*" style="display:none" onchange="onChatAttach(event)">
+          <input type="file" id="chat-photo-cam" accept="image/*" capture="environment" style="display:none" onchange="onChatAttach(event)">
+          <button class="chat-attach-btn" onclick="toggleAttachMenu(this)" title="Прикрепить фото">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+          <div class="attach-menu">
+            <button type="button" onclick="pickAttach(this,'chat-photo-cam')">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              Снять на камеру
+            </button>
+            <button type="button" onclick="pickAttach(this,'chat-photo-in')">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+              Из галереи
+            </button>
+          </div>
+        </div>
         <input type="text" class="chat-in" id="assistant-chat-in" placeholder="Задайте вопрос о питании..."
                onkeydown="if(event.key==='Enter')sendChat('assistant-chat-in')">
         <button class="chat-attach-btn" id="assistant-chat-mic" title="Голосовое сообщение">
@@ -1100,7 +1132,7 @@
         <button class="s-chip" data-meal="snack"     onclick="setPorMeal(this)">🍎 Перекус</button>
       </div>
       <div class="g-wrap">
-        <input type="number" class="g-input" id="g-input" value="100" min="1" max="5000" oninput="updateCalc()">
+        <input type="number" class="g-input" id="g-input" value="100" min="1" max="5000" oninput="updateCalc()" onfocus="setTimeout(()=>this.select())">
         <span class="g-lbl">г</span>
       </div>
       <div class="q-grams">
@@ -1182,6 +1214,18 @@
         <span class="g-lbl">мл</span>
       </div>
       <button class="add-btn" onclick="confirmWaterManual()" style="margin-bottom:16px">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL: Просмотр фото из чата ─── -->
+<div class="modal-ov" id="modal-img-viewer" onclick="bgClose(event,'modal-img-viewer')">
+  <div class="modal-sh">
+    <div class="modal-hdr">
+      <button class="modal-x" style="margin-left:auto" onclick="closeModal('modal-img-viewer')">×</button>
+    </div>
+    <div class="modal-body">
+      <img id="img-viewer-src" src="" alt="Фото из чата">
     </div>
   </div>
 </div>
@@ -1320,10 +1364,23 @@
         <button onclick="clearChatAttachment()">×</button>
       </div>
       <div class="chat-input-row" style="padding-bottom:14px">
-        <input type="file" id="modal-chat-photo-in" accept="image/*" style="display:none" onchange="onChatAttach(event)">
-        <button class="chat-attach-btn" onclick="document.getElementById('modal-chat-photo-in').click()" title="Прикрепить фото">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
-        </button>
+        <div class="attach-wrap">
+          <input type="file" id="modal-chat-photo-in" accept="image/*" style="display:none" onchange="onChatAttach(event)">
+          <input type="file" id="modal-chat-photo-cam" accept="image/*" capture="environment" style="display:none" onchange="onChatAttach(event)">
+          <button class="chat-attach-btn" onclick="toggleAttachMenu(this)" title="Прикрепить фото">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+          <div class="attach-menu">
+            <button type="button" onclick="pickAttach(this,'modal-chat-photo-cam')">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              Снять на камеру
+            </button>
+            <button type="button" onclick="pickAttach(this,'modal-chat-photo-in')">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+              Из галереи
+            </button>
+          </div>
+        </div>
         <input type="text" class="chat-in" id="chat-in" placeholder="Задайте вопрос о питании..."
                onkeydown="if(event.key==='Enter')sendChat()">
         <button class="chat-attach-btn" id="chat-in-mic" title="Голосовое сообщение">
@@ -2244,14 +2301,21 @@ async function sendVoiceMessage(mode, targetId, blob, duration, audioUrl, bars) 
     inp.focus();
     return;
   }
+  // Если к чату прикреплено фото — отправляем его вместе с голосовым одним сообщением,
+  // а не двумя отдельными (иначе ИИ отвечает на них по очереди, "не видя" друг друга)
+  const attachment = S.chatAttachment;
+  const attachmentPreview = S.chatAttachmentPreview;
+  if (attachment) clearChatAttachment();
+
   const msg = {role:'user', content:'', voice:true, audioUrl, duration, bars, transcribing:true};
+  if (attachmentPreview) msg.image = attachmentPreview;
   S.chatHistory.push(msg);
   S.chatHistory.push({role:'assistant', content:'...'});
   renderChat();
   const text = await transcribeBlob(blob);
   msg.transcribing = false;
   msg.content = text;
-  if (!text) {
+  if (!text && !attachment) {
     S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content:'Не удалось распознать голосовое сообщение. Попробуйте ещё раз.'};
     renderChat();
     return;
@@ -2259,9 +2323,22 @@ async function sendVoiceMessage(mode, targetId, blob, duration, audioUrl, bars) 
   renderChat();
   let data;
   try {
-    data = await api('/nutrition/api/ai-chat', {method:'POST', body: JSON.stringify({message: text, date: S.today})});
-  } catch {
-    data = { error: 'Не удалось получить ответ. Проверьте соединение.' };
+    if (attachment) {
+      const fd = new FormData();
+      fd.append('file', attachment, 'photo.jpg');
+      fd.append('message', text);
+      fd.append('date', S.today);
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 60000);
+      try {
+        const resp = await fetch('/nutrition/api/ai-chat-photo', {method:'POST', body:fd, signal: ctrl.signal});
+        data = await resp.json();
+      } finally { clearTimeout(timer); }
+    } else {
+      data = await api('/nutrition/api/ai-chat', {method:'POST', body: JSON.stringify({message: text, date: S.today})});
+    }
+  } catch (err) {
+    data = { error: err.name === 'AbortError' ? 'ИИ не ответил за отведённое время. Попробуйте ещё раз.' : 'Не удалось получить ответ. Проверьте соединение.' };
   }
   const aiReply = data.reply || data.error || 'Ошибка';
   S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content: aiReply};
@@ -2444,6 +2521,25 @@ async function sendChat(inputId='chat-in') {
   renderChat();
 }
 
+// ── Меню "Камера / Галерея" у кнопки-скрепки ────────────────────────────────────
+function toggleAttachMenu(btn) {
+  const menu = btn.nextElementSibling;
+  const open = menu.style.display === 'flex';
+  document.querySelectorAll('.attach-menu').forEach(m=>m.style.display='none');
+  menu.style.display = open ? 'none' : 'flex';
+}
+
+function pickAttach(btn, inputId) {
+  btn.closest('.attach-menu').style.display = 'none';
+  document.getElementById(inputId).click();
+}
+
+// Закрываем открытое меню по клику вне его
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.attach-wrap')) return;
+  document.querySelectorAll('.attach-menu').forEach(m=>m.style.display='none');
+});
+
 // ── Прикрепление фото к чату ──────────────────────────────────────────────────
 async function onChatAttach(e) {
   const file = e.target.files[0]; if (!file) return;
@@ -2460,6 +2556,13 @@ function clearChatAttachment() {
   S.chatAttachmentPreview = null;
   document.querySelectorAll('.chat-attach-img').forEach(img=>img.src = '');
   document.querySelectorAll('.chat-attach-preview').forEach(el=>el.style.display = 'none');
+}
+
+function openImageViewer(idx) {
+  const src = S.chatHistory[idx]?.image;
+  if (!src) return;
+  document.getElementById('img-viewer-src').src = src;
+  openModal('modal-img-viewer');
 }
 
 const MEAL_NAMES = {breakfast:'завтрак', lunch:'обед', dinner:'ужин', snack:'перекус'};
@@ -2500,9 +2603,11 @@ function renderChat() {
                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
                  </button>
                  <div class="voice-tr-text">${esc(m.content).replace(/\n/g,'<br>')}</div>`
-              : `<div class="voice-transcribing">Не удалось распознать</div>`;
+              : m.image ? '' : `<div class="voice-transcribing">Не удалось распознать</div>`;
+          const imgHtml = m.image ? `<img src="${m.image}" class="chat-bubble-img" onclick="openImageViewer(${idx})">` : '';
           return `<div class="chat-msg user">
         <div class="chat-bubble user voice-bubble">
+          ${imgHtml}
           <div class="voice-row">
             <button class="voice-play-btn" onclick="toggleVoicePlay(this, ${idx})">
               <svg fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -2515,7 +2620,7 @@ function renderChat() {
       </div>`;
         }
         const cls = m.role==='user' ? 'user' : 'ai';
-        const imgHtml = m.image ? `<img src="${m.image}" class="chat-bubble-img">` : '';
+        const imgHtml = m.image ? `<img src="${m.image}" class="chat-bubble-img" onclick="openImageViewer(${idx})">` : '';
         return `<div class="chat-msg ${cls}">
       <div class="chat-bubble ${cls}">${imgHtml}${m.content==='...'?
         `<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`:
