@@ -33,16 +33,17 @@
 
     /* ── Body: let fixed body::before animation work ── */
     /* overflow: hidden — страница не скроллится целиком, скроллится только .nut-content.
-       Без этого мобильный браузер при свайпе сворачивает/разворачивает адресную строку,
-       пересчитывает 100dvh и нижняя панель навигации "прыгает" */
+       Высота .nut-app считается через flex (100% - высота .nav), а не через 100vh/100dvh —
+       так нижняя панель навигации не "прыгает" и не уезжает при сворачивании адресной строки. */
     html, body { height: 100%; overflow: hidden; }
+    body { display: flex; flex-direction: column; }
+    .nav { flex-shrink: 0; }
 
     /* ── App shell ── */
     .nut-app {
       display: flex; flex-direction: column;
-      height: calc(100vh - 60px);
-      height: calc(100dvh - 60px);
-      max-width: 540px; margin: 0 auto;
+      flex: 1; min-height: 0;
+      max-width: 540px; width: 100%; margin: 0 auto;
       position: relative;
     }
     @media (min-width: 560px) {
@@ -111,13 +112,15 @@
 
     /* ── Calorie ring ── */
     .ring-wrap { display: flex; justify-content: center; padding: 16px 0 6px; }
-    .ring-container { position: relative; display: flex; align-items: center; justify-content: center; }
+    /* z-index: 0 создаёт собственный стек-контекст — иначе ::before с z-index:-1
+       уходит за фон родительской карточки и пульсация становится не видна */
+    .ring-container { position: relative; z-index: 0; display: flex; align-items: center; justify-content: center; }
     /* Мягкое зелёное "сияние" за кольцом — даёт глубину и premium-ощущение.
        Пульсирует всегда, независимо от заполнения — оживляет кольцо, когда дневник пуст. */
     .ring-container::before {
-      content: ''; position: absolute; inset: 6%; border-radius: 50%;
-      background: radial-gradient(circle, var(--nut-g-dim) 0%, transparent 72%);
-      opacity: .6; z-index: -1; pointer-events: none;
+      content: ''; position: absolute; inset: -4%; border-radius: 50%;
+      background: radial-gradient(circle, rgba(34,197,94,.45) 0%, transparent 70%);
+      opacity: .5; z-index: -1; pointer-events: none;
       animation: ring-glow-pulse 3.2s ease-in-out infinite;
     }
     .ring-svg { width: 170px; height: 170px; }
@@ -132,8 +135,8 @@
     }
     .ring-fill.over { stroke: #ef4444; filter: drop-shadow(0 0 6px rgba(239,68,68,.4)); animation: none; }
     @keyframes ring-glow-pulse {
-      0%, 100% { opacity: .45; transform: scale(1); }
-      50%      { opacity: .85; transform: scale(1.08); }
+      0%, 100% { opacity: .35; transform: scale(.92); }
+      50%      { opacity: .9;  transform: scale(1.08); }
     }
     @keyframes ring-fill-glow {
       0%, 100% { filter: drop-shadow(0 0 6px var(--nut-g-glo)); }
@@ -147,7 +150,7 @@
       100% { transform: scale(1); }
     }
     .ring-remain {
-      font-size: 1.9rem; font-weight: 800; line-height: 1; font-family: var(--font-display);
+      font-size: 1.65rem; font-weight: 800; line-height: 1; font-family: var(--font);
       font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
       background: linear-gradient(135deg, #fff 10%, var(--nut-g) 95%);
       -webkit-background-clip: text; background-clip: text; color: transparent;
@@ -787,7 +790,7 @@
       #tab-diary.active { display: grid; grid-template-columns: 340px 1fr; gap: 28px; overflow: hidden; }
       .ring-wrap { padding: 4px 0; }
       .ring-svg { width: 232px; height: 232px; }
-      .ring-remain { font-size: 3.2rem; }
+      .ring-remain { font-size: 2.5rem; }
       .ring-lbl { font-size: .88rem; }
       .ring-eaten { font-size: .94rem; }
       .macros-row { gap: 10px; }
