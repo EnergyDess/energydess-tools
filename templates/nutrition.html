@@ -100,11 +100,10 @@
     .nut-nav-btn svg { width: 21px; height: 21px; }
     .nut-nav-btn.active { color: var(--nut-g); }
     .nav-plus {
-      width: 44px; height: 44px; border-radius: 50%;
+      width: 22px; height: 22px; border-radius: 7px;
       background: var(--nut-g); display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 14px var(--nut-g-glo); margin-bottom: 2px;
     }
-    .nav-plus svg { width: 22px; height: 22px; color: #fff; }
+    .nav-plus svg { width: 14px; height: 14px; color: #fff; }
 
     /* ── Card base ── */
     .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 10px; }
@@ -256,15 +255,18 @@
     .ai-estimate-btn:active { background: rgba(34,197,94,.22); }
 
     /* ── History ── */
-    .h-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .h-date { text-align: center; font-size: 0.88rem; font-weight: 700; text-transform: capitalize; }
+    .mini-ring-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 6px 0 14px; }
     .h-arrow {
-      width: 34px; height: 34px; border-radius: 9px; background: var(--bg3);
-      border: 1px solid var(--border); color: var(--text); font-size: 1.05rem;
+      width: 34px; height: 34px; border-radius: 50%; background: var(--nut-g-dim);
+      border: 1px solid rgba(34,197,94,.25); color: var(--nut-g); font-size: 1.05rem;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
+      transition: background .15s;
     }
-    .h-date { flex: 1; text-align: center; font-size: 0.88rem; font-weight: 700; }
-    .mini-ring-wrap { display: flex; justify-content: center; margin: 6px 0 14px; }
+    .h-arrow:active { background: rgba(34,197,94,.25); }
+    .h-arrow:disabled { opacity: .35; cursor: default; }
+    .mini-ring-wrap { display: flex; justify-content: center; }
     .mini-ring-svg { width: 110px; height: 110px; }
     .mini-ring-track { fill: none; stroke: var(--bg3); stroke-width: 10; }
     .mini-ring-fill {
@@ -276,11 +278,13 @@
     .week-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-top: 14px; }
     .week-title { font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .07em; font-weight: 600; margin-bottom: 10px; }
     .week-bars { display: flex; gap: 5px; align-items: flex-end; height: 72px; }
-    .w-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; }
+    .w-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
     .w-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
-    .w-bar { width: 100%; border-radius: 4px 4px 0 0; background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.25); min-height: 3px; }
+    .w-bar { width: 100%; border-radius: 4px 4px 0 0; background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.25); min-height: 3px; transition: background .15s, box-shadow .15s; }
     .w-bar.today { background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo); }
+    .w-col.active .w-bar { background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo); }
     .w-day  { font-size: 0.62rem; color: var(--text-dim); }
+    .w-col.active .w-day { color: var(--nut-g); font-weight: 700; }
     .w-kcal { font-size: 0.62rem; color: var(--nut-g); font-weight: 600; }
 
     /* ── Weight ── */
@@ -941,22 +945,22 @@
     <!-- ── TAB: HISTORY ── -->
     <section class="nut-tab" id="tab-history">
       <div class="d-left">
-        <div class="h-nav">
-          <button class="h-arrow" onclick="histShift(-1)">←</button>
-          <div class="h-date" id="h-date-lbl">Сегодня</div>
-          <button class="h-arrow" onclick="histShift(1)">→</button>
-        </div>
-        <div class="mini-ring-wrap">
-          <div style="position:relative;display:flex;align-items:center;justify-content:center;">
-            <svg class="mini-ring-svg" viewBox="0 0 120 120">
-              <circle class="mini-ring-track" cx="60" cy="60" r="45"/>
-              <circle class="mini-ring-fill" cx="60" cy="60" r="45" id="hist-ring"/>
-            </svg>
-            <div style="position:absolute;text-align:center;">
-              <div id="hist-kcal" style="font-size:1.25rem;font-weight:800;">—</div>
-              <div style="font-size:0.63rem;color:var(--text-dim)">ккал</div>
+        <div class="h-date" id="h-date-lbl">Сегодня</div>
+        <div class="mini-ring-row">
+          <button class="h-arrow" id="h-arrow-prev" onclick="histShift(-1)">‹</button>
+          <div class="mini-ring-wrap">
+            <div style="position:relative;display:flex;align-items:center;justify-content:center;">
+              <svg class="mini-ring-svg" viewBox="0 0 120 120">
+                <circle class="mini-ring-track" cx="60" cy="60" r="45"/>
+                <circle class="mini-ring-fill" cx="60" cy="60" r="45" id="hist-ring"/>
+              </svg>
+              <div style="position:absolute;text-align:center;">
+                <div id="hist-kcal" style="font-size:1.25rem;font-weight:800;">—</div>
+                <div style="font-size:0.63rem;color:var(--text-dim)">ккал</div>
+              </div>
             </div>
           </div>
+          <button class="h-arrow" id="h-arrow-next" onclick="histShift(1)">›</button>
         </div>
         <div id="hist-meals"></div>
       </div>
@@ -1196,6 +1200,25 @@
         <div class="f-field"><label class="f-label">Углеводы, г</label><input type="number" class="f-input" id="cf-carb" placeholder="0"></div>
       </div>
       <button class="add-btn" onclick="saveCustomFood()" style="margin-bottom:16px">Сохранить и добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL: Детали продукта из истории ─── -->
+<div class="modal-ov" id="modal-food-detail" onclick="bgClose(event,'modal-food-detail')">
+  <div class="modal-sh">
+    <div class="modal-drag"></div>
+    <div class="modal-hdr">
+      <span class="modal-title" id="hfd-name">Продукт</span>
+      <button class="modal-x" onclick="closeModal('modal-food-detail')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="por-sub" id="hfd-sub" style="margin-bottom:14px"></div>
+      <div class="macros-row" style="margin-bottom:16px">
+        <div class="macro-card"><div class="macro-label">Белки</div><div class="macro-val" style="color:var(--prot)" id="hfd-prot">—</div></div>
+        <div class="macro-card"><div class="macro-label">Жиры</div><div class="macro-val" style="color:var(--fat)" id="hfd-fat">—</div></div>
+        <div class="macro-card"><div class="macro-label">Углеводы</div><div class="macro-val" style="color:var(--carb)" id="hfd-carb">—</div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -2641,7 +2664,15 @@ function renderChat() {
 function histShift(d) {
   const dt=new Date(S.histDate); dt.setDate(dt.getDate()+d);
   if (dt>new Date()) return;
-  S.histDate=dt.toISOString().slice(0,10); loadHistory(S.histDate);
+  histGoto(dt.toISOString().slice(0,10));
+}
+
+function histGoto(date) {
+  if (new Date(date)>new Date()) return;
+  S.histDate=date; loadHistory(date);
+  document.querySelectorAll('#week-bars .w-col').forEach(el=>{
+    el.classList.toggle('active', el.dataset.date===date);
+  });
 }
 
 async function loadHistory(date) {
@@ -2649,10 +2680,12 @@ async function loadHistory(date) {
   const lbl=date===S.today?'Сегодня':new Date(date).toLocaleDateString('ru',{day:'numeric',month:'short',weekday:'short'});
   document.getElementById('h-date-lbl').textContent=lbl;
   document.getElementById('hist-kcal').textContent=Math.round(data.totals.calories);
+  document.getElementById('h-arrow-next').disabled = date>=S.today;
   const r=45, circ=2*Math.PI*r;
   const ring=document.getElementById('hist-ring');
   ring.style.strokeDasharray=circ;
   ring.style.strokeDashoffset=circ*(1-Math.min(data.totals.calories/(data.goals.calories||1),1));
+  S.histMeals=data.meals;
   const wrap=document.getElementById('hist-meals');
   wrap.innerHTML=MEALS.map(m=>{
     const items=data.meals[m.id]||[];
@@ -2664,12 +2697,23 @@ async function loadHistory(date) {
         <span class="meal-name">${m.name}</span>
         <span class="meal-kcal">${Math.round(total)} ккал</span>
       </div>
-      <div class="meal-items">${items.map(i=>`<div class="food-item">
+      <div class="meal-items">${items.map(i=>`<div class="food-item" onclick="showHistFood('${m.id}',${i.id})">
         <div class="food-info"><div class="food-name">${esc(i.name)}</div><div class="food-sub">${i.grams}г</div></div>
         <span class="food-kcal">${Math.round(i.calories)}</span>
       </div>`).join('')}</div>
     </div>`;
   }).join('');
+}
+
+function showHistFood(mealId, id) {
+  const item=(S.histMeals?.[mealId]||[]).find(i=>i.id===id);
+  if (!item) return;
+  document.getElementById('hfd-name').textContent=item.name+(item.brand?` · ${item.brand}`:'');
+  document.getElementById('hfd-sub').textContent=`${item.grams} г · ${Math.round(item.calories)} ккал`;
+  document.getElementById('hfd-prot').textContent=item.protein.toFixed(1)+' г';
+  document.getElementById('hfd-fat').textContent=item.fat.toFixed(1)+' г';
+  document.getElementById('hfd-carb').textContent=item.carbs.toFixed(1)+' г';
+  openModal('modal-food-detail');
 }
 
 async function loadWeekly() {
@@ -2679,7 +2723,7 @@ async function loadWeekly() {
   bars.innerHTML=data.days.map(d=>{
     const h=Math.round(d.calories/maxC*100);
     const day=new Date(d.date).toLocaleDateString('ru',{weekday:'short'});
-    return `<div class="w-col">
+    return `<div class="w-col${d.date===S.histDate?' active':''}" data-date="${d.date}" onclick="histGoto('${d.date}')">
       <div class="w-kcal">${d.calories>0?Math.round(d.calories):''}</div>
       <div class="w-bar-wrap"><div class="w-bar${d.date===S.today?' today':''}" style="height:${h}%"></div></div>
       <div class="w-day">${day}</div>
