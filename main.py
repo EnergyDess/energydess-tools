@@ -1285,17 +1285,23 @@ async def nut_create_custom_food(request: Request, user=Depends(get_current_user
     if not user:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     data = await request.json()
-    food = CustomFood(
-        user_id=user.id,
-        name=data.get("name", "").strip(),
-        brand=data.get("brand", "").strip() or None,
-        barcode=data.get("barcode", "").strip() or None,
-        calories_per_100g=float(data.get("calories", 0)),
-        protein_per_100g=float(data.get("protein", 0)),
-        fat_per_100g=float(data.get("fat", 0)),
-        carbs_per_100g=float(data.get("carbs", 0)),
-    )
-    db.add(food)
+    barcode = data.get("barcode", "").strip() or None
+    name = data.get("name", "").strip()
+    # Если штрих-код уже сохранён у пользователя — обновляем запись,
+    # а не создаём дубликат (например, при повторной правке КБЖУ)
+    food = None
+    if barcode:
+        food = db.query(CustomFood).filter(
+            CustomFood.user_id == user.id, CustomFood.barcode == barcode).first()
+    if not food:
+        food = CustomFood(user_id=user.id, barcode=barcode)
+        db.add(food)
+    food.name = name
+    food.brand = data.get("brand", "").strip() or None
+    food.calories_per_100g = float(data.get("calories", 0))
+    food.protein_per_100g = float(data.get("protein", 0))
+    food.fat_per_100g = float(data.get("fat", 0))
+    food.carbs_per_100g = float(data.get("carbs", 0))
     db.commit()
     return JSONResponse({"ok": True, "id": food.id,
                          "name": food.name, "brand": food.brand or "",

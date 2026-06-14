@@ -112,20 +112,55 @@
     /* ── Calorie ring ── */
     .ring-wrap { display: flex; justify-content: center; padding: 16px 0 6px; }
     .ring-container { position: relative; display: flex; align-items: center; justify-content: center; }
+    /* Мягкое зелёное "сияние" за кольцом — даёт глубину и premium-ощущение */
+    .ring-container::before {
+      content: ''; position: absolute; inset: 6%; border-radius: 50%;
+      background: radial-gradient(circle, var(--nut-g-dim) 0%, transparent 72%);
+      opacity: .6; z-index: -1; pointer-events: none;
+    }
     .ring-svg { width: 170px; height: 170px; }
     .ring-track { fill: none; stroke: var(--bg3); stroke-width: 13; }
+    /* Бегущая дуга — оживляет кольцо, когда ничего ещё не заполнено */
+    .ring-idle-arc {
+      fill: none; stroke: var(--nut-g); stroke-width: 13; stroke-linecap: round;
+      stroke-dasharray: 50 390; opacity: .35; transform-origin: center;
+      transition: opacity .4s ease; animation: ring-idle-spin 3.4s linear infinite;
+    }
     .ring-fill {
       fill: none; stroke: var(--nut-g); stroke-width: 13; stroke-linecap: round;
       stroke-dasharray: 440; stroke-dashoffset: 440;
       transform-origin: center; transform: rotate(-90deg);
       transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1);
       filter: drop-shadow(0 0 6px var(--nut-g-glo));
+      animation: ring-fill-glow 2.6s ease-in-out infinite;
     }
-    .ring-fill.over { stroke: #ef4444; filter: drop-shadow(0 0 6px rgba(239,68,68,.4)); }
+    .ring-fill.over { stroke: #ef4444; filter: drop-shadow(0 0 6px rgba(239,68,68,.4)); animation: none; }
+    @keyframes ring-idle-spin {
+      from { transform: rotate(-90deg); }
+      to   { transform: rotate(270deg); }
+    }
+    @keyframes ring-fill-glow {
+      0%, 100% { filter: drop-shadow(0 0 6px var(--nut-g-glo)); }
+      50%      { filter: drop-shadow(0 0 13px var(--nut-g-glo)); }
+    }
     .ring-center { position: absolute; text-align: center; }
-    .ring-remain { font-size: 1.9rem; font-weight: 800; line-height: 1; font-family: var(--font-display); }
-    .ring-lbl  { font-size: 0.68rem; color: var(--text-dim); font-weight: 600; margin-top: 2px; }
-    .ring-eaten { font-size: 0.72rem; color: var(--text-dim); font-weight: 600; }
+    .ring-center.pulse { animation: ring-pop .5s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes ring-pop {
+      0%   { transform: scale(1); }
+      45%  { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    .ring-remain {
+      font-size: 1.9rem; font-weight: 800; line-height: 1; font-family: var(--font-display);
+      font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+      background: linear-gradient(135deg, #fff 10%, var(--nut-g) 95%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .ring-lbl {
+      font-size: 0.68rem; color: var(--text); font-weight: 700; margin-top: 4px;
+      letter-spacing: .08em; text-transform: uppercase; opacity: .85;
+    }
+    .ring-eaten { font-size: 0.72rem; color: var(--text-dim); font-weight: 600; margin-top: 3px; }
 
     /* ── Macros ── */
     .macros-row { display: flex; gap: 8px; margin: 10px 0; }
@@ -385,12 +420,16 @@
 
     /* ── Portion modal ── */
     .por-name { font-size: 0.97rem; font-weight: 700; margin-bottom: 3px; }
-    .por-sub  {
-      font-size: 0.76rem; color: var(--text-dim); font-weight: 600; margin-bottom: 13px;
-      cursor: pointer; display: flex; align-items: center; gap: 5px; -webkit-tap-highlight-color: transparent;
+    .por-sub-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 13px; }
+    .por-sub  { font-size: 0.76rem; color: var(--text-dim); font-weight: 600; }
+    .por-edit-btn {
+      flex-shrink: 0; display: flex; align-items: center; gap: 4px;
+      padding: 5px 11px; border-radius: 20px; background: var(--bg3); border: 1px solid var(--border);
+      color: var(--text-dim); font-size: 0.72rem; font-weight: 600; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; transition: all .15s; white-space: nowrap;
     }
-    .por-sub::after { content: '✏️'; font-size: .72rem; flex-shrink: 0; }
-    .por-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: -3px 0 14px; }
+    .por-edit-btn.active { color: var(--nut-g); border-color: rgba(34,197,94,.35); background: var(--nut-g-dim); }
+    .por-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 0 0 14px; }
     .por-edit-grid .f-field { margin-bottom: 0; }
     .g-wrap   { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
     .g-input  {
@@ -417,11 +456,6 @@
       -webkit-tap-highlight-color: transparent;
     }
     .add-btn:active { opacity: .85; }
-    .por-save-btn {
-      background: var(--nut-g-dim); color: var(--nut-g); border: 1px solid rgba(34,197,94,.25);
-      margin-bottom: 10px;
-    }
-    .por-save-btn:disabled { opacity: .6; }
 
     /* ── Scanner ── */
     /* Html5Qrcode очищает содержимое #qr-reader при инициализации,
@@ -470,13 +504,15 @@
     }
     #modal-img-viewer { align-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     #modal-img-viewer .modal-sh {
-      background: transparent; box-shadow: none; width: 94vw; max-width: 94vw; max-height: none;
+      background: transparent; box-shadow: none; width: 94vw; max-width: 94vw; height: 88vh; max-height: 88vh;
       border-radius: 0; padding-bottom: 0;
       transform: scale(.94); opacity: 0; transition: transform .2s ease, opacity .2s ease;
     }
     #modal-img-viewer.open .modal-sh { transform: scale(1); opacity: 1; }
-    #modal-img-viewer .modal-body { padding: 0; display: flex; justify-content: center; position: relative; }
-    #modal-img-viewer img { max-width: 100%; max-height: 88vh; border-radius: 12px; object-fit: contain; display: block; }
+    #modal-img-viewer .modal-body { padding: 0; display: flex; justify-content: center; align-items: center; position: relative; height: 100%; }
+    /* width/height: 100% + object-fit:contain — фото всегда заполняет почти весь экран,
+       независимо от исходного разрешения снимка (даже маленькое растягивается под рамку) */
+    #modal-img-viewer img { width: 100%; height: 100%; border-radius: 12px; object-fit: contain; display: block; }
     #modal-img-viewer .img-close {
       position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 50%;
       background: rgba(0,0,0,.55); border: none; color: #fff; font-size: 1.15rem;
@@ -881,9 +917,10 @@
           <div class="ring-container">
             <svg class="ring-svg" viewBox="0 0 160 160">
               <circle class="ring-track" cx="80" cy="80" r="70"/>
+              <circle class="ring-idle-arc" cx="80" cy="80" r="70" id="ring-idle-arc"/>
               <circle class="ring-fill" cx="80" cy="80" r="70" id="ring-fill"/>
             </svg>
-            <div class="ring-center">
+            <div class="ring-center" id="ring-center">
               <div class="ring-remain" id="ring-remain">—</div>
               <div class="ring-lbl">ккал осталось</div>
               <div class="ring-eaten" id="ring-eaten"></div>
@@ -1147,7 +1184,10 @@
     </div>
     <div class="modal-body">
       <div class="por-name" id="por-name"></div>
-      <div class="por-sub"  id="por-sub" onclick="togglePorEdit()" title="Нажмите, чтобы изменить КБЖУ"></div>
+      <div class="por-sub-row">
+        <div class="por-sub" id="por-sub"></div>
+        <button class="por-edit-btn" id="por-edit-btn" onclick="togglePorEdit()" type="button">✏️ Изменить</button>
+      </div>
       <div class="por-edit-grid" id="por-edit-grid" style="display:none">
         <div class="f-field"><label class="f-label">Калории на 100г</label><input type="number" class="f-input" id="pe-kcal" oninput="onPorEdit()"></div>
         <div class="f-field"><label class="f-label">Белки, г</label><input type="number" class="f-input" id="pe-prot" oninput="onPorEdit()"></div>
@@ -1175,7 +1215,6 @@
         <div class="calc-kcal"   id="c-kcal">0 ккал</div>
         <div class="calc-macros" id="c-macros">Б: 0г  Ж: 0г  У: 0г</div>
       </div>
-      <button class="add-btn por-save-btn" id="por-save-btn" onclick="saveAIFoodToCustom()" style="display:none">💾 Сохранить в свою базу продуктов</button>
       <button class="add-btn" id="por-add-btn" onclick="confirmAdd()">Добавить в дневник</button>
     </div>
   </div>
@@ -1573,9 +1612,14 @@ function renderRing(eaten, goal) {
   fill.style.strokeDasharray = circ;
   fill.style.strokeDashoffset = circ * (1 - Math.min(pct, 1));
   fill.classList.toggle('over', pct >= 1);
+  document.getElementById('ring-idle-arc').style.opacity = eaten > 0 ? 0 : .35;
   const rem = Math.round((goal || 0) - eaten);
   document.getElementById('ring-remain').textContent = rem >= 0 ? rem : '−'+Math.abs(rem);
   document.getElementById('ring-eaten').textContent = `${Math.round(eaten)} / ${goal||0} ккал`;
+  // Небольшой "пульс" по центру кольца при обновлении значений
+  const center = document.getElementById('ring-center');
+  center.classList.remove('pulse');
+  requestAnimationFrame(() => center.classList.add('pulse'));
 }
 
 function renderMacros(t, g) {
@@ -1636,6 +1680,7 @@ function editFoodItem(id) {
   const g = item.grams > 0 ? item.grams : 100;
   S.editingFoodId = id;
   S.addingIng = false;
+  S.portionEdited = false;
   S.portionFood = {
     name: item.name, brand: item.brand || '',
     calories: Math.round(item.calories / g * 100),
@@ -1651,10 +1696,9 @@ function editFoodItem(id) {
   document.getElementById('pe-prot').value = f.protein;
   document.getElementById('pe-fat').value  = f.fat;
   document.getElementById('pe-carb').value = f.carbs;
-  document.getElementById('por-edit-grid').style.display = 'none';
+  resetPorEdit();
   updatePorSub();
   document.getElementById('g-input').value = item.grams;
-  document.getElementById('por-save-btn').style.display = 'none';
   setPorMealChips(mealType);
   updateCalc();
   openModal('modal-portion');
@@ -1849,6 +1893,7 @@ async function runAIEstimate() {
 function openPortion(food) {
   S.portionFood = food;
   S.editingFoodId = null;
+  S.portionEdited = false;
   const mealName = {breakfast:'завтрак',lunch:'обед',dinner:'ужин',snack:'перекус'}[S.searchMeal];
   document.getElementById('por-title').textContent = S.addingIng ? 'Ингредиент' : 'Добавить в '+mealName;
   document.getElementById('por-add-btn').textContent = S.addingIng ? 'Добавить ингредиент' : 'Добавить в дневник';
@@ -1858,12 +1903,8 @@ function openPortion(food) {
   document.getElementById('pe-prot').value = food.protein;
   document.getElementById('pe-fat').value  = food.fat;
   document.getElementById('pe-carb').value = food.carbs;
-  document.getElementById('por-edit-grid').style.display = 'none';
+  resetPorEdit();
   updatePorSub();
-  const saveBtn = document.getElementById('por-save-btn');
-  saveBtn.style.display = (food.barcode && food.source !== 'custom') ? '' : 'none';
-  saveBtn.disabled = false;
-  saveBtn.textContent = '💾 Сохранить в свою базу продуктов';
   setPorMealChips(S.addingIng ? null : S.searchMeal);
   updateCalc();
   openModal('modal-portion');
@@ -1877,7 +1918,18 @@ function updatePorSub() {
 
 function togglePorEdit() {
   const grid = document.getElementById('por-edit-grid');
-  grid.style.display = grid.style.display === 'none' ? 'grid' : 'none';
+  const btn  = document.getElementById('por-edit-btn');
+  const opening = grid.style.display === 'none';
+  grid.style.display = opening ? 'grid' : 'none';
+  btn.classList.toggle('active', opening);
+  btn.textContent = opening ? '✓ Готово' : '✏️ Изменить';
+}
+
+function resetPorEdit() {
+  document.getElementById('por-edit-grid').style.display = 'none';
+  const btn = document.getElementById('por-edit-btn');
+  btn.classList.remove('active');
+  btn.textContent = '✏️ Изменить';
 }
 
 function onPorEdit() {
@@ -1886,6 +1938,7 @@ function onPorEdit() {
   f.protein  = parseFloat(document.getElementById('pe-prot').value) || 0;
   f.fat      = parseFloat(document.getElementById('pe-fat').value)  || 0;
   f.carbs    = parseFloat(document.getElementById('pe-carb').value) || 0;
+  S.portionEdited = true;
   updatePorSub();
   updateCalc();
 }
@@ -1907,20 +1960,6 @@ function setPorMeal(btn) {
     const mealName = {breakfast:'завтрак',lunch:'обед',dinner:'ужин',snack:'перекус'}[S.porMeal];
     document.getElementById('por-title').textContent = 'Добавить в '+mealName;
   }
-}
-
-async function saveAIFoodToCustom() {
-  const f = S.portionFood;
-  const btn = document.getElementById('por-save-btn');
-  btn.disabled = true; btn.textContent = 'Сохраняю…';
-  const saved = await api('/nutrition/api/custom-food', {method:'POST', body: JSON.stringify({
-    name: f.name, brand: f.brand || '', barcode: f.barcode || '',
-    calories: f.calories, protein: f.protein, fat: f.fat, carbs: f.carbs,
-  })});
-  if (!saved.ok) { btn.disabled = false; btn.textContent = '💾 Сохранить в свою базу продуктов'; toast('Не удалось сохранить', false); return; }
-  S.portionFood.source = 'custom';
-  btn.style.display = 'none';
-  toast('Сохранено! Будет находиться при поиске', true);
 }
 
 function setG(g) { document.getElementById('g-input').value=g; updateCalc(); }
@@ -1958,6 +1997,16 @@ async function confirmAdd() {
     calories:f.calories,protein:f.protein,fat:f.fat,carbs:f.carbs,
     meal_type:S.porMeal||S.searchMeal,date:S.today,barcode:f.barcode||null
   })});
+  // Если у продукта есть штрих-код и пользователь его не подтверждал ранее
+  // (или подправил КБЖУ) — сохраняем в личную базу автоматически,
+  // без лишней кнопки. При следующем сканировании этого штрих-кода
+  // подтянутся уже эти данные.
+  if (f.barcode && (f.source !== 'custom' || S.portionEdited)) {
+    api('/nutrition/api/custom-food',{method:'POST',body:JSON.stringify({
+      name:f.name,brand:f.brand||'',barcode:f.barcode,
+      calories:f.calories,protein:f.protein,fat:f.fat,carbs:f.carbs,
+    })});
+  }
   closeModal('modal-portion');
   loadDiary(S.today);
   toast('Добавлено!',true);
