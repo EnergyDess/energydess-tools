@@ -70,7 +70,7 @@
     }
     .nut-hdr-back:hover { color: var(--text); }
     .nut-hdr-title { font-size: 0.95rem; font-weight: 700; flex: 1; }
-    .nut-hdr-date  { font-size: 0.75rem; color: var(--text-dim); font-weight: 600; white-space: nowrap; }
+    .nut-hdr-date  { font-size: 0.78rem; color: var(--text); font-weight: 700; white-space: nowrap; }
 
     /* ── Content ── */
     .nut-content {
@@ -112,20 +112,16 @@
     /* ── Calorie ring ── */
     .ring-wrap { display: flex; justify-content: center; padding: 16px 0 6px; }
     .ring-container { position: relative; display: flex; align-items: center; justify-content: center; }
-    /* Мягкое зелёное "сияние" за кольцом — даёт глубину и premium-ощущение */
+    /* Мягкое зелёное "сияние" за кольцом — даёт глубину и premium-ощущение.
+       Пульсирует всегда, независимо от заполнения — оживляет кольцо, когда дневник пуст. */
     .ring-container::before {
       content: ''; position: absolute; inset: 6%; border-radius: 50%;
       background: radial-gradient(circle, var(--nut-g-dim) 0%, transparent 72%);
       opacity: .6; z-index: -1; pointer-events: none;
+      animation: ring-glow-pulse 3.2s ease-in-out infinite;
     }
     .ring-svg { width: 170px; height: 170px; }
     .ring-track { fill: none; stroke: var(--bg3); stroke-width: 13; }
-    /* Бегущая дуга — оживляет кольцо, когда ничего ещё не заполнено */
-    .ring-idle-arc {
-      fill: none; stroke: var(--nut-g); stroke-width: 13; stroke-linecap: round;
-      stroke-dasharray: 50 390; opacity: .35; transform-origin: center;
-      transition: opacity .4s ease; animation: ring-idle-spin 3.4s linear infinite;
-    }
     .ring-fill {
       fill: none; stroke: var(--nut-g); stroke-width: 13; stroke-linecap: round;
       stroke-dasharray: 440; stroke-dashoffset: 440;
@@ -135,9 +131,9 @@
       animation: ring-fill-glow 2.6s ease-in-out infinite;
     }
     .ring-fill.over { stroke: #ef4444; filter: drop-shadow(0 0 6px rgba(239,68,68,.4)); animation: none; }
-    @keyframes ring-idle-spin {
-      from { transform: rotate(-90deg); }
-      to   { transform: rotate(270deg); }
+    @keyframes ring-glow-pulse {
+      0%, 100% { opacity: .45; transform: scale(1); }
+      50%      { opacity: .85; transform: scale(1.08); }
     }
     @keyframes ring-fill-glow {
       0%, 100% { filter: drop-shadow(0 0 6px var(--nut-g-glo)); }
@@ -156,16 +152,20 @@
       background: linear-gradient(135deg, #fff 10%, var(--nut-g) 95%);
       -webkit-background-clip: text; background-clip: text; color: transparent;
     }
+    /* Подпись и счётчик "X из Y" — единый жирный белый стиль для читаемости */
     .ring-lbl {
-      font-size: 0.68rem; color: var(--text); font-weight: 700; margin-top: 4px;
-      letter-spacing: .08em; text-transform: uppercase; opacity: .85;
+      font-size: 0.72rem; color: var(--text); font-weight: 700; margin-top: 4px;
+      letter-spacing: .08em; text-transform: uppercase;
     }
-    .ring-eaten { font-size: 0.72rem; color: var(--text-dim); font-weight: 600; margin-top: 3px; }
+    .ring-eaten {
+      font-size: 0.72rem; color: var(--text); font-weight: 700; margin-top: 3px;
+      font-variant-numeric: tabular-nums; opacity: .9;
+    }
 
     /* ── Macros ── */
     .macros-row { display: flex; gap: 8px; margin: 10px 0; }
     .macro-card { flex: 1; background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 11px; }
-    .macro-label { font-size: 0.65rem; color: var(--text-dim); font-weight: 600; margin-bottom: 5px; }
+    .macro-label { font-size: 0.7rem; color: var(--text); font-weight: 700; margin-bottom: 5px; }
     .macro-bar { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; margin-bottom: 5px; }
     .macro-bar-fill { height: 100%; border-radius: 3px; transition: width .8s ease; }
     .macro-val { font-size: 0.75rem; font-weight: 600; }
@@ -211,7 +211,7 @@
     .food-item:last-child { border-bottom: none; }
     .food-info { flex: 1; min-width: 0; }
     .food-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .food-sub  { font-size: 0.7rem; color: var(--text-dim); font-weight: 600; margin-top: 1px; }
+    .food-sub  { font-size: 0.7rem; color: var(--text); font-weight: 700; margin-top: 1px; }
     .food-kcal { font-size: 0.8rem; color: var(--nut-g); font-weight: 600; white-space: nowrap; }
     .food-del  {
       width: 26px; height: 26px; border-radius: 7px; background: rgba(239,68,68,.1);
@@ -320,7 +320,7 @@
     .w-bar { width: 100%; border-radius: 4px 4px 0 0; background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.25); min-height: 3px; transition: background .15s, box-shadow .15s; }
     .w-bar.today { background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo); }
     .w-col.active .w-bar { background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo); }
-    .w-day  { font-size: 0.62rem; color: var(--text-dim); font-weight: 600; }
+    .w-day  { font-size: 0.62rem; color: var(--text); font-weight: 700; }
     .w-col.active .w-day { color: var(--nut-g); font-weight: 700; }
     .w-kcal { font-size: 0.62rem; color: var(--nut-g); font-weight: 600; }
 
@@ -514,9 +514,10 @@
        независимо от исходного разрешения снимка (даже маленькое растягивается под рамку) */
     #modal-img-viewer img { width: 100%; height: 100%; border-radius: 12px; object-fit: contain; display: block; }
     #modal-img-viewer .img-close {
-      position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 50%;
-      background: rgba(0,0,0,.55); border: none; color: #fff; font-size: 1.15rem;
+      position: absolute; top: 14px; right: 14px; width: 40px; height: 40px; border-radius: 50%;
+      background: rgba(15,18,32,.85); border: 1px solid rgba(255,255,255,.18); color: #fff; font-size: 1.35rem;
       display: flex; align-items: center; justify-content: center; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0,0,0,.4); z-index: 2;
       -webkit-tap-highlight-color: transparent;
     }
     .chat-input-row {
@@ -917,7 +918,6 @@
           <div class="ring-container">
             <svg class="ring-svg" viewBox="0 0 160 160">
               <circle class="ring-track" cx="80" cy="80" r="70"/>
-              <circle class="ring-idle-arc" cx="80" cy="80" r="70" id="ring-idle-arc"/>
               <circle class="ring-fill" cx="80" cy="80" r="70" id="ring-fill"/>
             </svg>
             <div class="ring-center" id="ring-center">
@@ -1612,7 +1612,6 @@ function renderRing(eaten, goal) {
   fill.style.strokeDasharray = circ;
   fill.style.strokeDashoffset = circ * (1 - Math.min(pct, 1));
   fill.classList.toggle('over', pct >= 1);
-  document.getElementById('ring-idle-arc').style.opacity = eaten > 0 ? 0 : .35;
   const rem = Math.round((goal || 0) - eaten);
   document.getElementById('ring-remain').textContent = rem >= 0 ? rem : '−'+Math.abs(rem);
   document.getElementById('ring-eaten').textContent = `${Math.round(eaten)} / ${goal||0} ккал`;

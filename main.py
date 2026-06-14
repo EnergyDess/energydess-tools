@@ -854,8 +854,9 @@ def _image_mime(file: UploadFile) -> str:
             "heif": "image/heif"}.get(ext, "image/jpeg")
 
 
-def _make_thumbnail(content: bytes, max_dim: int = 320, quality: int = 60) -> str | None:
-    """Уменьшенная копия фото для хранения в истории чата (data URL JPEG)."""
+def _make_thumbnail(content: bytes, max_dim: int = 1920, quality: int = 85) -> str | None:
+    """Копия фото для хранения в истории чата (data URL JPEG) — Full HD,
+    чтобы вьюер на весь экран открывал её без замыливания."""
     import io
     from PIL import Image
     try:
