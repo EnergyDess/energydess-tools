@@ -31,20 +31,18 @@
       --text-dim: #9aa5c7;
     }
 
-    /* ── Body: let fixed body::before animation work ── */
-    /* overflow: hidden — страница не скроллится целиком, скроллится только .nut-content.
-       Высота body = реальная высота видимого окна (--app-h, считается в JS через
-       window.innerHeight), а не 100%/100vh/100dvh — у мобильных браузеров эти величины
-       могут не совпадать с фактическим видимым окном, из-за чего низ страницы
-       (с нижней панелью навигации) обрезается overflow:hidden и панель пропадает. */
-    html, body { height: 100%; overflow: hidden; }
-    body { display: flex; flex-direction: column; height: var(--app-h, 100%); }
-    .nav { flex-shrink: 0; }
-
     /* ── App shell ── */
+    /* Раньше .nut-app занимал ровно высоту окна (через flex/--app-h и т.п.), а
+       .nut-content скроллился внутри при overflow:hidden на body — но 100vh/100dvh/
+       window.innerHeight по-разному не совпадают с реальной видимой областью в разных
+       мобильных браузерах (Chrome/Яндекс/Я.Старт), из-за чего нижнюю панель .nut-nav
+       периодически обрезало или утаскивало за экран. Теперь страница скроллится целиком
+       как обычно ("sticky footer" раскладка: .nut-app — min-height на весь экран,
+       .nut-content растягивается на свободное место), а .nut-nav прижата к низу через
+       position: sticky — это не зависит от точности расчёта высоты viewport. */
     .nut-app {
       display: flex; flex-direction: column;
-      flex: 1; min-height: 0;
+      min-height: calc(100dvh - 60px);
       max-width: 540px; width: 100%; margin: 0 auto;
       position: relative;
     }
@@ -77,20 +75,33 @@
 
     /* ── Content ── */
     .nut-content {
-      flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
-      -webkit-overflow-scrolling: touch;
+      flex: 1;
+      /* место под нижнюю панель — она position:fixed и не занимает место в потоке */
+      padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0));
     }
 
     /* ── Tabs ── */
     .nut-tab { display: none; padding: 14px 14px 24px; min-height: 100%; animation: fadeIn .2s ease; }
     .nut-tab.active { display: block; }
-    /* Вкладка ассистента — фикс. высота, прокручивается только лента сообщений */
-    #tab-assistant.active { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+    /* Вкладка ассистента — фикс. высота на весь экран (минус топбар/хедер/нижняя нав),
+       прокручивается только лента сообщений (.chat-msgs) внутри неё */
+    #tab-assistant.active {
+      display: flex; flex-direction: column;
+      height: calc(100dvh - 60px - var(--hdr-h) - var(--nav-h));
+      min-height: 0;
+    }
     #tab-assistant .chat-input-row { padding-bottom: 12px; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 
     /* ── Bottom nav ── */
+    /* position: fixed + bottom: 0 — панель всегда прижата к низу экрана, независимо
+       от того, помещается контент в один экран или странице нужен скролл, и независимо
+       от точности расчёта высоты viewport (в отличие от overflow:hidden + точная
+       высота, что обрезало панель в некоторых мобильных браузерах).
+       left: 50% + translateX(-50%) + max-width — повторяет центрирование .nut-app. */
     .nut-nav {
+      position: fixed; left: 50%; bottom: 0; transform: translateX(-50%);
+      width: 100%; max-width: 540px; z-index: 15;
       height: var(--nav-h); display: flex; align-items: stretch;
       background: var(--bg2); border-top: 1px solid var(--border);
       padding-bottom: env(safe-area-inset-bottom, 0); flex-shrink: 0;
@@ -716,6 +727,7 @@
 
       /* ── Sidebar (placed first, on the left) ── */
       .nut-nav {
+        position: static; left: auto; bottom: auto; transform: none; max-width: none;
         order: -1;
         flex-direction: column; width: 240px; min-width: 240px;
         height: 100%; border-top: none; border-right: 1px solid var(--border);
@@ -768,7 +780,7 @@
 
       /* ── Content area: pinned to viewport height ── */
       .nut-content {
-        flex: 1; min-width: 0; min-height: 0;
+        flex: 1; min-width: 0; min-height: 0; padding-bottom: 0;
         overflow: hidden; background: transparent;
       }
       .nut-tab {
@@ -819,7 +831,7 @@
       #tab-search.active { display: block; overflow-y: auto; max-width: 800px; margin: 0 auto; }
 
       /* ── ASSISTANT: centered chat column, fills the screen ── */
-      #tab-assistant.active { display: flex; max-width: 760px; margin: 0 auto; width: 100%; }
+      #tab-assistant.active { display: flex; height: 100%; max-width: 760px; margin: 0 auto; width: 100%; }
       #tab-assistant .chat-bubble { font-size: 0.92rem; }
       .search-back {
         display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px;
@@ -1510,18 +1522,6 @@
 <input type="file" id="photo-in" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event)">
 
 <script>
-// ── Реальная высота окна для .nut-app ───────────────────────────────────────────
-// 100%/100vh/100dvh в мобильных браузерах не всегда совпадают с фактическим видимым
-// окном (адресная строка скрывается/появляется при скролле) — из-за overflow:hidden
-// низ страницы (нижняя панель навигации) обрезался и пропадал. Считаем высоту через
-// window.innerHeight и обновляем при изменении размеров/ориентации.
-function setAppHeight() {
-  document.documentElement.style.setProperty('--app-h', window.innerHeight + 'px');
-}
-setAppHeight();
-window.addEventListener('resize', setAppHeight);
-window.addEventListener('orientationchange', setAppHeight);
-
 // ── State ─────────────────────────────────────────────────────────────────────
 // Подсказка приёма пищи по текущему времени — используется как стартовый выбор
 // при сканировании штрих-кода/добавлении из чата, до явного выбора пользователем
