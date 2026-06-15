@@ -93,22 +93,25 @@
     /* ── Tabs ── */
     .nut-tab { display: none; padding: 14px 14px 24px; min-height: 100%; animation: fadeIn .2s ease; }
     .nut-tab.active { display: block; }
-    /* Вкладка ассистента — зафиксирована между топбаром/хедером сверху и нижней
-       навигацией снизу (по аналогии с .nut-nav: position:fixed + top/bottom — высоту
-       считает сам браузер по реальной видимой области, без 100dvh/100vh, которые
-       давали разброс на разных мобильных браузерах и оставляли пустой зазор сверху
-       поля ввода). Прокручивается только лента сообщений (.chat-msgs) внутри неё. */
     #tab-assistant.active {
-      position: fixed;
-      top: calc(60px + var(--hdr-h));
-      bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0));
-      left: 50%; transform: translateX(-50%);
-      width: 100%; max-width: 540px; min-height: 0;
+      display: flex; flex-direction: column;
       /* нижний паддинг = верхнему (14px от .nut-tab) — без него .nut-tab даёт 24px
          снизу, и вместе с паддингом .chat-input-row получался заметный лишний зазор
          между полем ввода и нижней навигацией */
       padding-bottom: 14px;
-      display: flex; flex-direction: column;
+    }
+    /* Вкладка ассистента занимает всю высоту .nut-content между шапкой .nut-hdr
+       сверху и нижней навигацией снизу (.nut-content уже имеет padding-bottom под
+       неё). Раньше высота считалась через position:fixed + top: 60px + var(--hdr-h) —
+       но на некоторых устройствах реальная высота .nav/.nut-hdr отличалась от
+       захардкоженных 60px/54px, из-за чего верх ленты сообщений уходил под шапку и
+       обрезался её нижней границей. Через flex (flex:1) высота берётся из реального
+       рендера — без магических чисел. Прокручивается только .chat-msgs внутри неё. */
+    html.assistant-mode .nut-content {
+      display: flex; flex-direction: column; min-height: 0;
+    }
+    html.assistant-mode #tab-assistant.active {
+      flex: 1; min-height: 0;
     }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 
@@ -851,8 +854,7 @@
 
       /* ── ASSISTANT: centered chat column, fills the screen ── */
       #tab-assistant.active {
-        position: static; top: auto; bottom: auto; left: auto; transform: none;
-        display: flex; height: 100%; max-width: 760px; margin: 0 auto; width: 100%;
+        height: 100%; max-width: 760px; margin: 0 auto; width: 100%;
         padding-bottom: 30px;
       }
       #tab-assistant .chat-bubble { font-size: 0.92rem; }
