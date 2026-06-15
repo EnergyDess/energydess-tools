@@ -83,12 +83,18 @@
     /* ── Tabs ── */
     .nut-tab { display: none; padding: 14px 14px 24px; min-height: 100%; animation: fadeIn .2s ease; }
     .nut-tab.active { display: block; }
-    /* Вкладка ассистента — фикс. высота на весь экран (минус топбар/хедер/нижняя нав),
-       прокручивается только лента сообщений (.chat-msgs) внутри неё */
+    /* Вкладка ассистента — зафиксирована между топбаром/хедером сверху и нижней
+       навигацией снизу (по аналогии с .nut-nav: position:fixed + top/bottom — высоту
+       считает сам браузер по реальной видимой области, без 100dvh/100vh, которые
+       давали разброс на разных мобильных браузерах и оставляли пустой зазор сверху
+       поля ввода). Прокручивается только лента сообщений (.chat-msgs) внутри неё. */
     #tab-assistant.active {
+      position: fixed;
+      top: calc(60px + var(--hdr-h));
+      bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0));
+      left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 540px; min-height: 0;
       display: flex; flex-direction: column;
-      height: calc(100dvh - 60px - var(--hdr-h) - var(--nav-h));
-      min-height: 0;
     }
     #tab-assistant .chat-input-row { padding-bottom: 12px; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
@@ -831,7 +837,10 @@
       #tab-search.active { display: block; overflow-y: auto; max-width: 800px; margin: 0 auto; }
 
       /* ── ASSISTANT: centered chat column, fills the screen ── */
-      #tab-assistant.active { display: flex; height: 100%; max-width: 760px; margin: 0 auto; width: 100%; }
+      #tab-assistant.active {
+        position: static; top: auto; bottom: auto; left: auto; transform: none;
+        display: flex; height: 100%; max-width: 760px; margin: 0 auto; width: 100%;
+      }
       #tab-assistant .chat-bubble { font-size: 0.92rem; }
       .search-back {
         display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px;
