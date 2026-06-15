@@ -1112,6 +1112,29 @@ async def nut_log_food(request: Request, user=Depends(get_current_user), db: Ses
         barcode=data.get("barcode") or None,
     )
     db.add(log)
+
+    # Сохраняем блюдо в личную базу продуктов пользователя — чтобы то, что
+    # пришло из ИИ-чата/фото, сканера или поиска по OpenFoodFacts, находилось
+    # при следующем поиске по названию (CustomFood.name ilike в /api/search)
+    name = data.get("name", "").strip()
+    barcode = data.get("barcode") or None
+    existing = None
+    if barcode:
+        existing = db.query(CustomFood).filter(
+            CustomFood.user_id == user.id, CustomFood.barcode == barcode).first()
+    if not existing and name:
+        # как и в /api/search — сравниваем в Python, ilike не приводит к
+        # нижнему регистру кириллицу в SQLite
+        name_lower = name.lower()
+        existing = next((f for f in db.query(CustomFood).filter(CustomFood.user_id == user.id).all()
+                          if f.name.lower() == name_lower), None)
+    if not existing and name:
+        db.add(CustomFood(
+            user_id=user.id, name=name, brand=data.get("brand", "") or None, barcode=barcode,
+            calories_per_100g=cal_per_100, protein_per_100g=protein_per_100,
+            fat_per_100g=fat_per_100, carbs_per_100g=carbs_per_100,
+        ))
+
     db.commit()
     return JSONResponse({"ok": True, "id": log.id})
 
@@ -1188,10 +1211,12 @@ async def nut_search(q: str = "", user=Depends(get_current_user), db: Session = 
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     if not q.strip():
         return JSONResponse({"results": []})
-    custom = db.query(CustomFood).filter(
-        CustomFood.user_id == user.id,
-        CustomFood.name.ilike(f"%{q}%")
-    ).limit(5).all()
+    # Регистронезависимый поиск по подстроке делаем на стороне Python: SQL
+    # lower()/ilike в SQLite не приводят к нижнему регистру кириллицу, поэтому
+    # "Картошка фри" не находилось бы по запросу "картошка фри"
+    q_lower = q.strip().lower()
+    all_custom = db.query(CustomFood).filter(CustomFood.user_id == user.id).all()
+    custom = [f for f in all_custom if q_lower in f.name.lower()][:5]
     custom_results = [{
         "name": f.name, "brand": f.brand or "", "source": "custom",
         "calories": f.calories_per_100g, "protein": f.protein_per_100g,
@@ -1202,16 +1227,6 @@ async def nut_search(q: str = "", user=Depends(get_current_user), db: Session = 
     if not results:
         results += await _ai_food_estimate(q)
     return JSONResponse({"results": results})
-
-
-@app.get("/nutrition/api/ai-estimate")
-async def nut_ai_estimate(q: str = "", user=Depends(get_current_user)):
-    if not user:
-        return JSONResponse({"error": "Не авторизован"}, status_code=401)
-    if not q.strip():
-        return JSONResponse({"result": None})
-    results = await _ai_food_estimate(q)
-    return JSONResponse({"result": results[0] if results else None})
 
 
 @app.get("/nutrition/api/barcode/{code}")

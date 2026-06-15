@@ -432,7 +432,7 @@
     /* Модалки, которые могут открываться поверх других модалок */
     #modal-recipe-ing   { z-index: 205; }
     #modal-portion      { z-index: 210; }
-    #modal-ai-estimate  { z-index: 215; }
+    #modal-custom       { z-index: 215; }
     #modal-photo-analyze{ z-index: 215; }
     .pa-preview { width: 100%; max-height: 240px; object-fit: cover; border-radius: 12px; margin-bottom: 13px; }
     .modal-sh {
@@ -1363,24 +1363,6 @@
   </div>
 </div>
 
-<!-- ─── MODAL: AI estimate ─── -->
-<div class="modal-ov" id="modal-ai-estimate" onclick="bgClose(event,'modal-ai-estimate')">
-  <div class="modal-sh">
-    <div class="modal-drag"></div>
-    <div class="modal-hdr">
-      <span class="modal-title">✨ Спросить ИИ</span>
-      <button class="modal-x" onclick="closeModal('modal-ai-estimate')">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="f-field">
-        <label class="f-label">Опишите блюдо — ИИ оценит КБЖУ</label>
-        <input type="text" class="f-input" id="ai-est-input" placeholder="Шаурма с курицей из ларька на углу" onkeydown="if(event.key==='Enter')runAIEstimate()">
-      </div>
-      <button class="add-btn" id="ai-est-btn" onclick="runAIEstimate()" style="margin-bottom:16px">Оценить КБЖУ</button>
-    </div>
-  </div>
-</div>
-
 <!-- ─── MODAL: Photo analyze ─── -->
 <div class="modal-ov" id="modal-photo-analyze" onclick="bgClose(event,'modal-photo-analyze')">
   <div class="modal-sh">
@@ -1869,7 +1851,7 @@ async function loadRecipesList() {
 
 function renderResults(results, query) {
   const wrap = document.getElementById('s-results');
-  const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openAIEstimate()">✨ Не нашли своё блюдо? Спросить ИИ</button>` : '';
+  const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openCustomFoodModal()">✨ Не нашли своё блюдо? Добавить</button>` : '';
   if (!results.length) { wrap.innerHTML='<div class="empty">Ничего не найдено</div>'+aiBtn; return; }
   wrap.innerHTML = `<div class="r-list">`+results.map(r=>`
     <div class="r-item" onclick='openPortion(${JSON.stringify(r)})'>
@@ -1915,7 +1897,7 @@ async function loadIngTab(tab) {
 
 function renderIngResults(results, query) {
   const wrap = document.getElementById('ring-results');
-  const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openAIEstimate()">✨ Не нашли своё блюдо? Спросить ИИ</button>` : '';
+  const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openCustomFoodModal()">✨ Не нашли своё блюдо? Добавить</button>` : '';
   if (!results.length) { wrap.innerHTML='<div class="empty">Ничего не найдено</div>'+aiBtn; return; }
   wrap.innerHTML = `<div class="r-list">`+results.map(r=>`
     <div class="r-item" onclick='openPortion(${JSON.stringify(r)})'>
@@ -1924,22 +1906,14 @@ function renderIngResults(results, query) {
     </div>`).join('')+`</div>`+aiBtn;
 }
 
-function openAIEstimate() {
-  document.getElementById('ai-est-input').value = S.lastQuery || document.getElementById('s-input').value || '';
-  openModal('modal-ai-estimate');
-  setTimeout(()=>document.getElementById('ai-est-input').focus(),150);
-}
-
-async function runAIEstimate() {
-  const q = document.getElementById('ai-est-input').value.trim();
-  if (!q) return;
-  const btn = document.getElementById('ai-est-btn');
-  btn.disabled = true; btn.textContent = 'Думаю…';
-  const data = await api(`/nutrition/api/ai-estimate?q=${encodeURIComponent(q)}`);
-  btn.disabled = false; btn.textContent = 'Оценить КБЖУ';
-  if (!data.result) { toast('Не получилось оценить, попробуйте переформулировать', false); return; }
-  closeModal('modal-ai-estimate');
-  openPortion(data.result);
+// Открывает форму ручного добавления продукта с подстановкой текста поиска
+// в название — как альтернатива, когда нужного блюда нет ни в личной базе,
+// ни в OpenFoodFacts
+function openCustomFoodModal() {
+  clearCustomFoodForm();
+  document.getElementById('cf-name').value = S.lastQuery || document.getElementById('s-input').value || '';
+  openModal('modal-custom');
+  setTimeout(()=>document.getElementById('cf-name').focus(),150);
 }
 
 // ── Portion modal ─────────────────────────────────────────────────────────────
