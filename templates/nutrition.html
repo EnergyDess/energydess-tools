@@ -61,15 +61,15 @@
       background: var(--bg2); border-bottom: 1px solid var(--border);
       position: relative; z-index: 10; flex-shrink: 0;
     }
-    /* На вкладке ассистента .nut-hdr фиксируется под глобальной .nav (top:60px) —
-       так же, как #tab-assistant.active (top: 60px + var(--hdr-h)). Раньше .nut-hdr
-       был в потоке: если страница была проскроллена при переключении на вкладку
-       ассистента, он уезжал вверх, а #tab-assistant.active (position:fixed) оставался
-       на месте — получался рассинхрон: чёрная полоса/обрезанный текст над лентой
-       сообщений. Для остальных вкладок поведение не меняется (.nut-hdr в потоке). */
-    .assistant-mode .nut-hdr {
-      position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
-      width: 100%; max-width: 540px;
+    /* Вкладка ассистента целиком построена на position:fixed (top/bottom считает
+       сам браузер от реального вьюпорта — см. #tab-assistant.active и .nut-nav).
+       Это верно только при scrollY=0: иначе шапка/контент, которые в потоке,
+       уезжают вместе со страницей, а зафиксированные элементы остаются на месте —
+       получается рассинхрон (чёрная полоса, обрезанный текст, "пропадающая" шапка
+       сайта). Поэтому на время вкладки ассистента блокируем скролл страницы целиком —
+       внутри неё прокручивается только лента сообщений (.chat-msgs). */
+    html.assistant-mode, html.assistant-mode body {
+      overflow: hidden;
     }
     .nut-hdr-back {
       width: 34px; height: 34px; border-radius: 9px;
@@ -1617,7 +1617,8 @@ function goTab(tab) {
   S.activeTab = tab;
   document.querySelectorAll('.nut-tab').forEach(s => s.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
-  document.querySelector('.nut-app').classList.toggle('assistant-mode', tab === 'assistant');
+  if (tab === 'assistant') window.scrollTo(0, 0);
+  document.documentElement.classList.toggle('assistant-mode', tab === 'assistant');
   const titles = {diary:'Дневник питания', search:'Добавить еду', history:'История', weight:'Вес & Замеры', profile:'Профиль', assistant:'AI-нутрициолог'};
   document.getElementById('hdr-title').textContent = titles[tab] || '';
   document.getElementById('nut-content').scrollTop = 0;
