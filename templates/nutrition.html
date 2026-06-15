@@ -100,18 +100,24 @@
          между полем ввода и нижней навигацией */
       padding-bottom: 14px;
     }
-    /* Вкладка ассистента занимает всю высоту .nut-content между шапкой .nut-hdr
-       сверху и нижней навигацией снизу (.nut-content уже имеет padding-bottom под
-       неё). Раньше высота считалась через position:fixed + top: 60px + var(--hdr-h) —
-       но на некоторых устройствах реальная высота .nav/.nut-hdr отличалась от
-       захардкоженных 60px/54px, из-за чего верх ленты сообщений уходил под шапку и
-       обрезался её нижней границей. Через flex (flex:1) высота берётся из реального
-       рендера — без магических чисел. Прокручивается только .chat-msgs внутри неё. */
-    html.assistant-mode .nut-content {
-      display: flex; flex-direction: column; min-height: 0;
-    }
-    html.assistant-mode #tab-assistant.active {
-      flex: 1; min-height: 0;
+    /* Вкладка ассистента зафиксирована между шапкой .nut-hdr сверху и нижней
+       навигацией снизу — это даёт ей определённую высоту, без которой
+       .chat-msgs{flex:1} не может посчитать свою высоту и включить внутренний
+       скролл (через flex от .nut-app{min-height:...} высота не определена,
+       контент просто растягивает страницу, а overflow:hidden блокирует любой
+       скролл — ни страницы, ни чата). top считается не по захардкоженным
+       60px + var(--hdr-h) (на некоторых устройствах реальная высота .nav/.nut-hdr
+       отличалась на пару пикселей, и нижняя граница шапки обрезала текст), а
+       по реальной нижней границе .nut-hdr — JS пишет её в --assistant-top при
+       переключении на вкладку (см. goTab). Прокручивается только .chat-msgs. */
+    @media (max-width: 899px) {
+      html.assistant-mode #tab-assistant.active {
+        position: fixed;
+        top: var(--assistant-top, calc(60px + var(--hdr-h)));
+        bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0));
+        left: 50%; transform: translateX(-50%);
+        width: 100%; max-width: 540px; min-height: 0;
+      }
     }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 
@@ -1619,7 +1625,11 @@ function goTab(tab) {
   S.activeTab = tab;
   document.querySelectorAll('.nut-tab').forEach(s => s.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
-  if (tab === 'assistant') window.scrollTo(0, 0);
+  if (tab === 'assistant') {
+    window.scrollTo(0, 0);
+    const hdr = document.querySelector('.nut-hdr');
+    if (hdr) document.documentElement.style.setProperty('--assistant-top', hdr.getBoundingClientRect().bottom + 'px');
+  }
   document.documentElement.classList.toggle('assistant-mode', tab === 'assistant');
   const titles = {diary:'Дневник питания', search:'Добавить еду', history:'История', weight:'Вес & Замеры', profile:'Профиль', assistant:'AI-нутрициолог'};
   document.getElementById('hdr-title').textContent = titles[tab] || '';
