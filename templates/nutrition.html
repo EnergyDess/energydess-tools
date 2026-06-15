@@ -33,10 +33,12 @@
 
     /* ── Body: let fixed body::before animation work ── */
     /* overflow: hidden — страница не скроллится целиком, скроллится только .nut-content.
-       Высота .nut-app считается через flex (100% - высота .nav), а не через 100vh/100dvh —
-       так нижняя панель навигации не "прыгает" и не уезжает при сворачивании адресной строки. */
+       Высота body = реальная высота видимого окна (--app-h, считается в JS через
+       window.innerHeight), а не 100%/100vh/100dvh — у мобильных браузеров эти величины
+       могут не совпадать с фактическим видимым окном, из-за чего низ страницы
+       (с нижней панелью навигации) обрезается overflow:hidden и панель пропадает. */
     html, body { height: 100%; overflow: hidden; }
-    body { display: flex; flex-direction: column; }
+    body { display: flex; flex-direction: column; height: var(--app-h, 100%); }
     .nav { flex-shrink: 0; }
 
     /* ── App shell ── */
@@ -1508,6 +1510,18 @@
 <input type="file" id="photo-in" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event)">
 
 <script>
+// ── Реальная высота окна для .nut-app ───────────────────────────────────────────
+// 100%/100vh/100dvh в мобильных браузерах не всегда совпадают с фактическим видимым
+// окном (адресная строка скрывается/появляется при скролле) — из-за overflow:hidden
+// низ страницы (нижняя панель навигации) обрезался и пропадал. Считаем высоту через
+// window.innerHeight и обновляем при изменении размеров/ориентации.
+function setAppHeight() {
+  document.documentElement.style.setProperty('--app-h', window.innerHeight + 'px');
+}
+setAppHeight();
+window.addEventListener('resize', setAppHeight);
+window.addEventListener('orientationchange', setAppHeight);
+
 // ── State ─────────────────────────────────────────────────────────────────────
 // Подсказка приёма пищи по текущему времени — используется как стартовый выбор
 // при сканировании штрих-кода/добавлении из чата, до явного выбора пользователем
