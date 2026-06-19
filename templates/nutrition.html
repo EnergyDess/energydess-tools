@@ -392,7 +392,20 @@
     .m-val { font-size: 1.25rem; font-weight: 700; }
     .m-lbl { font-size: 0.65rem; color: var(--text-dim); font-weight: 600; margin-top: 2px; }
     .chart-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 10px; overflow: hidden; }
-    .wt-svg { width: 100%; height: 90px; overflow: visible; }
+    .wt-svg { width: 100%; height: 160px; overflow: visible; }
+    #wt-tooltip {
+      position: fixed; z-index: 9999; display: none; pointer-events: none;
+      background: rgba(22,26,44,.97); border: 1px solid rgba(199,211,234,.13);
+      border-radius: 10px; padding: 10px 14px; min-width: 148px;
+      font-size: 0.8rem; color: var(--text);
+      box-shadow: 0 8px 28px rgba(0,0,0,.55);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    }
+    .wt-tt-date { font-size: 0.72rem; color: var(--text-dim); font-weight: 600; margin-bottom: 7px; text-transform: capitalize; white-space: nowrap; }
+    .wt-tt-row { display: flex; justify-content: space-between; gap: 18px; margin-bottom: 3px; }
+    .wt-tt-row:last-child { margin-bottom: 0; }
+    .wt-tt-row span { color: var(--text-dim); font-size: 0.75rem; }
+    .wt-tt-row strong { color: var(--nut-g); font-weight: 700; font-size: 0.82rem; }
 
     /* ── Profile ── */
     .p-sec { margin-bottom: 18px; }
@@ -2960,23 +2973,117 @@ async function loadWeightData() {
 }
 
 function drawWeightChart(logs) {
-  const svg=document.getElementById('wt-svg');
-  const wts=logs.filter(l=>l.weight_kg);
-  if (wts.length<2) { svg.innerHTML=''; return; }
-  const W=svg.clientWidth||400, H=svg.clientHeight||90, pad=14;
-  const min=Math.min(...wts.map(l=>l.weight_kg))-0.5, max=Math.max(...wts.map(l=>l.weight_kg))+0.5;
-  const xS=(W-pad*2)/(wts.length-1), yS=v=>H-pad-(v-min)/(max-min)*(H-pad*2);
-  const pts=wts.map((l,i)=>`${pad+i*xS},${yS(l.weight_kg)}`).join(' ');
-  const areaPts=`${pad},${H-pad} ${pts} ${pad+(wts.length-1)*xS},${H-pad}`;
-  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-  svg.setAttribute('preserveAspectRatio','none');
-  svg.innerHTML=`<defs><linearGradient id="wtGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="var(--nut-g)" stop-opacity=".22"/>
-      <stop offset="100%" stop-color="var(--nut-g)" stop-opacity="0"/>
-    </linearGradient></defs>
-    <polygon points="${areaPts}" fill="url(#wtGrad)" stroke="none"/>
-    <polyline points="${pts}" fill="none" stroke="var(--nut-g)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
-    ${wts.map((l,i)=>`<circle cx="${pad+i*xS}" cy="${yS(l.weight_kg)}" r="4" fill="var(--nut-g)" stroke="var(--bg2)" stroke-width="2" vector-effect="non-scaling-stroke"/>`).join('')}`;
+  const svg = document.getElementById('wt-svg');
+  const wts = logs.filter(l => l.weight_kg);
+  if (wts.length < 1) { svg.innerHTML = ''; return; }
+
+  const W = Math.max(svg.clientWidth || 0, 300);
+  const H = Math.max(svg.clientHeight || 0, 160);
+  const pL = 46, pR = 14, pT = 14, pB = 34;
+  const cW = W - pL - pR, cH = H - pT - pB;
+
+  const vals = wts.map(l => l.weight_kg);
+  const rawMin = Math.min(...vals), rawMax = Math.max(...vals);
+  const span = rawMax - rawMin;
+  const pad = span < 1 ? 1.5 : span * 0.18;
+  const yMin = rawMin - pad, yMax = rawMax + pad;
+
+  const xPos = i => pL + (wts.length > 1 ? i * cW / (wts.length - 1) : cW / 2);
+  const yPos = v => pT + cH - (v - yMin) / (yMax - yMin) * cH;
+
+  /* сетка и метки Y */
+  const yTicks = 4;
+  let grid = '', yLbls = '';
+  for (let i = 0; i <= yTicks; i++) {
+    const v = yMin + (yMax - yMin) * i / yTicks;
+    const y = yPos(v).toFixed(1);
+    grid  += `<line x1="${pL}" y1="${y}" x2="${W - pR}" y2="${y}" stroke="rgba(255,255,255,.065)" stroke-width="1"/>`;
+    yLbls += `<text x="${pL - 7}" y="${y}" text-anchor="end" dominant-baseline="middle" fill="rgba(129,137,155,.75)" font-size="10.5" font-family="inherit">${v.toFixed(1)}</text>`;
+  }
+
+  /* метки X — даты */
+  const maxX = Math.max(2, Math.floor(cW / 72));
+  const xStep = Math.ceil(wts.length / maxX);
+  let xLbls = '';
+  wts.forEach((l, i) => {
+    if (i % xStep === 0 || i === wts.length - 1) {
+      const lbl = new Date(l.date).toLocaleDateString('ru', { day: 'numeric', month: 'short' });
+      xLbls += `<text x="${xPos(i).toFixed(1)}" y="${H - pB + 17}" text-anchor="middle" fill="rgba(129,137,155,.75)" font-size="10.5" font-family="inherit">${lbl}</text>`;
+    }
+  });
+
+  /* линия и заливка */
+  const pts = wts.map((l, i) => `${xPos(i).toFixed(1)},${yPos(l.weight_kg).toFixed(1)}`).join(' ');
+  const bot = (H - pB).toFixed(1);
+  const areaPts = `${xPos(0).toFixed(1)},${bot} ${pts} ${xPos(wts.length - 1).toFixed(1)},${bot}`;
+
+  /* точки и хит-зоны */
+  const dots = wts.map((l, i) =>
+    `<circle class="wt-dot" id="wtd-${i}" cx="${xPos(i).toFixed(1)}" cy="${yPos(l.weight_kg).toFixed(1)}" r="4.5" fill="var(--nut-g)" stroke="var(--bg2)" stroke-width="2" vector-effect="non-scaling-stroke" style="cursor:pointer;transition:r .1s"/>`
+  ).join('');
+  const hits = wts.map((l, i) =>
+    `<circle class="wt-hit" cx="${xPos(i).toFixed(1)}" cy="${yPos(l.weight_kg).toFixed(1)}" r="22" fill="transparent" data-i="${i}" style="cursor:pointer;"/>`
+  ).join('');
+
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.removeAttribute('preserveAspectRatio');
+  svg.innerHTML = `<defs><linearGradient id="wtGrad" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="var(--nut-g)" stop-opacity=".22"/>
+    <stop offset="100%" stop-color="var(--nut-g)" stop-opacity="0"/>
+  </linearGradient></defs>
+  ${grid}${yLbls}${xLbls}
+  <polygon points="${areaPts}" fill="url(#wtGrad)" stroke="none"/>
+  <polyline points="${pts}" fill="none" stroke="var(--nut-g)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+  ${dots}${hits}`;
+
+  /* тултип с датой, весом и замерами */
+  const tip = document.getElementById('wt-tooltip');
+
+  function showTip(i, cx, cy) {
+    const l = wts[i];
+    const dot = document.getElementById('wtd-' + i);
+    if (dot) { dot.setAttribute('r', '6.5'); dot.style.filter = 'drop-shadow(0 0 6px var(--nut-g))'; }
+    const dateStr = new Date(l.date).toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' });
+    let html = `<div class="wt-tt-date">${dateStr}</div>
+      <div class="wt-tt-row"><span>Вес</span><strong>${l.weight_kg} кг</strong></div>`;
+    if (l.waist_cm)  html += `<div class="wt-tt-row"><span>Талия</span><strong>${l.waist_cm} см</strong></div>`;
+    if (l.hips_cm)   html += `<div class="wt-tt-row"><span>Ягодицы</span><strong>${l.hips_cm} см</strong></div>`;
+    if (l.chest_cm)  html += `<div class="wt-tt-row"><span>Грудь</span><strong>${l.chest_cm} см</strong></div>`;
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    moveTip(cx, cy);
+  }
+
+  function moveTip(cx, cy) {
+    const tW = tip.offsetWidth, tH = tip.offsetHeight;
+    let tx = cx + 18, ty = cy - tH / 2;
+    if (tx + tW > window.innerWidth - 10) tx = cx - tW - 18;
+    if (ty < 6) ty = 6;
+    if (ty + tH > window.innerHeight - 6) ty = window.innerHeight - tH - 6;
+    tip.style.left = tx + 'px';
+    tip.style.top  = ty + 'px';
+  }
+
+  function hideTip(i) {
+    const dot = document.getElementById('wtd-' + i);
+    if (dot) { dot.setAttribute('r', '4.5'); dot.style.filter = ''; }
+    tip.style.display = 'none';
+  }
+
+  svg.querySelectorAll('.wt-hit').forEach(el => {
+    const i = parseInt(el.dataset.i);
+    el.addEventListener('mouseenter', e => showTip(i, e.clientX, e.clientY));
+    el.addEventListener('mousemove',  e => moveTip(e.clientX, e.clientY));
+    el.addEventListener('mouseleave', () => hideTip(i));
+    /* тач-поддержка */
+    el.addEventListener('touchstart', e => {
+      e.preventDefault();
+      const t = e.touches[0];
+      showTip(i, t.clientX, t.clientY - 80);
+    }, { passive: false });
+    el.addEventListener('touchend', () => setTimeout(() => hideTip(i), 1800));
+  });
+  svg.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 }
 
 async function saveMeasure() {
@@ -3147,5 +3254,6 @@ function updateSidePanels(data) {
   if (tipEl) tipEl.textContent = SIDE_TIPS[new Date().getDay() % SIDE_TIPS.length];
 }
 </script>
+<div id="wt-tooltip"></div>
 </body>
 </html>
