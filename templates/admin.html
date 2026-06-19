@@ -266,6 +266,18 @@
       outline: none;
     }
     .search-input-admin::placeholder { color: var(--ak-fog); }
+    /* глушим глобальный input:focus из style.css — без рамки и свечения */
+    .search-input-admin:focus,
+    .search-input-admin:focus-visible {
+      outline: none !important;
+      box-shadow: none !important;
+      border: none !important;
+    }
+    /* search-wrap тоже не меняется при focus-within */
+    .search-wrap:focus-within {
+      border-color: rgba(63,73,89,.7);
+      box-shadow: none;
+    }
 
     /* Мобайл: скрыть email-колонку в таблице продуктов */
     @media (max-width: 640px) {
