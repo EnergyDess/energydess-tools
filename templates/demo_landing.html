@@ -172,14 +172,31 @@
     .prog-card {
       background: rgba(22,26,44,.88);
       border: 1px solid rgba(199,211,234,.11);
-      border-radius: 18px; padding: 26px;
-      display: flex; flex-direction: column; gap: 12px;
+      border-radius: 18px;
+      display: flex; flex-direction: column;
       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
       box-shadow: inset 0 1px 1px rgba(199,211,234,.07), 0 12px 32px rgba(6,6,14,.5);
       position: relative; overflow: hidden;
       transition: transform .28s, border-color .28s, box-shadow .28s;
       animation: cardReveal .55s cubic-bezier(.22,1,.36,1) both;
       text-decoration: none; color: inherit; cursor: pointer;
+    }
+    .prog-photo {
+      position: relative; height: 210px; overflow: hidden; flex-shrink: 0;
+    }
+    .prog-photo img {
+      width: 100%; height: 100%; object-fit: cover; object-position: center 30%;
+      display: block; transition: transform .5s ease;
+    }
+    .prog-card:hover .prog-photo img { transform: scale(1.08); }
+    .prog-photo::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(180deg, rgba(10,12,24,0) 40%, rgba(13,15,28,.95) 100%);
+      pointer-events: none;
+    }
+    .prog-body {
+      display: flex; flex-direction: column; gap: 12px; flex: 1;
+      padding: 20px 24px 24px;
     }
     .prog-card:nth-child(1){ animation-delay:.1s; }
     .prog-card:nth-child(2){ animation-delay:.17s; }
@@ -214,17 +231,13 @@
     .prog-card:hover::after { animation: shimmer .8s ease forwards; }
     @keyframes shimmer { to { left:160%; } }
 
-    .prog-icon {
-      font-size: 1.9rem; width: 50px; height: 50px; border-radius: 13px;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(232,121,160,.11);
-      box-shadow: 0 0 18px rgba(232,121,160,.09);
-    }
     .prog-badge {
       display: inline-flex; align-items: center; gap: 4px;
       font-size: 0.63rem; font-weight: 700; letter-spacing: .08em;
-      text-transform: uppercase; padding: 3px 10px;
-      border-radius: 99px; align-self: flex-start;
+      text-transform: uppercase; padding: 4px 11px;
+      border-radius: 99px;
+      position: absolute; top: 14px; left: 14px; z-index: 2;
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
     }
     .badge-flagship   { background:rgba(255,162,58,.14);  color:#ffb347; border:1px solid rgba(255,162,58,.3);  }
     .badge-bestseller { background:rgba(255,214,0,.12);   color:#ffd700; border:1px solid rgba(255,214,0,.25);  }
@@ -395,51 +408,75 @@
     <div class="programs-grid">
 
       <a class="prog-card" href="/demo/program/metod-usmanovoy">
-        <div class="prog-icon">🏆</div>
-        <span class="prog-badge badge-flagship">🔥 Флагман</span>
-        <div class="prog-title">Метод Усмановой</div>
-        <div class="prog-desc">Базовая техника упражнений — фундамент всей системы. Идеально для старта и тех, кто хочет выстроить правильную базу без ошибок.</div>
-        <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+        <div class="prog-photo">
+          <img src="/static/demo/metod-usmanovoy.jpg" alt="Метод Усмановой" loading="lazy">
+          <span class="prog-badge badge-flagship">🔥 Флагман</span>
+        </div>
+        <div class="prog-body">
+          <div class="prog-title">Метод Усмановой</div>
+          <div class="prog-desc">Базовая техника упражнений — фундамент всей системы. Идеально для старта и тех, кто хочет выстроить правильную базу без ошибок.</div>
+          <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+        </div>
       </a>
 
       <a class="prog-card" href="/demo/program/marafon-stroynosti">
-        <div class="prog-icon">🔥</div>
-        <span class="prog-badge badge-marathon">🏃 Марафон</span>
-        <div class="prog-title">Марафон Стройности</div>
-        <div class="prog-desc">21 день интенсивной работы — ощутимые изменения уже на второй неделе. Ежедневные тренировки и поддержка куратора на каждом шагу.</div>
-        <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+        <div class="prog-photo">
+          <img src="/static/demo/marafon-stroynosti.jpg" alt="Марафон Стройности" loading="lazy">
+          <span class="prog-badge badge-marathon">🏃 Марафон</span>
+        </div>
+        <div class="prog-body">
+          <div class="prog-title">Марафон Стройности</div>
+          <div class="prog-desc">21 день интенсивной работы — ощутимые изменения уже на второй неделе. Ежедневные тренировки и поддержка куратора на каждом шагу.</div>
+          <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+        </div>
       </a>
 
       <a class="prog-card" href="/demo/program/uprugaya-popa-1">
-        <div class="prog-icon">🍑</div>
-        <span class="prog-badge badge-course">💫 Курс</span>
-        <div class="prog-title">Упругая попа 1.0</div>
-        <div class="prog-desc">Только собственный вес тела — никакого инвентаря. Прицельная работа над ягодичными мышцами в домашних условиях.</div>
-        <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+        <div class="prog-photo">
+          <img src="/static/demo/uprugaya-popa-1.jpg" alt="Упругая попа 1.0" loading="lazy">
+          <span class="prog-badge badge-course">💫 Курс</span>
+        </div>
+        <div class="prog-body">
+          <div class="prog-title">Упругая попа 1.0</div>
+          <div class="prog-desc">Только собственный вес тела — никакого инвентаря. Прицельная работа над ягодичными мышцами в домашних условиях.</div>
+          <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+        </div>
       </a>
 
       <a class="prog-card" href="/demo/program/uprugaya-popa-2">
-        <div class="prog-icon">💪</div>
-        <span class="prog-badge badge-course">💫 Курс</span>
-        <div class="prog-title">Упругая попа 2.0</div>
-        <div class="prog-desc">Максимальная нагрузка с резинками и гантелями. Для тех, кто прошёл 1.0 и готов идти дальше — к объёму и выраженной форме.</div>
-        <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+        <div class="prog-photo">
+          <img src="/static/demo/uprugaya-popa-2.jpg" alt="Упругая попа 2.0" loading="lazy">
+          <span class="prog-badge badge-course">💫 Курс</span>
+        </div>
+        <div class="prog-body">
+          <div class="prog-title">Упругая попа 2.0</div>
+          <div class="prog-desc">Максимальная нагрузка с резинками и гантелями. Для тех, кто прошёл 1.0 и готов идти дальше — к объёму и выраженной форме.</div>
+          <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+        </div>
       </a>
 
       <a class="prog-card" href="/demo/program/ploskiy-zhivot">
-        <div class="prog-icon">✨</div>
-        <span class="prog-badge badge-bestseller">⭐ Бестселлер</span>
-        <div class="prog-title">Плоский живот</div>
-        <div class="prog-desc">Работа с глубокими мышцами кора и пресса. Убираем живот без изнурительных скручиваний — научно, безопасно и эффективно.</div>
-        <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+        <div class="prog-photo">
+          <img src="/static/demo/ploskiy-zhivot.jpg" alt="Плоский живот" loading="lazy">
+          <span class="prog-badge badge-bestseller">⭐ Бестселлер</span>
+        </div>
+        <div class="prog-body">
+          <div class="prog-title">Плоский живот</div>
+          <div class="prog-desc">Работа с глубокими мышцами кора и пресса. Убираем живот без изнурительных скручиваний — научно, безопасно и эффективно.</div>
+          <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+        </div>
       </a>
 
       <a class="prog-card" href="/demo/program/zhiroszhigatelniy-kurs">
-        <div class="prog-icon">🫀</div>
-        <span class="prog-badge badge-course">⚡ 6 недель</span>
-        <div class="prog-title">Жиросжигающий курс</div>
-        <div class="prog-desc">Шесть недель интенсивной кардио и силовой работы. Ускоряем метаболизм, сжигаем жир и строим долгосрочную привычку тренироваться.</div>
-        <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+        <div class="prog-photo">
+          <img src="/static/demo/zhiroszhigatelniy-kurs.jpg" alt="Жиросжигающий курс" loading="lazy">
+          <span class="prog-badge badge-course">⚡ 6 недель</span>
+        </div>
+        <div class="prog-body">
+          <div class="prog-title">Жиросжигающий курс</div>
+          <div class="prog-desc">Шесть недель интенсивной кардио и силовой работы. Ускоряем метаболизм, сжигаем жир и строим долгосрочную привычку тренироваться.</div>
+          <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+        </div>
       </a>
 
     </div>

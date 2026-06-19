@@ -33,12 +33,18 @@
     .pg-hero > * { position:relative; z-index:1; }
     .pg-avatar {
       width: 190px; height: 190px; border-radius: 28px;
-      background: radial-gradient(circle at 35% 30%, rgba(232,121,160,.35), rgba(124,77,255,.18) 55%, rgba(22,26,44,.9) 100%);
       border: 1px solid rgba(199,211,234,.14);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 4.2rem;
+      overflow: hidden; position: relative;
       box-shadow: inset 0 1px 1px rgba(199,211,234,.1), 0 16px 40px rgba(6,6,14,.55);
       animation: fadeUp .55s ease both;
+    }
+    .pg-avatar img {
+      width: 100%; height: 100%; object-fit: cover; object-position: center 30%; display: block;
+    }
+    .pg-avatar::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(160deg, rgba(232,121,160,.18), transparent 55%);
+      pointer-events: none;
     }
     .pg-badge {
       display:inline-flex; align-items:center; gap:4px;
@@ -213,7 +219,7 @@
 
 <main>
   <section class="pg-hero">
-    <div class="pg-avatar">{{ program.icon }}</div>
+    <div class="pg-avatar"><img src="/static/demo/{{ slug }}.jpg" alt="{{ program.title }}"></div>
     <div>
       <span class="pg-badge {{ program.badge_class }}">{{ program.badge_text }}</span>
       <h1 class="pg-title">{{ program.title }}</h1>
