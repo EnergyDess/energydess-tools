@@ -113,6 +113,21 @@
       transition: color 0.2s;
     }
     .logout-link:hover { color: var(--error); }
+    .upload-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .upload-label {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 8px 14px;
+      background: rgba(199,211,234,.06); border: 1px solid rgba(199,211,234,.16);
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem; font-weight: 500; color: #81899b;
+      cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .upload-label:hover { border-color: rgba(167,139,250,.45); color: #c7d3ea; }
+    .upload-label svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .upload-sep { font-size: 0.8rem; color: rgba(199,211,234,.3); }
+    .upload-status { font-size: 0.8rem; }
+    .upload-status.ok  { color: #34d399; }
+    .upload-status.err { color: #fca5a5; }
   </style>
 </head>
 <body>
@@ -167,13 +182,52 @@
     <div class="success-msg">✓ Резюме сохранено</div>
     {% endif %}
 
+    <div class="upload-row">
+      <label class="upload-label" for="resume-file-profile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Загрузить PDF / DOCX
+        <input type="file" id="resume-file-profile" accept=".pdf,.doc,.docx" style="display:none" onchange="uploadResumeFileProfile(this)">
+      </label>
+      <span class="upload-sep">или вставьте текст ниже</span>
+      <span class="upload-status" id="upload-status-profile"></span>
+    </div>
     <form method="post" action="/profile">
-      <textarea name="resume_text" placeholder="Вставьте текст вашего резюме сюда...">{{ resume.resume_text if resume else '' }}</textarea>
+      <textarea id="resume-textarea-profile" name="resume_text" placeholder="Вставьте текст вашего резюме сюда...">{{ resume.resume_text if resume else '' }}</textarea>
       <button type="submit" class="btn-primary">Сохранить резюме</button>
     </form>
   </div>
 </div>
 <script>
+async function uploadResumeFileProfile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('upload-status-profile');
+  status.className = 'upload-status';
+  status.textContent = 'Читаю файл...';
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res  = await fetch('/api/upload-resume', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      status.className = 'upload-status err';
+      status.textContent = '⚠ ' + data.error;
+    } else {
+      document.getElementById('resume-textarea-profile').value = data.text;
+      status.className = 'upload-status ok';
+      status.textContent = `✓ ${data.text.length.toLocaleString('ru')} символов — нажмите «Сохранить резюме»`;
+    }
+  } catch {
+    status.className = 'upload-status err';
+    status.textContent = '⚠ Ошибка сети';
+  }
+  input.value = '';
+}
+
 async function saveName() {
   const name   = document.getElementById('display-name-input').value.trim();
   const btn    = document.getElementById('name-btn');
