@@ -808,14 +808,14 @@
         background: var(--nut-g-dim) !important; border: 1px solid rgba(34,197,94,.2);
         color: var(--nut-g) !important;
       }
-      /* «Добавить» — не подсвечена по умолчанию, зеленеет только когда активна */
+      /* «Добавить» — без рамки и фона, зеленеет только когда активна */
       .nut-nav-btn[data-tab="search"] {
         margin: 8px 0 10px;
-        background: rgba(255,255,255,.04);
-        border: 1px solid var(--border);
+        background: transparent;
+        border: 1px solid transparent;
         color: var(--text-dim);
       }
-      .nut-nav-btn[data-tab="search"]:hover { background: rgba(255,255,255,.07); color: var(--text); }
+      .nut-nav-btn[data-tab="search"]:hover { background: rgba(255,255,255,.04); color: var(--text); }
       .nav-plus { width: 24px; height: 24px; border-radius: 7px; box-shadow: none; margin: 0; flex-shrink: 0; }
       .nav-plus svg { width: 15px; height: 15px; }
 
@@ -841,58 +841,60 @@
       }
       .d-left::-webkit-scrollbar-track, .d-right::-webkit-scrollbar-track, #tab-search.active::-webkit-scrollbar-track { background: transparent; }
 
-      /* ── DIARY: верхняя полоса (кольцо+макросы) + нижний ряд (4 блюда + вода) ── */
+      /* ── DIARY: один вертикальный столбец: кольцо → макросы → AI → блюда → вода ── */
       #tab-diary.active {
-        display: grid;
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr;
-        gap: 16px;
-        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        overflow-y: auto;
+        overflow-x: hidden;
       }
 
-      /* Верхняя полоса — кольцо слева, макросы растягиваются, AI кнопка справа */
+      /* Верхняя секция: кольцо сверху, макросы ниже, AI кнопка под ними */
       #tab-diary.active .d-left {
-        flex-direction: row !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
         height: auto !important;
         min-height: 0 !important;
         overflow: visible !important;
         padding-right: 0 !important;
-        align-items: center;
-        gap: 20px;
+        gap: 18px;
         flex-shrink: 0;
       }
 
-      /* Кольцо компактное в горизонтальной полосе */
-      .ring-wrap { padding: 0; flex-shrink: 0; }
-      .ring-svg { width: 118px; height: 118px; }
-      .ring-remain { font-size: 1.55rem; line-height: 1.1; }
-      .ring-lbl { font-size: .72rem; margin: 1px 0; }
-      .ring-eaten { font-size: .76rem; }
+      /* Кольцо: большое */
+      .ring-wrap { padding: 8px 0; flex-shrink: 0; }
+      .ring-svg { width: 220px; height: 220px; }
+      .ring-remain { font-size: 2.6rem; line-height: 1.1; }
+      .ring-lbl { font-size: .9rem; margin: 3px 0; }
+      .ring-eaten { font-size: .9rem; }
 
-      /* Макросы — горизонтальный ряд, занимает всё свободное место */
-      .macros-row { flex: 1; display: flex; flex-direction: row; gap: 12px; }
-      .macro-card { flex: 1; padding: 14px 16px; }
-      .macro-label { font-size: .78rem; }
-      .macro-val { font-size: .95rem; }
+      /* Макросы — полная ширина, горизонтальный ряд под кольцом */
+      .macros-row { width: 100%; flex: none; display: flex; flex-direction: row; gap: 14px; }
+      .macro-card { flex: 1; padding: 18px 24px; }
+      .macro-label { font-size: .9rem; }
+      .macro-val { font-size: 1.1rem; }
 
-      /* AI кнопка — компактная справа */
-      .ai-btn { flex-shrink: 0; white-space: nowrap; }
+      /* AI кнопка */
+      .ai-btn { flex-shrink: 0; }
 
-      /* Нижняя часть — 4 карточки блюд в ряд + вода снизу */
+      /* Нижняя секция: 4 узкие карточки блюд + вода */
       #tab-diary.active .d-right {
         display: flex !important;
         flex-direction: column !important;
         gap: 12px;
-        height: 100% !important;
+        height: auto !important;
         min-height: 0 !important;
-        overflow: hidden !important;
+        overflow: visible !important;
         padding-right: 0;
+        flex-shrink: 0;
       }
+
+      /* 4 карточки блюд в ряд, компактная высота (как карточка воды) */
       #meals-wrap {
-        flex: 1; min-height: 0;
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        grid-template-rows: 1fr;
         gap: 12px;
       }
       .meal-card {
@@ -904,11 +906,11 @@
       .meal-icon { font-size: 1.05rem; }
       .meal-name { font-size: .98rem; }
       .meal-kcal { font-size: .88rem; }
-      .meal-items { flex: 1; max-height: none; overflow-y: auto; min-height: 0; }
-      .food-item { padding: 9px 14px; }
-      .food-name { font-size: .95rem; }
-      .food-sub { font-size: .78rem; }
-      .food-kcal { font-size: .88rem; }
+      .meal-items { max-height: 90px; overflow-y: auto; min-height: 0; }
+      .food-item { padding: 7px 14px; }
+      .food-name { font-size: .9rem; }
+      .food-sub { font-size: .76rem; }
+      .food-kcal { font-size: .84rem; }
       .water-card { flex-shrink: 0; padding: 13px 18px; }
       .water-val { font-size: .92rem; }
       .water-btn { height: 34px; font-size: .86rem; }
