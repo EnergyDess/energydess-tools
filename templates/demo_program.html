@@ -396,6 +396,7 @@
       font-family: inherit; outline:none; box-sizing:border-box;
       transition: border-color .2s, box-shadow .2s;
     }
+    .pay-field input::placeholder { color: rgba(21,16,28,.42); }
     .pay-field input:focus { border-color: rgba(232,121,160,.5); box-shadow: 0 0 0 3px rgba(232,121,160,.1); }
     .pay-submit {
       width:100%; margin-top:8px;
@@ -420,6 +421,16 @@
     .demo-footer a:hover { opacity:1; }
 
     @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+
+    /* ── Scroll-reveal: блоки раскрываются при скролле вниз, сворачиваются при скролле вверх ── */
+    .reveal {
+      opacity: 0; transform: translateY(28px);
+      transition: opacity .6s cubic-bezier(.22,1,.36,1), transform .6s cubic-bezier(.22,1,.36,1);
+    }
+    .reveal.is-visible { opacity: 1; transform: translateY(0); }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal { opacity: 1; transform: none; transition: none; }
+    }
 
     @media (max-width: 640px) {
       .pg-hero { grid-template-columns: 1fr; text-align:center; padding-top:40px; }
@@ -481,7 +492,7 @@
     <p class="pg-section-sub">Старые методы тренировок больше не дают того же эффекта. Программа пересобрана с учётом обратной связи учениц.</p>
     <div class="compare-grid">
       {% for c in program.comparison %}
-      <div class="compare-row">
+      <div class="compare-row reveal">
         <div class="compare-old"><span class="compare-tag tag-old">Было</span>{{ c.old }}</div>
         <div class="compare-new"><span class="compare-tag tag-new">Стало</span>{{ c.new }}</div>
       </div>
@@ -493,7 +504,7 @@
     <h2 class="pg-section-title">Что вы получите</h2>
     <div class="benefits-grid">
       {% for b in program.benefits %}
-      <div class="benefit-card">
+      <div class="benefit-card reveal">
         <span class="benefit-check">✓</span>
         <span class="benefit-text">{{ b }}</span>
       </div>
@@ -502,7 +513,7 @@
   </section>
 
   <section class="pg-section" style="padding-top:0; padding-bottom:0;">
-    <div class="mid-promo">
+    <div class="mid-promo reveal">
       <div class="mid-promo-text">
         <span class="mid-promo-fire">🔥</span>
         <div>
@@ -516,7 +527,7 @@
 
   <section class="pg-section">
     <h2 class="pg-section-title">{{ program.social_proof }} учениц уже прошли эту программу</h2>
-    <div class="testi-viewport">
+    <div class="testi-viewport reveal">
       <div class="testi-track" id="testi-track">
         {% for t in program.testimonials %}
         <div class="testi-card-wrap">
@@ -543,7 +554,7 @@
     <h2 class="pg-section-title">Получите результат за {{ program.modules|length }} цикла</h2>
     <div class="modules-list">
       {% for m in program.modules %}
-      <div class="module-row">
+      <div class="module-row reveal">
         <div class="module-num">{{ '%02d'|format(loop.index) }}</div>
         <div>
           <div class="module-title">{{ m.title }}</div>
@@ -558,7 +569,7 @@
     <h2 class="pg-section-title">Курс подходит для вашей цели</h2>
     <div class="goals-row">
       {% for g in program.goals %}
-      <span class="goal-tag">{{ g }}</span>
+      <span class="goal-tag reveal">{{ g }}</span>
       {% endfor %}
     </div>
   </section>
@@ -567,7 +578,7 @@
     <h2 class="pg-section-title">Через {{ program.duration }} вы себя не узнаете</h2>
     <div class="timeline-list">
       {% for t in program.timeline %}
-      <div class="timeline-row">
+      <div class="timeline-row reveal">
         <div class="timeline-dot"></div>
         <div>
           <div class="timeline-period">{{ t.period }}</div>
@@ -582,7 +593,7 @@
     <h2 class="pg-section-title">Что входит дополнительно</h2>
     <div class="bonus-row">
       {% for b in program.bonuses %}
-      <span class="bonus-chip">{{ b }}</span>
+      <span class="bonus-chip reveal">{{ b }}</span>
       {% endfor %}
     </div>
   </section>
@@ -590,7 +601,7 @@
   <section id="pricing" class="pg-section">
     <h2 class="pg-section-title">Доступ к программе</h2>
     <div class="spots-alert">⚡ По этой цене осталось всего <strong>{{ program.spots_left }}</strong> мест — далее цена вырастет</div>
-    <div class="pricing-card">
+    <div class="pricing-card reveal">
       <div class="price-old">{{ program.old_price }} ₽</div>
       <div class="price-now">{{ program.price }} ₽</div>
       <div class="price-discount">Скидка 50% — ограниченное предложение</div>
@@ -603,7 +614,7 @@
       <span class="trust-item">✅ 14 дней на возврат, если не понравится</span>
     </div>
 
-    <form class="pay-form" id="pay-form" onsubmit="return submitMockPayment(event)">
+    <form class="pay-form reveal" id="pay-form" onsubmit="return submitMockPayment(event)">
       <div class="pay-form-title">Оформление доступа</div>
       <div class="pay-form-note">
         ⚠ Это демонстрационная форма для тестового задания. Реальная оплата не подключена — данные карты никуда не отправляются.
@@ -639,7 +650,7 @@
     <h2 class="pg-section-title">Вопросы о программе</h2>
     <div class="faq-wrap-pg">
       {% for f in program.faq %}
-      <div class="faq-item" id="pfaq-{{ loop.index0 }}">
+      <div class="faq-item reveal" id="pfaq-{{ loop.index0 }}">
         <button class="faq-q" onclick="togglePFaq({{ loop.index0 }})">
           {{ f.q }}
           <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -761,6 +772,16 @@ testiSetup();
   }
   tick();
   setInterval(tick, 1000);
+})();
+
+// Scroll-reveal: блоки раскрываются при скролле вниз и сворачиваются при скролле вверх
+(function () {
+  const items = document.querySelectorAll('.reveal');
+  if (!items.length || !('IntersectionObserver' in window)) return;
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => entry.target.classList.toggle('is-visible', entry.isIntersecting));
+  }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+  items.forEach(el => observer.observe(el));
 })();
 </script>
 </body>
