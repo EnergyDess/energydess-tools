@@ -18,6 +18,13 @@
   var REPEL_F   = 2.2;
   var DAMP      = 0.93;
 
+  // Опциональная переопределяемая тема частиц (window.PARTICLE_THEME),
+  // задаётся на конкретных страницах ДО подключения этого скрипта.
+  // Если не задана — поведение не меняется (cyan + соединительные линии).
+  var THEME         = window.PARTICLE_THEME || {};
+  var THEME_COLOR    = THEME.color || '0,212,255';
+  var THEME_CONNECT  = THEME.connect !== false;
+
   var lastW = 0;
   var resizeTimer;
 
@@ -51,22 +58,24 @@
 
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    var C = '0,212,255';
+    var C = THEME_COLOR;
 
-    for (var i = 0; i < particles.length; i++) {
-      var a = particles[i];
-      for (var j = i + 1; j < particles.length; j++) {
-        var b  = particles[j];
-        var dx = a.x - b.x, dy = a.y - b.y;
-        var d  = Math.sqrt(dx * dx + dy * dy);
-        if (d < CONNECT) {
-          var alpha = (1 - d / CONNECT) * LINE_MAX;
-          ctx.beginPath();
-          ctx.strokeStyle = 'rgba(' + C + ',' + alpha.toFixed(3) + ')';
-          ctx.lineWidth   = 0.7;
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-          ctx.stroke();
+    if (THEME_CONNECT) {
+      for (var i = 0; i < particles.length; i++) {
+        var a = particles[i];
+        for (var j = i + 1; j < particles.length; j++) {
+          var b  = particles[j];
+          var dx = a.x - b.x, dy = a.y - b.y;
+          var d  = Math.sqrt(dx * dx + dy * dy);
+          if (d < CONNECT) {
+            var alpha = (1 - d / CONNECT) * LINE_MAX;
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(' + C + ',' + alpha.toFixed(3) + ')';
+            ctx.lineWidth   = 0.7;
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
         }
       }
     }

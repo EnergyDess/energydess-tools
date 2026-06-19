@@ -8,6 +8,16 @@
   <script src="/static/theme.js"></script>
   <link rel="stylesheet" href="/static/style.css">
   <style>
+    /* ── Тёплый фон демо (переопределяет общий cyan/purple mesh только на этой странице,
+       static/style.css и остальные страницы сайта не трогаем) ── */
+    body { background: #0d0808; }
+    body::before {
+      background:
+        radial-gradient(ellipse 80% 60% at 10% 15%, rgba(232,121,160,0.07) 0%, transparent 55%),
+        radial-gradient(ellipse 60% 80% at 88% 80%, rgba(255,179,71,0.08) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 40% at 50% 110%, rgba(124,77,255,0.05) 0%, transparent 60%);
+    }
+
     .demo-badge-nav {
       display:inline-flex; align-items:center; gap:5px;
       background:rgba(232,121,160,.1); border:1px solid rgba(232,121,160,.25);
@@ -396,6 +406,7 @@
   </style>
 </head>
 <body>
+<script>window.PARTICLE_THEME = { color: '232,121,160', connect: false };</script>
 <script src="/static/effects.js" defer></script>
 
 <div class="demo-sticky-head">
