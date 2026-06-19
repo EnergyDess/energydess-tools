@@ -121,42 +121,63 @@
     }
     .features-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
       gap: 20px;
     }
     .feature-card {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 28px;
-      transition: border-color 0.25s, transform 0.25s;
+      background: rgba(22,26,44,.88);
+      border: 1px solid rgba(199,211,234,.1);
+      border-radius: 16px;
+      padding: 32px;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow:
+        inset 0px 1px 1px 0px rgba(199,211,234,.1),
+        0px 16px 40px 0px rgba(6,6,14,.6);
+      transition: border-color 0.28s, box-shadow 0.28s, transform 0.28s;
+    }
+    /* Hairline top */
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(199,211,234,.22), transparent);
+      pointer-events: none;
     }
     .feature-card:hover {
-      border-color: rgba(124,58,237,0.3);
-      transform: translateY(-3px);
+      border-color: rgba(124,58,237,.32);
+      transform: translateY(-6px);
+      box-shadow:
+        0 28px 64px rgba(0,0,0,.55),
+        0 0 0 1px rgba(124,58,237,.12),
+        0 0 40px rgba(124,58,237,.07),
+        inset 0px 1px 1px 0px rgba(199,211,234,.14);
     }
     .feature-icon {
-      width: 48px; height: 48px;
-      border-radius: 12px;
+      width: 52px; height: 52px;
+      border-radius: 13px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.4rem;
-      margin-bottom: 18px;
+      font-size: 1.55rem;
+      margin-bottom: 20px;
     }
-    .ic-purple { background: rgba(124,58,237,0.15); }
-    .ic-blue   { background: rgba(37,99,235,0.15); }
-    .ic-green  { background: rgba(16,185,129,0.12); }
+    .ic-purple { background: rgba(124,58,237,.2);   box-shadow: 0 0 20px rgba(124,58,237,.14); }
+    .ic-blue   { background: rgba(37,99,235,.18);   box-shadow: 0 0 20px rgba(37,99,235,.1);  }
+    .ic-green  { background: rgba(16,185,129,.16);  box-shadow: 0 0 20px rgba(16,185,129,.1); }
     .feature-card h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 10px;
-      color: var(--text);
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #c7d3ea;
+      letter-spacing: -0.01em;
     }
     .feature-card p {
       font-size: 0.875rem;
-      color: var(--text-dim);
-      line-height: 1.6;
+      color: #81899b;
+      line-height: 1.62;
     }
     .coming-badge {
       display: inline-block;
@@ -164,11 +185,11 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: var(--text-faint);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 2px 8px;
-      margin-top: 14px;
+      color: rgba(199,211,234,.35);
+      border: 1px solid rgba(199,211,234,.12);
+      border-radius: 5px;
+      padding: 3px 9px;
+      margin-top: 16px;
     }
 
     /* CTA */
@@ -275,7 +296,6 @@
         <div class="feature-icon ic-green">🥗</div>
         <h3>Калькулятор питания</h3>
         <p>Подсчёт калорий и БЖУ, дневник питания, подбор рациона под цели. Просто и без лишнего — только то, что реально нужно.</p>
-        <span class="coming-badge">Скоро</span>
       </div>
 
     </div>
