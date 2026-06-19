@@ -166,14 +166,14 @@
 
     /* Таблица продуктов — фиксированные колонки */
     .foods-table { table-layout: fixed; width: 100%; }
-    .foods-table th:nth-child(1), .foods-table td:nth-child(1) { width: 160px; }
-    .foods-table th:nth-child(2), .foods-table td:nth-child(2) { min-width: 190px; }
-    .foods-table th:nth-child(3), .foods-table td:nth-child(3) { min-width: 150px; }
-    .foods-table th:nth-child(4), .foods-table td:nth-child(4) { width: 80px; }
-    .foods-table th:nth-child(5), .foods-table td:nth-child(5) { width: 70px; }
-    .foods-table th:nth-child(6), .foods-table td:nth-child(6) { width: 70px; }
-    .foods-table th:nth-child(7), .foods-table td:nth-child(7) { width: 70px; }
-    .foods-table th:nth-child(8), .foods-table td:nth-child(8) { width: 96px; }
+    .foods-table th:nth-child(1), .foods-table td:nth-child(1) { width: 155px; }
+    .foods-table th:nth-child(2), .foods-table td:nth-child(2) { min-width: 180px; }
+    .foods-table th:nth-child(3), .foods-table td:nth-child(3) { min-width: 145px; }
+    .foods-table th:nth-child(4), .foods-table td:nth-child(4) { width: 96px; }  /* Ккал — шире */
+    .foods-table th:nth-child(5), .foods-table td:nth-child(5) { width: 84px; }  /* Б */
+    .foods-table th:nth-child(6), .foods-table td:nth-child(6) { width: 84px; }  /* Ж */
+    .foods-table th:nth-child(7), .foods-table td:nth-child(7) { width: 84px; }  /* У */
+    .foods-table th:nth-child(8), .foods-table td:nth-child(8) { width: 88px; }  /* кнопки */
 
     /* Инпуты в таблице продуктов */
     .food-input {
@@ -204,13 +204,18 @@
     .food-save-btn, .food-del-btn {
       display: inline-flex; align-items: center; justify-content: center;
       border-radius: 6px; padding: 7px 10px; cursor: pointer;
-      transition: background .15s, box-shadow .15s;
+      transition: background .15s, box-shadow .15s, opacity .15s;
       line-height: 1;
     }
+    /* ✓ скрыта по умолчанию — появляется только при редактировании строки */
     .food-save-btn {
       background: rgba(102,58,243,.15);
       border: 1px solid rgba(102,58,243,.35);
       color: #a78bfa;
+      display: none;
+    }
+    .food-save-btn.dirty {
+      display: inline-flex;
     }
     .food-save-btn:hover {
       background: rgba(102,58,243,.28);
@@ -224,16 +229,23 @@
     .food-del-btn:hover { background: rgba(228,109,76,.22); }
 
     /* Поля поиска в card-header */
+    .search-wrap { position: relative; flex: 1; max-width: 280px; min-width: 180px; }
+    .search-wrap .search-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      width: 15px; height: 15px; pointer-events: none;
+      color: var(--ak-fog);
+    }
     .search-input-admin {
       width: 100%;
       background: rgba(0,0,0,.35);
       border: 1px solid rgba(63,73,89,.7);
       border-radius: 6px;
-      padding: 9px 12px 9px 38px; /* 38px — лупа 14px + отступ 13px справа + зазор */
+      padding: 9px 12px 9px 36px;
       color: var(--ak-moon);
       font-size: 0.875rem;
       font-family: inherit;
       outline: none;
+      box-sizing: border-box;
       transition: border-color .2s, box-shadow .2s;
     }
     .search-input-admin::placeholder { color: var(--ak-fog); }
@@ -274,8 +286,8 @@
   <div class="card">
     <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
       <span>Пользователи (<span id="user-count">{{ users|length }}</span>)</span>
-      <div style="position:relative;flex:1;max-width:280px;min-width:180px">
-        <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--ak-fog);pointer-events:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="user-search" placeholder="Поиск по email..."
           oninput="filterUsers(this.value)"
           class="search-input-admin">
@@ -322,8 +334,8 @@
   <div class="card" style="margin-top:28px">
     <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
       <span>База продуктов (<span id="food-count">{{ foods|length }}</span>)</span>
-      <div style="position:relative;flex:1;max-width:280px;min-width:180px">
-        <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--ak-fog);pointer-events:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="food-search" placeholder="Поиск по названию, бренду, email..."
           oninput="filterFoods(this.value)"
           class="search-input-admin">
@@ -412,6 +424,13 @@ function filterUsers(q) {
   document.getElementById('user-count').textContent = s ? visible + '/' + rows.length : rows.length;
 }
 
+// Показывать ✓ только при редактировании строки
+document.querySelectorAll('[data-food-id] .food-input').forEach(input => {
+  input.addEventListener('input', () => {
+    input.closest('tr').querySelector('.food-save-btn').classList.add('dirty');
+  });
+});
+
 async function saveFood(foodId, btn) {
   const row = btn.closest('tr');
   const body = {
@@ -429,6 +448,7 @@ async function saveFood(foodId, btn) {
       body: JSON.stringify(body)
     });
     if (!res.ok) throw new Error();
+    btn.classList.remove('dirty'); // скрыть после успешного сохранения
     showToast('✓ Сохранено');
   } catch {
     showToast('✗ Не удалось сохранить');
