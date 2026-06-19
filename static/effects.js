@@ -1,4 +1,14 @@
 (function () {
+  // Опциональная переопределяемая тема частиц (window.PARTICLE_THEME),
+  // задаётся на конкретных страницах ДО подключения этого скрипта.
+  // Если не задана — поведение не меняется (cyan + соединительные линии).
+  var THEME         = window.PARTICLE_THEME || {};
+  var THEME_DISABLED = THEME.disabled === true;
+  var THEME_COLOR    = THEME.color || '0,212,255';
+  var THEME_CONNECT  = THEME.connect !== false;
+
+  if (THEME_DISABLED) return; // страница явно отключила фоновые частицы
+
   var canvas = document.createElement('canvas');
   canvas.id = 'bg-canvas';
   // will-change:transform — форсирует отдельный GPU-слой, предотвращает мигание при скролле
@@ -17,13 +27,6 @@
   var REPEL_R   = 100;
   var REPEL_F   = 2.2;
   var DAMP      = 0.93;
-
-  // Опциональная переопределяемая тема частиц (window.PARTICLE_THEME),
-  // задаётся на конкретных страницах ДО подключения этого скрипта.
-  // Если не задана — поведение не меняется (cyan + соединительные линии).
-  var THEME         = window.PARTICLE_THEME || {};
-  var THEME_COLOR    = THEME.color || '0,212,255';
-  var THEME_CONNECT  = THEME.connect !== false;
 
   var lastW = 0;
   var resizeTimer;
