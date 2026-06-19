@@ -166,14 +166,22 @@
 
     /* Таблица продуктов — фиксированные колонки */
     .foods-table { table-layout: fixed; width: 100%; }
+    /* уменьшаем padding внутри ячеек только этой таблицы */
+    .foods-table th, .foods-table td { padding: 12px 10px; }
+    /* числовые колонки — центрируем заголовок и инпут */
+    .foods-table th:nth-child(n+4):nth-child(-n+7) { text-align: center; }
+    .foods-table td:nth-child(n+4):nth-child(-n+7) { text-align: center; }
+    .food-input-num { text-align: center; }
+    /* ширины */
     .foods-table th:nth-child(1), .foods-table td:nth-child(1) { width: 155px; }
-    .foods-table th:nth-child(2), .foods-table td:nth-child(2) { min-width: 180px; }
-    .foods-table th:nth-child(3), .foods-table td:nth-child(3) { min-width: 145px; }
-    .foods-table th:nth-child(4), .foods-table td:nth-child(4) { width: 96px; }  /* Ккал — шире */
-    .foods-table th:nth-child(5), .foods-table td:nth-child(5) { width: 84px; }  /* Б */
-    .foods-table th:nth-child(6), .foods-table td:nth-child(6) { width: 84px; }  /* Ж */
-    .foods-table th:nth-child(7), .foods-table td:nth-child(7) { width: 84px; }  /* У */
-    .foods-table th:nth-child(8), .foods-table td:nth-child(8) { width: 88px; }  /* кнопки */
+    .foods-table th:nth-child(2), .foods-table td:nth-child(2) { }          /* растягивается */
+    .foods-table th:nth-child(3), .foods-table td:nth-child(3) { width: 160px; }
+    .foods-table th:nth-child(4), .foods-table td:nth-child(4) { width: 90px; }   /* Ккал */
+    .foods-table th:nth-child(5), .foods-table td:nth-child(5) { width: 80px; }   /* Б */
+    .foods-table th:nth-child(6), .foods-table td:nth-child(6) { width: 80px; }   /* Ж */
+    .foods-table th:nth-child(7), .foods-table td:nth-child(7) { width: 80px; }   /* У */
+    /* кнопки — всегда резервируем ширину под обе (visibility, не display) */
+    .foods-table th:nth-child(8), .foods-table td:nth-child(8) { width: 88px; padding: 10px 6px; white-space: nowrap; }
 
     /* Инпуты в таблице продуктов */
     .food-input {
@@ -207,15 +215,15 @@
       transition: background .15s, box-shadow .15s, opacity .15s;
       line-height: 1;
     }
-    /* ✓ скрыта по умолчанию — появляется только при редактировании строки */
+    /* ✓ невидима по умолчанию (место зарезервировано — скролл не появляется) */
     .food-save-btn {
       background: rgba(102,58,243,.15);
       border: 1px solid rgba(102,58,243,.35);
       color: #a78bfa;
-      display: none;
+      visibility: hidden;
     }
     .food-save-btn.dirty {
-      display: inline-flex;
+      visibility: visible;
     }
     .food-save-btn:hover {
       background: rgba(102,58,243,.28);
@@ -229,18 +237,19 @@
     .food-del-btn:hover { background: rgba(228,109,76,.22); }
 
     /* Поля поиска в card-header */
-    .search-wrap { position: relative; flex: 1; max-width: 280px; min-width: 180px; }
+    .search-wrap { position: relative; flex: 1; max-width: 300px; min-width: 180px; }
     .search-wrap .search-icon {
-      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
       width: 15px; height: 15px; pointer-events: none;
       color: var(--ak-fog);
+      /* иконка заканчивается на 13+15=28px */
     }
     .search-input-admin {
       width: 100%;
       background: rgba(0,0,0,.35);
       border: 1px solid rgba(63,73,89,.7);
       border-radius: 6px;
-      padding: 9px 12px 9px 36px;
+      padding: 9px 12px 9px 46px; /* текст начинается на 46px — зазор 18px от иконки */
       color: var(--ak-moon);
       font-size: 0.875rem;
       font-family: inherit;
@@ -363,11 +372,11 @@
           <td class="date-cell food-email">{{ f.email }}</td>
           <td><input class="food-input food-name" type="text" value="{{ f.name }}"></td>
           <td><input class="food-input food-brand" type="text" value="{{ f.brand }}"></td>
-          <td><input class="food-input food-cal" type="number" step="0.1" value="{{ f.calories }}"></td>
-          <td><input class="food-input food-prot" type="number" step="0.1" value="{{ f.protein }}"></td>
-          <td><input class="food-input food-fat" type="number" step="0.1" value="{{ f.fat }}"></td>
-          <td><input class="food-input food-carb" type="number" step="0.1" value="{{ f.carbs }}"></td>
-          <td style="white-space:nowrap">
+          <td><input class="food-input food-input-num food-cal" type="number" step="0.1" value="{{ f.calories }}"></td>
+          <td><input class="food-input food-input-num food-prot" type="number" step="0.1" value="{{ f.protein }}"></td>
+          <td><input class="food-input food-input-num food-fat" type="number" step="0.1" value="{{ f.fat }}"></td>
+          <td><input class="food-input food-input-num food-carb" type="number" step="0.1" value="{{ f.carbs }}"></td>
+          <td>
             <button class="food-save-btn" onclick="saveFood({{ f.id }}, this)" title="Сохранить">
               <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
             </button>
