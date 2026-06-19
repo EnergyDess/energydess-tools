@@ -67,7 +67,7 @@
       z-index: 1;
     }
     .card-header {
-      padding: 20px 28px;
+      padding: 18px 20px;        /* 20px — то же, что padding-left у th/td */
       border-bottom: 1px solid rgba(63,73,89,.55);
       font-size: 0.9rem;
       font-weight: 600;
@@ -166,8 +166,8 @@
 
     /* Таблица продуктов — фиксированные колонки */
     .foods-table { table-layout: fixed; width: 100%; }
-    /* уменьшаем padding внутри ячеек только этой таблицы */
-    .foods-table th, .foods-table td { padding: 12px 10px; }
+    /* padding 20px — то же, что card-header, заголовки выровнены с колонками */
+    .foods-table th, .foods-table td { padding: 12px 20px; }
     /* числовые колонки — центрируем заголовок и инпут */
     .foods-table th:nth-child(n+4):nth-child(-n+7) { text-align: center; }
     .foods-table td:nth-child(n+4):nth-child(-n+7) { text-align: center; }
@@ -236,32 +236,42 @@
     }
     .food-del-btn:hover { background: rgba(228,109,76,.22); }
 
-    /* Поля поиска в card-header */
-    .search-wrap { position: relative; flex: 1; max-width: 300px; min-width: 180px; }
-    .search-wrap .search-icon {
-      position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
-      width: 15px; height: 15px; pointer-events: none;
-      color: var(--ak-fog);
-      /* иконка заканчивается на 13+15=28px */
-    }
-    .search-input-admin {
-      width: 100%;
+    /* Поля поиска — flex-контейнер, иконка и инпут не пересекаются никогда */
+    .search-wrap {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      flex: 1;
+      max-width: 300px;
+      min-width: 180px;
       background: rgba(0,0,0,.35);
       border: 1px solid rgba(63,73,89,.7);
       border-radius: 6px;
-      padding: 9px 12px 9px 46px; /* текст начинается на 46px — зазор 18px от иконки */
+      padding: 0 12px 0 13px;
+      box-sizing: border-box;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .search-wrap:focus-within {
+      border-color: var(--ak-frost);
+      box-shadow: 0 0 0 3px rgba(182,217,252,.1);
+    }
+    .search-wrap .search-icon {
+      flex-shrink: 0;
+      width: 15px; height: 15px;
+      color: var(--ak-fog);
+    }
+    .search-input-admin {
+      flex: 1;
+      min-width: 0;
+      background: none;
+      border: none;
+      padding: 9px 0;
       color: var(--ak-moon);
       font-size: 0.875rem;
       font-family: inherit;
       outline: none;
-      box-sizing: border-box;
-      transition: border-color .2s, box-shadow .2s;
     }
     .search-input-admin::placeholder { color: var(--ak-fog); }
-    .search-input-admin:focus {
-      border-color: var(--ak-frost);
-      box-shadow: 0 0 0 3px rgba(182,217,252,.1);
-    }
 
     /* Мобайл: скрыть email-колонку в таблице продуктов */
     @media (max-width: 640px) {
