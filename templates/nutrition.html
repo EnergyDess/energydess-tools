@@ -841,49 +841,77 @@
       }
       .d-left::-webkit-scrollbar-track, .d-right::-webkit-scrollbar-track, #tab-search.active::-webkit-scrollbar-track { background: transparent; }
 
-      /* ── DIARY: stats panel + 2×2 meal grid, fills the screen ── */
-      #tab-diary.active { display: grid; grid-template-columns: 300px 1fr; gap: 24px; overflow: hidden; }
+      /* ── DIARY: верхняя полоса (кольцо+макросы) + нижний ряд (4 блюда + вода) ── */
+      #tab-diary.active {
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        gap: 16px;
+        overflow: hidden;
+      }
 
-      /* Левая колонка: равномерно распределяем кольцо + макросы + кнопку по высоте */
-      #tab-diary.active .d-left { justify-content: space-between; }
+      /* Верхняя полоса — кольцо слева, макросы растягиваются, AI кнопка справа */
+      #tab-diary.active .d-left {
+        flex-direction: row !important;
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+        padding-right: 0 !important;
+        align-items: center;
+        gap: 20px;
+        flex-shrink: 0;
+      }
 
-      /* Правая колонка: meals занимают всё место, вода прикреплена снизу */
+      /* Кольцо компактное в горизонтальной полосе */
+      .ring-wrap { padding: 0; flex-shrink: 0; }
+      .ring-svg { width: 118px; height: 118px; }
+      .ring-remain { font-size: 1.55rem; line-height: 1.1; }
+      .ring-lbl { font-size: .72rem; margin: 1px 0; }
+      .ring-eaten { font-size: .76rem; }
+
+      /* Макросы — горизонтальный ряд, занимает всё свободное место */
+      .macros-row { flex: 1; display: flex; flex-direction: row; gap: 12px; }
+      .macro-card { flex: 1; padding: 14px 16px; }
+      .macro-label { font-size: .78rem; }
+      .macro-val { font-size: .95rem; }
+
+      /* AI кнопка — компактная справа */
+      .ai-btn { flex-shrink: 0; white-space: nowrap; }
+
+      /* Нижняя часть — 4 карточки блюд в ряд + вода снизу */
       #tab-diary.active .d-right {
-        display: flex; flex-direction: column; gap: 12px; overflow: hidden;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px;
+        height: 100% !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+        padding-right: 0;
       }
       #meals-wrap {
         flex: 1; min-height: 0;
-        display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
-        gap: 12px; align-content: unset;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        grid-template-rows: 1fr;
+        gap: 12px;
       }
       .meal-card {
         display: flex; flex-direction: column;
         margin-bottom: 0; min-height: 0; transition: border-color .15s;
       }
       .meal-card:hover { border-color: var(--border-hi); }
-      .meal-hdr { padding: 14px 16px; flex-shrink: 0; }
+      .meal-hdr { padding: 13px 16px; flex-shrink: 0; }
+      .meal-icon { font-size: 1.05rem; }
+      .meal-name { font-size: .98rem; }
+      .meal-kcal { font-size: .88rem; }
       .meal-items { flex: 1; max-height: none; overflow-y: auto; min-height: 0; }
-      .water-card { flex-shrink: 0; padding: 14px 18px; }
-
-      /* Размеры кольца */
-      .ring-wrap { padding: 0; }
-      .ring-svg { width: 220px; height: 220px; }
-      .ring-remain { font-size: 2.4rem; }
-      .ring-lbl { font-size: .86rem; }
-      .ring-eaten { font-size: .9rem; }
-      .macros-row { gap: 10px; }
-      .macro-card { padding: 13px 15px; }
-      .macro-label { font-size: .78rem; }
-      .macro-val { font-size: .96rem; }
-      .water-val { font-size: .95rem; }
-      .water-btn { height: 36px; font-size: .88rem; }
-      .meal-icon { font-size: 1.1rem; }
-      .meal-name { font-size: 1rem; }
-      .meal-kcal { font-size: .9rem; }
-      .food-item { padding: 10px 16px; }
-      .food-name { font-size: .98rem; }
-      .food-sub { font-size: .8rem; }
-      .food-kcal { font-size: .9rem; }
+      .food-item { padding: 9px 14px; }
+      .food-name { font-size: .95rem; }
+      .food-sub { font-size: .78rem; }
+      .food-kcal { font-size: .88rem; }
+      .water-card { flex-shrink: 0; padding: 13px 18px; }
+      .water-val { font-size: .92rem; }
+      .water-btn { height: 34px; font-size: .86rem; }
 
       /* ── SEARCH: single column, readable width, centered ── */
       #tab-search.active { display: block; overflow-y: auto; max-width: 800px; margin: 0 auto; }
