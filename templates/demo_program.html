@@ -32,8 +32,10 @@
     .urgency-track {
       display: flex; width: max-content;
       animation: marquee 26s linear infinite;
+      animation-play-state: paused;
       will-change: transform;
     }
+    .urgency-track.is-ready { animation-play-state: running; }
     .urgency-set { display: flex; align-items: center; flex-shrink: 0; }
     .urgency-item {
       font-size: 0.8rem; font-weight: 600; color: #f4abc5;
@@ -46,7 +48,7 @@
     }
     @keyframes marquee {
       from { transform: translateX(0); }
-      to   { transform: translateX(-50%); }
+      to   { transform: translateX(calc(-1 * var(--unit-width, 1200px))); }
     }
     @media (prefers-reduced-motion: reduce) {
       .urgency-track { animation: none; }
@@ -158,6 +160,22 @@
       display:flex; align-items:center; justify-content:center; font-size:0.78rem; margin-top:1px;
     }
     .benefit-text { font-size:0.9rem; color:#c7d3ea; line-height:1.55; }
+
+    /* ── Mid-page promo reminder ── */
+    .mid-promo {
+      max-width: 780px; margin: 0 auto;
+      background: linear-gradient(120deg, rgba(232,121,160,.12), rgba(124,77,255,.1));
+      border: 1px solid rgba(232,121,160,.28);
+      border-radius: 18px; padding: 22px 28px;
+      display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+    }
+    .mid-promo-text { display:flex; align-items:center; gap:14px; }
+    .mid-promo-fire { font-size: 1.8rem; flex-shrink:0; }
+    .mid-promo-title { font-size: 1rem; font-weight:700; color:#c7d3ea; margin-bottom:4px; }
+    .mid-promo-sub { font-size: 0.85rem; color:#81899b; }
+    .mid-promo-sub strong { color:#f87171; }
+    .mid-promo-sub .cd { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color:#e879a0; font-weight:500; }
+    @media (max-width:640px) { .mid-promo { flex-direction:column; text-align:center; } }
 
     /* ── Testimonials carousel ── */
     .testi-viewport { overflow:hidden; max-width:620px; margin:0 auto; border-radius:18px; }
@@ -381,12 +399,8 @@
 <script src="/static/effects.js" defer></script>
 
 <div class="demo-sticky-head">
-  <div class="urgency-bar">
-    <div class="urgency-track">
-      <div class="urgency-set">
-        <span class="urgency-item">🔥 Скидка 50% действует ограниченное время — успейте получить доступ за <b class="cd">04:00:00</b></span>
-        <span class="urgency-item">⚡ По цене со скидкой осталось {{ program.spots_left }} мест — далее цена вырастет</span>
-      </div>
+  <div class="urgency-bar" id="urgency-bar">
+    <div class="urgency-track" id="urgency-track">
       <div class="urgency-set">
         <span class="urgency-item">🔥 Скидка 50% действует ограниченное время — успейте получить доступ за <b class="cd">04:00:00</b></span>
         <span class="urgency-item">⚡ По цене со скидкой осталось {{ program.spots_left }} мест — далее цена вырастет</span>
@@ -446,6 +460,19 @@
         <span class="benefit-text">{{ b }}</span>
       </div>
       {% endfor %}
+    </div>
+  </section>
+
+  <section class="pg-section" style="padding-top:0; padding-bottom:0;">
+    <div class="mid-promo">
+      <div class="mid-promo-text">
+        <span class="mid-promo-fire">🔥</span>
+        <div>
+          <div class="mid-promo-title">Скидка 50% всё ещё активна</div>
+          <div class="mid-promo-sub">Осталось <strong>{{ program.spots_left }}</strong> мест по этой цене · сгорает через <b class="cd">04:00:00</b></div>
+        </div>
+      </div>
+      <a href="#pricing" class="pg-cta">Забрать со скидкой →</a>
     </div>
   </section>
 
@@ -640,15 +667,59 @@ function testiGo(i) {
 function testiMove(delta) { testiGo(testiIndex + delta); }
 testiSetup();
 
+// Бесшовная бегущая строка: клонируем один блок столько раз, сколько нужно
+// для покрытия ширины экрана, и сдвигаем ровно на ширину одного блока (в px),
+// а не на проценты — тогда цикл идеально замкнут на любом экране.
 (function () {
-  let totalSeconds = 4 * 3600;
+  const bar = document.getElementById('urgency-bar');
+  const track = document.getElementById('urgency-track');
+  if (!bar || !track) return;
+  const original = track.querySelector('.urgency-set');
+  if (!original) return;
+
+  function ensureCoverage() {
+    const unitWidth = original.getBoundingClientRect().width;
+    if (!unitWidth) return;
+    const viewportWidth = bar.getBoundingClientRect().width;
+    const needed = Math.ceil((viewportWidth * 2.2) / unitWidth) + 1;
+    while (track.children.length < needed) {
+      track.appendChild(original.cloneNode(true));
+    }
+    track.style.setProperty('--unit-width', unitWidth + 'px');
+    track.classList.add('is-ready');
+  }
+  ensureCoverage();
+  window.addEventListener('resize', ensureCoverage);
+})();
+
+// Таймер акции: хранится в localStorage, не сбрасывается при обновлении
+// страницы и переходах между курсами. Когда остаётся < 5 минут — акция
+// «продлевается» заново на 4 часа, чтобы напоминание оставалось живым.
+(function () {
+  const KEY = 'demoPromoDeadline';
+  const RESET_AT_MS = 5 * 60 * 1000;
+  const FULL_MS = 4 * 60 * 60 * 1000;
+  let memoryDeadline = null;
+
+  function getDeadline() {
+    const now = Date.now();
+    let stored;
+    try { stored = parseInt(localStorage.getItem(KEY), 10); } catch (e) { stored = memoryDeadline; }
+    if (!stored || isNaN(stored) || stored - now <= RESET_AT_MS) {
+      stored = now + FULL_MS;
+      memoryDeadline = stored;
+      try { localStorage.setItem(KEY, String(stored)); } catch (e) { /* приватный режим браузера */ }
+    }
+    return stored;
+  }
+
   function tick() {
-    if (totalSeconds <= 0) totalSeconds = 4 * 3600;
-    const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
-    const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
-    const s = String(totalSeconds % 60).padStart(2, '0');
+    const remaining = Math.max(0, getDeadline() - Date.now());
+    const total = Math.floor(remaining / 1000);
+    const h = String(Math.floor(total / 3600)).padStart(2, '0');
+    const m = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
+    const s = String(total % 60).padStart(2, '0');
     document.querySelectorAll('.cd').forEach(el => el.textContent = `${h}:${m}:${s}`);
-    totalSeconds--;
   }
   tick();
   setInterval(tick, 1000);
