@@ -18,20 +18,39 @@
     .back-link-nav { font-size:0.85rem; color:rgba(199,211,234,.45); text-decoration:none; transition:color .2s; }
     .back-link-nav:hover { color:#c7d3ea; }
 
+    /* ── Sticky header (ticker + nav move together) ── */
+    .demo-sticky-head { position: sticky; top: 0; z-index: 100; }
+    .demo-sticky-head .nav { position: static; }
+
     /* ── Urgency ticker ── */
     .urgency-bar {
-      background: linear-gradient(90deg, rgba(232,121,160,.16), rgba(124,77,255,.16));
+      background: linear-gradient(90deg, rgba(232,121,160,.18), rgba(124,77,255,.18));
       border-bottom: 1px solid rgba(232,121,160,.25);
       overflow: hidden; white-space: nowrap; padding: 9px 0;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     }
     .urgency-track {
-      display: inline-flex; gap: 60px;
-      animation: marquee 20s linear infinite;
-      padding-left: 60px;
+      display: flex; width: max-content;
+      animation: marquee 26s linear infinite;
+      will-change: transform;
     }
-    .urgency-item { font-size: 0.8rem; font-weight: 600; color: #f4abc5; display: inline-flex; align-items: center; gap: 7px; }
-    .urgency-item .cd { font-family: var(--font); font-weight: 800; color: #fff; letter-spacing: .02em; }
-    @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .urgency-set { display: flex; align-items: center; flex-shrink: 0; }
+    .urgency-item {
+      font-size: 0.8rem; font-weight: 600; color: #f4abc5;
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 0 30px; white-space: nowrap;
+    }
+    .urgency-item .cd {
+      font-family: var(--font-mono); font-weight: 500; color: #fff; letter-spacing: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    @keyframes marquee {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .urgency-track { animation: none; }
+    }
 
     /* ── Hero ── */
     .pg-hero {
@@ -361,25 +380,31 @@
 <body>
 <script src="/static/effects.js" defer></script>
 
-<div class="urgency-bar">
-  <div class="urgency-track">
-    <span class="urgency-item">🔥 Скидка 50% действует ограниченное время — успейте получить доступ за <b class="cd">04:00:00</b></span>
-    <span class="urgency-item">⚡ По цене со скидкой осталось {{ program.spots_left }} мест — далее цена вырастет</span>
-    <span class="urgency-item">🔥 Скидка 50% действует ограниченное время — успейте получить доступ за <b class="cd">04:00:00</b></span>
-    <span class="urgency-item">⚡ По цене со скидкой осталось {{ program.spots_left }} мест — далее цена вырастет</span>
+<div class="demo-sticky-head">
+  <div class="urgency-bar">
+    <div class="urgency-track">
+      <div class="urgency-set">
+        <span class="urgency-item">🔥 Скидка 50% действует ограниченное время — успейте получить доступ за <b class="cd">04:00:00</b></span>
+        <span class="urgency-item">⚡ По цене со скидкой осталось {{ program.spots_left }} мест — далее цена вырастет</span>
+      </div>
+      <div class="urgency-set">
+        <span class="urgency-item">🔥 Скидка 50% действует ограниченное время — успейте получить доступ за <b class="cd">04:00:00</b></span>
+        <span class="urgency-item">⚡ По цене со скидкой осталось {{ program.spots_left }} мест — далее цена вырастет</span>
+      </div>
+    </div>
   </div>
-</div>
 
-<nav class="nav">
-  <a href="/" class="nav-logo">
-    <span class="nav-logo-symbol">⚡</span>
-    <span>EnergyDess</span>
-  </a>
-  <div class="nav-right" style="display:flex;align-items:center;gap:14px">
-    <span class="demo-badge-nav">✦ Demo</span>
-    <a href="/demo" class="back-link-nav">← Все программы</a>
-  </div>
-</nav>
+  <nav class="nav">
+    <a href="/" class="nav-logo">
+      <span class="nav-logo-symbol">⚡</span>
+      <span>EnergyDess</span>
+    </a>
+    <div class="nav-right" style="display:flex;align-items:center;gap:14px">
+      <span class="demo-badge-nav">✦ Demo</span>
+      <a href="/demo" class="back-link-nav">← Все программы</a>
+    </div>
+  </nav>
+</div>
 
 <main>
   <section class="pg-hero">
