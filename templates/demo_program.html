@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ program.title }} · Демо</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <script src="/static/theme.js"></script>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .demo-badge-nav {
+      display:inline-flex; align-items:center; gap:5px;
+      background:rgba(232,121,160,.1); border:1px solid rgba(232,121,160,.25);
+      border-radius:99px; padding:3px 11px;
+      font-size:0.66rem; font-weight:600; color:#f4abc5;
+      letter-spacing:.08em; text-transform:uppercase;
+    }
+    .back-link-nav { font-size:0.85rem; color:rgba(199,211,234,.45); text-decoration:none; transition:color .2s; }
+    .back-link-nav:hover { color:#c7d3ea; }
+
+    /* ── Hero ── */
+    .pg-hero {
+      position: relative; overflow: hidden;
+      padding: 70px 20px 60px; max-width: 980px; margin: 0 auto;
+      display: grid; grid-template-columns: 200px 1fr; gap: 40px; align-items: center;
+    }
+    .pg-hero::before {
+      content:''; position:absolute; top:-140px; left:50%; transform:translateX(-50%);
+      width:900px; height:600px;
+      background: radial-gradient(ellipse, rgba(232,121,160,.16) 0%, rgba(124,77,255,.08) 42%, transparent 70%);
+      pointer-events:none; z-index:0;
+    }
+    .pg-hero > * { position:relative; z-index:1; }
+    .pg-avatar {
+      width: 190px; height: 190px; border-radius: 28px;
+      background: radial-gradient(circle at 35% 30%, rgba(232,121,160,.35), rgba(124,77,255,.18) 55%, rgba(22,26,44,.9) 100%);
+      border: 1px solid rgba(199,211,234,.14);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 4.2rem;
+      box-shadow: inset 0 1px 1px rgba(199,211,234,.1), 0 16px 40px rgba(6,6,14,.55);
+      animation: fadeUp .55s ease both;
+    }
+    .pg-badge {
+      display:inline-flex; align-items:center; gap:4px;
+      font-size:0.68rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+      padding:4px 12px; border-radius:99px; margin-bottom: 14px;
+      animation: fadeUp .55s ease both; animation-delay:.05s;
+    }
+    .badge-flagship   { background:rgba(255,162,58,.14);  color:#ffb347; border:1px solid rgba(255,162,58,.3);  }
+    .badge-bestseller { background:rgba(255,214,0,.12);   color:#ffd700; border:1px solid rgba(255,214,0,.25);  }
+    .badge-marathon   { background:rgba(52,211,153,.12);  color:#34d399; border:1px solid rgba(52,211,153,.25); }
+    .badge-course     { background:rgba(96,165,250,.12);  color:#60a5fa; border:1px solid rgba(96,165,250,.25); }
+
+    .pg-title {
+      font-family: var(--font-display, inherit);
+      font-size: clamp(1.7rem, 4vw, 2.6rem); font-weight: 800; letter-spacing:-0.03em;
+      color: #c7d3ea; margin-bottom: 12px; line-height: 1.12;
+      animation: fadeUp .55s ease both; animation-delay:.1s;
+    }
+    .pg-tagline {
+      font-size: 1rem; color: #81899b; line-height: 1.6; margin-bottom: 18px; max-width: 480px;
+      animation: fadeUp .55s ease both; animation-delay:.15s;
+    }
+    .pg-meta { display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 24px; animation: fadeUp .55s ease both; animation-delay:.2s; }
+    .pg-meta-pill {
+      font-size:0.78rem; color:#c7d3ea; background:rgba(199,211,234,.07);
+      border:1px solid rgba(199,211,234,.14); border-radius:99px; padding:5px 13px;
+    }
+    .pg-cta {
+      display:inline-flex; align-items:center; gap:8px;
+      background: linear-gradient(135deg, #e879a0 0%, #7c4dff 70%);
+      color:#fff; padding:13px 28px; border-radius:12px;
+      font-size:0.95rem; font-weight:700; text-decoration:none; border:none; cursor:pointer;
+      box-shadow: 0 4px 24px rgba(232,121,160,.35); transition: transform .2s, box-shadow .2s;
+      animation: fadeUp .55s ease both; animation-delay:.26s;
+    }
+    .pg-cta:hover { transform: translateY(-2px); box-shadow: 0 10px 36px rgba(232,121,160,.5); }
+
+    /* ── Sections ── */
+    .pg-section { max-width: 900px; margin: 0 auto; padding: 50px 20px; }
+    .pg-section-title {
+      font-size: clamp(1.3rem, 3vw, 1.7rem); font-weight: 700; color:#c7d3ea;
+      letter-spacing:-0.02em; margin-bottom: 28px; text-align:center;
+    }
+
+    .benefits-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap:14px; }
+    .benefit-card {
+      display:flex; align-items:flex-start; gap:12px;
+      background: rgba(22,26,44,.85); border:1px solid rgba(199,211,234,.1);
+      border-radius:14px; padding:18px 20px;
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      box-shadow: inset 0 1px 1px rgba(199,211,234,.06), 0 8px 22px rgba(6,6,14,.4);
+    }
+    .benefit-check {
+      flex-shrink:0; width:22px; height:22px; border-radius:50%;
+      background: rgba(52,211,153,.15); color:#34d399;
+      display:flex; align-items:center; justify-content:center; font-size:0.78rem; margin-top:1px;
+    }
+    .benefit-text { font-size:0.9rem; color:#c7d3ea; line-height:1.55; }
+
+    .modules-list { display:flex; flex-direction:column; gap:10px; }
+    .module-row {
+      display:flex; gap:16px; align-items:flex-start;
+      background: rgba(22,26,44,.85); border:1px solid rgba(199,211,234,.1);
+      border-radius:14px; padding:18px 22px;
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    }
+    .module-num {
+      flex-shrink:0; width:34px; height:34px; border-radius:10px;
+      background: linear-gradient(135deg, rgba(232,121,160,.18), rgba(124,77,255,.18));
+      border:1px solid rgba(232,121,160,.22);
+      display:flex; align-items:center; justify-content:center;
+      font-family: var(--font-mono); font-size:0.85rem; font-weight:500; color:#f4abc5;
+    }
+    .module-title { font-size:0.95rem; font-weight:700; color:#c7d3ea; margin-bottom:4px; }
+    .module-desc { font-size:0.84rem; color:#81899b; line-height:1.6; }
+
+    /* ── Pricing ── */
+    .pricing-card {
+      max-width: 480px; margin: 0 auto; text-align:center;
+      background: rgba(22,26,44,.92); border:1px solid rgba(232,121,160,.22);
+      border-radius:20px; padding:36px 32px;
+      backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+      box-shadow: inset 0 1px 1px rgba(199,211,234,.1), 0 20px 50px rgba(6,6,14,.55), 0 0 50px rgba(232,121,160,.06);
+      position: relative; overflow:hidden;
+    }
+    .pricing-card::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:1px;
+      background: linear-gradient(90deg, transparent, rgba(232,121,160,.4), transparent);
+    }
+    .price-old { font-size:1rem; color:rgba(199,211,234,.35); text-decoration:line-through; margin-bottom:4px; }
+    .price-now {
+      font-family: var(--font-mono);
+      font-size:2.6rem; font-weight:500; color:#c7d3ea; margin-bottom:6px; letter-spacing:-0.01em;
+    }
+    .price-discount {
+      display:inline-block; font-size:0.72rem; font-weight:700; color:#34d399;
+      background:rgba(52,211,153,.12); border:1px solid rgba(52,211,153,.25);
+      border-radius:99px; padding:3px 12px; margin-bottom: 22px;
+    }
+    .pricing-card .pg-cta { width:100%; justify-content:center; }
+    .price-note { font-size:0.76rem; color:rgba(199,211,234,.35); margin-top:14px; }
+
+    /* ── Mock payment form ── */
+    .pay-form {
+      max-width: 480px; margin: 36px auto 0;
+      background: rgba(22,26,44,.85); border:1px solid rgba(199,211,234,.12);
+      border-radius:16px; padding:26px 28px;
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    }
+    .pay-form-title { font-size:0.9rem; font-weight:700; color:#c7d3ea; margin-bottom:4px; }
+    .pay-form-note {
+      font-size:0.78rem; color:#81899b; line-height:1.5; margin-bottom:18px;
+      padding: 10px 12px; background: rgba(96,165,250,.08); border:1px solid rgba(96,165,250,.2);
+      border-radius:10px;
+    }
+    .pay-row { display:flex; gap:10px; margin-bottom:10px; }
+    .pay-field { flex:1; }
+    .pay-field label { display:block; font-size:0.72rem; color:rgba(199,211,234,.5); margin-bottom:5px; }
+    .pay-field input {
+      width:100%; background: rgba(8,10,22,.5); border:1px solid rgba(199,211,234,.16);
+      border-radius:10px; padding:11px 13px; color:#c7d3ea; font-size:0.85rem;
+      font-family: inherit; outline:none; box-sizing:border-box;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .pay-field input:focus { border-color: rgba(232,121,160,.5); box-shadow: 0 0 0 3px rgba(232,121,160,.08); }
+    .pay-submit {
+      width:100%; margin-top:8px;
+      background: linear-gradient(135deg, #e879a0 0%, #7c4dff 70%);
+      color:#fff; border:none; border-radius:11px; padding:13px;
+      font-size:0.92rem; font-weight:700; font-family:inherit; cursor:pointer;
+      transition: opacity .2s;
+    }
+    .pay-submit:hover { opacity:.9; }
+    .pay-result {
+      margin-top:14px; font-size:0.82rem; color:#81899b; line-height:1.6;
+      display:none; padding:12px 14px; background:rgba(232,121,160,.07);
+      border:1px solid rgba(232,121,160,.2); border-radius:10px;
+    }
+
+    .demo-footer {
+      border-top:1px solid rgba(199,211,234,.07);
+      padding:18px 20px; text-align:center;
+      font-size:0.76rem; color:rgba(199,211,234,.2);
+    }
+    .demo-footer a { color:rgba(232,121,160,.45); text-decoration:none; transition:color .2s; }
+    .demo-footer a:hover { color:#e879a0; }
+
+    @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+
+    @media (max-width: 640px) {
+      .pg-hero { grid-template-columns: 1fr; text-align:center; padding-top:60px; }
+      .pg-avatar { margin: 0 auto 10px; width:140px; height:140px; font-size:3.2rem; }
+      .pg-meta, .pg-tagline { justify-content:center; }
+      .pay-row { flex-direction: column; }
+      .price-now { font-size: 2.1rem; }
+    }
+  </style>
+</head>
+<body>
+<script src="/static/effects.js" defer></script>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="nav-logo-symbol">⚡</span>
+    <span>EnergyDess</span>
+  </a>
+  <div class="nav-right" style="display:flex;align-items:center;gap:14px">
+    <span class="demo-badge-nav">✦ Demo</span>
+    <a href="/demo" class="back-link-nav">← Все программы</a>
+  </div>
+</nav>
+
+<main>
+  <section class="pg-hero">
+    <div class="pg-avatar">{{ program.icon }}</div>
+    <div>
+      <span class="pg-badge {{ program.badge_class }}">{{ program.badge_text }}</span>
+      <h1 class="pg-title">{{ program.title }}</h1>
+      <p class="pg-tagline">{{ program.tagline }}</p>
+      <div class="pg-meta">
+        <span class="pg-meta-pill">📊 {{ program.level }}</span>
+        <span class="pg-meta-pill">⏱ {{ program.duration }}</span>
+      </div>
+      <a href="#pricing" class="pg-cta">Получить программу →</a>
+    </div>
+  </section>
+
+  <section class="pg-section">
+    <h2 class="pg-section-title">Что вы получите</h2>
+    <div class="benefits-grid">
+      {% for b in program.benefits %}
+      <div class="benefit-card">
+        <span class="benefit-check">✓</span>
+        <span class="benefit-text">{{ b }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="pg-section">
+    <h2 class="pg-section-title">Программа курса</h2>
+    <div class="modules-list">
+      {% for m in program.modules %}
+      <div class="module-row">
+        <div class="module-num">{{ '%02d'|format(loop.index) }}</div>
+        <div>
+          <div class="module-title">{{ m.title }}</div>
+          <div class="module-desc">{{ m.desc }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section id="pricing" class="pg-section">
+    <h2 class="pg-section-title">Доступ к программе</h2>
+    <div class="pricing-card">
+      <div class="price-old">{{ program.old_price }} ₽</div>
+      <div class="price-now">{{ program.price }} ₽</div>
+      <div class="price-discount">Скидка 50% — ограниченное предложение</div>
+      <button class="pg-cta" type="button" onclick="document.getElementById('pay-name').focus()">Получить доступ →</button>
+      <div class="price-note">Доступ открывается сразу после оплаты · 365 дней использования</div>
+    </div>
+
+    <form class="pay-form" id="pay-form" onsubmit="return submitMockPayment(event)">
+      <div class="pay-form-title">Оформление доступа</div>
+      <div class="pay-form-note">
+        ⚠ Это демонстрационная форма для тестового задания. Реальная оплата не подключена — данные карты никуда не отправляются.
+      </div>
+      <div class="pay-row">
+        <div class="pay-field">
+          <label>Имя</label>
+          <input id="pay-name" type="text" placeholder="Как к вам обращаться" autocomplete="off">
+        </div>
+      </div>
+      <div class="pay-row">
+        <div class="pay-field">
+          <label>Номер карты</label>
+          <input type="text" placeholder="0000 0000 0000 0000" autocomplete="off" maxlength="19">
+        </div>
+      </div>
+      <div class="pay-row">
+        <div class="pay-field">
+          <label>Срок действия</label>
+          <input type="text" placeholder="ММ/ГГ" autocomplete="off" maxlength="5">
+        </div>
+        <div class="pay-field">
+          <label>CVC</label>
+          <input type="text" placeholder="•••" autocomplete="off" maxlength="3">
+        </div>
+      </div>
+      <button class="pay-submit" type="submit">Оплатить {{ program.price }} ₽</button>
+      <div class="pay-result" id="pay-result"></div>
+    </form>
+  </section>
+</main>
+
+<footer class="demo-footer">
+  Демонстрационная страница · <a href="/demo">Все программы</a> · <a href="/">EnergyDess</a>
+</footer>
+
+<script>
+function submitMockPayment(e) {
+  e.preventDefault();
+  const result = document.getElementById('pay-result');
+  result.style.display = 'block';
+  result.textContent = '✓ Так выглядел бы экран успешной оплаты в реальном продукте. В этом демо приём платежей не подключён.';
+  return false;
+}
+</script>
+</body>
+</html>

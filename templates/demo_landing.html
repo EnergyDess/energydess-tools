@@ -127,8 +127,9 @@
       background: linear-gradient(90deg, transparent, rgba(232,121,160,.3), transparent);
     }
     .metric-val {
-      font-family: var(--font-display, inherit);
-      font-size: 1.65rem; font-weight: 800; line-height: 1.1; margin-bottom: 5px;
+      font-family: var(--font-mono, monospace);
+      font-size: 1.55rem; font-weight: 500; line-height: 1.1; margin-bottom: 5px;
+      letter-spacing: -0.01em;
       background: linear-gradient(135deg, #e879a0, #7c4dff);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -178,6 +179,7 @@
       position: relative; overflow: hidden;
       transition: transform .28s, border-color .28s, box-shadow .28s;
       animation: cardReveal .55s cubic-bezier(.22,1,.36,1) both;
+      text-decoration: none; color: inherit; cursor: pointer;
     }
     .prog-card:nth-child(1){ animation-delay:.1s; }
     .prog-card:nth-child(2){ animation-delay:.17s; }
@@ -392,53 +394,53 @@
 
     <div class="programs-grid">
 
-      <div class="prog-card">
+      <a class="prog-card" href="/demo/program/metod-usmanovoy">
         <div class="prog-icon">🏆</div>
         <span class="prog-badge badge-flagship">🔥 Флагман</span>
         <div class="prog-title">Метод Усмановой</div>
         <div class="prog-desc">Базовая техника упражнений — фундамент всей системы. Идеально для старта и тех, кто хочет выстроить правильную базу без ошибок.</div>
-        <button class="prog-link">Подробнее <span class="prog-link-arrow">→</span></button>
-      </div>
+        <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+      </a>
 
-      <div class="prog-card">
+      <a class="prog-card" href="/demo/program/marafon-stroynosti">
         <div class="prog-icon">🔥</div>
         <span class="prog-badge badge-marathon">🏃 Марафон</span>
         <div class="prog-title">Марафон Стройности</div>
         <div class="prog-desc">21 день интенсивной работы — ощутимые изменения уже на второй неделе. Ежедневные тренировки и поддержка куратора на каждом шагу.</div>
-        <button class="prog-link">Подробнее <span class="prog-link-arrow">→</span></button>
-      </div>
+        <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+      </a>
 
-      <div class="prog-card">
+      <a class="prog-card" href="/demo/program/uprugaya-popa-1">
         <div class="prog-icon">🍑</div>
         <span class="prog-badge badge-course">💫 Курс</span>
         <div class="prog-title">Упругая попа 1.0</div>
         <div class="prog-desc">Только собственный вес тела — никакого инвентаря. Прицельная работа над ягодичными мышцами в домашних условиях.</div>
-        <button class="prog-link">Подробнее <span class="prog-link-arrow">→</span></button>
-      </div>
+        <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+      </a>
 
-      <div class="prog-card">
+      <a class="prog-card" href="/demo/program/uprugaya-popa-2">
         <div class="prog-icon">💪</div>
         <span class="prog-badge badge-course">💫 Курс</span>
         <div class="prog-title">Упругая попа 2.0</div>
         <div class="prog-desc">Максимальная нагрузка с резинками и гантелями. Для тех, кто прошёл 1.0 и готов идти дальше — к объёму и выраженной форме.</div>
-        <button class="prog-link">Подробнее <span class="prog-link-arrow">→</span></button>
-      </div>
+        <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+      </a>
 
-      <div class="prog-card">
+      <a class="prog-card" href="/demo/program/ploskiy-zhivot">
         <div class="prog-icon">✨</div>
         <span class="prog-badge badge-bestseller">⭐ Бестселлер</span>
         <div class="prog-title">Плоский живот</div>
         <div class="prog-desc">Работа с глубокими мышцами кора и пресса. Убираем живот без изнурительных скручиваний — научно, безопасно и эффективно.</div>
-        <button class="prog-link">Подробнее <span class="prog-link-arrow">→</span></button>
-      </div>
+        <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+      </a>
 
-      <div class="prog-card">
+      <a class="prog-card" href="/demo/program/zhiroszhigatelniy-kurs">
         <div class="prog-icon">🫀</div>
         <span class="prog-badge badge-course">⚡ 6 недель</span>
         <div class="prog-title">Жиросжигающий курс</div>
         <div class="prog-desc">Шесть недель интенсивной кардио и силовой работы. Ускоряем метаболизм, сжигаем жир и строим долгосрочную привычку тренироваться.</div>
-        <button class="prog-link">Подробнее <span class="prog-link-arrow">→</span></button>
-      </div>
+        <span class="prog-link">Подробнее <span class="prog-link-arrow">→</span></span>
+      </a>
 
     </div>
   </section>
