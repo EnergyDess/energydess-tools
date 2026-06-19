@@ -453,8 +453,26 @@ async def admin_page(request: Request, user=Depends(get_current_user), db: Sessi
             "tools": {t["id"]: (u.id, t["id"]) in access_set for t in TOOLS},
         })
 
+    # Все продукты, добавленные пользователями в личную базу (CustomFood) —
+    # для модерации/правки админом
+    all_users = {u.id: u.email for u in db.query(User).all()}
+    foods = db.query(CustomFood).order_by(CustomFood.created_at.desc()).all()
+    foods_data = [{
+        "id": f.id,
+        "email": all_users.get(f.user_id, "—"),
+        "name": f.name,
+        "brand": f.brand or "",
+        "barcode": f.barcode or "",
+        "calories": f.calories_per_100g,
+        "protein": f.protein_per_100g,
+        "fat": f.fat_per_100g,
+        "carbs": f.carbs_per_100g,
+        "created_at": f.created_at,
+    } for f in foods]
+
     return templates.TemplateResponse(request=request, name="admin.html",
-                                      context={"user": user, "users": users_data, "tools": TOOLS})
+                                      context={"user": user, "users": users_data, "tools": TOOLS,
+                                               "foods": foods_data})
 
 
 @app.post("/admin/toggle")
@@ -483,6 +501,40 @@ async def admin_toggle(
         db.add(ToolAccess(user_id=target_user_id, tool_id=tool_id))
         db.commit()
         return JSONResponse({"access": True})
+
+
+@app.put("/admin/foods/{food_id}")
+async def admin_update_food(food_id: int, request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user or not user.is_admin:
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+
+    food = db.query(CustomFood).filter(CustomFood.id == food_id).first()
+    if not food:
+        return JSONResponse({"error": "Не найдено"}, status_code=404)
+
+    data = await request.json()
+    food.name = (data.get("name") or food.name).strip()
+    food.brand = (data.get("brand") or "").strip() or None
+    food.calories_per_100g = float(data.get("calories", food.calories_per_100g))
+    food.protein_per_100g = float(data.get("protein", food.protein_per_100g))
+    food.fat_per_100g = float(data.get("fat", food.fat_per_100g))
+    food.carbs_per_100g = float(data.get("carbs", food.carbs_per_100g))
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+@app.delete("/admin/foods/{food_id}")
+async def admin_delete_food(food_id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user or not user.is_admin:
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+
+    food = db.query(CustomFood).filter(CustomFood.id == food_id).first()
+    if not food:
+        return JSONResponse({"error": "Не найдено"}, status_code=404)
+
+    db.delete(food)
+    db.commit()
+    return JSONResponse({"ok": True})
 
 
 # ── Enshrouded Трекер ─────────────────────────────────────────────────────────
@@ -1124,10 +1176,12 @@ async def nut_log_food(request: Request, user=Depends(get_current_user), db: Ses
             CustomFood.user_id == user.id, CustomFood.barcode == barcode).first()
     if not existing and name:
         # как и в /api/search — сравниваем в Python, ilike не приводит к
-        # нижнему регистру кириллицу в SQLite
+        # нижнему регистру кириллицу в SQLite. Бренд тоже учитываем в сравнении —
+        # одно и то же блюдо из разных заведений должно остаться разными записями
         name_lower = name.lower()
+        brand_lower = (data.get("brand") or "").strip().lower()
         existing = next((f for f in db.query(CustomFood).filter(CustomFood.user_id == user.id).all()
-                          if f.name.lower() == name_lower), None)
+                          if f.name.lower() == name_lower and (f.brand or "").lower() == brand_lower), None)
     if not existing and name:
         db.add(CustomFood(
             user_id=user.id, name=name, brand=data.get("brand", "") or None, barcode=barcode,
@@ -1515,9 +1569,10 @@ async def nut_ai_chat(request: Request, user=Depends(get_current_user), db: Sess
 - пользователь описал блюдо (название + калорийность хотя бы) и попросил добавить/записать его, ИЛИ
 - ты сам предложил блюдо с оценкой КБЖУ, и пользователь подтвердил ("да", "верно", "добавь", "ок" и т.п.).
 НИКОГДА не пиши "добавил", "записал в дневник", "готово" и т.п. без этого блока — без него ничего не добавится, и пользователь увидит ложь. Если данных о калорийности не хватает — сначала уточни их, не добавляй блок.
+ПРО БРЕНД/ЗАВЕДЕНИЕ: если из переписки понятно название кафе, ресторана, сети или производителя — укажи его в поле brand блока. Если блюдо явно ресторанное/готовое (а не домашняя еда вроде "сварил суп") и бренд/заведение НЕ упомянуты — перед добавлением блока спроси одним коротким вопросом, из какого места это блюдо, и не добавляй блок, пока не получишь ответ (или пользователь явно скажет, что не помнит/не важно — тогда добавляй блок с пустым brand).
 Формат блока (в конце ответа, отдельным фрагментом):
 ###FOOD_JSON###
-{{"name":"название блюда","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":100}}
+{{"name":"название блюда","brand":"заведение или производитель (пустая строка, если неизвестно/не нужно)","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":100}}
 ###END_FOOD_JSON###
 calories/protein/fat/carbs — на 100г продукта, estimated_grams — вес съеденной порции."""
 
@@ -1566,8 +1621,9 @@ async def nut_ai_photo(file: UploadFile = File(...), description: str = Form("")
 
     extra = f"\nДополнительное описание от пользователя: {description.strip()}" if description.strip() else ""
     prompt = f"""На фото еда. Определи что изображено и оцени калорийность на 100г.{extra}
+Если в описании упомянуто название кафе, ресторана, сети или производителя — укажи его в поле brand. Если не упомянуто — оставь brand пустой строкой.
 Ответь ТОЛЬКО JSON без ```json и без пояснений:
-{{"name":"название блюда","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":300,"note":"краткое пояснение"}}"""
+{{"name":"название блюда","brand":"заведение или производитель (пустая строка, если неизвестно)","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":300,"note":"краткое пояснение"}}"""
 
     try:
         text = await _call_vision(b64, mime, prompt)
@@ -1593,8 +1649,9 @@ async def nut_ai_chat_photo(file: UploadFile = File(...), message: str = Form(""
     comment = f"\nКомментарий пользователя: {user_text}" if user_text else ""
     prompt = f"""На фото еда, которую съел пользователь.{comment}
 Определи блюдо, оцени калорийность на 100г и примерный вес порции на фото.
+Если в комментарии пользователя упомянуто название кафе, ресторана, сети или производителя — укажи его в поле brand. Если не упомянуто — оставь brand пустой строкой.
 Ответь ТОЛЬКО JSON без ```json и без пояснений:
-{{"name":"название блюда","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":300}}"""
+{{"name":"название блюда","brand":"заведение или производитель (пустая строка, если неизвестно)","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":300}}"""
 
     db.add(ChatMessage(user_id=user.id, role="user", content=user_text or "[фото блюда]", image_data=thumb))
 
@@ -1614,6 +1671,8 @@ async def nut_ai_chat_photo(file: UploadFile = File(...), message: str = Form(""
     total_carb = round(food.get("carbs", 0) * grams / 100)
     reply = (f"Похоже на «{food.get('name', 'блюдо')}»: примерно {total_cal} ккал на ~{grams:.0f}г "
              f"(Б:{total_prot}г Ж:{total_fat}г У:{total_carb}г). Это какой приём пищи?")
+    if not (food.get("brand") or "").strip():
+        reply += " И кстати, из какого кафе/ресторана или какой марки этот продукт? Это поможет точнее находить его в поиске."
 
     db.add(ChatMessage(user_id=user.id, role="assistant", content=reply))
     db.commit()

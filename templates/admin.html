@@ -118,6 +118,20 @@
       pointer-events: none;
     }
     .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* Таблица продуктов */
+    .food-input {
+      width: 100%; background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 6px 8px; color: var(--text);
+      font-size: 0.82rem; font-family: inherit; outline: none; transition: border-color .15s;
+    }
+    .food-input:focus { border-color: var(--accent); }
+    .food-save-btn, .food-del-btn {
+      background: var(--bg3); border: 1px solid var(--border-hi); border-radius: 6px;
+      padding: 5px 8px; cursor: pointer; font-size: 0.85rem; line-height: 1;
+    }
+    .food-save-btn:hover { border-color: var(--accent); }
+    .food-del-btn:hover { border-color: #ef4444; }
   </style>
 </head>
 <body>
@@ -188,6 +202,57 @@
     <div class="empty-state">Пока нет зарегистрированных пользователей</div>
     {% endif %}
   </div>
+
+  <div class="card" style="margin-top:28px">
+    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <span>База продуктов (<span id="food-count">{{ foods|length }}</span>)</span>
+      <div style="position:relative;flex:1;max-width:280px;min-width:180px">
+        <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--text-dim);pointer-events:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="food-search" placeholder="Поиск по названию, бренду, email..."
+          oninput="filterFoods(this.value)"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border-hi);border-radius:var(--radius-sm);padding:9px 12px 9px 34px;color:var(--text);font-size:0.875rem;font-family:inherit;outline:none;transition:border-color .2s"
+          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border-hi)'">
+      </div>
+    </div>
+
+    {% if foods %}
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Пользователь</th>
+          <th>Название</th>
+          <th>Бренд</th>
+          <th>Ккал</th>
+          <th>Б</th>
+          <th>Ж</th>
+          <th>У</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in foods %}
+        <tr data-food-id="{{ f.id }}">
+          <td class="date-cell food-email">{{ f.email }}</td>
+          <td><input class="food-input food-name" type="text" value="{{ f.name }}" style="min-width:140px"></td>
+          <td><input class="food-input food-brand" type="text" value="{{ f.brand }}" style="min-width:120px"></td>
+          <td><input class="food-input food-cal" type="number" step="0.1" value="{{ f.calories }}" style="width:64px"></td>
+          <td><input class="food-input food-prot" type="number" step="0.1" value="{{ f.protein }}" style="width:54px"></td>
+          <td><input class="food-input food-fat" type="number" step="0.1" value="{{ f.fat }}" style="width:54px"></td>
+          <td><input class="food-input food-carb" type="number" step="0.1" value="{{ f.carbs }}" style="width:54px"></td>
+          <td style="white-space:nowrap">
+            <button class="food-save-btn" onclick="saveFood({{ f.id }}, this)" title="Сохранить">💾</button>
+            <button class="food-del-btn" onclick="deleteFood({{ f.id }}, this)" title="Удалить">🗑</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty-state">Пока никто не добавил продукты в личную базу</div>
+    {% endif %}
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -226,6 +291,61 @@ function filterUsers(q) {
     if (show) visible++;
   });
   document.getElementById('user-count').textContent = s ? visible + '/' + rows.length : rows.length;
+}
+
+async function saveFood(foodId, btn) {
+  const row = btn.closest('tr');
+  const body = {
+    name: row.querySelector('.food-name').value.trim(),
+    brand: row.querySelector('.food-brand').value.trim(),
+    calories: parseFloat(row.querySelector('.food-cal').value) || 0,
+    protein: parseFloat(row.querySelector('.food-prot').value) || 0,
+    fat: parseFloat(row.querySelector('.food-fat').value) || 0,
+    carbs: parseFloat(row.querySelector('.food-carb').value) || 0,
+  };
+  try {
+    const res = await fetch(`/admin/foods/${foodId}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error();
+    showToast('✓ Сохранено');
+  } catch {
+    showToast('✗ Не удалось сохранить');
+  }
+}
+
+async function deleteFood(foodId, btn) {
+  if (!confirm('Удалить этот продукт из базы?')) return;
+  const row = btn.closest('tr');
+  try {
+    const res = await fetch(`/admin/foods/${foodId}`, {method: 'DELETE'});
+    if (!res.ok) throw new Error();
+    row.remove();
+    const tbody = document.querySelector('#food-count').closest('.card').querySelector('tbody');
+    const total = tbody ? tbody.querySelectorAll('tr').length : 0;
+    document.getElementById('food-count').textContent = total;
+    showToast('✓ Удалено');
+  } catch {
+    showToast('✗ Не удалось удалить');
+  }
+}
+
+function filterFoods(q) {
+  const rows = document.querySelectorAll('#food-search').length
+    ? document.querySelectorAll('[data-food-id]') : [];
+  const s = q.trim().toLowerCase();
+  let visible = 0;
+  rows.forEach(row => {
+    const email = row.querySelector('.food-email')?.textContent.toLowerCase() || '';
+    const name  = row.querySelector('.food-name')?.value.toLowerCase() || '';
+    const brand = row.querySelector('.food-brand')?.value.toLowerCase() || '';
+    const show  = !s || email.includes(s) || name.includes(s) || brand.includes(s);
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('food-count').textContent = s ? visible + '/' + rows.length : rows.length;
 }
 </script>
 

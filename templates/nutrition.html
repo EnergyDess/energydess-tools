@@ -335,6 +335,16 @@
     }
     .ai-estimate-btn:active { background: rgba(34,197,94,.22); }
 
+    /* ── Ручное добавление продукта ── */
+    .add-manual-btn {
+      width: 100%; padding: 11px; margin-bottom: 11px; border-radius: 11px;
+      background: var(--bg3); border: 1px dashed var(--border);
+      color: var(--text-dim); font-size: 0.82rem; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      -webkit-tap-highlight-color: transparent; transition: border-color .15s, color .15s;
+    }
+    .add-manual-btn:active { border-color: var(--nut-g); color: var(--nut-g); }
+
     /* ── History ── */
     .h-date { text-align: center; font-size: 0.88rem; font-weight: 700; text-transform: capitalize; }
     .mini-ring-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 6px 0 14px; }
@@ -1038,6 +1048,7 @@
           </svg>
         </button>
       </div>
+      <button class="add-manual-btn" onclick="openCustomFoodModal()">✏️ Добавить свой продукт</button>
       <div class="s-tabs">
         <button class="s-tab active" id="st-recent"   onclick="setSearchTab('recent')">Недавние</button>
         <button class="s-tab"        id="st-frequent" onclick="setSearchTab('frequent')">Частые</button>
@@ -1237,6 +1248,7 @@
         <button class="por-edit-btn" id="por-edit-btn" onclick="togglePorEdit()" type="button">✏️ Изменить</button>
       </div>
       <div class="por-edit-grid" id="por-edit-grid" style="display:none">
+        <div class="f-field" style="grid-column:1 / -1"><label class="f-label">Бренд / заведение</label><input type="text" class="f-input" id="pe-brand" placeholder="Например, ресторан или производитель" oninput="onPorEdit()"></div>
         <div class="f-field"><label class="f-label">Калории на 100г</label><input type="number" class="f-input" id="pe-kcal" oninput="onPorEdit()"></div>
         <div class="f-field"><label class="f-label">Белки, г</label><input type="number" class="f-input" id="pe-prot" oninput="onPorEdit()"></div>
         <div class="f-field"><label class="f-label">Жиры, г</label><input type="number" class="f-input" id="pe-fat" oninput="onPorEdit()"></div>
@@ -1302,7 +1314,7 @@
     </div>
     <div class="modal-body">
       <div class="f-field"><label class="f-label">Название *</label><input type="text" class="f-input" id="cf-name" placeholder="Куриное филе"></div>
-      <div class="f-field"><label class="f-label">Бренд</label><input type="text" class="f-input" id="cf-brand" placeholder="Мираторг"></div>
+      <div class="f-field"><label class="f-label">Бренд / заведение</label><input type="text" class="f-input" id="cf-brand" placeholder="Например, ресторан или производитель"></div>
       <div class="f-field"><label class="f-label">Штрих-код</label><input type="text" class="f-input" id="cf-barcode"></div>
       <div class="f-label" style="font-weight:600;margin-bottom:8px">КБЖУ на 100г</div>
       <div class="cf-grid">
@@ -1924,8 +1936,9 @@ function openPortion(food) {
   const mealName = {breakfast:'завтрак',lunch:'обед',dinner:'ужин',snack:'перекус'}[S.searchMeal];
   document.getElementById('por-title').textContent = S.addingIng ? 'Ингредиент' : 'Добавить в '+mealName;
   document.getElementById('por-add-btn').textContent = S.addingIng ? 'Добавить ингредиент' : 'Добавить в дневник';
-  document.getElementById('por-name').textContent = food.name+(food.brand?' · '+food.brand:'');
+  updatePorName();
   document.getElementById('g-input').value = 100;
+  document.getElementById('pe-brand').value = food.brand || '';
   document.getElementById('pe-kcal').value = food.calories;
   document.getElementById('pe-prot').value = food.protein;
   document.getElementById('pe-fat').value  = food.fat;
@@ -1935,6 +1948,11 @@ function openPortion(food) {
   setPorMealChips(S.addingIng ? null : S.searchMeal);
   updateCalc();
   openModal('modal-portion');
+}
+
+function updatePorName() {
+  const f = S.portionFood;
+  document.getElementById('por-name').textContent = f.name+(f.brand?' · '+f.brand:'');
 }
 
 // ── Ручная коррекция КБЖУ на 100г (например, если штрих-код считал не точно) ───
@@ -1961,11 +1979,13 @@ function resetPorEdit() {
 
 function onPorEdit() {
   const f = S.portionFood; if (!f) return;
+  f.brand    = document.getElementById('pe-brand').value.trim();
   f.calories = parseFloat(document.getElementById('pe-kcal').value) || 0;
   f.protein  = parseFloat(document.getElementById('pe-prot').value) || 0;
   f.fat      = parseFloat(document.getElementById('pe-fat').value)  || 0;
   f.carbs    = parseFloat(document.getElementById('pe-carb').value) || 0;
   S.portionEdited = true;
+  updatePorName();
   updatePorSub();
   updateCalc();
 }
@@ -2210,7 +2230,7 @@ async function runPhotoAnalyze() {
     if (data.ok) {
       closeModal('modal-photo-analyze');
       S.photoFile = null;
-      openPortion({name:data.food.name,brand:'AI',calories:data.food.calories,
+      openPortion({name:data.food.name,brand:data.food.brand||'',calories:data.food.calories,
         protein:data.food.protein||0,fat:data.food.fat||0,carbs:data.food.carbs||0});
       if (data.food.estimated_grams) { document.getElementById('g-input').value=data.food.estimated_grams; updateCalc(); }
     } else { toast(data.error||'Ошибка распознавания', false); }
@@ -2728,7 +2748,7 @@ function logPendingFood(mealType) {
   S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content: `${MEAL_NAMES[mealType]} — уточните порцию и сохраните`};
   renderChat();
   S.searchMeal = mealType;
-  openPortion({name:f.name, brand:'AI', calories:f.calories||0, protein:f.protein||0, fat:f.fat||0, carbs:f.carbs||0});
+  openPortion({name:f.name, brand:f.brand||'', calories:f.calories||0, protein:f.protein||0, fat:f.fat||0, carbs:f.carbs||0});
   document.getElementById('g-input').value = f.estimated_grams || 100;
   updateCalc();
 }
