@@ -100,32 +100,37 @@
     /* ── Tool cards grid ── */
     .tools-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 20px;
       padding-bottom: 100px;
     }
     @media (max-width: 640px) {
-      .tools-grid { grid-template-columns: 1fr; }
+      .tools-grid { grid-template-columns: 1fr; gap: 14px; }
       .hero { padding: 56px 0 36px; }
       .hero-title { font-size: 1.9rem; }
-      .tool-card { padding: 20px; }
+      .tool-card { padding: 22px; }
     }
 
     .tool-card {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 28px;
+      background: rgba(22,26,44,.88);
+      border: 1px solid rgba(199,211,234,.1);
+      border-radius: 16px;
+      padding: 32px;
       text-decoration: none;
       color: inherit;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 16px;
       transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
       position: relative;
       overflow: hidden;
       opacity: 0;
       animation: cardReveal 0.6s cubic-bezier(.22,1,.36,1) both;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow:
+        inset 0px 1px 1px 0px rgba(199,211,234,.1),
+        0px 16px 40px 0px rgba(6,6,14,.6);
     }
 
     /* stagger each card */
@@ -141,74 +146,74 @@
       to   { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    /* Glow layer on hover */
+    /* Тонкая светящаяся полоска сверху */
     .tool-card::before {
       content: '';
       position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, rgba(0,212,255,0.04), transparent 60%);
-      opacity: 0;
-      transition: opacity 0.3s;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(199,211,234,.22), transparent);
+      pointer-events: none;
     }
 
-    /* Shimmer sweep */
+    /* Shimmer sweep при hover */
     .tool-card::after {
       content: '';
       position: absolute;
       top: 0; left: -100%;
-      width: 60%; height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(0,212,255,0.04), transparent);
+      width: 55%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(199,211,234,.04), transparent);
       transition: none;
+      pointer-events: none;
     }
 
     .tool-card.unlocked:hover {
-      border-color: rgba(0,212,255,0.22);
-      transform: translateY(-5px);
+      border-color: rgba(0,212,255,.28);
+      transform: translateY(-6px);
       box-shadow:
-        0 24px 64px rgba(0,0,0,0.5),
-        0 0 0 1px rgba(0,212,255,0.1),
-        0 0 40px rgba(0,212,255,0.04);
+        0 28px 64px rgba(0,0,0,.55),
+        0 0 0 1px rgba(0,212,255,.1),
+        0 0 40px rgba(0,212,255,.06),
+        inset 0px 1px 1px 0px rgba(199,211,234,.14);
     }
-    .tool-card.unlocked:hover::before { opacity: 1; }
     .tool-card.unlocked:hover::after {
-      animation: shimmerSweep 0.8s ease forwards;
+      animation: shimmerSweep 0.85s ease forwards;
     }
     @keyframes shimmerSweep {
       to { left: 160%; }
     }
 
-    .tool-card.locked  { opacity: 0.4; cursor: default; pointer-events: none; }
-    .tool-card.coming  { opacity: 0.3; cursor: default; pointer-events: none; }
+    .tool-card.locked  { opacity: 0.35; cursor: default; pointer-events: none; }
+    .tool-card.coming  { opacity: 0.45; cursor: default; pointer-events: none; }
 
     .tool-icon {
-      width: 46px; height: 46px;
-      border-radius: 12px;
+      width: 52px; height: 52px;
+      border-radius: 13px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.4rem;
+      font-size: 1.55rem;
       flex-shrink: 0;
-      position: relative;
     }
-    .ic-purple { background: var(--accent2-dim); box-shadow: 0 0 20px rgba(124,77,255,0.1); }
-    .ic-blue   { background: var(--accent-dim);  box-shadow: 0 0 20px rgba(0,212,255,0.1);  }
-    .ic-green  { background: rgba(0,229,160,0.1); box-shadow: 0 0 20px rgba(0,229,160,0.07); }
-    .ic-orange { background: rgba(200,140,42,0.15); box-shadow: 0 0 20px rgba(200,140,42,0.1); }
+    .ic-purple { background: rgba(124,77,255,.2);   box-shadow: 0 0 20px rgba(124,77,255,.14); }
+    .ic-blue   { background: rgba(0,212,255,.15);   box-shadow: 0 0 20px rgba(0,212,255,.1);  }
+    .ic-green  { background: rgba(0,229,160,.16);   box-shadow: 0 0 20px rgba(0,229,160,.1);  }
+    .ic-orange { background: rgba(200,140,42,.22);  box-shadow: 0 0 20px rgba(200,140,42,.12); }
 
-    .tool-title { font-size: 1rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
-    .tool-desc  { font-size: 0.855rem; color: var(--text-dim); line-height: 1.55; flex: 1; }
+    .tool-title { font-size: 1.1rem; font-weight: 700; color: #c7d3ea; letter-spacing: -0.01em; margin-top: 2px; }
+    .tool-desc  { font-size: 0.875rem; color: #81899b; line-height: 1.62; flex: 1; }
 
     .tool-footer {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding-top: 14px;
-      border-top: 1px solid var(--border);
+      padding-top: 16px;
+      border-top: 1px solid rgba(199,211,234,.08);
     }
     .tool-arrow {
-      font-size: 0.95rem;
-      color: var(--text-faint);
+      font-size: 1rem;
+      color: rgba(199,211,234,.3);
       transition: transform 0.25s, color 0.25s;
     }
-    .tool-card.unlocked:hover .tool-arrow { transform: translateX(5px); color: var(--accent); }
+    .tool-card.unlocked:hover .tool-arrow { transform: translateX(6px); color: var(--accent); }
     .lock-icon { font-size: 0.9rem; color: var(--text-faint); }
 
   </style>
