@@ -164,24 +164,23 @@
     }
     .toast.show { opacity: 1; transform: translateY(0); }
 
-    /* Таблица продуктов — фиксированные колонки */
+    /* Таблица продуктов */
     .foods-table { table-layout: fixed; width: 100%; }
-    /* padding 20px — то же, что card-header, заголовки выровнены с колонками */
+    /* базовый padding — 20px горизонталь, совпадает с card-header */
     .foods-table th, .foods-table td { padding: 12px 20px; }
-    /* числовые колонки — центрируем заголовок и инпут */
-    .foods-table th:nth-child(n+4):nth-child(-n+7) { text-align: center; }
-    .foods-table td:nth-child(n+4):nth-child(-n+7) { text-align: center; }
-    .food-input-num { text-align: center; }
-    /* ширины */
-    .foods-table th:nth-child(1), .foods-table td:nth-child(1) { width: 155px; }
-    .foods-table th:nth-child(2), .foods-table td:nth-child(2) { }          /* растягивается */
-    .foods-table th:nth-child(3), .foods-table td:nth-child(3) { width: 160px; }
-    .foods-table th:nth-child(4), .foods-table td:nth-child(4) { width: 90px; }   /* Ккал */
-    .foods-table th:nth-child(5), .foods-table td:nth-child(5) { width: 80px; }   /* Б */
-    .foods-table th:nth-child(6), .foods-table td:nth-child(6) { width: 80px; }   /* Ж */
-    .foods-table th:nth-child(7), .foods-table td:nth-child(7) { width: 80px; }   /* У */
-    /* кнопки — всегда резервируем ширину под обе (visibility, не display) */
-    .foods-table th:nth-child(8), .foods-table td:nth-child(8) { width: 88px; padding: 10px 6px; white-space: nowrap; }
+    /* числовые колонки: уменьшенный cell-padding, чтобы числа помещались */
+    .foods-table th:nth-child(n+4):nth-child(-n+7),
+    .foods-table td:nth-child(n+4):nth-child(-n+7) { padding: 12px 8px; text-align: center; }
+    .food-input-num { text-align: center; padding: 6px 6px; }
+    /* кнопки */
+    .foods-table th:nth-child(8), .foods-table td:nth-child(8) { padding: 10px 6px; white-space: nowrap; width: 88px; }
+    /* ширины колонок */
+    .foods-table th:nth-child(1), .foods-table td:nth-child(1) { width: 148px; }
+    /* col 2 (Название) и col 3 (Бренд) — без явной ширины, делят остаток поровну */
+    .foods-table th:nth-child(4), .foods-table td:nth-child(4) { width: 96px; }
+    .foods-table th:nth-child(5), .foods-table td:nth-child(5) { width: 80px; }
+    .foods-table th:nth-child(6), .foods-table td:nth-child(6) { width: 80px; }
+    .foods-table th:nth-child(7), .foods-table td:nth-child(7) { width: 80px; }
 
     /* Инпуты в таблице продуктов */
     .food-input {
@@ -236,24 +235,19 @@
     }
     .food-del-btn:hover { background: rgba(228,109,76,.22); }
 
-    /* Поля поиска — flex-контейнер, иконка и инпут не пересекаются никогда */
+    /* Поля поиска — flex-контейнер, иконка и инпут физически не пересекаются */
     .search-wrap {
       display: flex;
       align-items: center;
       gap: 9px;
       flex: 1;
-      max-width: 300px;
+      max-width: 320px;
       min-width: 180px;
       background: rgba(0,0,0,.35);
       border: 1px solid rgba(63,73,89,.7);
       border-radius: 6px;
       padding: 0 12px 0 13px;
       box-sizing: border-box;
-      transition: border-color .2s, box-shadow .2s;
-    }
-    .search-wrap:focus-within {
-      border-color: var(--ak-frost);
-      box-shadow: 0 0 0 3px rgba(182,217,252,.1);
     }
     .search-wrap .search-icon {
       flex-shrink: 0;
