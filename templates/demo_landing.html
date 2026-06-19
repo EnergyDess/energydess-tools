@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Тренировки с Катей Усмановой · Демо</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <script src="/static/theme.js"></script>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    /* ── Hero glow ── */
+    .demo-hero {
+      position: relative; overflow: hidden;
+      padding: 110px 20px 90px; text-align: center;
+    }
+    .demo-hero::before {
+      content: ''; position: absolute;
+      top: -160px; left: 50%; transform: translateX(-50%);
+      width: 1000px; height: 700px;
+      background: radial-gradient(ellipse,
+        rgba(232,121,160,.18) 0%,
+        rgba(124,77,255,.09) 42%,
+        transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+    .demo-hero > * { position: relative; z-index: 1; }
+
+    /* Eyebrow pill */
+    .hero-eyebrow-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(232,121,160,.1);
+      border: 1px solid rgba(232,121,160,.22);
+      border-radius: 99px; padding: 6px 18px;
+      font-size: 0.72rem; font-weight: 600;
+      color: #f4abc5; letter-spacing: 0.1em;
+      text-transform: uppercase; margin-bottom: 28px;
+      animation: fadeUp .55s ease both;
+    }
+    .eyebrow-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #e879a0; box-shadow: 0 0 6px #e879a0;
+      animation: dotPulse 2.2s ease infinite;
+    }
+    @keyframes dotPulse {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.4; transform:scale(.7); }
+    }
+
+    /* Main heading */
+    .demo-h1 {
+      font-family: var(--font-display, inherit);
+      font-size: clamp(2.1rem, 5.5vw, 3.8rem);
+      font-weight: 800; letter-spacing: -0.04em; line-height: 1.08;
+      color: #c7d3ea; margin-bottom: 20px;
+      animation: fadeUp .6s ease both; animation-delay: .08s;
+    }
+    .demo-h1 .grad-pink {
+      background: linear-gradient(135deg, #e879a0 0%, #7c4dff 50%, #60a5fa 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .demo-sub {
+      font-size: 1.05rem; color: #81899b;
+      max-width: 560px; margin: 0 auto 32px;
+      line-height: 1.65;
+      animation: fadeUp .6s ease both; animation-delay: .14s;
+    }
+
+    /* Bullet list */
+    .demo-bullets {
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 8px 22px; margin-bottom: 36px;
+      animation: fadeUp .6s ease both; animation-delay: .2s;
+    }
+    .demo-bullet {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-size: 0.875rem; color: #81899b;
+    }
+    .bullet-dot {
+      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, #e879a0, #7c4dff);
+    }
+
+    /* CTA buttons */
+    .demo-btns {
+      display: flex; gap: 14px; justify-content: center;
+      flex-wrap: wrap; margin-bottom: 52px;
+      animation: fadeUp .6s ease both; animation-delay: .26s;
+    }
+    .btn-pink {
+      background: linear-gradient(135deg, #e879a0 0%, #7c4dff 70%);
+      color: #fff; padding: 15px 36px; border-radius: 12px;
+      font-size: 1rem; font-weight: 700; text-decoration: none;
+      border: none; cursor: pointer; font-family: inherit;
+      box-shadow: 0 4px 24px rgba(232,121,160,.38);
+      transition: transform .22s, box-shadow .22s;
+    }
+    .btn-pink:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 40px rgba(232,121,160,.52), 0 0 60px rgba(124,77,255,.14);
+    }
+    .btn-ghost-pink {
+      background: transparent; color: rgba(199,211,234,.7);
+      padding: 15px 32px; border-radius: 12px;
+      font-size: 1rem; font-weight: 500; text-decoration: none;
+      border: 1px solid rgba(199,211,234,.18);
+      transition: color .2s, border-color .2s; font-family: inherit; cursor: pointer;
+    }
+    .btn-ghost-pink:hover { color: #c7d3ea; border-color: rgba(199,211,234,.32); }
+
+    /* Metric cards */
+    .demo-metrics {
+      display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+      animation: fadeUp .6s ease both; animation-delay: .35s;
+    }
+    .metric-card {
+      background: rgba(22,26,44,.9);
+      border: 1px solid rgba(199,211,234,.12);
+      border-radius: 14px; padding: 16px 22px; text-align: center;
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      box-shadow: inset 0 1px 1px rgba(199,211,234,.07), 0 8px 24px rgba(6,6,14,.5);
+      position: relative; overflow: hidden; min-width: 130px;
+    }
+    .metric-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(232,121,160,.3), transparent);
+    }
+    .metric-val {
+      font-family: var(--font-display, inherit);
+      font-size: 1.65rem; font-weight: 800; line-height: 1.1; margin-bottom: 5px;
+      background: linear-gradient(135deg, #e879a0, #7c4dff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .metric-lbl { font-size: 0.7rem; color: #81899b; font-weight: 500; line-height: 1.4; }
+
+    /* ── Divider ── */
+    .section-divider {
+      height: 1px; margin: 0 auto;
+      max-width: 900px;
+      background: linear-gradient(90deg, transparent, rgba(199,211,234,.08), transparent);
+    }
+
+    /* ── Programs section ── */
+    .demo-section {
+      padding: 80px 20px; max-width: 1120px; margin: 0 auto;
+    }
+    .section-eyebrow {
+      text-align: center; font-size: 0.74rem; font-weight: 600;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: #e879a0; margin-bottom: 10px;
+    }
+    .section-title {
+      text-align: center;
+      font-size: clamp(1.5rem, 3.5vw, 2.2rem); font-weight: 700;
+      letter-spacing: -0.03em; color: #c7d3ea; margin-bottom: 44px;
+    }
+    .section-title span {
+      background: linear-gradient(135deg, #e879a0 0%, #7c4dff 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Cards grid */
+    .programs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(316px, 1fr));
+      gap: 18px;
+    }
+    .prog-card {
+      background: rgba(22,26,44,.88);
+      border: 1px solid rgba(199,211,234,.11);
+      border-radius: 18px; padding: 26px;
+      display: flex; flex-direction: column; gap: 12px;
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      box-shadow: inset 0 1px 1px rgba(199,211,234,.07), 0 12px 32px rgba(6,6,14,.5);
+      position: relative; overflow: hidden;
+      transition: transform .28s, border-color .28s, box-shadow .28s;
+      animation: cardReveal .55s cubic-bezier(.22,1,.36,1) both;
+    }
+    .prog-card:nth-child(1){ animation-delay:.1s; }
+    .prog-card:nth-child(2){ animation-delay:.17s; }
+    .prog-card:nth-child(3){ animation-delay:.24s; }
+    .prog-card:nth-child(4){ animation-delay:.31s; }
+    .prog-card:nth-child(5){ animation-delay:.38s; }
+    .prog-card:nth-child(6){ animation-delay:.45s; }
+    @keyframes cardReveal {
+      from { opacity:0; transform:translateY(22px) scale(.97); }
+      to   { opacity:1; transform:translateY(0)    scale(1);   }
+    }
+    /* hairline */
+    .prog-card::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:1px;
+      background: linear-gradient(90deg, transparent, rgba(199,211,234,.2), transparent);
+    }
+    /* shimmer sweep on hover */
+    .prog-card::after {
+      content:''; position:absolute;
+      top:0; left:-100%; width:50%; height:100%;
+      background: linear-gradient(90deg, transparent, rgba(199,211,234,.045), transparent);
+      pointer-events:none;
+    }
+    .prog-card:hover {
+      transform: translateY(-7px);
+      border-color: rgba(232,121,160,.32);
+      box-shadow: 0 24px 60px rgba(0,0,0,.55),
+                  0 0 0 1px rgba(232,121,160,.08),
+                  0 0 40px rgba(232,121,160,.07),
+                  inset 0 1px 1px rgba(199,211,234,.1);
+    }
+    .prog-card:hover::after { animation: shimmer .8s ease forwards; }
+    @keyframes shimmer { to { left:160%; } }
+
+    .prog-icon {
+      font-size: 1.9rem; width: 50px; height: 50px; border-radius: 13px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(232,121,160,.11);
+      box-shadow: 0 0 18px rgba(232,121,160,.09);
+    }
+    .prog-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 0.63rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; padding: 3px 10px;
+      border-radius: 99px; align-self: flex-start;
+    }
+    .badge-flagship   { background:rgba(255,162,58,.14);  color:#ffb347; border:1px solid rgba(255,162,58,.3);  }
+    .badge-bestseller { background:rgba(255,214,0,.12);   color:#ffd700; border:1px solid rgba(255,214,0,.25);  }
+    .badge-marathon   { background:rgba(52,211,153,.12);  color:#34d399; border:1px solid rgba(52,211,153,.25); }
+    .badge-course     { background:rgba(96,165,250,.12);  color:#60a5fa; border:1px solid rgba(96,165,250,.25); }
+
+    .prog-title { font-size: 1.05rem; font-weight: 700; color: #c7d3ea; letter-spacing:-.01em; }
+    .prog-desc  { font-size: 0.83rem; color: #81899b; line-height: 1.65; flex:1; }
+    .prog-link {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 0.83rem; font-weight: 600; color: rgba(199,211,234,.55);
+      background: none; border: none; padding: 0; cursor: pointer;
+      font-family: inherit; transition: color .2s; margin-top: 4px;
+    }
+    .prog-link:hover { color: #e879a0; }
+    .prog-link-arrow { transition: transform .2s; display:inline-block; }
+    .prog-link:hover .prog-link-arrow { transform: translateX(4px); }
+
+    /* ── FAQ ── */
+    .faq-wrap { max-width: 760px; margin: 0 auto; padding: 0 20px 100px; }
+    .faq-item {
+      background: rgba(22,26,44,.88);
+      border: 1px solid rgba(199,211,234,.1);
+      border-radius: 14px; margin-bottom: 9px;
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      overflow: hidden; transition: border-color .25s, box-shadow .25s;
+    }
+    .faq-item.faq-open {
+      border-color: rgba(232,121,160,.3);
+      box-shadow: 0 0 0 1px rgba(232,121,160,.07), inset 3px 0 0 #e879a0;
+    }
+    .faq-q {
+      width:100%; display:flex; align-items:center; justify-content:space-between;
+      gap:12px; padding:19px 22px; background:none; border:none;
+      cursor:pointer; font-family:inherit; text-align:left;
+      color:#c7d3ea; font-size:0.93rem; font-weight:600;
+      transition:color .2s;
+    }
+    .faq-item.faq-open .faq-q { color:#f4abc5; }
+    .faq-chevron {
+      width:19px; height:19px; flex-shrink:0;
+      color:rgba(199,211,234,.3); transition:transform .3s, color .2s;
+    }
+    .faq-item.faq-open .faq-chevron { transform:rotate(180deg); color:#e879a0; }
+    .faq-body {
+      max-height:0; overflow:hidden;
+      transition:max-height .38s cubic-bezier(.22,1,.36,1);
+    }
+    .faq-body-inner {
+      border-top:1px solid rgba(199,211,234,.06);
+      padding:14px 22px 18px;
+      font-size:0.875rem; color:#81899b; line-height:1.7;
+    }
+
+    /* ── Footer strip ── */
+    .demo-footer {
+      border-top:1px solid rgba(199,211,234,.07);
+      padding:18px 20px; text-align:center;
+      font-size:0.76rem; color:rgba(199,211,234,.2);
+    }
+    .demo-footer a { color:rgba(232,121,160,.45); text-decoration:none; transition:color .2s; }
+    .demo-footer a:hover { color:#e879a0; }
+
+    /* Nav extras */
+    .demo-badge-nav {
+      display:inline-flex; align-items:center; gap:5px;
+      background:rgba(232,121,160,.1); border:1px solid rgba(232,121,160,.25);
+      border-radius:99px; padding:3px 11px;
+      font-size:0.66rem; font-weight:600; color:#f4abc5;
+      letter-spacing:.08em; text-transform:uppercase;
+    }
+    .back-link-nav {
+      font-size:0.85rem; color:rgba(199,211,234,.45);
+      text-decoration:none; transition:color .2s;
+    }
+    .back-link-nav:hover { color:#c7d3ea; }
+
+    /* Animations */
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(20px); }
+      to   { opacity:1; transform:translateY(0);    }
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .demo-hero { padding:76px 16px 56px; }
+      .demo-metrics { gap:10px; }
+      .metric-card { min-width:110px; padding:13px 16px; }
+      .metric-val { font-size:1.3rem; }
+      .programs-grid { grid-template-columns:1fr; }
+      .demo-section { padding:56px 16px; }
+      .faq-q { padding:15px 16px; font-size:0.86rem; }
+      .faq-body-inner { padding:12px 16px 16px; }
+    }
+  </style>
+</head>
+<body>
+<script src="/static/effects.js" defer></script>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="nav-logo-symbol">⚡</span>
+    <span>EnergyDess</span>
+  </a>
+  <div class="nav-right" style="display:flex;align-items:center;gap:14px">
+    <span class="demo-badge-nav">✦ Demo</span>
+    <a href="/" class="back-link-nav">← Назад</a>
+  </div>
+</nav>
+
+<main>
+  <!-- ────────── HERO ────────── -->
+  <section class="demo-hero">
+    <div class="hero-eyebrow-pill">
+      <span class="eyebrow-dot"></span>
+      Онлайн-тренировки
+    </div>
+
+    <h1 class="demo-h1">
+      Приведите тело в форму<br>
+      с чемпионкой <span class="grad-pink">Катей Усмановой</span>
+    </h1>
+
+    <p class="demo-sub">
+      Без диет, голода и запретов — с пользой для здоровья.<br>
+      Программы для дома и зала, для любого уровня и возраста.
+    </p>
+
+    <div class="demo-bullets">
+      <span class="demo-bullet"><span class="bullet-dot"></span>Похудение и рельеф</span>
+      <span class="demo-bullet"><span class="bullet-dot"></span>Упругие ягодицы и плоский живот</span>
+      <span class="demo-bullet"><span class="bullet-dot"></span>Тренировки дома без инвентаря</span>
+      <span class="demo-bullet"><span class="bullet-dot"></span>Восстановление после родов</span>
+    </div>
+
+    <div class="demo-btns">
+      <a href="#programs" class="btn-pink">Выбрать программу →</a>
+      <a href="#faq" class="btn-ghost-pink">Частые вопросы</a>
+    </div>
+
+    <div class="demo-metrics">
+      <div class="metric-card">
+        <div class="metric-val">580К+</div>
+        <div class="metric-lbl">учениц<br>по всему миру</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">6</div>
+        <div class="metric-lbl">дней до<br>первых результатов</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">3 696</div>
+        <div class="metric-lbl">тренируются<br>прямо сейчас</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">15+</div>
+        <div class="metric-lbl">лет опыта<br>тренера</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ────────── PROGRAMS ────────── -->
+  <section id="programs" class="demo-section">
+    <div class="section-eyebrow">🏋️ Каталог программ</div>
+    <h2 class="section-title">Выберите свою <span>программу тренировок</span></h2>
+
+    <div class="programs-grid">
+
+      <div class="prog-card">
+        <div class="prog-icon">🏆</div>
+        <span class="prog-badge badge-flagship">🔥 Флагман</span>
+        <div class="prog-title">Метод Усмановой</div>
+        <div class="prog-desc">Базовая техника упражнений — фундамент всей системы. Идеально для старта и тех, кто хочет выстроить правильную базу без ошибок.</div>
+        <button class="prog-link">Подробнее <span class="prog-link-arrow">→</span></button>
+      </div>
+
+      <div class="prog-card">
+        <div class="prog-icon">🔥</div>
+        <span class="prog-badge badge-marathon">🏃 Марафон</span>
+        <div class="prog-title">Марафон Стройности</div>
+        <div class="prog-desc">21 день интенсивной работы — ощутимые изменения уже на второй неделе. Ежедневные тренировки и поддержка куратора на каждом шагу.</div>
+        <button class="prog-link">Подробнее <span class="prog-link-arrow">→</span></button>
+      </div>
+
+      <div class="prog-card">
+        <div class="prog-icon">🍑</div>
+        <span class="prog-badge badge-course">💫 Курс</span>
+        <div class="prog-title">Упругая попа 1.0</div>
+        <div class="prog-desc">Только собственный вес тела — никакого инвентаря. Прицельная работа над ягодичными мышцами в домашних условиях.</div>
+        <button class="prog-link">Подробнее <span class="prog-link-arrow">→</span></button>
+      </div>
+
+      <div class="prog-card">
+        <div class="prog-icon">💪</div>
+        <span class="prog-badge badge-course">💫 Курс</span>
+        <div class="prog-title">Упругая попа 2.0</div>
+        <div class="prog-desc">Максимальная нагрузка с резинками и гантелями. Для тех, кто прошёл 1.0 и готов идти дальше — к объёму и выраженной форме.</div>
+        <button class="prog-link">Подробнее <span class="prog-link-arrow">→</span></button>
+      </div>
+
+      <div class="prog-card">
+        <div class="prog-icon">✨</div>
+        <span class="prog-badge badge-bestseller">⭐ Бестселлер</span>
+        <div class="prog-title">Плоский живот</div>
+        <div class="prog-desc">Работа с глубокими мышцами кора и пресса. Убираем живот без изнурительных скручиваний — научно, безопасно и эффективно.</div>
+        <button class="prog-link">Подробнее <span class="prog-link-arrow">→</span></button>
+      </div>
+
+      <div class="prog-card">
+        <div class="prog-icon">🫀</div>
+        <span class="prog-badge badge-course">⚡ 6 недель</span>
+        <div class="prog-title">Жиросжигающий курс</div>
+        <div class="prog-desc">Шесть недель интенсивной кардио и силовой работы. Ускоряем метаболизм, сжигаем жир и строим долгосрочную привычку тренироваться.</div>
+        <button class="prog-link">Подробнее <span class="prog-link-arrow">→</span></button>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ────────── FAQ ────────── -->
+  <section id="faq" style="padding-top:80px">
+    <div class="section-eyebrow">💬 Ответы на вопросы</div>
+    <h2 class="section-title" style="margin-bottom:32px">Часто спрашивают</h2>
+    <div class="faq-wrap">
+
+      <div class="faq-item faq-open" id="faq-0">
+        <button class="faq-q" onclick="toggleFaq(0)">
+          Подойдёт ли программа новичкам без опыта тренировок?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="faq-body" id="faq-body-0" style="max-height:300px">
+          <div class="faq-body-inner">
+            Да, абсолютно! Все программы разработаны с учётом разных уровней подготовки. В каждом уроке есть подробный разбор техники, альтернативные варианты для начинающих и чёткие инструкции по нагрузке. Вы начнёте с малого и постепенно будете прогрессировать.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" id="faq-1">
+        <button class="faq-q" onclick="toggleFaq(1)">
+          Сколько времени в день нужно уделять тренировкам?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="faq-body" id="faq-body-1">
+          <div class="faq-body-inner">
+            В среднем от 20 до 45 минут в день. Большинство программ рассчитаны на 3–5 тренировок в неделю — этого достаточно для стабильного прогресса. Расписание гибкое: занимайтесь в любое удобное для вас время.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" id="faq-2">
+        <button class="faq-q" onclick="toggleFaq(2)">
+          Можно ли заниматься дома без специального оборудования?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="faq-body" id="faq-body-2">
+          <div class="faq-body-inner">
+            Большинство программ адаптированы для домашних тренировок без инвентаря — нужен только коврик. Курсы с дополнительной нагрузкой (резинки, гантели) так же содержат альтернативные варианты упражнений без оборудования.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" id="faq-3">
+        <button class="faq-q" onclick="toggleFaq(3)">
+          Как долго сохраняется доступ к купленной программе?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="faq-body" id="faq-body-3">
+          <div class="faq-body-inner">
+            Доступ предоставляется на 365 дней с момента покупки. За это время вы можете пройти курс столько раз, сколько захотите — в удобном темпе, без ограничений.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" id="faq-4">
+        <button class="faq-q" onclick="toggleFaq(4)">
+          Есть ли возможность оплатить программу в рассрочку?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="faq-body" id="faq-body-4">
+          <div class="faq-body-inner">
+            Да, доступна беспроцентная рассрочка через Тинькофф, Сбербанк и другие банки-партнёры. При оформлении заказа выберите удобный способ оплаты — менеджер поможет оформить всё без переплат.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" id="faq-5">
+        <button class="faq-q" onclick="toggleFaq(5)">
+          Доступны ли программы за пределами России?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="faq-body" id="faq-body-5">
+          <div class="faq-body-inner">
+            Да! Программы доступны по всему миру, интерфейс работает из любой страны. Принимаем оплату международными картами. Если возникли сложности — напишите в поддержку, найдём удобный способ.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</main>
+
+<footer class="demo-footer">
+  Демонстрационная страница · <a href="/">EnergyDess</a> · Тестовое задание
+</footer>
+
+<script>
+function toggleFaq(idx) {
+  for (let i = 0; i < 6; i++) {
+    const item = document.getElementById('faq-' + i);
+    const body = document.getElementById('faq-body-' + i);
+    if (i === idx) {
+      const wasOpen = item.classList.contains('faq-open');
+      item.classList.toggle('faq-open', !wasOpen);
+      body.style.maxHeight = wasOpen ? '0' : '400px';
+    } else {
+      item.classList.remove('faq-open');
+      body.style.maxHeight = '0';
+    }
+  }
+}
+</script>
+</body>
+</html>

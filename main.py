@@ -162,6 +162,13 @@ def startup():
     migrate_db()
 
 
+# ── Демо-страница (тестовое задание, без авторизации) ─────────────────────────
+
+@app.get("/demo")
+async def demo_page(request: Request):
+    return templates.TemplateResponse(request=request, name="demo_landing.html", context={})
+
+
 # ── Главная / Landing ─────────────────────────────────────────────────────────
 
 @app.get("/")
