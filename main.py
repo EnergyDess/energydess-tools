@@ -284,11 +284,11 @@ async def login(
 
     if not user or not verify_password(password, user.password_hash):
         return templates.TemplateResponse(request=request, name="login.html",
-                                          context={"error": "Неверный email или пароль"})
+                                          context={"error": "Неверный email или пароль", "email": email})
 
     if user.is_verified is False:
         return templates.TemplateResponse(request=request, name="login.html",
-                                          context={"error": "Сначала подтвердите email — проверьте почту"})
+                                          context={"error": "Сначала подтвердите email — проверьте почту", "email": email})
 
     token = create_token(user.id)
     response = RedirectResponse("/", status_code=302)
