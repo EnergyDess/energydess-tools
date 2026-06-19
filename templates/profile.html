@@ -15,44 +15,74 @@
       margin: 0 auto;
       padding: 60px 20px;
     }
-    .profile-wrap h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
-    .profile-wrap .subtitle { color: var(--text-dim); margin-bottom: 40px; font-size: 0.95rem; }
+    .profile-wrap h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; color: #c7d3ea; }
+    .profile-wrap .subtitle { color: #81899b; margin-bottom: 40px; font-size: 0.95rem; }
     .card {
-      background: var(--bg2);
-      border: 1px solid var(--border);
+      background: rgba(22,26,44,.88);
+      border: 1px solid rgba(199,211,234,.13);
       border-radius: var(--radius);
       padding: 32px;
       margin-bottom: 24px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: inset 0 1px 1px rgba(199,211,234,.08), 0 12px 32px rgba(6,6,14,.5);
+      position: relative; overflow: hidden;
     }
-    .card h2 { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
-    .card .hint { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 20px; }
+    .card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(199,211,234,.22), transparent);
+      pointer-events: none;
+    }
+    .card h2 { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; color: #c7d3ea; }
+    .card .hint { font-size: 0.85rem; color: #81899b; margin-bottom: 20px; line-height: 1.5; }
     .email-badge {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: var(--bg3);
-      border: 1px solid var(--border);
+      background: rgba(199,211,234,.07);
+      border: 1px solid rgba(199,211,234,.16);
       border-radius: 99px;
       padding: 8px 16px;
       font-size: 0.9rem;
-      color: var(--text-dim);
+      color: #c7d3ea;
+    }
+    .name-input {
+      flex: 1;
+      background: rgba(8,10,22,.5);
+      border: 1px solid rgba(199,211,234,.16);
+      border-radius: var(--radius-sm);
+      padding: 11px 14px;
+      color: #c7d3ea;
+      font-size: 0.9rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      box-sizing: border-box;
+    }
+    .name-input:focus {
+      border-color: rgba(0,212,255,.5);
+      box-shadow: 0 0 0 3px rgba(0,212,255,.07);
     }
     textarea {
       width: 100%;
-      background: var(--bg3);
-      border: 1px solid var(--border);
+      background: rgba(8,10,22,.5);
+      border: 1px solid rgba(199,211,234,.16);
       border-radius: var(--radius-sm);
       padding: 14px;
-      color: var(--text);
+      color: #c7d3ea;
       font-size: 0.875rem;
       font-family: inherit;
       line-height: 1.6;
       resize: vertical;
       outline: none;
       min-height: 280px;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-sizing: border-box;
     }
-    textarea:focus { border-color: var(--accent); }
+    textarea:focus {
+      border-color: rgba(0,212,255,.5);
+      box-shadow: 0 0 0 3px rgba(0,212,255,.07);
+    }
     .btn-primary {
       background: linear-gradient(135deg, var(--accent2) 0%, var(--accent) 100%);
       color: #fff;
@@ -63,13 +93,13 @@
       font-weight: 600;
       font-family: inherit;
       cursor: pointer;
-      transition: opacity 0.2s;
+      transition: opacity 0.2s, box-shadow 0.2s;
       margin-top: 16px;
     }
-    .btn-primary:hover { opacity: 0.85; }
+    .btn-primary:hover { opacity: 0.88; box-shadow: 0 6px 24px rgba(124,77,255,.35); }
     .success-msg {
-      background: rgba(16,185,129,0.1);
-      border: 1px solid rgba(16,185,129,0.3);
+      background: rgba(16,185,129,.1);
+      border: 1px solid rgba(16,185,129,.28);
       color: #6ee7b7;
       border-radius: var(--radius-sm);
       padding: 12px 14px;
@@ -77,7 +107,7 @@
       margin-bottom: 16px;
     }
     .logout-link {
-      color: var(--text-faint);
+      color: rgba(199,211,234,.35);
       font-size: 0.85rem;
       text-decoration: none;
       transition: color 0.2s;
@@ -117,12 +147,10 @@
       <p class="hint">Так сайт будет к вам обращаться. Если не указать — используется часть email.</p>
       <div style="display:flex;gap:10px;margin-top:14px">
         <input type="text" id="display-name-input"
+               class="name-input"
                value="{{ user.display_name or '' }}"
                placeholder="{{ user.email.split('@')[0] }}"
                maxlength="30"
-               style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 14px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;transition:border-color .2s;box-sizing:border-box"
-               onfocus="this.style.borderColor='var(--accent)'"
-               onblur="this.style.borderColor=''"
                onkeydown="if(event.key==='Enter')saveName()">
         <button type="button" id="name-btn" onclick="saveName()" class="btn-primary"
                 style="padding:11px 22px;font-size:0.875rem;white-space:nowrap;margin-top:0">Сохранить</button>
