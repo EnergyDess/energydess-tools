@@ -127,14 +127,15 @@
       background: linear-gradient(90deg, transparent, rgba(232,121,160,.3), transparent);
     }
     .metric-val {
-      font-family: var(--font-mono, monospace);
-      font-size: 1.55rem; font-weight: 500; line-height: 1.1; margin-bottom: 5px;
+      font-family: var(--font, sans-serif);
+      font-size: 1.7rem; font-weight: 800; line-height: 1.1; margin-bottom: 6px;
       letter-spacing: -0.01em;
+      font-variant-numeric: tabular-nums;
       background: linear-gradient(135deg, #e879a0, #7c4dff);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       background-clip: text;
     }
-    .metric-lbl { font-size: 0.7rem; color: #81899b; font-weight: 500; line-height: 1.4; }
+    .metric-lbl { font-size: 0.72rem; color: #e4e8f4; font-weight: 700; line-height: 1.4; }
 
     /* ── Divider ── */
     .section-divider {
@@ -239,10 +240,10 @@
       position: absolute; top: 14px; left: 14px; z-index: 2;
       backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
     }
-    .badge-flagship   { background:rgba(255,162,58,.14);  color:#ffb347; border:1px solid rgba(255,162,58,.3);  }
-    .badge-bestseller { background:rgba(255,214,0,.12);   color:#ffd700; border:1px solid rgba(255,214,0,.25);  }
-    .badge-marathon   { background:rgba(52,211,153,.12);  color:#34d399; border:1px solid rgba(52,211,153,.25); }
-    .badge-course     { background:rgba(96,165,250,.12);  color:#60a5fa; border:1px solid rgba(96,165,250,.25); }
+    .badge-flagship   { background:rgba(58,32,12,.82);  color:#ffb347; border:1px solid rgba(255,162,58,.4);  }
+    .badge-bestseller { background:rgba(46,38,6,.82);   color:#ffd700; border:1px solid rgba(255,214,0,.35);  }
+    .badge-marathon   { background:rgba(8,34,24,.82);   color:#34d399; border:1px solid rgba(52,211,153,.4); }
+    .badge-course     { background:rgba(8,22,38,.82);   color:#60a5fa; border:1px solid rgba(96,165,250,.4); }
 
     .prog-title { font-size: 1.05rem; font-weight: 700; color: #c7d3ea; letter-spacing:-.01em; }
     .prog-desc  { font-size: 0.83rem; color: #81899b; line-height: 1.65; flex:1; }
@@ -490,12 +491,12 @@
     <h2 class="section-title" style="margin-bottom:32px">Часто спрашивают</h2>
     <div class="faq-wrap">
 
-      <div class="faq-item faq-open" id="faq-0">
+      <div class="faq-item" id="faq-0">
         <button class="faq-q" onclick="toggleFaq(0)">
           Подойдёт ли программа новичкам без опыта тренировок?
           <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <div class="faq-body" id="faq-body-0" style="max-height:300px">
+        <div class="faq-body" id="faq-body-0">
           <div class="faq-body-inner">
             Да, абсолютно! Все программы разработаны с учётом разных уровней подготовки. В каждом уроке есть подробный разбор техники, альтернативные варианты для начинающих и чёткие инструкции по нагрузке. Вы начнёте с малого и постепенно будете прогрессировать.
           </div>

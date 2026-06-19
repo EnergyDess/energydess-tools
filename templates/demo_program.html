@@ -18,10 +18,25 @@
     .back-link-nav { font-size:0.85rem; color:rgba(199,211,234,.45); text-decoration:none; transition:color .2s; }
     .back-link-nav:hover { color:#c7d3ea; }
 
+    /* ── Urgency ticker ── */
+    .urgency-bar {
+      background: linear-gradient(90deg, rgba(232,121,160,.16), rgba(124,77,255,.16));
+      border-bottom: 1px solid rgba(232,121,160,.25);
+      overflow: hidden; white-space: nowrap; padding: 9px 0;
+    }
+    .urgency-track {
+      display: inline-flex; gap: 60px;
+      animation: marquee 20s linear infinite;
+      padding-left: 60px;
+    }
+    .urgency-item { font-size: 0.8rem; font-weight: 600; color: #f4abc5; display: inline-flex; align-items: center; gap: 7px; }
+    .urgency-item .cd { font-family: var(--font); font-weight: 800; color: #fff; letter-spacing: .02em; }
+    @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
     /* ── Hero ── */
     .pg-hero {
       position: relative; overflow: hidden;
-      padding: 70px 20px 60px; max-width: 980px; margin: 0 auto;
+      padding: 56px 20px 60px; max-width: 980px; margin: 0 auto;
       display: grid; grid-template-columns: 200px 1fr; gap: 40px; align-items: center;
     }
     .pg-hero::before {
@@ -52,10 +67,10 @@
       padding:4px 12px; border-radius:99px; margin-bottom: 14px;
       animation: fadeUp .55s ease both; animation-delay:.05s;
     }
-    .badge-flagship   { background:rgba(255,162,58,.14);  color:#ffb347; border:1px solid rgba(255,162,58,.3);  }
-    .badge-bestseller { background:rgba(255,214,0,.12);   color:#ffd700; border:1px solid rgba(255,214,0,.25);  }
-    .badge-marathon   { background:rgba(52,211,153,.12);  color:#34d399; border:1px solid rgba(52,211,153,.25); }
-    .badge-course     { background:rgba(96,165,250,.12);  color:#60a5fa; border:1px solid rgba(96,165,250,.25); }
+    .badge-flagship   { background:rgba(58,32,12,.82);  color:#ffb347; border:1px solid rgba(255,162,58,.4);  }
+    .badge-bestseller { background:rgba(46,38,6,.82);    color:#ffd700; border:1px solid rgba(255,214,0,.35);  }
+    .badge-marathon   { background:rgba(8,34,24,.82);    color:#34d399; border:1px solid rgba(52,211,153,.4); }
+    .badge-course     { background:rgba(8,22,38,.82);    color:#60a5fa; border:1px solid rgba(96,165,250,.4); }
 
     .pg-title {
       font-family: var(--font-display, inherit);
@@ -88,7 +103,28 @@
       font-size: clamp(1.3rem, 3vw, 1.7rem); font-weight: 700; color:#c7d3ea;
       letter-spacing:-0.02em; margin-bottom: 28px; text-align:center;
     }
+    .pg-section-sub {
+      text-align:center; font-size:0.88rem; color:#81899b; max-width:560px;
+      margin: -16px auto 28px; line-height:1.6;
+    }
 
+    /* ── Comparison (было / стало) ── */
+    .compare-grid { display:flex; flex-direction:column; gap:12px; }
+    .compare-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .compare-old, .compare-new {
+      border-radius:14px; padding:16px 18px; font-size:0.86rem; line-height:1.55;
+      display:flex; flex-direction:column; gap:8px;
+    }
+    .compare-old { background: rgba(248,113,113,.06); border:1px solid rgba(248,113,113,.18); color:#81899b; }
+    .compare-new { background: rgba(52,211,153,.07); border:1px solid rgba(52,211,153,.22); color:#c7d3ea; }
+    .compare-tag {
+      display:inline-flex; align-self:flex-start; font-size:0.65rem; font-weight:700;
+      letter-spacing:.07em; text-transform:uppercase; padding:2px 9px; border-radius:99px;
+    }
+    .tag-old { background: rgba(248,113,113,.15); color:#fca5a5; }
+    .tag-new { background: rgba(52,211,153,.15); color:#34d399; }
+
+    /* ── Benefits ── */
     .benefits-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap:14px; }
     .benefit-card {
       display:flex; align-items:flex-start; gap:12px;
@@ -104,6 +140,39 @@
     }
     .benefit-text { font-size:0.9rem; color:#c7d3ea; line-height:1.55; }
 
+    /* ── Testimonials carousel ── */
+    .testi-viewport { overflow:hidden; max-width:620px; margin:0 auto; border-radius:18px; }
+    .testi-track { display:flex; transition: transform .45s cubic-bezier(.22,1,.36,1); }
+    .testi-card-wrap { flex:0 0 100%; box-sizing:border-box; padding: 2px 4px; }
+    .testi-card {
+      background: rgba(22,26,44,.88); border:1px solid rgba(199,211,234,.12);
+      border-radius:18px; padding:28px 26px; text-align:center;
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      box-shadow: inset 0 1px 1px rgba(199,211,234,.08), 0 12px 32px rgba(6,6,14,.5);
+    }
+    .testi-stars { color:#ffd700; font-size:1rem; letter-spacing:2px; margin-bottom:14px; }
+    .testi-text { font-size:0.92rem; color:#c7d3ea; line-height:1.65; margin-bottom:18px; font-style:italic; }
+    .testi-author { display:flex; align-items:center; justify-content:center; gap:10px; }
+    .testi-avatar {
+      width:34px; height:34px; border-radius:50%; flex-shrink:0;
+      background: linear-gradient(135deg, #e879a0, #7c4dff);
+      display:flex; align-items:center; justify-content:center;
+      font-size:0.85rem; font-weight:700; color:#fff;
+    }
+    .testi-name { font-size:0.82rem; color:#81899b; font-weight:600; }
+    .testi-nav { display:flex; align-items:center; justify-content:center; gap:16px; margin-top:18px; }
+    .testi-btn {
+      width:34px; height:34px; border-radius:50%; border:1px solid rgba(199,211,234,.16);
+      background: rgba(22,26,44,.7); color:#c7d3ea; cursor:pointer; font-size:0.95rem;
+      display:flex; align-items:center; justify-content:center; transition: border-color .2s, color .2s;
+      font-family: inherit;
+    }
+    .testi-btn:hover { border-color: rgba(232,121,160,.4); color:#e879a0; }
+    .testi-dots { display:flex; gap:7px; }
+    .testi-dot { width:7px; height:7px; border-radius:50%; background: rgba(199,211,234,.2); cursor:pointer; transition: background .2s, transform .2s; }
+    .testi-dot.active { background: #e879a0; transform: scale(1.3); }
+
+    /* ── Cycles (modules) ── */
     .modules-list { display:flex; flex-direction:column; gap:10px; }
     .module-row {
       display:flex; gap:16px; align-items:flex-start;
@@ -121,7 +190,46 @@
     .module-title { font-size:0.95rem; font-weight:700; color:#c7d3ea; margin-bottom:4px; }
     .module-desc { font-size:0.84rem; color:#81899b; line-height:1.6; }
 
+    /* ── Goals tags ── */
+    .goals-row { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
+    .goal-tag {
+      font-size:0.85rem; font-weight:600; color:#c7d3ea;
+      background: rgba(199,211,234,.06); border:1px solid rgba(199,211,234,.16);
+      border-radius:99px; padding:9px 18px; transition: border-color .2s, color .2s;
+    }
+    .goal-tag:hover { border-color: rgba(232,121,160,.4); color:#f4abc5; }
+
+    /* ── Timeline ── */
+    .timeline-list { position:relative; padding-left:24px; display:flex; flex-direction:column; gap:24px; max-width: 640px; margin: 0 auto; }
+    .timeline-list::before {
+      content:''; position:absolute; left:5px; top:6px; bottom:6px; width:2px;
+      background: linear-gradient(180deg, rgba(232,121,160,.4), rgba(124,77,255,.15));
+    }
+    .timeline-row { position:relative; }
+    .timeline-dot {
+      position:absolute; left:-24px; top:3px; width:12px; height:12px; border-radius:50%;
+      background: linear-gradient(135deg, #e879a0, #7c4dff);
+      box-shadow: 0 0 0 4px #020209, 0 0 12px rgba(232,121,160,.5);
+    }
+    .timeline-period { font-size:0.74rem; font-weight:700; color:#e879a0; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+    .timeline-text { font-size:0.9rem; color:#c7d3ea; line-height:1.55; }
+
+    /* ── Bonus chips ── */
+    .bonus-row { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
+    .bonus-chip {
+      font-size:0.85rem; font-weight:600; color:#c7d3ea;
+      background: rgba(124,77,255,.08); border:1px solid rgba(124,77,255,.22);
+      border-radius:12px; padding:10px 16px;
+    }
+
     /* ── Pricing ── */
+    .spots-alert {
+      max-width:480px; margin:0 auto 18px; text-align:center;
+      font-size:0.82rem; font-weight:600; color:#fca5a5;
+      background: rgba(248,113,113,.08); border:1px solid rgba(248,113,113,.22);
+      border-radius:99px; padding:8px 16px;
+    }
+    .spots-alert strong { color:#f87171; }
     .pricing-card {
       max-width: 480px; margin: 0 auto; text-align:center;
       background: rgba(22,26,44,.92); border:1px solid rgba(232,121,160,.22);
@@ -136,8 +244,9 @@
     }
     .price-old { font-size:1rem; color:rgba(199,211,234,.35); text-decoration:line-through; margin-bottom:4px; }
     .price-now {
-      font-family: var(--font-mono);
-      font-size:2.6rem; font-weight:500; color:#c7d3ea; margin-bottom:6px; letter-spacing:-0.01em;
+      font-family: var(--font);
+      font-size:2.6rem; font-weight:800; color:#c7d3ea; margin-bottom:6px; letter-spacing:-0.02em;
+      font-variant-numeric: tabular-nums;
     }
     .price-discount {
       display:inline-block; font-size:0.72rem; font-weight:700; color:#34d399;
@@ -146,6 +255,50 @@
     }
     .pricing-card .pg-cta { width:100%; justify-content:center; }
     .price-note { font-size:0.76rem; color:rgba(199,211,234,.35); margin-top:14px; }
+    .trust-row {
+      display:flex; flex-wrap:wrap; gap:8px; justify-content:center;
+      max-width:480px; margin:18px auto 0;
+    }
+    .trust-item {
+      font-size:0.74rem; color:#81899b; background:rgba(199,211,234,.05);
+      border:1px solid rgba(199,211,234,.12); border-radius:99px; padding:5px 12px;
+    }
+
+    /* ── Mini FAQ (reuse accordion pattern) ── */
+    .faq-wrap-pg { max-width: 720px; margin: 0 auto; }
+    .faq-item {
+      background: rgba(22,26,44,.88);
+      border: 1px solid rgba(199,211,234,.1);
+      border-radius: 14px; margin-bottom: 9px;
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      overflow: hidden; transition: border-color .25s, box-shadow .25s;
+    }
+    .faq-item.faq-open {
+      border-color: rgba(232,121,160,.3);
+      box-shadow: 0 0 0 1px rgba(232,121,160,.07), inset 3px 0 0 #e879a0;
+    }
+    .faq-q {
+      width:100%; display:flex; align-items:center; justify-content:space-between;
+      gap:12px; padding:19px 22px; background:none; border:none;
+      cursor:pointer; font-family:inherit; text-align:left;
+      color:#c7d3ea; font-size:0.93rem; font-weight:600;
+      transition:color .2s;
+    }
+    .faq-item.faq-open .faq-q { color:#f4abc5; }
+    .faq-chevron {
+      width:19px; height:19px; flex-shrink:0;
+      color:rgba(199,211,234,.3); transition:transform .3s, color .2s;
+    }
+    .faq-item.faq-open .faq-chevron { transform:rotate(180deg); color:#e879a0; }
+    .faq-body {
+      max-height:0; overflow:hidden;
+      transition:max-height .38s cubic-bezier(.22,1,.36,1);
+    }
+    .faq-body-inner {
+      border-top:1px solid rgba(199,211,234,.06);
+      padding:14px 22px 18px;
+      font-size:0.875rem; color:#81899b; line-height:1.7;
+    }
 
     /* ── Mock payment form ── */
     .pay-form {
@@ -195,16 +348,27 @@
     @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
 
     @media (max-width: 640px) {
-      .pg-hero { grid-template-columns: 1fr; text-align:center; padding-top:60px; }
-      .pg-avatar { margin: 0 auto 10px; width:140px; height:140px; font-size:3.2rem; }
+      .pg-hero { grid-template-columns: 1fr; text-align:center; padding-top:40px; }
+      .pg-avatar { margin: 0 auto 10px; width:140px; height:140px; }
       .pg-meta, .pg-tagline { justify-content:center; }
       .pay-row { flex-direction: column; }
       .price-now { font-size: 2.1rem; }
+      .compare-row { grid-template-columns:1fr; }
+      .urgency-item { font-size: 0.74rem; }
     }
   </style>
 </head>
 <body>
 <script src="/static/effects.js" defer></script>
+
+<div class="urgency-bar">
+  <div class="urgency-track">
+    <span class="urgency-item">🔥 Скидка 50% действует ограниченное время — успейте получить доступ за <b class="cd">04:00:00</b></span>
+    <span class="urgency-item">⚡ По цене со скидкой осталось {{ program.spots_left }} мест — далее цена вырастет</span>
+    <span class="urgency-item">🔥 Скидка 50% действует ограниченное время — успейте получить доступ за <b class="cd">04:00:00</b></span>
+    <span class="urgency-item">⚡ По цене со скидкой осталось {{ program.spots_left }} мест — далее цена вырастет</span>
+  </div>
+</div>
 
 <nav class="nav">
   <a href="/" class="nav-logo">
@@ -227,8 +391,24 @@
       <div class="pg-meta">
         <span class="pg-meta-pill">📊 {{ program.level }}</span>
         <span class="pg-meta-pill">⏱ {{ program.duration }}</span>
+        {% for chip in program.feature_chips %}
+        <span class="pg-meta-pill">{{ chip }}</span>
+        {% endfor %}
       </div>
       <a href="#pricing" class="pg-cta">Получить программу →</a>
+    </div>
+  </section>
+
+  <section class="pg-section">
+    <h2 class="pg-section-title">Тренируйтесь по обновлённой программе</h2>
+    <p class="pg-section-sub">Старые методы тренировок больше не дают того же эффекта. Программа пересобрана с учётом обратной связи учениц.</p>
+    <div class="compare-grid">
+      {% for c in program.comparison %}
+      <div class="compare-row">
+        <div class="compare-old"><span class="compare-tag tag-old">Было</span>{{ c.old }}</div>
+        <div class="compare-new"><span class="compare-tag tag-new">Стало</span>{{ c.new }}</div>
+      </div>
+      {% endfor %}
     </div>
   </section>
 
@@ -245,7 +425,32 @@
   </section>
 
   <section class="pg-section">
-    <h2 class="pg-section-title">Программа курса</h2>
+    <h2 class="pg-section-title">{{ program.social_proof }} учениц уже прошли эту программу</h2>
+    <div class="testi-viewport">
+      <div class="testi-track" id="testi-track">
+        {% for t in program.testimonials %}
+        <div class="testi-card-wrap">
+          <div class="testi-card">
+            <div class="testi-stars">{{ '★' * t.stars }}{{ '☆' * (5 - t.stars) }}</div>
+            <p class="testi-text">«{{ t.text }}»</p>
+            <div class="testi-author">
+              <span class="testi-avatar">{{ t.name[0] }}</span>
+              <span class="testi-name">{{ t.name }}</span>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="testi-nav">
+      <button class="testi-btn" onclick="testiMove(-1)" aria-label="Назад">←</button>
+      <div class="testi-dots" id="testi-dots"></div>
+      <button class="testi-btn" onclick="testiMove(1)" aria-label="Вперёд">→</button>
+    </div>
+  </section>
+
+  <section class="pg-section">
+    <h2 class="pg-section-title">Получите результат за {{ program.modules|length }} цикла</h2>
     <div class="modules-list">
       {% for m in program.modules %}
       <div class="module-row">
@@ -259,14 +464,53 @@
     </div>
   </section>
 
+  <section class="pg-section">
+    <h2 class="pg-section-title">Курс подходит для вашей цели</h2>
+    <div class="goals-row">
+      {% for g in program.goals %}
+      <span class="goal-tag">{{ g }}</span>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="pg-section">
+    <h2 class="pg-section-title">Через {{ program.duration }} вы себя не узнаете</h2>
+    <div class="timeline-list">
+      {% for t in program.timeline %}
+      <div class="timeline-row">
+        <div class="timeline-dot"></div>
+        <div>
+          <div class="timeline-period">{{ t.period }}</div>
+          <div class="timeline-text">{{ t.text }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="pg-section">
+    <h2 class="pg-section-title">Что входит дополнительно</h2>
+    <div class="bonus-row">
+      {% for b in program.bonuses %}
+      <span class="bonus-chip">{{ b }}</span>
+      {% endfor %}
+    </div>
+  </section>
+
   <section id="pricing" class="pg-section">
     <h2 class="pg-section-title">Доступ к программе</h2>
+    <div class="spots-alert">⚡ По этой цене осталось всего <strong>{{ program.spots_left }}</strong> мест — далее цена вырастет</div>
     <div class="pricing-card">
       <div class="price-old">{{ program.old_price }} ₽</div>
       <div class="price-now">{{ program.price }} ₽</div>
       <div class="price-discount">Скидка 50% — ограниченное предложение</div>
       <button class="pg-cta" type="button" onclick="document.getElementById('pay-name').focus()">Получить доступ →</button>
       <div class="price-note">Доступ открывается сразу после оплаты · 365 дней использования</div>
+    </div>
+    <div class="trust-row">
+      <span class="trust-item">💬 Поддержка куратора</span>
+      <span class="trust-item">🔄 Гарантия актуальности программы</span>
+      <span class="trust-item">✅ 14 дней на возврат, если не понравится</span>
     </div>
 
     <form class="pay-form" id="pay-form" onsubmit="return submitMockPayment(event)">
@@ -300,6 +544,23 @@
       <div class="pay-result" id="pay-result"></div>
     </form>
   </section>
+
+  <section class="pg-section">
+    <h2 class="pg-section-title">Вопросы о программе</h2>
+    <div class="faq-wrap-pg">
+      {% for f in program.faq %}
+      <div class="faq-item" id="pfaq-{{ loop.index0 }}">
+        <button class="faq-q" onclick="togglePFaq({{ loop.index0 }})">
+          {{ f.q }}
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="faq-body" id="pfaq-body-{{ loop.index0 }}">
+          <div class="faq-body-inner">{{ f.a }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
 </main>
 
 <footer class="demo-footer">
@@ -314,6 +575,59 @@ function submitMockPayment(e) {
   result.textContent = '✓ Так выглядел бы экран успешной оплаты в реальном продукте. В этом демо приём платежей не подключён.';
   return false;
 }
+
+function togglePFaq(idx) {
+  const total = {{ program.faq|length }};
+  for (let i = 0; i < total; i++) {
+    const item = document.getElementById('pfaq-' + i);
+    const body = document.getElementById('pfaq-body-' + i);
+    if (i === idx) {
+      const wasOpen = item.classList.contains('faq-open');
+      item.classList.toggle('faq-open', !wasOpen);
+      body.style.maxHeight = wasOpen ? '0' : '400px';
+    } else {
+      item.classList.remove('faq-open');
+      body.style.maxHeight = '0';
+    }
+  }
+}
+
+let testiIndex = 0;
+function testiSetup() {
+  const track = document.getElementById('testi-track');
+  const count = track.children.length;
+  const dots = document.getElementById('testi-dots');
+  dots.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const d = document.createElement('span');
+    d.className = 'testi-dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => testiGo(i);
+    dots.appendChild(d);
+  }
+}
+function testiGo(i) {
+  const track = document.getElementById('testi-track');
+  const count = track.children.length;
+  testiIndex = (i + count) % count;
+  track.style.transform = `translateX(-${testiIndex * 100}%)`;
+  document.querySelectorAll('.testi-dot').forEach((d, idx) => d.classList.toggle('active', idx === testiIndex));
+}
+function testiMove(delta) { testiGo(testiIndex + delta); }
+testiSetup();
+
+(function () {
+  let totalSeconds = 4 * 3600;
+  function tick() {
+    if (totalSeconds <= 0) totalSeconds = 4 * 3600;
+    const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+    const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+    const s = String(totalSeconds % 60).padStart(2, '0');
+    document.querySelectorAll('.cd').forEach(el => el.textContent = `${h}:${m}:${s}`);
+    totalSeconds--;
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
 </script>
 </body>
 </html>
