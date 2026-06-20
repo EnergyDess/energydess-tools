@@ -702,6 +702,8 @@ function testiSetup() {
   for (let i = 0; i < count; i++) {
     const d = document.createElement('span');
     d.className = 'testi-dot' + (i === 0 ? ' active' : '');
+    d.setAttribute('role', 'button');
+    d.setAttribute('aria-label', `Отзыв ${i + 1} из ${count}`);
     d.onclick = () => testiGo(i);
     dots.appendChild(d);
   }
