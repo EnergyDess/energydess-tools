@@ -20,7 +20,7 @@
       --demo-purple:     #7c4dff;
       --demo-periwinkle: #c7d2fe;
       --demo-red-text:   #be123c;
-      --demo-green-text: #0d9488;
+      --demo-green-text: #0f766e;
     }
     body { background: var(--demo-canvas); }
     body::before {
@@ -104,9 +104,9 @@
     .pg-hero > * { position:relative; z-index:1; }
     .pg-avatar {
       width: 190px; height: 190px; border-radius: 28px;
-      border: 1px solid rgba(199,211,234,.14);
+      border: 1px solid rgba(21,16,28,.12);
       overflow: hidden; position: relative;
-      box-shadow: inset 0 1px 1px rgba(199,211,234,.1), 0 16px 40px rgba(21,16,28,.18);
+      box-shadow: inset 0 1px 1px rgba(255,255,255,.5), 0 16px 40px rgba(21,16,28,.18);
       animation: fadeUp .55s ease both;
     }
     .pg-avatar img {
@@ -327,7 +327,7 @@
       border-radius:99px; padding:3px 12px; margin-bottom: 22px;
     }
     .pricing-card .pg-cta { width:100%; justify-content:center; }
-    .price-note { font-size:0.76rem; color: rgba(21,16,28,.4); margin-top:14px; }
+    .price-note { font-size:0.76rem; color: rgba(21,16,28,.6); margin-top:14px; }
     .trust-row {
       display:flex; flex-wrap:wrap; gap:8px; justify-content:center;
       max-width:480px; margin:18px auto 0;
@@ -389,14 +389,14 @@
     }
     .pay-row { display:flex; gap:10px; margin-bottom:10px; }
     .pay-field { flex:1; }
-    .pay-field label { display:block; font-size:0.72rem; color: rgba(21,16,28,.5); margin-bottom:5px; }
+    .pay-field label { display:block; font-size:0.72rem; color: rgba(21,16,28,.62); margin-bottom:5px; }
     .pay-field input {
       width:100%; background: rgba(255,255,255,.75); border:1px solid rgba(21,16,28,.16);
       border-radius:10px; padding:11px 13px; color: var(--demo-ink); font-size:0.85rem;
       font-family: inherit; outline:none; box-sizing:border-box;
       transition: border-color .2s, box-shadow .2s;
     }
-    .pay-field input::placeholder { color: rgba(21,16,28,.42); }
+    .pay-field input::placeholder { color: rgba(21,16,28,.5); }
     .pay-field input:focus { border-color: rgba(232,121,160,.5); box-shadow: 0 0 0 3px rgba(232,121,160,.1); }
     .pay-submit {
       width:100%; margin-top:8px;
@@ -415,7 +415,7 @@
     .demo-footer {
       border-top:1px solid var(--demo-hairline);
       padding:18px 20px; text-align:center;
-      font-size:0.76rem; color:rgba(21,16,28,.35);
+      font-size:0.76rem; color:rgba(21,16,28,.55);
     }
     .demo-footer a { color: var(--demo-pink-text); opacity:.75; text-decoration:none; transition:opacity .2s; }
     .demo-footer a:hover { opacity:1; }
@@ -439,7 +439,7 @@
       .pay-row { flex-direction: column; }
       .price-now { font-size: 2.1rem; }
       .compare-row { grid-template-columns:1fr; }
-      .urgency-item { font-size: 0.74rem; }
+      .urgency-item { font-size: 0.74rem; padding: 0 18px; }
     }
   </style>
 </head>
