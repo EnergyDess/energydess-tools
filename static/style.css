@@ -20,9 +20,9 @@
   --accent-dim:   rgba(0,212,255,0.12);
   --accent-glow:  rgba(0,212,255,0.22);
   --accent2-dim:  rgba(124,77,255,0.12);
-  --text:         #dde2f0;
+  --text:         #e8ecf8;
   --text-dim:     #5a6888;
-  --text-faint:   #2a3050;
+  --text-faint:   #7a83a0;
   --success:      #00e5a0;
   --error:        #ff4d6d;
   --warning:      #ffb830;
@@ -32,6 +32,35 @@
   --font:         'Manrope', sans-serif;
   --font-display: 'Syne', sans-serif;
   --font-mono:    'DM Mono', monospace;
+
+  /* ── Новые токены дизайн-системы (SYSTEM.md) ──────────────────────────
+     Чисто аддитивные: старые --bg/--bg2/--bg3/--text/--text-dim и т.д.
+     не трогаем и не удаляем — старые страницы их используют как есть.
+     Эти токены — фундамент для новых тематизируемых разделов (.theme-*),
+     которые переопределяют часть из них под свой акцент/настроение. */
+
+  /* Лесенка поверхностей — шаг между уровнями увеличен и заметен на глаз */
+  --surface-0: #06060d;   /* фон страницы (база) */
+  --surface-1: #141524;   /* карточки, панели */
+  --surface-2: #1e2036;   /* вложенные блоки: инпуты, textarea, под-карточки */
+  --surface-3: #2a2c47;   /* активные/выделенные вложенные элементы */
+  --border-strong: rgba(255,255,255,0.14);  /* hover, акцентные блоки */
+
+  /* Текст — новый вторичный токен (замена --text-dim и хардкодов #c7d3ea/#81899b) */
+  --text-2: #aeb8d4;
+
+  /* Шкала отступов — раньше паддинги были зашиты в каждом компоненте */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Градиент главной кнопки как переменная (значение то же, что уже
+     хардкодом в .btn-main — landing.html, не меняем существующий код) */
+  --grad-btn: linear-gradient(135deg, #7c4dff 0%, #00d4ff 100%);
 }
 
 html { scroll-behavior: smooth; overflow-x: hidden; }
@@ -119,7 +148,7 @@ body::before {
 .nav-links a {
   color: var(--text-dim);
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: 0.9375rem; /* 15px — минимум по SYSTEM.md, было 14px */
   font-weight: 500;
   padding: 7px 17px;
   border-radius: 99px;
@@ -142,7 +171,7 @@ body::before {
 .nav-right a {
   color: var(--text-dim);
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: 0.9375rem; /* 15px — минимум по SYSTEM.md, было 14px */
   font-weight: 500;
   padding: 7px 17px;
   border-radius: 99px;
@@ -269,7 +298,7 @@ textarea::placeholder, input::placeholder { color: rgba(221,226,240,0.3); }
 label {
   display: block;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.8125rem; /* 13px — минимум по SYSTEM.md, было ~11.5px */
   font-weight: 500;
   color: var(--text-dim);
   margin-bottom: 8px;
@@ -283,7 +312,7 @@ label {
   align-items: center;
   gap: 5px;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.8125rem; /* 13px — минимум по SYSTEM.md, было ~10.9px */
   font-weight: 500;
   padding: 4px 10px;
   border-radius: 99px;
@@ -323,7 +352,7 @@ label {
   align-items: center;
   gap: 6px;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.8125rem; /* 13px — минимум по SYSTEM.md, было 12px */
   font-weight: 500;
   padding: 6px 13px;
   border-radius: var(--radius-sm);
@@ -402,7 +431,7 @@ label {
 .form-group { margin-bottom: 18px; }
 .form-group label {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.8125rem; /* 13px — минимум по SYSTEM.md, было ~11.2px */
   color: var(--text-dim);
   margin-bottom: 8px;
   letter-spacing: 0.07em;
@@ -497,12 +526,12 @@ label {
 @media (max-width: 768px) {
   .nav { padding: 0 16px; }
   .container { padding: 0 16px; }
-  .nav-links a { padding: 6px 9px; font-size: 0.8rem; }
+  .nav-links a { padding: 6px 9px; } /* размер шрифта наследуется от десктопного (15px) — не уменьшаем ниже минимума */
   .auth-box { padding: 32px 20px; }
 
   /* Nav: сжать ссылки на мобилке */
   .nav-right { gap: 2px; }
-  .nav-right a { padding: 6px 10px; font-size: 0.8rem; }
+  .nav-right a { padding: 6px 10px; } /* размер шрифта наследуется от десктопного (15px) — не уменьшаем ниже минимума */
   .nav-right .nav-hide-mobile { display: none; }
 
   /* Auth pages */
