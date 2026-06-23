@@ -63,7 +63,15 @@
   --grad-btn: linear-gradient(135deg, #7c4dff 0%, #00d4ff 100%);
 }
 
-html { scroll-behavior: smooth; overflow-x: hidden; }
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+  /* Плавная база под 2К/4К и выше: на Full HD (1920px) и уже — ровно 16px
+     (как сейчас, без изменений), дальше плавно растёт до 17px на 2560px
+     (2K) и до потолка 19px на 3840px (4K) и шире. Все font-size в rem
+     по всему сайту масштабируются вместе с этой базой автоматически. */
+  font-size: clamp(16px, 13px + 0.15625vw, 19px);
+}
 
 body {
   font-family: var(--font);
@@ -146,7 +154,7 @@ body::before {
 }
 
 .nav-links a {
-  color: var(--text-dim);
+  color: var(--text-2);
   text-decoration: none;
   font-size: 0.9375rem; /* 15px — минимум по SYSTEM.md, было 14px */
   font-weight: 500;
@@ -169,7 +177,7 @@ body::before {
 
 .nav-right { display: flex; align-items: center; gap: 6px; }
 .nav-right a {
-  color: var(--text-dim);
+  color: var(--text-2);
   text-decoration: none;
   font-size: 0.9375rem; /* 15px — минимум по SYSTEM.md, было 14px */
   font-weight: 500;
