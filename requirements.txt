@@ -8,6 +8,7 @@ lxml
 sqlalchemy
 bcrypt
 python-jose[cryptography]
+cryptography
 python-multipart
 pypdf
 python-docx

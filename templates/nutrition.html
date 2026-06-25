@@ -377,6 +377,7 @@
     .w-day  { font-size: 0.62rem; color: var(--text); font-weight: 700; }
     .w-col.active .w-day { color: var(--nut-g); font-weight: 700; }
     .w-kcal { font-size: 0.62rem; color: var(--nut-g); font-weight: 600; }
+    .w-trained { font-size: 0.7rem; }
 
     /* ── Weight ── */
     .wt-hero { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 10px; text-align: center; }
@@ -410,6 +411,17 @@
     /* ── Profile ── */
     .p-sec { margin-bottom: 18px; }
     .p-sec-title { font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; margin-bottom: 9px; }
+    .body-photo-slot {
+      aspect-ratio: 3/4; border: 1.5px dashed var(--border); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      color: var(--text-dim); font-size: 0.78rem; text-align: center; overflow: hidden;
+      background: var(--bg2); transition: border-color .2s;
+    }
+    .body-photo-slot:hover { border-color: var(--nut-g); }
+    .body-photo-slot img { width: 100%; height: 100%; object-fit: cover; }
+    .compare-col { flex: 1; min-width: 140px; text-align: center; }
+    .compare-col img { width: 100%; border-radius: 10px; aspect-ratio: 3/4; object-fit: cover; }
+    .compare-col-label { font-size: 0.72rem; color: var(--text-dim); margin-top: 6px; }
     .f-label { font-size: 0.76rem; color: var(--text-dim); font-weight: 600; margin-bottom: 5px; display: block; }
     .f-input {
       width: 100%; height: 44px; background: var(--bg3); border: 1px solid var(--border);
@@ -1204,6 +1216,54 @@
           <div class="f-field"><label class="f-label">Рост, см</label><input type="number" class="f-input" id="p-height" placeholder="170" min="120" max="250"></div>
           <div class="f-field"><label class="f-label">Цель по весу, кг</label><input type="number" class="f-input" id="p-target" placeholder="65" min="30" max="250" step="0.1"></div>
         </div>
+
+        <div class="p-sec">
+          <div class="p-sec-title">Умные весы Xiaomi</div>
+          <div id="scale-disconnected">
+            <p style="color:var(--text-dim);font-size:13px;margin-bottom:10px;line-height:1.5">Подключи весы Mi Body Composition Scale через аккаунт Zepp Life — вес и состав тела будут подтягиваться автоматически. Это неофициальная интеграция: если Zepp Life изменит свой API, синхронизация может прерваться — тогда просто продолжай вводить вес вручную, ничего не сломается.</p>
+            <input type="text" class="f-input" id="scale-username" placeholder="email или телефон Zepp Life" style="margin-bottom:8px">
+            <input type="password" class="f-input" id="scale-password" placeholder="пароль" style="margin-bottom:8px">
+            <button class="save-btn" onclick="connectScale()" id="scale-connect-btn">Подключить весы Xiaomi</button>
+            <div id="scale-connect-msg" style="font-size:13px;margin-top:8px"></div>
+          </div>
+          <div id="scale-connected" style="display:none">
+            <p style="font-size:13px;color:var(--text-dim)">Подключено. Последняя синхронизация: <span id="scale-last-sync">—</span></p>
+            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+              <button class="act-btn" onclick="syncScaleNow()" style="flex:none">↻ Синхронизировать сейчас</button>
+              <button class="act-btn" onclick="disconnectScale()" style="flex:none;color:#f87171">Отключить</button>
+            </div>
+            <div id="scale-sync-msg" style="font-size:13px;margin-top:8px"></div>
+          </div>
+        </div>
+
+        <div class="p-sec">
+          <div class="p-sec-title">Прогресс тела</div>
+          <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;line-height:1.5">Визуальный дневник прогресса. Для точного анализа состава тела используй умные весы или обратись к специалисту.</p>
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <div style="flex:1">
+              <input type="file" accept="image/*" id="photo-front" style="display:none" onchange="previewBodyPhoto(this,'front')">
+              <div class="body-photo-slot" onclick="document.getElementById('photo-front').click()" id="slot-front">+ Спереди</div>
+            </div>
+            <div style="flex:1">
+              <input type="file" accept="image/*" id="photo-side" style="display:none" onchange="previewBodyPhoto(this,'side')">
+              <div class="body-photo-slot" onclick="document.getElementById('photo-side').click()" id="slot-side">+ Сбоку</div>
+            </div>
+            <div style="flex:1">
+              <input type="file" accept="image/*" id="photo-back" style="display:none" onchange="previewBodyPhoto(this,'back')">
+              <div class="body-photo-slot" onclick="document.getElementById('photo-back').click()" id="slot-back">+ Сзади</div>
+            </div>
+          </div>
+          <button class="save-btn" onclick="uploadBodyPhotos()">Сохранить фото за сегодня</button>
+          <div id="body-photo-msg" style="font-size:13px;margin-top:8px"></div>
+
+          <div class="p-sec-title" style="margin-top:18px">Сравнение по датам</div>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+            <select class="f-input" id="compare-date-old" style="flex:1;min-width:120px" onchange="renderCompare()"></select>
+            <span style="color:var(--text-dim)">→</span>
+            <select class="f-input" id="compare-date-new" style="flex:1;min-width:120px" onchange="renderCompare()"></select>
+          </div>
+          <div id="compare-view" style="display:flex;gap:10px;flex-wrap:wrap"></div>
+        </div>
       </div>
       <div class="d-right">
         <div class="p-sec">
@@ -1703,7 +1763,7 @@ function goTab(tab) {
   document.getElementById('nut-content').scrollTop = 0;
   if (tab === 'history') { loadHistory(S.histDate); loadWeekly(); }
   if (tab === 'weight')  loadWeightData();
-  if (tab === 'profile') loadProfileForm();
+  if (tab === 'profile') { loadProfileForm(); loadScaleStatus(); loadBodyPhotos(); }
   if (tab === 'search' && !document.getElementById('s-input').value) loadSearchTab(S.searchTab);
   if (tab === 'assistant') loadChatHistory();
 }
@@ -2951,7 +3011,7 @@ async function loadWeekly() {
     return `<div class="w-col${d.date===S.histDate?' active':''}" data-date="${d.date}" onclick="histGoto('${d.date}')">
       <div class="w-kcal">${d.calories>0?Math.round(d.calories):''}</div>
       <div class="w-bar-wrap"><div class="w-bar${d.date===S.today?' today':''}" style="height:${h}%"></div></div>
-      <div class="w-day">${day}</div>
+      <div class="w-day">${day}${d.trained?' <span class="w-trained" title="Была тренировка">💪</span>':''}</div>
     </div>`;
   }).join('');
 }
@@ -3116,6 +3176,106 @@ async function loadProfileForm() {
   document.querySelectorAll('#rg-goal .radio-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.goal));
   document.querySelectorAll('.act-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.activity_level));
   if (data.calorie_goal) showTargets({calories:data.calorie_goal,protein:data.protein_goal,fat:data.fat_goal,carbs:data.carb_goal,water_ml:data.water_goal_ml});
+}
+
+// ── Умные весы Xiaomi (неофициальный API Zepp Life) ──────────────────────────
+async function loadScaleStatus() {
+  const data = await api('/nutrition/api/scale/status');
+  document.getElementById('scale-disconnected').style.display = data.connected ? 'none' : 'block';
+  document.getElementById('scale-connected').style.display = data.connected ? 'block' : 'none';
+  if (data.connected) {
+    document.getElementById('scale-last-sync').textContent = data.last_sync_at || 'пока не было';
+    const msg = document.getElementById('scale-sync-msg');
+    msg.textContent = data.last_sync_status === 'error' ? ('Ошибка последней синхронизации: ' + (data.last_sync_error || '')) : '';
+    msg.style.color = '#f87171';
+  }
+}
+async function connectScale() {
+  const username = document.getElementById('scale-username').value.trim();
+  const password = document.getElementById('scale-password').value;
+  const msg = document.getElementById('scale-connect-msg');
+  if (!username || !password) { msg.textContent = 'Укажи логин и пароль'; msg.style.color = '#f87171'; return; }
+  document.getElementById('scale-connect-btn').disabled = true;
+  msg.style.color = 'var(--text-dim)';
+  msg.textContent = 'Подключаем…';
+  const data = await api('/nutrition/api/scale/connect', { method: 'POST', body: JSON.stringify({ username, password }) });
+  document.getElementById('scale-connect-btn').disabled = false;
+  if (data.error) { msg.textContent = data.error; msg.style.color = '#f87171'; return; }
+  msg.textContent = data.warning || ('Подключено, синхронизировано записей: ' + (data.synced ?? 0));
+  msg.style.color = data.warning ? '#fbbf24' : '#4ade80';
+  loadScaleStatus();
+  loadWeightData();
+}
+async function syncScaleNow() {
+  const msg = document.getElementById('scale-sync-msg');
+  msg.style.color = 'var(--text-dim)';
+  msg.textContent = 'Синхронизируем…';
+  const data = await api('/nutrition/api/scale/sync', { method: 'POST' });
+  if (data.error) { msg.textContent = data.error; msg.style.color = '#f87171'; }
+  else { msg.textContent = 'Готово, новых записей: ' + (data.synced ?? 0); msg.style.color = '#4ade80'; loadWeightData(); }
+  loadScaleStatus();
+}
+async function disconnectScale() {
+  if (!confirm('Отключить весы Xiaomi? Уже синхронизированные данные останутся.')) return;
+  await api('/nutrition/api/scale/disconnect', { method: 'POST' });
+  document.getElementById('scale-username').value = '';
+  document.getElementById('scale-password').value = '';
+  loadScaleStatus();
+}
+
+// ── Фото-дневник прогресса тела ───────────────────────────────────────────────
+const bodyPhotoFiles = {};
+function previewBodyPhoto(input, angle) {
+  const file = input.files[0];
+  if (!file) return;
+  bodyPhotoFiles[angle] = file;
+  const slot = document.getElementById('slot-' + angle);
+  const reader = new FileReader();
+  reader.onload = e => { slot.innerHTML = '<img src="' + e.target.result + '">'; };
+  reader.readAsDataURL(file);
+}
+async function uploadBodyPhotos() {
+  const angles = Object.keys(bodyPhotoFiles);
+  const msg = document.getElementById('body-photo-msg');
+  if (!angles.length) { msg.textContent = 'Выбери хотя бы одно фото'; msg.style.color = '#f87171'; return; }
+  const today = new Date().toISOString().slice(0, 10);
+  for (const angle of angles) {
+    const fd = new FormData();
+    fd.append('file', bodyPhotoFiles[angle]);
+    fd.append('angle', angle);
+    fd.append('date', today);
+    await fetch('/nutrition/api/body-photo', { method: 'POST', body: fd });
+  }
+  msg.textContent = 'Сохранено за ' + today;
+  msg.style.color = '#4ade80';
+  bodyPhotoFiles.front = bodyPhotoFiles.side = bodyPhotoFiles.back = undefined;
+  loadBodyPhotos();
+}
+let bodyPhotosCache = {};
+async function loadBodyPhotos() {
+  const data = await api('/nutrition/api/body-photos');
+  bodyPhotosCache = data.photos || {};
+  const dates = data.dates || [];
+  const oldSel = document.getElementById('compare-date-old');
+  const newSel = document.getElementById('compare-date-new');
+  const opts = dates.map(d => `<option value="${d}">${d}</option>`).join('');
+  oldSel.innerHTML = opts;
+  newSel.innerHTML = opts;
+  if (dates.length) { oldSel.value = dates[dates.length - 1]; newSel.value = dates[0]; }
+  renderCompare();
+}
+function renderCompare() {
+  const oldDate = document.getElementById('compare-date-old').value;
+  const newDate = document.getElementById('compare-date-new').value;
+  const view = document.getElementById('compare-view');
+  if (!oldDate || !newDate) { view.innerHTML = '<p style="font-size:13px;color:var(--text-dim)">Загрузи фото хотя бы за одну дату.</p>'; return; }
+  function col(date) {
+    const angles = bodyPhotosCache[date] || {};
+    const imgs = ['front', 'side', 'back'].filter(a => angles[a])
+      .map(a => `<img src="${angles[a]}" style="margin-bottom:4px">`).join('');
+    return `<div class="compare-col">${imgs || '<p style="font-size:12px;color:var(--text-dim)">нет фото</p>'}<div class="compare-col-label">${date}</div></div>`;
+  }
+  view.innerHTML = col(oldDate) + col(newDate);
 }
 
 function setRad(btn) {

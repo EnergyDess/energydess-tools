@@ -1,0 +1,2410 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Программа тренировок — EnergyDess</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <script src="/static/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/static/style.css">
+  <script>window.PARTICLE_THEME = { disabled: true };</script>
+  <script src="/static/effects.js" defer></script>
+  <style>
+    /* ── THEME-workout.md: тема раздела, поверх механики SYSTEM.md ── */
+    .theme-workout {
+      --surface-0: #0a0814;
+      --surface-1: #16132a;
+      --surface-2: #211d3d;
+      --surface-3: #2d2752;
+      --accent:    #8b5cff;
+      --accent-2:  #00e0d5;
+      --grad-btn:  linear-gradient(135deg, #8b5cff 0%, #00e0d5 100%);
+      --status-done:    #00e5a0;
+      --status-partial: #ffb830;
+      --status-skipped: #7a83a0;
+      --status-missed:  #7a83a0;
+
+      position: relative;
+      background: var(--surface-0);
+      overflow: hidden;
+      min-height: calc(100vh - 60px);
+      padding: var(--space-7) var(--space-4) var(--space-7);
+    }
+    .theme-workout .bg-blobs {
+      position: absolute; inset: 0; z-index: 0;
+      pointer-events: none; overflow: hidden;
+    }
+    .theme-workout .bg-blobs span {
+      position: absolute; border-radius: 50%;
+      filter: blur(90px); opacity: 0.28; will-change: transform;
+    }
+    .theme-workout .bg-blobs span:nth-child(1){ width:420px;height:420px;background:#8b5cff;top:-80px;left:-60px;animation:blobDrift 26s ease-in-out infinite; }
+    .theme-workout .bg-blobs span:nth-child(2){ width:360px;height:360px;background:#00e0d5;bottom:-100px;right:-40px;animation:blobDrift 32s ease-in-out infinite reverse; }
+    .theme-workout .bg-blobs span:nth-child(3){ width:300px;height:300px;background:#5b2ec4;top:40%;left:55%;animation:blobDrift 22s ease-in-out infinite; }
+    @keyframes blobDrift {
+      0%,100% { transform: translate(0,0) scale(1); }
+      33%     { transform: translate(60px,-40px) scale(1.08); }
+      66%     { transform: translate(-40px,50px) scale(0.96); }
+    }
+    .theme-workout > *:not(.bg-blobs) { position: relative; z-index: 1; }
+    @media (prefers-reduced-motion: reduce) {
+      .theme-workout .bg-blobs span { animation: none; }
+    }
+
+    /* ── Wizard shell ── */
+    .wk-shell { max-width: 760px; margin: 0 auto; }
+    .wk-head { text-align: center; margin-bottom: var(--space-6); }
+    .wk-head h1 {
+      font-family: var(--font-display);
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: var(--space-2);
+    }
+    .wk-head p { color: var(--text-2); font-size: 0.9375rem; }
+
+    .wk-progress { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-6); }
+    .wk-progress-track {
+      flex: 1; height: 6px; border-radius: 99px;
+      background: var(--surface-2); overflow: hidden;
+    }
+    .wk-progress-bar {
+      height: 100%; border-radius: 99px;
+      background: var(--grad-btn);
+      transition: width 0.35s ease;
+    }
+    .wk-progress-label {
+      font-family: var(--font-mono); font-size: 0.8125rem;
+      color: var(--text-2); white-space: nowrap;
+    }
+
+    .wk-card {
+      background: var(--surface-1);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: var(--space-7);
+    }
+
+    .wk-step { display: none; }
+    .wk-step.active { display: block; animation: wkFadeIn 0.3s ease; }
+    @keyframes wkFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .wk-step-title {
+      font-family: var(--font-display); font-size: 1.4rem; font-weight: 700;
+      color: var(--text); margin-bottom: var(--space-2);
+    }
+    .wk-step-sub { color: var(--text-2); font-size: 0.9375rem; margin-bottom: var(--space-6); }
+
+    /* Карточки-варианты (цель / стаж) */
+    .wk-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
+    .wk-option {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: var(--space-5) var(--space-4);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s, transform 0.2s;
+      text-align: center;
+    }
+    .wk-option:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+    .wk-option.selected {
+      background: var(--surface-3);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+    .wk-option-icon { font-size: 1.8rem; margin-bottom: var(--space-2); }
+    .wk-option-label { font-weight: 600; color: var(--text); font-size: 0.9375rem; }
+    .wk-option-desc { color: var(--text-2); font-size: 0.8125rem; margin-top: 4px; }
+
+    /* Частота — ряд кнопок 1..6 */
+    .wk-days-row { display: flex; gap: var(--space-3); justify-content: center; margin-bottom: var(--space-5); }
+    .wk-day-btn {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--font-mono); font-size: 1.2rem; font-weight: 500;
+      cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .wk-day-btn:hover { border-color: var(--border-strong); }
+    .wk-day-btn.selected {
+      background: var(--grad-btn); border-color: transparent; color: #fff;
+      box-shadow: 0 4px 18px rgba(139,92,255,0.4);
+    }
+    .wk-structure-hint {
+      text-align: center; color: var(--text-2); font-size: 0.875rem;
+      background: var(--surface-2); border-radius: var(--radius-sm);
+      padding: var(--space-3) var(--space-4); min-height: 44px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .wk-structure-hint strong { color: var(--accent-2); font-weight: 600; margin-left: 6px; }
+
+    /* Ограничения — чекбоксы зон */
+    .wk-pain-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-5); }
+    .wk-pain-item {
+      display: flex; align-items: center; gap: var(--space-3);
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: var(--space-4);
+      cursor: pointer; transition: all 0.2s;
+    }
+    .wk-pain-item:hover { border-color: var(--border-strong); }
+    .wk-pain-item.selected { border-color: var(--accent); background: var(--surface-3); }
+    .wk-pain-check {
+      width: 20px; height: 20px; border-radius: 5px; flex-shrink: 0;
+      border: 1.5px solid var(--text-2); display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .wk-pain-item.selected .wk-pain-check { background: var(--accent); border-color: var(--accent); }
+    .wk-pain-check svg { opacity: 0; transition: opacity 0.15s; }
+    .wk-pain-item.selected .wk-pain-check svg { opacity: 1; }
+    .wk-pain-label { color: var(--text); font-size: 0.9rem; }
+
+    .wk-disclaimer {
+      display: flex; gap: var(--space-3); align-items: flex-start;
+      background: rgba(255,184,48,0.08); border: 1px solid rgba(255,184,48,0.25);
+      border-radius: var(--radius-sm); padding: var(--space-4);
+      font-size: 0.8125rem; color: var(--text-2); line-height: 1.55;
+    }
+    .wk-disclaimer .ico { font-size: 1.1rem; flex-shrink: 0; }
+
+    .wk-focus-warn {
+      display: none; margin-top: var(--space-3); font-size: 0.8125rem; color: var(--warning);
+      background: rgba(255,184,48,0.08); border: 1px solid rgba(255,184,48,0.25);
+      border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4);
+    }
+    .wk-focus-warn.show { display: block; }
+
+    /* Шаг прогрессии */
+    .wk-step-presets { display: flex; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; }
+    .wk-preset-btn {
+      flex: 1; min-width: 100px; padding: var(--space-4);
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text);
+      font-family: var(--font-mono); font-size: 1rem; font-weight: 500;
+      cursor: pointer; transition: all 0.2s; text-align: center;
+    }
+    .wk-preset-btn:hover { border-color: var(--border-strong); }
+    .wk-preset-btn.selected { background: var(--grad-btn); border-color: transparent; color: #fff; }
+    .wk-manual-row { display: flex; align-items: center; gap: var(--space-3); }
+    .wk-manual-row label { color: var(--text-2); font-size: 0.875rem; white-space: nowrap; }
+    .wk-manual-row input {
+      flex: 1; background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4);
+      color: var(--text); font-family: var(--font-mono); font-size: 1rem;
+    }
+    .wk-manual-row input:focus { outline: none; border-color: var(--accent); }
+
+    /* Footer-навигация шагов */
+    .wk-nav { display: flex; justify-content: space-between; margin-top: var(--space-6); }
+    .wk-btn {
+      padding: var(--space-3) var(--space-6); border-radius: var(--radius-sm);
+      font-size: 0.9375rem; font-weight: 600; cursor: pointer; border: none;
+      transition: all 0.2s; font-family: var(--font);
+    }
+    .wk-btn-primary { background: var(--grad-btn); color: #fff; }
+    .wk-btn-primary:hover { filter: brightness(1.08); }
+    .wk-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .wk-btn-ghost { background: transparent; color: var(--text-2); border: 1px solid var(--border); }
+    .wk-btn-ghost:hover { color: var(--text); border-color: var(--border-strong); }
+    .wk-btn-ghost:disabled { opacity: 0.3; cursor: default; }
+
+    /* Мой зал — чек-лист оборудования */
+    .wk-eq-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-5); gap: var(--space-3); flex-wrap: wrap; }
+    .wk-eq-count { color: var(--text-2); font-size: 0.875rem; font-family: var(--font-mono); }
+    .wk-home-btn {
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text); padding: var(--space-3) var(--space-4);
+      border-radius: var(--radius-sm); font-size: 0.875rem; cursor: pointer;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .wk-home-btn:hover { border-color: var(--border-strong); }
+    .wk-home-btn.active { background: var(--accent-2); color: #06251f; border-color: transparent; font-weight: 600; }
+
+    .wk-eq-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+      gap: var(--space-3); max-height: 520px; overflow-y: auto;
+      padding-right: var(--space-2); margin-bottom: var(--space-2);
+    }
+    .wk-eq-grid::-webkit-scrollbar { width: 6px; }
+    .wk-eq-grid::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 99px; }
+
+    .wk-eq-card {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); overflow: hidden; cursor: pointer;
+      transition: all 0.2s; position: relative;
+    }
+    .wk-eq-card:hover { border-color: var(--border-strong); }
+    .wk-eq-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .wk-eq-card .wk-eq-img-wrap {
+      width: 100%; aspect-ratio: 1/1; background: #0c0a1a; overflow: hidden;
+    }
+    .wk-eq-card img { width: 100%; height: 100%; object-fit: cover; opacity: 0.88; }
+    .wk-eq-card.selected img { opacity: 1; }
+    .wk-eq-check {
+      position: absolute; top: 6px; right: 6px; width: 22px; height: 22px;
+      border-radius: 50%; background: rgba(10,8,20,0.7); border: 1.5px solid rgba(255,255,255,0.4);
+      display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+    }
+    .wk-eq-card.selected .wk-eq-check { background: var(--accent); border-color: var(--accent); }
+    .wk-eq-check svg { opacity: 0; transition: opacity 0.15s; }
+    .wk-eq-card.selected .wk-eq-check svg { opacity: 1; }
+    .wk-eq-names { padding: var(--space-2) var(--space-3) var(--space-3); }
+    .wk-eq-name-ru { font-size: 0.8125rem; font-weight: 600; color: var(--text); line-height: 1.25; }
+    .wk-eq-name-en { font-size: 0.6875rem; color: var(--text-2); font-family: var(--font-mono); margin-top: 2px; }
+
+    .wk-done-panel { text-align: center; padding: var(--space-6) 0 var(--space-5); }
+    .wk-done-panel .ico { font-size: 3rem; margin-bottom: var(--space-4); }
+    .wk-done-panel h2 { font-family: var(--font-display); font-size: 1.5rem; color: var(--text); margin-bottom: var(--space-3); }
+    .wk-done-panel p { color: var(--text-2); font-size: 0.9375rem; }
+    .wk-general-chat-btn { margin-top: var(--space-4); background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 9px 18px; border-radius: 99px; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; }
+    .wk-general-chat-btn:hover { border-color: var(--accent); }
+    .wk-weight-chart-box { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-5); }
+    .wk-weight-chart-title { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 0.9375rem; margin-bottom: var(--space-2); }
+    .wk-weight-svg { width: 100%; height: 140px; overflow: visible; }
+    .wk-chart-tooltip { position: fixed; z-index: 3000; background: var(--surface-3); border: 1px solid var(--accent); border-radius: 8px; padding: 8px 12px; font-size: 0.75rem; color: var(--text); pointer-events: none; display: none; white-space: nowrap; }
+    .wk-progress-chart-panel { display: none; margin-top: var(--space-3); background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-3); }
+    .wk-progress-chart-panel.show { display: block; }
+    .wk-progress-chart-svg { width: 100%; height: 130px; overflow: visible; }
+    .wk-progress-chart-empty { font-size: 0.8125rem; color: var(--text-2); text-align: center; padding: var(--space-3) 0; }
+    .wk-ex-chartbtn { background: none; border: 1px solid var(--border-strong); color: var(--text-2); border-radius: 99px; padding: 3px 12px; font-size: 0.75rem; cursor: pointer; margin-left: 8px; }
+    .wk-ex-chartbtn:hover { border-color: var(--accent); color: var(--text); }
+    .wk-done-actions { display: flex; gap: var(--space-2); justify-content: center; margin-top: var(--space-4); flex-wrap: wrap; }
+    .wk-settings-btn { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 9px 18px; border-radius: 99px; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; }
+    .wk-settings-btn:hover { border-color: var(--accent); }
+    .wk-settings-overlay { display: none; position: fixed; inset: 0; background: rgba(6,4,12,0.6); z-index: 2000; align-items: center; justify-content: center; }
+    .wk-settings-overlay.show { display: flex; }
+    .wk-settings-panel { width: 100%; max-width: 420px; margin: var(--space-4); background: var(--surface-1); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: var(--space-5); }
+    .wk-settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); }
+    .wk-settings-title { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 1.0625rem; }
+    .wk-settings-close { background: none; border: none; color: var(--text-2); font-size: 1.5rem; cursor: pointer; line-height: 1; padding: 4px 8px; }
+    .wk-settings-toggle-row { display: flex; align-items: center; gap: 10px; font-size: 0.9375rem; color: var(--text); cursor: pointer; }
+    .wk-settings-toggle-row input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+    .wk-settings-toggle-hint { margin-top: var(--space-2); font-size: 0.8125rem; color: var(--text-2); line-height: 1.5; }
+    .wk-settings-panel { max-height: 85vh; overflow-y: auto; }
+    .wk-profile-sec { padding-top: var(--space-4); margin-top: var(--space-4); border-top: 1px solid var(--border); }
+    .wk-profile-sec:first-child { padding-top: 0; margin-top: 0; border-top: none; }
+    .wk-profile-sec-title { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 0.9375rem; margin-bottom: var(--space-2); }
+    .wk-profile-hint { font-size: 0.8125rem; color: var(--text-2); line-height: 1.5; margin-bottom: var(--space-2); }
+    .wk-profile-input { width: 100%; box-sizing: border-box; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; color: var(--text); font-size: 0.875rem; margin-bottom: 8px; }
+    .wk-profile-btn { background: var(--grad-btn); border: none; color: #fff; padding: 9px 16px; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+    .wk-profile-btn-sm { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 7px 14px; border-radius: 99px; font-size: 0.8125rem; cursor: pointer; }
+    .wk-profile-btn-danger { color: #f87171; }
+    .wk-profile-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: var(--space-2); }
+    .wk-profile-msg { font-size: 0.8125rem; margin-top: 8px; color: var(--text-2); }
+    .wk-bodycomp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: var(--space-2); }
+    .wk-bodycomp-item { background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-3); }
+    .wk-bodycomp-val { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 1.0625rem; }
+    .wk-bodycomp-lbl { font-size: 0.75rem; color: var(--text-2); margin-top: 2px; }
+    .wk-photo-slots { display: flex; gap: 8px; margin-bottom: var(--space-2); }
+    .wk-photo-slot { flex: 1; aspect-ratio: 3/4; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-2); cursor: pointer; overflow: hidden; }
+    .wk-photo-slot:hover { border-color: var(--accent); }
+    .wk-photo-slot img { width: 100%; height: 100%; object-fit: cover; }
+    .wk-photo-compare-title { margin-top: var(--space-4); }
+    .wk-photo-compare-selects { display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-2); color: var(--text-2); }
+    .wk-photo-compare-selects select { margin-bottom: 0; }
+    .wk-photo-compare-view { display: flex; gap: 10px; flex-wrap: wrap; }
+    .wk-compare-col { flex: 1; min-width: 120px; }
+    .wk-compare-col img { width: 100%; border-radius: var(--radius-sm); margin-bottom: 4px; }
+    .wk-compare-col-label { font-size: 0.75rem; color: var(--text-2); text-align: center; }
+    .wk-nutrition-box { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-5); }
+    .wk-nutrition-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); }
+    .wk-nutrition-label { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 0.9375rem; }
+    .wk-nutrition-value { font-size: 0.875rem; color: var(--text-2); }
+    .wk-nutrition-value strong { color: var(--text); }
+    .wk-nutrition-bar { height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+    .wk-nutrition-bar-fill { height: 100%; background: var(--grad-btn); border-radius: 99px; transition: width 0.3s; }
+    .wk-nutrition-hint { margin-top: var(--space-2); font-size: 0.75rem; color: var(--accent-2); }
+    .wk-nutrition-warning { margin-top: var(--space-3); padding: var(--space-3); background: rgba(251,191,36,0.1); border: 1px solid #fbbf24; border-radius: var(--radius-sm); font-size: 0.8125rem; color: var(--text); line-height: 1.5; }
+
+    /* Программа тренировок */
+    .wk-prog-meta { text-align: center; color: var(--text-2); font-size: 0.875rem; margin-bottom: var(--space-6); }
+    .wk-prog-meta strong { color: var(--accent-2); }
+    /* Чат-ассистент */
+    .wk-chat-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(6,4,12,0.6);
+      z-index: 2000; align-items: flex-end; justify-content: center;
+    }
+    .wk-chat-overlay.show { display: flex; }
+    .wk-chat-panel {
+      width: 100%; max-width: 480px; height: min(640px, 92vh); background: var(--surface-1);
+      border: 1px solid var(--border-strong); border-radius: var(--radius) var(--radius) 0 0;
+      display: flex; flex-direction: column; box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
+    }
+    @media (min-width: 640px) {
+      .wk-chat-overlay { align-items: center; }
+      .wk-chat-panel { border-radius: var(--radius); height: min(640px, 86vh); margin-bottom: 0; }
+    }
+    .wk-chat-header { display: flex; justify-content: space-between; align-items: flex-start; padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border); }
+    .wk-chat-title { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 1.0625rem; }
+    .wk-chat-subtitle { font-size: 0.75rem; color: var(--accent-2); margin-top: 2px; }
+    .wk-chat-close { background: none; border: none; color: var(--text-2); font-size: 1.5rem; cursor: pointer; line-height: 1; padding: 4px 8px; }
+    .wk-chat-messages { flex: 1; overflow-y: auto; padding: var(--space-4) var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); }
+    .wk-chat-msg { max-width: 85%; padding: var(--space-3) var(--space-4); border-radius: var(--radius-sm); font-size: 0.875rem; line-height: 1.5; }
+    .wk-chat-msg.user { align-self: flex-end; background: var(--grad-btn); color: #fff; }
+    .wk-chat-msg.assistant { align-self: flex-start; background: var(--surface-2); color: var(--text); }
+    .wk-chat-msg img { max-width: 100%; border-radius: 8px; margin-top: 6px; display: block; }
+    .wk-chat-result { align-self: flex-start; max-width: 92%; background: var(--surface-3); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4); font-size: 0.8125rem; color: var(--text-2); }
+    .wk-chat-result strong { color: var(--text); }
+    .wk-chat-result-list { margin-top: 4px; padding-left: 1.1em; }
+    .wk-chat-result-counts { margin-top: 6px; font-size: 0.75rem; color: var(--accent-2); }
+    .wk-chat-result-disclaimer { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-2); }
+    .wk-chat-add-eq-btn { margin-top: var(--space-2); background: var(--grad-btn); border: none; color: #fff; padding: 7px 14px; border-radius: var(--radius-sm); font-size: 0.8125rem; font-weight: 600; cursor: pointer; }
+    .wk-chat-loading { align-self: flex-start; color: var(--text-2); font-size: 0.8125rem; }
+    .wk-chat-input-row { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-4); border-top: 1px solid var(--border); }
+    .wk-chat-input { flex: 1; background: var(--surface-2); border: 1px solid var(--border); border-radius: 99px; padding: 10px 16px; color: var(--text); font-size: 0.9375rem; }
+    .wk-chat-input:focus { outline: none; border-color: var(--accent); }
+    .wk-chat-photo-btn, .wk-chat-send {
+      width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; font-size: 1.0625rem;
+    }
+    .wk-chat-photo-btn { background: var(--surface-2); color: var(--text-2); }
+    .wk-chat-send { background: var(--grad-btn); color: #fff; }
+
+    .wk-return-modal { background: var(--surface-2); border: 1px solid var(--accent); border-radius: var(--radius); padding: var(--space-6); }
+    .wk-return-title { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; color: var(--text); margin-bottom: var(--space-2); text-align: center; }
+    .wk-return-text { color: var(--text-2); font-size: 0.9375rem; text-align: center; margin-bottom: var(--space-6); }
+    .wk-return-options { display: flex; flex-direction: column; gap: var(--space-3); }
+    .wk-return-option { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-4) var(--space-5); cursor: pointer; transition: all 0.2s; }
+    .wk-return-option:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .wk-return-option-title { font-weight: 700; color: var(--text); font-size: 0.9375rem; margin-bottom: 4px; }
+    .wk-return-option-desc { color: var(--text-2); font-size: 0.8125rem; }
+    .wk-return-confirm { background: var(--surface-2); border: 1px solid var(--status-done); border-radius: var(--radius); padding: var(--space-6); color: var(--text); font-size: 0.9375rem; line-height: 1.6; text-align: center; }
+    .wk-mesocycle-banner { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; background: linear-gradient(135deg, rgba(139,92,255,0.16), rgba(0,224,213,0.1)); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: var(--space-5); margin-bottom: var(--space-5); }
+    .wk-mesocycle-text { color: var(--text-2); font-size: 0.875rem; line-height: 1.5; flex: 1; min-width: 220px; }
+    .wk-mesocycle-text strong { color: var(--text); }
+    .wk-mesocycle-btn { background: var(--grad-btn); border: none; color: #fff; padding: 10px 18px; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .wk-calibration-banner { position: relative; background: linear-gradient(135deg, rgba(139,92,255,0.14), rgba(0,224,213,0.08)); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: var(--space-4) var(--space-6) var(--space-4) var(--space-4); margin-bottom: var(--space-5); font-size: 0.875rem; color: var(--text-2); line-height: 1.5; }
+    .wk-calibration-banner strong { color: var(--text); }
+    .wk-calibration-close { position: absolute; top: 8px; right: 10px; background: none; border: none; color: var(--text-2); font-size: 1.3rem; line-height: 1; cursor: pointer; padding: 4px 8px; }
+    .wk-calibration-close:hover { color: var(--text); }
+    .wk-painzones-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-5); }
+    .wk-painzones-label { font-size: 0.8125rem; color: var(--text-2); }
+    .wk-painzone-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 99px; padding: 5px 6px 5px 12px; font-size: 0.8125rem; color: var(--text); }
+    .wk-painzone-clear { background: none; border: 1px solid var(--accent); color: var(--accent-2); border-radius: 99px; padding: 3px 10px; font-size: 0.75rem; cursor: pointer; white-space: nowrap; }
+    .wk-painzone-clear:hover { background: var(--accent); color: #fff; }
+    .wk-return-notice { position: relative; background: linear-gradient(135deg, rgba(0,224,213,0.14), rgba(139,92,255,0.08)); border: 1px solid var(--accent-2); border-radius: var(--radius-sm); padding: var(--space-3) var(--space-6) var(--space-3) var(--space-4); margin-bottom: var(--space-3); font-size: 0.8125rem; color: var(--text-2); line-height: 1.5; }
+    .wk-return-notice strong { color: var(--text); }
+    .wk-return-notice-close { position: absolute; top: 6px; right: 8px; background: none; border: none; color: var(--text-2); font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 4px 8px; }
+    .wk-warmup-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-5); margin-bottom: var(--space-5); }
+    .wk-warmup-title { font-weight: 700; color: var(--text); margin-bottom: var(--space-2); font-size: 0.9375rem; }
+    .wk-warmup-text { color: var(--text-2); font-size: 0.8125rem; line-height: 1.55; }
+    .wk-warmup-specific { margin-top: var(--space-2); }
+    .wk-warmup-badge { font-size: 0.8em; }
+    .wk-bonus-section { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px dashed var(--border-strong); }
+    .wk-bonus-title { font-size: 0.8125rem; font-weight: 600; color: var(--accent-2); margin-bottom: var(--space-3); text-transform: uppercase; letter-spacing: 0.03em; }
+    .wk-cooldown { margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--border); font-size: 0.8125rem; color: var(--text-2); line-height: 1.5; }
+    .wk-cooldown-ico { margin-right: 4px; }
+    .wk-prog-loading, .wk-prog-error { text-align: center; color: var(--text-2); padding: var(--space-6) 0; font-size: 0.9375rem; }
+    .wk-prog-error { color: var(--error); }
+    .wk-regen-btn {
+      display: block; margin: var(--space-6) auto 0; background: transparent;
+      border: 1px solid var(--border); color: var(--text-2); padding: var(--space-3) var(--space-5);
+      border-radius: var(--radius-sm); font-size: 0.875rem; cursor: pointer; transition: all 0.2s;
+    }
+    .wk-regen-btn:hover { color: var(--text); border-color: var(--border-strong); }
+
+    /* День тренировки */
+    .wk-prog-day { background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: var(--space-5); margin-bottom: var(--space-5); }
+    .wk-day-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); gap: var(--space-3); flex-wrap: wrap; }
+    .wk-prog-day-title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--text); }
+    .wk-day-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+    .wk-light-toggle { display: flex; align-items: center; gap: 5px; font-size: 0.8125rem; color: var(--text-2); cursor: pointer; user-select: none; }
+    .wk-light-checkbox { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; }
+    .wk-complete-btn, .wk-skip-btn {
+      background: transparent; border: 1px solid var(--border); color: var(--text-2);
+      padding: 6px 14px; border-radius: var(--radius-sm); font-size: 0.8125rem; cursor: pointer; transition: all 0.2s;
+    }
+    .wk-complete-btn:hover, .wk-skip-btn:hover { color: var(--text); border-color: var(--border-strong); }
+    .wk-complete-btn.done { color: var(--status-done); border-color: var(--status-done); }
+    .wk-skip-btn.done { color: var(--status-skipped); border-color: var(--status-skipped); }
+    .wk-skip-panel { display: none; background: var(--surface-3); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-4); }
+    .wk-skip-panel.show { display: block; }
+    .wk-skip-panel-title { font-size: 0.875rem; color: var(--text-2); margin-bottom: var(--space-3); }
+    .wk-skip-reasons { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+    .wk-skip-reason-btn {
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+      padding: 7px 14px; border-radius: 99px; font-size: 0.8125rem; cursor: pointer; transition: all 0.2s;
+    }
+    .wk-skip-reason-btn:hover { border-color: var(--accent); }
+    .wk-skip-note { margin-top: var(--space-3); font-size: 0.8125rem; color: var(--status-skipped); display: none; }
+    .wk-skip-note.show { display: block; }
+
+    /* Карточка упражнения */
+    .wk-ex-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-3); }
+    .wk-ex-head { display: flex; gap: var(--space-3); align-items: flex-start; }
+    .wk-ex-img { width: 60px; height: 60px; border-radius: 8px; overflow: hidden; flex-shrink: 0; background: #0c0a1a; }
+    .wk-ex-img img { width: 100%; height: 100%; object-fit: cover; }
+    .wk-ex-headinfo { flex: 1; min-width: 0; }
+    .wk-ex-name { color: var(--text); font-size: 1rem; font-weight: 700; }
+    .wk-ex-muscles { color: var(--text-2); font-size: 0.75rem; margin-top: 3px; line-height: 1.5; }
+    .wk-ex-muscles .dim { color: var(--text-faint); }
+    .wk-ex-progression { display: flex; align-items: center; gap: 6px; margin-top: var(--space-2); font-size: 0.8125rem; color: var(--accent-2); font-family: var(--font-mono); flex-wrap: wrap; }
+    .wk-ex-progbtn { background: none; border: none; color: var(--text-2); text-decoration: underline; font-size: 0.75rem; cursor: pointer; font-family: var(--font); padding: 0; }
+    .wk-ex-progbtn:hover { color: var(--text); }
+    .wk-ex-alt-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+    .wk-ex-altbtn { background: none; border: none; color: var(--accent-2); font-size: 0.75rem; cursor: pointer; font-family: var(--font); font-weight: 600; padding: 0; }
+    .wk-ex-altbtn:hover { text-decoration: underline; }
+
+    .wk-swap-indicator { display: none; margin-top: var(--space-3); background: rgba(0,224,213,0.1); border: 1px solid rgba(0,224,213,0.3); border-radius: var(--radius-sm); padding: var(--space-3); font-size: 0.8125rem; color: var(--text-2); }
+    .wk-swap-indicator.show { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+    .wk-swap-revert-btn { background: transparent; border: 1px solid var(--border-strong); color: var(--text); padding: 5px 12px; border-radius: var(--radius-sm); font-size: 0.75rem; cursor: pointer; white-space: nowrap; }
+    .wk-swap-revert-btn:hover { border-color: var(--accent); }
+
+    .wk-stuck-nudge { display: none; margin-top: var(--space-3); background: rgba(255,184,48,0.1); border: 1px solid rgba(255,184,48,0.3); border-radius: var(--radius-sm); padding: var(--space-3); font-size: 0.8125rem; color: var(--text-2); align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+    .wk-stuck-nudge.show { display: flex; }
+    .wk-stuck-try-btn { background: var(--surface-3); border: 1px solid var(--warning); color: var(--text); padding: 5px 12px; border-radius: var(--radius-sm); font-size: 0.75rem; cursor: pointer; white-space: nowrap; }
+
+    .wk-alt-picker { display: none; margin-top: var(--space-3); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-4); }
+    .wk-alt-picker.show { display: block; }
+    .wk-alt-picker-title { font-size: 0.8125rem; color: var(--text-2); margin-bottom: var(--space-3); }
+    .wk-alt-options { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+    .wk-alt-option { display: flex; align-items: center; gap: var(--space-3); background: var(--surface-3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-3); cursor: pointer; transition: all 0.2s; flex: 1; min-width: 200px; }
+    .wk-alt-option:hover { border-color: var(--accent); }
+    .wk-alt-option img { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+    .wk-alt-option-name { font-size: 0.875rem; font-weight: 600; color: var(--text); }
+    .wk-alt-empty { color: var(--text-2); font-size: 0.8125rem; }
+    .wk-ex-chat {
+      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2);
+      cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+    }
+    .wk-ex-chat:hover { border-color: var(--accent); color: var(--text); }
+
+    .wk-ex-howto-toggle {
+      background: none; border: none; color: var(--accent-2); font-size: 0.8125rem; cursor: pointer;
+      padding: var(--space-3) 0 0; font-family: var(--font); font-weight: 600;
+    }
+    .wk-ex-howto { display: none; color: var(--text-2); font-size: 0.8125rem; line-height: 1.6; padding-top: var(--space-2); }
+    .wk-ex-howto.show { display: block; }
+    .wk-ex-howto ol { padding-left: 1.2em; }
+    .wk-ex-howto li { margin-bottom: 4px; }
+
+    .wk-ex-history { font-size: 0.8125rem; color: var(--text-2); background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-3); margin-top: var(--space-3); display: none; }
+    .wk-ex-history.show { display: block; }
+    .wk-ex-history-title { font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .wk-ex-history-row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+
+    .wk-progress-suggestion { display: none; margin-top: var(--space-3); background: linear-gradient(135deg, rgba(139,92,255,0.14), rgba(0,224,213,0.14)); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: var(--space-4); }
+    .wk-progress-suggestion.show { display: block; }
+    .wk-progress-suggestion-title { font-weight: 700; color: var(--text); margin-bottom: 4px; font-size: 0.9375rem; }
+    .wk-progress-suggestion-text { color: var(--text-2); font-size: 0.8125rem; line-height: 1.5; margin-bottom: var(--space-3); }
+    .wk-progress-suggestion-btns { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+    .wk-progress-up-btn { background: var(--grad-btn); border: none; color: #fff; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.8125rem; font-weight: 600; cursor: pointer; }
+    .wk-progress-keep-btn { background: transparent; border: 1px solid var(--border); color: var(--text-2); padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.8125rem; cursor: pointer; }
+    .wk-progress-keep-btn:hover { color: var(--text); border-color: var(--border-strong); }
+    .wk-pb-badge { color: var(--warning); }
+
+    .wk-ex-log { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border); }
+    .wk-ex-log-header { display: flex; align-items: center; gap: 6px; margin-bottom: var(--space-3); font-size: 0.8125rem; color: var(--text-2); }
+    .wk-rep-hint { color: var(--text-faint); font-family: var(--font-mono); }
+    .wk-set-rows { display: flex; flex-direction: column; gap: var(--space-2); }
+    .wk-set-row { display: grid; grid-template-columns: 64px 1fr 20px 1fr; align-items: center; gap: var(--space-3); }
+    .wk-set-label { font-family: var(--font-mono); color: var(--text-2); font-size: 0.875rem; }
+    .wk-set-sep { text-align: center; color: var(--text-faint); }
+    .wk-set-input {
+      width: 100%; background: var(--surface-2); border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px 10px; color: var(--text);
+      font-family: var(--font-mono); font-size: 1.0625rem; text-align: center; transition: border-color 0.2s;
+    }
+    .wk-set-input::placeholder { color: var(--text-faint); }
+    .wk-set-input:focus { outline: none; border-color: var(--accent); }
+    .wk-set-status { display: flex; align-items: center; gap: 6px; margin-top: var(--space-3); font-size: 0.8125rem; color: var(--text-2); }
+    .wk-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-skipped); flex-shrink: 0; }
+    .wk-status-dot.done { background: var(--status-done); }
+    .wk-status-dot.partial { background: var(--status-partial); }
+    .wk-save-sets-btn {
+      margin-top: var(--space-3); background: var(--grad-btn); border: none; color: #fff;
+      padding: var(--space-3) var(--space-5); border-radius: var(--radius-sm);
+      font-size: 0.9375rem; font-weight: 600; cursor: pointer; transition: filter 0.2s; width: 100%;
+    }
+    .wk-save-sets-btn:hover { filter: brightness(1.08); }
+    .wk-save-sets-btn.saved { background: var(--surface-3); color: var(--status-done); }
+
+    .wk-machine-prompt { display: none; margin-top: var(--space-3); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-4); }
+    .wk-machine-prompt.show { display: block; }
+    .wk-machine-prompt-text { font-size: 0.8125rem; color: var(--text-2); margin-bottom: var(--space-3); line-height: 1.5; }
+    .wk-machine-prompt-btns { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+    .wk-machine-prompt-btn { background: var(--surface-3); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 0.8125rem; cursor: pointer; transition: all 0.2s; }
+    .wk-machine-prompt-btn:hover { border-color: var(--accent); }
+    .wk-machine-fixed-input { margin-top: var(--space-3); display: none; }
+    .wk-machine-fixed-input.show { display: block; }
+    .wk-machine-fixed-input input {
+      width: 100%; background: var(--surface-3); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: var(--space-3); color: var(--text); font-family: var(--font-mono); font-size: 0.9375rem; margin-bottom: var(--space-2);
+    }
+    .wk-machine-fixed-save { background: var(--grad-btn); border: none; color: #fff; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.8125rem; font-weight: 600; cursor: pointer; }
+    .wk-machine-reminder { margin-top: var(--space-3); background: rgba(255,184,48,0.1); border: 1px solid rgba(255,184,48,0.3); border-radius: var(--radius-sm); padding: var(--space-3); font-size: 0.8125rem; color: var(--text-2); }
+
+    /* Тултипы "?" */
+    .wk-tip-btn {
+      width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0;
+      background: var(--surface-3); border: 1px solid var(--border-strong); color: var(--text-2);
+      font-size: 0.6875rem; font-weight: 700; cursor: pointer; line-height: 1; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .wk-tip-btn:hover { color: var(--text); border-color: var(--accent); }
+    .wk-tip-bubble {
+      max-width: 260px; background: var(--surface-3); border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm); padding: var(--space-3); font-size: 0.8125rem; color: var(--text);
+      line-height: 1.5; box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 1000;
+    }
+
+    /* Редактор шага прогрессии (переиспользует стиль пресетов анкеты) */
+    .wk-progedit-panel { margin-top: var(--space-3); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-4); display: none; }
+    .wk-progedit-panel.show { display: block; }
+
+    @media (max-width: 640px) {
+      .theme-workout { padding: var(--space-5) var(--space-3); }
+      .wk-card { padding: var(--space-5); }
+      .wk-options { grid-template-columns: 1fr 1fr; }
+      .wk-days-row { gap: var(--space-2); }
+      .wk-day-btn { width: 44px; height: 44px; font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="nav-logo-symbol">⚡</span>
+    <span>EnergyDess</span>
+  </a>
+  <div class="nav-right">
+    <a href="/" class="nav-hide-mobile">Главная</a>
+    <a href="/profile">Профиль</a>
+    {% if user.is_admin %}
+    <a href="/admin" class="admin-link">Админ</a>
+    {% endif %}
+    <a href="/logout" class="nav-logout">Выйти</a>
+  </div>
+</nav>
+
+<main class="theme-workout">
+  <div class="bg-blobs"><span></span><span></span><span></span></div>
+
+  <div class="wk-shell">
+    <div class="wk-head">
+      <h1>💪 Программа тренировок</h1>
+      <p>Несколько вопросов — и соберём программу под тебя</p>
+    </div>
+
+    <div class="wk-progress">
+      <div class="wk-progress-track"><div class="wk-progress-bar" id="wkProgressBar" style="width:16.6%"></div></div>
+      <div class="wk-progress-label" id="wkProgressLabel">Шаг 1 из 6</div>
+    </div>
+
+    <div class="wk-card">
+
+      <!-- Шаг 1 — Цель -->
+      <section class="wk-step active" data-step="1">
+        <div class="wk-step-title">Какая цель?</div>
+        <div class="wk-step-sub">Это определит баланс объёма и интенсивности в программе.</div>
+        <div class="wk-options">
+          <div class="wk-option" data-field="goal" data-value="mass">
+            <div class="wk-option-icon">📈</div>
+            <div class="wk-option-label">Масса</div>
+            <div class="wk-option-desc">Набор мышечной массы</div>
+          </div>
+          <div class="wk-option" data-field="goal" data-value="strength">
+            <div class="wk-option-icon">🏋️</div>
+            <div class="wk-option-label">Сила</div>
+            <div class="wk-option-desc">Рост рабочих весов</div>
+          </div>
+          <div class="wk-option" data-field="goal" data-value="lose">
+            <div class="wk-option-icon">🔥</div>
+            <div class="wk-option-label">Похудение</div>
+            <div class="wk-option-desc">Снижение веса тела</div>
+          </div>
+          <div class="wk-option" data-field="goal" data-value="maintain">
+            <div class="wk-option-icon">⚖️</div>
+            <div class="wk-option-label">Поддержание</div>
+            <div class="wk-option-desc">Сохранить форму</div>
+          </div>
+          <div class="wk-option" data-field="goal" data-value="recomp">
+            <div class="wk-option-icon">🔄</div>
+            <div class="wk-option-label">Рекомпозиция</div>
+            <div class="wk-option-desc">Масса + жиросжигание · важен Дневник питания</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Шаг 2 — Зоны упора (двухступенчато: сначала да/нет, потом чек-лист до 2 зон) -->
+      <section class="wk-step" data-step="2">
+        <div class="wk-step-title">Есть зоны, которые хочешь подтянуть? <button type="button" class="wk-tip-btn" data-tip="Выбери только то, что реально отстаёт. Если хочешь развиваться равномерно — пропусти этот шаг.">?</button></div>
+        <div class="wk-step-sub">Если хочешь развить всё тело равномерно — базовая программа уже покрывает все группы мышц.</div>
+        <div class="wk-options" id="wkFocusChoice">
+          <div class="wk-option" data-choice="yes">
+            <div class="wk-option-icon">🎯</div>
+            <div class="wk-option-label">Да, есть отстающие</div>
+          </div>
+          <div class="wk-option" data-choice="no">
+            <div class="wk-option-icon">⚖️</div>
+            <div class="wk-option-label">Нет, хочу развиваться равномерно</div>
+          </div>
+        </div>
+        <div id="wkFocusZonesWrap" style="display:none">
+          <div class="wk-step-sub">Выбери зоны, которые отстают, не более двух.</div>
+          <div class="wk-pain-grid">
+            <div class="wk-pain-item wk-focus-item" data-field="focus_zones" data-value="arms">
+              <div class="wk-pain-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
+              <div class="wk-pain-label">Руки</div>
+            </div>
+            <div class="wk-pain-item wk-focus-item" data-field="focus_zones" data-value="shoulders">
+              <div class="wk-pain-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
+              <div class="wk-pain-label">Плечи</div>
+            </div>
+            <div class="wk-pain-item wk-focus-item" data-field="focus_zones" data-value="chest">
+              <div class="wk-pain-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
+              <div class="wk-pain-label">Грудь</div>
+            </div>
+            <div class="wk-pain-item wk-focus-item" data-field="focus_zones" data-value="back">
+              <div class="wk-pain-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
+              <div class="wk-pain-label">Спина</div>
+            </div>
+            <div class="wk-pain-item wk-focus-item" data-field="focus_zones" data-value="legs">
+              <div class="wk-pain-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
+              <div class="wk-pain-label">Ноги</div>
+            </div>
+            <div class="wk-pain-item wk-focus-item" data-field="focus_zones" data-value="abs">
+              <div class="wk-pain-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
+              <div class="wk-pain-label">Пресс</div>
+            </div>
+            <div class="wk-pain-item wk-focus-item" data-field="focus_zones" data-value="glutes">
+              <div class="wk-pain-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
+              <div class="wk-pain-label">Ягодицы</div>
+            </div>
+          </div>
+          <div class="wk-focus-warn" id="wkFocusWarn">Выбери не более 2 приоритетных зон, иначе упор размывается.</div>
+        </div>
+      </section>
+
+      <!-- Шаг 3 — Частота -->
+      <section class="wk-step" data-step="3">
+        <div class="wk-step-title">Сколько дней в неделю?</div>
+        <div class="wk-step-sub">От этого зависит структура программы.</div>
+        <div class="wk-days-row" id="wkDaysRow">
+          {% for d in range(1, 7) %}
+          <div class="wk-day-btn" data-field="days_per_week" data-value="{{ d }}">{{ d }}</div>
+          {% endfor %}
+        </div>
+        <div class="wk-structure-hint" id="wkStructureHint">Выбери количество дней</div>
+      </section>
+
+      <!-- Шаг 4 — Стаж -->
+      <section class="wk-step" data-step="4">
+        <div class="wk-step-title">Какой стаж тренировок?</div>
+        <div class="wk-step-sub">Поможет выбрать подходящую нагрузку и технику упражнений.</div>
+        <div class="wk-options">
+          <div class="wk-option" data-field="level" data-value="beginner">
+            <div class="wk-option-icon">🌱</div>
+            <div class="wk-option-label">Новичок</div>
+            <div class="wk-option-desc">До 1 года</div>
+          </div>
+          <div class="wk-option" data-field="level" data-value="intermediate">
+            <div class="wk-option-icon">💪</div>
+            <div class="wk-option-label">Средний</div>
+            <div class="wk-option-desc">1–3 года</div>
+          </div>
+          <div class="wk-option" data-field="level" data-value="expert">
+            <div class="wk-option-icon">🏆</div>
+            <div class="wk-option-label">Опытный</div>
+            <div class="wk-option-desc">3+ года</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Шаг 5 — Ограничения -->
+      <section class="wk-step" data-step="5">
+        <div class="wk-step-title">Есть ограничения или боли?</div>
+        <div class="wk-step-sub">Отметь зоны, если есть — мы исключим упражнения, которые их нагружают. Если ничего не беспокоит, просто переходи дальше.</div>
+        <div class="wk-pain-grid">
+          <div class="wk-pain-item" data-field="pain_zones" data-value="knee">
+            <div class="wk-pain-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
+            <div class="wk-pain-label">Колено</div>
+          </div>
+          <div class="wk-pain-item" data-field="pain_zones" data-value="lower_back">
+            <div class="wk-pain-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
+            <div class="wk-pain-label">Поясница</div>
+          </div>
+          <div class="wk-pain-item" data-field="pain_zones" data-value="shoulder">
+            <div class="wk-pain-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
+            <div class="wk-pain-label">Плечо</div>
+          </div>
+          <div class="wk-pain-item" data-field="pain_zones" data-value="elbow">
+            <div class="wk-pain-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
+            <div class="wk-pain-label">Локоть</div>
+          </div>
+          <div class="wk-pain-item" data-field="pain_zones" data-value="neck">
+            <div class="wk-pain-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
+            <div class="wk-pain-label">Шея</div>
+          </div>
+        </div>
+        <div class="wk-disclaimer">
+          <span class="ico">⚠️</span>
+          <span>Это фитнес-помощник, а не медицинский сервис. При реальной травме или боли — обратись к врачу; здесь нет лечебных предписаний, только исключение нагружающих упражнений.</span>
+        </div>
+      </section>
+
+      <!-- Шаг 6 — Мой зал -->
+      <section class="wk-step" data-step="6">
+        <div class="wk-step-title">Мой зал</div>
+        <div class="wk-step-sub">Отметь, какое оборудование у тебя есть. Не нашёл нужный тренажёр — позже можно скинуть фото в чат ассистенту.</div>
+        <div class="wk-eq-toolbar">
+          <span class="wk-eq-count" id="wkEqCount">Отмечено: 0</span>
+          <button class="wk-home-btn" id="wkHomeBtn" type="button">🏠 Дом без инвентаря</button>
+        </div>
+        <div class="wk-eq-grid" id="wkEqGrid">
+          {% for item in equipment_options %}
+          <div class="wk-eq-card" data-value="{{ item.label }}">
+            <div class="wk-eq-img-wrap"><img src="/static/exercises/{{ item.image }}" alt="{{ item.name_ru }}" loading="lazy"></div>
+            <div class="wk-eq-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
+            <div class="wk-eq-names">
+              <div class="wk-eq-name-ru">{{ item.name_ru }}</div>
+              <div class="wk-eq-name-en">{{ item.name_en }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- Готово -->
+      <section class="wk-step" data-step="done">
+        <div class="wk-done-panel">
+          <div class="ico">✅</div>
+          <h2>Профиль сохранён</h2>
+          <p id="wkDoneSub">Собираем программу под тебя…</p>
+          <div class="wk-done-actions">
+            <button type="button" class="wk-general-chat-btn" id="wkGeneralChatBtn">💬 Спросить ассистента</button>
+            <button type="button" class="wk-settings-btn" id="wkSettingsBtn" title="Профиль">👤 Профиль</button>
+          </div>
+        </div>
+        <div class="wk-nutrition-box" id="wkNutritionBox" style="display:none">
+          <div class="wk-nutrition-row">
+            <span class="wk-nutrition-label">Белок сегодня</span>
+            <span class="wk-nutrition-value"><strong id="wkProteinEaten">0</strong> г из <strong id="wkProteinTarget">0</strong> г нужных</span>
+          </div>
+          <div class="wk-nutrition-bar"><div class="wk-nutrition-bar-fill" id="wkProteinBarFill"></div></div>
+          <div class="wk-nutrition-hint" id="wkNutritionHint"></div>
+          <div class="wk-nutrition-warning" id="wkNutritionWarning" style="display:none"></div>
+        </div>
+        <div class="wk-weight-chart-box" id="wkWeightChartBox" style="display:none">
+          <div class="wk-weight-chart-title">Вес тела</div>
+          <svg class="wk-weight-svg" id="wkWeightSvg"></svg>
+        </div>
+        <div id="wkProgramContainer"></div>
+      </section>
+
+      <div class="wk-nav" id="wkNav">
+        <button class="wk-btn wk-btn-ghost" id="wkBack">← Назад</button>
+        <button class="wk-btn wk-btn-primary" id="wkNext" disabled>Далее →</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="wk-chart-tooltip" id="wkChartTooltip"></div>
+
+<div class="wk-settings-overlay" id="wkSettingsOverlay">
+  <div class="wk-settings-panel">
+    <div class="wk-settings-header">
+      <div class="wk-settings-title">Профиль</div>
+      <button type="button" class="wk-settings-close" id="wkSettingsClose">×</button>
+    </div>
+
+    <div class="wk-profile-sec">
+      <label class="wk-settings-toggle-row">
+        <input type="checkbox" id="wkUseNutritionToggle" checked>
+        <span>Учитывать данные питания</span>
+      </label>
+      <div class="wk-settings-toggle-hint">Норма белка на сегодня и предупреждение о большом дефиците калорий — на основе Дневника питания. Если ты не ведёшь его активно, выключи: подсказки без актуальных данных будут только мешать.</div>
+    </div>
+
+    <div class="wk-profile-sec">
+      <div class="wk-profile-sec-title">Состав тела</div>
+      <div id="wkScaleDisconnected">
+        <p class="wk-profile-hint">Подключи весы Mi Body Composition Scale через аккаунт Zepp Life — вес и состав тела будут подтягиваться автоматически (раз в день). Это неофициальная интеграция: если Zepp Life изменит API, синхронизация может прерваться — тогда просто продолжай вводить вес вручную, ничего не сломается.</p>
+        <input type="text" class="wk-profile-input" id="wkScaleUsername" placeholder="email или телефон Zepp Life">
+        <input type="password" class="wk-profile-input" id="wkScalePassword" placeholder="пароль">
+        <button type="button" class="wk-profile-btn" id="wkScaleConnectBtn">Подключить весы Xiaomi</button>
+        <div class="wk-profile-msg" id="wkScaleConnectMsg"></div>
+      </div>
+      <div id="wkScaleConnected" style="display:none">
+        <div class="wk-bodycomp-grid" id="wkBodyCompGrid"></div>
+        <p class="wk-profile-hint" id="wkScaleLastSync"></p>
+        <div class="wk-profile-actions">
+          <button type="button" class="wk-profile-btn-sm" id="wkScaleSyncBtn">↻ Обновить сейчас</button>
+          <button type="button" class="wk-profile-btn-sm wk-profile-btn-danger" id="wkScaleDisconnectBtn">Отключить</button>
+        </div>
+        <div class="wk-profile-msg" id="wkScaleSyncMsg"></div>
+      </div>
+    </div>
+
+    <div class="wk-profile-sec">
+      <div class="wk-profile-sec-title">Прогресс тела</div>
+      <p class="wk-profile-hint">Визуальный дневник прогресса. Для точного анализа состава тела используй умные весы или обратись к специалисту.</p>
+      <div class="wk-photo-slots">
+        <input type="file" accept="image/*" id="wkPhotoFront" style="display:none">
+        <div class="wk-photo-slot" id="wkSlotFront">+ Спереди</div>
+        <input type="file" accept="image/*" id="wkPhotoSide" style="display:none">
+        <div class="wk-photo-slot" id="wkSlotSide">+ Сбоку</div>
+        <input type="file" accept="image/*" id="wkPhotoBack" style="display:none">
+        <div class="wk-photo-slot" id="wkSlotBack">+ Сзади</div>
+      </div>
+      <button type="button" class="wk-profile-btn" id="wkUploadPhotosBtn">Сохранить фото за сегодня</button>
+      <div class="wk-profile-msg" id="wkPhotoMsg"></div>
+
+      <div class="wk-profile-sec-title wk-photo-compare-title">Сравнение по датам</div>
+      <div class="wk-photo-compare-selects">
+        <select class="wk-profile-input" id="wkCompareDateOld"></select>
+        <span>→</span>
+        <select class="wk-profile-input" id="wkCompareDateNew"></select>
+      </div>
+      <div class="wk-photo-compare-view" id="wkCompareView"></div>
+    </div>
+  </div>
+</div>
+
+<div class="wk-chat-overlay" id="wkChatOverlay">
+  <div class="wk-chat-panel">
+    <div class="wk-chat-header">
+      <div>
+        <div class="wk-chat-title">💬 Ассистент</div>
+        <div class="wk-chat-subtitle" id="wkChatSubtitle"></div>
+      </div>
+      <button type="button" class="wk-chat-close" id="wkChatClose">×</button>
+    </div>
+    <div class="wk-chat-messages" id="wkChatMessages"></div>
+    <div class="wk-chat-input-row">
+      <button type="button" class="wk-chat-photo-btn" id="wkChatPhotoBtn" title="Прикрепить фото тренажёра">📷</button>
+      <input type="file" id="wkChatPhotoInput" accept="image/*" style="display:none">
+      <input type="text" class="wk-chat-input" id="wkChatInput" placeholder="Спроси что-нибудь о тренировке…">
+      <button type="button" class="wk-chat-send" id="wkChatSend">→</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var state = {
+    goal: null,
+    focus_zones: [],
+    days_per_week: null,
+    level: null,
+    pain_zones: [],
+    equipment: [],
+    home_only: false,
+  };
+  var step = 1;
+  var TOTAL = 6;
+  var focusChoice = null; // 'yes' | 'no' — локальный выбор шага 2, на сервер не уходит напрямую
+  var FOCUS_MAX = 2;
+  var originalExerciseData = {}; // program_exercise_id -> исходные данные карточки (для возврата после замены)
+
+  var STRUCTURE_LABEL = {
+    full_body: 'Фулл-боди',
+    upper_lower: 'Верх/низ',
+    push_pull_legs: 'Push/Pull/Legs',
+  };
+  var MUSCLE_RU = {
+    abdominals: 'пресс', hamstrings: 'бицепс бедра', adductors: 'приводящие',
+    quadriceps: 'квадрицепс', biceps: 'бицепс', shoulders: 'плечи', chest: 'грудь',
+    'middle back': 'середина спины', calves: 'икры', glutes: 'ягодицы',
+    'lower back': 'поясница', lats: 'широчайшие', triceps: 'трицепс',
+    traps: 'трапеции', forearms: 'предплечья', neck: 'шея', abductors: 'отводящие',
+  };
+
+  var structureByDays = {
+    1: 'Фулл-боди — одна тренировка на всё тело.',
+    2: 'Фулл-боди — 2 тренировки на всё тело в неделю.',
+    3: 'Фулл-боди — 3 тренировки на всё тело в неделю.',
+    4: 'Верх/низ — 2 дня на верх тела, 2 дня на низ.',
+    5: 'Сплит push/pull/legs — толкающие, тянущие, ноги.',
+    6: 'Сплит push/pull/legs — по 2 круга в неделю.',
+  };
+
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+
+  function showStep(n) {
+    $all('.wk-step').forEach(function (el) { el.classList.remove('active'); });
+    $('.wk-step[data-step="' + n + '"]').classList.add('active');
+    var pct = n === 'done' ? 100 : (n / TOTAL) * 100;
+    $('#wkProgressBar').style.width = pct + '%';
+    $('#wkProgressLabel').textContent = n === 'done' ? 'Готово' : 'Шаг ' + n + ' из ' + TOTAL;
+    var nav = $('#wkNav');
+    if (n === 'done') { nav.style.display = 'none'; return; }
+    nav.style.display = 'flex';
+    $('#wkBack').disabled = (n === 1);
+    $('#wkNext').textContent = (n === TOTAL) ? 'Готово ✓' : 'Далее →';
+    updateNextEnabled();
+  }
+
+  function isStepValid(n) {
+    if (n === 1) return !!state.goal;
+    if (n === 2) return focusChoice === 'no' || (focusChoice === 'yes' && state.focus_zones.length >= 1);
+    if (n === 3) return !!state.days_per_week;
+    if (n === 4) return !!state.level;
+    if (n === 5) return true;
+    if (n === 6) return true;
+    return false;
+  }
+  function updateNextEnabled() { $('#wkNext').disabled = !isStepValid(step); }
+
+  // Шаг 1 / 4 — карточки одиночного выбора
+  $all('.wk-option').forEach(function (el) {
+    if (el.dataset.choice) return; // переключатель "есть отстающие?" — отдельный обработчик ниже
+    el.addEventListener('click', function () {
+      var field = el.dataset.field, value = el.dataset.value;
+      $all('.wk-option[data-field="' + field + '"]').forEach(function (o) { o.classList.remove('selected'); });
+      el.classList.add('selected');
+      state[field] = value;
+      updateNextEnabled();
+    });
+  });
+
+  // Шаг 2 — "есть отстающие зоны?" да/нет, затем чек-лист максимум на 2 зоны
+  $all('#wkFocusChoice .wk-option').forEach(function (el) {
+    el.addEventListener('click', function () {
+      $all('#wkFocusChoice .wk-option').forEach(function (o) { o.classList.remove('selected'); });
+      el.classList.add('selected');
+      focusChoice = el.dataset.choice;
+      if (focusChoice === 'no') {
+        state.focus_zones = [];
+        $all('.wk-focus-item.selected').forEach(function (o) { o.classList.remove('selected'); });
+        $('#wkFocusZonesWrap').style.display = 'none';
+        $('#wkFocusWarn').classList.remove('show');
+      } else {
+        $('#wkFocusZonesWrap').style.display = '';
+      }
+      updateNextEnabled();
+    });
+  });
+
+  // Шаг 2 — частота
+  $all('.wk-day-btn').forEach(function (el) {
+    el.addEventListener('click', function () {
+      $all('.wk-day-btn').forEach(function (o) { o.classList.remove('selected'); });
+      el.classList.add('selected');
+      var d = parseInt(el.dataset.value, 10);
+      state.days_per_week = d;
+      $('#wkStructureHint').innerHTML = structureByDays[d].replace(/^([^—]+—)/, '<strong>$1</strong>');
+      updateNextEnabled();
+    });
+  });
+
+  // Шаг 2 — зоны упора (максимум 2), шаг 5 — зоны боли (без лимита). Оба
+  // мультивыбор, разные поля state, лимит включается только для focus_zones.
+  $all('.wk-pain-item').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var field = el.dataset.field;
+      var value = el.dataset.value;
+      var list = state[field];
+      var idx = list.indexOf(value);
+      if (idx !== -1) {
+        list.splice(idx, 1);
+        el.classList.remove('selected');
+        $('#wkFocusWarn').classList.remove('show');
+      } else if (field === 'focus_zones' && list.length >= FOCUS_MAX) {
+        $('#wkFocusWarn').classList.add('show');
+        return;
+      } else {
+        list.push(value);
+        el.classList.add('selected');
+      }
+      updateNextEnabled();
+    });
+  });
+
+  // Шаг 6 — Мой зал
+  function updateEqCount() {
+    $('#wkEqCount').textContent = 'Отмечено: ' + state.equipment.length;
+  }
+  $all('.wk-eq-card').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var value = el.dataset.value;
+      var idx = state.equipment.indexOf(value);
+      if (idx === -1) {
+        state.equipment.push(value);
+        el.classList.add('selected');
+        if (state.home_only) { state.home_only = false; $('#wkHomeBtn').classList.remove('active'); }
+      } else {
+        state.equipment.splice(idx, 1);
+        el.classList.remove('selected');
+      }
+      updateEqCount();
+    });
+  });
+  $('#wkHomeBtn').addEventListener('click', function () {
+    state.home_only = true;
+    state.equipment = [];
+    $all('.wk-eq-card.selected').forEach(function (o) { o.classList.remove('selected'); });
+    $('#wkHomeBtn').classList.add('active');
+    updateEqCount();
+  });
+
+  // Навигация
+  $('#wkBack').addEventListener('click', function () {
+    if (step > 1) { step -= 1; showStep(step); }
+  });
+  $('#wkNext').addEventListener('click', function () {
+    if (!isStepValid(step)) return;
+    if (step < TOTAL) { step += 1; showStep(step); return; }
+    saveProfile();
+  });
+
+  function saveProfile() {
+    $('#wkNext').disabled = true;
+    $('#wkNext').textContent = 'Сохраняем…';
+    fetch('/workout/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          showStep('done');
+          $('#wkDoneSub').textContent = 'Собираем программу под тебя…';
+          generateProgram();
+        } else {
+          alert(data.error || 'Не удалось сохранить профиль');
+          $('#wkNext').disabled = false;
+          $('#wkNext').textContent = 'Готово ✓';
+        }
+      })
+      .catch(function () {
+        alert('Ошибка сети, попробуй ещё раз');
+        $('#wkNext').disabled = false;
+        $('#wkNext').textContent = 'Готово ✓';
+      });
+  }
+
+  // ── Программа тренировок ──
+  // ── Тултипы "?" — простым языком, без терминов ──
+  var TIPS = {
+    rep_range: 'Начинай с минимума с комфортным весом. Когда сможешь сделать максимум во всех подходах — в следующий раз добавь вес и вернись к минимуму. Так растёт сила.',
+    progression: 'На сколько кг увеличивать вес, когда текущий станет лёгким. Система подберёт автоматически под твоё оборудование.',
+    focus_zones: 'Выбери только то, что реально отстаёт. Если хочешь развиваться равномерно — пропусти этот шаг.',
+    set_status: 'Не переживай, если не осилил — это просто данные. Система учитывает реальные результаты и не сбрасывает прогресс.',
+    cooldown: 'Лёгкое завершение тренировки. Помогает плавно снизить пульс и уменьшить крепатуру на следующий день.',
+    chat: 'Чат с ассистентом появится на следующем этапе.',
+    light_day: 'Отметь, если сегодня тренировался через силу или вполовину обычной нагрузки. Такой день не учитывается при расчёте прибавки веса — система не подумает, что ты ослаб.',
+    alternative: 'Оба упражнения работают на одни мышцы — выбирай что удобнее сегодня.',
+  };
+  function tipBtn(key) {
+    return '<button type="button" class="wk-tip-btn" data-tip="' + TIPS[key] + '">?</button>';
+  }
+  var activeTipBtn = null;
+  function closeTip() {
+    var b = document.getElementById('wkTipBubble');
+    if (b) b.remove();
+    activeTipBtn = null;
+  }
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.wk-tip-btn');
+    if (btn) {
+      e.stopPropagation();
+      if (activeTipBtn === btn) { closeTip(); return; }
+      closeTip();
+      var bubble = document.createElement('div');
+      bubble.id = 'wkTipBubble';
+      bubble.className = 'wk-tip-bubble';
+      bubble.style.position = 'fixed';
+      bubble.textContent = btn.dataset.tip;
+      document.body.appendChild(bubble);
+      var rect = btn.getBoundingClientRect();
+      bubble.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 276)) + 'px';
+      bubble.style.top = (rect.bottom + 6) + 'px';
+      activeTipBtn = btn;
+    } else if (!e.target.closest('.wk-tip-bubble')) {
+      closeTip();
+    }
+  });
+
+  var EQUIPMENT_RU = {
+    barbell: 'штанга', 'e-z curl bar': 'EZ-гриф', dumbbell: 'гантели', kettlebells: 'гири',
+    machine: 'тренажёр', cable: 'тренажёр',
+  };
+  var SKIP_REASON_LABELS = { tired: 'Устал', no_time: 'Нет времени', sick: 'Болею', gym_closed: 'Зал закрыт' };
+
+  function muscleList(list) {
+    return (list || []).map(function (m) { return MUSCLE_RU[m] || m; }).join(', ');
+  }
+
+  function exHeaderHTML(d) {
+    var img = d.image ? '/static/exercises/' + d.image : '';
+    var warmupBadge = d.needs_warmup ? ' <span class="wk-warmup-badge" title="Нужна специфическая разминка">🔧</span>' : '';
+    var primary = muscleList(d.primary_muscles);
+    var secondary = muscleList(d.secondary_muscles);
+    var muscleLine = 'Целевые мышцы: ' + primary + (secondary ? ' <span class="dim">(+ ' + secondary + ')</span>' : '');
+    var p = d.progression;
+    var progLine;
+    if (p.kind === 'reps') {
+      progLine = 'Прогрессия: по повторам / сложнее вариация';
+    } else if (p.status === 'custom_fixed' && p.fixed_values && p.fixed_values.length) {
+      progLine = 'Прогрессия: шкала тренажёра (' + p.fixed_values.join(', ') + ' кг)';
+    } else {
+      var eqLabel = EQUIPMENT_RU[d.equipment] || d.equipment || '';
+      progLine = 'Прогрессия: +' + p.step_kg + ' кг (' + eqLabel + ')';
+    }
+    var howtoSteps = (d.instructions_ru || []).map(function (s) { return '<li>' + s + '</li>'; }).join('');
+    var reminderBanner = p.status === 'pending_at_gym'
+      ? '<div class="wk-machine-reminder">📍 Напоминание: ты собирался уточнить шкалу этого тренажёра, когда будешь в зале — нажми «изменить» рядом с прогрессией, если сейчас удобно.</div>'
+      : '';
+    return '<div class="wk-ex-head">' +
+        '<div class="wk-ex-img">' + (img ? '<img src="' + img + '" loading="lazy">' : '') + '</div>' +
+        '<div class="wk-ex-headinfo">' +
+          '<div class="wk-ex-name">' + d.name_ru + warmupBadge + '</div>' +
+          '<div class="wk-ex-muscles">' + muscleLine + '</div>' +
+          '<div class="wk-ex-progression"><span class="wk-prog-text">' + progLine + '</span>' +
+            (p.kind === 'weight' ? '<button type="button" class="wk-ex-progbtn">изменить</button>' + tipBtn('progression') : '') +
+          '</div>' +
+          '<div class="wk-ex-alt-row"><button type="button" class="wk-ex-altbtn">↔ или замени на альтернативу</button>' + tipBtn('alternative') +
+            (p.kind === 'weight' ? '<button type="button" class="wk-ex-chartbtn">📈 График прогресса</button>' : '') +
+          '</div>' +
+        '</div>' +
+        '<button type="button" class="wk-ex-chat" data-ex-name="' + d.name_ru + '" title="Спросить ассистента">💬</button>' +
+      '</div>' +
+      reminderBanner +
+      '<div class="wk-progedit-panel"></div>' +
+      (howtoSteps ? '<button type="button" class="wk-ex-howto-toggle">Как выполнять ▾</button><div class="wk-ex-howto"><ol>' + howtoSteps + '</ol></div>' : '') +
+      '<div class="wk-swap-indicator"></div>' +
+      '<div class="wk-stuck-nudge"></div>' +
+      '<div class="wk-alt-picker"></div>' +
+      '<div class="wk-progress-chart-panel"></div>';
+  }
+
+  function applyCardDisplay(card, d) {
+    card.dataset.exerciseId = d.exercise_id;
+    card.dataset.equipment = d.equipment || '';
+    card.dataset.cluster = d.equipment_cluster || '';
+    card.dataset.progStatus = d.progression.status || '';
+    card.dataset.progKind = d.progression.kind;
+    $('.wk-ex-swappable', card).innerHTML = exHeaderHTML(d);
+    wireSwappableInteractions(card);
+  }
+
+  function returnNoticeHTML(ex) {
+    if (!ex.return_notice) return '';
+    var key = 'wk_return_notice_dismissed_' + ex.program_exercise_id;
+    if (localStorage.getItem(key)) return '';
+    var weightText = ex.return_notice.suggested_weight
+      ? 'начни примерно с <strong>' + ex.return_notice.suggested_weight + ' кг</strong> (заметно меньше прежнего рабочего)'
+      : 'начни с заметно сниженной нагрузки';
+    return '<div class="wk-return-notice" data-pe-id="' + ex.program_exercise_id + '">' +
+      '<button type="button" class="wk-return-notice-close">×</button>' +
+      '<div><strong>Возвращаешь это упражнение после ограничения «' + ex.return_notice.zone + '».</strong> ' + weightText +
+      ' и подними обратно за 2–3 тренировки, а не сразу. Следи за зоной на первых подходах — если боль вернётся, сразу стоп и снова сообщи об этом ассистенту.</div>' +
+    '</div>';
+  }
+
+  function exCard(ex, dayId) {
+    originalExerciseData[ex.program_exercise_id] = ex;
+    var setRows = '';
+    for (var i = 0; i < ex.sets; i++) {
+      setRows += '<div class="wk-set-row" data-set-index="' + i + '">' +
+        '<div class="wk-set-label">Подход ' + (i + 1) + '</div>' +
+        '<input type="number" inputmode="numeric" class="wk-set-input wk-set-reps" placeholder="повторы">' +
+        '<div class="wk-set-sep">×</div>' +
+        '<input type="number" inputmode="decimal" class="wk-set-input wk-set-weight" placeholder="кг">' +
+        '</div>';
+    }
+    var p = ex.progression;
+
+    return '<div class="wk-ex-card" data-exercise-id="' + ex.exercise_id + '" data-day-id="' + dayId + '" ' +
+      'data-program-exercise-id="' + ex.program_exercise_id + '" ' +
+      'data-sets="' + ex.sets + '" data-equipment="' + (ex.equipment || '') + '" ' +
+      'data-cluster="' + (ex.equipment_cluster || '') + '" data-prog-status="' + (p.status || '') + '" data-prog-kind="' + p.kind + '">' +
+      '<div class="wk-ex-swappable">' + exHeaderHTML(ex) + '</div>' +
+      '<div class="wk-ex-history"></div>' +
+      returnNoticeHTML(ex) +
+      '<div class="wk-progress-suggestion"></div>' +
+      '<div class="wk-ex-log">' +
+        '<div class="wk-ex-log-header">Подходы — повторы и вес <span class="wk-rep-hint">ориентир ' + ex.rep_low + '–' + ex.rep_high + '</span>' + tipBtn('rep_range') + '</div>' +
+        '<div class="wk-set-rows">' + setRows + '</div>' +
+        '<div class="wk-set-status"><span class="wk-status-dot"></span><span class="wk-status-text">не сделано</span>' + tipBtn('set_status') + '</div>' +
+        '<button type="button" class="wk-save-sets-btn">Записать подход</button>' +
+      '</div>' +
+      '<div class="wk-machine-prompt"></div>' +
+    '</div>';
+  }
+
+  function renderProgram(prog) {
+    var box = $('#wkProgramContainer');
+    var meso = prog.mesocycle || { week: 1, length: 10, due: false };
+    $('#wkDoneSub').innerHTML = 'Структура: <strong style="color:var(--accent-2)">' +
+      (STRUCTURE_LABEL[prog.structure] || prog.structure) + '</strong>, ' + prog.days_per_week + ' дней в неделю' +
+      ' · <span style="color:var(--text-2)">неделя ' + meso.week + ' из ' + meso.length + '</span>';
+    var html = '';
+    if (meso.due) {
+      html += '<div class="wk-mesocycle-banner">' +
+        '<div class="wk-mesocycle-text"><strong>Время обновить программу.</strong> Прошло ' + meso.length + ' недель — заменим 1–2 упражнения на свежие варианты и слегка скорректируем диапазоны, без полной пересборки.</div>' +
+        '<button type="button" class="wk-mesocycle-btn" id="wkRefreshBtn">Обновить программу</button>' +
+      '</div>';
+    }
+    var calibKey = 'wk_calibration_dismissed_' + prog.id;
+    if (!localStorage.getItem(calibKey)) {
+      html += '<div class="wk-calibration-banner" id="wkCalibBanner">' +
+        '<button type="button" class="wk-calibration-close" id="wkCalibClose">×</button>' +
+        '<div><strong>Первая тренировка — это калибровка.</strong> Веса в полях ориентировочные, меняй на те, что реально можешь сделать с правильной техникой. Прогрессия начнётся от твоих реальных данных.</div>' +
+      '</div>';
+    }
+    if ((prog.pain_zones || []).length) {
+      html += '<div class="wk-painzones-row"><span class="wk-painzones-label">Активные ограничения:</span>' +
+        prog.pain_zones.map(function (pz) {
+          return '<span class="wk-painzone-chip">' + pz.label +
+            '<button type="button" class="wk-painzone-clear" data-zone="' + pz.zone + '" data-label="' + pz.label + '">зона прошла?</button></span>';
+        }).join('') +
+      '</div>';
+    }
+    html += '<div class="wk-warmup-card">' +
+      '<div class="wk-warmup-title">🔥 Разминка перед каждой тренировкой</div>' +
+      '<div class="wk-warmup-text">5–7 минут динамической суставной гимнастики сверху вниз: шея, плечи, локти, запястья, бёдра, колени, голени. Только динамические движения — без статической растяжки ≥60 секунд перед силовой, она снижает максимальную силу.</div>' +
+      '<div class="wk-warmup-text wk-warmup-specific">Перед упражнениями со значком 🔧 — добавь 1–2 разминочных подхода с пустым грифом или 40–50% от рабочего веса.</div>' +
+      '</div>';
+
+    prog.days.forEach(function (day) {
+      var core = day.exercises.filter(function (ex) { return !ex.is_bonus; });
+      var bonus = day.exercises.filter(function (ex) { return ex.is_bonus; });
+      var muscles = [];
+      day.exercises.forEach(function (ex) {
+        (ex.primary_muscles || []).forEach(function (m) {
+          var ru = MUSCLE_RU[m] || m;
+          if (muscles.indexOf(ru) === -1) muscles.push(ru);
+        });
+      });
+
+      html += '<div class="wk-prog-day" data-day-id="' + day.id + '">' +
+        '<div class="wk-day-header">' +
+          '<div class="wk-prog-day-title">' + day.label + '</div>' +
+          '<div class="wk-day-actions">' +
+            '<label class="wk-light-toggle"><input type="checkbox" class="wk-light-checkbox">Лёгкий день' + tipBtn('light_day') + '</label>' +
+            '<button type="button" class="wk-complete-btn">Завершить тренировку</button>' +
+            '<button type="button" class="wk-skip-btn">Не смог сегодня</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="wk-skip-panel">' +
+          '<div class="wk-skip-panel-title">Что случилось? Это нормально — прогресс не сбрасывается.</div>' +
+          '<div class="wk-skip-reasons">' +
+            Object.keys(SKIP_REASON_LABELS).map(function (k) {
+              return '<button type="button" class="wk-skip-reason-btn" data-reason="' + k + '">' + SKIP_REASON_LABELS[k] + '</button>';
+            }).join('') +
+          '</div>' +
+          '<div class="wk-skip-note">Записано. Увидимся в следующий раз 👍</div>' +
+        '</div>';
+      core.forEach(function (ex) { html += exCard(ex, day.id); });
+      if (bonus.length) {
+        html += '<div class="wk-bonus-section"><div class="wk-bonus-title">Если останутся силы</div>';
+        bonus.forEach(function (ex) { html += exCard(ex, day.id); });
+        html += '</div>';
+      }
+      html += '<div class="wk-cooldown"><span class="wk-cooldown-ico">🧊</span> Заминка: 5 минут лёгкого кардио + статическая растяжка 20–30 с на проработанные группы' +
+        (muscles.length ? ' (' + muscles.join(', ') + ')' : '') + tipBtn('cooldown') +
+        '</div>';
+      html += '</div>';
+    });
+    html += '<button class="wk-regen-btn" id="wkRegenBtn" type="button">↻ Сгенерировать заново</button>';
+    box.innerHTML = html;
+
+    var calibClose = $('#wkCalibClose');
+    if (calibClose) {
+      calibClose.addEventListener('click', function () {
+        localStorage.setItem(calibKey, '1');
+        $('#wkCalibBanner').remove();
+      });
+    }
+    $('#wkRegenBtn').addEventListener('click', function () {
+      $('#wkDoneSub').textContent = 'Генерируем программу заново…';
+      generateProgram();
+    });
+    $all('.wk-painzone-clear', box).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        openWorkoutChat(null, null, 'у меня больше не болит ' + btn.dataset.label.toLowerCase() + ', хочу снять это ограничение');
+      });
+    });
+    var refreshBtn = $('#wkRefreshBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', function () {
+        refreshBtn.textContent = 'Обновляем…';
+        refreshBtn.disabled = true;
+        fetch('/workout/api/refresh-program', { method: 'POST' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.error) { alert(data.error); return; }
+            renderProgram(data);
+          });
+      });
+    }
+
+    wireDayInteractions();
+    prog.days.forEach(function (day) { loadDayState(day.id); });
+  }
+
+  function computeStatus(card) {
+    // Статус считаем по повторам — это факт выполнения подхода. Один вес
+    // без повторов (например сразу после "Поднять до X кг", пока человек
+    // ещё не отработал подход) не должен засчитываться как "сделано".
+    var rows = $all('.wk-set-row', card);
+    var filled = 0;
+    rows.forEach(function (r) {
+      if ($('.wk-set-reps', r).value !== '') filled++;
+    });
+    if (filled === 0) return 'not_done';
+    if (filled === rows.length) return 'done';
+    return 'partial';
+  }
+  function updateStatusUI(card) {
+    var status = computeStatus(card);
+    var dot = $('.wk-status-dot', card);
+    var text = $('.wk-status-text', card);
+    dot.classList.remove('done', 'partial');
+    if (status === 'done') { dot.classList.add('done'); text.textContent = 'сделано'; }
+    else if (status === 'partial') { dot.classList.add('partial'); text.textContent = 'частично'; }
+    else { text.textContent = 'не сделано'; }
+  }
+
+  function wireDayInteractions() {
+    $all('.wk-skip-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var panel = btn.closest('.wk-prog-day').querySelector('.wk-skip-panel');
+        panel.classList.toggle('show');
+      });
+    });
+    $all('.wk-skip-reason-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var dayEl = btn.closest('.wk-prog-day');
+        fetch('/workout/api/skip-workout', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ program_day_id: parseInt(dayEl.dataset.dayId, 10), skip_reason: btn.dataset.reason }),
+        }).then(function (r) { return r.json(); }).then(function () {
+          dayEl.querySelector('.wk-skip-note').classList.add('show');
+          dayEl.querySelector('.wk-skip-btn').classList.add('done');
+          dayEl.querySelector('.wk-skip-btn').textContent = 'Отмечено: пропущено';
+        });
+      });
+    });
+    $all('.wk-complete-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var dayEl = btn.closest('.wk-prog-day');
+        fetch('/workout/api/complete-workout', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ program_day_id: parseInt(dayEl.dataset.dayId, 10) }),
+        }).then(function (r) { return r.json(); }).then(function () {
+          btn.classList.add('done');
+          btn.textContent = '✓ Завершена';
+        });
+      });
+    });
+    $all('.wk-light-checkbox').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        var dayEl = cb.closest('.wk-prog-day');
+        fetch('/workout/api/set-light-day', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ program_day_id: parseInt(dayEl.dataset.dayId, 10), is_light_day: cb.checked }),
+        });
+      });
+    });
+
+    $all('.wk-ex-card').forEach(wireCardInteractions);
+  }
+
+  // Вызывается и при первом рендере дня, и повторно — для одной карточки —
+  // после замены упражнения на альтернативу (см. applyCardDisplay)
+  // Элементы внутри .wk-ex-swappable (header/howto/progbtn/altbtn) — их
+  // innerHTML пересоздаётся каждый раз при applyCardDisplay (замена/возврат
+  // упражнения), поэтому слушатели на них перевешиваются каждый раз.
+  function wireSwappableInteractions(card) {
+    var howtoToggle = $('.wk-ex-howto-toggle', card);
+    if (howtoToggle) {
+      howtoToggle.addEventListener('click', function () {
+        var howto = howtoToggle.nextElementSibling;
+        howto.classList.toggle('show');
+        howtoToggle.textContent = howto.classList.contains('show') ? 'Как выполнять ▴' : 'Как выполнять ▾';
+      });
+    }
+    var progBtn = $('.wk-ex-progbtn', card);
+    if (progBtn) progBtn.addEventListener('click', function () { toggleProgressionEditor(card); });
+    var altBtn = $('.wk-ex-altbtn', card);
+    if (altBtn) altBtn.addEventListener('click', function () { toggleAlternativesPicker(card); });
+    var chatBtn = $('.wk-ex-chat', card);
+    if (chatBtn) chatBtn.addEventListener('click', function () {
+      openWorkoutChat(card.dataset.programExerciseId, chatBtn.dataset.exName);
+    });
+    var chartBtn = $('.wk-ex-chartbtn', card);
+    if (chartBtn) chartBtn.addEventListener('click', function () { toggleProgressChart(card); });
+  }
+
+  // Остальное (поля подходов, кнопка сохранения) живёт вне .wk-ex-swappable
+  // и не пересоздаётся — вешаем один раз при первом рендере карточки.
+  function wireCardInteractions(card) {
+    wireSwappableInteractions(card);
+    $all('.wk-set-input', card).forEach(function (input) {
+      input.addEventListener('input', function () { updateStatusUI(card); });
+    });
+    var saveBtn = $('.wk-save-sets-btn', card);
+    if (saveBtn) saveBtn.addEventListener('click', function () { saveSets(card); });
+    var returnNoticeClose = $('.wk-return-notice-close', card);
+    if (returnNoticeClose) {
+      returnNoticeClose.addEventListener('click', function () {
+        var notice = $('.wk-return-notice', card);
+        localStorage.setItem('wk_return_notice_dismissed_' + notice.dataset.peId, '1');
+        notice.remove();
+      });
+    }
+  }
+
+  function saveSets(card) {
+    var dayId = card.dataset.dayId;
+    var exerciseId = card.dataset.exerciseId;
+    var rows = $all('.wk-set-row', card);
+    var sets = rows.map(function (r) {
+      var reps = $('.wk-set-reps', r).value;
+      var w = $('.wk-set-weight', r).value;
+      return { set_index: parseInt(r.dataset.setIndex, 10), reps: reps === '' ? null : parseInt(reps, 10), weight_kg: w === '' ? null : parseFloat(w) };
+    });
+    var btn = $('.wk-save-sets-btn', card);
+    btn.textContent = 'Сохраняем…';
+    fetch('/workout/api/log-set', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ program_day_id: parseInt(dayId, 10), exercise_id: exerciseId, sets: sets }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        btn.textContent = '✓ Записано';
+        btn.classList.add('saved');
+        setTimeout(function () { btn.textContent = 'Записать подход'; btn.classList.remove('saved'); }, 1800);
+        updateStatusUI(card);
+        if (data.ask_progression_setup) showMachinePrompt(card);
+      })
+      .catch(function () { btn.textContent = 'Ошибка, попробуй ещё раз'; });
+  }
+
+  function showMachinePrompt(card) {
+    var box = $('.wk-machine-prompt', card);
+    box.innerHTML = '<div class="wk-machine-prompt-text">Это тренажёр с фиксированными блоками? Укажи доступные значения, чтобы прогрессия работала точно.</div>' +
+      '<div class="wk-machine-prompt-btns">' +
+        '<button type="button" class="wk-machine-prompt-btn" data-choice="custom_fixed">Да, настрою сейчас</button>' +
+        '<button type="button" class="wk-machine-prompt-btn" data-choice="pending_at_gym">Настрою в зале</button>' +
+        '<button type="button" class="wk-machine-prompt-btn" data-choice="standard">Нет, стандартный шаг</button>' +
+      '</div>' +
+      '<div class="wk-machine-fixed-input">' +
+        '<input type="text" placeholder="например: 40, 45, 49.5, 54">' +
+        '<button type="button" class="wk-machine-fixed-save">Сохранить шкалу</button>' +
+      '</div>';
+    box.classList.add('show');
+    var scope = 'cluster:' + card.dataset.cluster;
+    box.querySelectorAll('.wk-machine-prompt-btn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var choice = b.dataset.choice;
+        if (choice === 'custom_fixed') {
+          box.querySelector('.wk-machine-fixed-input').classList.add('show');
+          return;
+        }
+        saveProgressionSetting(scope, choice, null, null, card);
+        box.innerHTML = '';
+        box.classList.remove('show');
+      });
+    });
+    box.querySelector('.wk-machine-fixed-save').addEventListener('click', function () {
+      var raw = box.querySelector('.wk-machine-fixed-input input').value;
+      var values = raw.split(',').map(function (v) { return parseFloat(v.trim()); }).filter(function (v) { return !isNaN(v); });
+      if (values.length < 2) { alert('Укажи хотя бы 2 значения шкалы'); return; }
+      saveProgressionSetting(scope, 'custom_fixed', null, values, card);
+      box.innerHTML = '';
+      box.classList.remove('show');
+    });
+  }
+
+  function saveProgressionSetting(scope, status, stepKg, fixedValues, card) {
+    fetch('/workout/api/progression-setting', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scope: scope, status: status, step_kg: stepKg, fixed_values: fixedValues }),
+    }).then(function (r) { return r.json(); }).then(function () {
+      if (card) refreshCardProgression(card, scope);
+    });
+  }
+
+  function refreshCardProgression(card, scope) {
+    fetch('/workout/api/progression-setting?scope=' + encodeURIComponent(scope))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var textEl = $('.wk-prog-text', card);
+        if (!textEl) return;
+        if (data.status === 'custom_fixed' && data.fixed_values && data.fixed_values.length) {
+          textEl.textContent = 'Прогрессия: шкала тренажёра (' + data.fixed_values.join(', ') + ' кг)';
+        } else if (data.status === 'custom_step' && data.step_kg) {
+          textEl.textContent = 'Прогрессия: +' + data.step_kg + ' кг (свой шаг)';
+        } else {
+          var eq = card.dataset.equipment;
+          var step = PROGRESSION_DEFAULTS_JS[eq] || 2.5;
+          textEl.textContent = 'Прогрессия: +' + step + ' кг (' + (EQUIPMENT_RU[eq] || eq) + ')';
+        }
+      });
+  }
+
+  var PROGRESSION_DEFAULTS_JS = { barbell: 2.5, 'e-z curl bar': 2.5, dumbbell: 1, kettlebells: 1, machine: 5, cable: 5 };
+
+  function toggleProgressionEditor(card) {
+    var panel = $('.wk-progedit-panel', card);
+    if (panel.classList.contains('show')) { panel.classList.remove('show'); return; }
+    var equipment = card.dataset.equipment;
+    var cluster = card.dataset.cluster;
+    var scope = (equipment === 'machine' || equipment === 'cable') && cluster ? ('cluster:' + cluster) : ('equipment:' + equipment);
+    var isMachine = (equipment === 'machine' || equipment === 'cable') && cluster;
+    panel.innerHTML = '<div class="wk-step-presets">' +
+        '<div class="wk-preset-btn" data-value="1">+1 кг</div>' +
+        '<div class="wk-preset-btn" data-value="2.5">+2.5 кг</div>' +
+        '<div class="wk-preset-btn" data-value="5">+5 кг</div>' +
+      '</div>' +
+      '<div class="wk-manual-row" style="margin-bottom:8px"><label>Или вручную:</label><input type="number" class="wk-progedit-manual" min="0.25" step="0.25" placeholder="кг"></div>' +
+      (isMachine ? '<div class="wk-manual-row"><label>Фикс. шкала:</label><input type="text" class="wk-progedit-fixed" placeholder="40, 45, 49.5"></div>' : '') +
+      '<button type="button" class="wk-machine-fixed-save wk-progedit-save">Сохранить</button>';
+    panel.classList.add('show');
+    panel.querySelectorAll('.wk-preset-btn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        panel.querySelectorAll('.wk-preset-btn').forEach(function (o) { o.classList.remove('selected'); });
+        b.classList.add('selected');
+        $('.wk-progedit-manual', panel).value = '';
+      });
+    });
+    $('.wk-progedit-save', panel).addEventListener('click', function () {
+      var fixedRaw = isMachine ? $('.wk-progedit-fixed', panel).value : '';
+      if (fixedRaw.trim()) {
+        var values = fixedRaw.split(',').map(function (v) { return parseFloat(v.trim()); }).filter(function (v) { return !isNaN(v); });
+        if (values.length < 2) { alert('Укажи хотя бы 2 значения шкалы'); return; }
+        saveProgressionSetting(scope, 'custom_fixed', null, values, card);
+      } else {
+        var manual = parseFloat($('.wk-progedit-manual', panel).value);
+        var preset = panel.querySelector('.wk-preset-btn.selected');
+        var step = manual > 0 ? manual : (preset ? parseFloat(preset.dataset.value) : null);
+        if (!step) { alert('Выбери шаг или впиши вручную'); return; }
+        saveProgressionSetting(scope, 'custom_step', step, null, card);
+      }
+      panel.classList.remove('show');
+    });
+  }
+
+  // ── Альтернативы и замена упражнения (действует только на сегодня) ──
+  function toggleAlternativesPicker(card) {
+    var picker = $('.wk-alt-picker', card);
+    if (picker.classList.contains('show')) { picker.classList.remove('show'); return; }
+    picker.innerHTML = '<div class="wk-alt-picker-title">Загружаем варианты…</div>';
+    picker.classList.add('show');
+    fetch('/workout/api/alternatives?program_exercise_id=' + card.dataset.programExerciseId)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.alternatives || !data.alternatives.length) {
+          picker.innerHTML = '<div class="wk-alt-empty">Подходящих альтернатив не нашлось среди доступного оборудования.</div>';
+          return;
+        }
+        picker.innerHTML = '<div class="wk-alt-picker-title">Те же мышцы, доступное оборудование — выбери замену на сегодня:</div>' +
+          '<div class="wk-alt-options">' +
+          data.alternatives.map(function (a) {
+            var img = a.image ? '/static/exercises/' + a.image : '';
+            return '<div class="wk-alt-option" data-exercise-id="' + a.exercise_id + '">' +
+              (img ? '<img src="' + img + '" loading="lazy">' : '') +
+              '<div class="wk-alt-option-name">' + a.name_ru + '</div>' +
+            '</div>';
+          }).join('') +
+          '</div>';
+        $all('.wk-alt-option', picker).forEach(function (opt) {
+          opt.addEventListener('click', function () { applySwap(card, opt.dataset.exerciseId); });
+        });
+      });
+  }
+
+  function applySwap(card, swappedToExerciseId) {
+    fetch('/workout/api/swap-exercise', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        program_exercise_id: parseInt(card.dataset.programExerciseId, 10),
+        swapped_to_exercise_id: swappedToExerciseId,
+      }),
+    }).then(function (r) { return r.json(); }).then(function () {
+      $('.wk-alt-picker', card).classList.remove('show');
+      loadDayState(card.dataset.dayId);
+    });
+  }
+
+  function revertSwap(card) {
+    fetch('/workout/api/swap-exercise', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ program_exercise_id: parseInt(card.dataset.programExerciseId, 10), swapped_to_exercise_id: null }),
+    }).then(function (r) { return r.json(); }).then(function () {
+      loadDayState(card.dataset.dayId);
+    });
+  }
+
+  function loadDayState(dayId) {
+    fetch('/workout/api/day-state?program_day_id=' + dayId)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var dayEl = $('.wk-prog-day[data-day-id="' + dayId + '"]');
+        if (!dayEl) return;
+        if (data.skipped) {
+          dayEl.querySelector('.wk-skip-btn').classList.add('done');
+          dayEl.querySelector('.wk-skip-btn').textContent = 'Отмечено: пропущено';
+        }
+        if (data.completed) {
+          dayEl.querySelector('.wk-complete-btn').classList.add('done');
+          dayEl.querySelector('.wk-complete-btn').textContent = '✓ Завершена';
+        }
+        if (data.is_light_day) {
+          dayEl.querySelector('.wk-light-checkbox').checked = true;
+        }
+        Object.keys(data.exercises).forEach(function (peId) {
+          var card = dayEl.querySelector('.wk-ex-card[data-program-exercise-id="' + peId + '"]');
+          if (!card) return;
+          var info = data.exercises[peId];
+
+          // Всегда синхронизируем отображение с активным упражнением — это
+          // и применяет замену, и восстанавливает оригинал после "Вернуть"
+          applyCardDisplay(card, info.swapped && info.active_display ? info.active_display : originalExerciseData[peId]);
+
+          var swapBox = $('.wk-swap-indicator', card);
+          swapBox.innerHTML = '';
+          swapBox.classList.remove('show');
+          if (info.swapped) {
+            swapBox.innerHTML = '<span>Сегодня вместо обычного варианта</span>' +
+              '<button type="button" class="wk-swap-revert-btn">Вернуть оригинал</button>';
+            swapBox.classList.add('show');
+            $('.wk-swap-revert-btn', swapBox).addEventListener('click', function () { revertSwap(card); });
+          }
+          var stuckBox = $('.wk-stuck-nudge', card);
+          if (info.stuck) {
+            stuckBox.innerHTML = '<span>Этот вес не растёт уже 3+ недели, хотя верх диапазона выполняется — может, дело в самом упражнении?</span>' +
+              '<button type="button" class="wk-stuck-try-btn">Попробовать замену</button>';
+            stuckBox.classList.add('show');
+            $('.wk-stuck-try-btn', stuckBox).addEventListener('click', function () { toggleAlternativesPicker(card); });
+          }
+
+          // Сначала чистим поля и историю — иначе после замены упражнения
+          // (или у которого просто нет данных) останутся значения от
+          // предыдущего активного варианта этой карточки
+          var rows = $all('.wk-set-row', card);
+          rows.forEach(function (row) {
+            $('.wk-set-reps', row).value = '';
+            $('.wk-set-weight', row).value = '';
+          });
+          var histBox = $('.wk-ex-history', card);
+          histBox.innerHTML = '';
+          histBox.classList.remove('show');
+
+          var hasToday = info.today_sets && info.today_sets.some(function (s) { return s.reps !== null || s.weight_kg !== null; });
+          var source = hasToday ? info.today_sets : null;
+          if (source) {
+            source.forEach(function (s) {
+              var row = rows[s.set_index];
+              if (!row) return;
+              if (s.reps !== null) $('.wk-set-reps', row).value = s.reps;
+              if (s.weight_kg !== null) $('.wk-set-weight', row).value = s.weight_kg;
+            });
+          } else if (info.last_sets && info.last_sets.length) {
+            info.last_sets.forEach(function (s) {
+              var row = rows[s.set_index];
+              if (!row) return;
+              if (s.reps !== null) $('.wk-set-reps', row).value = s.reps;
+              if (s.weight_kg !== null) $('.wk-set-weight', row).value = s.weight_kg;
+            });
+          }
+          updateStatusUI(card);
+
+          if (info.last_sets && info.last_sets.length) {
+            var parts = info.last_sets.map(function (s) {
+              return (s.reps !== null ? s.reps : '—') + '×' + (s.weight_kg !== null ? s.weight_kg + 'кг' : '—');
+            }).join(', ');
+            histBox.innerHTML = '<div class="wk-ex-history-title">Прошлый раз (' + info.last_date + ')</div>' +
+              '<div class="wk-ex-history-row"><span>' + parts + '</span>' +
+              (info.personal_best_kg ? '<span class="wk-pb-badge">★ личный максимум: ' + info.personal_best_kg + ' кг</span>' : '') +
+              '</div>';
+            histBox.classList.add('show');
+          } else if (info.personal_best_kg) {
+            histBox.innerHTML = '<div class="wk-ex-history-row"><span class="wk-pb-badge">★ личный максимум: ' + info.personal_best_kg + ' кг</span></div>';
+            histBox.classList.add('show');
+          }
+
+          // Двойная прогрессия: показываем ТОЛЬКО до начала логирования
+          // сегодня (как только появились свои данные — предложение снято)
+          var sug = info.progression_suggestion;
+          if (sug && sug.ready && !hasToday) {
+            var box = $('.wk-progress-suggestion', card);
+            box.innerHTML = '<div class="wk-progress-suggestion-title">🎉 Время прибавить!</div>' +
+              '<div class="wk-progress-suggestion-text">В прошлый раз ты сделал весь диапазон повторов во всех подходах с ' + sug.last_weight + ' кг. Попробуй ' + sug.suggested_weight + ' кг и начни заново с ' + sug.rep_low + ' повторов.</div>' +
+              '<div class="wk-progress-suggestion-btns">' +
+                '<button type="button" class="wk-progress-up-btn">Поднять до ' + sug.suggested_weight + ' кг</button>' +
+                '<button type="button" class="wk-progress-keep-btn">Оставить как было</button>' +
+              '</div>';
+            box.classList.add('show');
+            box.querySelector('.wk-progress-up-btn').addEventListener('click', function () {
+              rows.forEach(function (r) {
+                $('.wk-set-weight', r).value = sug.suggested_weight;
+                $('.wk-set-reps', r).value = '';
+              });
+              box.classList.remove('show');
+              updateStatusUI(card);
+            });
+            box.querySelector('.wk-progress-keep-btn').addEventListener('click', function () {
+              box.classList.remove('show');
+            });
+          }
+        });
+      });
+  }
+
+  // ── Чат-ассистент ──
+  var wkChatContextPeId = null;
+
+  function openWorkoutChat(programExerciseId, exerciseName, draftMessage) {
+    wkChatContextPeId = programExerciseId || null;
+    $('#wkChatSubtitle').textContent = exerciseName ? 'про упражнение «' + exerciseName + '»' : 'про твою программу';
+    $('#wkChatOverlay').classList.add('show');
+    var input = $('#wkChatInput');
+    if (draftMessage) input.value = draftMessage;
+    input.focus();
+    loadWorkoutChatHistory();
+  }
+  $('#wkChatClose').addEventListener('click', function () {
+    $('#wkChatOverlay').classList.remove('show');
+  });
+  $('#wkChatOverlay').addEventListener('click', function (e) {
+    if (e.target === $('#wkChatOverlay')) $('#wkChatOverlay').classList.remove('show');
+  });
+  $('#wkGeneralChatBtn').addEventListener('click', function () { openWorkoutChat(null, null); });
+
+  function chatMsgEl(role, html) {
+    var el = document.createElement('div');
+    el.className = 'wk-chat-msg ' + role;
+    el.innerHTML = html;
+    return el;
+  }
+
+  function chatChangesList(changes) {
+    return (changes || []).map(function (c) {
+      if (c.restored) {
+        var w = c.suggested_weight ? ' (начни ~' + c.suggested_weight + ' кг, не с прежнего рабочего)' : ' (начни с заметно сниженной нагрузки)';
+        return '<li>' + c.day + ': вернул ' + c.to + w + '</li>';
+      }
+      return c.removed
+        ? '<li>' + c.day + ': ' + c.from + ' — убрано, безопасной замены не нашлось</li>'
+        : '<li>' + c.day + ': ' + c.from + ' → ' + c.to + '</li>';
+    }).join('');
+  }
+
+  function chatDayCountsLine(changes, dayCounts) {
+    if (!dayCounts) return '';
+    var days = [];
+    (changes || []).forEach(function (c) { if (days.indexOf(c.day) === -1) days.push(c.day); });
+    if (!days.length) return '';
+    var parts = days.map(function (d) {
+      var n = dayCounts[d];
+      return d + ': осталось ' + n + ' упражнен' + (n === 1 ? 'ие' : (n >= 2 && n <= 4 ? 'ия' : 'ий'));
+    });
+    return '<div class="wk-chat-result-counts">' + parts.join(' · ') + '</div>';
+  }
+
+  function renderChatResult(result) {
+    var box = $('#wkChatMessages');
+    var el = document.createElement('div');
+    el.className = 'wk-chat-result';
+    if (result.type === 'swap_exercise') {
+      el.innerHTML = '✅ Заменил на сегодня: <strong>' + result.from + '</strong> → <strong>' + result.to + '</strong>';
+      reloadProgramAfterPatch();
+    } else if (result.type === 'set_pain_zone') {
+      var list = chatChangesList(result.changes);
+      el.innerHTML = '✅ Зона «' + result.zone + '» добавлена в ограничения.' +
+        (list ? '<div>Изменения в программе:</div><ul class="wk-chat-result-list">' + list + '</ul>' + chatDayCountsLine(result.changes, result.day_counts)
+              : '<div>В текущей программе конфликтующих упражнений не нашлось.</div>');
+      reloadProgramAfterPatch();
+    } else if (result.type === 'clear_pain_zone' && result.already_cleared) {
+      el.innerHTML = 'ℹ️ Зона «' + result.zone + '» уже не в ограничениях — снимать нечего.';
+    } else if (result.type === 'clear_pain_zone') {
+      var list3 = chatChangesList(result.changes);
+      el.innerHTML = '✅ Зона «' + result.zone + '» снята с ограничений.' +
+        (list3 ? '<div>Возвращены упражнения:</div><ul class="wk-chat-result-list">' + list3 + '</ul>' + chatDayCountsLine(result.changes, result.day_counts)
+               : '<div>Заменённых упражнений по этой зоне не нашлось.</div>') +
+        '<div class="wk-chat-result-disclaimer">Возвращайся осторожно: первые тренировки — сниженный вес, поднимай обратно за 2–3 тренировки. Если боль вернётся — снова стоп и сообщи об этом.</div>';
+      reloadProgramAfterPatch();
+    } else if (result.type === 'set_focus_zones') {
+      el.innerHTML = '✅ Акцент теперь на: <strong>' + result.zones.join(', ') + '</strong>. Учтётся при следующей генерации/обновлении программы.';
+    } else if (result.type === 'remove_equipment') {
+      var list2 = chatChangesList(result.changes);
+      el.innerHTML = '✅ Убрал «' + result.cluster + '» из «Моего зала».' +
+        (list2 ? '<div>Изменения в программе:</div><ul class="wk-chat-result-list">' + list2 + '</ul>' + chatDayCountsLine(result.changes, result.day_counts) : '');
+      reloadProgramAfterPatch();
+    } else if (result.type === 'shorten_today') {
+      el.innerHTML = result.guidance;
+    } else if (result.type === 'error') {
+      el.innerHTML = '⚠️ Не получилось применить действие: ' + result.error;
+    } else {
+      return;
+    }
+    box.appendChild(el);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function loadWorkoutChatHistory() {
+    var box = $('#wkChatMessages');
+    box.innerHTML = '<div class="wk-chat-loading">Загружаем историю…</div>';
+    fetch('/workout/api/chat-history')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        box.innerHTML = '';
+        if (!data.messages || !data.messages.length) {
+          box.appendChild(chatMsgEl('assistant', 'Привет! Спроси про программу, пожалуйся на боль в зоне, попроси заменить упражнение или скинь фото тренажёра, который не можешь определить.'));
+          return;
+        }
+        data.messages.forEach(function (m) {
+          var html = m.content.replace(/\n/g, '<br>');
+          if (m.image) html += '<img src="' + m.image + '">';
+          box.appendChild(chatMsgEl(m.role, html));
+        });
+        box.scrollTop = box.scrollHeight;
+      });
+  }
+
+  function sendWorkoutChat() {
+    var input = $('#wkChatInput');
+    var msg = input.value.trim();
+    if (!msg) return;
+    var box = $('#wkChatMessages');
+    box.appendChild(chatMsgEl('user', msg.replace(/\n/g, '<br>')));
+    input.value = '';
+    var loading = chatMsgEl('assistant', '…');
+    loading.classList.add('wk-chat-loading');
+    box.appendChild(loading);
+    box.scrollTop = box.scrollHeight;
+
+    fetch('/workout/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, program_exercise_id: wkChatContextPeId ? parseInt(wkChatContextPeId, 10) : null }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        loading.remove();
+        if (data.error) { box.appendChild(chatMsgEl('assistant', 'Ошибка: ' + data.error)); return; }
+        box.appendChild(chatMsgEl('assistant', (data.reply || '').replace(/\n/g, '<br>')));
+        if (data.result) renderChatResult(data.result);
+        box.scrollTop = box.scrollHeight;
+      })
+      .catch(function () {
+        loading.remove();
+        box.appendChild(chatMsgEl('assistant', 'Ошибка сети, попробуй ещё раз.'));
+      });
+  }
+  $('#wkChatSend').addEventListener('click', sendWorkoutChat);
+  $('#wkChatInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') sendWorkoutChat();
+  });
+
+  $('#wkChatPhotoBtn').addEventListener('click', function () { $('#wkChatPhotoInput').click(); });
+  $('#wkChatPhotoInput').addEventListener('change', function () {
+    var file = this.files[0];
+    if (!file) return;
+    var box = $('#wkChatMessages');
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      box.appendChild(chatMsgEl('user', '[фото тренажёра]<img src="' + e.target.result + '">'));
+      box.scrollTop = box.scrollHeight;
+    };
+    reader.readAsDataURL(file);
+
+    var loading = chatMsgEl('assistant', 'Смотрю фото…');
+    loading.classList.add('wk-chat-loading');
+    box.appendChild(loading);
+
+    var fd = new FormData();
+    fd.append('file', file);
+    fetch('/workout/api/chat-photo', { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        loading.remove();
+        if (data.error) { box.appendChild(chatMsgEl('assistant', 'Ошибка: ' + data.error)); return; }
+        var html = (data.reply || '').replace(/\n/g, '<br>');
+        var el = chatMsgEl('assistant', html);
+        if (data.cluster_label) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'wk-chat-add-eq-btn';
+          btn.textContent = '+ Добавить в мой зал';
+          btn.addEventListener('click', function () {
+            fetch('/workout/api/add-equipment', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ cluster_label: data.cluster_label }),
+            }).then(function (r) { return r.json(); }).then(function () {
+              btn.textContent = '✓ Добавлено';
+              btn.disabled = true;
+            });
+          });
+          el.appendChild(document.createElement('br'));
+          el.appendChild(btn);
+        }
+        box.appendChild(el);
+        box.scrollTop = box.scrollHeight;
+      })
+      .catch(function () {
+        loading.remove();
+        box.appendChild(chatMsgEl('assistant', 'Ошибка сети, попробуй ещё раз.'));
+      });
+    this.value = '';
+  });
+
+  function generateProgram() {
+    var box = $('#wkProgramContainer');
+    box.innerHTML = '<div class="wk-prog-loading">Генерируем программу — это может занять до минуты…</div>';
+    fetch('/workout/api/generate-program', { method: 'POST' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.error) {
+          box.innerHTML = '<div class="wk-prog-error">' + data.error + '</div>';
+          $('#wkDoneSub').textContent = 'Не удалось собрать программу';
+        } else {
+          renderProgram(data);
+        }
+      })
+      .catch(function () {
+        box.innerHTML = '<div class="wk-prog-error">Ошибка сети, попробуй ещё раз.</div>';
+      });
+  }
+
+  // ── Общий SVG-график (линия + точки + тултип) — используется и для веса
+  // тела, и для прогресса по упражнению, чтобы не дублировать вёрстку ──
+  function drawWkLineChart(svg, points, opts) {
+    opts = opts || {};
+    if (!points.length) { svg.innerHTML = ''; return; }
+    var W = Math.max(svg.clientWidth || 0, 280);
+    var H = Math.max(svg.clientHeight || 0, 130);
+    var pL = 42, pR = 12, pT = 12, pB = 28;
+    var cW = W - pL - pR, cH = H - pT - pB;
+
+    var vals = points.map(function (p) { return p.y; });
+    if (opts.refLine != null) vals = vals.concat([opts.refLine]);
+    var rawMin = Math.min.apply(null, vals), rawMax = Math.max.apply(null, vals);
+    var span = rawMax - rawMin;
+    var pad = span < 1 ? 1.5 : span * 0.18;
+    var yMin = rawMin - pad, yMax = rawMax + pad;
+
+    var xPos = function (i) { return pL + (points.length > 1 ? i * cW / (points.length - 1) : cW / 2); };
+    var yPos = function (v) { return pT + cH - (v - yMin) / (yMax - yMin) * cH; };
+
+    var yTicks = 3, grid = '', yLbls = '';
+    for (var i = 0; i <= yTicks; i++) {
+      var v = yMin + (yMax - yMin) * i / yTicks;
+      var y = yPos(v).toFixed(1);
+      grid += '<line x1="' + pL + '" y1="' + y + '" x2="' + (W - pR) + '" y2="' + y + '" stroke="rgba(255,255,255,.07)" stroke-width="1"/>';
+      yLbls += '<text x="' + (pL - 6) + '" y="' + y + '" text-anchor="end" dominant-baseline="middle" fill="var(--text-2)" font-size="10" font-family="inherit">' + v.toFixed(1) + '</text>';
+    }
+
+    var maxX = Math.max(2, Math.floor(cW / 64));
+    var xStep = Math.ceil(points.length / maxX);
+    var xLbls = '';
+    points.forEach(function (p, idx) {
+      if (idx % xStep === 0 || idx === points.length - 1) {
+        xLbls += '<text x="' + xPos(idx).toFixed(1) + '" y="' + (H - pB + 17) + '" text-anchor="middle" fill="var(--text-2)" font-size="10" font-family="inherit">' + p.label + '</text>';
+      }
+    });
+
+    var pts = points.map(function (p, idx) { return xPos(idx).toFixed(1) + ',' + yPos(p.y).toFixed(1); }).join(' ');
+    var bot = (H - pB).toFixed(1);
+    var areaPts = xPos(0).toFixed(1) + ',' + bot + ' ' + pts + ' ' + xPos(points.length - 1).toFixed(1) + ',' + bot;
+    var color = opts.color || 'var(--accent-2)';
+    var gradId = 'wkChartGrad' + Math.random().toString(36).slice(2, 8);
+
+    var refLineSvg = '';
+    if (opts.refLine != null) {
+      var ry = yPos(opts.refLine).toFixed(1);
+      refLineSvg = '<line x1="' + pL + '" y1="' + ry + '" x2="' + (W - pR) + '" y2="' + ry + '" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+        '<text x="' + (W - pR) + '" y="' + (parseFloat(ry) - 5) + '" text-anchor="end" fill="#fbbf24" font-size="10" font-family="inherit">' + (opts.refLabel || '') + '</text>';
+    }
+
+    var dots = points.map(function (p, idx) {
+      return '<circle class="wk-chart-dot" data-i="' + idx + '" cx="' + xPos(idx).toFixed(1) + '" cy="' + yPos(p.y).toFixed(1) + '" r="4" fill="' + color + '" stroke="var(--surface-1)" stroke-width="2" vector-effect="non-scaling-stroke" style="cursor:pointer"/>';
+    }).join('');
+    var hits = points.map(function (p, idx) {
+      return '<circle class="wk-chart-hit" data-i="' + idx + '" cx="' + xPos(idx).toFixed(1) + '" cy="' + yPos(p.y).toFixed(1) + '" r="18" fill="transparent" style="cursor:pointer"/>';
+    }).join('');
+
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.removeAttribute('preserveAspectRatio');
+    svg.innerHTML = '<defs><linearGradient id="' + gradId + '" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0%" stop-color="' + color + '" stop-opacity=".22"/><stop offset="100%" stop-color="' + color + '" stop-opacity="0"/></linearGradient></defs>' +
+      grid + yLbls + xLbls + refLineSvg +
+      '<polygon points="' + areaPts + '" fill="url(#' + gradId + ')" stroke="none"/>' +
+      '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>' +
+      dots + hits;
+
+    var tip = $('#wkChartTooltip');
+    function showTip(idx, cx, cy) {
+      var p = points[idx];
+      var dot = svg.querySelector('.wk-chart-dot[data-i="' + idx + '"]');
+      if (dot) { dot.setAttribute('r', '6'); dot.style.filter = 'drop-shadow(0 0 6px ' + color + ')'; }
+      tip.innerHTML = '<strong>' + (opts.tooltipFormat ? opts.tooltipFormat(p) : p.y) + '</strong><br>' + p.label;
+      tip.style.display = 'block';
+      var tx = cx + 14, ty = cy - 30;
+      if (tx + 150 > window.innerWidth) tx = cx - 160;
+      tip.style.left = tx + 'px';
+      tip.style.top = ty + 'px';
+    }
+    function hideTip(idx) {
+      var dot = svg.querySelector('.wk-chart-dot[data-i="' + idx + '"]');
+      if (dot) { dot.setAttribute('r', '4'); dot.style.filter = ''; }
+      tip.style.display = 'none';
+    }
+    svg.querySelectorAll('.wk-chart-hit').forEach(function (el) {
+      var idx = parseInt(el.dataset.i, 10);
+      el.addEventListener('mouseenter', function (e) { showTip(idx, e.clientX, e.clientY); });
+      el.addEventListener('mousemove', function (e) { showTip(idx, e.clientX, e.clientY); });
+      el.addEventListener('mouseleave', function () { hideTip(idx); });
+      el.addEventListener('touchstart', function (e) { e.preventDefault(); var t = e.touches[0]; showTip(idx, t.clientX, t.clientY - 60); }, { passive: false });
+      el.addEventListener('touchend', function () { setTimeout(function () { hideTip(idx); }, 1800); });
+    });
+  }
+
+  function loadWeightChart() {
+    fetch('/nutrition/api/weight')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var logs = (data.logs || []).filter(function (l) { return l.weight_kg; }).slice(0, 14).reverse();
+        var box = $('#wkWeightChartBox');
+        if (!logs.length) { box.style.display = 'none'; return; }
+        box.style.display = '';
+        var points = logs.map(function (l) {
+          return { y: l.weight_kg, label: new Date(l.date).toLocaleDateString('ru', { day: 'numeric', month: 'short' }) };
+        });
+        drawWkLineChart($('#wkWeightSvg'), points, { color: 'var(--accent-2)', tooltipFormat: function (p) { return p.y + ' кг'; } });
+      })
+      .catch(function () {});
+  }
+
+  // ── Интеграция с Дневником питания ──
+  function loadNutritionSummary() {
+    fetch('/workout/api/nutrition-summary')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var box = $('#wkNutritionBox');
+        if (!data.enabled) { box.style.display = 'none'; return; }
+        box.style.display = '';
+        $('#wkProteinEaten').textContent = data.protein_eaten;
+        $('#wkProteinTarget').textContent = data.protein_target;
+        var pct = Math.min(100, Math.round(data.protein_eaten / data.protein_target * 100));
+        $('#wkProteinBarFill').style.width = pct + '%';
+        $('#wkNutritionHint').textContent = data.trained_today
+          ? 'Сегодня тренировка — белок особенно важен для восстановления.'
+          : '';
+        var warnEl = $('#wkNutritionWarning');
+        if (data.calorie_deficit_warning) {
+          warnEl.style.display = '';
+          warnEl.innerHTML = '⚠️ Сегодня большой дефицит калорий (~' + data.deficit_kcal + ' ккал) — мышцам может не хватить энергии для восстановления. Постарайся добрать белок.';
+        } else {
+          warnEl.style.display = 'none';
+        }
+      })
+      .catch(function () {});
+  }
+
+  function loadWorkoutSettings() {
+    fetch('/workout/api/settings')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        $('#wkUseNutritionToggle').checked = data.use_nutrition_data !== false;
+      })
+      .catch(function () {});
+  }
+  $('#wkSettingsBtn').addEventListener('click', function () {
+    $('#wkSettingsOverlay').classList.add('show');
+    loadScaleStatusWk();
+    loadBodyPhotosWk();
+  });
+  $('#wkSettingsClose').addEventListener('click', function () {
+    $('#wkSettingsOverlay').classList.remove('show');
+  });
+  $('#wkSettingsOverlay').addEventListener('click', function (e) {
+    if (e.target === $('#wkSettingsOverlay')) $('#wkSettingsOverlay').classList.remove('show');
+  });
+  $('#wkUseNutritionToggle').addEventListener('change', function () {
+    var checked = this.checked;
+    fetch('/workout/api/settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ use_nutrition_data: checked }),
+    }).then(function () { loadNutritionSummary(); });
+  });
+
+  // ── Состав тела — умные весы Xiaomi (Zepp Life), переиспользуем те же
+  // эндпоинты /nutrition/api/scale/* — подключение/данные общие для всего
+  // сайта, дублировать на бэкенде нечего ──
+  function loadBodyCompGrid() {
+    fetch('/nutrition/api/weight')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var latest = (data.logs || [])[0];
+        var grid = $('#wkBodyCompGrid');
+        if (!latest) { grid.innerHTML = ''; return; }
+        var items = [
+          ['Вес', latest.weight_kg != null ? latest.weight_kg + ' кг' : '—'],
+          ['Жир', latest.body_fat_pct != null ? latest.body_fat_pct + ' %' : '—'],
+          ['Мышцы', latest.muscle_rate_pct != null ? latest.muscle_rate_pct + ' %' : '—'],
+          ['Вода', latest.water_pct != null ? latest.water_pct + ' %' : '—'],
+          ['Висцеральный жир', latest.visceral_fat != null ? latest.visceral_fat : '—'],
+          ['Метаболизм', latest.bmr != null ? latest.bmr + ' ккал' : '—'],
+          ['Возраст тела', latest.body_age != null ? latest.body_age : '—'],
+          ['Костная масса', latest.bone_mass_kg != null ? latest.bone_mass_kg + ' кг' : '—'],
+        ];
+        grid.innerHTML = items.map(function (it) {
+          return '<div class="wk-bodycomp-item"><div class="wk-bodycomp-val">' + it[1] + '</div><div class="wk-bodycomp-lbl">' + it[0] + '</div></div>';
+        }).join('');
+        $('#wkScaleLastSync').textContent = 'Измерение от ' + latest.date;
+      });
+  }
+
+  function loadScaleStatusWk() {
+    fetch('/nutrition/api/scale/status')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        $('#wkScaleDisconnected').style.display = data.connected ? 'none' : '';
+        $('#wkScaleConnected').style.display = data.connected ? '' : 'none';
+        if (data.connected) {
+          var msg = $('#wkScaleSyncMsg');
+          msg.textContent = data.last_sync_status === 'error'
+            ? ('Ошибка последней синхронизации: ' + (data.last_sync_error || ''))
+            : '';
+          loadBodyCompGrid();
+        }
+      })
+      .catch(function () {});
+  }
+
+  $('#wkScaleConnectBtn').addEventListener('click', function () {
+    var username = $('#wkScaleUsername').value.trim();
+    var password = $('#wkScalePassword').value;
+    var msg = $('#wkScaleConnectMsg');
+    if (!username || !password) { msg.textContent = 'Укажи логин и пароль'; return; }
+    var btn = this;
+    btn.disabled = true;
+    msg.textContent = 'Подключаем…';
+    fetch('/nutrition/api/scale/connect', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username, password: password }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        btn.disabled = false;
+        if (data.error) { msg.textContent = data.error; return; }
+        msg.textContent = data.warning || ('Подключено, синхронизировано записей: ' + (data.synced || 0));
+        loadScaleStatusWk();
+        loadWeightChart();
+      })
+      .catch(function () { btn.disabled = false; msg.textContent = 'Ошибка сети, попробуй ещё раз.'; });
+  });
+
+  $('#wkScaleSyncBtn').addEventListener('click', function () {
+    var msg = $('#wkScaleSyncMsg');
+    msg.textContent = 'Синхронизируем…';
+    fetch('/nutrition/api/scale/sync', { method: 'POST' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.error) { msg.textContent = data.error; }
+        else { msg.textContent = 'Готово, новых записей: ' + (data.synced || 0); loadWeightChart(); loadBodyCompGrid(); }
+        loadScaleStatusWk();
+      });
+  });
+
+  $('#wkScaleDisconnectBtn').addEventListener('click', function () {
+    if (!confirm('Отключить весы Xiaomi? Уже синхронизированные данные останутся.')) return;
+    fetch('/nutrition/api/scale/disconnect', { method: 'POST' }).then(function () {
+      $('#wkScaleUsername').value = '';
+      $('#wkScalePassword').value = '';
+      loadScaleStatusWk();
+    });
+  });
+
+  // ── Прогресс тела — фото-дневник, без ИИ-анализа ──
+  var wkBodyPhotoFiles = {};
+  var wkPhotoAngleIds = { front: 'Front', side: 'Side', back: 'Back' };
+  Object.keys(wkPhotoAngleIds).forEach(function (angle) {
+    var suffix = wkPhotoAngleIds[angle];
+    var input = $('#wkPhoto' + suffix);
+    var slot = $('#wkSlot' + suffix);
+    slot.addEventListener('click', function () { input.click(); });
+    input.addEventListener('change', function () {
+      var file = this.files[0];
+      if (!file) return;
+      wkBodyPhotoFiles[angle] = file;
+      var reader = new FileReader();
+      reader.onload = function (e) { slot.innerHTML = '<img src="' + e.target.result + '">'; };
+      reader.readAsDataURL(file);
+    });
+  });
+
+  $('#wkUploadPhotosBtn').addEventListener('click', function () {
+    var angles = Object.keys(wkBodyPhotoFiles);
+    var msg = $('#wkPhotoMsg');
+    if (!angles.length) { msg.textContent = 'Выбери хотя бы одно фото'; return; }
+    var today = new Date().toISOString().slice(0, 10);
+    var requests = angles.map(function (angle) {
+      var fd = new FormData();
+      fd.append('file', wkBodyPhotoFiles[angle]);
+      fd.append('angle', angle);
+      fd.append('date', today);
+      return fetch('/nutrition/api/body-photo', { method: 'POST', body: fd });
+    });
+    Promise.all(requests).then(function () {
+      msg.textContent = 'Сохранено за ' + today;
+      wkBodyPhotoFiles = {};
+      loadBodyPhotosWk();
+    });
+  });
+
+  var wkBodyPhotosCache = {};
+  function loadBodyPhotosWk() {
+    fetch('/nutrition/api/body-photos')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        wkBodyPhotosCache = data.photos || {};
+        var dates = data.dates || [];
+        var oldSel = $('#wkCompareDateOld'), newSel = $('#wkCompareDateNew');
+        var opts = dates.map(function (d) { return '<option value="' + d + '">' + d + '</option>'; }).join('');
+        oldSel.innerHTML = opts;
+        newSel.innerHTML = opts;
+        if (dates.length) { oldSel.value = dates[dates.length - 1]; newSel.value = dates[0]; }
+        renderCompareWk();
+      })
+      .catch(function () {});
+  }
+
+  function renderCompareWk() {
+    var oldDate = $('#wkCompareDateOld').value, newDate = $('#wkCompareDateNew').value;
+    var view = $('#wkCompareView');
+    if (!oldDate || !newDate) { view.innerHTML = '<p class="wk-profile-hint">Загрузи фото хотя бы за одну дату.</p>'; return; }
+    function col(date) {
+      var angles = wkBodyPhotosCache[date] || {};
+      var imgs = ['front', 'side', 'back'].filter(function (a) { return angles[a]; })
+        .map(function (a) { return '<img src="' + angles[a] + '">'; }).join('');
+      return '<div class="wk-compare-col">' + (imgs || '<p class="wk-profile-hint">нет фото</p>') + '<div class="wk-compare-col-label">' + date + '</div></div>';
+    }
+    view.innerHTML = col(oldDate) + col(newDate);
+  }
+  $('#wkCompareDateOld').addEventListener('change', renderCompareWk);
+  $('#wkCompareDateNew').addEventListener('change', renderCompareWk);
+
+  function toggleProgressChart(card) {
+    var panel = $('.wk-progress-chart-panel', card);
+    if (panel.classList.contains('show')) { panel.classList.remove('show'); return; }
+    panel.classList.add('show');
+    if (panel.dataset.loaded === card.dataset.exerciseId) return;
+    panel.dataset.loaded = card.dataset.exerciseId;
+    panel.innerHTML = '<div class="wk-progress-chart-empty">Загружаем…</div>';
+    fetch('/workout/api/exercise-progress?exercise_id=' + encodeURIComponent(card.dataset.exerciseId))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.points || data.points.length < 2) {
+          panel.innerHTML = '<div class="wk-progress-chart-empty">Пока недостаточно данных — нужно хотя бы 2 тренировки с весом этого упражнения.</div>';
+          return;
+        }
+        panel.innerHTML = '<svg class="wk-progress-chart-svg"></svg>';
+        var points = data.points.map(function (p) {
+          return { y: p.weight_kg, label: new Date(p.date).toLocaleDateString('ru', { day: 'numeric', month: 'short' }) };
+        });
+        drawWkLineChart(panel.querySelector('svg'), points, {
+          color: 'var(--accent)', refLine: data.personal_best_kg, refLabel: '★ личный максимум',
+          tooltipFormat: function (p) { return p.y + ' кг'; },
+        });
+      })
+      .catch(function () { panel.innerHTML = '<div class="wk-progress-chart-empty">Ошибка загрузки.</div>'; });
+  }
+
+  function reloadProgramAfterPatch() {
+    // действия чата (замена/зона боли/снятие зоны/убрать оборудование) меняют
+    // состав программы на сервере — карточки за модалкой чата иначе остаются
+    // со старыми названиями упражнений до ручной перезагрузки страницы
+    fetch('/workout/api/program')
+      .then(function (r) { return r.json(); })
+      .then(function (data) { if (data.exists) renderProgram(data); });
+  }
+
+  function loadOrGenerateProgram() {
+    var box = $('#wkProgramContainer');
+    box.innerHTML = '<div class="wk-prog-loading">Загружаем программу…</div>';
+    fetch('/workout/api/program')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.exists) { renderProgram(data); }
+        else { generateProgram(); }
+      })
+      .catch(function () { generateProgram(); });
+  }
+
+  // ── Возвращение после перерыва (14+ дней без тренировок) ──
+  function checkReturnPlan() {
+    fetch('/workout/api/return-check')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.show) { showReturnModal(data); }
+        else { loadOrGenerateProgram(); }
+      })
+      .catch(function () { loadOrGenerateProgram(); });
+  }
+
+  function showReturnModal(info) {
+    var box = $('#wkProgramContainer');
+    $('#wkDoneSub').textContent = '';
+    box.innerHTML = '<div class="wk-return-modal">' +
+      '<div class="wk-return-title">👋 Добро пожаловать обратно!</div>' +
+      '<div class="wk-return-text">Последняя тренировка была ' + info.gap_days + ' дней назад. Как будем возвращаться?</div>' +
+      '<div class="wk-return-options">' +
+        '<div class="wk-return-option" data-choice="short">' +
+          '<div class="wk-return-option-title">Небольшой перерыв</div>' +
+          '<div class="wk-return-option-desc">2–4 недели — веса −20%, быстрая прогрессия обратно</div>' +
+        '</div>' +
+        '<div class="wk-return-option" data-choice="long">' +
+          '<div class="wk-return-option-title">Долгий перерыв</div>' +
+          '<div class="wk-return-option-desc">больше месяца — веса −40%, начинаем с низа диапазона повторов</div>' +
+        '</div>' +
+        '<div class="wk-return-option" data-choice="injury">' +
+          '<div class="wk-return-option-title">Травма или болезнь</div>' +
+          '<div class="wk-return-option-desc">индивидуальная корректировка через ассистента</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+    $all('.wk-return-option', box).forEach(function (opt) {
+      opt.addEventListener('click', function () { applyReturnPlan(opt.dataset.choice); });
+    });
+  }
+
+  function applyReturnPlan(choice) {
+    fetch('/workout/api/return-plan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ choice: choice }),
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      var box = $('#wkProgramContainer');
+      if (choice === 'injury') {
+        box.innerHTML = '<div class="wk-return-confirm">Если травма или боль до сих пор беспокоит — расскажи об этом ассистенту в чате, он подберёт безопасные замены. Пока первые ' + data.light_days + ' тренировки отмечены лёгкими — прогрессия не потребует роста весов, тренируйся по самочувствию.</div>';
+      } else {
+        var pct = Math.round((1 - data.weight_factor) * 100);
+        box.innerHTML = '<div class="wk-return-confirm">План на 2 недели: стартовые веса снижены на ' + pct + '%, первые ' + data.light_days + ' тренировки помечены лёгкими и не влияют на прогрессию. Дальше — как обычно, по результатам.</div>';
+      }
+      setTimeout(function () { loadOrGenerateProgram(); }, 2400);
+    });
+  }
+
+  // Анкета проходится один раз — если профиль уже заполнен, сразу
+  // показываем финальный экран (редактирование — отдельно, в настройках)
+  fetch('/workout/api/profile')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.exists && data.onboarded) {
+        $('.wk-done-panel h2').textContent = 'Твоя программа';
+        showStep('done');
+        checkReturnPlan();
+        loadWeightChart();
+        loadNutritionSummary();
+        loadWorkoutSettings();
+      } else {
+        showStep(step);
+      }
+    })
+    .catch(function () { showStep(step); });
+})();
+</script>
+
+</body>
+</html>
