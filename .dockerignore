@@ -11,3 +11,4 @@ server.log
 server.err
 ssh_*.py
 *.md
+!TRAINER_PROMPT.md
