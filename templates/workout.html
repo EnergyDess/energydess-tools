@@ -264,7 +264,7 @@
     .wk-done-panel .ico { font-size: 3rem; margin-bottom: var(--space-4); }
     .wk-done-panel h2 { font-family: var(--font-display); font-size: 1.5rem; color: var(--text); margin-bottom: var(--space-3); }
     .wk-done-panel p { color: var(--text-2); font-size: 0.9375rem; }
-    .wk-action-btn { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 9px 16px; border-radius: 99px; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; flex: 1 1 auto; min-width: 132px; max-width: 200px; text-align: center; }
+    .wk-action-btn { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 9px 16px; border-radius: 99px; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; flex: 1 1 auto; min-width: 132px; max-width: 200px; text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
     .wk-action-btn:hover { border-color: var(--accent); }
     .wk-weight-chart-box { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-5); }
     .wk-weight-chart-title { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 0.9375rem; margin-bottom: var(--space-2); }
@@ -277,47 +277,6 @@
     .wk-ex-chartbtn { background: none; border: 1px solid var(--border-strong); color: var(--text-2); border-radius: 99px; padding: 3px 12px; font-size: 0.75rem; cursor: pointer; margin-left: 8px; }
     .wk-ex-chartbtn:hover { border-color: var(--accent); color: var(--text); }
     .wk-done-actions { display: flex; gap: var(--space-2); justify-content: center; margin-top: var(--space-4); flex-wrap: wrap; max-width: 420px; margin-left: auto; margin-right: auto; }
-    .wk-settings-overlay { display: none; position: fixed; inset: 0; background: rgba(6,4,12,0.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center; }
-    .wk-settings-overlay.show { display: flex; }
-    .wk-settings-panel { width: 100%; max-width: 420px; margin: var(--space-4); background: var(--surface-1); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: var(--space-5); }
-    .wk-settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); }
-    .wk-settings-title { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 1.0625rem; }
-    .wk-settings-close { background: none; border: none; color: var(--text-2); font-size: 1.5rem; cursor: pointer; line-height: 1; padding: 4px 8px; }
-    .wk-settings-toggle-row { display: flex; align-items: center; gap: 10px; font-size: 0.9375rem; color: var(--text); cursor: pointer; }
-    .wk-settings-toggle-row input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
-    .wk-settings-toggle-hint { margin-top: var(--space-2); font-size: 0.8125rem; color: var(--text-2); line-height: 1.5; }
-    .wk-settings-panel { max-height: 85vh; overflow-y: auto; }
-    .wk-profile-sec { padding-top: var(--space-4); margin-top: var(--space-4); border-top: 1px solid var(--border); }
-    .wk-profile-sec:first-child { padding-top: 0; margin-top: 0; border-top: none; }
-    .wk-profile-sec-title { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 0.9375rem; margin-bottom: var(--space-2); }
-    .wk-anketa-summary { background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
-    .wk-anketa-row { display: flex; justify-content: space-between; gap: var(--space-3); padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.8125rem; }
-    .wk-anketa-row:last-child { border-bottom: none; }
-    .wk-anketa-label { color: var(--text-2); flex-shrink: 0; }
-    .wk-anketa-value { color: var(--text); text-align: right; }
-    .wk-profile-hint { font-size: 0.8125rem; color: var(--text-2); line-height: 1.5; margin-bottom: var(--space-2); }
-    .wk-profile-input { width: 100%; box-sizing: border-box; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; color: var(--text); font-size: 0.875rem; margin-bottom: 8px; }
-    .wk-profile-input option { background: var(--surface-2); color: var(--text); }
-    .wk-profile-btn { background: var(--grad-btn); border: none; color: #fff; padding: 9px 16px; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 600; cursor: pointer; }
-    .wk-profile-btn-sm { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 7px 14px; border-radius: 99px; font-size: 0.8125rem; cursor: pointer; }
-    .wk-profile-btn-danger { color: #f87171; }
-    .wk-profile-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: var(--space-2); }
-    .wk-profile-msg { font-size: 0.8125rem; margin-top: 8px; color: var(--text-2); }
-    .wk-bodycomp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: var(--space-2); }
-    .wk-bodycomp-item { background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-3); }
-    .wk-bodycomp-val { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 1.0625rem; }
-    .wk-bodycomp-lbl { font-size: 0.75rem; color: var(--text-2); margin-top: 2px; }
-    .wk-photo-slots { display: flex; gap: 8px; margin-bottom: var(--space-2); }
-    .wk-photo-slot { flex: 1; aspect-ratio: 3/4; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-2); cursor: pointer; overflow: hidden; }
-    .wk-photo-slot:hover { border-color: var(--accent); }
-    .wk-photo-slot img { width: 100%; height: 100%; object-fit: cover; }
-    .wk-photo-compare-title { margin-top: var(--space-4); }
-    .wk-photo-compare-selects { display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-2); color: var(--text-2); }
-    .wk-photo-compare-selects select { margin-bottom: 0; }
-    .wk-photo-compare-view { display: flex; gap: 10px; flex-wrap: wrap; }
-    .wk-compare-col { flex: 1; min-width: 120px; }
-    .wk-compare-col img { width: 100%; border-radius: var(--radius-sm); margin-bottom: 4px; }
-    .wk-compare-col-label { font-size: 0.75rem; color: var(--text-2); text-align: center; }
     .wk-nutrition-box { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-5); }
     .wk-nutrition-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); }
     .wk-nutrition-label { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 0.9375rem; }
@@ -332,20 +291,21 @@
     .wk-prog-meta { text-align: center; color: var(--text-2); font-size: 0.875rem; margin-bottom: var(--space-6); }
     .wk-prog-meta strong { color: var(--accent-2); }
     /* Чат-ассистент */
+    /* Мобилка — на весь экран; десктоп (≥768px) — широкая боковая панель
+       поверх контента с затемнением фона, не узкая модалка по центру */
     .wk-chat-overlay {
       display: none; position: fixed; inset: 0; background: rgba(6,4,12,0.72);
       backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-      z-index: 2000; align-items: flex-end; justify-content: center;
+      z-index: 2000; align-items: stretch; justify-content: flex-end;
     }
     .wk-chat-overlay.show { display: flex; }
     .wk-chat-panel {
-      width: 100%; max-width: 480px; height: min(640px, 92vh); background: var(--surface-1);
-      border: 1px solid var(--border-strong); border-radius: var(--radius) var(--radius) 0 0;
-      display: flex; flex-direction: column; box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
+      width: 100%; height: 100%; background: var(--surface-1);
+      border-left: 1px solid var(--border-strong);
+      display: flex; flex-direction: column; box-shadow: -8px 0 40px rgba(0,0,0,0.5);
     }
-    @media (min-width: 640px) {
-      .wk-chat-overlay { align-items: center; }
-      .wk-chat-panel { border-radius: var(--radius); height: min(640px, 86vh); margin-bottom: 0; }
+    @media (min-width: 768px) {
+      .wk-chat-panel { width: 400px; }
     }
     .wk-chat-header { display: flex; justify-content: space-between; align-items: flex-start; padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border); }
     .wk-chat-title { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 1.0625rem; }
@@ -419,9 +379,19 @@
 
     /* День тренировки */
     .wk-prog-day { background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: var(--space-5); margin-bottom: var(--space-5); }
-    .wk-day-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); gap: var(--space-3); flex-wrap: wrap; }
-    .wk-prog-day-title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--text); }
-    .wk-day-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+    .wk-day-header { display: flex; flex-direction: column; gap: 8px; cursor: pointer; user-select: none; }
+    .wk-day-header-top { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+    .wk-day-chevron { flex-shrink: 0; color: var(--text-2); transition: transform 0.2s; }
+    .wk-prog-day.expanded .wk-day-chevron { transform: rotate(90deg); color: var(--accent-2); }
+    .wk-prog-day-title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--text); min-width: 0; overflow-wrap: break-word; }
+    .wk-day-summary { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: 28px; font-size: 0.8125rem; color: var(--text-2); }
+    .wk-prog-day.expanded .wk-day-summary { display: none; }
+    .wk-day-status-badge { background: var(--surface-3); border-radius: 99px; padding: 2px 10px; font-size: 0.75rem; color: var(--text-2); }
+    .wk-day-status-badge.done { background: rgba(0,229,160,0.15); color: var(--status-done); }
+    .wk-day-status-badge.skipped { background: rgba(122,131,160,0.2); color: var(--status-skipped); }
+    .wk-day-body { display: none; margin-top: var(--space-4); }
+    .wk-prog-day.expanded .wk-day-body { display: block; animation: wkFadeIn 0.25s ease; }
+    .wk-day-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-4); }
     .wk-light-toggle { display: flex; align-items: center; gap: 5px; font-size: 0.8125rem; color: var(--text-2); cursor: pointer; user-select: none; }
     .wk-light-checkbox { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; }
     .wk-complete-btn, .wk-skip-btn {
@@ -793,8 +763,7 @@
           <p id="wkDoneSub">Собираем программу под тебя…</p>
           <div class="wk-done-actions">
             <button type="button" class="wk-action-btn" id="wkGeneralChatBtn">💬 Ассистент</button>
-            <button type="button" class="wk-action-btn" id="wkSettingsBtn" title="Профиль">👤 Профиль</button>
-            <button type="button" class="wk-action-btn" id="wkEditEquipmentBtn" title="Изменить оборудование">🛠 Оборудование</button>
+            <a class="wk-action-btn" href="/workout/profile" title="Настройки">⚙️ Настройки</a>
           </div>
         </div>
         <div class="wk-nutrition-box" id="wkNutritionBox" style="display:none">
@@ -823,71 +792,6 @@
 
 <div class="wk-chart-tooltip" id="wkChartTooltip"></div>
 
-<div class="wk-settings-overlay" id="wkSettingsOverlay">
-  <div class="wk-settings-panel">
-    <div class="wk-settings-header">
-      <div class="wk-settings-title">Профиль</div>
-      <button type="button" class="wk-settings-close" id="wkSettingsClose">×</button>
-    </div>
-
-    <div class="wk-profile-sec">
-      <div class="wk-profile-sec-title">Моя анкета</div>
-      <div class="wk-anketa-summary" id="wkAnketaSummary"></div>
-      <button type="button" class="wk-action-btn" id="wkEditAnketaBtn">✏️ Изменить анкету</button>
-    </div>
-
-    <div class="wk-profile-sec">
-      <label class="wk-settings-toggle-row">
-        <input type="checkbox" id="wkUseNutritionToggle" checked>
-        <span>Учитывать данные питания</span>
-      </label>
-      <div class="wk-settings-toggle-hint">Норма белка на сегодня и предупреждение о большом дефиците калорий — на основе Дневника питания. Если ты не ведёшь его активно, выключи: подсказки без актуальных данных будут только мешать.</div>
-    </div>
-
-    <div class="wk-profile-sec">
-      <div class="wk-profile-sec-title">Состав тела</div>
-      <div id="wkScaleDisconnected">
-        <p class="wk-profile-hint">Подключи весы Mi Body Composition Scale через аккаунт Zepp Life — вес и состав тела будут подтягиваться автоматически (раз в день). Это неофициальная интеграция: если Zepp Life изменит API, синхронизация может прерваться — тогда просто продолжай вводить вес вручную, ничего не сломается.</p>
-        <input type="text" class="wk-profile-input" id="wkScaleUsername" placeholder="email или телефон Zepp Life">
-        <input type="password" class="wk-profile-input" id="wkScalePassword" placeholder="пароль">
-        <button type="button" class="wk-profile-btn" id="wkScaleConnectBtn">Подключить весы Xiaomi</button>
-        <div class="wk-profile-msg" id="wkScaleConnectMsg"></div>
-      </div>
-      <div id="wkScaleConnected" style="display:none">
-        <div class="wk-bodycomp-grid" id="wkBodyCompGrid"></div>
-        <p class="wk-profile-hint" id="wkScaleLastSync"></p>
-        <div class="wk-profile-actions">
-          <button type="button" class="wk-profile-btn-sm" id="wkScaleSyncBtn">↻ Обновить сейчас</button>
-          <button type="button" class="wk-profile-btn-sm wk-profile-btn-danger" id="wkScaleDisconnectBtn">Отключить</button>
-        </div>
-        <div class="wk-profile-msg" id="wkScaleSyncMsg"></div>
-      </div>
-    </div>
-
-    <div class="wk-profile-sec">
-      <div class="wk-profile-sec-title">Прогресс тела</div>
-      <p class="wk-profile-hint">Визуальный дневник прогресса. Для точного анализа состава тела используй умные весы или обратись к специалисту.</p>
-      <div class="wk-photo-slots">
-        <input type="file" accept="image/*" id="wkPhotoFront" style="display:none">
-        <div class="wk-photo-slot" id="wkSlotFront">+ Спереди</div>
-        <input type="file" accept="image/*" id="wkPhotoSide" style="display:none">
-        <div class="wk-photo-slot" id="wkSlotSide">+ Сбоку</div>
-        <input type="file" accept="image/*" id="wkPhotoBack" style="display:none">
-        <div class="wk-photo-slot" id="wkSlotBack">+ Сзади</div>
-      </div>
-      <button type="button" class="wk-profile-btn" id="wkUploadPhotosBtn">Сохранить фото за сегодня</button>
-      <div class="wk-profile-msg" id="wkPhotoMsg"></div>
-
-      <div class="wk-profile-sec-title wk-photo-compare-title">Сравнение по датам</div>
-      <div class="wk-photo-compare-selects">
-        <select class="wk-profile-input" id="wkCompareDateOld"></select>
-        <span>→</span>
-        <select class="wk-profile-input" id="wkCompareDateNew"></select>
-      </div>
-      <div class="wk-photo-compare-view" id="wkCompareView"></div>
-    </div>
-  </div>
-</div>
 
 <div class="wk-chat-overlay" id="wkChatOverlay">
   <div class="wk-chat-panel">
@@ -934,7 +838,6 @@
   // уже сохранённых ответов и без лишней перегенерации, если ничего не менялось
   var isEditMode = false;
   var editStartStep = null;
-  var editSnapshot = null;
 
   var STRUCTURE_LABEL = {
     full_body: 'Фулл-боди',
@@ -1128,7 +1031,6 @@
   function exitEditMode() {
     isEditMode = false;
     editStartStep = null;
-    editSnapshot = null;
     showStep('done');
   }
 
@@ -1151,7 +1053,7 @@
       .then(function (data) {
         if (data.ok) {
           if (isEditMode) {
-            finishEditMode();
+            finishEditMode(data.material_change);
           } else {
             showStep('done');
             $('#wkDoneSub').textContent = 'Собираем программу под тебя…';
@@ -1169,16 +1071,6 @@
   }
 
   // ── Редактирование анкеты с экрана "Готово" ──
-  function snapshotRelevantState() {
-    return JSON.stringify({
-      goal: state.goal, days_per_week: state.days_per_week, level: state.level,
-      focus_zones: (state.focus_zones || []).slice().sort(),
-      pain_zones: (state.pain_zones || []).slice().sort(),
-      equipment: (state.equipment || []).slice().sort(),
-      home_only: !!state.home_only,
-    });
-  }
-
   function restoreWizardVisualState() {
     $all('.wk-option[data-field="goal"]').forEach(function (el) {
       el.classList.toggle('selected', el.dataset.value === state.goal);
@@ -1223,7 +1115,6 @@
         state.home_only = !!data.home_only;
 
         restoreWizardVisualState();
-        editSnapshot = snapshotRelevantState();
         isEditMode = true;
         editStartStep = startStep;
         step = startStep;
@@ -1231,14 +1122,12 @@
       });
   }
 
-  function finishEditMode() {
-    var changed = editSnapshot !== snapshotRelevantState();
+  function finishEditMode(materialChange) {
     isEditMode = false;
     editStartStep = null;
-    editSnapshot = null;
     setSavingState(false);
     showStep('done');
-    if (changed) {
+    if (materialChange) {
       $('#wkDoneSub').textContent = 'Собираем программу под тебя…';
       generateProgram();
     } else {
@@ -1448,24 +1337,36 @@
         });
       });
 
-      html += '<div class="wk-prog-day" data-day-id="' + day.id + '">' +
-        '<div class="wk-day-header">' +
-          '<div class="wk-prog-day-title">' + day.label + '</div>' +
+      var totalCount = core.length + bonus.length;
+      var statusBadge = '';
+      if (day.today_status === 'completed') statusBadge = '<span class="wk-day-status-badge done">сделано</span>';
+      else if (day.today_status === 'skipped') statusBadge = '<span class="wk-day-status-badge skipped">пропущено</span>';
+      else statusBadge = '<span class="wk-day-status-badge">не сделано</span>';
+      var expanded = !!day.is_today;
+
+      html += '<div class="wk-prog-day' + (expanded ? ' expanded' : '') + '" data-day-id="' + day.id + '">' +
+        '<div class="wk-day-header" data-day-toggle>' +
+          '<div class="wk-day-header-top">' +
+            '<svg class="wk-day-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>' +
+            '<div class="wk-prog-day-title">' + day.label + '</div>' +
+          '</div>' +
+          '<div class="wk-day-summary">' + totalCount + ' упражнен' + (totalCount === 1 ? 'ие' : (totalCount >= 2 && totalCount <= 4 ? 'ия' : 'ий')) + statusBadge + '</div>' +
+        '</div>' +
+        '<div class="wk-day-body">' +
           '<div class="wk-day-actions">' +
             '<label class="wk-light-toggle"><input type="checkbox" class="wk-light-checkbox">Лёгкий день' + tipBtn('light_day') + '</label>' +
             '<button type="button" class="wk-complete-btn">Завершить тренировку</button>' +
             '<button type="button" class="wk-skip-btn">Не смог сегодня</button>' +
           '</div>' +
-        '</div>' +
-        '<div class="wk-skip-panel">' +
-          '<div class="wk-skip-panel-title">Что случилось? Это нормально — прогресс не сбрасывается.</div>' +
-          '<div class="wk-skip-reasons">' +
-            Object.keys(SKIP_REASON_LABELS).map(function (k) {
-              return '<button type="button" class="wk-skip-reason-btn" data-reason="' + k + '">' + SKIP_REASON_LABELS[k] + '</button>';
-            }).join('') +
-          '</div>' +
-          '<div class="wk-skip-note">Записано. Увидимся в следующий раз 👍</div>' +
-        '</div>';
+          '<div class="wk-skip-panel">' +
+            '<div class="wk-skip-panel-title">Что случилось? Это нормально — прогресс не сбрасывается.</div>' +
+            '<div class="wk-skip-reasons">' +
+              Object.keys(SKIP_REASON_LABELS).map(function (k) {
+                return '<button type="button" class="wk-skip-reason-btn" data-reason="' + k + '">' + SKIP_REASON_LABELS[k] + '</button>';
+              }).join('') +
+            '</div>' +
+            '<div class="wk-skip-note">Записано. Увидимся в следующий раз 👍</div>' +
+          '</div>';
       core.forEach(function (ex) { html += exCard(ex, day.id); });
       if (bonus.length) {
         html += '<div class="wk-bonus-section"><div class="wk-bonus-title">Если останутся силы</div>';
@@ -1475,7 +1376,7 @@
       html += '<div class="wk-cooldown"><span class="wk-cooldown-ico">🧊</span> Заминка: 5 минут лёгкого кардио + статическая растяжка 20–30 с на проработанные группы' +
         (muscles.length ? ' (' + muscles.join(', ') + ')' : '') + tipBtn('cooldown') +
         '</div>';
-      html += '</div>';
+      html += '</div></div>';
     });
     html += '<button class="wk-regen-btn" id="wkRegenBtn" type="button">↻ Сгенерировать заново</button>';
     box.innerHTML = html;
@@ -1538,6 +1439,11 @@
   }
 
   function wireDayInteractions() {
+    $all('[data-day-toggle]').forEach(function (header) {
+      header.addEventListener('click', function () {
+        header.closest('.wk-prog-day').classList.toggle('expanded');
+      });
+    });
     $all('.wk-skip-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var panel = btn.closest('.wk-prog-day').querySelector('.wk-skip-panel');
@@ -1944,7 +1850,6 @@
     if (e.target === $('#wkChatOverlay')) $('#wkChatOverlay').classList.remove('show');
   });
   $('#wkGeneralChatBtn').addEventListener('click', function () { openWorkoutChat(null, null); });
-  $('#wkEditEquipmentBtn').addEventListener('click', function () { enterAnketaEditMode(6); });
 
   function chatMsgEl(role, html) {
     var el = document.createElement('div');
@@ -2145,11 +2050,10 @@
     box.innerHTML = '<div class="wk-prog-error">' + message + '</div>' +
       '<div class="wk-prog-error-actions">' +
         '<button type="button" class="wk-action-btn" id="wkRetryGenBtn">↻ Попробовать снова</button>' +
-        '<button type="button" class="wk-action-btn" id="wkErrEditEquipBtn">🛠 Изменить оборудование</button>' +
+        '<a class="wk-action-btn" href="/workout/profile">⚙️ Изменить оборудование</a>' +
       '</div>';
     $('#wkDoneSub').textContent = 'Не удалось собрать программу';
     $('#wkRetryGenBtn').addEventListener('click', generateProgram);
-    $('#wkErrEditEquipBtn').addEventListener('click', function () { enterAnketaEditMode(6); });
   }
 
   // ── Общий SVG-график (линия + точки + тултип) — используется и для веса
@@ -2287,235 +2191,6 @@
       .catch(function () {});
   }
 
-  function loadWorkoutSettings() {
-    fetch('/workout/api/settings')
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        $('#wkUseNutritionToggle').checked = data.use_nutrition_data !== false;
-      })
-      .catch(function () {});
-  }
-  $('#wkSettingsBtn').addEventListener('click', function () {
-    $('#wkSettingsOverlay').classList.add('show');
-    loadAnketaSummary();
-    loadScaleStatusWk();
-    loadBodyPhotosWk();
-  });
-  $('#wkEditAnketaBtn').addEventListener('click', function () {
-    $('#wkSettingsOverlay').classList.remove('show');
-    enterAnketaEditMode(1);
-  });
-
-  function loadAnketaSummary() {
-    fetch('/workout/api/profile')
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        var box = $('#wkAnketaSummary');
-        if (!data.exists) { box.innerHTML = '<div class="wk-profile-hint">Анкета пока не заполнена.</div>'; return; }
-
-        function labelFor(field, value) {
-          var el = $('.wk-option[data-field="' + field + '"][data-value="' + value + '"] .wk-option-label');
-          return el ? el.textContent : (value || '—');
-        }
-        function zoneLabels(field, values) {
-          if (!values || !values.length) return 'нет';
-          return values.map(function (v) {
-            var el = $('.wk-pain-item[data-field="' + field + '"][data-value="' + v + '"] .wk-pain-label');
-            return el ? el.textContent : v;
-          }).join(', ');
-        }
-        var equipmentText = data.home_only
-          ? 'дом без инвентаря'
-          : ((data.equipment || []).length
-              ? data.equipment.map(function (v) {
-                  var el = $('.wk-eq-card[data-value="' + v + '"] .wk-eq-name-ru');
-                  return el ? el.textContent : v;
-                }).join(', ')
-              : 'не отмечено');
-
-        var rows = [
-          ['Цель', labelFor('goal', data.goal)],
-          ['Уровень', labelFor('level', data.level)],
-          ['Дней в неделю', data.days_per_week],
-          ['Зоны упора', zoneLabels('focus_zones', data.focus_zones)],
-          ['Ограничения', zoneLabels('pain_zones', data.pain_zones)],
-          ['Моё оборудование', equipmentText],
-        ];
-        box.innerHTML = rows.map(function (r) {
-          return '<div class="wk-anketa-row"><span class="wk-anketa-label">' + r[0] + '</span><span class="wk-anketa-value">' + r[1] + '</span></div>';
-        }).join('');
-      });
-  }
-  $('#wkSettingsClose').addEventListener('click', function () {
-    $('#wkSettingsOverlay').classList.remove('show');
-  });
-  $('#wkSettingsOverlay').addEventListener('click', function (e) {
-    if (e.target === $('#wkSettingsOverlay')) $('#wkSettingsOverlay').classList.remove('show');
-  });
-  $('#wkUseNutritionToggle').addEventListener('change', function () {
-    var checked = this.checked;
-    fetch('/workout/api/settings', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ use_nutrition_data: checked }),
-    }).then(function () { loadNutritionSummary(); });
-  });
-
-  // ── Состав тела — умные весы Xiaomi (Zepp Life), переиспользуем те же
-  // эндпоинты /nutrition/api/scale/* — подключение/данные общие для всего
-  // сайта, дублировать на бэкенде нечего ──
-  function loadBodyCompGrid() {
-    fetch('/nutrition/api/weight')
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        var latest = (data.logs || [])[0];
-        var grid = $('#wkBodyCompGrid');
-        if (!latest) { grid.innerHTML = ''; return; }
-        var items = [
-          ['Вес', latest.weight_kg != null ? latest.weight_kg + ' кг' : '—'],
-          ['Жир', latest.body_fat_pct != null ? latest.body_fat_pct + ' %' : '—'],
-          ['Мышцы', latest.muscle_rate_pct != null ? latest.muscle_rate_pct + ' %' : '—'],
-          ['Вода', latest.water_pct != null ? latest.water_pct + ' %' : '—'],
-          ['Висцеральный жир', latest.visceral_fat != null ? latest.visceral_fat : '—'],
-          ['Метаболизм', latest.bmr != null ? latest.bmr + ' ккал' : '—'],
-          ['Возраст тела', latest.body_age != null ? latest.body_age : '—'],
-          ['Костная масса', latest.bone_mass_kg != null ? latest.bone_mass_kg + ' кг' : '—'],
-        ];
-        grid.innerHTML = items.map(function (it) {
-          return '<div class="wk-bodycomp-item"><div class="wk-bodycomp-val">' + it[1] + '</div><div class="wk-bodycomp-lbl">' + it[0] + '</div></div>';
-        }).join('');
-        $('#wkScaleLastSync').textContent = 'Измерение от ' + latest.date;
-      });
-  }
-
-  function loadScaleStatusWk() {
-    fetch('/nutrition/api/scale/status')
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        $('#wkScaleDisconnected').style.display = data.connected ? 'none' : '';
-        $('#wkScaleConnected').style.display = data.connected ? '' : 'none';
-        if (data.connected) {
-          var msg = $('#wkScaleSyncMsg');
-          msg.textContent = data.last_sync_status === 'error'
-            ? ('Ошибка последней синхронизации: ' + (data.last_sync_error || ''))
-            : '';
-          loadBodyCompGrid();
-        }
-      })
-      .catch(function () {});
-  }
-
-  $('#wkScaleConnectBtn').addEventListener('click', function () {
-    var username = $('#wkScaleUsername').value.trim();
-    var password = $('#wkScalePassword').value;
-    var msg = $('#wkScaleConnectMsg');
-    if (!username || !password) { msg.textContent = 'Укажи логин и пароль'; return; }
-    var btn = this;
-    btn.disabled = true;
-    msg.textContent = 'Подключаем…';
-    fetch('/nutrition/api/scale/connect', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: username, password: password }),
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        btn.disabled = false;
-        if (data.error) { msg.textContent = data.error; return; }
-        msg.textContent = data.warning || ('Подключено, синхронизировано записей: ' + (data.synced || 0));
-        loadScaleStatusWk();
-        loadWeightChart();
-      })
-      .catch(function () { btn.disabled = false; msg.textContent = 'Ошибка сети, попробуй ещё раз.'; });
-  });
-
-  $('#wkScaleSyncBtn').addEventListener('click', function () {
-    var msg = $('#wkScaleSyncMsg');
-    msg.textContent = 'Синхронизируем…';
-    fetch('/nutrition/api/scale/sync', { method: 'POST' })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (data.error) { msg.textContent = data.error; }
-        else { msg.textContent = 'Готово, новых записей: ' + (data.synced || 0); loadWeightChart(); loadBodyCompGrid(); }
-        loadScaleStatusWk();
-      });
-  });
-
-  $('#wkScaleDisconnectBtn').addEventListener('click', function () {
-    if (!confirm('Отключить весы Xiaomi? Уже синхронизированные данные останутся.')) return;
-    fetch('/nutrition/api/scale/disconnect', { method: 'POST' }).then(function () {
-      $('#wkScaleUsername').value = '';
-      $('#wkScalePassword').value = '';
-      loadScaleStatusWk();
-    });
-  });
-
-  // ── Прогресс тела — фото-дневник, без ИИ-анализа ──
-  var wkBodyPhotoFiles = {};
-  var wkPhotoAngleIds = { front: 'Front', side: 'Side', back: 'Back' };
-  Object.keys(wkPhotoAngleIds).forEach(function (angle) {
-    var suffix = wkPhotoAngleIds[angle];
-    var input = $('#wkPhoto' + suffix);
-    var slot = $('#wkSlot' + suffix);
-    slot.addEventListener('click', function () { input.click(); });
-    input.addEventListener('change', function () {
-      var file = this.files[0];
-      if (!file) return;
-      wkBodyPhotoFiles[angle] = file;
-      var reader = new FileReader();
-      reader.onload = function (e) { slot.innerHTML = '<img src="' + e.target.result + '">'; };
-      reader.readAsDataURL(file);
-    });
-  });
-
-  $('#wkUploadPhotosBtn').addEventListener('click', function () {
-    var angles = Object.keys(wkBodyPhotoFiles);
-    var msg = $('#wkPhotoMsg');
-    if (!angles.length) { msg.textContent = 'Выбери хотя бы одно фото'; return; }
-    var today = new Date().toISOString().slice(0, 10);
-    var requests = angles.map(function (angle) {
-      var fd = new FormData();
-      fd.append('file', wkBodyPhotoFiles[angle]);
-      fd.append('angle', angle);
-      fd.append('date', today);
-      return fetch('/nutrition/api/body-photo', { method: 'POST', body: fd });
-    });
-    Promise.all(requests).then(function () {
-      msg.textContent = 'Сохранено за ' + today;
-      wkBodyPhotoFiles = {};
-      loadBodyPhotosWk();
-    });
-  });
-
-  var wkBodyPhotosCache = {};
-  function loadBodyPhotosWk() {
-    fetch('/nutrition/api/body-photos')
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        wkBodyPhotosCache = data.photos || {};
-        var dates = data.dates || [];
-        var oldSel = $('#wkCompareDateOld'), newSel = $('#wkCompareDateNew');
-        var opts = dates.map(function (d) { return '<option value="' + d + '">' + d + '</option>'; }).join('');
-        oldSel.innerHTML = opts;
-        newSel.innerHTML = opts;
-        if (dates.length) { oldSel.value = dates[dates.length - 1]; newSel.value = dates[0]; }
-        renderCompareWk();
-      })
-      .catch(function () {});
-  }
-
-  function renderCompareWk() {
-    var oldDate = $('#wkCompareDateOld').value, newDate = $('#wkCompareDateNew').value;
-    var view = $('#wkCompareView');
-    if (!oldDate || !newDate) { view.innerHTML = '<p class="wk-profile-hint">Загрузи фото хотя бы за одну дату.</p>'; return; }
-    function col(date) {
-      var angles = wkBodyPhotosCache[date] || {};
-      var imgs = ['front', 'side', 'back'].filter(function (a) { return angles[a]; })
-        .map(function (a) { return '<img src="' + angles[a] + '">'; }).join('');
-      return '<div class="wk-compare-col">' + (imgs || '<p class="wk-profile-hint">нет фото</p>') + '<div class="wk-compare-col-label">' + date + '</div></div>';
-    }
-    view.innerHTML = col(oldDate) + col(newDate);
-  }
-  $('#wkCompareDateOld').addEventListener('change', renderCompareWk);
-  $('#wkCompareDateNew').addEventListener('change', renderCompareWk);
 
   function toggleProgressChart(card) {
     var panel = $('.wk-progress-chart-panel', card);
@@ -2628,7 +2303,10 @@
         checkReturnPlan();
         loadWeightChart();
         loadNutritionSummary();
-        loadWorkoutSettings();
+        // ссылка "Изменить анкету" со страницы профиля — прыжок прямо в визард
+        if (new URLSearchParams(location.search).get('edit_anketa')) {
+          enterAnketaEditMode(1);
+        }
       } else {
         showStep(step);
       }

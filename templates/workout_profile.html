@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Профиль — Программа тренировок — EnergyDess</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <script src="/static/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/static/style.css">
+  <script>window.PARTICLE_THEME = { disabled: true };</script>
+  <script src="/static/effects.js" defer></script>
+  <style>
+    .theme-workout {
+      color-scheme: dark;
+      --surface-0: #0a0814;
+      --surface-1: #16132a;
+      --surface-2: #211d3d;
+      --surface-3: #2d2752;
+      --accent:    #8b5cff;
+      --accent-2:  #00e0d5;
+      --grad-btn:  linear-gradient(135deg, #8b5cff 0%, #00e0d5 100%);
+      position: relative;
+      background: var(--surface-0);
+      overflow: hidden;
+      min-height: calc(100vh - 60px);
+      padding: var(--space-7) var(--space-4) var(--space-7);
+    }
+    .theme-workout .bg-blobs { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .theme-workout .bg-blobs span { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.28; will-change: transform; }
+    .theme-workout .bg-blobs span:nth-child(1){ width:420px;height:420px;background:#8b5cff;top:-80px;left:-60px;animation:blobDrift 26s ease-in-out infinite; }
+    .theme-workout .bg-blobs span:nth-child(2){ width:360px;height:360px;background:#00e0d5;bottom:-100px;right:-40px;animation:blobDrift 32s ease-in-out infinite reverse; }
+    .theme-workout .bg-blobs span:nth-child(3){ width:300px;height:300px;background:#5b2ec4;top:40%;left:55%;animation:blobDrift 22s ease-in-out infinite; }
+    @keyframes blobDrift { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(60px,-40px) scale(1.08); } 66% { transform: translate(-40px,50px) scale(0.96); } }
+    .theme-workout > *:not(.bg-blobs) { position: relative; z-index: 1; }
+    @media (prefers-reduced-motion: reduce) { .theme-workout .bg-blobs span { animation: none; } }
+
+    .wkp-shell { max-width: 640px; margin: 0 auto; }
+    .wkp-head { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-6); }
+    .wkp-back { color: var(--text-2); text-decoration: none; font-size: 1.3rem; display: flex; align-items: center; }
+    .wkp-back:hover { color: var(--text); }
+    .wkp-head h1 { font-family: var(--font-display); font-size: clamp(1.4rem, 3vw, 1.8rem); font-weight: 700; color: var(--text); }
+
+    .wk-card { background: var(--surface-1); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: var(--space-6); margin-bottom: var(--space-5); }
+
+    .wk-action-btn { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 9px 16px; border-radius: 99px; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
+    .wk-action-btn:hover { border-color: var(--accent); }
+
+    .wk-settings-toggle-row { display: flex; align-items: center; gap: 10px; font-size: 0.9375rem; color: var(--text); cursor: pointer; }
+    .wk-settings-toggle-row input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+    .wk-settings-toggle-hint { margin-top: var(--space-2); font-size: 0.8125rem; color: var(--text-2); line-height: 1.5; }
+
+    .wk-profile-sec-title { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 1.0625rem; margin-bottom: var(--space-3); }
+    .wk-anketa-summary { background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
+    .wk-anketa-row { display: flex; justify-content: space-between; gap: var(--space-3); padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.8125rem; }
+    .wk-anketa-row:last-child { border-bottom: none; }
+    .wk-anketa-label { color: var(--text-2); flex-shrink: 0; }
+    .wk-anketa-value { color: var(--text); text-align: right; }
+    .wk-profile-hint { font-size: 0.8125rem; color: var(--text-2); line-height: 1.5; margin-bottom: var(--space-2); }
+    .wk-profile-input { width: 100%; box-sizing: border-box; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; color: var(--text); font-size: 0.875rem; margin-bottom: 8px; }
+    .wk-profile-input option { background: var(--surface-2); color: var(--text); }
+    .wk-profile-btn { background: var(--grad-btn); border: none; color: #fff; padding: 9px 16px; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+    .wk-profile-btn-sm { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 7px 14px; border-radius: 99px; font-size: 0.8125rem; cursor: pointer; }
+    .wk-profile-btn-danger { color: #f87171; }
+    .wk-profile-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: var(--space-2); }
+    .wk-profile-msg { font-size: 0.8125rem; margin-top: 8px; color: var(--text-2); }
+    .wk-bodycomp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: var(--space-2); }
+    .wk-bodycomp-item { background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-3); }
+    .wk-bodycomp-val { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 1.0625rem; }
+    .wk-bodycomp-lbl { font-size: 0.75rem; color: var(--text-2); margin-top: 2px; }
+    .wk-photo-slots { display: flex; gap: 8px; margin-bottom: var(--space-2); }
+    .wk-photo-slot { flex: 1; aspect-ratio: 3/4; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-2); cursor: pointer; overflow: hidden; }
+    .wk-photo-slot:hover { border-color: var(--accent); }
+    .wk-photo-slot img { width: 100%; height: 100%; object-fit: cover; }
+    .wk-photo-compare-title { margin-top: var(--space-4); }
+    .wk-photo-compare-selects { display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-2); color: var(--text-2); }
+    .wk-photo-compare-selects select { margin-bottom: 0; }
+    .wk-photo-compare-view { display: flex; gap: 10px; flex-wrap: wrap; }
+    .wk-compare-col { flex: 1; min-width: 120px; }
+    .wk-compare-col img { width: 100%; border-radius: var(--radius-sm); margin-bottom: 4px; }
+    .wk-compare-col-label { font-size: 0.75rem; color: var(--text-2); text-align: center; }
+
+    /* Моё оборудование */
+    .wk-eq-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); gap: var(--space-3); flex-wrap: wrap; }
+    .wk-eq-count { color: var(--text-2); font-size: 0.875rem; font-family: var(--font-mono); }
+    .wk-home-btn { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: var(--space-3) var(--space-4); border-radius: var(--radius-sm); font-size: 0.875rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .wk-home-btn:hover { border-color: var(--border-strong); }
+    .wk-home-btn.active { background: var(--accent-2); color: #06251f; border-color: transparent; font-weight: 600; }
+    .wk-eq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
+    .wk-eq-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; cursor: pointer; transition: all 0.2s; position: relative; }
+    .wk-eq-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+    .wk-eq-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+    .wk-eq-card .wk-eq-img-wrap { width: 100%; aspect-ratio: 1/1; min-height: 160px; background: #0c0a1a; overflow: hidden; }
+    .wk-eq-card img { width: 100%; height: 100%; object-fit: cover; opacity: 0.88; transition: opacity 0.2s, transform 0.2s; }
+    .wk-eq-card:hover img { transform: scale(1.05); }
+    .wk-eq-card.selected img { opacity: 1; }
+    .wk-eq-check { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: rgba(10,8,20,0.7); border: 1.5px solid rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    .wk-eq-card.selected .wk-eq-check { background: var(--accent); border-color: var(--accent); }
+    .wk-eq-check svg { opacity: 0; transition: opacity 0.15s; }
+    .wk-eq-card.selected .wk-eq-check svg { opacity: 1; }
+    .wk-eq-names { padding: var(--space-2) var(--space-3) var(--space-3); }
+    .wk-eq-name-ru { font-size: 0.8125rem; font-weight: 600; color: var(--text); line-height: 1.25; }
+    .wk-eq-name-en { font-size: 0.6875rem; color: var(--text-2); font-family: var(--font-mono); margin-top: 2px; }
+    .wk-eq-regen-banner { display: none; background: linear-gradient(135deg, rgba(139,92,255,0.14), rgba(0,224,213,0.08)); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: var(--space-4); margin-top: var(--space-3); font-size: 0.875rem; color: var(--text); }
+    .wk-eq-regen-banner.show { display: block; }
+    .wk-eq-regen-banner button { margin-top: var(--space-2); }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="nav-logo-symbol">⚡</span>
+    <span>EnergyDess</span>
+  </a>
+  <div class="nav-right">
+    <a href="/" class="nav-hide-mobile">Главная</a>
+    <a href="/profile">Профиль</a>
+    {% if user.is_admin %}
+    <a href="/admin" class="admin-link">Админ</a>
+    {% endif %}
+    <a href="/logout" class="nav-logout">Выйти</a>
+  </div>
+</nav>
+
+<main class="theme-workout">
+  <div class="bg-blobs"><span></span><span></span><span></span></div>
+
+  <div class="wkp-shell">
+    <div class="wkp-head">
+      <a href="/workout" class="wkp-back" title="К программе">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </a>
+      <h1>⚙️ Профиль тренировок</h1>
+    </div>
+
+    <div class="wk-card">
+      <div class="wk-profile-sec-title">Моя анкета</div>
+      <div class="wk-anketa-summary" id="wkAnketaSummary"></div>
+      <a class="wk-action-btn" href="/workout?edit_anketa=1">✏️ Изменить анкету</a>
+    </div>
+
+    <div class="wk-card">
+      <label class="wk-settings-toggle-row">
+        <input type="checkbox" id="wkUseNutritionToggle" checked>
+        <span>Учитывать данные питания</span>
+      </label>
+      <div class="wk-settings-toggle-hint">Норма белка на сегодня и предупреждение о большом дефиците калорий — на основе Дневника питания. Если ты не ведёшь его активно, выключи: подсказки без актуальных данных будут только мешать.</div>
+    </div>
+
+    <div class="wk-card">
+      <div class="wk-profile-sec-title">Состав тела</div>
+      <div id="wkScaleDisconnected">
+        <p class="wk-profile-hint">Подключи весы Mi Body Composition Scale через аккаунт Zepp Life — вес и состав тела будут подтягиваться автоматически (раз в день). Это неофициальная интеграция: если Zepp Life изменит API, синхронизация может прерваться — тогда просто продолжай вводить вес вручную, ничего не сломается.</p>
+        <input type="text" class="wk-profile-input" id="wkScaleUsername" placeholder="email или телефон Zepp Life">
+        <input type="password" class="wk-profile-input" id="wkScalePassword" placeholder="пароль">
+        <button type="button" class="wk-profile-btn" id="wkScaleConnectBtn">Подключить весы Xiaomi</button>
+        <div class="wk-profile-msg" id="wkScaleConnectMsg"></div>
+      </div>
+      <div id="wkScaleConnected" style="display:none">
+        <div class="wk-bodycomp-grid" id="wkBodyCompGrid"></div>
+        <p class="wk-profile-hint" id="wkScaleLastSync"></p>
+        <div class="wk-profile-actions">
+          <button type="button" class="wk-profile-btn-sm" id="wkScaleSyncBtn">↻ Обновить сейчас</button>
+          <button type="button" class="wk-profile-btn-sm wk-profile-btn-danger" id="wkScaleDisconnectBtn">Отключить</button>
+        </div>
+        <div class="wk-profile-msg" id="wkScaleSyncMsg"></div>
+      </div>
+    </div>
+
+    <div class="wk-card">
+      <div class="wk-profile-sec-title">Прогресс тела</div>
+      <p class="wk-profile-hint">Визуальный дневник прогресса. Для точного анализа состава тела используй умные весы или обратись к специалисту.</p>
+      <div class="wk-photo-slots">
+        <input type="file" accept="image/*" id="wkPhotoFront" style="display:none">
+        <div class="wk-photo-slot" id="wkSlotFront">+ Спереди</div>
+        <input type="file" accept="image/*" id="wkPhotoSide" style="display:none">
+        <div class="wk-photo-slot" id="wkSlotSide">+ Сбоку</div>
+        <input type="file" accept="image/*" id="wkPhotoBack" style="display:none">
+        <div class="wk-photo-slot" id="wkSlotBack">+ Сзади</div>
+      </div>
+      <button type="button" class="wk-profile-btn" id="wkUploadPhotosBtn">Сохранить фото за сегодня</button>
+      <div class="wk-profile-msg" id="wkPhotoMsg"></div>
+
+      <div class="wk-profile-sec-title wk-photo-compare-title">Сравнение по датам</div>
+      <div class="wk-photo-compare-selects">
+        <select class="wk-profile-input" id="wkCompareDateOld"></select>
+        <span>→</span>
+        <select class="wk-profile-input" id="wkCompareDateNew"></select>
+      </div>
+      <div class="wk-photo-compare-view" id="wkCompareView"></div>
+    </div>
+
+    <div class="wk-card">
+      <div class="wk-profile-sec-title">Моё оборудование</div>
+      <p class="wk-profile-hint">Отметь, какое оборудование у тебя есть. Не нашёл нужный тренажёр — позже можно скинуть фото в чат ассистенту.</p>
+      <div class="wk-eq-toolbar">
+        <span class="wk-eq-count" id="wkEqCount">Отмечено: 0</span>
+        <button class="wk-home-btn" id="wkHomeBtn" type="button">🏠 Дом без инвентаря</button>
+      </div>
+      <div class="wk-eq-grid" id="wkEqGrid">
+        {% for item in equipment_options %}
+        <div class="wk-eq-card" data-value="{{ item.label }}">
+          <div class="wk-eq-img-wrap"><img src="/static/exercises/{{ item.image }}" alt="{{ item.name_ru }}" loading="lazy"></div>
+          <div class="wk-eq-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
+          <div class="wk-eq-names">
+            <div class="wk-eq-name-ru">{{ item.name_ru }}</div>
+            <div class="wk-eq-name-en">{{ item.name_en }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="wk-profile-btn" id="wkSaveEquipmentBtn">Сохранить оборудование</button>
+      <div class="wk-profile-msg" id="wkEquipmentMsg"></div>
+      <div class="wk-eq-regen-banner" id="wkEqRegenBanner">
+        Оборудование изменилось — программа была собрана под старый список. Обновить её под новое оборудование?
+        <div><button type="button" class="wk-action-btn" id="wkRegenNowBtn">🔄 Обновить программу</button></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+
+  // ── Моя анкета ──
+  function loadAnketaSummary() {
+    fetch('/workout/api/profile')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var box = $('#wkAnketaSummary');
+        if (!data.exists) { box.innerHTML = '<div class="wk-profile-hint">Анкета пока не заполнена.</div>'; return; }
+        var labels = data.labels || {};
+        var equipmentText = data.home_only
+          ? 'дом без инвентаря'
+          : ((data.equipment || []).length ? data.equipment.join(', ') : 'не отмечено');
+        var rows = [
+          ['Цель', labels.goal || data.goal],
+          ['Уровень', labels.level || data.level],
+          ['Дней в неделю', data.days_per_week],
+          ['Зоны упора', (labels.focus_zones || []).length ? labels.focus_zones.join(', ') : 'нет'],
+          ['Ограничения', (labels.pain_zones || []).length ? labels.pain_zones.join(', ') : 'нет'],
+          ['Моё оборудование', equipmentText],
+        ];
+        box.innerHTML = rows.map(function (r) {
+          return '<div class="wk-anketa-row"><span class="wk-anketa-label">' + r[0] + '</span><span class="wk-anketa-value">' + r[1] + '</span></div>';
+        }).join('');
+      });
+  }
+  loadAnketaSummary();
+
+  // ── Учитывать данные питания ──
+  fetch('/workout/api/settings')
+    .then(function (r) { return r.json(); })
+    .then(function (data) { $('#wkUseNutritionToggle').checked = data.use_nutrition_data !== false; })
+    .catch(function () {});
+  $('#wkUseNutritionToggle').addEventListener('change', function () {
+    fetch('/workout/api/settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ use_nutrition_data: this.checked }),
+    });
+  });
+
+  // ── Состав тела — умные весы Xiaomi (Zepp Life) ──
+  function loadBodyCompGrid() {
+    fetch('/nutrition/api/weight')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var latest = (data.logs || [])[0];
+        var grid = $('#wkBodyCompGrid');
+        if (!latest) { grid.innerHTML = ''; return; }
+        var items = [
+          ['Вес', latest.weight_kg != null ? latest.weight_kg + ' кг' : '—'],
+          ['Жир', latest.body_fat_pct != null ? latest.body_fat_pct + ' %' : '—'],
+          ['Мышцы', latest.muscle_rate_pct != null ? latest.muscle_rate_pct + ' %' : '—'],
+          ['Вода', latest.water_pct != null ? latest.water_pct + ' %' : '—'],
+          ['Висцеральный жир', latest.visceral_fat != null ? latest.visceral_fat : '—'],
+          ['Метаболизм', latest.bmr != null ? latest.bmr + ' ккал' : '—'],
+          ['Возраст тела', latest.body_age != null ? latest.body_age : '—'],
+          ['Костная масса', latest.bone_mass_kg != null ? latest.bone_mass_kg + ' кг' : '—'],
+        ];
+        grid.innerHTML = items.map(function (it) {
+          return '<div class="wk-bodycomp-item"><div class="wk-bodycomp-val">' + it[1] + '</div><div class="wk-bodycomp-lbl">' + it[0] + '</div></div>';
+        }).join('');
+        $('#wkScaleLastSync').textContent = 'Измерение от ' + latest.date;
+      });
+  }
+  function loadScaleStatusWk() {
+    fetch('/nutrition/api/scale/status')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        $('#wkScaleDisconnected').style.display = data.connected ? 'none' : '';
+        $('#wkScaleConnected').style.display = data.connected ? '' : 'none';
+        if (data.connected) {
+          var msg = $('#wkScaleSyncMsg');
+          msg.textContent = data.last_sync_status === 'error' ? ('Ошибка последней синхронизации: ' + (data.last_sync_error || '')) : '';
+          loadBodyCompGrid();
+        }
+      })
+      .catch(function () {});
+  }
+  loadScaleStatusWk();
+
+  $('#wkScaleConnectBtn').addEventListener('click', function () {
+    var username = $('#wkScaleUsername').value.trim();
+    var password = $('#wkScalePassword').value;
+    var msg = $('#wkScaleConnectMsg');
+    if (!username || !password) { msg.textContent = 'Укажи логин и пароль'; return; }
+    var btn = this;
+    btn.disabled = true;
+    msg.textContent = 'Подключаем…';
+    fetch('/nutrition/api/scale/connect', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username, password: password }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        btn.disabled = false;
+        if (data.error) { msg.textContent = data.error; return; }
+        msg.textContent = data.warning || ('Подключено, синхронизировано записей: ' + (data.synced || 0));
+        loadScaleStatusWk();
+      })
+      .catch(function () { btn.disabled = false; msg.textContent = 'Ошибка сети, попробуй ещё раз.'; });
+  });
+  $('#wkScaleSyncBtn').addEventListener('click', function () {
+    var msg = $('#wkScaleSyncMsg');
+    msg.textContent = 'Синхронизируем…';
+    fetch('/nutrition/api/scale/sync', { method: 'POST' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.error) { msg.textContent = data.error; }
+        else { msg.textContent = 'Готово, новых записей: ' + (data.synced || 0); loadBodyCompGrid(); }
+        loadScaleStatusWk();
+      });
+  });
+  $('#wkScaleDisconnectBtn').addEventListener('click', function () {
+    if (!confirm('Отключить весы Xiaomi? Уже синхронизированные данные останутся.')) return;
+    fetch('/nutrition/api/scale/disconnect', { method: 'POST' }).then(function () {
+      $('#wkScaleUsername').value = '';
+      $('#wkScalePassword').value = '';
+      loadScaleStatusWk();
+    });
+  });
+
+  // ── Прогресс тела — фото-дневник ──
+  var wkBodyPhotoFiles = {};
+  var wkPhotoAngleIds = { front: 'Front', side: 'Side', back: 'Back' };
+  Object.keys(wkPhotoAngleIds).forEach(function (angle) {
+    var suffix = wkPhotoAngleIds[angle];
+    var input = $('#wkPhoto' + suffix);
+    var slot = $('#wkSlot' + suffix);
+    slot.addEventListener('click', function () { input.click(); });
+    input.addEventListener('change', function () {
+      var file = this.files[0];
+      if (!file) return;
+      wkBodyPhotoFiles[angle] = file;
+      var reader = new FileReader();
+      reader.onload = function (e) { slot.innerHTML = '<img src="' + e.target.result + '">'; };
+      reader.readAsDataURL(file);
+    });
+  });
+  $('#wkUploadPhotosBtn').addEventListener('click', function () {
+    var angles = Object.keys(wkBodyPhotoFiles);
+    var msg = $('#wkPhotoMsg');
+    if (!angles.length) { msg.textContent = 'Выбери хотя бы одно фото'; return; }
+    var today = new Date().toISOString().slice(0, 10);
+    var requests = angles.map(function (angle) {
+      var fd = new FormData();
+      fd.append('file', wkBodyPhotoFiles[angle]);
+      fd.append('angle', angle);
+      fd.append('date', today);
+      return fetch('/nutrition/api/body-photo', { method: 'POST', body: fd });
+    });
+    Promise.all(requests).then(function () {
+      msg.textContent = 'Сохранено за ' + today;
+      wkBodyPhotoFiles = {};
+      loadBodyPhotosWk();
+    });
+  });
+  var wkBodyPhotosCache = {};
+  function loadBodyPhotosWk() {
+    fetch('/nutrition/api/body-photos')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        wkBodyPhotosCache = data.photos || {};
+        var dates = data.dates || [];
+        var oldSel = $('#wkCompareDateOld'), newSel = $('#wkCompareDateNew');
+        var opts = dates.map(function (d) { return '<option value="' + d + '">' + d + '</option>'; }).join('');
+        oldSel.innerHTML = opts;
+        newSel.innerHTML = opts;
+        if (dates.length) { oldSel.value = dates[dates.length - 1]; newSel.value = dates[0]; }
+        renderCompareWk();
+      })
+      .catch(function () {});
+  }
+  function renderCompareWk() {
+    var oldDate = $('#wkCompareDateOld').value, newDate = $('#wkCompareDateNew').value;
+    var view = $('#wkCompareView');
+    if (!oldDate || !newDate) { view.innerHTML = '<p class="wk-profile-hint">Загрузи фото хотя бы за одну дату.</p>'; return; }
+    function col(date) {
+      var angles = wkBodyPhotosCache[date] || {};
+      var imgs = ['front', 'side', 'back'].filter(function (a) { return angles[a]; })
+        .map(function (a) { return '<img src="' + angles[a] + '">'; }).join('');
+      return '<div class="wk-compare-col">' + (imgs || '<p class="wk-profile-hint">нет фото</p>') + '<div class="wk-compare-col-label">' + date + '</div></div>';
+    }
+    view.innerHTML = col(oldDate) + col(newDate);
+  }
+  $('#wkCompareDateOld').addEventListener('change', renderCompareWk);
+  $('#wkCompareDateNew').addEventListener('change', renderCompareWk);
+  loadBodyPhotosWk();
+
+  // ── Моё оборудование — отдельная секция со своим сохранением, без визарда ──
+  var eqState = { equipment: [], home_only: false };
+  function updateEqCount() { $('#wkEqCount').textContent = 'Отмечено: ' + eqState.equipment.length; }
+
+  fetch('/workout/api/profile')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (!data.exists) return;
+      eqState.equipment = data.equipment || [];
+      eqState.home_only = !!data.home_only;
+      $all('.wk-eq-card').forEach(function (card) {
+        card.classList.toggle('selected', eqState.equipment.indexOf(card.dataset.value) !== -1);
+      });
+      $('#wkHomeBtn').classList.toggle('active', eqState.home_only);
+      updateEqCount();
+    });
+
+  $all('.wk-eq-card').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var value = el.dataset.value;
+      var idx = eqState.equipment.indexOf(value);
+      if (idx === -1) {
+        eqState.equipment.push(value);
+        el.classList.add('selected');
+        if (eqState.home_only) { eqState.home_only = false; $('#wkHomeBtn').classList.remove('active'); }
+      } else {
+        eqState.equipment.splice(idx, 1);
+        el.classList.remove('selected');
+      }
+      updateEqCount();
+    });
+  });
+  $('#wkHomeBtn').addEventListener('click', function () {
+    eqState.home_only = true;
+    eqState.equipment = [];
+    $all('.wk-eq-card.selected').forEach(function (o) { o.classList.remove('selected'); });
+    $('#wkHomeBtn').classList.add('active');
+    updateEqCount();
+  });
+
+  $('#wkSaveEquipmentBtn').addEventListener('click', function () {
+    var msg = $('#wkEquipmentMsg');
+    msg.textContent = 'Сохраняем…';
+    fetch('/workout/api/profile')
+      .then(function (r) { return r.json(); })
+      .then(function (full) {
+        if (!full.exists) { msg.textContent = 'Сначала заполни анкету.'; return; }
+        full.equipment = eqState.equipment;
+        full.home_only = eqState.home_only;
+        return fetch('/workout/api/profile', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(full),
+        }).then(function (r) { return r.json(); });
+      })
+      .then(function (data) {
+        if (!data) return;
+        if (!data.ok) { msg.textContent = data.error || 'Не удалось сохранить'; return; }
+        msg.textContent = 'Сохранено.';
+        loadAnketaSummary();
+        $('#wkEqRegenBanner').classList.toggle('show', !!data.material_change);
+      })
+      .catch(function () { msg.textContent = 'Ошибка сети, попробуй ещё раз.'; });
+  });
+
+  $('#wkRegenNowBtn').addEventListener('click', function () {
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Обновляем…';
+    fetch('/workout/api/generate-program', { method: 'POST' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.error) {
+          btn.disabled = false;
+          btn.textContent = '🔄 Обновить программу';
+          alert(data.error);
+          return;
+        }
+        location.href = '/workout';
+      })
+      .catch(function () {
+        btn.disabled = false;
+        btn.textContent = '🔄 Обновить программу';
+        alert('Ошибка сети, попробуй ещё раз.');
+      });
+  });
+})();
+</script>
+</body>
+</html>

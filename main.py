@@ -2375,6 +2375,18 @@ async def workout_page(request: Request, user=Depends(get_current_user), db: Ses
     })
 
 
+@app.get("/workout/profile")
+async def workout_profile_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    if not user_has_access(user, "workout", db):
+        return RedirectResponse("/?locked=workout", status_code=302)
+    return templates.TemplateResponse(request=request, name="workout_profile.html", context={
+        "user": user,
+        "equipment_options": _workout_equipment_checklist(db),
+    })
+
+
 @app.get("/workout/api/profile")
 async def workout_get_profile(user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
@@ -2387,6 +2399,14 @@ async def workout_get_profile(user=Depends(get_current_user), db: Session = Depe
         "goal": p.goal, "days_per_week": p.days_per_week, "level": p.level,
         "focus_zones": p.focus_zones or [], "pain_zones": p.pain_zones,
         "equipment": p.equipment, "home_only": p.home_only, "onboarded": p.onboarded,
+        # готовые подписи на русском — чтобы страница профиля не дублировала
+        # словари перевода визарда (они живут только в workout.html)
+        "labels": {
+            "goal": GOAL_LABELS_RU.get(p.goal, p.goal),
+            "level": LEVEL_LABELS_RU.get(p.level, p.level),
+            "focus_zones": [FOCUS_ZONE_LABELS_RU.get(z, z) for z in (p.focus_zones or [])],
+            "pain_zones": [ZONE_LABELS_RU.get(z, z) for z in (p.pain_zones or [])],
+        },
     })
 
 
@@ -2418,6 +2438,18 @@ async def workout_save_profile(request: Request, user=Depends(get_current_user),
     if not p:
         p = WorkoutProfile(user_id=user.id)
         db.add(p)
+        material_change = False  # анкета впервые — генерация и так произойдёт отдельно
+    else:
+        # значимое изменение — то, что влияет на саму генерацию программы;
+        # считаем здесь один раз, а не дублируем сравнение в каждом фронтенде,
+        # который умеет сохранять анкету (визард и страница профиля)
+        material_change = (
+            p.goal != goal or p.days_per_week != days_per_week or p.level != level
+            or sorted(p.focus_zones or []) != sorted(focus_zones)
+            or sorted(p.pain_zones or []) != sorted(pain_zones)
+            or sorted(p.equipment or []) != sorted(equipment)
+            or bool(p.home_only) != home_only
+        )
     p.goal = goal
     p.days_per_week = days_per_week
     p.level = level
@@ -2427,7 +2459,7 @@ async def workout_save_profile(request: Request, user=Depends(get_current_user),
     p.home_only = home_only
     p.onboarded = True
     db.commit()
-    return JSONResponse({"ok": True})
+    return JSONResponse({"ok": True, "material_change": material_change})
 
 
 # ── Workout: ИИ-генерация программы ──────────────────────────────────────────
@@ -2748,6 +2780,37 @@ def _recent_pain_zone_returns(db: Session, user_id: int):
     }
 
 
+def _determine_today_day_id(db: Session, user_id: int, days: list):
+    """Программа не привязана к конкретным дням недели — пользователь сам
+    решает, когда какой день делать. "Сегодняшний" день для авто-раскрытия
+    аккордеона определяем так: если сегодня уже начали какой-то день — он и
+    есть; иначе берём следующий по очереди после последнего ЗАВЕРШЁННОГО
+    (с переходом в начало цикла), а если истории вообще нет — первый день."""
+    if not days:
+        return None
+    today = datetime.now().strftime("%Y-%m-%d")
+    day_ids = [d.id for d in days]
+    today_session = (db.query(WorkoutSession)
+                      .filter(WorkoutSession.user_id == user_id, WorkoutSession.log_date == today,
+                              WorkoutSession.program_day_id.in_(day_ids))
+                      .first())
+    if today_session:
+        return today_session.program_day_id
+    last_completed = (db.query(WorkoutSession)
+                       .filter(WorkoutSession.user_id == user_id, WorkoutSession.completed == True,
+                               WorkoutSession.program_day_id.in_(day_ids))
+                       .order_by(WorkoutSession.log_date.desc(), WorkoutSession.id.desc()).first())
+    if not last_completed:
+        return days[0].id
+    by_id = {d.id: d for d in days}
+    last_day = by_id.get(last_completed.program_day_id)
+    if not last_day:
+        return days[0].id
+    next_index = (last_day.day_index + 1) % len(days)
+    next_day = next((d for d in days if d.day_index == next_index), days[0])
+    return next_day.id
+
+
 def _serialize_program(db: Session, program: WorkoutProgram, user_id: int):
     # недавние возвраты после снятия ограничения по зоне — подсказка на
     # карточке "входи через сниженный вес", а не сразу прежний рабочий
@@ -2756,6 +2819,14 @@ def _serialize_program(db: Session, program: WorkoutProgram, user_id: int):
     days = (db.query(WorkoutProgramDay)
             .filter(WorkoutProgramDay.program_id == program.id)
             .order_by(WorkoutProgramDay.day_index).all())
+    today_day_id = _determine_today_day_id(db, user_id, days)
+    today = datetime.now().strftime("%Y-%m-%d")
+    today_sessions = {
+        s.program_day_id: s for s in db.query(WorkoutSession).filter(
+            WorkoutSession.user_id == user_id, WorkoutSession.log_date == today,
+            WorkoutSession.program_day_id.in_([d.id for d in days]),
+        ).all()
+    }
     result_days = []
     for day in days:
         pes = (db.query(WorkoutProgramExercise)
@@ -2786,7 +2857,17 @@ def _serialize_program(db: Session, program: WorkoutProgram, user_id: int):
                 "progression": progression,
                 "return_notice": return_notice_by_pe.get(pe.id),
             })
-        result_days.append({"id": day.id, "day_index": day.day_index, "day_type": day.day_type, "label": day.label, "exercises": ex_list})
+        session = today_sessions.get(day.id)
+        if session and session.completed:
+            today_status = "completed"
+        elif session and session.skipped:
+            today_status = "skipped"
+        else:
+            today_status = None
+        result_days.append({
+            "id": day.id, "day_index": day.day_index, "day_type": day.day_type, "label": day.label,
+            "exercises": ex_list, "is_today": day.id == today_day_id, "today_status": today_status,
+        })
 
     profile = db.query(WorkoutProfile).filter(WorkoutProfile.user_id == user_id).first()
     mesocycle = _mesocycle_info(profile) if profile else {"week": 1, "length": MESOCYCLE_DEFAULT_WEEKS, "due": False}
