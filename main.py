@@ -179,10 +179,40 @@ async def deploy_hook(request: Request):
     return JSONResponse({"ok": True})
 
 
+def _import_exercises_if_empty():
+    """База упражнений (с переводом и кластеризацией оборудования, уже
+    посчитанными ранее) лежит в exercises_data.json — грузим один раз при
+    первом старте, если таблица пустая (напр. свежий volume на проде).
+    Идемпотентно: на непустой таблице ничего не делает."""
+    db = SessionLocal()
+    try:
+        if db.query(Exercise).first():
+            return
+        path = os.path.join(os.path.dirname(__file__), "exercises_data.json")
+        if not os.path.exists(path):
+            return
+        with open(path, encoding="utf-8") as f:
+            data = _json.load(f)
+        for row in data:
+            db.add(Exercise(
+                id=row["id"], name=row["name"], name_ru=row["name_ru"],
+                force=row["force"], level=row["level"], mechanic=row["mechanic"],
+                equipment=row["equipment"], equipment_cluster=row["equipment_cluster"],
+                primary_muscles=row["primary_muscles"], secondary_muscles=row["secondary_muscles"],
+                instructions=row["instructions"], instructions_ru=row["instructions_ru"],
+                category=row["category"], images=row["images"],
+            ))
+        db.commit()
+        print(f"Импортировано упражнений: {len(data)}")
+    finally:
+        db.close()
+
+
 @app.on_event("startup")
 def startup():
     init_db()
     migrate_db()
+    _import_exercises_if_empty()
 
 
 # ── Демо-страница (тестовое задание, без авторизации) ─────────────────────────

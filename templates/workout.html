@@ -14,6 +14,10 @@
   <style>
     /* ── THEME-workout.md: тема раздела, поверх механики SYSTEM.md ── */
     .theme-workout {
+      /* без этого нативный выпадающий список <select> рендерится в светлой
+         схеме браузера по умолчанию — на тёмном фоне страницы это выглядит
+         как чёрный прямоугольник, наслаивающийся на текст */
+      color-scheme: dark;
       --surface-0: #0a0814;
       --surface-1: #16132a;
       --surface-2: #211d3d;
@@ -205,8 +209,8 @@
     .wk-btn-primary { background: var(--grad-btn); color: #fff; }
     .wk-btn-primary:hover { filter: brightness(1.08); }
     .wk-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
-    .wk-btn-ghost { background: transparent; color: var(--text-2); border: 1px solid var(--border); }
-    .wk-btn-ghost:hover { color: var(--text); border-color: var(--border-strong); }
+    .wk-btn-ghost { background: var(--surface-2); color: var(--text); border: 1px solid var(--border-strong); }
+    .wk-btn-ghost:hover { border-color: var(--accent); }
     .wk-btn-ghost:disabled { opacity: 0.3; cursor: default; }
 
     /* Мой зал — чек-лист оборудования */
@@ -257,8 +261,8 @@
     .wk-done-panel .ico { font-size: 3rem; margin-bottom: var(--space-4); }
     .wk-done-panel h2 { font-family: var(--font-display); font-size: 1.5rem; color: var(--text); margin-bottom: var(--space-3); }
     .wk-done-panel p { color: var(--text-2); font-size: 0.9375rem; }
-    .wk-general-chat-btn { margin-top: var(--space-4); background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 9px 18px; border-radius: 99px; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; }
-    .wk-general-chat-btn:hover { border-color: var(--accent); }
+    .wk-action-btn { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 9px 16px; border-radius: 99px; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; flex: 1 1 auto; min-width: 132px; max-width: 200px; text-align: center; }
+    .wk-action-btn:hover { border-color: var(--accent); }
     .wk-weight-chart-box { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-5); }
     .wk-weight-chart-title { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 0.9375rem; margin-bottom: var(--space-2); }
     .wk-weight-svg { width: 100%; height: 140px; overflow: visible; }
@@ -269,10 +273,8 @@
     .wk-progress-chart-empty { font-size: 0.8125rem; color: var(--text-2); text-align: center; padding: var(--space-3) 0; }
     .wk-ex-chartbtn { background: none; border: 1px solid var(--border-strong); color: var(--text-2); border-radius: 99px; padding: 3px 12px; font-size: 0.75rem; cursor: pointer; margin-left: 8px; }
     .wk-ex-chartbtn:hover { border-color: var(--accent); color: var(--text); }
-    .wk-done-actions { display: flex; gap: var(--space-2); justify-content: center; margin-top: var(--space-4); flex-wrap: wrap; }
-    .wk-settings-btn { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 9px 18px; border-radius: 99px; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; }
-    .wk-settings-btn:hover { border-color: var(--accent); }
-    .wk-settings-overlay { display: none; position: fixed; inset: 0; background: rgba(6,4,12,0.6); z-index: 2000; align-items: center; justify-content: center; }
+    .wk-done-actions { display: flex; gap: var(--space-2); justify-content: center; margin-top: var(--space-4); flex-wrap: wrap; max-width: 420px; margin-left: auto; margin-right: auto; }
+    .wk-settings-overlay { display: none; position: fixed; inset: 0; background: rgba(6,4,12,0.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center; }
     .wk-settings-overlay.show { display: flex; }
     .wk-settings-panel { width: 100%; max-width: 420px; margin: var(--space-4); background: var(--surface-1); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: var(--space-5); }
     .wk-settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); }
@@ -287,6 +289,7 @@
     .wk-profile-sec-title { font-family: var(--font-display); font-weight: 700; color: var(--text); font-size: 0.9375rem; margin-bottom: var(--space-2); }
     .wk-profile-hint { font-size: 0.8125rem; color: var(--text-2); line-height: 1.5; margin-bottom: var(--space-2); }
     .wk-profile-input { width: 100%; box-sizing: border-box; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; color: var(--text); font-size: 0.875rem; margin-bottom: 8px; }
+    .wk-profile-input option { background: var(--surface-2); color: var(--text); }
     .wk-profile-btn { background: var(--grad-btn); border: none; color: #fff; padding: 9px 16px; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 600; cursor: pointer; }
     .wk-profile-btn-sm { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 7px 14px; border-radius: 99px; font-size: 0.8125rem; cursor: pointer; }
     .wk-profile-btn-danger { color: #f87171; }
@@ -322,7 +325,8 @@
     .wk-prog-meta strong { color: var(--accent-2); }
     /* Чат-ассистент */
     .wk-chat-overlay {
-      display: none; position: fixed; inset: 0; background: rgba(6,4,12,0.6);
+      display: none; position: fixed; inset: 0; background: rgba(6,4,12,0.72);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
       z-index: 2000; align-items: flex-end; justify-content: center;
     }
     .wk-chat-overlay.show { display: flex; }
@@ -397,6 +401,7 @@
     .wk-cooldown-ico { margin-right: 4px; }
     .wk-prog-loading, .wk-prog-error { text-align: center; color: var(--text-2); padding: var(--space-6) 0; font-size: 0.9375rem; }
     .wk-prog-error { color: var(--error); }
+    .wk-prog-error-actions { display: flex; gap: var(--space-2); justify-content: center; flex-wrap: wrap; padding-bottom: var(--space-6); }
     .wk-regen-btn {
       display: block; margin: var(--space-6) auto 0; background: transparent;
       border: 1px solid var(--border); color: var(--text-2); padding: var(--space-3) var(--space-5);
@@ -775,8 +780,9 @@
           <h2>Профиль сохранён</h2>
           <p id="wkDoneSub">Собираем программу под тебя…</p>
           <div class="wk-done-actions">
-            <button type="button" class="wk-general-chat-btn" id="wkGeneralChatBtn">💬 Спросить ассистента</button>
-            <button type="button" class="wk-settings-btn" id="wkSettingsBtn" title="Профиль">👤 Профиль</button>
+            <button type="button" class="wk-action-btn" id="wkGeneralChatBtn">💬 Ассистент</button>
+            <button type="button" class="wk-action-btn" id="wkSettingsBtn" title="Профиль">👤 Профиль</button>
+            <button type="button" class="wk-action-btn" id="wkEditEquipmentBtn" title="Изменить оборудование">🛠 Оборудование</button>
           </div>
         </div>
         <div class="wk-nutrition-box" id="wkNutritionBox" style="display:none">
@@ -876,10 +882,14 @@
     </div>
     <div class="wk-chat-messages" id="wkChatMessages"></div>
     <div class="wk-chat-input-row">
-      <button type="button" class="wk-chat-photo-btn" id="wkChatPhotoBtn" title="Прикрепить фото тренажёра">📷</button>
+      <button type="button" class="wk-chat-photo-btn" id="wkChatPhotoBtn" title="Прикрепить фото тренажёра">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      </button>
       <input type="file" id="wkChatPhotoInput" accept="image/*" style="display:none">
       <input type="text" class="wk-chat-input" id="wkChatInput" placeholder="Спроси что-нибудь о тренировке…">
-      <button type="button" class="wk-chat-send" id="wkChatSend">→</button>
+      <button type="button" class="wk-chat-send" id="wkChatSend">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      </button>
     </div>
   </div>
 </div>
@@ -1771,6 +1781,35 @@
     if (e.target === $('#wkChatOverlay')) $('#wkChatOverlay').classList.remove('show');
   });
   $('#wkGeneralChatBtn').addEventListener('click', function () { openWorkoutChat(null, null); });
+  $('#wkEditEquipmentBtn').addEventListener('click', enterEquipmentEditMode);
+
+  // Прыжок прямо на шаг "Мой зал" с подгрузкой текущих ответов анкеты —
+  // нужен и из общей кнопки в профиле, и из сообщения об ошибке генерации
+  // ("недостаточно упражнений — отметь больше оборудования"), откуда раньше
+  // не было пути назад к чек-листу вообще.
+  function enterEquipmentEditMode() {
+    fetch('/workout/api/profile')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.exists) return;
+        state.goal = data.goal;
+        state.days_per_week = data.days_per_week;
+        state.level = data.level;
+        state.focus_zones = data.focus_zones || [];
+        state.pain_zones = data.pain_zones || [];
+        state.equipment = data.equipment || [];
+        state.home_only = !!data.home_only;
+
+        $all('.wk-eq-card').forEach(function (card) {
+          card.classList.toggle('selected', state.equipment.indexOf(card.dataset.value) !== -1);
+        });
+        $('#wkHomeBtn').classList.toggle('active', state.home_only);
+        updateEqCount();
+
+        step = 6;
+        showStep(6);
+      });
+  }
 
   function chatMsgEl(role, html) {
     var el = document.createElement('div');
@@ -1956,15 +1995,26 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.error) {
-          box.innerHTML = '<div class="wk-prog-error">' + data.error + '</div>';
-          $('#wkDoneSub').textContent = 'Не удалось собрать программу';
+          showGenerateError(data.error);
         } else {
           renderProgram(data);
         }
       })
       .catch(function () {
-        box.innerHTML = '<div class="wk-prog-error">Ошибка сети, попробуй ещё раз.</div>';
+        showGenerateError('Ошибка сети, попробуй ещё раз.');
       });
+  }
+
+  function showGenerateError(message) {
+    var box = $('#wkProgramContainer');
+    box.innerHTML = '<div class="wk-prog-error">' + message + '</div>' +
+      '<div class="wk-prog-error-actions">' +
+        '<button type="button" class="wk-action-btn" id="wkRetryGenBtn">↻ Попробовать снова</button>' +
+        '<button type="button" class="wk-action-btn" id="wkErrEditEquipBtn">🛠 Изменить оборудование</button>' +
+      '</div>';
+    $('#wkDoneSub').textContent = 'Не удалось собрать программу';
+    $('#wkRetryGenBtn').addEventListener('click', generateProgram);
+    $('#wkErrEditEquipBtn').addEventListener('click', enterEquipmentEditMode);
   }
 
   // ── Общий SVG-график (линия + точки + тултип) — используется и для веса
