@@ -69,7 +69,7 @@ def main():
         print(f"К обработке сегодня: {len(pending)}")
         found = 0
         for i, ex in enumerate(pending, 1):
-            query = f"{ex.name_ru} техника выполнения"
+            query = f"{ex.name_ru} упражнение техника выполнения"
             try:
                 video_id = find_video_id(query)
             except RuntimeError as e:
