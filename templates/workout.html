@@ -58,7 +58,7 @@
     }
 
     /* ── Wizard shell ── */
-    .wk-shell { max-width: 760px; margin: 0 auto; }
+    .wk-shell { max-width: 900px; margin: 0 auto; }
     .wk-head { text-align: center; margin-bottom: var(--space-6); }
     .wk-head h1 {
       font-family: var(--font-display);
@@ -229,7 +229,7 @@
     .wk-home-btn.active { background: var(--accent-2); color: #06251f; border-color: transparent; font-weight: 600; }
 
     .wk-eq-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
       gap: var(--space-3); max-height: 520px; overflow-y: auto;
       padding-right: var(--space-2); margin-bottom: var(--space-2);
     }
@@ -241,15 +241,16 @@
       border-radius: var(--radius-sm); overflow: hidden; cursor: pointer;
       transition: all 0.2s; position: relative;
     }
-    .wk-eq-card:hover { border-color: var(--border-strong); }
-    .wk-eq-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .wk-eq-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+    .wk-eq-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
     .wk-eq-card .wk-eq-img-wrap {
-      width: 100%; aspect-ratio: 1/1; background: #0c0a1a; overflow: hidden;
+      width: 100%; aspect-ratio: 1/1; min-height: 160px; background: #0c0a1a; overflow: hidden;
     }
-    .wk-eq-card img { width: 100%; height: 100%; object-fit: cover; opacity: 0.88; }
+    .wk-eq-card img { width: 100%; height: 100%; object-fit: cover; opacity: 0.88; transition: opacity 0.2s, transform 0.2s; }
+    .wk-eq-card:hover img { transform: scale(1.05); }
     .wk-eq-card.selected img { opacity: 1; }
     .wk-eq-check {
-      position: absolute; top: 6px; right: 6px; width: 22px; height: 22px;
+      position: absolute; top: 8px; right: 8px; width: 24px; height: 24px;
       border-radius: 50%; background: rgba(10,8,20,0.7); border: 1.5px solid rgba(255,255,255,0.4);
       display: flex; align-items: center; justify-content: center; transition: all 0.2s;
     }
@@ -382,6 +383,26 @@
     }
     .wk-regen-btn:hover { color: var(--text); border-color: var(--border-strong); }
 
+    /* На широких мониторах (≥1400px), когда развёрнуто 2+ дня — раскладываем
+       их по колонкам вместо длинной вертикальной ленты. Сам .wk-shell на это
+       время расширяется, а компактные блоки над списком дней (готово/питание/
+       вес) намеренно остаются узкими — растянутые на всю ширину выглядели бы
+       пусто. */
+    @media (min-width: 1400px) {
+      .wk-shell:has(#wkProgramContainer.wk-cols-2) { max-width: 1700px; }
+      .wk-shell:has(#wkProgramContainer.wk-cols-2) .wk-done-panel,
+      .wk-shell:has(#wkProgramContainer.wk-cols-2) #wkNutritionBox,
+      .wk-shell:has(#wkProgramContainer.wk-cols-2) #wkWeightChartBox {
+        max-width: 900px; margin-left: auto; margin-right: auto;
+      }
+      #wkProgramContainer.wk-cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); align-items: start; }
+      #wkProgramContainer.wk-cols-2 .wk-prog-day { margin-bottom: 0; }
+      /* в колонки разводим только развёрнутые дни — свёрнутая короткая строка
+         и кнопка регенерации остаются на всю ширину, не занимают вторую ячейку */
+      #wkProgramContainer.wk-cols-2 .wk-prog-day:not(.expanded),
+      #wkProgramContainer.wk-cols-2 > .wk-regen-btn { grid-column: 1 / -1; }
+    }
+
     /* День тренировки */
     .wk-prog-day { background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: var(--space-5); margin-bottom: var(--space-5); }
     .wk-day-header { display: flex; flex-direction: column; gap: 8px; cursor: pointer; user-select: none; }
@@ -492,6 +513,7 @@
     .wk-rep-hint { color: var(--text-faint); font-family: var(--font-mono); }
     .wk-set-rows { display: flex; flex-direction: column; gap: var(--space-2); }
     .wk-set-row { display: grid; grid-template-columns: 64px 1fr 20px 1fr; align-items: center; gap: var(--space-3); }
+    .wk-set-row-single { grid-template-columns: 64px 1fr; }
     .wk-set-label { font-family: var(--font-mono); color: var(--text-2); font-size: 0.875rem; }
     .wk-set-sep { text-align: center; color: var(--text-faint); }
     .wk-set-input {
@@ -1269,6 +1291,12 @@
     card.dataset.progKind = d.progression.kind;
     $('.wk-ex-swappable', card).innerHTML = exHeaderHTML(d);
     wireSwappableInteractions(card);
+    // строки подходов и заголовок зависят от типа упражнения (вес/повторы/
+    // секунды) — пересоздаём при каждой смене активного упражнения карточки,
+    // иначе после свапа на bodyweight-альтернативу останется поле "кг"
+    var setsCount = parseInt(card.dataset.sets, 10);
+    $('.wk-set-rows', card).innerHTML = setRowsHTML(d, setsCount);
+    $('.wk-ex-log-header', card).childNodes[0].textContent = setLogHeaderText(d) + ' ';
   }
 
   function returnNoticeHTML(ex) {
@@ -1285,17 +1313,39 @@
     '</div>';
   }
 
-  function exCard(ex, dayId) {
-    originalExerciseData[ex.program_exercise_id] = ex;
-    var setRows = '';
-    for (var i = 0; i < ex.sets; i++) {
-      setRows += '<div class="wk-set-row" data-set-index="' + i + '">' +
-        '<div class="wk-set-label">Подход ' + (i + 1) + '</div>' +
+  // Bodyweight-упражнения (kind === 'reps') не логируют вес вообще — поле "кг"
+  // убирается. Среди них статика (force === 'static', напр. планка) логируется
+  // в секундах через то же поле .wk-set-reps — отдельная колонка БД не нужна,
+  // единица меняется только в подписи и заголовке.
+  function isTimedExercise(d) { return d.progression.kind === 'reps' && d.force === 'static'; }
+
+  function setRowHTML(i, d) {
+    var label = '<div class="wk-set-label">Подход ' + (i + 1) + '</div>';
+    if (d.progression.kind === 'weight') {
+      return '<div class="wk-set-row" data-set-index="' + i + '">' + label +
         '<input type="number" inputmode="numeric" class="wk-set-input wk-set-reps" placeholder="повторы">' +
         '<div class="wk-set-sep">×</div>' +
         '<input type="number" inputmode="decimal" class="wk-set-input wk-set-weight" placeholder="кг">' +
         '</div>';
     }
+    return '<div class="wk-set-row wk-set-row-single" data-set-index="' + i + '">' + label +
+      '<input type="number" inputmode="numeric" class="wk-set-input wk-set-reps" placeholder="' + (isTimedExercise(d) ? 'сек' : 'повторы') + '">' +
+      '</div>';
+  }
+
+  function setRowsHTML(d, setsCount) {
+    var html = '';
+    for (var i = 0; i < setsCount; i++) html += setRowHTML(i, d);
+    return html;
+  }
+
+  function setLogHeaderText(d) {
+    if (d.progression.kind === 'weight') return 'Подходы — повторы и вес';
+    return isTimedExercise(d) ? 'Подходы — секунды' : 'Подходы — повторы';
+  }
+
+  function exCard(ex, dayId) {
+    originalExerciseData[ex.program_exercise_id] = ex;
     var p = ex.progression;
 
     return '<div class="wk-ex-card" data-exercise-id="' + ex.exercise_id + '" data-day-id="' + dayId + '" ' +
@@ -1307,8 +1357,8 @@
       returnNoticeHTML(ex) +
       '<div class="wk-progress-suggestion"></div>' +
       '<div class="wk-ex-log">' +
-        '<div class="wk-ex-log-header">Подходы — повторы и вес <span class="wk-rep-hint">ориентир ' + ex.rep_low + '–' + ex.rep_high + '</span>' + tipBtn('rep_range') + '</div>' +
-        '<div class="wk-set-rows">' + setRows + '</div>' +
+        '<div class="wk-ex-log-header">' + setLogHeaderText(ex) + ' <span class="wk-rep-hint">ориентир ' + ex.rep_low + '–' + ex.rep_high + '</span>' + tipBtn('rep_range') + '</div>' +
+        '<div class="wk-set-rows">' + setRowsHTML(ex, ex.sets) + '</div>' +
         '<div class="wk-set-status"><span class="wk-status-dot"></span><span class="wk-status-text">не сделано</span>' + tipBtn('set_status') + '</div>' +
         '<button type="button" class="wk-save-sets-btn">Записать подход</button>' +
       '</div>' +
@@ -1436,6 +1486,7 @@
     }
 
     wireDayInteractions();
+    updateColsMode();
     prog.days.forEach(function (day) { loadDayState(day.id); });
   }
 
@@ -1462,10 +1513,21 @@
     else { text.textContent = 'не сделано'; }
   }
 
+  // Двухколоночная раскладка дней (см. CSS @media min-width:1400px) включается,
+  // когда развёрнуто 2+ дня — на узких экранах класс ничего не даёт (media query),
+  // поэтому пересчитывать нужно только при изменении состояния аккордеона
+  function updateColsMode() {
+    var box = $('#wkProgramContainer');
+    if (!box) return;
+    var expandedCount = $all('.wk-prog-day.expanded', box).length;
+    box.classList.toggle('wk-cols-2', expandedCount >= 2);
+  }
+
   function wireDayInteractions() {
     $all('[data-day-toggle]').forEach(function (header) {
       header.addEventListener('click', function () {
         header.closest('.wk-prog-day').classList.toggle('expanded');
+        updateColsMode();
       });
     });
     $all('.wk-skip-btn').forEach(function (btn) {
@@ -1574,7 +1636,8 @@
     var rows = $all('.wk-set-row', card);
     var sets = rows.map(function (r) {
       var reps = $('.wk-set-reps', r).value;
-      var w = $('.wk-set-weight', r).value;
+      var weightInput = $('.wk-set-weight', r);
+      var w = weightInput ? weightInput.value : '';
       return { set_index: parseInt(r.dataset.setIndex, 10), reps: reps === '' ? null : parseInt(reps, 10), weight_kg: w === '' ? null : parseFloat(w) };
     });
     var btn = $('.wk-save-sets-btn', card);
@@ -1774,7 +1837,8 @@
 
           // Всегда синхронизируем отображение с активным упражнением — это
           // и применяет замену, и восстанавливает оригинал после "Вернуть"
-          applyCardDisplay(card, info.swapped && info.active_display ? info.active_display : originalExerciseData[peId]);
+          var displayData = info.swapped && info.active_display ? info.active_display : originalExerciseData[peId];
+          applyCardDisplay(card, displayData);
 
           var swapBox = $('.wk-swap-indicator', card);
           swapBox.innerHTML = '';
@@ -1793,14 +1857,11 @@
             $('.wk-stuck-try-btn', stuckBox).addEventListener('click', function () { toggleAlternativesPicker(card); });
           }
 
-          // Сначала чистим поля и историю — иначе после замены упражнения
+          // applyCardDisplay уже пересоздал .wk-set-rows с пустыми полями —
+          // отдельной очистки не нужно, иначе уже после замены упражнения
           // (или у которого просто нет данных) останутся значения от
           // предыдущего активного варианта этой карточки
           var rows = $all('.wk-set-row', card);
-          rows.forEach(function (row) {
-            $('.wk-set-reps', row).value = '';
-            $('.wk-set-weight', row).value = '';
-          });
           var histBox = $('.wk-ex-history', card);
           histBox.innerHTML = '';
           histBox.classList.remove('show');
@@ -1812,20 +1873,25 @@
               var row = rows[s.set_index];
               if (!row) return;
               if (s.reps !== null) $('.wk-set-reps', row).value = s.reps;
-              if (s.weight_kg !== null) $('.wk-set-weight', row).value = s.weight_kg;
+              var wInput = $('.wk-set-weight', row);
+              if (wInput && s.weight_kg !== null) wInput.value = s.weight_kg;
             });
           } else if (info.last_sets && info.last_sets.length) {
             info.last_sets.forEach(function (s) {
               var row = rows[s.set_index];
               if (!row) return;
               if (s.reps !== null) $('.wk-set-reps', row).value = s.reps;
-              if (s.weight_kg !== null) $('.wk-set-weight', row).value = s.weight_kg;
+              var wInput2 = $('.wk-set-weight', row);
+              if (wInput2 && s.weight_kg !== null) wInput2.value = s.weight_kg;
             });
           }
           updateStatusUI(card);
 
           if (info.last_sets && info.last_sets.length) {
             var parts = info.last_sets.map(function (s) {
+              if (displayData.progression.kind !== 'weight') {
+                return s.reps !== null ? s.reps + (isTimedExercise(displayData) ? ' сек' : '') : '—';
+              }
               return (s.reps !== null ? s.reps : '—') + '×' + (s.weight_kg !== null ? s.weight_kg + 'кг' : '—');
             }).join(', ');
             histBox.innerHTML = '<div class="wk-ex-history-title">Прошлый раз (' + info.last_date + ')</div>' +
