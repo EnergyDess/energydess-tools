@@ -469,6 +469,8 @@
     .wk-ex-howto.show { display: block; }
     .wk-ex-howto ol { padding-left: 1.2em; }
     .wk-ex-howto li { margin-bottom: 4px; }
+    .wk-ex-video { aspect-ratio: 16 / 9; border-radius: var(--radius-sm); overflow: hidden; margin-bottom: var(--space-3); background: #0c0a1a; }
+    .wk-ex-video iframe { width: 100%; height: 100%; border: 0; display: block; }
 
     .wk-ex-history { font-size: 0.8125rem; color: var(--text-2); background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-3); margin-top: var(--space-3); display: none; }
     .wk-ex-history.show { display: block; }
@@ -1230,6 +1232,9 @@
       progLine = 'Прогрессия: +' + p.step_kg + ' кг (' + eqLabel + ')';
     }
     var howtoSteps = (d.instructions_ru || []).map(function (s) { return '<li>' + s + '</li>'; }).join('');
+    var videoEmbed = d.youtube_id
+      ? '<div class="wk-ex-video" data-youtube-id="' + d.youtube_id + '"></div>'
+      : '';
     var reminderBanner = p.status === 'pending_at_gym'
       ? '<div class="wk-machine-reminder">📍 Напоминание: ты собирался уточнить шкалу этого тренажёра, когда будешь в зале — нажми «изменить» рядом с прогрессией, если сейчас удобно.</div>'
       : '';
@@ -1249,7 +1254,7 @@
       '</div>' +
       reminderBanner +
       '<div class="wk-progedit-panel"></div>' +
-      (howtoSteps ? '<button type="button" class="wk-ex-howto-toggle">Как выполнять ▾</button><div class="wk-ex-howto"><ol>' + howtoSteps + '</ol></div>' : '') +
+      ((howtoSteps || videoEmbed) ? '<button type="button" class="wk-ex-howto-toggle">Как выполнять ▾</button><div class="wk-ex-howto">' + videoEmbed + (howtoSteps ? '<ol>' + howtoSteps + '</ol>' : '') + '</div>' : '') +
       '<div class="wk-swap-indicator"></div>' +
       '<div class="wk-stuck-nudge"></div>' +
       '<div class="wk-alt-picker"></div>' +
@@ -1519,6 +1524,17 @@
         var howto = howtoToggle.nextElementSibling;
         howto.classList.toggle('show');
         howtoToggle.textContent = howto.classList.contains('show') ? 'Как выполнять ▴' : 'Как выполнять ▾';
+        // плеер встраивается только при первом открытии — не грузим видео для
+        // упражнений, которые пользователь не разворачивал
+        var videoBox = $('.wk-ex-video', howto);
+        if (videoBox && videoBox.dataset.youtubeId && !videoBox.firstChild) {
+          var iframe = document.createElement('iframe');
+          iframe.src = 'https://www.youtube.com/embed/' + videoBox.dataset.youtubeId;
+          iframe.title = 'Видео техники выполнения';
+          iframe.allow = 'accelerometer; encrypted-media; gyroscope; picture-in-picture';
+          iframe.allowFullscreen = true;
+          videoBox.appendChild(iframe);
+        }
       });
     }
     var progBtn = $('.wk-ex-progbtn', card);

@@ -2847,7 +2847,7 @@ def _serialize_program(db: Session, program: WorkoutProgram, user_id: int):
                 "primary_muscles": e.primary_muscles, "secondary_muscles": e.secondary_muscles,
                 "equipment_cluster": e.equipment_cluster,
                 "equipment": e.equipment, "image": e.images[0] if e.images else None,
-                "instructions_ru": e.instructions_ru,
+                "instructions_ru": e.instructions_ru, "youtube_id": e.youtube_id or None,
                 "sets": pe.target_sets, "rep_low": pe.rep_low, "rep_high": pe.rep_high,
                 # специфическая разминка (TRAINER_PROMPT.md, блок "РАЗМИНКА") —
                 # 1-2 разминочных подхода нужны для тяжёлых базовых движений со
@@ -3145,6 +3145,7 @@ async def workout_day_state(program_day_id: int, log_date: str = None,
                     "equipment": active_exercise.equipment, "equipment_cluster": active_exercise.equipment_cluster,
                     "image": active_exercise.images[0] if active_exercise.images else None,
                     "instructions_ru": active_exercise.instructions_ru,
+                    "youtube_id": active_exercise.youtube_id or None,
                     "needs_warmup": active_exercise.equipment == "barbell" and active_exercise.mechanic == "compound",
                     "progression": progression,
                 }

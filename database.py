@@ -218,6 +218,7 @@ class Exercise(Base):
     instructions_ru = Column(JSON, nullable=False, default=list)
     category = Column(String, nullable=False)
     images = Column(JSON, nullable=False, default=list)  # относительные пути внутри static/exercises/
+    youtube_id = Column(String, nullable=True)  # id видео техники выполнения, null = не найдено / не импортировано
 
 
 class WorkoutProfile(Base):
@@ -418,6 +419,7 @@ def migrate_db():
         "ALTER TABLE weight_logs ADD COLUMN source VARCHAR",
         "ALTER TABLE workout_profiles ADD COLUMN use_nutrition_data BOOLEAN",
         "ALTER TABLE weight_logs ADD COLUMN bone_mass_kg FLOAT",
+        "ALTER TABLE exercises ADD COLUMN youtube_id VARCHAR",
     ]:
         try:
             conn.execute(col)
