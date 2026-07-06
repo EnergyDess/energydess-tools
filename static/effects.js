@@ -2,7 +2,7 @@
   var THEME = window.PARTICLE_THEME || {};
 
   // Aurora-фон — создаём если страница явно не отключила эффект
-  if (THEME.disabled !== true) {
+  if (THEME.disabled !== true && THEME.aurora !== false) {
     if (!document.querySelector('.aurora-bg')) {
       var aurora = document.createElement('div');
       aurora.className = 'aurora-bg';
