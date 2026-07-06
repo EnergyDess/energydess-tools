@@ -12,8 +12,8 @@
   <style>
     /* ── Nav ── */
     .nav-actions { display: flex; align-items: center; gap: 10px; }
-    .nav-link { color: var(--text-dim); text-decoration: none; font-size: 0.9rem; padding: 8px 14px; transition: color 0.2s; }
-    .nav-link:hover { color: var(--text); }
+    .nav-link { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.9rem; padding: 8px 14px; transition: color 0.2s; }
+    .nav-link:hover { color: #fff; }
     .nav-btn { background: linear-gradient(135deg, #7c4dff 0%, #00d4ff 100%); color: #fff; text-decoration: none; padding: 8px 18px; border-radius: 8px; font-size: 0.875rem; font-weight: 600; transition: opacity 0.2s; }
     .nav-btn:hover { opacity: 0.85; }
     .nav-demo { color: #f4abc5; text-decoration: none; font-size: 0.875rem; font-weight: 500; padding: 7px 15px; border: 1px solid rgba(232,121,160,.3); border-radius: 99px; transition: all 0.2s; }
@@ -26,19 +26,19 @@
     .sec-h2 { font-family: var(--font-head); font-size: clamp(1.5rem, 3.5vw, 2.2rem); font-weight: 700; letter-spacing: -0.03em; color: var(--text); text-align: center; margin-bottom: 52px; }
 
     /* ── Hero ── */
-    .hero { padding: 120px 24px 80px; text-align: center; position: relative; overflow: hidden; max-width: 1100px; margin: 0 auto; }
+    .hero { padding: 120px 24px 80px; text-align: center; position: relative; overflow: hidden; max-width: 1100px; margin: 0 auto; background: linear-gradient(to bottom, rgba(6,6,13,0.32) 0%, transparent 60%); }
     .hero::before { content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 700px; height: 500px; background: radial-gradient(ellipse, rgba(124,77,255,0.18) 0%, transparent 65%); pointer-events: none; }
     .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; background: rgba(124,77,255,0.1); border: 1px solid rgba(124,77,255,0.22); color: #a78bfa; border-radius: 99px; padding: 6px 18px; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 28px; }
     .hero-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: #a78bfa; box-shadow: 0 0 6px #a78bfa; animation: dotPulse 2.2s ease infinite; }
     @keyframes dotPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
     .hero h1 { font-family: var(--font-head); font-size: clamp(2.4rem, 6vw, 4rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1.08; margin-bottom: 24px; color: var(--text); }
     .hero h1 .grad { background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 50%, #34d399 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-    .hero-sub { font-size: 1.05rem; color: var(--text-dim); max-width: 520px; margin: 0 auto 40px; line-height: 1.72; }
+    .hero-sub { font-size: 1.05rem; color: rgba(255,255,255,0.85); max-width: 520px; margin: 0 auto 40px; line-height: 1.72; }
     .hero-btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
     .btn-main { background: linear-gradient(135deg, #7c4dff 0%, #00d4ff 100%); color: #fff; padding: 14px 32px; border-radius: 10px; font-size: 0.95rem; font-weight: 600; text-decoration: none; transition: all 0.22s; box-shadow: 0 4px 24px rgba(124,77,255,0.35); }
     .btn-main:hover { transform: translateY(-2px); box-shadow: 0 8px 36px rgba(124,77,255,0.5), 0 0 60px rgba(0,212,255,0.12); }
-    .btn-ghost { background: transparent; color: var(--text-dim); padding: 14px 32px; border-radius: 10px; font-size: 0.95rem; font-weight: 500; text-decoration: none; border: 1px solid var(--border-hi); transition: all 0.2s; }
-    .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+    .btn-ghost { background: transparent; color: rgba(255,255,255,0.9); padding: 14px 32px; border-radius: 10px; font-size: 0.95rem; font-weight: 500; text-decoration: none; border: 1px solid rgba(255,255,255,0.4); transition: all 0.2s; }
+    .btn-ghost:hover { color: #fff; border-color: rgba(255,255,255,0.65); background: rgba(255,255,255,0.06); }
 
     /* ── Features 2×2 ── */
     .features-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
@@ -133,7 +133,7 @@
 <nav class="nav">
   <a href="/" class="nav-logo">
     <span class="nav-logo-symbol">⚡</span>
-    <span>Energy</span><span class="logo-dess">Dess</span>
+    <span><span>Energy</span><span class="logo-dess">Dess</span></span>
   </a>
   <div class="nav-actions">
     <a href="/demo" class="nav-demo">✦ Демо-проект</a>
