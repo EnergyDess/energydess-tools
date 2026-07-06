@@ -10,257 +10,112 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
   <style>
-    /* Hero */
-    .hero {
-      padding: 120px 20px 80px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-    .hero::before {
-      content: '';
-      position: absolute;
-      top: -100px; left: 50%;
-      transform: translateX(-50%);
-      width: 800px; height: 500px;
-      background: radial-gradient(ellipse, rgba(124,58,237,0.2) 0%, transparent 65%);
-      pointer-events: none;
-    }
-    .hero-eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(124,58,237,0.12);
-      border: 1px solid rgba(124,58,237,0.25);
-      color: #a78bfa;
-      border-radius: 99px;
-      padding: 6px 16px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      margin-bottom: 28px;
-    }
-    .hero h1 {
-      font-size: clamp(2.4rem, 6vw, 4rem);
-      font-weight: 800;
-      letter-spacing: -0.04em;
-      line-height: 1.1;
-      margin-bottom: 24px;
-      color: var(--text);
-    }
-    .hero h1 .grad {
-      background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 50%, #34d399 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .hero-sub {
-      font-size: 1.1rem;
-      color: var(--text-dim);
-      max-width: 540px;
-      margin: 0 auto 40px;
-      line-height: 1.7;
-    }
-    .hero-btns {
-      display: flex;
-      gap: 14px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-    .btn-main {
-      background: linear-gradient(135deg, #7c4dff 0%, #00d4ff 100%);
-      color: #fff;
-      padding: 14px 32px;
-      border-radius: 10px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      text-decoration: none;
-      transition: all 0.22s;
-      box-shadow: 0 4px 24px rgba(124,77,255,0.35);
-    }
-    .btn-main:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 36px rgba(124,77,255,0.5), 0 0 60px rgba(0,212,255,0.12);
-    }
-    .btn-ghost {
-      background: transparent;
-      color: var(--text-dim);
-      padding: 14px 32px;
-      border-radius: 10px;
-      font-size: 0.95rem;
-      font-weight: 500;
-      text-decoration: none;
-      border: 1px solid var(--border-hi);
-      transition: all 0.2s;
-    }
-    .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
-
-    /* Features */
-    .features {
-      padding: 80px 20px;
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-    .features-label {
-      text-align: center;
-      font-size: 0.8rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #a78bfa;
-      margin-bottom: 16px;
-    }
-    .features h2 {
-      text-align: center;
-      font-size: clamp(1.6rem, 4vw, 2.4rem);
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      margin-bottom: 60px;
-      color: var(--text);
-    }
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-      gap: 20px;
-    }
-    .feature-card {
-      background: rgba(22,26,44,.88);
-      border: 1px solid rgba(199,211,234,.1);
-      border-radius: 16px;
-      padding: 32px;
-      position: relative;
-      overflow: hidden;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      box-shadow:
-        inset 0px 1px 1px 0px rgba(199,211,234,.1),
-        0px 16px 40px 0px rgba(6,6,14,.6);
-      transition: border-color 0.28s, box-shadow 0.28s, transform 0.28s;
-    }
-    /* Hairline top */
-    .feature-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(199,211,234,.22), transparent);
-      pointer-events: none;
-    }
-    .feature-card:hover {
-      border-color: rgba(124,58,237,.32);
-      transform: translateY(-6px);
-      box-shadow:
-        0 28px 64px rgba(0,0,0,.55),
-        0 0 0 1px rgba(124,58,237,.12),
-        0 0 40px rgba(124,58,237,.07),
-        inset 0px 1px 1px 0px rgba(199,211,234,.14);
-    }
-    .feature-icon {
-      width: 52px; height: 52px;
-      border-radius: 13px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.55rem;
-      margin-bottom: 20px;
-    }
-    .ic-purple { background: rgba(124,58,237,.2);   box-shadow: 0 0 20px rgba(124,58,237,.14); }
-    .ic-blue   { background: rgba(37,99,235,.18);   box-shadow: 0 0 20px rgba(37,99,235,.1);  }
-    .ic-green  { background: rgba(16,185,129,.16);  box-shadow: 0 0 20px rgba(16,185,129,.1); }
-    .feature-card h3 {
-      font-size: 1.1rem;
-      font-weight: 700;
-      margin-bottom: 12px;
-      color: #c7d3ea;
-      letter-spacing: -0.01em;
-    }
-    .feature-card p {
-      font-size: 0.875rem;
-      color: #81899b;
-      line-height: 1.62;
-    }
-    .coming-badge {
-      display: inline-block;
-      font-size: 0.8125rem; /* 13px — минимум по SYSTEM.md, было 11.2px */
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-2);
-      border: 1px solid rgba(199,211,234,.12);
-      border-radius: 5px;
-      padding: 3px 9px;
-      margin-top: 16px;
-    }
-
-    /* CTA */
-    .cta {
-      text-align: center;
-      padding: 80px 20px 120px;
-    }
-    .cta h2 {
-      font-size: clamp(1.8rem, 4vw, 2.8rem);
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      margin-bottom: 16px;
-    }
-    .cta p {
-      color: var(--text-dim);
-      margin-bottom: 36px;
-      font-size: 1rem;
-    }
-
-    /* Scroll-reveal */
-    .reveal-up {
-      opacity: 0;
-      transform: translateY(40px);
-      transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-    }
-    .reveal-left {
-      opacity: 0;
-      transform: translateX(-30px);
-      transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-    }
-    .reveal-up.visible  { opacity: 1; transform: translateY(0); }
-    .reveal-left.visible { opacity: 1; transform: translateX(0); }
-    @media (prefers-reduced-motion: reduce) {
-      .reveal-up, .reveal-left {
-        opacity: 1 !important;
-        transform: none !important;
-        transition: none !important;
-      }
-    }
-
-    /* Nav override */
-    .nav-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+    /* ── Nav ── */
+    .nav-actions { display: flex; align-items: center; gap: 10px; }
     .nav-link { color: var(--text-dim); text-decoration: none; font-size: 0.9rem; padding: 8px 14px; transition: color 0.2s; }
     .nav-link:hover { color: var(--text); }
-    .nav-btn {
-      background: linear-gradient(135deg, #7c4dff 0%, #00d4ff 100%);
-      color: #fff;
-      text-decoration: none;
-      padding: 8px 18px;
-      border-radius: 8px;
-      font-size: 0.875rem;
-      font-weight: 600;
-      transition: opacity 0.2s;
-    }
+    .nav-btn { background: linear-gradient(135deg, #7c4dff 0%, #00d4ff 100%); color: #fff; text-decoration: none; padding: 8px 18px; border-radius: 8px; font-size: 0.875rem; font-weight: 600; transition: opacity 0.2s; }
     .nav-btn:hover { opacity: 0.85; }
 
+    /* ── Shared ── */
+    .sec { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
+    .sec-label { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; text-align: center; }
+    .sec-h2 { font-family: var(--font-head); font-size: clamp(1.5rem, 3.5vw, 2.2rem); font-weight: 700; letter-spacing: -0.03em; color: var(--text); text-align: center; margin-bottom: 52px; }
+
+    /* ── Hero ── */
+    .hero { padding: 120px 24px 80px; text-align: center; position: relative; overflow: hidden; max-width: 1100px; margin: 0 auto; }
+    .hero::before { content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 700px; height: 500px; background: radial-gradient(ellipse, rgba(124,77,255,0.18) 0%, transparent 65%); pointer-events: none; }
+    .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; background: rgba(124,77,255,0.1); border: 1px solid rgba(124,77,255,0.22); color: #a78bfa; border-radius: 99px; padding: 6px 18px; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 28px; }
+    .hero-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: #a78bfa; box-shadow: 0 0 6px #a78bfa; animation: dotPulse 2.2s ease infinite; }
+    @keyframes dotPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+    .hero h1 { font-family: var(--font-head); font-size: clamp(2.4rem, 6vw, 4rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1.08; margin-bottom: 24px; color: var(--text); }
+    .hero h1 .grad { background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 50%, #34d399 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero-sub { font-size: 1.05rem; color: var(--text-dim); max-width: 520px; margin: 0 auto 40px; line-height: 1.72; }
+    .hero-btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .btn-main { background: linear-gradient(135deg, #7c4dff 0%, #00d4ff 100%); color: #fff; padding: 14px 32px; border-radius: 10px; font-size: 0.95rem; font-weight: 600; text-decoration: none; transition: all 0.22s; box-shadow: 0 4px 24px rgba(124,77,255,0.35); }
+    .btn-main:hover { transform: translateY(-2px); box-shadow: 0 8px 36px rgba(124,77,255,0.5), 0 0 60px rgba(0,212,255,0.12); }
+    .btn-ghost { background: transparent; color: var(--text-dim); padding: 14px 32px; border-radius: 10px; font-size: 0.95rem; font-weight: 500; text-decoration: none; border: 1px solid var(--border-hi); transition: all 0.2s; }
+    .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+
+    /* ── Features 2×2 ── */
+    .features-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+    .feature-card { background: rgba(22,26,44,.88); border: 1px solid rgba(199,211,234,.1); border-radius: 16px; padding: 32px; position: relative; overflow: hidden; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: inset 0px 1px 1px 0px rgba(199,211,234,.1), 0px 16px 40px 0px rgba(6,6,14,.6); transition: border-color 0.28s, box-shadow 0.28s, transform 0.28s; }
+    .feature-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(199,211,234,.22), transparent); pointer-events: none; }
+    .feature-card:hover { border-color: rgba(124,77,255,.3); transform: translateY(-5px); box-shadow: 0 24px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(124,77,255,.12), 0 0 36px rgba(124,77,255,.07), inset 0px 1px 1px 0px rgba(199,211,234,.14); }
+    .feature-icon { width: 52px; height: 52px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 1.55rem; margin-bottom: 20px; }
+    .ic-purple { background: rgba(124,77,255,.18); box-shadow: 0 0 20px rgba(124,77,255,.12); }
+    .ic-blue   { background: rgba(0,212,255,.15);  box-shadow: 0 0 20px rgba(0,212,255,.1);  }
+    .ic-green  { background: rgba(0,229,160,.14);  box-shadow: 0 0 20px rgba(0,229,160,.09); }
+    .ic-orange { background: rgba(232,149,30,.18); box-shadow: 0 0 20px rgba(232,149,30,.12); }
+    .feature-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; color: #c7d3ea; letter-spacing: -0.01em; }
+    .feature-card p  { font-size: 0.9rem; color: #81899b; line-height: 1.65; }
+
+    /* ── Detail section ── */
+    .details { padding: 40px 24px 100px; max-width: 1100px; margin: 0 auto; }
+    .details-header { text-align: center; margin-bottom: 72px; }
+    .detail-block { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; padding: 72px 0; border-top: 1px solid rgba(199,211,234,.06); }
+    .detail-block:last-child { border-bottom: 1px solid rgba(199,211,234,.06); }
+    .detail-block.flip .detail-mock { order: -1; }
+
+    .detail-label { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 16px; }
+    .detail-hh    .detail-label { color: #a78bfa; }
+    .detail-wk    .detail-label { color: #00d4ff; }
+    .detail-nutr  .detail-label { color: #00e5a0; }
+    .detail-ens   .detail-label { color: #e09530; }
+
+    .detail-h3   { font-family: var(--font-head); font-size: clamp(1.4rem, 2.2vw, 1.9rem); font-weight: 700; letter-spacing: -0.03em; line-height: 1.18; color: var(--text); margin-bottom: 16px; }
+    .detail-desc { font-size: 0.975rem; color: var(--text-2); line-height: 1.72; margin-bottom: 28px; }
+    .detail-features { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 11px; }
+    .detail-features li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: var(--text-2); line-height: 1.55; }
+    .chk { flex-shrink: 0; width: 18px; height: 18px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; margin-top: 1px; }
+    .detail-hh   .chk { background: rgba(167,139,250,.15); color: #a78bfa; }
+    .detail-wk   .chk { background: rgba(0,212,255,.12);   color: #00d4ff; }
+    .detail-nutr .chk { background: rgba(0,229,160,.12);   color: #00e5a0; }
+    .detail-ens  .chk { background: rgba(224,149,48,.15);  color: #e09530; }
+
+    .detail-mock { position: relative; }
+    .mock-card { background: rgba(14,16,28,.95); border: 1px solid rgba(199,211,234,.1); border-radius: 16px; overflow: hidden; box-shadow: inset 0px 1px 1px 0px rgba(199,211,234,.08), 0 32px 80px rgba(0,0,0,.7); }
+    .mock-card svg { display: block; width: 100%; height: auto; }
+    .detail-hh   .detail-mock::after { content: ''; position: absolute; inset: -24px; background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(124,77,255,.15) 0%, transparent 70%); z-index: -1; pointer-events: none; }
+    .detail-wk   .detail-mock::after { content: ''; position: absolute; inset: -24px; background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(0,212,255,.12) 0%, transparent 70%);  z-index: -1; pointer-events: none; }
+    .detail-nutr .detail-mock::after { content: ''; position: absolute; inset: -24px; background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(0,229,160,.1)  0%, transparent 70%);  z-index: -1; pointer-events: none; }
+    .detail-ens  .detail-mock::after { content: ''; position: absolute; inset: -24px; background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(224,149,48,.12) 0%, transparent 70%); z-index: -1; pointer-events: none; }
+
+    /* ── CTA ── */
+    .cta { text-align: center; padding: 100px 24px 120px; position: relative; }
+    .cta::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 1px; height: 80px; background: linear-gradient(180deg, transparent, rgba(199,211,234,.2), transparent); }
+    .cta h2 { font-family: var(--font-head); font-size: clamp(2rem, 4.5vw, 3.2rem); font-weight: 800; letter-spacing: -0.04em; margin-bottom: 14px; color: var(--text); }
+    .cta p { color: var(--text-dim); margin-bottom: 40px; font-size: 1rem; }
+    .cta-btn-wrap { position: relative; display: inline-block; }
+    .cta-glow { position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%); width: 200px; height: 48px; background: radial-gradient(ellipse, rgba(124,77,255,.55) 0%, transparent 70%); filter: blur(18px); pointer-events: none; }
+
+    /* ── Scroll-reveal ── */
+    .reveal-up   { opacity: 0; transform: translateY(40px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
+    .reveal-left { opacity: 0; transform: translateX(-30px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
+    .reveal-up.visible   { opacity: 1; transform: translateY(0); }
+    .reveal-left.visible { opacity: 1; transform: translateX(0); }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal-up, .reveal-left { opacity: 1 !important; transform: none !important; transition: none !important; }
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .detail-block { grid-template-columns: 1fr; gap: 40px; padding: 48px 0; }
+      .detail-mock  { order: -1 !important; }
+      .detail-text  { order:  1 !important; }
+    }
     @media (max-width: 640px) {
       .hero { padding: 72px 16px 52px; }
       .hero-sub { font-size: 1rem; }
       .hero-btns { flex-direction: column; align-items: stretch; gap: 10px; }
       .btn-main, .btn-ghost { text-align: center; padding: 15px 24px; }
-      .features { padding: 52px 16px; }
-      .features-grid { grid-template-columns: 1fr; }
+      .sec { padding: 52px 16px; }
+      .features-grid { grid-template-columns: 1fr; gap: 14px; }
       .feature-card { padding: 22px; }
-      .cta { padding: 52px 16px 80px; }
+      .details { padding: 24px 16px 60px; }
+      .cta { padding: 64px 16px 80px; }
       .nav-link { padding: 6px 10px; font-size: 0.82rem; }
-      .nav-btn { padding: 8px 14px; font-size: 0.82rem; }
+      .nav-btn  { padding: 8px 14px;  font-size: 0.82rem; }
     }
   </style>
 </head>
@@ -279,54 +134,312 @@
 </nav>
 
 <main>
+
+  <!-- ── S1: Hero ── -->
   <section class="hero">
-    <div class="hero-eyebrow">✦ Personal AI Tools</div>
+    <div class="hero-eyebrow"><span class="hero-eyebrow-dot"></span>Personal AI Tools</div>
     <h1>Инструменты<br>для <span class="grad">умной жизни</span></h1>
-    <p class="hero-sub">Набор AI-помощников, которые берут на себя рутину — от поиска работы до здорового образа жизни. Всё в одном месте, под ваши данные.</p>
+    <p class="hero-sub">AI-помощники которые берут на себя рутину — от поиска работы до здорового образа жизни. Всё в одном месте, под твои данные.</p>
     <div class="hero-btns">
       <a href="/register" class="btn-main">Начать бесплатно →</a>
-      <a href="/login" class="btn-ghost">Уже есть аккаунт</a>
-      <a href="/demo" class="btn-ghost" style="border-color:rgba(232,121,160,.3);color:#f4abc5">✦ Демо-проект</a>
+      <a href="/login"    class="btn-ghost">Уже есть аккаунт</a>
     </div>
   </section>
 
-  <section class="features">
-    <p class="features-label reveal-left">Что внутри</p>
-    <h2 class="reveal-left">Инструменты, которые работают на вас</h2>
+  <!-- ── S2: Features 2×2 ── -->
+  <section class="sec">
+    <p class="sec-label reveal-left">Что внутри</p>
+    <h2 class="sec-h2 reveal-left">Инструменты, которые работают на вас</h2>
     <div class="features-grid">
-
       <div class="feature-card reveal-up">
         <div class="feature-icon ic-purple">📝</div>
         <h3>HH Помощник</h3>
-        <p>Вставь ссылку на вакансию — получи готовое сопроводительное письмо, написанное под твоё резюме и конкретные требования работодателя.</p>
+        <p>Вставь ссылку на вакансию — за 30 секунд получишь готовое сопроводительное письмо под твоё резюме.</p>
       </div>
-
       <div class="feature-card reveal-up">
-        <div class="feature-icon" style="background:rgba(200,146,42,0.15)">🛡</div>
+        <div class="feature-icon ic-orange">🛡</div>
         <h3>Enshrouded</h3>
-        <p>Трекер доспехов — отмечай собранные сеты, редкость и уровни предметов. Твой прогресс в игре всегда под рукой.</p>
+        <p>Трекер доспехов — отмечай собранные сеты, редкость и уровни предметов.</p>
       </div>
-
       <div class="feature-card reveal-up">
         <div class="feature-icon ic-blue">💪</div>
         <h3>Программа тренировок</h3>
-        <p>Персональный план тренировок с учётом твоих целей, уровня и доступного времени. Прогрессия нагрузок, трекинг результатов.</p>
+        <p>Персональный план под цели, уровень и доступное оборудование. Прогрессия нагрузок и трекинг весов.</p>
       </div>
-
       <div class="feature-card reveal-up">
         <div class="feature-icon ic-green">🥗</div>
-        <h3>Калькулятор питания</h3>
-        <p>Подсчёт калорий и БЖУ, дневник питания, подбор рациона под цели. Просто и без лишнего — только то, что реально нужно.</p>
+        <h3>Дневник питания</h3>
+        <p>Дневник еды с подсчётом КБЖУ и штрих-код сканером. Трекер веса и AI-анализ рациона.</p>
       </div>
-
     </div>
   </section>
 
+  <!-- ── S3: Detail blocks ── -->
+  <section class="details">
+    <div class="details-header">
+      <p class="sec-label reveal-left">Возможности</p>
+      <h2 class="sec-h2 reveal-left" style="margin-bottom:0">Посмотри что умеет каждый инструмент</h2>
+    </div>
+
+    <!-- Block 1: HH — текст слева, мокап справа -->
+    <div class="detail-block detail-hh">
+      <div class="detail-text reveal-left">
+        <p class="detail-label">🎯 Карьера</p>
+        <h3 class="detail-h3">Сопроводительное письмо за 30 секунд</h3>
+        <p class="detail-desc">Вставь текст вакансии или ссылку — AI прочитает требования и напишет письмо под твоё резюме. Никаких шаблонов, только конкретика под каждого работодателя.</p>
+        <ul class="detail-features">
+          <li><span class="chk">✓</span>Анализирует требования вакансии автоматически</li>
+          <li><span class="chk">✓</span>Адаптирует под твоё резюме из профиля</li>
+          <li><span class="chk">✓</span>Работает с любого сайта с вакансиями</li>
+        </ul>
+      </div>
+      <div class="detail-mock reveal-up">
+        <div class="mock-card">
+          <svg viewBox="0 0 420 270" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="420" height="270" fill="#0d0f1d"/>
+            <rect width="420" height="42" fill="#141524"/>
+            <rect width="420" height="1.5" fill="url(#hh1)"/>
+            <circle cx="20" cy="21" r="4" fill="#7c4dff" fill-opacity=".9"/>
+            <circle cx="33" cy="21" r="4" fill="#7c4dff" fill-opacity=".45"/>
+            <circle cx="46" cy="21" r="4" fill="#7c4dff" fill-opacity=".2"/>
+            <text x="60" y="25" font-family="'DM Mono',monospace" font-size="10.5" fill="#aeb8d4" font-weight="500" letter-spacing=".05em">HH ПОМОЩНИК</text>
+            <!-- response bubble -->
+            <rect x="16" y="53" width="388" height="152" rx="10" fill="#141524" stroke="#1e2036" stroke-width="1"/>
+            <rect x="26" y="63" width="28" height="16" rx="4" fill="rgba(124,77,255,.25)"/>
+            <text x="40" y="75" font-family="'DM Mono',monospace" font-size="8.5" fill="#a78bfa" font-weight="700" text-anchor="middle">AI</text>
+            <rect x="26" y="87"  width="272" height="6.5" rx="3" fill="#1e2036"/>
+            <rect x="26" y="99"  width="252" height="6.5" rx="3" fill="#1e2036"/>
+            <rect x="26" y="111" width="264" height="6.5" rx="3" fill="#1e2036"/>
+            <rect x="26" y="123" width="240" height="6.5" rx="3" fill="#1e2036"/>
+            <rect x="26" y="135" width="260" height="6.5" rx="3" fill="#1e2036"/>
+            <rect x="26" y="147" width="210" height="6.5" rx="3" fill="#1e2036"/>
+            <rect x="218" y="165" width="92" height="21" rx="5" fill="rgba(124,77,255,.15)" stroke="rgba(124,77,255,.32)" stroke-width="1"/>
+            <text x="264" y="179.5" font-family="system-ui,sans-serif" font-size="9" fill="#a78bfa" font-weight="600" text-anchor="middle">Скопировать</text>
+            <!-- input -->
+            <rect x="16" y="216" width="316" height="38" rx="8" fill="#141524" stroke="#1e2036" stroke-width="1"/>
+            <text x="28" y="239" font-family="system-ui,sans-serif" font-size="10.5" fill="#3a4060">Вставьте текст вакансии...</text>
+            <rect x="340" y="216" width="64" height="38" rx="8" fill="url(#hh2)"/>
+            <text x="372" y="239.5" font-family="system-ui,sans-serif" font-size="15" fill="white" font-weight="700" text-anchor="middle">→</text>
+            <defs>
+              <linearGradient id="hh1" x1="0" y1="0" x2="420" y2="0">
+                <stop offset="0%" stop-color="transparent"/><stop offset="50%" stop-color="#7c4dff"/><stop offset="100%" stop-color="transparent"/>
+              </linearGradient>
+              <linearGradient id="hh2" x1="340" y1="0" x2="404" y2="0">
+                <stop offset="0%" stop-color="#7c4dff"/><stop offset="100%" stop-color="#9f7aff"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Block 2: Workout — мокап слева, текст справа -->
+    <div class="detail-block flip detail-wk">
+      <div class="detail-text reveal-left">
+        <p class="detail-label">💪 Фитнес</p>
+        <h3 class="detail-h3">Личный тренер который знает твои данные</h3>
+        <p class="detail-desc">Генерирует программу под твои цели, уровень и оборудование зала. Следит за прогрессией весов, предлагает замены и корректирует при болях или пропусках.</p>
+        <ul class="detail-features">
+          <li><span class="chk">✓</span>Авто-прогрессия: предлагает поднять вес когда ты готов</li>
+          <li><span class="chk">✓</span>База 873 упражнений с техникой и видео</li>
+          <li><span class="chk">✓</span>AI-ассистент меняет программу под тебя</li>
+        </ul>
+      </div>
+      <div class="detail-mock reveal-up">
+        <div class="mock-card">
+          <svg viewBox="0 0 420 270" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="420" height="270" fill="#0d0f1d"/>
+            <rect width="420" height="42" fill="#141524"/>
+            <rect width="420" height="1.5" fill="url(#wk1)"/>
+            <circle cx="20" cy="21" r="4" fill="#00d4ff" fill-opacity=".9"/>
+            <circle cx="33" cy="21" r="4" fill="#00d4ff" fill-opacity=".45"/>
+            <circle cx="46" cy="21" r="4" fill="#00d4ff" fill-opacity=".2"/>
+            <text x="60" y="25" font-family="'DM Mono',monospace" font-size="10.5" fill="#aeb8d4" font-weight="500" letter-spacing=".05em">ДЕНЬ 1 · ГРУДЬ &amp; ТРИЦЕПС</text>
+            <!-- exercise -->
+            <rect x="16" y="53" width="388" height="44" rx="8" fill="#141524" stroke="#1e2036" stroke-width="1"/>
+            <text x="28" y="71" font-family="system-ui,sans-serif" font-size="12" fill="#e8ecf8" font-weight="700">Жим штанги лёжа</text>
+            <text x="28" y="86" font-family="system-ui,sans-serif" font-size="9.5" fill="#4a5578">Грудь · Передние дельты · Трицепс</text>
+            <!-- set row 1 -->
+            <rect x="16" y="106" width="388" height="34" rx="7" fill="#141524" stroke="#1e2036" stroke-width="1"/>
+            <text x="28" y="127" font-family="system-ui,sans-serif" font-size="10" fill="#4a5578">Подход 1</text>
+            <rect x="162" y="112" width="64" height="22" rx="5" fill="#1e2036" stroke="#2a2c47" stroke-width="1"/>
+            <text x="194" y="127" font-family="system-ui,sans-serif" font-size="11" fill="#aeb8d4" text-anchor="middle">8</text>
+            <text x="234" y="127" font-family="system-ui,sans-serif" font-size="11" fill="#2a3050" text-anchor="middle">×</text>
+            <rect x="250" y="112" width="80" height="22" rx="5" fill="#1e2036" stroke="#2a2c47" stroke-width="1"/>
+            <text x="290" y="127" font-family="system-ui,sans-serif" font-size="11" fill="#aeb8d4" text-anchor="middle">60 кг</text>
+            <!-- set row 2 -->
+            <rect x="16" y="147" width="388" height="34" rx="7" fill="#141524" stroke="#1e2036" stroke-width="1"/>
+            <text x="28" y="168" font-family="system-ui,sans-serif" font-size="10" fill="#4a5578">Подход 2</text>
+            <rect x="162" y="153" width="64" height="22" rx="5" fill="#1e2036" stroke="#2a2c47" stroke-width="1"/>
+            <text x="194" y="168" font-family="system-ui,sans-serif" font-size="11" fill="#aeb8d4" text-anchor="middle">8</text>
+            <text x="234" y="168" font-family="system-ui,sans-serif" font-size="11" fill="#2a3050" text-anchor="middle">×</text>
+            <rect x="250" y="153" width="80" height="22" rx="5" fill="#1e2036" stroke="#2a2c47" stroke-width="1"/>
+            <text x="290" y="168" font-family="system-ui,sans-serif" font-size="11" fill="#4a5578" text-anchor="middle">кг</text>
+            <!-- set row 3 -->
+            <rect x="16" y="188" width="388" height="34" rx="7" fill="#141524" stroke="#1e2036" stroke-width="1"/>
+            <text x="28" y="209" font-family="system-ui,sans-serif" font-size="10" fill="#4a5578">Подход 3</text>
+            <rect x="162" y="194" width="64" height="22" rx="5" fill="#1e2036" stroke="#2a2c47" stroke-width="1"/>
+            <rect x="250" y="194" width="80" height="22" rx="5" fill="#1e2036" stroke="#2a2c47" stroke-width="1"/>
+            <!-- save btn -->
+            <rect x="16" y="232" width="388" height="24" rx="7" fill="rgba(0,212,255,.1)" stroke="rgba(0,212,255,.22)" stroke-width="1"/>
+            <text x="210" y="248" font-family="system-ui,sans-serif" font-size="11" fill="#00d4ff" font-weight="600" text-anchor="middle">Записать подход</text>
+            <defs>
+              <linearGradient id="wk1" x1="0" y1="0" x2="420" y2="0">
+                <stop offset="0%" stop-color="transparent"/><stop offset="50%" stop-color="#00d4ff"/><stop offset="100%" stop-color="transparent"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Block 3: Nutrition — текст слева, мокап справа -->
+    <div class="detail-block detail-nutr">
+      <div class="detail-text reveal-left">
+        <p class="detail-label">🥗 Питание</p>
+        <h3 class="detail-h3">Счётчик калорий который не надоедает</h3>
+        <p class="detail-desc">Добавляй еду по штрих-коду или названию, следи за КБЖУ. AI-нутрициолог анализирует рацион и даёт конкретные рекомендации. Синхронизируется с программой тренировок.</p>
+        <ul class="detail-features">
+          <li><span class="chk">✓</span>Сканер штрих-кода — добавь продукт за секунду</li>
+          <li><span class="chk">✓</span>Трекер веса тела с графиком</li>
+          <li><span class="chk">✓</span>AI анализирует питание под твои цели</li>
+        </ul>
+      </div>
+      <div class="detail-mock reveal-up">
+        <div class="mock-card">
+          <svg viewBox="0 0 420 270" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="420" height="270" fill="#0d0f1d"/>
+            <rect width="420" height="42" fill="#141524"/>
+            <rect width="420" height="1.5" fill="url(#nu1)"/>
+            <circle cx="20" cy="21" r="4" fill="#00e5a0" fill-opacity=".9"/>
+            <circle cx="33" cy="21" r="4" fill="#00e5a0" fill-opacity=".45"/>
+            <circle cx="46" cy="21" r="4" fill="#00e5a0" fill-opacity=".2"/>
+            <text x="60" y="25" font-family="'DM Mono',monospace" font-size="10.5" fill="#aeb8d4" font-weight="500" letter-spacing=".05em">ДНЕВНИК ПИТАНИЯ</text>
+            <!-- donut: center 106,158, r=60 -->
+            <circle cx="106" cy="158" r="60" stroke="#1e2036" stroke-width="18" fill="none"/>
+            <!-- 75% arc: C=376.8, 75%=282.6; offset=C/4=94.2 -->
+            <circle cx="106" cy="158" r="60" stroke="#00e5a0" stroke-width="18" fill="none"
+              stroke-dasharray="283 377" stroke-dashoffset="94" stroke-linecap="round"/>
+            <text x="106" y="152" font-family="system-ui,sans-serif" font-size="19" fill="#e8ecf8" font-weight="800" text-anchor="middle">1 750</text>
+            <text x="106" y="168" font-family="system-ui,sans-serif" font-size="9.5" fill="#4a5578" text-anchor="middle">/ 2 200 ккал</text>
+            <!-- bars: right panel x=196 -->
+            <text x="196" y="72" font-family="system-ui,sans-serif" font-size="9.5" fill="#7a83a0">Белки</text>
+            <text x="400" y="72" font-family="system-ui,sans-serif" font-size="9.5" fill="#e8ecf8" font-weight="600" text-anchor="end">118 г</text>
+            <rect x="196" y="77" width="204" height="6" rx="3" fill="#1e2036"/>
+            <rect x="196" y="77" width="140" height="6" rx="3" fill="#00e5a0"/>
+            <text x="196" y="102" font-family="system-ui,sans-serif" font-size="9.5" fill="#7a83a0">Жиры</text>
+            <text x="400" y="102" font-family="system-ui,sans-serif" font-size="9.5" fill="#e8ecf8" font-weight="600" text-anchor="end">62 г</text>
+            <rect x="196" y="107" width="204" height="6" rx="3" fill="#1e2036"/>
+            <rect x="196" y="107" width="95"  height="6" rx="3" fill="#34d399" fill-opacity=".7"/>
+            <text x="196" y="132" font-family="system-ui,sans-serif" font-size="9.5" fill="#7a83a0">Углеводы</text>
+            <text x="400" y="132" font-family="system-ui,sans-serif" font-size="9.5" fill="#e8ecf8" font-weight="600" text-anchor="end">195 г</text>
+            <rect x="196" y="137" width="204" height="6" rx="3" fill="#1e2036"/>
+            <rect x="196" y="137" width="172" height="6" rx="3" fill="#00b8d4" fill-opacity=".65"/>
+            <!-- meal items -->
+            <rect x="196" y="154" width="204" height="28" rx="7" fill="#141524" stroke="#1e2036" stroke-width="1"/>
+            <text x="207" y="172" font-family="system-ui,sans-serif" font-size="10.5" fill="#aeb8d4">Завтрак</text>
+            <text x="390" y="172" font-family="system-ui,sans-serif" font-size="9.5" fill="#4a5578" text-anchor="end">486 ккал</text>
+            <rect x="196" y="188" width="204" height="28" rx="7" fill="#141524" stroke="#1e2036" stroke-width="1"/>
+            <text x="207" y="206" font-family="system-ui,sans-serif" font-size="10.5" fill="#aeb8d4">Обед</text>
+            <text x="390" y="206" font-family="system-ui,sans-serif" font-size="9.5" fill="#4a5578" text-anchor="end">712 ккал</text>
+            <!-- add btn -->
+            <rect x="196" y="224" width="204" height="28" rx="7" fill="rgba(0,229,160,.08)" stroke="rgba(0,229,160,.22)" stroke-width="1"/>
+            <text x="298" y="242" font-family="system-ui,sans-serif" font-size="10.5" fill="#00e5a0" font-weight="600" text-anchor="middle">+ Добавить приём</text>
+            <defs>
+              <linearGradient id="nu1" x1="0" y1="0" x2="420" y2="0">
+                <stop offset="0%" stop-color="transparent"/><stop offset="50%" stop-color="#00e5a0"/><stop offset="100%" stop-color="transparent"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Block 4: Enshrouded — мокап слева, текст справа -->
+    <div class="detail-block flip detail-ens">
+      <div class="detail-text reveal-left">
+        <p class="detail-label">🎮 Игры</p>
+        <h3 class="detail-h3">Трекер доспехов для Enshrouded</h3>
+        <p class="detail-desc">Отмечай собранные сеты брони, следи за редкостью и уровнями предметов. Планируй следующий крафт и не теряй прогресс.</p>
+        <ul class="detail-features">
+          <li><span class="chk">✓</span>Все сеты и категории предметов</li>
+          <li><span class="chk">✓</span>Счётчик собранных предметов</li>
+          <li><span class="chk">✓</span>Фильтры по классу и редкости</li>
+        </ul>
+      </div>
+      <div class="detail-mock reveal-up">
+        <div class="mock-card">
+          <svg viewBox="0 0 420 270" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="420" height="270" fill="#0d0f1d"/>
+            <rect width="420" height="42" fill="#141524"/>
+            <rect width="420" height="1.5" fill="url(#en1)"/>
+            <circle cx="20" cy="21" r="4" fill="#e09530" fill-opacity=".9"/>
+            <circle cx="33" cy="21" r="4" fill="#e09530" fill-opacity=".45"/>
+            <circle cx="46" cy="21" r="4" fill="#e09530" fill-opacity=".2"/>
+            <text x="60" y="25" font-family="'DM Mono',monospace" font-size="10.5" fill="#aeb8d4" font-weight="500" letter-spacing=".05em">КОЛЛЕКЦИЯ</text>
+            <rect x="304" y="12" width="100" height="18" rx="5" fill="rgba(224,149,48,.14)" stroke="rgba(224,149,48,.28)" stroke-width="1"/>
+            <text x="354" y="24.5" font-family="'DM Mono',monospace" font-size="9.5" fill="#e09530" font-weight="600" text-anchor="middle">12 / 24</text>
+            <!-- 3×2 grid: start x=14, y=52; card 122×98, gap 8 -->
+            <!-- Row 1 Item 1 — collected -->
+            <rect x="14" y="52" width="122" height="98" rx="8" fill="#141524" stroke="rgba(224,149,48,.38)" stroke-width="1.5"/>
+            <rect x="14" y="52" width="122" height="98" rx="8" fill="rgba(224,149,48,.03)"/>
+            <text x="75" y="92"  font-family="system-ui,sans-serif" font-size="22" text-anchor="middle">🛡</text>
+            <text x="75" y="112" font-family="system-ui,sans-serif" font-size="9"   fill="#c7a060" text-anchor="middle" font-weight="500">Щит воина</text>
+            <text x="75" y="125" font-family="system-ui,sans-serif" font-size="8"   fill="#7a6040" text-anchor="middle">Редкий</text>
+            <rect x="96" y="57" width="32" height="14" rx="4" fill="rgba(224,149,48,.2)"/>
+            <text x="112" y="68" font-family="system-ui,sans-serif" font-size="8.5" fill="#e09530" text-anchor="middle" font-weight="700">✓</text>
+            <!-- Row 1 Item 2 — collected -->
+            <rect x="148" y="52" width="122" height="98" rx="8" fill="#141524" stroke="rgba(224,149,48,.38)" stroke-width="1.5"/>
+            <rect x="148" y="52" width="122" height="98" rx="8" fill="rgba(224,149,48,.03)"/>
+            <text x="209" y="92"  font-family="system-ui,sans-serif" font-size="22" text-anchor="middle">⚔️</text>
+            <text x="209" y="112" font-family="system-ui,sans-serif" font-size="9"   fill="#c7a060" text-anchor="middle" font-weight="500">Меч крови</text>
+            <text x="209" y="125" font-family="system-ui,sans-serif" font-size="8"   fill="#7a6040" text-anchor="middle">Эпический</text>
+            <rect x="230" y="57" width="32" height="14" rx="4" fill="rgba(224,149,48,.2)"/>
+            <text x="246" y="68" font-family="system-ui,sans-serif" font-size="8.5" fill="#e09530" text-anchor="middle" font-weight="700">✓</text>
+            <!-- Row 1 Item 3 — not collected -->
+            <rect x="282" y="52" width="122" height="98" rx="8" fill="#141524" stroke="rgba(199,211,234,.07)" stroke-width="1"/>
+            <text x="343" y="92"  font-family="system-ui,sans-serif" font-size="22" text-anchor="middle" opacity=".3">🪖</text>
+            <text x="343" y="112" font-family="system-ui,sans-serif" font-size="9"   fill="#2a3258" text-anchor="middle" font-weight="500">Шлем тени</text>
+            <text x="343" y="125" font-family="system-ui,sans-serif" font-size="8"   fill="#1e2540" text-anchor="middle">Легендарный</text>
+            <!-- Row 2 Item 4 — collected -->
+            <rect x="14" y="162" width="122" height="98" rx="8" fill="#141524" stroke="rgba(224,149,48,.38)" stroke-width="1.5"/>
+            <rect x="14" y="162" width="122" height="98" rx="8" fill="rgba(224,149,48,.03)"/>
+            <text x="75" y="202" font-family="system-ui,sans-serif" font-size="22" text-anchor="middle">🏹</text>
+            <text x="75" y="222" font-family="system-ui,sans-serif" font-size="9"   fill="#c7a060" text-anchor="middle" font-weight="500">Лук охотника</text>
+            <text x="75" y="235" font-family="system-ui,sans-serif" font-size="8"   fill="#7a6040" text-anchor="middle">Обычный</text>
+            <rect x="96" y="167" width="32" height="14" rx="4" fill="rgba(224,149,48,.2)"/>
+            <text x="112" y="178" font-family="system-ui,sans-serif" font-size="8.5" fill="#e09530" text-anchor="middle" font-weight="700">✓</text>
+            <!-- Row 2 Item 5 — not collected -->
+            <rect x="148" y="162" width="122" height="98" rx="8" fill="#141524" stroke="rgba(199,211,234,.07)" stroke-width="1"/>
+            <text x="209" y="202" font-family="system-ui,sans-serif" font-size="22" text-anchor="middle" opacity=".3">🔮</text>
+            <text x="209" y="222" font-family="system-ui,sans-serif" font-size="9"   fill="#2a3258" text-anchor="middle" font-weight="500">Посох мага</text>
+            <text x="209" y="235" font-family="system-ui,sans-serif" font-size="8"   fill="#1e2540" text-anchor="middle">Редкий</text>
+            <!-- Row 2 Item 6 — not collected -->
+            <rect x="282" y="162" width="122" height="98" rx="8" fill="#141524" stroke="rgba(199,211,234,.07)" stroke-width="1"/>
+            <text x="343" y="202" font-family="system-ui,sans-serif" font-size="22" text-anchor="middle" opacity=".3">💎</text>
+            <text x="343" y="222" font-family="system-ui,sans-serif" font-size="9"   fill="#2a3258" text-anchor="middle" font-weight="500">Кольцо силы</text>
+            <text x="343" y="235" font-family="system-ui,sans-serif" font-size="8"   fill="#1e2540" text-anchor="middle">Эпический</text>
+            <defs>
+              <linearGradient id="en1" x1="0" y1="0" x2="420" y2="0">
+                <stop offset="0%" stop-color="transparent"/><stop offset="50%" stop-color="#e09530"/><stop offset="100%" stop-color="transparent"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── S4: CTA ── -->
   <section class="cta">
     <h2 class="reveal-left">Готов попробовать?</h2>
-    <p>Регистрация занимает 30 секунд. Доступ по приглашению.</p>
-    <a href="/register" class="btn-main">Создать аккаунт →</a>
+    <p class="reveal-up">Регистрация занимает 30 секунд. Доступ по приглашению.</p>
+    <div class="cta-btn-wrap reveal-up">
+      <a href="/register" class="btn-main">Создать аккаунт →</a>
+      <div class="cta-glow"></div>
+    </div>
   </section>
+
 </main>
 
 <script>
@@ -343,13 +456,21 @@
       }, { once: true });
       observer.unobserve(el);
     });
-  }, { threshold: 0.12 });
+  }, { threshold: 0.1 });
 
   document.querySelectorAll('.feature-card.reveal-up').forEach(function (el, i) {
     el.style.transitionDelay = (i * 100) + 'ms';
     observer.observe(el);
   });
   document.querySelectorAll('.reveal-left').forEach(function (el) {
+    observer.observe(el);
+  });
+  document.querySelectorAll('.detail-mock.reveal-up').forEach(function (el) {
+    el.style.transitionDelay = '120ms';
+    observer.observe(el);
+  });
+  document.querySelectorAll('.cta .reveal-up').forEach(function (el, i) {
+    el.style.transitionDelay = (i * 80) + 'ms';
     observer.observe(el);
   });
 }());
