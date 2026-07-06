@@ -16,6 +16,9 @@
     .nav-link:hover { color: var(--text); }
     .nav-btn { background: linear-gradient(135deg, #7c4dff 0%, #00d4ff 100%); color: #fff; text-decoration: none; padding: 8px 18px; border-radius: 8px; font-size: 0.875rem; font-weight: 600; transition: opacity 0.2s; }
     .nav-btn:hover { opacity: 0.85; }
+    .nav-demo { color: #f4abc5; text-decoration: none; font-size: 0.875rem; font-weight: 500; padding: 7px 15px; border: 1px solid rgba(232,121,160,.3); border-radius: 99px; transition: all 0.2s; }
+    .nav-demo:hover { color: #fff; border-color: rgba(232,121,160,.6); background: rgba(232,121,160,.08); }
+    @media (max-width: 440px) { .nav-demo { display: none; } }
 
     /* ── Shared ── */
     .sec { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
@@ -63,10 +66,10 @@
     .detail-nutr  .detail-label { color: #00e5a0; }
     .detail-ens   .detail-label { color: #e09530; }
 
-    .detail-h3   { font-family: var(--font-head); font-size: clamp(1.4rem, 2.2vw, 1.9rem); font-weight: 700; letter-spacing: -0.03em; line-height: 1.18; color: var(--text); margin-bottom: 16px; }
-    .detail-desc { font-size: 0.975rem; color: var(--text-2); line-height: 1.72; margin-bottom: 28px; }
+    .detail-h3   { font-family: var(--font-head); font-size: clamp(1.5rem, 2.5vw, 2rem); font-weight: 700; letter-spacing: -0.03em; line-height: 1.18; color: var(--text); margin-bottom: 16px; }
+    .detail-desc { font-size: clamp(0.95rem, 1.2vw, 1.1rem); color: var(--text-2); line-height: 1.72; margin-bottom: 28px; }
     .detail-features { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 11px; }
-    .detail-features li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: var(--text-2); line-height: 1.55; }
+    .detail-features li { display: flex; align-items: flex-start; gap: 10px; font-size: clamp(0.9rem, 1.1vw, 1rem); color: var(--text-2); line-height: 1.55; }
     .chk { flex-shrink: 0; width: 18px; height: 18px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; margin-top: 1px; }
     .detail-hh   .chk { background: rgba(167,139,250,.15); color: #a78bfa; }
     .detail-wk   .chk { background: rgba(0,212,255,.12);   color: #00d4ff; }
@@ -128,6 +131,7 @@
     <span>EnergyDess</span>
   </a>
   <div class="nav-actions">
+    <a href="/demo" class="nav-demo">✦ Демо-проект</a>
     <a href="/login" class="nav-link">Войти</a>
     <a href="/register" class="nav-btn">Регистрация</a>
   </div>
