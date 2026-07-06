@@ -26,7 +26,7 @@
     .sec-h2 { font-family: var(--font-head); font-size: clamp(1.5rem, 3.5vw, 2.2rem); font-weight: 700; letter-spacing: -0.03em; color: var(--text); text-align: center; margin-bottom: 52px; }
 
     /* ── Hero ── */
-    .hero { padding: 120px 24px 80px; text-align: center; position: relative; overflow: hidden; max-width: 1100px; margin: 0 auto; background: linear-gradient(to bottom, rgba(6,6,13,0.32) 0%, transparent 60%); }
+    .hero { padding: 120px 24px 80px; text-align: center; position: relative; overflow: hidden; max-width: 1100px; margin: 0 auto; }
     .hero::before { content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 700px; height: 500px; background: radial-gradient(ellipse, rgba(124,77,255,0.18) 0%, transparent 65%); pointer-events: none; }
     .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; background: rgba(124,77,255,0.1); border: 1px solid rgba(124,77,255,0.22); color: #a78bfa; border-radius: 99px; padding: 6px 18px; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 28px; }
     .hero-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: #a78bfa; box-shadow: 0 0 6px #a78bfa; animation: dotPulse 2.2s ease infinite; }
@@ -85,7 +85,7 @@
     .detail-ens  .detail-mock::after { content: ''; position: absolute; inset: -24px; background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(224,149,48,.12) 0%, transparent 70%); z-index: -1; pointer-events: none; }
 
     /* ── CTA ── */
-    .cta { text-align: center; padding: 100px 24px 120px; position: relative; background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124,77,255,.07) 0%, transparent 65%); }
+    .cta { text-align: center; padding: 100px 24px 120px; position: relative; }
     .cta::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 1px; height: 80px; background: linear-gradient(180deg, transparent, rgba(199,211,234,.2), transparent); }
     .cta h2 { font-family: var(--font-head); font-size: clamp(2rem, 4.5vw, 3.2rem); font-weight: 800; letter-spacing: -0.04em; margin-bottom: 14px; color: var(--text); }
     .cta p { color: var(--text-dim); margin-bottom: 12px; font-size: 1rem; }
