@@ -14,24 +14,19 @@
   // Умная навигация: прячем при скролле вниз, показываем при скролле вверх
   var nav = document.querySelector('.nav');
   if (nav) {
-    var lastY = 0, ticking = false;
+    var lastScrollY = 0;
     window.addEventListener('scroll', function () {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(function () {
-        var y = window.scrollY;
-        if (y < 10) {
-          nav.classList.remove('nav-hidden', 'nav-glass');
-        } else {
-          nav.classList.add('nav-glass');
-          if (y > 80) {
-            if (y > lastY + 5)      nav.classList.add('nav-hidden');
-            else if (y < lastY - 5) nav.classList.remove('nav-hidden');
-          }
-        }
-        lastY = y;
-        ticking = false;
-      });
+      var currentScrollY = window.scrollY;
+      if (currentScrollY < 10) {
+        nav.classList.remove('nav-hidden');
+        nav.classList.remove('nav-glass');
+      } else if (currentScrollY > lastScrollY + 5) {
+        nav.classList.add('nav-hidden');
+        nav.classList.add('nav-glass');
+      } else if (currentScrollY < lastScrollY - 5) {
+        nav.classList.remove('nav-hidden');
+      }
+      lastScrollY = currentScrollY;
     }, { passive: true });
   }
 })();

@@ -22,7 +22,7 @@
 
     /* ── Shared ── */
     .sec { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
-    .sec-label { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; text-align: center; }
+    .sec-label { font-family: var(--font-mono); font-size: clamp(0.7rem, 1vw, 0.85rem); font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); display: table; margin: 0 auto 16px; padding: 4px 12px; border: 1px solid rgba(0,212,255,0.3); border-radius: 20px; }
     .sec-h2 { font-family: var(--font-head); font-size: clamp(1.5rem, 3.5vw, 2.2rem); font-weight: 700; letter-spacing: -0.03em; color: var(--text); text-align: center; margin-bottom: 52px; }
 
     /* ── Hero ── */
@@ -85,10 +85,13 @@
     .detail-ens  .detail-mock::after { content: ''; position: absolute; inset: -24px; background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(224,149,48,.12) 0%, transparent 70%); z-index: -1; pointer-events: none; }
 
     /* ── CTA ── */
-    .cta { text-align: center; padding: 100px 24px 120px; position: relative; }
+    .cta { text-align: center; padding: 100px 24px 120px; position: relative; background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124,77,255,.07) 0%, transparent 65%); }
     .cta::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 1px; height: 80px; background: linear-gradient(180deg, transparent, rgba(199,211,234,.2), transparent); }
     .cta h2 { font-family: var(--font-head); font-size: clamp(2rem, 4.5vw, 3.2rem); font-weight: 800; letter-spacing: -0.04em; margin-bottom: 14px; color: var(--text); }
-    .cta p { color: var(--text-dim); margin-bottom: 40px; font-size: 1rem; }
+    .cta p { color: var(--text-dim); margin-bottom: 12px; font-size: 1rem; }
+    .cta .cta-tagline { font-size: 1.15rem; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+    .cta .cta-sub { margin-bottom: 40px; }
+    .cta .btn-main { padding: 17px 42px; font-size: 1.05rem; box-shadow: 0 0 40px rgba(124,77,255,.3), 0 4px 24px rgba(124,77,255,.35); }
     .cta-btn-wrap { position: relative; display: inline-block; }
     .cta-glow { position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%); width: 200px; height: 48px; background: radial-gradient(ellipse, rgba(124,77,255,.55) 0%, transparent 70%); filter: blur(18px); pointer-events: none; }
 
@@ -108,6 +111,7 @@
       .detail-text  { order:  1 !important; }
     }
     @media (max-width: 640px) {
+      .nav { padding: 0 16px; }
       .hero { padding: 72px 16px 52px; }
       .hero-sub { font-size: 1rem; }
       .hero-btns { flex-direction: column; align-items: stretch; gap: 10px; }
@@ -117,6 +121,7 @@
       .feature-card { padding: 22px; }
       .details { padding: 24px 16px 60px; }
       .cta { padding: 64px 16px 80px; }
+      .cta .btn-main { padding: 15px 32px; font-size: 1rem; }
       .nav-link { padding: 6px 10px; font-size: 0.82rem; }
       .nav-btn  { padding: 8px 14px;  font-size: 0.82rem; }
     }
@@ -128,7 +133,7 @@
 <nav class="nav">
   <a href="/" class="nav-logo">
     <span class="nav-logo-symbol">⚡</span>
-    <span>EnergyDess</span>
+    <span>Energy</span><span class="logo-dess">Dess</span>
   </a>
   <div class="nav-actions">
     <a href="/demo" class="nav-demo">✦ Демо-проект</a>
@@ -437,7 +442,8 @@
   <!-- ── S4: CTA ── -->
   <section class="cta">
     <h2 class="reveal-left">Готов попробовать?</h2>
-    <p class="reveal-up">Регистрация занимает 30 секунд. Доступ по приглашению.</p>
+    <p class="cta-tagline reveal-up">Все инструменты в одном аккаунте. Бесплатно.</p>
+    <p class="cta-sub reveal-up">Регистрация занимает 30 секунд. Доступ по приглашению.</p>
     <div class="cta-btn-wrap reveal-up">
       <a href="/register" class="btn-main">Создать аккаунт →</a>
       <div class="cta-glow"></div>
