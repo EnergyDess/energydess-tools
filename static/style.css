@@ -123,8 +123,8 @@ body::before {
   animation-duration: 65s; animation-direction: reverse;
 }
 .aurora-bg span {
-  width: 50vw; height: 50vw; background: #1a0a3e;
-  top: 30%; left: 40%; animation-duration: 75s;
+  width: 55vw; height: 55vw; background: #5c2da0;
+  top: 20%; left: 8%; animation-duration: 70s; animation-direction: reverse;
 }
 @keyframes auroraDrift {
   0%, 100% { transform: translate(0, 0) scale(1); }
@@ -135,7 +135,7 @@ body::before {
 @media (max-width: 768px) {
   .aurora-bg::before { width: 50vw; height: 50vw; }
   .aurora-bg::after  { width: 50vw; height: 50vw; }
-  .aurora-bg span    { width: 40vw; height: 40vw; }
+  .aurora-bg span    { width: 45vw; height: 45vw; }
 }
 @media (prefers-reduced-motion: reduce) {
   .aurora-bg::before, .aurora-bg::after, .aurora-bg span { animation: none; }
