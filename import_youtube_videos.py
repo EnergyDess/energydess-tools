@@ -37,7 +37,7 @@ def find_video_id(query: str) -> str:
         "key": API_KEY,
     }
     resp = httpx.get(SEARCH_URL, params=params, timeout=15)
-    if resp.status_code == 403:
+    if resp.status_code in (403, 429):
         raise RuntimeError(f"Квота исчерпана или ключ невалиден: {resp.text[:300]}")
     resp.raise_for_status()
     items = resp.json().get("items", [])
