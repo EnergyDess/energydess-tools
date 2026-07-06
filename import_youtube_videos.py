@@ -20,7 +20,7 @@ load_dotenv()
 from database import SessionLocal, Exercise  # noqa: E402
 
 API_KEY = os.getenv("YOUTUBE_API_KEY")
-DAILY_LIMIT = 90
+DAILY_LIMIT = int(sys.argv[1]) if len(sys.argv) > 1 else 90
 SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 
 
