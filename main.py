@@ -3,6 +3,8 @@ import json as _json
 import re
 import socket
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel
 from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, BackgroundTasks
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -17,7 +19,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 
 from database import (get_db, init_db, migrate_db, SessionLocal, User, Resume, ToolAccess, EnshroudedSlot,
-                      NutritionProfile, FoodLog, CustomFood, CustomRecipe, RecipeIngredient,
+                      HHProfile, NutritionProfile, FoodLog, CustomFood, CustomRecipe, RecipeIngredient,
                       WaterLog, WeightLog, ChatMessage, Exercise, WorkoutProfile,
                       WorkoutProgram, WorkoutProgramDay, WorkoutProgramExercise,
                       WorkoutSession, SetLog, ProgressionSetting, WorkoutExerciseSwap,
@@ -1124,6 +1126,110 @@ async def save_resume_api(request: Request, user=Depends(get_current_user), db: 
     else:
         resume.resume_text = text
     db.commit()
+    return JSONResponse({"ok": True})
+
+
+# ── HH Досье: Pydantic-схема ─────────────────────────────────────────────────
+
+class _LangItem(BaseModel):
+    lang: str = ""
+    level: str = ""
+
+class _ExperienceItem(BaseModel):
+    company: str = ""
+    position: str = ""
+    period: str = ""
+    description: str = ""
+    achievements: str = ""
+
+class _ProjectItem(BaseModel):
+    title: str = ""
+    type: str = ""
+    url: str = ""
+    description: str = ""
+    tools: str = ""
+    tags: List[str] = []
+
+class _EndingStyle(BaseModel):
+    suggest_call: bool = False
+    suggest_test_task: bool = False
+    just_farewell: bool = False
+
+class HHProfileSchema(BaseModel):
+    profession_one_liner: Optional[str] = None
+    location: Optional[str] = None
+    timezone: Optional[str] = None
+    work_format: Optional[str] = None
+    languages: List[_LangItem] = []
+    total_years_in_profession: Optional[str] = None
+    experience_extra: List[_ExperienceItem] = []
+    projects: List[_ProjectItem] = []
+    skills: List[str] = []
+    methodology: Optional[str] = None
+    extra_context: Optional[str] = None
+    tone_preference: Optional[str] = None
+    never_mention: Optional[str] = None
+    ending_style: Optional[_EndingStyle] = None
+
+
+# ── API: HH-досье ─────────────────────────────────────────────────────────────
+
+@app.get("/api/hh-profile")
+async def get_hh_profile(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    profile = db.query(HHProfile).filter(HHProfile.user_id == user.id).first()
+    if not profile:
+        return JSONResponse({})
+    return JSONResponse({
+        "profession_one_liner": profile.profession_one_liner,
+        "location": profile.location,
+        "timezone": profile.timezone,
+        "work_format": profile.work_format,
+        "languages": profile.languages or [],
+        "total_years_in_profession": profile.total_years_in_profession,
+        "experience_extra": profile.experience_extra or [],
+        "projects": profile.projects or [],
+        "skills": profile.skills or [],
+        "methodology": profile.methodology,
+        "extra_context": profile.extra_context,
+        "tone_preference": profile.tone_preference,
+        "never_mention": profile.never_mention,
+        "ending_style": profile.ending_style,
+        "updated_at": profile.updated_at.isoformat() if profile.updated_at else None,
+    })
+
+
+@app.post("/api/hh-profile")
+async def save_hh_profile(payload: HHProfileSchema, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    profile = db.query(HHProfile).filter(HHProfile.user_id == user.id).first()
+    data = payload.model_dump()
+    # JSON-поля сериализуем в plain dict/list
+    data["languages"] = [i.model_dump() for i in (payload.languages or [])]
+    data["experience_extra"] = [i.model_dump() for i in (payload.experience_extra or [])]
+    data["projects"] = [i.model_dump() for i in (payload.projects or [])]
+    data["ending_style"] = payload.ending_style.model_dump() if payload.ending_style else None
+    if not profile:
+        profile = HHProfile(user_id=user.id, **data)
+        db.add(profile)
+    else:
+        for field, value in data.items():
+            setattr(profile, field, value)
+        profile.updated_at = datetime.utcnow()
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+@app.delete("/api/hh-profile")
+async def delete_hh_profile(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    profile = db.query(HHProfile).filter(HHProfile.user_id == user.id).first()
+    if profile:
+        db.delete(profile)
+        db.commit()
     return JSONResponse({"ok": True})
 
 

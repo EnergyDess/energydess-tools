@@ -73,6 +73,41 @@ class NutritionProfile(Base):
     start_weight_kg = Column(Float, nullable=True)
 
 
+class HHProfile(Base):
+    __tablename__ = "hh_profiles"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, unique=True, nullable=False, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Раздел 1 — Основная информация
+    profession_one_liner = Column(Text, nullable=True)
+    location = Column(String, nullable=True)
+    timezone = Column(String, nullable=True)
+    work_format = Column(String, nullable=True)  # удалёнка / офис / гибрид / любой
+    languages = Column(JSON, nullable=False, default=list)  # [{lang, level}]
+
+    # Раздел 2 — Опыт работы (сверх резюме)
+    total_years_in_profession = Column(String, nullable=True)
+    experience_extra = Column(JSON, nullable=False, default=list)  # [{company, position, period, description, achievements}]
+
+    # Раздел 3 — Проекты и портфолио
+    projects = Column(JSON, nullable=False, default=list)  # [{title, type, url, description, tools, tags}]
+
+    # Раздел 4 — Навыки и инструменты
+    skills = Column(JSON, nullable=False, default=list)  # [str, ...]
+
+    # Раздел 5 — Методология
+    methodology = Column(Text, nullable=True)
+
+    # Раздел 6 — Дополнительный контекст
+    extra_context = Column(Text, nullable=True)
+
+    # Раздел 7 — Тон и стиль писем
+    tone_preference = Column(String, nullable=True)  # живой / формально-деловой / нейтральный / очень неформальный
+    never_mention = Column(Text, nullable=True)
+    ending_style = Column(JSON, nullable=True)  # {suggest_call: bool, suggest_test_task: bool, just_farewell: bool}
+
+
 class FoodLog(Base):
     __tablename__ = "food_logs"
     id = Column(Integer, primary_key=True)
