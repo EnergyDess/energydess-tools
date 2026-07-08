@@ -108,6 +108,19 @@ class HHProfile(Base):
     ending_style = Column(JSON, nullable=True)  # {suggest_call: bool, suggest_test_task: bool, just_farewell: bool}
 
 
+class CoverLetter(Base):
+    __tablename__ = "cover_letters"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    job_title = Column(String, nullable=True)
+    company_name = Column(String, nullable=True)
+    job_text = Column(Text, nullable=False)
+    letter_text = Column(Text, nullable=False)
+    analysis_json = Column(JSON, nullable=True)
+    custom_context = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class FoodLog(Base):
     __tablename__ = "food_logs"
     id = Column(Integer, primary_key=True)

@@ -181,6 +181,107 @@
     .char-count { font-size: 0.75rem; color: rgba(199,211,234,.3); text-align: right; margin-top: -4px; }
     .generate-btn { width: 100%; padding: 15px; font-size: 0.95rem; }
 
+    .custom-context-wrap {
+      margin-top: 8px;
+    }
+    .custom-context-label {
+      font-size: 0.75rem; font-weight: 600; color: rgba(199,211,234,.5);
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin-bottom: 6px; display: block;
+    }
+    #custom-context {
+      width: 100%; min-height: 60px; resize: vertical;
+      background: rgba(6,6,14,.6); border: 1px solid rgba(199,211,234,.1);
+      border-radius: 8px; color: #c7d3ea; font-family: inherit;
+      font-size: 0.82rem; padding: 10px 12px; line-height: 1.5;
+      transition: border-color 0.2s; box-sizing: border-box;
+    }
+    #custom-context:focus { outline: none; border-color: rgba(167,139,250,.4); }
+    #custom-context::placeholder { color: rgba(199,211,234,.25); }
+
+    .warn-box {
+      background: rgba(234,179,8,.08);
+      border: 1px solid rgba(234,179,8,.3);
+      border-radius: 10px; padding: 16px 18px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .warn-box-text { font-size: 0.88rem; color: #fbbf24; line-height: 1.5; }
+    .warn-box-score { font-size: 0.75rem; color: rgba(251,191,36,.6); }
+    .warn-force-btn {
+      align-self: flex-start;
+      padding: 8px 16px; font-size: 0.82rem;
+      background: rgba(234,179,8,.15); border: 1px solid rgba(234,179,8,.3);
+      border-radius: 8px; color: #fbbf24; cursor: pointer;
+      font-family: inherit; transition: background 0.2s;
+    }
+    .warn-force-btn:hover { background: rgba(234,179,8,.25); }
+
+    .history-section {
+      margin-top: 40px;
+    }
+    .history-toggle {
+      width: 100%; display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px;
+      background: rgba(22,26,44,.88); border: 1px solid rgba(199,211,234,.1);
+      border-radius: 12px 12px 0 0; cursor: pointer;
+      font-family: inherit; color: #c7d3ea;
+      font-size: 0.88rem; font-weight: 600;
+      transition: background 0.15s;
+    }
+    .history-toggle:hover { background: rgba(22,26,44,1); }
+    .history-toggle.open { border-bottom-color: transparent; }
+    .history-body {
+      overflow: hidden; max-height: 0;
+      transition: max-height 0.4s ease;
+      background: rgba(14,14,24,.6);
+      border: 1px solid rgba(199,211,234,.1); border-top: none;
+      border-radius: 0 0 12px 12px;
+    }
+    .history-body.open { max-height: 4000px; }
+    .history-list { display: flex; flex-direction: column; gap: 0; }
+    .history-item {
+      border-bottom: 1px solid rgba(199,211,234,.06);
+      overflow: hidden;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item-head {
+      width: 100%; display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px; background: none; border: none;
+      cursor: pointer; font-family: inherit; color: #c7d3ea;
+      text-align: left; gap: 12px; transition: background 0.15s;
+    }
+    .history-item-head:hover { background: rgba(199,211,234,.03); }
+    .history-item-meta { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+    .history-item-title { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-item-sub { font-size: 0.75rem; color: #7a83a0; }
+    .history-item-score {
+      font-size: 0.7rem; font-weight: 700; padding: 2px 7px;
+      border-radius: 20px; flex-shrink: 0;
+    }
+    .score-high { background: rgba(52,211,153,.15); color: #34d399; }
+    .score-mid  { background: rgba(251,191,36,.12); color: #fbbf24; }
+    .score-low  { background: rgba(248,113,113,.12); color: #f87171; }
+    .history-item-body {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.3s ease;
+      padding: 0 20px;
+    }
+    .history-item-body.open { max-height: 1200px; padding: 0 20px 16px; }
+    .history-letter-text {
+      white-space: pre-wrap; font-size: 0.85rem; color: #c7d3ea;
+      line-height: 1.65; padding: 14px 16px;
+      background: rgba(6,6,14,.5); border-radius: 8px;
+      border: 1px solid rgba(199,211,234,.08);
+    }
+    .history-letter-text a { color: var(--accent); }
+    .history-copy-btn {
+      margin-top: 8px; padding: 6px 14px; font-size: 0.78rem;
+      background: rgba(199,211,234,.07); border: 1px solid rgba(199,211,234,.15);
+      border-radius: 6px; color: #c7d3ea; cursor: pointer;
+      font-family: inherit; transition: background 0.2s;
+    }
+    .history-copy-btn:hover { background: rgba(199,211,234,.14); }
+
     .tips {
       background: rgba(22,26,44,.88);
       border: 1px solid rgba(167,139,250,.2);
@@ -661,6 +762,11 @@
           <div class="fetched-preview" id="fetched-preview"></div>
         </div>
 
+        <div class="custom-context-wrap">
+          <label class="custom-context-label" for="custom-context">Инструкции (необязательно)</label>
+          <textarea id="custom-context" placeholder="Что упомянуть особенно или что убрать. Например: подсвети опыт с Claude Code сильнее; не упоминай зарплату; тон неформальный."></textarea>
+        </div>
+
         <button class="btn btn-primary generate-btn" id="generate-btn" onclick="generateLetter()">
           <span id="btn-icon">✦</span>
           <span id="btn-text">Написать письмо</span>
@@ -709,6 +815,14 @@
         <div class="alert alert-error" id="error-msg"></div>
       </div>
 
+      <div id="warn-state" style="display:none">
+        <div class="warn-box">
+          <div class="warn-box-text" id="warn-msg"></div>
+          <div class="warn-box-score" id="warn-score"></div>
+          <button class="warn-force-btn" onclick="generateLetter(true)">Сгенерировать всё равно →</button>
+        </div>
+      </div>
+
       <div class="letter-content" id="letter-content"></div>
 
       <div class="letter-stats" id="letter-stats">
@@ -724,6 +838,21 @@
     </div>
 
   </div>
+
+  <!-- История писем -->
+  <div class="history-section">
+    <button class="history-toggle" id="history-toggle" onclick="toggleHistory()">
+      <span>📋 Мои письма</span>
+      <span id="history-count-badge" style="font-size:0.75rem;color:#7a83a0;font-weight:400"></span>
+      <span style="font-size:0.8rem;color:#7a83a0;margin-left:auto">▾</span>
+    </button>
+    <div class="history-body" id="history-body">
+      <div class="history-list" id="history-list">
+        <div style="padding:24px 20px;color:#7a83a0;font-size:0.85rem">Загрузка...</div>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <div class="toast" id="toast"></div>
@@ -889,9 +1018,10 @@
     letterContent.style.display = state === 'result'  ? 'block' : 'none';
     letterStats.style.display   = state === 'result'  ? 'flex'  : 'none';
     resultActions.style.display = state === 'result'  ? 'flex'  : 'none';
+    if (state !== 'warn') document.getElementById('warn-state').style.display = 'none';
   }
 
-  async function generateLetter() {
+  async function generateLetter(force = false) {
     let text = '';
     if (activeTab === 'text') {
       text = jobInput.value.trim();
@@ -911,24 +1041,32 @@
       text = fetchedText;
     }
 
+    const customCtx = (document.getElementById('custom-context').value || '').trim();
+
     generateBtn.disabled = true;
     btnIcon.innerHTML = '<span class="spinner"></span>';
-    btnText.textContent = 'Генерирую...';
-    loadingText.textContent = 'Анализирую вакансию и резюме...';
+    btnText.textContent = force ? 'Генерирую...' : 'Анализирую...';
+    loadingText.textContent = force ? 'Пишу письмо...' : 'Анализирую вакансию и резюме...';
     setState('loading');
 
     try {
       const res  = await fetch('/api/generate-letter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_text: text }),
+        body: JSON.stringify({ job_text: text, custom_context: customCtx, force }),
       });
       const data = await res.json();
 
       if (!res.ok || data.error) {
         errorMsg.textContent = '⚠ ' + (data.error || 'Неизвестная ошибка');
         setState('error');
+      } else if (data.warning === 'low_relevance') {
+        document.getElementById('warn-msg').textContent = data.message || 'Вакансия слабо соответствует резюме.';
+        document.getElementById('warn-score').textContent = `Оценка релевантности: ${data.score}/10`;
+        document.getElementById('warn-state').style.display = 'block';
+        setState('warn');
       } else {
+        document.getElementById('warn-state').style.display = 'none';
         const html = data.letter
           .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
           .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
@@ -938,6 +1076,8 @@
         document.getElementById('word-count').textContent = plain.trim().split(/\s+/).length;
         document.getElementById('char-count-result').textContent = plain.length;
         setState('result');
+        // обновляем историю после успешной генерации
+        if (historyLoaded) renderHistory();
       }
     } catch {
       errorMsg.textContent = '⚠ Ошибка сети. Проверь подключение.';
@@ -1261,6 +1401,82 @@
   }
 
   loadDosie();
+
+  // ── История писем ─────────────────────────────────────────────────────────
+
+  let historyOpen = false;
+  let historyLoaded = false;
+
+  function toggleHistory() {
+    historyOpen = !historyOpen;
+    const body   = document.getElementById('history-body');
+    const toggle = document.getElementById('history-toggle');
+    body.classList.toggle('open', historyOpen);
+    toggle.classList.toggle('open', historyOpen);
+    if (historyOpen && !historyLoaded) renderHistory();
+  }
+
+  async function renderHistory() {
+    const list = document.getElementById('history-list');
+    list.innerHTML = '<div style="padding:24px 20px;color:#7a83a0;font-size:0.85rem">Загрузка...</div>';
+    try {
+      const res   = await fetch('/api/cover-letters');
+      const items = await res.json();
+      historyLoaded = true;
+
+      const badge = document.getElementById('history-count-badge');
+      badge.textContent = items.length ? `${items.length} писем` : '';
+
+      if (!items.length) {
+        list.innerHTML = '<div style="padding:24px 20px;color:#7a83a0;font-size:0.85rem">Писем пока нет. Сгенерируй первое!</div>';
+        return;
+      }
+
+      list.innerHTML = '';
+      items.forEach((item, idx) => {
+        const score  = item.relevance_score;
+        const cls    = score >= 7 ? 'score-high' : score >= 4 ? 'score-mid' : 'score-low';
+        const title  = [item.job_title, item.company_name].filter(Boolean).join(' — ') || 'Без названия';
+        const div    = document.createElement('div');
+        div.className = 'history-item';
+        div.innerHTML = `
+          <button class="history-item-head" onclick="toggleHistoryItem(this)">
+            <div class="history-item-meta">
+              <div class="history-item-title">${escHtml(title)}</div>
+              <div class="history-item-sub">${item.created_at}</div>
+            </div>
+            ${score != null ? `<span class="history-item-score ${cls}">${score}/10</span>` : ''}
+          </button>
+          <div class="history-item-body" id="hist-body-${idx}">
+            <div class="history-letter-text">${escHtml(item.letter_text).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')}</div>
+            <button class="history-copy-btn" onclick="copyHistoryLetter(this, ${idx})">⎘ Копировать</button>
+          </div>`;
+        div._letterText = item.letter_text;
+        list.appendChild(div);
+      });
+      // сохраняем тексты для копирования
+      window._historyItems = items;
+    } catch {
+      list.innerHTML = '<div style="padding:24px 20px;color:#f87171;font-size:0.85rem">⚠ Ошибка загрузки</div>';
+    }
+  }
+
+  function toggleHistoryItem(btn) {
+    const body = btn.nextElementSibling;
+    body.classList.toggle('open');
+  }
+
+  function copyHistoryLetter(btn, idx) {
+    const text = (window._historyItems || [])[idx]?.letter_text || '';
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✓ Скопировано';
+      setTimeout(() => { btn.textContent = '⎘ Копировать'; }, 2000);
+    });
+  }
+
+  function escHtml(str) {
+    return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
 </script>
 
 </body>
