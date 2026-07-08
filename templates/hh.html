@@ -260,6 +260,109 @@
       backdrop-filter: blur(10px);
     }
     .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ── Досье ──────────────────────────────────────────────── */
+    .dosie-inner { gap: 10px; padding-bottom: 24px; }
+    .dosie-hint  { font-size: 0.78rem; color: rgba(199,211,234,.38); padding: 2px 0 6px; line-height: 1.5; }
+
+    /* Подсекции-аккордеоны */
+    .ds { border: 1px solid rgba(199,211,234,.1); border-radius: 10px; overflow: hidden; }
+    .ds-toggle {
+      width: 100%; display: flex; align-items: center; justify-content: space-between;
+      padding: 11px 16px; background: rgba(8,10,22,.35); border: none; cursor: pointer;
+      font-family: inherit; color: rgba(199,211,234,.65); font-size: 0.82rem; font-weight: 600;
+      text-align: left; gap: 10px; transition: background 0.15s;
+    }
+    .ds-toggle:hover { background: rgba(199,211,234,.05); color: #c7d3ea; }
+    .ds-chev { width: 14px; height: 14px; flex-shrink: 0; color: rgba(199,211,234,.3); transition: transform 0.25s; }
+    .ds-chev.open { transform: rotate(180deg); }
+    .ds-body { overflow: hidden; transition: max-height 0.3s ease; }
+    .ds-body-inner {
+      padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px;
+      border-top: 1px solid rgba(199,211,234,.07);
+    }
+
+    /* Поля формы */
+    .dosie-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 640px) { .dosie-row { grid-template-columns: 1fr; } }
+    .dosie-field { display: flex; flex-direction: column; gap: 5px; }
+    .dosie-field.full { grid-column: 1 / -1; }
+    .dosie-label { font-size: 0.7rem; font-weight: 700; color: rgba(199,211,234,.42); text-transform: uppercase; letter-spacing: 0.07em; }
+    .dosie-hint-sm { font-size: 0.74rem; color: rgba(199,211,234,.3); line-height: 1.45; margin-top: -2px; }
+
+    .dosie-input, .dosie-select, .dosie-textarea {
+      background: rgba(8,10,22,.5); border: 1px solid rgba(199,211,234,.14);
+      border-radius: var(--radius-sm); padding: 8px 12px;
+      color: #c7d3ea; font-size: 0.845rem; font-family: inherit;
+      outline: none; width: 100%; box-sizing: border-box; transition: border-color 0.2s;
+    }
+    .dosie-input:focus, .dosie-select:focus, .dosie-textarea:focus {
+      border-color: rgba(0,212,255,.45); box-shadow: 0 0 0 3px rgba(0,212,255,.06);
+    }
+    .dosie-select { cursor: pointer; }
+    .dosie-textarea { resize: vertical; line-height: 1.6; min-height: 88px; }
+
+    /* Динамические списки */
+    .dosie-list { display: flex; flex-direction: column; gap: 8px; }
+    .dosie-item {
+      background: rgba(8,10,22,.4); border: 1px solid rgba(199,211,234,.09);
+      border-radius: 8px; padding: 11px 36px 11px 12px; position: relative;
+    }
+    .dosie-item-del {
+      position: absolute; top: 8px; right: 10px;
+      background: none; border: none; cursor: pointer;
+      color: rgba(199,211,234,.22); font-size: 1.05rem; line-height: 1; padding: 2px 4px;
+      transition: color 0.15s;
+    }
+    .dosie-item-del:hover { color: #fca5a5; }
+    .dosie-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .dosie-g1 { margin-bottom: 8px; }
+    @media (max-width: 640px) { .dosie-g2 { grid-template-columns: 1fr; } }
+
+    .dosie-add-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border: 1px dashed rgba(199,211,234,.18);
+      border-radius: 7px; background: none; cursor: pointer;
+      color: rgba(199,211,234,.4); font-size: 0.78rem; font-family: inherit;
+      transition: all 0.2s; margin-top: 4px;
+    }
+    .dosie-add-btn:hover { border-color: rgba(0,212,255,.4); color: var(--accent); }
+
+    /* Теги */
+    .tag-wrap {
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      min-height: 40px; padding: 6px 10px;
+      background: rgba(8,10,22,.5); border: 1px solid rgba(199,211,234,.14);
+      border-radius: var(--radius-sm); cursor: text; transition: border-color 0.2s;
+    }
+    .tag-wrap:focus-within { border-color: rgba(0,212,255,.45); box-shadow: 0 0 0 3px rgba(0,212,255,.06); }
+    .tag-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: rgba(124,77,255,.18); border: 1px solid rgba(124,77,255,.3);
+      border-radius: 5px; padding: 3px 8px 3px 10px;
+      font-size: 0.77rem; color: #c4b5fd; white-space: nowrap;
+    }
+    .tag-chip-x {
+      background: none; border: none; cursor: pointer;
+      color: rgba(196,181,253,.45); font-size: 0.9rem; line-height: 1; padding: 0;
+      transition: color 0.15s;
+    }
+    .tag-chip-x:hover { color: #fca5a5; }
+    .tag-text-input {
+      background: none; border: none; outline: none; color: #c7d3ea;
+      font-size: 0.82rem; font-family: inherit; flex: 1; min-width: 120px;
+    }
+
+    /* Чекбоксы */
+    .dosie-checks { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
+    .dosie-check {
+      display: flex; align-items: center; gap: 10px; cursor: pointer;
+      font-size: 0.845rem; color: rgba(199,211,234,.68); padding: 3px 0; user-select: none;
+    }
+    .dosie-check input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
+
+    /* Кнопка сохранения */
+    .dosie-save-row { display: flex; justify-content: flex-end; padding-top: 6px; border-top: 1px solid rgba(199,211,234,.07); }
   </style>
 </head>
 <body>
@@ -326,6 +429,205 @@
         <div class="resume-footer">
           <span class="resume-chars" id="resume-chars">{{ (resume.resume_text|length)|string + ' симв.' if has_resume else '0 симв.' }}</span>
           <button class="btn btn-primary" style="padding:9px 20px;font-size:.875rem" type="button" id="resume-save-btn" onclick="saveResume()">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Досье ─────────────────────────────────────────────── -->
+  <div class="resume-card">
+    <button class="resume-toggle" type="button" onclick="toggleDosie()">
+      <div class="resume-toggle-left">
+        <span>🗂</span>
+        <span class="resume-toggle-title">Моё досье</span>
+        <span class="resume-badge resume-badge-warn" id="dosie-badge">Не заполнено</span>
+      </div>
+      <svg class="resume-chevron" id="dosie-chevron"
+           viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+           stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </button>
+    <div class="resume-body" id="dosie-body" style="max-height: 0px">
+      <div class="resume-body-inner dosie-inner">
+        <p class="dosie-hint">Расширенный контекст — используется при генерации писем: проекты, опыт вне резюме, стиль подачи.</p>
+
+        <!-- 1 — Основная информация -->
+        <div class="ds">
+          <button class="ds-toggle" type="button" onclick="toggleDs(this)">
+            <span>1 — Основная информация</span>
+            <svg class="ds-chev open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="ds-body" style="max-height: 3000px">
+            <div class="ds-body-inner">
+              <div class="dosie-row">
+                <div class="dosie-field full">
+                  <label class="dosie-label">Профессия (одной строкой)</label>
+                  <input class="dosie-input" id="d-profession" placeholder="AI Video Creator · Fullstack Developer">
+                </div>
+                <div class="dosie-field">
+                  <label class="dosie-label">Город / локация</label>
+                  <input class="dosie-input" id="d-location" placeholder="Москва, Россия">
+                </div>
+                <div class="dosie-field">
+                  <label class="dosie-label">Часовой пояс</label>
+                  <input class="dosie-input" id="d-timezone" placeholder="UTC+3">
+                </div>
+                <div class="dosie-field">
+                  <label class="dosie-label">Формат работы</label>
+                  <select class="dosie-select" id="d-work-format">
+                    <option value="">— не указано —</option>
+                    <option value="удалёнка">Удалёнка</option>
+                    <option value="офис">Офис</option>
+                    <option value="гибрид">Гибрид</option>
+                    <option value="любой">Любой</option>
+                  </select>
+                </div>
+              </div>
+              <div class="dosie-field">
+                <label class="dosie-label">Языки</label>
+                <div class="dosie-list" id="d-languages"></div>
+                <button class="dosie-add-btn" type="button" onclick="addLanguage()">+ Добавить язык</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2 — Опыт -->
+        <div class="ds">
+          <button class="ds-toggle" type="button" onclick="toggleDs(this)">
+            <span>2 — Опыт (дополнительно к резюме)</span>
+            <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="ds-body" style="max-height: 0px">
+            <div class="ds-body-inner">
+              <div class="dosie-field">
+                <label class="dosie-label">Общий срок в профессии</label>
+                <input class="dosie-input" id="d-years" placeholder="5 лет, из них 3 — в AI-видео">
+              </div>
+              <div class="dosie-field">
+                <label class="dosie-label">Опыт вне резюме</label>
+                <p class="dosie-hint-sm">Дополнение к резюме: контекст, детали, связи, которые не влезли на hh.ru.</p>
+                <div class="dosie-list" id="d-experience"></div>
+                <button class="dosie-add-btn" type="button" onclick="addExperience()">+ Добавить место работы</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3 — Проекты -->
+        <div class="ds">
+          <button class="ds-toggle" type="button" onclick="toggleDs(this)">
+            <span>3 — Проекты и портфолио</span>
+            <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="ds-body" style="max-height: 0px">
+            <div class="ds-body-inner">
+              <div class="dosie-list" id="d-projects"></div>
+              <button class="dosie-add-btn" type="button" onclick="addProject()">+ Добавить проект</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 — Навыки -->
+        <div class="ds">
+          <button class="ds-toggle" type="button" onclick="toggleDs(this)">
+            <span>4 — Навыки и инструменты</span>
+            <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="ds-body" style="max-height: 0px">
+            <div class="ds-body-inner">
+              <div class="dosie-field">
+                <label class="dosie-label">Навыки и инструменты</label>
+                <p class="dosie-hint-sm">Вводи через запятую или нажимай Enter после каждого тега.</p>
+                <div class="tag-wrap" id="d-skills-wrap" onclick="document.getElementById('d-skills-input').focus()">
+                  <input class="tag-text-input" id="d-skills-input" placeholder="Python, FastAPI, Claude API..." autocomplete="off">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5 — Методология -->
+        <div class="ds">
+          <button class="ds-toggle" type="button" onclick="toggleDs(this)">
+            <span>5 — Как я работаю</span>
+            <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="ds-body" style="max-height: 0px">
+            <div class="ds-body-inner">
+              <div class="dosie-field">
+                <label class="dosie-label">Методология и рабочий процесс</label>
+                <p class="dosie-hint-sm">Рабочий процесс, методика, принципы. Часто это выделяет из массы кандидатов.</p>
+                <textarea class="dosie-textarea" id="d-methodology" placeholder="Строю AI-продукты итерациями: прототип за день, затем шлифую по фидбэку. Пишу всё сам — без тяжёлых фреймворков, только то, что нужно задаче."></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6 — Доп. контекст -->
+        <div class="ds">
+          <button class="ds-toggle" type="button" onclick="toggleDs(this)">
+            <span>6 — Дополнительный контекст</span>
+            <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="ds-body" style="max-height: 0px">
+            <div class="ds-body-inner">
+              <div class="dosie-field">
+                <label class="dosie-label">Что ещё важно учесть</label>
+                <textarea class="dosie-textarea" id="d-extra" placeholder="Например: ищу частичную занятость; готов к командировкам до 2 раз в год; предпочтительны стартапы на стадии роста."></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7 — Тон -->
+        <div class="ds">
+          <button class="ds-toggle" type="button" onclick="toggleDs(this)">
+            <span>7 — Тон и стиль писем</span>
+            <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="ds-body" style="max-height: 0px">
+            <div class="ds-body-inner">
+              <div class="dosie-row">
+                <div class="dosie-field">
+                  <label class="dosie-label">Тон</label>
+                  <select class="dosie-select" id="d-tone">
+                    <option value="">— не указано —</option>
+                    <option value="живой">Живой</option>
+                    <option value="формально-деловой">Формально-деловой</option>
+                    <option value="нейтральный">Нейтральный</option>
+                    <option value="очень неформальный">Очень неформальный</option>
+                  </select>
+                </div>
+                <div class="dosie-field">
+                  <label class="dosie-label">Что не упоминать в письмах</label>
+                  <textarea class="dosie-textarea" id="d-never-mention" style="min-height: 72px" placeholder="Не упоминать ЗП; не писать про фриланс-опыт..."></textarea>
+                </div>
+              </div>
+              <div class="dosie-field">
+                <label class="dosie-label">Концовка письма</label>
+                <div class="dosie-checks">
+                  <label class="dosie-check">
+                    <input type="checkbox" id="d-suggest-call">
+                    Предлагать созвон в конце
+                  </label>
+                  <label class="dosie-check">
+                    <input type="checkbox" id="d-suggest-task">
+                    Предлагать тестовое задание в конце
+                  </label>
+                  <label class="dosie-check">
+                    <input type="checkbox" id="d-just-farewell">
+                    Не предлагать ничего, просто попрощаться
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dosie-save-row">
+          <button class="btn btn-primary" id="dosie-save-btn" type="button" onclick="saveDosie()" style="padding: 11px 32px; font-size: 0.9rem;">Сохранить досье</button>
         </div>
       </div>
     </div>
@@ -668,6 +970,297 @@
 
   document.getElementById('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') fetchUrl(); });
   jobInput.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') generateLetter(); });
+
+  // ── Досье ────────────────────────────────────────────────────
+
+  let dosieOpen = false;
+
+  function toggleDosie() {
+    dosieOpen = !dosieOpen;
+    document.getElementById('dosie-body').style.maxHeight = dosieOpen ? '8000px' : '0px';
+    document.getElementById('dosie-chevron').classList.toggle('open', dosieOpen);
+  }
+
+  function toggleDs(btn) {
+    const body = btn.nextElementSibling;
+    const chev = btn.querySelector('.ds-chev');
+    const isOpen = chev.classList.contains('open');
+    body.style.maxHeight = isOpen ? '0px' : '3000px';
+    chev.classList.toggle('open', !isOpen);
+  }
+
+  // ── Языки ──
+  function addLanguage(lang, level) {
+    const list = document.getElementById('d-languages');
+    const item = document.createElement('div');
+    item.className = 'dosie-item';
+    item.innerHTML = `
+      <button class="dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
+      <div class="dosie-g2">
+        <div class="dosie-field">
+          <label class="dosie-label">Язык</label>
+          <input class="dosie-input lang-name" placeholder="Русский">
+        </div>
+        <div class="dosie-field">
+          <label class="dosie-label">Уровень</label>
+          <input class="dosie-input lang-level" placeholder="C2 / Родной">
+        </div>
+      </div>`;
+    if (lang  != null) item.querySelector('.lang-name').value  = lang;
+    if (level != null) item.querySelector('.lang-level').value = level;
+    list.appendChild(item);
+  }
+
+  function collectLanguages() {
+    return [...document.querySelectorAll('#d-languages .dosie-item')].map(el => ({
+      lang:  el.querySelector('.lang-name').value.trim(),
+      level: el.querySelector('.lang-level').value.trim(),
+    })).filter(l => l.lang);
+  }
+
+  // ── Опыт ──
+  function addExperience(d) {
+    d = d || {};
+    const list = document.getElementById('d-experience');
+    const item = document.createElement('div');
+    item.className = 'dosie-item';
+    item.innerHTML = `
+      <button class="dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
+      <div class="dosie-g2">
+        <div class="dosie-field">
+          <label class="dosie-label">Компания</label>
+          <input class="dosie-input exp-company" placeholder="ООО Пример">
+        </div>
+        <div class="dosie-field">
+          <label class="dosie-label">Должность</label>
+          <input class="dosie-input exp-position" placeholder="AI Engineer">
+        </div>
+      </div>
+      <div class="dosie-g1">
+        <div class="dosie-field">
+          <label class="dosie-label">Период</label>
+          <input class="dosie-input exp-period" placeholder="2022–2024">
+        </div>
+      </div>
+      <div class="dosie-g1">
+        <div class="dosie-field">
+          <label class="dosie-label">Что делал</label>
+          <textarea class="dosie-textarea exp-desc" style="min-height:58px" placeholder="Коротко об обязанностях..."></textarea>
+        </div>
+      </div>
+      <div class="dosie-field">
+        <label class="dosie-label">Достижения</label>
+        <textarea class="dosie-textarea exp-ach" style="min-height:58px" placeholder="Конкретные результаты с цифрами..."></textarea>
+      </div>`;
+    item.querySelector('.exp-company').value  = d.company      || '';
+    item.querySelector('.exp-position').value = d.position     || '';
+    item.querySelector('.exp-period').value   = d.period       || '';
+    item.querySelector('.exp-desc').value     = d.description  || '';
+    item.querySelector('.exp-ach').value      = d.achievements || '';
+    list.appendChild(item);
+  }
+
+  function collectExperience() {
+    return [...document.querySelectorAll('#d-experience .dosie-item')].map(el => ({
+      company:      el.querySelector('.exp-company').value.trim(),
+      position:     el.querySelector('.exp-position').value.trim(),
+      period:       el.querySelector('.exp-period').value.trim(),
+      description:  el.querySelector('.exp-desc').value.trim(),
+      achievements: el.querySelector('.exp-ach').value.trim(),
+    })).filter(e => e.company || e.position);
+  }
+
+  // ── Проекты ──
+  function addProject(d) {
+    d = d || {};
+    const list = document.getElementById('d-projects');
+    const item = document.createElement('div');
+    item.className = 'dosie-item';
+    item.innerHTML = `
+      <button class="dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
+      <div class="dosie-g2">
+        <div class="dosie-field">
+          <label class="dosie-label">Название</label>
+          <input class="dosie-input proj-title" placeholder="EnergyDess Tools">
+        </div>
+        <div class="dosie-field">
+          <label class="dosie-label">Тип</label>
+          <input class="dosie-input proj-type" placeholder="Web App / AI Tool / Video">
+        </div>
+      </div>
+      <div class="dosie-g1">
+        <div class="dosie-field">
+          <label class="dosie-label">URL</label>
+          <input class="dosie-input proj-url" placeholder="https://energydess.ru">
+        </div>
+      </div>
+      <div class="dosie-g1">
+        <div class="dosie-field">
+          <label class="dosie-label">Описание</label>
+          <textarea class="dosie-textarea proj-desc" style="min-height:56px" placeholder="Что за проект и какую проблему решает..."></textarea>
+        </div>
+      </div>
+      <div class="dosie-g2">
+        <div class="dosie-field">
+          <label class="dosie-label">Инструменты</label>
+          <input class="dosie-input proj-tools" placeholder="FastAPI, Claude API, SQLite">
+        </div>
+        <div class="dosie-field">
+          <label class="dosie-label">Теги (через запятую)</label>
+          <input class="dosie-input proj-tags" placeholder="AI, backend, fullstack">
+        </div>
+      </div>`;
+    item.querySelector('.proj-title').value = d.title       || '';
+    item.querySelector('.proj-type').value  = d.type        || '';
+    item.querySelector('.proj-url').value   = d.url         || '';
+    item.querySelector('.proj-desc').value  = d.description || '';
+    item.querySelector('.proj-tools').value = d.tools       || '';
+    item.querySelector('.proj-tags').value  = (d.tags || []).join(', ');
+    list.appendChild(item);
+  }
+
+  function collectProjects() {
+    return [...document.querySelectorAll('#d-projects .dosie-item')].map(el => ({
+      title:       el.querySelector('.proj-title').value.trim(),
+      type:        el.querySelector('.proj-type').value.trim(),
+      url:         el.querySelector('.proj-url').value.trim(),
+      description: el.querySelector('.proj-desc').value.trim(),
+      tools:       el.querySelector('.proj-tools').value.trim(),
+      tags:        el.querySelector('.proj-tags').value.split(',').map(t => t.trim()).filter(Boolean),
+    })).filter(p => p.title || p.url);
+  }
+
+  // ── Теги / навыки ──
+  let skillTags = [];
+
+  function renderSkillTags() {
+    const wrap  = document.getElementById('d-skills-wrap');
+    const input = document.getElementById('d-skills-input');
+    wrap.innerHTML = '';
+    skillTags.forEach((tag, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'tag-chip';
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'tag-chip-x';
+      x.textContent = '×';
+      x.onclick = () => { skillTags.splice(i, 1); renderSkillTags(); };
+      chip.appendChild(document.createTextNode(tag));
+      chip.appendChild(x);
+      wrap.appendChild(chip);
+    });
+    wrap.appendChild(input);
+  }
+
+  function addSkillTags(raw) {
+    raw.split(',').map(t => t.trim()).filter(t => t && !skillTags.includes(t))
+       .forEach(t => skillTags.push(t));
+    renderSkillTags();
+  }
+
+  document.getElementById('d-skills-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const v = this.value.replace(/,+$/, '').trim();
+      if (v) addSkillTags(v);
+      this.value = '';
+    } else if (e.key === 'Backspace' && !this.value && skillTags.length) {
+      skillTags.pop();
+      renderSkillTags();
+      document.getElementById('d-skills-input').focus();
+    }
+  });
+  document.getElementById('d-skills-input').addEventListener('blur', function() {
+    if (this.value.trim()) { addSkillTags(this.value); this.value = ''; }
+  });
+
+  // ── Вспомогательные ──
+  function setV(id, val) { const el = document.getElementById(id); if (el && val != null) el.value = val; }
+  function getV(id) { const el = document.getElementById(id); return el ? (el.value.trim() || null) : null; }
+
+  // ── Загрузка досье при открытии страницы ──
+  async function loadDosie() {
+    try {
+      const res  = await fetch('/api/hh-profile');
+      const data = await res.json();
+      if (!data || !Object.keys(data).length) return;
+
+      setV('d-profession', data.profession_one_liner);
+      setV('d-location',   data.location);
+      setV('d-timezone',   data.timezone);
+      setV('d-work-format', data.work_format);
+      setV('d-years',      data.total_years_in_profession);
+      setV('d-methodology', data.methodology);
+      setV('d-extra',      data.extra_context);
+      setV('d-tone',       data.tone_preference);
+      setV('d-never-mention', data.never_mention);
+
+      (data.languages      || []).forEach(l => addLanguage(l.lang, l.level));
+      (data.experience_extra || []).forEach(e => addExperience(e));
+      (data.projects       || []).forEach(p => addProject(p));
+
+      skillTags = [...(data.skills || [])];
+      renderSkillTags();
+
+      const es = data.ending_style || {};
+      if (es.suggest_call     != null) document.getElementById('d-suggest-call').checked = es.suggest_call;
+      if (es.suggest_test_task != null) document.getElementById('d-suggest-task').checked = es.suggest_test_task;
+      if (es.just_farewell    != null) document.getElementById('d-just-farewell').checked = es.just_farewell;
+
+      const hasData = !!(data.profession_one_liner || (data.skills || []).length || (data.projects || []).length);
+      if (hasData) {
+        const badge = document.getElementById('dosie-badge');
+        badge.className = 'resume-badge resume-badge-ok';
+        badge.textContent = '✓ Заполнено';
+      }
+    } catch(e) { console.warn('loadDosie:', e); }
+  }
+
+  // ── Сохранение досье ──
+  async function saveDosie() {
+    const btn = document.getElementById('dosie-save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Сохраняю...';
+    try {
+      const payload = {
+        profession_one_liner:      getV('d-profession'),
+        location:                  getV('d-location'),
+        timezone:                  getV('d-timezone'),
+        work_format:               getV('d-work-format'),
+        languages:                 collectLanguages(),
+        total_years_in_profession: getV('d-years'),
+        experience_extra:          collectExperience(),
+        projects:                  collectProjects(),
+        skills:                    skillTags.slice(),
+        methodology:               getV('d-methodology'),
+        extra_context:             getV('d-extra'),
+        tone_preference:           getV('d-tone'),
+        never_mention:             getV('d-never-mention'),
+        ending_style: {
+          suggest_call:      document.getElementById('d-suggest-call').checked,
+          suggest_test_task: document.getElementById('d-suggest-task').checked,
+          just_farewell:     document.getElementById('d-just-farewell').checked,
+        },
+      };
+      const res = await fetch('/api/hh-profile', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+      });
+      if (res.ok) {
+        showToast('✓ Досье обновлено');
+        const badge = document.getElementById('dosie-badge');
+        badge.className  = 'resume-badge resume-badge-ok';
+        badge.textContent = '✓ Заполнено';
+      } else {
+        showToast('⚠ Ошибка сохранения');
+      }
+    } catch { showToast('⚠ Ошибка сети'); }
+    btn.disabled  = false;
+    btn.textContent = 'Сохранить досье';
+  }
+
+  loadDosie();
 </script>
 
 </body>
