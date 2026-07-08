@@ -1038,15 +1038,22 @@ def _build_compact_dossier(profile: HHProfile) -> str:
             title = p.get('title', '')
             if not title:
                 continue
-            url = p.get('url', '')
-            ptype = p.get('type', '') or p.get('tags', '')
-            if isinstance(ptype, list):
-                ptype = ', '.join(ptype[:2])
+            url   = p.get('url', '')
+            ptype = (p.get('type') or '').strip()
+            tags  = p.get('tags') or []
+            if isinstance(tags, str):
+                tags = [t.strip() for t in tags.split(',') if t.strip()]
+            tags_str = ', '.join(tags[:5])
+
             line = f"  - {title}"
             if url:
                 line += f" [{url}]"
-            if ptype:
-                line += f": {str(ptype)[:60]}"
+            if ptype and tags_str:
+                line += f": {ptype} · {tags_str}"
+            elif ptype:
+                line += f": {ptype}"
+            elif tags_str:
+                line += f": {tags_str}"
             parts.append(line)
     if profile.extra_context:
         parts.append(f"Контекст: {profile.extra_context[:300]}")
