@@ -187,6 +187,36 @@
     .draft-clear-btn:hover { color: rgba(248,113,113,.7); }
     .generate-btn { width: 100%; padding: 15px; font-size: 0.95rem; }
 
+    .analyze-btn {
+      width: 100%; padding: 10px; font-size: 0.85rem; margin-top: 8px;
+      background: rgba(124,77,255,.1); border: 1px solid rgba(124,77,255,.25);
+      border-radius: 10px; color: #a78bfa; font-family: inherit; cursor: pointer;
+      transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .analyze-btn:hover { background: rgba(124,77,255,.2); }
+    .analyze-btn:disabled { opacity: .5; cursor: default; }
+
+    .analysis-card {
+      margin-top: 10px;
+      background: rgba(14,14,28,.7); border: 1px solid rgba(124,77,255,.2);
+      border-radius: 12px; padding: 14px 16px;
+      display: none; flex-direction: column; gap: 10px;
+    }
+    .analysis-card.visible { display: flex; }
+    .analysis-score-row { display: flex; align-items: center; gap: 10px; }
+    .analysis-score-badge {
+      font-size: 1.1rem; font-weight: 700; padding: 4px 12px;
+      border-radius: 20px; flex-shrink: 0;
+    }
+    .analysis-reason { font-size: 0.8rem; color: #7a83a0; line-height: 1.5; }
+    .analysis-section-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(199,211,234,.35); margin-bottom: 4px; }
+    .analysis-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+    .analysis-tag {
+      font-size: 0.72rem; padding: 3px 8px; border-radius: 20px;
+    }
+    .tag-match { background: rgba(52,211,153,.1); color: #34d399; border: 1px solid rgba(52,211,153,.2); }
+    .tag-miss  { background: rgba(248,113,113,.08); color: #f87171; border: 1px solid rgba(248,113,113,.15); }
+
     .custom-context-wrap {
       margin-top: 8px;
     }
@@ -796,6 +826,26 @@
           <div class="fetched-preview" id="fetched-preview"></div>
         </div>
 
+        <button class="analyze-btn" id="analyze-btn" onclick="analyzeVacancy()">
+          <span id="analyze-icon">◎</span>
+          <span id="analyze-text">Проверить совпадение с резюме</span>
+        </button>
+
+        <div class="analysis-card" id="analysis-card">
+          <div class="analysis-score-row">
+            <span class="analysis-score-badge" id="analysis-score-badge"></span>
+            <span class="analysis-reason" id="analysis-reason"></span>
+          </div>
+          <div id="analysis-matches-wrap">
+            <div class="analysis-section-title">Совпадения</div>
+            <div class="analysis-tags" id="analysis-matches"></div>
+          </div>
+          <div id="analysis-missing-wrap">
+            <div class="analysis-section-title">Чего не хватает</div>
+            <div class="analysis-tags" id="analysis-missing"></div>
+          </div>
+        </div>
+
         <div class="custom-context-wrap">
           <label class="custom-context-label" for="custom-context">Инструкции (необязательно)</label>
           <div class="ctx-chips">
@@ -1183,6 +1233,84 @@
     document.getElementById('clear-text-btn').style.display = 'none';
     localStorage.removeItem('hh_draft_job_text');
   }
+
+  // ── Анализ вакансии ───────────────────────────────────────────────────────
+  let cachedAnalysis = null;
+
+  async function analyzeVacancy() {
+    let text = activeTab === 'text' ? jobInput.value.trim() : fetchedText;
+    if (!text) {
+      jobInput.focus();
+      jobInput.style.borderColor = 'var(--error)';
+      setTimeout(() => { jobInput.style.borderColor = ''; }, 1500);
+      return;
+    }
+
+    const btn  = document.getElementById('analyze-btn');
+    const icon = document.getElementById('analyze-icon');
+    const txt  = document.getElementById('analyze-text');
+    btn.disabled = true;
+    icon.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span>';
+    txt.textContent = 'Анализирую...';
+
+    try {
+      const res  = await fetch('/api/analyze-vacancy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_text: text }),
+      });
+      const data = await res.json();
+      if (data.error) { showToast('⚠ ' + data.error); return; }
+
+      cachedAnalysis = data;
+      renderAnalysisCard(data);
+    } catch {
+      showToast('⚠ Ошибка сети');
+    } finally {
+      btn.disabled = false;
+      icon.textContent = '◎';
+      txt.textContent = 'Проверить совпадение с резюме';
+    }
+  }
+
+  function renderAnalysisCard(data) {
+    const score = data.relevance_score ?? 0;
+    const badge = document.getElementById('analysis-score-badge');
+    badge.textContent = score + '/10';
+    badge.className = 'analysis-score-badge ' + (score >= 7 ? 'score-high' : score >= 4 ? 'score-mid' : 'score-low');
+
+    document.getElementById('analysis-reason').textContent = data.relevance_reason || '';
+
+    const matchesEl = document.getElementById('analysis-matches');
+    matchesEl.innerHTML = '';
+    (data.key_matches || []).forEach(m => {
+      const s = document.createElement('span');
+      s.className = 'analysis-tag tag-match';
+      s.textContent = m;
+      matchesEl.appendChild(s);
+    });
+    document.getElementById('analysis-matches-wrap').style.display = (data.key_matches || []).length ? '' : 'none';
+
+    const missingEl = document.getElementById('analysis-missing');
+    missingEl.innerHTML = '';
+    (data.missing_skills || []).forEach(m => {
+      const s = document.createElement('span');
+      s.className = 'analysis-tag tag-miss';
+      s.textContent = m;
+      missingEl.appendChild(s);
+    });
+    document.getElementById('analysis-missing-wrap').style.display = (data.missing_skills || []).length ? '' : 'none';
+
+    document.getElementById('analysis-card').classList.add('visible');
+  }
+
+  // сбросить карточку при смене текста вакансии
+  jobInput.addEventListener('input', () => {
+    if (cachedAnalysis) {
+      cachedAnalysis = null;
+      document.getElementById('analysis-card').classList.remove('visible');
+    }
+  });
 
   // ── Шаблоны custom_context ───────────────────────────────────────────────
   function addCtxChip(text) {
