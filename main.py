@@ -25,6 +25,7 @@ from database import (get_db, init_db, migrate_db, SessionLocal, User, Resume, T
                       WorkoutSession, SetLog, ProgressionSetting, WorkoutExerciseSwap,
                       ScaleConnection, BodyPhoto, PainZonePatch)
 from auth import hash_password, verify_password, create_token, get_current_user, generate_token
+from few_shot_examples import build_few_shot_block
 import zepp_client
 
 load_dotenv()
@@ -1279,6 +1280,8 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
         analysis_hints += f"\nНа что делать акцент: {', '.join(focus_points)}"
     custom_block = f"\nИНСТРУКЦИИ ОТ АВТОРА (выполнить обязательно):\n{custom_context}" if custom_context else ""
 
+    few_shot_block = build_few_shot_block()
+
     prompt = f"""Напиши сопроводительное письмо. Только текст письма — ничего лишнего. Никакого предисловия, никакого «Вот письмо:».
 
 РЕЗЮМЕ:
@@ -1291,6 +1294,7 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
 ВАКАНСИЯ:
 {job_text}
 
+{few_shot_block}
 ━━━ ЗАПРЕЩЁННЫЕ НАЧАЛА ПИСЬМА ━━━
 
 Никогда не начинай письмо этими фразами или их вариациями:
