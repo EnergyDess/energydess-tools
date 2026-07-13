@@ -1393,6 +1393,84 @@ async def get_cover_letters(user=Depends(get_current_user), db: Session = Depend
     ])
 
 
+# ── API: парсер резюме → заготовка досье ─────────────────────────────────────
+
+@app.post("/api/parse-resume-to-dossier")
+async def parse_resume_to_dossier(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user or not user_has_access(user, "hh", db):
+        return JSONResponse({"error": "Нет доступа"}, status_code=403)
+    if not OPENROUTER_API_KEY:
+        return JSONResponse({"error": "API ключ не настроен"}, status_code=500)
+
+    resume_obj = db.query(Resume).filter(Resume.user_id == user.id).first()
+    resume_text = resume_obj.resume_text if resume_obj else ""
+    if not resume_text.strip():
+        return JSONResponse({"error": "Сначала добавь резюме"}, status_code=400)
+
+    prompt = f"""Извлеки структурированные данные из резюме для заполнения профиля кандидата.
+Ответь ТОЛЬКО JSON без ```json и без пояснений.
+
+РЕЗЮМЕ:
+{resume_text}
+
+Верни JSON строго такой структуры (все поля опциональны — ставь null если данных нет):
+{{
+  "profession_one_liner": "краткое позиционирование в 1 предложение или null",
+  "location": "город или null",
+  "work_format": "удалёнка / офис / гибрид / любой или null",
+  "total_years_in_profession": "например '5 лет' или null",
+  "skills": ["навык1", "навык2"],
+  "experience_extra": [
+    {{
+      "company": "название компании",
+      "position": "должность",
+      "period": "период, например 2022–2024",
+      "description": "чем занимался в 1-2 предложениях",
+      "achievements": "ключевые достижения или пустая строка"
+    }}
+  ],
+  "projects": [
+    {{
+      "title": "название проекта",
+      "url": "ссылка или пустая строка",
+      "type": "тип проекта в 2-4 слова или пустая строка",
+      "tags": ["тег1", "тег2"],
+      "description": "описание в 1 предложении или пустая строка",
+      "tools": "инструменты через запятую или пустая строка"
+    }}
+  ],
+  "languages": [
+    {{"lang": "язык", "level": "уровень"}}
+  ]
+}}
+
+Правила:
+- skills: только конкретные инструменты и технологии, без мягких навыков ("ответственность" и т.п.)
+- projects: только реальные проекты с названиями из резюме, не придумывай
+- experience_extra: в обратном хронологическом порядке
+- Если что-то неочевидно — ставь null/пустую строку, не домысливай
+"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                         "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess HH Helper"},
+                json={"model": LETTER_MODEL, "messages": [{"role": "user", "content": prompt}],
+                      "temperature": 0.1, "max_tokens": 2000},
+                timeout=60.0,
+            )
+        if response.status_code != 200:
+            return JSONResponse({"error": f"Ошибка OpenRouter: {response.text}"}, status_code=500)
+        raw = response.json()["choices"][0]["message"]["content"].strip()
+        result = _extract_json(raw)
+        return JSONResponse(result)
+    except httpx.TimeoutException:
+        return JSONResponse({"error": "Превышено время ожидания"}, status_code=504)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 # ── API: сохранение резюме ────────────────────────────────────────────────────
 
 @app.post("/api/save-resume")

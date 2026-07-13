@@ -590,7 +590,10 @@
           oninput="updateResumeChars()">{{ resume.resume_text if has_resume else '' }}</textarea>
         <div class="resume-footer">
           <span class="resume-chars" id="resume-chars">{{ (resume.resume_text|length)|string + ' симв.' if has_resume else '0 симв.' }}</span>
-          <button class="btn btn-primary" style="padding:9px 20px;font-size:.875rem" type="button" id="resume-save-btn" onclick="saveResume()">Сохранить</button>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-secondary" style="padding:9px 16px;font-size:.8rem" type="button" id="parse-dossier-btn" onclick="parseResumeToDossier()">✦ Заполнить досье</button>
+            <button class="btn btn-primary" style="padding:9px 20px;font-size:.875rem" type="button" id="resume-save-btn" onclick="saveResume()">Сохранить</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1028,6 +1031,63 @@
 
     btn.disabled = false;
     btn.textContent = 'Сохранить';
+  }
+
+  // ── Парсер резюме → досье ────────────────────────────────────────────────
+  async function parseResumeToDossier() {
+    const btn = document.getElementById('parse-dossier-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Анализирую...';
+
+    try {
+      const res  = await fetch('/api/parse-resume-to-dossier', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok || data.error) { showToast('⚠ ' + data.error); return; }
+
+      // заполняем поля досье
+      const s = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
+      s('d-profession', data.profession_one_liner);
+      s('d-location', data.location);
+      if (data.work_format) {
+        const wfEl = document.getElementById('d-work-format');
+        if (wfEl) wfEl.value = data.work_format;
+      }
+      s('d-years', data.total_years_in_profession);
+      s('d-methodology', null); // не трогаем
+
+      // навыки
+      if (data.skills && data.skills.length) {
+        skillTags = [...data.skills];
+        renderSkillTags();
+      }
+
+      // языки
+      if (data.languages && data.languages.length) {
+        document.getElementById('d-languages').innerHTML = '';
+        data.languages.forEach(l => addLanguage(l.lang, l.level));
+      }
+
+      // опыт
+      if (data.experience_extra && data.experience_extra.length) {
+        document.getElementById('d-experience').innerHTML = '';
+        data.experience_extra.forEach(e => addExperience(e));
+      }
+
+      // проекты
+      if (data.projects && data.projects.length) {
+        document.getElementById('d-projects').innerHTML = '';
+        data.projects.forEach(p => addProject(p));
+      }
+
+      // открываем досье чтобы пользователь проверил
+      if (!dosieOpen) toggleDosie();
+      showToast('✦ Досье заполнено из резюме — проверь и сохрани');
+    } catch {
+      showToast('⚠ Ошибка сети');
+    }
+
+    btn.disabled = false;
+    btn.textContent = '✦ Заполнить досье';
   }
 
   // ── Вакансия ──
