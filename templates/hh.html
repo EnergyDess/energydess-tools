@@ -178,7 +178,13 @@
     .fetch-status.ok  { color: #34d399; }
     .fetch-status.err { color: #fca5a5; }
 
-    .char-count { font-size: 0.75rem; color: rgba(199,211,234,.3); text-align: right; margin-top: -4px; }
+    .char-count { font-size: 0.75rem; color: rgba(199,211,234,.3); text-align: right; margin-top: -4px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+    .draft-clear-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 0.72rem; color: rgba(199,211,234,.25); font-family: inherit;
+      padding: 0; transition: color 0.2s;
+    }
+    .draft-clear-btn:hover { color: rgba(248,113,113,.7); }
     .generate-btn { width: 100%; padding: 15px; font-size: 0.95rem; }
 
     .custom-context-wrap {
@@ -748,7 +754,10 @@
 
         <div class="tab-panel active" id="tab-text">
           <textarea id="job-input" placeholder="Вставь сюда описание вакансии с HH или любого другого сайта...&#10;&#10;Чем полнее текст — тем точнее письмо."></textarea>
-          <div class="char-count"><span id="char-count">0</span> символов</div>
+          <div class="char-count">
+            <span id="char-count">0</span> символов
+            <button class="draft-clear-btn" id="clear-text-btn" onclick="clearJobText()" title="Очистить" style="display:none">✕ Очистить</button>
+          </div>
         </div>
 
         <div class="tab-panel" id="tab-url">
@@ -958,6 +967,8 @@
 
   jobInput.addEventListener('input', () => {
     charCountEl.textContent = jobInput.value.length.toLocaleString('ru');
+    localStorage.setItem('hh_draft_job_text', jobInput.value);
+    document.getElementById('clear-text-btn').style.display = jobInput.value ? '' : 'none';
   });
 
   function switchTab(tab) {
@@ -1076,6 +1087,9 @@
         document.getElementById('word-count').textContent = plain.trim().split(/\s+/).length;
         document.getElementById('char-count-result').textContent = plain.length;
         setState('result');
+        localStorage.removeItem('hh_draft_job_text');
+        localStorage.removeItem('hh_draft_job_url');
+        document.getElementById('clear-text-btn').style.display = 'none';
         // обновляем историю после успешной генерации
         if (historyLoaded) renderHistory();
       }
@@ -1109,7 +1123,31 @@
   }
 
   document.getElementById('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') fetchUrl(); });
+  document.getElementById('url-input').addEventListener('input', () => {
+    localStorage.setItem('hh_draft_job_url', document.getElementById('url-input').value);
+  });
   jobInput.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') generateLetter(); });
+
+  // ── Черновик вакансии: восстановление из localStorage ────────────────────
+  (function restoreDraft() {
+    const savedText = localStorage.getItem('hh_draft_job_text');
+    const savedUrl  = localStorage.getItem('hh_draft_job_url');
+    if (savedText) {
+      jobInput.value = savedText;
+      charCountEl.textContent = savedText.length.toLocaleString('ru');
+      document.getElementById('clear-text-btn').style.display = '';
+    }
+    if (savedUrl) {
+      document.getElementById('url-input').value = savedUrl;
+    }
+  })();
+
+  function clearJobText() {
+    jobInput.value = '';
+    charCountEl.textContent = '0';
+    document.getElementById('clear-text-btn').style.display = 'none';
+    localStorage.removeItem('hh_draft_job_text');
+  }
 
   // ── Досье ────────────────────────────────────────────────────
 
