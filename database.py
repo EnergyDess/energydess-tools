@@ -118,6 +118,7 @@ class CoverLetter(Base):
     letter_text = Column(Text, nullable=False)
     analysis_json = Column(JSON, nullable=True)
     custom_context = Column(Text, nullable=True)
+    edited = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -468,6 +469,7 @@ def migrate_db():
         "ALTER TABLE workout_profiles ADD COLUMN use_nutrition_data BOOLEAN",
         "ALTER TABLE weight_logs ADD COLUMN bone_mass_kg FLOAT",
         "ALTER TABLE exercises ADD COLUMN youtube_id VARCHAR",
+        "ALTER TABLE cover_letters ADD COLUMN edited BOOLEAN DEFAULT 0",
     ]:
         try:
             conn.execute(col)
@@ -483,6 +485,7 @@ def migrate_db():
         "UPDATE workout_profiles SET return_plan_light_days_remaining = 0 WHERE return_plan_light_days_remaining IS NULL",
         "UPDATE workout_profiles SET mesocycle_length_weeks = 10 WHERE mesocycle_length_weeks IS NULL",
         "UPDATE workout_profiles SET use_nutrition_data = 1 WHERE use_nutrition_data IS NULL",
+        "UPDATE cover_letters SET edited = 0 WHERE edited IS NULL",
     ]:
         try:
             conn.execute(backfill)

@@ -1329,6 +1329,9 @@
         const plain = data.letter;
         document.getElementById('word-count').textContent = plain.trim().split(/\s+/).length;
         document.getElementById('char-count-result').textContent = plain.length;
+        // запоминаем id и текст для последующего сохранения правок
+        lastGeneratedLetterId = data.letter_id || null;
+        lastGeneratedLetterText = plain;
         setState('result');
         localStorage.removeItem('hh_draft_job_text');
         localStorage.removeItem('hh_draft_job_url');
@@ -1479,6 +1482,8 @@
 
   // ── Редактирование письма ─────────────────────────────────────────────────
   let letterEditing = false;
+  let lastGeneratedLetterId = null;
+  let lastGeneratedLetterText = '';
 
   function toggleLetterEdit() {
     letterEditing = !letterEditing;
@@ -1496,6 +1501,26 @@
       const plain = letterContent.innerText;
       document.getElementById('word-count').textContent = plain.trim().split(/\s+/).filter(Boolean).length;
       document.getElementById('char-count-result').textContent = plain.length;
+      // сохраняем если текст изменился
+      if (lastGeneratedLetterId && plain.trim() !== lastGeneratedLetterText.trim()) {
+        saveLetter(lastGeneratedLetterId, plain.trim());
+      }
+    }
+  }
+
+  async function saveLetter(id, text) {
+    try {
+      const r = await fetch(`/api/cover-letters/${id}`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({letter_text: text})
+      });
+      if (r.ok) {
+        showToast('✓ Правки сохранены');
+        if (historyLoaded) renderHistory();
+      }
+    } catch (e) {
+      // тихая ошибка — не мешаем пользователю
     }
   }
 
@@ -1831,7 +1856,7 @@
           <button class="history-item-head" onclick="toggleHistoryItem(this)">
             <div class="history-item-meta">
               <div class="history-item-title">${escHtml(title)}</div>
-              <div class="history-item-sub">${item.created_at}</div>
+              <div class="history-item-sub">${item.created_at}${item.edited ? ' · <span style="color:#7c4dff;font-style:italic">(отредактировано)</span>' : ''}</div>
             </div>
             ${score != null ? `<span class="history-item-score ${cls}">${score}/10</span>` : ''}
           </button>
