@@ -277,6 +277,38 @@
     }
     .warn-force-btn:hover { background: rgba(234,179,8,.25); }
 
+    /* ── Модалка конфликтов парсера ─────────── */
+    .parse-modal-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,.65); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+    }
+    .parse-modal {
+      background: var(--surface-1,#1e2036); border: 1px solid rgba(199,211,234,.15);
+      border-radius: 16px; padding: 28px 28px 22px; max-width: 480px; width: 100%;
+      box-shadow: 0 24px 64px rgba(0,0,0,.6);
+    }
+    .parse-modal-title { font-size: 1rem; font-weight: 700; color: #e8ecf8; margin-bottom: 12px; }
+    .parse-modal-desc  { font-size: 0.82rem; color: #7a83a0; line-height: 1.6; margin-bottom: 10px; }
+    .parse-modal-list  { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-bottom: 22px; }
+    .parse-modal-list li {
+      font-size: 0.81rem; color: #aeb8d4;
+      background: rgba(199,211,234,.05); border: 1px solid rgba(199,211,234,.08);
+      border-radius: 8px; padding: 8px 12px; line-height: 1.4;
+    }
+    .parse-modal-list li b { color: #c7d3ea; }
+    .parse-modal-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+    .pmbtn {
+      padding: 9px 16px; font-size: 0.82rem; font-family: inherit;
+      border-radius: 8px; cursor: pointer; border: 1px solid rgba(199,211,234,.2);
+      background: rgba(199,211,234,.07); color: #c7d3ea; transition: background 0.2s;
+    }
+    .pmbtn:hover  { background: rgba(199,211,234,.14); }
+    .pmbtn.safe   { border-color: rgba(0,212,255,.3); background: rgba(0,212,255,.1); color: var(--accent,#00d4ff); }
+    .pmbtn.safe:hover   { background: rgba(0,212,255,.18); }
+    .pmbtn.danger { border-color: rgba(248,113,113,.3); background: rgba(248,113,113,.08); color: #f87171; }
+    .pmbtn.danger:hover { background: rgba(248,113,113,.14); }
+
     .history-section {
       margin-top: 40px;
     }
@@ -952,6 +984,18 @@
 
 <div class="toast" id="toast"></div>
 
+<div class="parse-modal-overlay" id="parse-modal" style="display:none" onclick="if(event.target===this)closeParsModal()">
+  <div class="parse-modal">
+    <div class="parse-modal-title">⚠ Найдены конфликты с текущим досье</div>
+    <div id="parse-modal-body"></div>
+    <div class="parse-modal-actions">
+      <button class="pmbtn safe" onclick="applyParsedData('keep')">Оставить моё</button>
+      <button class="pmbtn"      onclick="applyParsedData('merge')">Слить (аккуратно)</button>
+      <button class="pmbtn danger" onclick="applyParsedData('replace')">Заменить на найденное</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // ── Резюме ──
   let resumeOpen = {{ 'false' if has_resume else 'true' }};
@@ -1034,6 +1078,8 @@
   }
 
   // ── Парсер резюме → досье ────────────────────────────────────────────────
+  let _parsedData = null;
+
   async function parseResumeToDossier() {
     const btn = document.getElementById('parse-dossier-btn');
     btn.disabled = true;
@@ -1044,50 +1090,102 @@
       const data = await res.json();
       if (!res.ok || data.error) { showToast('⚠ ' + data.error); return; }
 
-      // заполняем поля досье
-      const s = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
-      s('d-profession', data.profession_one_liner);
-      s('d-location', data.location);
-      if (data.work_format) {
-        const wfEl = document.getElementById('d-work-format');
-        if (wfEl) wfEl.value = data.work_format;
-      }
-      s('d-years', data.total_years_in_profession);
-      s('d-methodology', null); // не трогаем
+      _parsedData = data;
 
-      // навыки
-      if (data.skills && data.skills.length) {
-        skillTags = [...data.skills];
-        renderSkillTags();
-      }
+      // ── определяем конфликты ──────────────────────────────────────────────
+      const conflicts = [];
+      const chk1 = (label, id, val) => {
+        if (val && document.getElementById(id)?.value?.trim())
+          conflicts.push({ label, current: document.getElementById(id).value.trim(), suggested: String(val) });
+      };
+      const chkList = (label, id, arr) => {
+        if (arr?.length && (document.getElementById(id)?.children.length ?? 0) > 0)
+          conflicts.push({ label, currentCount: document.getElementById(id).children.length, suggestedCount: arr.length });
+      };
 
-      // языки
-      if (data.languages && data.languages.length) {
-        document.getElementById('d-languages').innerHTML = '';
-        data.languages.forEach(l => addLanguage(l.lang, l.level));
-      }
+      chk1('Профессия',     'd-profession', data.profession_one_liner);
+      chk1('Локация',       'd-location',   data.location);
+      chk1('Лет в профессии','d-years',     data.total_years_in_profession);
+      chkList('Языки',      'd-languages',  data.languages);
+      chkList('Опыт',       'd-experience', data.experience_extra);
+      chkList('Проекты',    'd-projects',   data.projects);
 
-      // опыт
-      if (data.experience_extra && data.experience_extra.length) {
-        document.getElementById('d-experience').innerHTML = '';
-        data.experience_extra.forEach(e => addExperience(e));
+      if (conflicts.length === 0) {
+        // Сценарий А (всё пустое) или Б (нет конфликтов) — применяем безопасно
+        applyParsedData('keep');
+      } else {
+        // Сценарий В — показываем модалку
+        document.getElementById('parse-modal-body').innerHTML =
+          '<p class="parse-modal-desc">Парсер нашёл данные, но некоторые поля уже заполнены:</p>' +
+          '<ul class="parse-modal-list">' +
+          conflicts.map(c => c.currentCount != null
+            ? `<li><b>${escHtml(c.label)}:</b> ${c.currentCount} существующих, парсер предлагает ${c.suggestedCount} новых</li>`
+            : `<li><b>${escHtml(c.label)}:</b> сейчас «${escHtml(c.current.substring(0,50))}», парсер предлагает «${escHtml(c.suggested.substring(0,50))}»</li>`
+          ).join('') + '</ul>';
+        document.getElementById('parse-modal').style.display = 'flex';
       }
-
-      // проекты
-      if (data.projects && data.projects.length) {
-        document.getElementById('d-projects').innerHTML = '';
-        data.projects.forEach(p => addProject(p));
-      }
-
-      // открываем досье чтобы пользователь проверил
-      if (!dosieOpen) toggleDosie();
-      showToast('✦ Досье заполнено из резюме — проверь и сохрани');
     } catch {
       showToast('⚠ Ошибка сети');
     }
 
     btn.disabled = false;
     btn.textContent = '✦ Заполнить досье';
+  }
+
+  function closeParsModal() {
+    document.getElementById('parse-modal').style.display = 'none';
+    _parsedData = null;
+  }
+
+  function applyParsedData(mode) {
+    closeParsModal();
+    const data = _parsedData;
+    if (!data) return;
+
+    const fieldEmpty = id => !document.getElementById(id)?.value?.trim();
+    const listEmpty  = id => (document.getElementById(id)?.children.length ?? 0) === 0;
+    const setField   = (id, val) => { if (val) document.getElementById(id).value = val; };
+
+    // одиночные поля — заполняем только если пусто (keep/merge) или mode=replace
+    if (mode === 'replace' || fieldEmpty('d-profession')) setField('d-profession', data.profession_one_liner);
+    if (mode === 'replace' || fieldEmpty('d-location'))   setField('d-location',   data.location);
+    if (mode === 'replace' || fieldEmpty('d-years'))      setField('d-years',      data.total_years_in_profession);
+    if (data.work_format) {
+      const el = document.getElementById('d-work-format');
+      if (el && (mode === 'replace' || !el.value)) el.value = data.work_format;
+    }
+
+    // навыки — всегда мерж уникальных (независимо от mode, replace только меняет базу)
+    if (data.skills?.length) {
+      if (mode === 'replace') {
+        skillTags = [...data.skills];
+      } else {
+        const existing = new Set(skillTags.map(t => t.toLowerCase()));
+        data.skills.forEach(t => { if (!existing.has(t.toLowerCase())) skillTags.push(t); });
+      }
+      renderSkillTags();
+    }
+
+    // списки
+    const applyList = (id, arr, addFn) => {
+      if (!arr?.length) return;
+      if (mode === 'replace') {
+        document.getElementById(id).innerHTML = '';
+        arr.forEach(addFn);
+      } else if (mode === 'merge') {
+        arr.forEach(addFn); // append к существующим
+      } else if (listEmpty(id)) { // 'keep' — только если список сейчас пуст
+        arr.forEach(addFn);
+      }
+    };
+
+    applyList('d-languages',  data.languages,        l => addLanguage(l.lang, l.level));
+    applyList('d-experience', data.experience_extra,  e => addExperience(e));
+    applyList('d-projects',   data.projects,           p => addProject(p));
+
+    _parsedData = null;
+    if (!dosieOpen) toggleDosie();
+    showToast('✦ Досье заполнено — проверь и сохрани');
   }
 
   // ── Вакансия ──
