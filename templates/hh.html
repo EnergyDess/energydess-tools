@@ -195,6 +195,31 @@
       text-transform: uppercase; letter-spacing: 0.05em;
       margin-bottom: 6px; display: block;
     }
+    .ctx-chips {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;
+    }
+    .ctx-chip {
+      padding: 4px 10px; font-size: 0.73rem; font-family: inherit;
+      background: rgba(124,77,255,.1); border: 1px solid rgba(124,77,255,.25);
+      border-radius: 20px; color: rgba(199,211,234,.7); cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .ctx-chip:hover { background: rgba(124,77,255,.22); color: #c7d3ea; }
+
+    .edit-btn {
+      padding: 6px 12px; font-size: 0.8rem;
+      background: rgba(199,211,234,.07); border: 1px solid rgba(199,211,234,.15);
+      border-radius: 8px; color: #c7d3ea; cursor: pointer;
+      font-family: inherit; transition: background 0.2s;
+    }
+    .edit-btn:hover { background: rgba(199,211,234,.14); }
+    .edit-btn.active { background: rgba(0,212,255,.1); border-color: rgba(0,212,255,.3); color: var(--accent); }
+    .letter-content[contenteditable="true"] {
+      outline: none;
+      border: 1px solid rgba(0,212,255,.25);
+      border-radius: 8px; padding: 12px 14px;
+      background: rgba(6,6,14,.4);
+    }
     #custom-context {
       width: 100%; min-height: 60px; resize: vertical;
       background: rgba(6,6,14,.6); border: 1px solid rgba(199,211,234,.1);
@@ -773,6 +798,13 @@
 
         <div class="custom-context-wrap">
           <label class="custom-context-label" for="custom-context">Инструкции (необязательно)</label>
+          <div class="ctx-chips">
+            <button type="button" class="ctx-chip" onclick="addCtxChip('Тон неформальный, без официоза')">неформальный тон</button>
+            <button type="button" class="ctx-chip" onclick="addCtxChip('Подсвети AI-опыт сильнее — это главный акцент')">акцент на AI</button>
+            <button type="button" class="ctx-chip" onclick="addCtxChip('Не упоминай зарплатные ожидания')">без ЗП</button>
+            <button type="button" class="ctx-chip" onclick="addCtxChip('Сделай письмо короче, около 100 слов')">короче</button>
+            <button type="button" class="ctx-chip" onclick="addCtxChip('Предложи в финале тестовое задание как CTA')">предложи тестовое</button>
+          </div>
           <textarea id="custom-context" placeholder="Что упомянуть особенно или что убрать. Например: подсвети опыт с Claude Code сильнее; не упоминай зарплату; тон неформальный."></textarea>
         </div>
 
@@ -802,6 +834,7 @@
           <button class="copy-btn" id="copy-btn" onclick="copyLetter()">
             <span>⎘</span> Копировать
           </button>
+          <button class="edit-btn" id="edit-btn" onclick="toggleLetterEdit()">✎ Редактировать</button>
           <button class="btn btn-secondary" style="padding:6px 12px;font-size:0.8rem" onclick="generateLetter()">
             ↻ Перегенерировать
           </button>
@@ -1033,6 +1066,8 @@
   }
 
   async function generateLetter(force = false) {
+    // сбросить режим редактирования если был активен
+    if (letterEditing) toggleLetterEdit();
     let text = '';
     if (activeTab === 'text') {
       text = jobInput.value.trim();
@@ -1147,6 +1182,35 @@
     charCountEl.textContent = '0';
     document.getElementById('clear-text-btn').style.display = 'none';
     localStorage.removeItem('hh_draft_job_text');
+  }
+
+  // ── Шаблоны custom_context ───────────────────────────────────────────────
+  function addCtxChip(text) {
+    const ta = document.getElementById('custom-context');
+    ta.value = ta.value ? ta.value.trimEnd() + '; ' + text : text;
+    ta.focus();
+  }
+
+  // ── Редактирование письма ─────────────────────────────────────────────────
+  let letterEditing = false;
+
+  function toggleLetterEdit() {
+    letterEditing = !letterEditing;
+    const btn = document.getElementById('edit-btn');
+    if (letterEditing) {
+      letterContent.contentEditable = 'true';
+      letterContent.focus();
+      btn.textContent = '✓ Готово';
+      btn.classList.add('active');
+    } else {
+      letterContent.contentEditable = 'false';
+      btn.textContent = '✎ Редактировать';
+      btn.classList.remove('active');
+      // обновляем счётчик слов по отредактированному тексту
+      const plain = letterContent.innerText;
+      document.getElementById('word-count').textContent = plain.trim().split(/\s+/).filter(Boolean).length;
+      document.getElementById('char-count-result').textContent = plain.length;
+    }
   }
 
   // ── Досье ────────────────────────────────────────────────────
