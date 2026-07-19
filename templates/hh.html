@@ -297,17 +297,23 @@
       border-radius: 8px; padding: 8px 12px; line-height: 1.4;
     }
     .parse-modal-list li b { color: #c7d3ea; }
-    .parse-modal-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+    .parse-modal-actions { display: flex; gap: 8px; margin-top: 4px; }
     .pmbtn {
-      padding: 9px 16px; font-size: 0.82rem; font-family: inherit;
-      border-radius: 8px; cursor: pointer; border: 1px solid rgba(199,211,234,.2);
-      background: rgba(199,211,234,.07); color: #c7d3ea; transition: background 0.2s;
+      flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+      padding: 12px 14px; font-family: inherit; text-align: left;
+      border-radius: 10px; cursor: pointer; border: 1px solid rgba(199,211,234,.2);
+      background: rgba(199,211,234,.07); transition: background 0.2s;
     }
-    .pmbtn:hover  { background: rgba(199,211,234,.14); }
-    .pmbtn.safe   { border-color: rgba(0,212,255,.3); background: rgba(0,212,255,.1); color: var(--accent,#00d4ff); }
-    .pmbtn.safe:hover   { background: rgba(0,212,255,.18); }
-    .pmbtn.danger { border-color: rgba(248,113,113,.3); background: rgba(248,113,113,.08); color: #f87171; }
-    .pmbtn.danger:hover { background: rgba(248,113,113,.14); }
+    .pmbtn-title { font-size: 0.82rem; font-weight: 600; color: #c7d3ea; line-height: 1.2; }
+    .pmbtn-desc  { font-size: 0.72rem; color: #7a83a0; line-height: 1.4; }
+    .pmbtn:hover       { background: rgba(199,211,234,.13); }
+    .pmbtn.safe        { border-color: rgba(0,212,255,.3);   background: rgba(0,212,255,.08); }
+    .pmbtn.safe .pmbtn-title { color: var(--accent,#00d4ff); }
+    .pmbtn.safe:hover  { background: rgba(0,212,255,.15); }
+    .pmbtn.danger      { border-color: rgba(248,113,113,.3); background: rgba(248,113,113,.07); }
+    .pmbtn.danger .pmbtn-title { color: #f87171; }
+    .pmbtn.danger:hover { background: rgba(248,113,113,.13); }
+    @media (max-width: 480px) { .parse-modal-actions { flex-direction: column; } }
 
     .history-section {
       margin-top: 40px;
@@ -989,9 +995,18 @@
     <div class="parse-modal-title">⚠ Найдены конфликты с текущим досье</div>
     <div id="parse-modal-body"></div>
     <div class="parse-modal-actions">
-      <button class="pmbtn safe" onclick="applyParsedData('keep')">Оставить моё</button>
-      <button class="pmbtn"      onclick="applyParsedData('merge')">Слить (аккуратно)</button>
-      <button class="pmbtn danger" onclick="applyParsedData('replace')">Заменить на найденное</button>
+      <button class="pmbtn safe" onclick="applyParsedData('keep')">
+        <span class="pmbtn-title">Оставить моё</span>
+        <span class="pmbtn-desc">Данные парсера отброшены, ничего не меняется</span>
+      </button>
+      <button class="pmbtn" onclick="applyParsedData('merge')">
+        <span class="pmbtn-title">Дополнить</span>
+        <span class="pmbtn-desc">Новые записи добавятся к имеющимся, дубли возможны</span>
+      </button>
+      <button class="pmbtn danger" onclick="applyParsedData('replace')">
+        <span class="pmbtn-title">Заменить всё</span>
+        <span class="pmbtn-desc">Мои данные будут перезаписаны данными парсера</span>
+      </button>
     </div>
   </div>
 </div>
@@ -1098,17 +1113,18 @@
         if (val && document.getElementById(id)?.value?.trim())
           conflicts.push({ label, current: document.getElementById(id).value.trim(), suggested: String(val) });
       };
-      const chkList = (label, id, arr) => {
-        if (arr?.length && (document.getElementById(id)?.children.length ?? 0) > 0)
-          conflicts.push({ label, currentCount: document.getElementById(id).children.length, suggestedCount: arr.length });
+      const chkList = (label, arr, collectFn) => {
+        const existing = collectFn();
+        if (arr?.length && existing.length > 0)
+          conflicts.push({ label, currentCount: existing.length, suggestedCount: arr.length });
       };
 
       chk1('Профессия',     'd-profession', data.profession_one_liner);
       chk1('Локация',       'd-location',   data.location);
       chk1('Лет в профессии','d-years',     data.total_years_in_profession);
-      chkList('Языки',      'd-languages',  data.languages);
-      chkList('Опыт',       'd-experience', data.experience_extra);
-      chkList('Проекты',    'd-projects',   data.projects);
+      chkList('Языки',   data.languages,        collectLanguages);
+      chkList('Опыт',    data.experience_extra,  collectExperience);
+      chkList('Проекты', data.projects,          collectProjects);
 
       if (conflicts.length === 0) {
         // Сценарий А (всё пустое) или Б (нет конфликтов) — применяем безопасно
@@ -1138,9 +1154,9 @@
   }
 
   function applyParsedData(mode) {
-    closeParsModal();
-    const data = _parsedData;
+    const data = _parsedData;   // сохраняем до закрытия — closeParsModal обнуляет _parsedData
     if (!data) return;
+    closeParsModal();
 
     const fieldEmpty = id => !document.getElementById(id)?.value?.trim();
     const listEmpty  = id => (document.getElementById(id)?.children.length ?? 0) === 0;
@@ -1179,9 +1195,9 @@
       }
     };
 
-    applyList('d-languages',  data.languages,        l => addLanguage(l.lang, l.level));
-    applyList('d-experience', data.experience_extra,  e => addExperience(e));
-    applyList('d-projects',   data.projects,           p => addProject(p));
+    applyList('d-languages',  (data.languages || []).filter(l => l.lang),                         l => addLanguage(l.lang, l.level));
+    applyList('d-experience', (data.experience_extra || []).filter(e => e.company || e.position), e => addExperience(e));
+    applyList('d-projects',   (data.projects || []).filter(p => p.title),                         p => addProject(p));
 
     _parsedData = null;
     if (!dosieOpen) toggleDosie();
@@ -1748,9 +1764,9 @@
       setV('d-tone',       data.tone_preference);
       setV('d-never-mention', data.never_mention);
 
-      (data.languages      || []).forEach(l => addLanguage(l.lang, l.level));
-      (data.experience_extra || []).forEach(e => addExperience(e));
-      (data.projects       || []).forEach(p => addProject(p));
+      (data.languages      || []).filter(l => l.lang).forEach(l => addLanguage(l.lang, l.level));
+      (data.experience_extra || []).filter(e => e.company || e.position).forEach(e => addExperience(e));
+      (data.projects       || []).filter(p => p.title).forEach(p => addProject(p));
 
       skillTags = [...(data.skills || [])];
       renderSkillTags();
