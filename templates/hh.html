@@ -91,6 +91,9 @@
     .resume-footer { display: flex; align-items: center; justify-content: space-between; }
     .resume-chars  { font-size: 0.75rem; color: rgba(199,211,234,.3); }
 
+    /* Расширяем контейнер на этой странице */
+    main.container { max-width: 1600px; }
+
     /* ── Workspace ──────────────────────────────────────── */
     .workspace {
       display: grid; grid-template-columns: 1fr 1fr;
@@ -221,15 +224,14 @@
       margin-top: 8px;
     }
     .custom-context-label {
-      font-size: 0.75rem; font-weight: 600; color: rgba(199,211,234,.5);
-      text-transform: uppercase; letter-spacing: 0.05em;
+      font-size: 0.88rem; font-weight: 600; color: rgba(199,211,234,.6);
       margin-bottom: 6px; display: block;
     }
     .ctx-chips {
       display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;
     }
     .ctx-chip {
-      padding: 4px 10px; font-size: 0.73rem; font-family: inherit;
+      padding: 5px 12px; font-size: 0.82rem; font-family: inherit;
       background: rgba(124,77,255,.1); border: 1px solid rgba(124,77,255,.25);
       border-radius: 20px; color: rgba(199,211,234,.7); cursor: pointer;
       transition: background 0.15s, color 0.15s;
@@ -254,7 +256,7 @@
       width: 100%; min-height: 60px; resize: vertical;
       background: rgba(6,6,14,.6); border: 1px solid rgba(199,211,234,.1);
       border-radius: 8px; color: #c7d3ea; font-family: inherit;
-      font-size: 0.82rem; padding: 10px 12px; line-height: 1.5;
+      font-size: 0.88rem; padding: 10px 12px; line-height: 1.5;
       transition: border-color 0.2s; box-sizing: border-box;
     }
     #custom-context:focus { outline: none; border-color: rgba(167,139,250,.4); }
@@ -407,6 +409,9 @@
     }
     .result-header { display: flex; align-items: center; justify-content: space-between; }
     .result-actions { display: flex; gap: 8px; align-items: center; }
+    .result-actions .copy-btn,
+    .result-actions .edit-btn,
+    .result-actions .btn { flex: 1; min-width: 0; justify-content: center; padding: 7px 12px !important; font-size: 0.81rem !important; }
 
     .empty-state {
       flex: 1; display: flex; flex-direction: column;
@@ -888,7 +893,7 @@
         </div>
 
         <div class="custom-context-wrap">
-          <label class="custom-context-label" for="custom-context">Инструкции (необязательно)</label>
+          <label class="custom-context-label" for="custom-context">Разовая настройка под эту вакансию (необязательно)</label>
           <div class="ctx-chips">
             <button type="button" class="ctx-chip" onclick="addCtxChip('Тон неформальный, без официоза')">неформальный тон</button>
             <button type="button" class="ctx-chip" onclick="addCtxChip('Подсвети AI-опыт сильнее — это главный акцент')">акцент на AI</button>
@@ -897,6 +902,7 @@
             <button type="button" class="ctx-chip" onclick="addCtxChip('Предложи в финале тестовое задание как CTA')">предложи тестовое</button>
           </div>
           <textarea id="custom-context" placeholder="Что упомянуть особенно или что убрать. Например: подсвети опыт с Claude Code сильнее; не упоминай зарплату; тон неформальный."></textarea>
+          <p style="margin:6px 0 0;font-size:0.78rem;color:#7a83a0;line-height:1.5">Настройки досье — базовые для всех писем. Здесь уточняешь только под эту вакансию — имеют приоритет над досье.</p>
         </div>
 
         <button class="btn btn-primary generate-btn" id="generate-btn" onclick="generateLetter()">
@@ -1775,6 +1781,7 @@
       if (es.suggest_call     != null) document.getElementById('d-suggest-call').checked = es.suggest_call;
       if (es.suggest_test_task != null) document.getElementById('d-suggest-task').checked = es.suggest_test_task;
       if (es.just_farewell    != null) document.getElementById('d-just-farewell').checked = es.just_farewell;
+      if (es.just_farewell) applyFarewellLock(true);
 
       const hasData = !!(data.profession_one_liner || (data.skills || []).length || (data.projects || []).length);
       if (hasData) {
@@ -1830,6 +1837,27 @@
   }
 
   loadDosie();
+
+  // ── Логика чекбоксов концовки (взаимоисключение) ──────────────────────────
+  function applyFarewellLock(locked) {
+    ['d-suggest-call', 'd-suggest-task'].forEach(id => {
+      const el = document.getElementById(id);
+      el.disabled = locked;
+      if (locked) el.checked = false;
+      el.closest('label').style.opacity = locked ? '0.4' : '';
+      el.closest('label').style.pointerEvents = locked ? 'none' : '';
+    });
+  }
+
+  document.getElementById('d-just-farewell').addEventListener('change', function() {
+    applyFarewellLock(this.checked);
+  });
+
+  ['d-suggest-call', 'd-suggest-task'].forEach(id => {
+    document.getElementById(id).addEventListener('change', function() {
+      if (this.checked) document.getElementById('d-just-farewell').checked = false;
+    });
+  });
 
   // ── История писем ─────────────────────────────────────────────────────────
 
