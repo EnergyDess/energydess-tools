@@ -1,55 +1,79 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap');
+/* ═══════════════════════════════════════════════════════════════════════════
+   energydess.ru — базовые стили
+   Источник правды: design-system.md. Всё, что противоречит ему — legacy.
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-@property --border-angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Токены ─────────────────────────────────────────────────────────────── */
 :root {
-  --bg:           #020209;
-  --bg2:          #07070f;
-  --bg3:          #0c0c1a;
-  --bg4:          #101020;
-  --border:       rgba(255,255,255,0.06);
-  --border-hi:    rgba(255,255,255,0.13);
-  --accent:       #00d4ff;
-  --accent2:      #7c4dff;
-  --accent-dim:   rgba(0,212,255,0.12);
-  --accent-glow:  rgba(0,212,255,0.22);
-  --accent2-dim:  rgba(124,77,255,0.12);
-  --text:         #e8ecf8;
-  --text-dim:     #5a6888;
-  --text-faint:   #7a83a0;
-  --success:      #00e5a0;
-  --error:        #ff4d6d;
-  --warning:      #ffb830;
-  --radius:       16px;
-  --radius-sm:    10px;
-  --radius-xs:    6px;
-  --font:         'Manrope', sans-serif;
-  --font-display: 'Syne', sans-serif;
-  --font-mono:    'DM Mono', monospace;
+  /* Fonts */
+  --font: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 
-  /* ── Новые токены дизайн-системы (SYSTEM.md) ──────────────────────────
-     Чисто аддитивные: старые --bg/--bg2/--bg3/--text/--text-dim и т.д.
-     не трогаем и не удаляем — старые страницы их используют как есть.
-     Эти токены — фундамент для новых тематизируемых разделов (.theme-*),
-     которые переопределяют часть из них под свой акцент/настроение. */
+  /* Surfaces — лесенка, шаги ощутимы глазом */
+  --surface-0: #0A0B0D;
+  --surface-1: #141520;
+  --surface-2: #1E2030;
+  --surface-3: #2A2C45;
 
-  /* Лесенка поверхностей — шаг между уровнями увеличен и заметен на глаз */
-  --surface-0: #06060d;   /* фон страницы (база) */
-  --surface-1: #141524;   /* карточки, панели */
-  --surface-2: #1e2036;   /* вложенные блоки: инпуты, textarea, под-карточки */
-  --surface-3: #2a2c47;   /* активные/выделенные вложенные элементы */
-  --border-strong: rgba(255,255,255,0.14);  /* hover, акцентные блоки */
+  /* Borders */
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.14);
+  --border-hairline: rgba(255,255,255,0.06);
 
-  /* Текст — новый вторичный токен (замена --text-dim и хардкодов #c7d3ea/#81899b) */
-  --text-2: #aeb8d4;
+  /* Text */
+  --text: #E8ECF8;
+  --text-2: #AEB8D4;
+  --text-faint: #7A83A0;
+  --text-strong: #FFFFFF;
 
-  /* Шкала отступов — раньше паддинги были зашиты в каждом компоненте */
+  /* Text sizes */
+  --text-display: clamp(2.5rem, 5vw, 4.5rem);
+  --text-h1: clamp(1.75rem, 4vw, 3rem);
+  --text-h2: clamp(1.375rem, 3vw, 2rem);
+  --text-h3: clamp(1.125rem, 2vw, 1.5rem);
+  --text-body-lg: 1.0625rem;
+  --text-body: 1rem;
+  --text-body-sm: 0.9375rem;
+  --text-nav: 0.9375rem;
+  --text-caption: 0.8125rem;
+  --text-mono: 0.75rem;
+
+  /* Accents */
+  --accent-brand: #4F8FFF;
+  --accent-brand-hover: #6BA0FF;
+  --accent-brand-dim: rgba(79,143,255,0.15);
+
+  --accent-hh: #4F8FFF;
+  --accent-hh-dim: rgba(79,143,255,0.15);
+  --accent-nutrition: #10B981;
+  --accent-nutrition-dim: rgba(16,185,129,0.15);
+  --accent-workout: #F59E0B;
+  --accent-workout-dim: rgba(245,158,11,0.15);
+  --accent-enshrouded: #D97706;
+  --accent-enshrouded-dim: rgba(217,119,6,0.15);
+
+  /* Semantic */
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error: #EF4444;
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.5);
+  --shadow-glow-brand: 0 0 24px rgba(79,143,255,0.25);
+
+  /* Spacing */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -57,95 +81,493 @@
   --space-5: 24px;
   --space-6: 32px;
   --space-7: 48px;
+  --space-8: 72px;
+  --space-9: 96px;
+  --space-10: 128px;
 
-  /* Градиент главной кнопки как переменная (значение то же, что уже
-     хардкодом в .btn-main — landing.html, не меняем существующий код) */
-  --grad-btn: linear-gradient(135deg, #7c4dff 0%, #00d4ff 100%);
+  /* Motion */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-slow: 400ms;
+
+  /* ── LEGACY SHIM — TODO: удалить после миграции nutrition/workout/
+     enshrouded/admin/index на новую систему (следующая сессия).
+     Старые имена переменных смаплены на новые токены, чтобы ещё не
+     переработанные страницы не сломались. Новый код эти имена НЕ использует. */
+  --bg:           var(--surface-0);
+  --bg2:          var(--surface-1);
+  --bg3:          var(--surface-2);
+  --border-hi:    var(--border-strong);
+  --accent:       var(--accent-brand);
+  --accent2:      var(--accent-brand);
+  --accent-dim:   var(--accent-brand-dim);
+  --accent2-dim:  var(--accent-brand-dim);
+  --text-dim:     var(--text-2);
+  --radius:       var(--radius-lg);
+  --font-display: var(--font);
+  --grad-btn:     var(--accent-brand);
 }
 
+/* ── Темы инструментов ──────────────────────────────────────────────────── */
+.theme-hh {
+  --tool-accent: var(--accent-hh);
+  --tool-accent-dim: var(--accent-hh-dim);
+}
+.theme-nutrition {
+  --tool-accent: var(--accent-nutrition);
+  --tool-accent-dim: var(--accent-nutrition-dim);
+}
+.theme-workout {
+  --tool-accent: var(--accent-workout);
+  --tool-accent-dim: var(--accent-workout-dim);
+}
+.theme-enshrouded {
+  --tool-accent: var(--accent-enshrouded);
+  --tool-accent-dim: var(--accent-enshrouded-dim);
+}
+
+/* ── База ───────────────────────────────────────────────────────────────── */
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;
-  /* Плавная база под 2К/4К и выше: на Full HD (1920px) и уже — ровно 16px
-     (как сейчас, без изменений), дальше плавно растёт до 17px на 2560px
-     (2K) и до потолка 19px на 3840px (4K) и шире. Все font-size в rem
-     по всему сайту масштабируются вместе с этой базой автоматически. */
+  /* Плавная база под 2К/4К: на Full HD ровно 16px, к 4K растёт до 19px.
+     Все rem-размеры масштабируются вместе с базой автоматически. */
   font-size: clamp(16px, 13px + 0.15625vw, 19px);
 }
 
 body {
   font-family: var(--font);
-  background: var(--bg);
+  background: var(--surface-0);
   color: var(--text);
+  font-size: var(--text-body);
   min-height: 100vh;
   line-height: 1.6;
   position: relative;
   overflow-x: hidden;
-}
-
-/* Animated mesh glow — persistent atmosphere */
-body::before {
-  content: '';
-  position: fixed;
-  inset: -15%;  /* перекрываем края чтобы translate/scale не оставляли чёрных полос */
-  background:
-    radial-gradient(ellipse 80% 60% at 10% 15%, rgba(0,212,255,0.045) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 80% at 88% 80%, rgba(124,77,255,0.065) 0%, transparent 55%),
-    radial-gradient(ellipse 50% 40% at 50% 110%, rgba(0,212,255,0.03) 0%, transparent 60%);
-  animation: meshDrift 28s ease-in-out infinite alternate;
-  pointer-events: none;
-  z-index: 0;
-}
-
-@keyframes meshDrift {
-  0%   { transform: translate(0,0) scale(1); }
-  30%  { transform: translate(-2%, 1.5%) scale(1.02); }
-  60%  { transform: translate(1.5%, -1%) scale(0.98); }
-  100% { transform: translate(2%, -2%) scale(1.03); }
-}
-
-/* ── Aurora atmosphere — заменяет particle-канвас ── */
-.aurora-bg {
-  position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
-}
-.aurora-bg::before, .aurora-bg::after, .aurora-bg span {
-  content: ''; position: absolute; border-radius: 50%;
-  filter: blur(120px); opacity: 0.18;
-  animation: auroraDrift 60s linear infinite;
-}
-.aurora-bg::before {
-  width: 70vw; height: 70vw; background: #7c4dff;
-  top: -20%; left: -10%; animation-duration: 55s;
-}
-.aurora-bg::after {
-  width: 60vw; height: 60vw; background: #00d4ff;
-  bottom: -20%; right: -10%;
-  animation-duration: 65s; animation-direction: reverse;
-}
-.aurora-bg span {
-  width: 55vw; height: 55vw; background: #5c2da0;
-  top: 20%; left: 8%; animation-duration: 70s; animation-direction: reverse;
-}
-@keyframes auroraDrift {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25%  { transform: translate(5vw, -5vh) scale(1.05); }
-  50%  { transform: translate(-3vw, 8vh) scale(0.95); }
-  75%  { transform: translate(8vw, 3vh) scale(1.03); }
-}
-@media (max-width: 768px) {
-  .aurora-bg::before { width: 50vw; height: 50vw; }
-  .aurora-bg::after  { width: 50vw; height: 50vw; }
-  .aurora-bg span    { width: 45vw; height: 45vw; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .aurora-bg::before, .aurora-bg::after, .aurora-bg span { animation: none; }
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .nav, main, footer, .auth-wrap { position: relative; z-index: 1; }
-/* Компенсация высоты фиксированного nav (60px) чтобы контент не прятался под шапкой */
+/* Компенсация высоты фиксированного nav (60px) на страницах со старой шапкой */
 main { padding-top: 60px; }
 
-/* ── Nav ─────────────────────────────────────────────────── */
+h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   КОМПОНЕНТНАЯ БАЗА
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  transition: border-color var(--dur-base) var(--ease),
+              transform var(--dur-base) var(--ease),
+              box-shadow var(--dur-base) var(--ease);
+}
+.card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.card-static:hover { transform: none; box-shadow: none; border-color: var(--border); }
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: var(--accent-brand);
+  color: #fff;
+  font-family: var(--font);
+  font-weight: 600;
+  font-size: var(--text-body);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  min-height: 40px;
+  transition: transform var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease),
+              filter var(--dur-fast) var(--ease);
+}
+.btn-primary:hover { background: var(--accent-brand-hover); transform: scale(1.02); }
+.btn-primary:active { transform: scale(1); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font);
+  font-weight: 500;
+  font-size: var(--text-body);
+  border: 1px solid var(--border-strong);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-decoration: none;
+  min-height: 40px;
+  transition: border-color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease);
+}
+.btn-secondary:hover {
+  border-color: var(--accent-brand);
+  background: var(--accent-brand-dim);
+}
+.btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: transparent;
+  color: var(--text-2);
+  font-family: var(--font);
+  font-weight: 500;
+  font-size: var(--text-body-sm);
+  border: none;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease);
+}
+.btn-ghost:hover { color: var(--text); }
+
+/* ── Signature: running-border ──────────────────────────────────────────────
+   Единственная «фишка» сайта. Периметр вычисляется JS (static/ui.js) через
+   getTotalLength() и пишется в --perimeter на элементе. Не хардкодить. */
+.btn-signature {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  color: var(--text);
+  font-family: var(--font);
+  font-weight: 500;
+  font-size: var(--text-body);
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  isolation: isolate;
+  min-height: 40px;
+}
+.signature-border {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  z-index: -1;
+  overflow: visible;
+  pointer-events: none;
+}
+.signature-border rect {
+  fill: transparent;
+  stroke: var(--accent-brand);
+  stroke-width: 1;
+  stroke-opacity: 0.45;
+  /* короткая светящаяся дуга + «невидимый» хвост длиной в периметр */
+  stroke-dasharray: 40 var(--perimeter, 1000);
+  stroke-dashoffset: 0;
+  animation: run-border 4s linear infinite;
+  filter: drop-shadow(0 0 4px var(--accent-brand));
+}
+@keyframes run-border {
+  to { stroke-dashoffset: calc(-1 * (var(--perimeter, 1000) + 40)); }
+}
+
+/* ── Inputs ─────────────────────────────────────────────────────────────── */
+.input, .textarea, .select {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--text-body);
+  line-height: 1.6;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
+}
+.textarea { resize: vertical; min-height: 96px; }
+.input:focus, .textarea:focus, .select:focus {
+  outline: none;
+  border-color: var(--tool-accent, var(--accent-brand));
+  box-shadow: 0 0 0 3px var(--tool-accent-dim, var(--accent-brand-dim));
+}
+.input::placeholder, .textarea::placeholder { color: var(--text-faint); }
+
+/* ── Chips / labels ─────────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-2);
+  font-family: var(--font);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  cursor: default;
+  transition: border-color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+button.chip, a.chip { cursor: pointer; }
+button.chip:hover, a.chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.chip.active {
+  background: var(--tool-accent-dim, var(--accent-brand-dim));
+  color: var(--tool-accent, var(--accent-brand));
+  border-color: var(--tool-accent, var(--accent-brand));
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+/* ── Modals ─────────────────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(6, 7, 13, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 100;
+}
+.modal {
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-lg);
+  max-width: 480px;
+  width: calc(100% - var(--space-6));
+  margin: 10vh auto;
+}
+
+/* ── Dividers ───────────────────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: var(--border-hairline);
+  border: none;
+  margin: var(--space-8) 0;
+}
+
+/* ── Sticky-шапка (новая) ───────────────────────────────────────────────── */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(10, 11, 13, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-hairline);
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: 0 var(--space-6);
+}
+.site-header .header-logo {
+  font-weight: 800;
+  font-size: var(--text-body);
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+.site-header .header-logo:hover { opacity: 0.85; }
+.header-search {
+  flex: 1;
+  max-width: 480px;
+  margin: 0 auto;
+  position: relative;
+}
+.header-search .input {
+  height: 38px;
+  padding: 0 var(--space-4) 0 38px;
+  font-size: var(--text-body-sm);
+  background: var(--surface-1);
+}
+.header-search .search-icon {
+  position: absolute; left: var(--space-3); top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+  width: 16px; height: 16px;
+  pointer-events: none;
+}
+.header-right { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; margin-left: auto; }
+
+/* ── Avatar ─────────────────────────────────────────────────────────────── */
+.avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--accent-brand-dim);
+  color: var(--accent-brand);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-caption);
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  user-select: none;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+.avatar:hover { border-color: var(--border-strong); }
+.avatar-lg { width: 96px; height: 96px; font-size: var(--text-h3); }
+
+.avatar-dropdown {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  min-width: 180px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-2);
+  z-index: 60;
+}
+.avatar-dropdown a, .avatar-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font-family: var(--font);
+  font-size: var(--text-body-sm);
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.avatar-dropdown a:hover, .avatar-dropdown button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* ── Tool icon ──────────────────────────────────────────────────────────── */
+.tool-icon {
+  width: 24px; height: 24px;
+  stroke-width: 1.5;
+  color: var(--tool-accent, var(--accent-brand));
+  flex-shrink: 0;
+}
+
+/* ── Breadcrumb ─────────────────────────────────────────────────────────── */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-caption);
+  color: var(--text-2);
+  padding: var(--space-4) 0;
+}
+.breadcrumb a { color: var(--text-2); text-decoration: none; transition: color var(--dur-fast) var(--ease); }
+.breadcrumb a:hover { color: var(--text); }
+.breadcrumb .crumb-sep { color: var(--text-faint); }
+.breadcrumb .crumb-current { color: var(--text); font-weight: 500; }
+
+/* ── Футер ──────────────────────────────────────────────────────────────── */
+.site-footer {
+  background: var(--surface-0);
+  border-top: 1px solid var(--border-hairline);
+  padding: var(--space-9) var(--space-6) var(--space-6);
+  margin-top: var(--space-9);
+}
+.site-footer-grid {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 2fr repeat(4, 1fr);
+  gap: var(--space-6);
+}
+.site-footer h4 {
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: var(--space-3);
+  letter-spacing: 0;
+}
+.site-footer ul { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
+.site-footer a {
+  color: var(--text-2);
+  text-decoration: none;
+  font-size: var(--text-body-sm);
+  transition: color var(--dur-fast) var(--ease);
+}
+.site-footer a:hover { color: var(--text); }
+.site-footer-bottom {
+  max-width: 1200px;
+  margin: var(--space-7) auto 0;
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-hairline);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  color: var(--text-faint);
+  font-size: var(--text-caption);
+}
+@media (max-width: 900px) {
+  .site-footer-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .site-footer-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Container ──────────────────────────────────────────────────────────── */
+.container { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
+
+/* ── Scroll reveal (Intersection Observer вешает .revealed) ─────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity var(--dur-slow) var(--ease-out),
+              transform var(--dur-slow) var(--ease-out);
+}
+.reveal.revealed { opacity: 1; transform: translateY(0); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LEGACY-КОМПОНЕНТЫ — используются страницами, ещё не мигрированными на новую
+   систему (nutrition, workout, enshrouded, admin, index, auth). Значения
+   переведены на новые токены. TODO: по мере миграции страниц — чистить.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Старая фиксированная шапка ─────────────────────────────────────────── */
 .nav {
   display: flex;
   align-items: center;
@@ -153,7 +575,7 @@ main { padding-top: 60px; }
   padding: 0 40px;
   height: 60px;
   border-bottom: 1px solid var(--border);
-  background: rgba(2,2,9,0.75);
+  background: rgba(10, 11, 13, 0.75);
   backdrop-filter: blur(28px) saturate(1.4);
   -webkit-backdrop-filter: blur(28px) saturate(1.4);
   position: fixed;
@@ -161,10 +583,7 @@ main { padding-top: 60px; }
   left: 0;
   right: 0;
   z-index: 100;
-  transition: transform 0.3s ease, background-color 0.3s ease;
 }
-.nav.nav-hidden { transform: translateY(-100%); }
-.nav.nav-glass  { background-color: rgba(6, 6, 13, 0.92); }
 
 .nav-logo {
   font-family: var(--font);
@@ -176,88 +595,49 @@ main { padding-top: 60px; }
   display: flex;
   align-items: center;
   gap: 7px;
-  transition: opacity 0.2s;
+  transition: opacity var(--dur-base) var(--ease);
 }
 .nav-logo:hover { opacity: 0.8; }
+.nav-logo-symbol { color: var(--accent-brand); }
+.logo-dess { color: var(--accent-brand); }
 
-.nav-logo-symbol {
-  color: var(--accent);
-  filter: drop-shadow(0 0 7px rgba(0,212,255,0.6));
-  transition: filter 0.3s;
-}
-.nav-logo:hover .nav-logo-symbol {
-  filter: drop-shadow(0 0 14px rgba(0,212,255,0.9));
-}
-.logo-dess {
-  background: linear-gradient(135deg, #7c4dff 0%, #00d4ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.nav-links {
-  display: flex;
-  gap: 6px;
-  list-style: none;
-}
-
-.nav-links a {
+.nav-links { display: flex; gap: 6px; list-style: none; }
+.nav-links a, .nav-right a {
   color: var(--text-2);
   text-decoration: none;
-  font-size: 0.9375rem; /* 15px — минимум по SYSTEM.md, было 14px */
+  font-size: var(--text-nav);
   font-weight: 500;
   padding: 7px 17px;
   border-radius: 99px;
   border: 1px solid transparent;
-  transition: all 0.2s;
+  transition: color var(--dur-base) var(--ease),
+              background var(--dur-base) var(--ease),
+              border-color var(--dur-base) var(--ease);
   letter-spacing: 0.01em;
 }
-.nav-links a:hover {
+.nav-links a:hover, .nav-right a:hover {
   color: var(--text);
-  border-color: var(--border-hi);
+  border-color: var(--border-strong);
   background: rgba(255,255,255,0.05);
 }
-.nav-links a.active {
-  color: var(--accent);
-  background: rgba(0,212,255,0.08);
-  border-color: rgba(0,212,255,0.18);
+.nav-links a.active, .nav-right a.active {
+  color: var(--accent-brand);
+  background: var(--accent-brand-dim);
+  border-color: var(--accent-brand);
 }
-
 .nav-right { display: flex; align-items: center; gap: 6px; }
-.nav-right a {
-  color: var(--text-2);
-  text-decoration: none;
-  font-size: 0.9375rem; /* 15px — минимум по SYSTEM.md, было 14px */
-  font-weight: 500;
-  padding: 7px 17px;
-  border-radius: 99px;
-  border: 1px solid transparent;
-  transition: all 0.2s;
-  letter-spacing: 0.01em;
-}
-.nav-right a:hover {
-  color: var(--text);
-  border-color: var(--border-hi);
-  background: rgba(255,255,255,0.05);
-}
-.nav-right a.active {
-  color: var(--accent);
-  background: rgba(0,212,255,0.08);
-  border-color: rgba(0,212,255,0.18);
-}
 .nav-right .nav-logout:hover {
   color: var(--error);
-  background: rgba(255,77,109,0.07);
-  border-color: rgba(255,77,109,0.15);
+  background: rgba(239,68,68,0.07);
+  border-color: rgba(239,68,68,0.15);
 }
-.admin-link { color: var(--accent2) !important; }
+.admin-link { color: var(--accent-brand) !important; }
 .admin-link:hover, .admin-link.active {
-  color: #b39dff !important;
-  background: rgba(124,77,255,0.1) !important;
-  border-color: rgba(124,77,255,0.22) !important;
+  background: var(--accent-brand-dim) !important;
+  border-color: var(--accent-brand) !important;
 }
 
-/* ── Buttons ──────────────────────────────────────────────── */
+/* ── Старая базовая кнопка (.btn .btn-primary / .btn-secondary в разметке) ── */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -265,168 +645,125 @@ main { padding-top: 60px; }
   gap: 8px;
   padding: 12px 24px;
   border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  font-size: var(--text-body-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
   border: none;
   text-decoration: none;
   font-family: var(--font);
   letter-spacing: 0.01em;
+  transition: transform var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
 }
-
-.btn-primary {
-  background: linear-gradient(135deg, var(--accent2) 0%, var(--accent) 100%);
-  color: #fff;
-  box-shadow: 0 4px 20px rgba(124,77,255,0.3);
-  position: relative;
-  overflow: hidden;
+.btn.btn-secondary {
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid var(--border-strong);
 }
-.btn-primary::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(124,77,255,0.4), 0 0 60px rgba(0,212,255,0.15);
-}
-.btn-primary:hover::after { opacity: 1; }
-.btn-primary:active { transform: translateY(0); box-shadow: 0 4px 16px rgba(124,77,255,0.25); }
-.btn-primary:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-.btn-secondary {
-  background: rgba(255,255,255,0.04);
-  color: var(--text-dim);
-  border: 1px solid var(--border);
-}
-.btn-secondary:hover {
-  background: rgba(255,255,255,0.08);
+.btn.btn-secondary:hover {
+  background: var(--accent-brand-dim);
   color: var(--text);
-  border-color: var(--border-hi);
+  border-color: var(--accent-brand);
 }
 
-/* ── Cards ────────────────────────────────────────────────── */
-.card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 28px;
-  transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
-  position: relative;
-  overflow: hidden;
-}
-.card:hover {
-  border-color: var(--border-hi);
-  transform: translateY(-2px);
-  box-shadow: 0 16px 48px rgba(0,0,0,0.45);
-}
-
-/* ── Inputs ───────────────────────────────────────────────── */
+/* ── Старые инпуты по тегам ─────────────────────────────────────────────── */
 textarea, input[type="text"], input[type="email"], input[type="password"] {
   width: 100%;
-  background: var(--bg3);
+  background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text);
   font-family: var(--font);
-  font-size: 0.9rem;
+  font-size: var(--text-body-sm);
   padding: 13px 16px;
   resize: vertical;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
   outline: none;
   line-height: 1.6;
 }
 textarea:focus, input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0,212,255,0.1);
+  border-color: var(--tool-accent, var(--accent-brand));
+  box-shadow: 0 0 0 3px var(--tool-accent-dim, var(--accent-brand-dim));
 }
-textarea::placeholder, input::placeholder { color: rgba(221,226,240,0.3); }
+textarea::placeholder, input::placeholder { color: var(--text-faint); }
 
 label {
   display: block;
   font-family: var(--font-mono);
-  font-size: 0.8125rem; /* 13px — минимум по SYSTEM.md, было ~11.5px */
+  font-size: var(--text-caption);
   font-weight: 500;
-  color: var(--text-dim);
+  color: var(--text-2);
   margin-bottom: 8px;
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
-/* ── Badge ────────────────────────────────────────────────── */
+/* ── Badge ──────────────────────────────────────────────────────────────── */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   font-family: var(--font-mono);
-  font-size: 0.8125rem; /* 13px — минимум по SYSTEM.md, было ~10.9px */
+  font-size: var(--text-caption);
   font-weight: 500;
   padding: 4px 10px;
   border-radius: 99px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-.badge-purple { background: var(--accent2-dim); color: #a78bfa; border: 1px solid rgba(124,77,255,0.2); }
-.badge-blue   { background: rgba(0,212,255,0.08); color: var(--accent); border: 1px solid rgba(0,212,255,0.18); }
-.badge-green  { background: rgba(0,229,160,0.08); color: #00e5a0; border: 1px solid rgba(0,229,160,0.18); }
+.badge-purple { background: var(--accent-brand-dim); color: var(--accent-brand); border: 1px solid var(--accent-brand); }
+.badge-blue   { background: var(--accent-brand-dim); color: var(--accent-brand); border: 1px solid var(--accent-brand); }
+.badge-green  { background: rgba(16,185,129,0.08); color: var(--success); border: 1px solid rgba(16,185,129,0.18); }
 
-/* ── Alerts ───────────────────────────────────────────────── */
+/* ── Alerts ─────────────────────────────────────────────────────────────── */
 .alert {
   padding: 13px 17px;
   border-radius: var(--radius-sm);
-  font-size: 0.875rem;
+  font-size: var(--text-caption);
   display: flex;
   align-items: flex-start;
   gap: 10px;
 }
-.alert-error   { background: rgba(255,77,109,0.08); border: 1px solid rgba(255,77,109,0.2); color: #ff8fa3; }
-.alert-success { background: rgba(0,229,160,0.08); border: 1px solid rgba(0,229,160,0.2); color: #00e5a0; }
+.alert-error   { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: var(--error); }
+.alert-success { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); color: var(--success); }
 
-/* ── Spinner ──────────────────────────────────────────────── */
+/* ── Spinner ────────────────────────────────────────────────────────────── */
 .spinner {
   width: 18px; height: 18px;
   border: 2px solid rgba(255,255,255,0.15);
-  border-top-color: var(--accent);
+  border-top-color: var(--tool-accent, var(--accent-brand));
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   flex-shrink: 0;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Copy btn ─────────────────────────────────────────────── */
+/* ── Copy btn ───────────────────────────────────────────────────────────── */
 .copy-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 0.8125rem; /* 13px — минимум по SYSTEM.md, было 12px */
+  font-size: var(--text-caption);
   font-weight: 500;
   padding: 6px 13px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   border: 1px solid var(--border);
-  background: rgba(255,255,255,0.03);
-  color: var(--text-dim);
-  transition: all 0.2s;
+  background: var(--surface-2);
+  color: var(--text-2);
+  transition: background var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease);
   font-family: inherit;
   letter-spacing: 0.02em;
 }
-.copy-btn:hover { background: rgba(255,255,255,0.07); color: var(--text); border-color: var(--border-hi); }
-.copy-btn.copied { border-color: rgba(0,229,160,0.3); background: rgba(0,229,160,0.08); color: #00e5a0; }
+.copy-btn:hover { background: var(--surface-3); color: var(--text); border-color: var(--border-strong); }
+.copy-btn.copied { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); color: var(--success); }
 
-/* ── Container ────────────────────────────────────────────── */
-.container { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
-
-/* ── Entry animations ─────────────────────────────────────── */
+/* ── Entry animations (используются старыми шаблонами) ─────────────────── */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(22px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -440,7 +777,7 @@ label {
   to   { opacity: 1; }
 }
 
-/* ── Auth pages ───────────────────────────────────────────── */
+/* ── Auth pages ─────────────────────────────────────────────────────────── */
 .auth-wrap {
   min-height: calc(100vh - 60px);
   display: flex;
@@ -449,66 +786,49 @@ label {
   padding: 60px 20px 40px;
 }
 .auth-box {
-  background: rgba(22,26,44,.92);
-  border: 1px solid rgba(199,211,234,.18);
-  border-radius: var(--radius);
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
   padding: 44px;
   width: 100%;
   max-width: 420px;
-  animation: fadeUp 0.5s ease both;
-  box-shadow:
-    inset 0px 1px 1px 0px rgba(199,211,234,.12),
-    0 24px 80px rgba(0,0,0,.55),
-    0 0 80px rgba(0,212,255,.05);
-  position: relative;
-  overflow: hidden;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  animation: fadeUp 0.5s var(--ease-out) both;
+  box-shadow: var(--shadow-lg);
 }
-.auth-box::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(199,211,234,.28), transparent);
-  pointer-events: none;
-  z-index: 0;
-}
-.auth-box > * { position: relative; z-index: 1; }
-
 .auth-box h1 {
   font-size: 1.6rem;
   font-weight: 800;
   margin-bottom: 8px;
   letter-spacing: -0.03em;
 }
-.auth-box > p { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 32px; }
+.auth-box > p { color: var(--text-2); font-size: var(--text-body-sm); margin-bottom: 32px; }
 
 .form-group { margin-bottom: 18px; }
 .form-group label {
   font-family: var(--font-mono);
-  font-size: 0.8125rem; /* 13px — минимум по SYSTEM.md, было ~11.2px */
-  color: var(--text-dim);
+  font-size: var(--text-caption);
+  color: var(--text-2);
   margin-bottom: 8px;
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 .form-group input {
   width: 100%;
-  background: rgba(8,10,22,.55);
-  border: 1px solid rgba(199,211,234,.16);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   color: var(--text);
-  font-size: 0.95rem;
+  font-size: var(--text-body-sm);
   font-family: var(--font);
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
   box-sizing: border-box;
 }
 .form-group input:focus {
-  border-color: rgba(0,212,255,.55);
-  box-shadow: 0 0 0 3px rgba(0,212,255,.08);
+  border-color: var(--accent-brand);
+  box-shadow: 0 0 0 3px var(--accent-brand-dim);
 }
 
 .input-wrap { position: relative; }
@@ -517,164 +837,74 @@ label {
   position: absolute; right: 0; top: 0; bottom: 0; width: 44px;
   display: flex; align-items: center; justify-content: center;
   background: none; border: none; cursor: pointer;
-  color: var(--text-faint); transition: color 0.2s; padding: 0;
+  color: var(--text-faint); transition: color var(--dur-fast) var(--ease); padding: 0;
 }
-.eye-btn:hover { color: var(--text-dim); }
+.eye-btn:hover { color: var(--text-2); }
 .eye-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
 
 .auth-btn-primary {
   width: 100%;
-  background: linear-gradient(135deg, var(--accent2) 0%, rgba(0,212,255,0.85) 100%);
+  background: var(--accent-brand);
   color: #fff;
   border: none;
   border-radius: var(--radius-sm);
   padding: 14px;
-  font-size: 0.95rem;
+  font-size: var(--text-body-sm);
   font-weight: 700;
   font-family: var(--font);
   cursor: pointer;
-  transition: all 0.22s;
+  transition: background var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease);
   margin-top: 8px;
   letter-spacing: 0.02em;
-  box-shadow: 0 4px 24px rgba(124,77,255,0.3);
 }
-.auth-btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 36px rgba(124,77,255,0.45), 0 0 60px rgba(0,212,255,0.12);
-}
+.auth-btn-primary:hover { background: var(--accent-brand-hover); transform: scale(1.01); }
 
-.auth-footer { text-align: center; margin-top: 24px; font-size: 0.875rem; color: var(--text-dim); }
-.auth-footer a { color: var(--accent); text-decoration: none; }
+.auth-footer { text-align: center; margin-top: 24px; font-size: var(--text-caption); color: var(--text-2); }
+.auth-footer a { color: var(--accent-brand); text-decoration: none; }
 .auth-footer a:hover { text-decoration: underline; }
 
 .error-msg {
-  background: rgba(255,77,109,0.08);
-  border: 1px solid rgba(255,77,109,0.2);
-  color: #ff8fa3;
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.2);
+  color: var(--error);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
-  font-size: 0.875rem;
+  font-size: var(--text-caption);
   margin-bottom: 20px;
 }
 .success-msg {
-  background: rgba(0,229,160,0.08);
-  border: 1px solid rgba(0,229,160,0.2);
-  color: #00e5a0;
+  background: rgba(16,185,129,0.08);
+  border: 1px solid rgba(16,185,129,0.2);
+  color: var(--success);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
-  font-size: 0.875rem;
+  font-size: var(--text-caption);
   margin-bottom: 20px;
 }
 
-/* ── Theme toggle ─────────────────────────────────────────── */
-#theme-toggle {
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xs);
-  width: 34px; height: 34px;
-  display: inline-flex; align-items: center; justify-content: center;
-  cursor: pointer; color: var(--text-faint); transition: all 0.2s;
-  flex-shrink: 0; margin-left: 6px; font-size: 0.9rem;
-}
-#theme-toggle:hover { border-color: var(--border-hi); color: var(--text); background: rgba(255,255,255,0.05); }
-
-/* ── Responsive ───────────────────────────────────────────── */
+/* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .nav { padding: 0 16px; }
   .container { padding: 0 16px; }
-  .nav-links a { padding: 6px 9px; } /* размер шрифта наследуется от десктопного (15px) — не уменьшаем ниже минимума */
+  .site-header { padding: 0 var(--space-4); }
+  .nav-links a { padding: 6px 9px; }
   .auth-box { padding: 32px 20px; }
-
-  /* Nav: сжать ссылки на мобилке */
   .nav-right { gap: 2px; }
-  .nav-right a { padding: 6px 10px; } /* размер шрифта наследуется от десктопного (15px) — не уменьшаем ниже минимума */
+  .nav-right a { padding: 6px 10px; }
   .nav-right .nav-hide-mobile { display: none; }
-
-  /* Auth pages */
   .auth-box h1 { font-size: 1.3rem; }
   .form-group input { font-size: 1rem; padding: 14px; }
   .auth-btn-primary { padding: 16px; font-size: 1rem; }
 }
 
-/* ═══════════════════════════════════════════════════════════
-   LIGHT THEME
-   ═══════════════════════════════════════════════════════════ */
-html.light {
-  --bg:          #f2f3fa;
-  --bg2:         #ffffff;
-  --bg3:         #eaebf5;
-  --bg4:         #e0e2f0;
-  --border:      rgba(0,0,0,0.07);
-  --border-hi:   rgba(0,0,0,0.14);
-  --accent:      #0099cc;
-  --accent2:     #6644dd;
-  --accent-dim:  rgba(0,153,204,0.1);
-  --accent-glow: rgba(0,153,204,0.18);
-  --accent2-dim: rgba(102,68,221,0.1);
-  --text:        #0d0e20;
-  --text-dim:    #4a5080;
-  --text-faint:  #9090b8;
-  --success:     #009970;
-  --error:       #cc2244;
+/* ── Prefers-reduced-motion — в самом конце, перекрывает всё ───────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .signature-border rect { animation: none; }
 }
-
-html.light body::before {
-  background:
-    radial-gradient(ellipse 80% 60% at 10% 15%, rgba(0,150,200,0.06) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 80% at 88% 80%, rgba(100,60,200,0.06) 0%, transparent 55%);
-}
-
-html.light body { background: var(--bg); color: var(--text); }
-
-html.light .nav {
-  background: rgba(242,243,250,0.85);
-  border-bottom-color: var(--border);
-}
-html.light .nav-links a:hover   { border-color: var(--border-hi); background: rgba(0,0,0,0.05); color: var(--text); }
-html.light .nav-links a.active  { background: rgba(0,153,204,0.09); border-color: rgba(0,153,204,0.2); }
-html.light .nav-right a:hover   { border-color: var(--border-hi); background: rgba(0,0,0,0.05); color: var(--text); }
-html.light .nav-right a.active  { background: rgba(0,153,204,0.09); border-color: rgba(0,153,204,0.2); }
-html.light .nav-right .nav-logout:hover { background: rgba(200,0,30,0.06); border-color: rgba(200,0,30,0.12); }
-html.light #theme-toggle:hover { background: rgba(0,0,0,0.05); }
-
-html.light .nav-logo-symbol {
-  filter: drop-shadow(0 0 7px rgba(0,150,200,0.5));
-}
-html.light .nav-logo:hover .nav-logo-symbol {
-  filter: drop-shadow(0 0 14px rgba(0,150,200,0.8));
-}
-
-html.light .btn-primary {
-  background: linear-gradient(135deg, var(--accent2) 0%, var(--accent) 100%);
-  box-shadow: 0 4px 20px rgba(102,68,221,0.28);
-  color: #fff;
-}
-html.light .btn-primary:hover { box-shadow: 0 8px 32px rgba(102,68,221,0.4); }
-html.light .btn-secondary { background: rgba(0,0,0,0.04); color: var(--text-dim); border-color: var(--border); }
-html.light .btn-secondary:hover { background: rgba(0,0,0,0.08); color: var(--text); border-color: var(--border-hi); }
-
-html.light .card:hover { box-shadow: 0 16px 48px rgba(0,0,0,0.1); }
-
-html.light textarea:focus,
-html.light input:focus { box-shadow: 0 0 0 3px rgba(0,153,204,0.12); }
-
-html.light .copy-btn { background: rgba(0,0,0,0.03); color: var(--text-dim); border-color: var(--border); }
-html.light .copy-btn:hover { background: rgba(0,0,0,0.07); color: var(--text); }
-html.light .copy-btn.copied { background: rgba(0,153,120,0.08); color: var(--success); border-color: rgba(0,153,120,0.25); }
-
-html.light .spinner { border-color: rgba(0,0,0,0.1); border-top-color: var(--accent); }
-
-html.light .auth-box {
-  box-shadow: 0 24px 80px rgba(0,0,0,0.1), 0 0 80px rgba(0,150,200,0.04);
-}
-html.light .auth-box::before {
-  background: linear-gradient(135deg, rgba(0,150,200,0.08), transparent 50%, rgba(100,60,200,0.06));
-}
-html.light .auth-btn-primary {
-  background: linear-gradient(135deg, var(--accent) 0%, #0077aa 100%);
-  box-shadow: 0 4px 20px rgba(0,153,204,0.22);
-}
-html.light .auth-btn-primary:hover { box-shadow: 0 8px 32px rgba(0,153,204,0.35); }
-
-html.light .badge-blue { background: rgba(0,153,204,0.08); color: var(--accent); border-color: rgba(0,153,204,0.18); }
-html.light .badge-green { background: rgba(0,153,112,0.08); color: var(--success); border-color: rgba(0,153,112,0.2); }

@@ -3,576 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HH Помощник — EnergyDess</title>
+  <title>HH-ассистент — EnergyDess</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-  <script src="/static/theme.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
-  <style>
-    .page-header { padding: 52px 0 32px; }
-    .back-link {
-      display: inline-flex; align-items: center; gap: 6px;
-      font-size: 0.85rem; color: rgba(199,211,234,.55); text-decoration: none;
-      margin-bottom: 24px; transition: color 0.2s;
-    }
-    .back-link:hover { color: #c7d3ea; }
-    .page-header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 10px; }
-    .page-header h1 span {
-      background: linear-gradient(135deg, #a78bfa, #60a5fa);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    }
-    .page-header p { color: #81899b; font-size: 0.95rem; }
-
-    /* ── Резюме (коллапс) ─────────────────────────────── */
-    .resume-card {
-      background: rgba(22,26,44,.88);
-      border: 1px solid rgba(199,211,234,.13);
-      border-radius: var(--radius);
-      margin-bottom: 24px;
-      overflow: hidden;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      box-shadow: inset 0 1px 1px rgba(199,211,234,.08), 0 8px 24px rgba(6,6,14,.5);
-    }
-    .resume-toggle {
-      width: 100%;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 24px;
-      background: none; border: none; cursor: pointer;
-      font-family: inherit; color: inherit; text-align: left;
-      transition: background 0.15s; gap: 12px;
-    }
-    .resume-toggle:hover { background: rgba(199,211,234,.04); }
-    .resume-toggle-left { display: flex; align-items: center; gap: 10px; }
-    .resume-toggle-title { font-size: 0.9rem; font-weight: 600; color: #c7d3ea; }
-    .resume-badge {
-      font-size: 0.72rem; font-weight: 500;
-      padding: 3px 10px; border-radius: 99px;
-    }
-    .resume-badge-ok   { background: rgba(16,185,129,0.14); color: #6ee7b7;  border: 1px solid rgba(16,185,129,0.28); }
-    .resume-badge-warn { background: rgba(245,158,11,0.12);  color: #fbbf24;  border: 1px solid rgba(245,158,11,0.25); }
-    .resume-chevron { width: 18px; height: 18px; color: rgba(199,211,234,.4); transition: transform 0.25s; flex-shrink: 0; }
-    .resume-chevron.open { transform: rotate(180deg); }
-
-    .resume-body { overflow: hidden; transition: max-height 0.3s ease; }
-    .resume-body-inner {
-      padding: 0 24px 20px;
-      display: flex; flex-direction: column; gap: 12px;
-      border-top: 1px solid rgba(199,211,234,.08);
-    }
-
-    .upload-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 4px; }
-    .upload-label {
-      display: inline-flex; align-items: center; gap: 7px;
-      padding: 8px 14px;
-      background: rgba(199,211,234,.06); border: 1px solid rgba(199,211,234,.16);
-      border-radius: var(--radius-sm);
-      font-size: 0.82rem; font-weight: 500; color: #81899b;
-      cursor: pointer; transition: all 0.2s; white-space: nowrap;
-    }
-    .upload-label:hover { border-color: rgba(167,139,250,.45); color: #c7d3ea; }
-    .upload-label svg { width: 15px; height: 15px; }
-    .upload-sep { font-size: 0.8rem; color: rgba(199,211,234,.3); }
-    .upload-status { font-size: 0.8rem; }
-    .upload-status.ok  { color: #34d399; }
-    .upload-status.err { color: #fca5a5; }
-
-    #resume-textarea {
-      width: 100%; min-height: 180px;
-      background: rgba(8,10,22,.5); border: 1px solid rgba(199,211,234,.14);
-      border-radius: var(--radius-sm); padding: 12px 14px;
-      color: #c7d3ea; font-size: 0.875rem; font-family: inherit;
-      line-height: 1.6; resize: vertical; outline: none;
-      transition: border-color 0.2s; box-sizing: border-box;
-    }
-    #resume-textarea:focus { border-color: rgba(0,212,255,.5); box-shadow: 0 0 0 3px rgba(0,212,255,.07); }
-
-    .resume-footer { display: flex; align-items: center; justify-content: space-between; }
-    .resume-chars  { font-size: 0.75rem; color: rgba(199,211,234,.3); }
-
-    /* Расширяем контейнер на этой странице */
-    main.container { max-width: 1600px; }
-
-    /* ── Workspace ──────────────────────────────────────── */
-    .workspace {
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 24px; padding-bottom: 60px;
-    }
-    @media (max-width: 900px) { .workspace { grid-template-columns: 1fr; } }
-    @media (max-width: 640px) {
-      .page-header { padding: 36px 0 20px; }
-      .page-header h1 { font-size: 1.5rem; }
-      .panel-card { padding: 16px; }
-      .result-panel { padding: 16px; min-height: 360px; }
-      #job-input { min-height: 200px; }
-      .resume-toggle { padding: 12px 16px; }
-      .resume-body-inner { padding: 0 16px 16px; }
-      /* Result header: wrap title and action buttons on separate lines */
-      .result-header { flex-wrap: wrap; gap: 8px; }
-      .result-actions { width: 100%; gap: 6px; }
-      .result-actions .copy-btn { flex: 1; justify-content: center; }
-      .result-actions .btn { flex: 1; }
-      /* URL row: prevent overflow */
-      .url-row { flex-wrap: wrap; }
-      .url-row input { min-width: 0; }
-    }
-
-    .panel { display: flex; flex-direction: column; gap: 20px; }
-    .panel-card {
-      background: rgba(22,26,44,.88); border: 1px solid rgba(199,211,234,.13);
-      border-radius: var(--radius); padding: 24px;
-      display: flex; flex-direction: column; gap: 14px;
-      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      box-shadow: inset 0 1px 1px rgba(199,211,234,.08), 0 12px 32px rgba(6,6,14,.5);
-      position: relative; overflow: hidden;
-    }
-    .panel-card::before {
-      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(199,211,234,.2), transparent);
-      pointer-events: none;
-    }
-    .panel-title {
-      font-size: 0.75rem; font-weight: 700; color: rgba(199,211,234,.5);
-      text-transform: uppercase; letter-spacing: 0.08em;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .panel-title::after { content: ''; flex: 1; height: 1px; background: rgba(199,211,234,.08); }
-
-    .tabs { display: flex; gap: 4px; background: rgba(8,10,22,.4); border-radius: var(--radius-sm); padding: 4px; border: 1px solid rgba(199,211,234,.08); }
-    .tab-btn {
-      flex: 1; padding: 8px 12px; border: none; border-radius: 6px;
-      font-size: 0.82rem; font-weight: 600; cursor: pointer;
-      transition: all 0.2s; font-family: inherit;
-      background: transparent; color: rgba(199,211,234,.35);
-    }
-    .tab-btn.active { background: rgba(199,211,234,.1); color: #c7d3ea; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
-    .tab-btn:hover:not(.active) { color: rgba(199,211,234,.65); }
-
-    .tab-panel { display: none; }
-    .tab-panel.active { display: flex; flex-direction: column; gap: 10px; }
-
-    #job-input {
-      min-height: 300px; font-size: 0.875rem;
-      background: rgba(8,10,22,.5); border: 1px solid rgba(199,211,234,.14);
-      color: #c7d3ea;
-    }
-    #job-input:focus { border-color: rgba(0,212,255,.5); box-shadow: 0 0 0 3px rgba(0,212,255,.07); }
-
-    .url-row { display: flex; gap: 8px; }
-    .url-row input {
-      flex: 1; height: 44px; padding: 0 14px;
-      background: rgba(8,10,22,.5); border: 1px solid rgba(199,211,234,.14); color: #c7d3ea;
-    }
-    .url-row input:focus { border-color: rgba(0,212,255,.5); }
-    .fetch-btn { height: 44px; padding: 0 16px; white-space: nowrap; font-size: 0.85rem; }
-
-    .fetched-preview {
-      background: rgba(8,10,22,.5); border: 1px solid rgba(199,211,234,.1);
-      border-radius: var(--radius-sm); padding: 12px 14px;
-      font-size: 0.8rem; color: #81899b;
-      max-height: 180px; overflow-y: auto;
-      white-space: pre-wrap; line-height: 1.5; display: none;
-    }
-    .fetched-preview.visible { display: block; }
-
-    .fetch-status { font-size: 0.8rem; display: none; align-items: center; gap: 6px; }
-    .fetch-status.visible { display: flex; }
-    .fetch-status.ok  { color: #34d399; }
-    .fetch-status.err { color: #fca5a5; }
-
-    .char-count { font-size: 0.75rem; color: rgba(199,211,234,.3); text-align: right; margin-top: -4px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
-    .draft-clear-btn {
-      background: none; border: none; cursor: pointer;
-      font-size: 0.72rem; color: rgba(199,211,234,.25); font-family: inherit;
-      padding: 0; transition: color 0.2s;
-    }
-    .draft-clear-btn:hover { color: rgba(248,113,113,.7); }
-    .generate-btn { width: 100%; padding: 15px; font-size: 0.95rem; }
-
-    .analyze-btn {
-      width: 100%; padding: 10px; font-size: 0.85rem; margin-top: 8px;
-      background: rgba(124,77,255,.1); border: 1px solid rgba(124,77,255,.25);
-      border-radius: 10px; color: #a78bfa; font-family: inherit; cursor: pointer;
-      transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
-    }
-    .analyze-btn:hover { background: rgba(124,77,255,.2); }
-    .analyze-btn:disabled { opacity: .5; cursor: default; }
-
-    .analysis-card {
-      margin-top: 10px;
-      background: rgba(14,14,28,.7); border: 1px solid rgba(124,77,255,.2);
-      border-radius: 12px; padding: 14px 16px;
-      display: none; flex-direction: column; gap: 10px;
-    }
-    .analysis-card.visible { display: flex; }
-    .analysis-score-row { display: flex; align-items: center; gap: 10px; }
-    .analysis-score-badge {
-      font-size: 1.1rem; font-weight: 700; padding: 4px 12px;
-      border-radius: 20px; flex-shrink: 0;
-    }
-    .analysis-reason { font-size: 0.8rem; color: #7a83a0; line-height: 1.5; }
-    .analysis-section-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(199,211,234,.35); margin-bottom: 4px; }
-    .analysis-tags { display: flex; flex-wrap: wrap; gap: 5px; }
-    .analysis-tag {
-      font-size: 0.72rem; padding: 3px 8px; border-radius: 20px;
-    }
-    .tag-match { background: rgba(52,211,153,.1); color: #34d399; border: 1px solid rgba(52,211,153,.2); }
-    .tag-miss  { background: rgba(248,113,113,.08); color: #f87171; border: 1px solid rgba(248,113,113,.15); }
-
-    .custom-context-wrap {
-      margin-top: 8px;
-    }
-    .custom-context-label {
-      font-size: 0.88rem; font-weight: 600; color: rgba(199,211,234,.6);
-      margin-bottom: 6px; display: block;
-    }
-    .ctx-chips {
-      display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;
-    }
-    .ctx-chip {
-      padding: 5px 12px; font-size: 0.82rem; font-family: inherit;
-      background: rgba(124,77,255,.1); border: 1px solid rgba(124,77,255,.25);
-      border-radius: 20px; color: rgba(199,211,234,.7); cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-    }
-    .ctx-chip:hover { background: rgba(124,77,255,.22); color: #c7d3ea; }
-
-    .edit-btn {
-      padding: 6px 12px; font-size: 0.8rem;
-      background: rgba(199,211,234,.07); border: 1px solid rgba(199,211,234,.15);
-      border-radius: 8px; color: #c7d3ea; cursor: pointer;
-      font-family: inherit; transition: background 0.2s;
-    }
-    .edit-btn:hover { background: rgba(199,211,234,.14); }
-    .edit-btn.active { background: rgba(0,212,255,.1); border-color: rgba(0,212,255,.3); color: var(--accent); }
-    .letter-content[contenteditable="true"] {
-      outline: none;
-      border: 1px solid rgba(0,212,255,.25);
-      border-radius: 8px; padding: 12px 14px;
-      background: rgba(6,6,14,.4);
-    }
-    #custom-context {
-      width: 100%; min-height: 60px; resize: vertical;
-      background: rgba(6,6,14,.6); border: 1px solid rgba(199,211,234,.1);
-      border-radius: 8px; color: #c7d3ea; font-family: inherit;
-      font-size: 0.88rem; padding: 10px 12px; line-height: 1.5;
-      transition: border-color 0.2s; box-sizing: border-box;
-    }
-    #custom-context:focus { outline: none; border-color: rgba(167,139,250,.4); }
-    #custom-context::placeholder { color: rgba(199,211,234,.25); }
-
-    .warn-box {
-      background: rgba(234,179,8,.08);
-      border: 1px solid rgba(234,179,8,.3);
-      border-radius: 10px; padding: 16px 18px;
-      display: flex; flex-direction: column; gap: 10px;
-    }
-    .warn-box-text { font-size: 0.88rem; color: #fbbf24; line-height: 1.5; }
-    .warn-box-score { font-size: 0.75rem; color: rgba(251,191,36,.6); }
-    .warn-force-btn {
-      align-self: flex-start;
-      padding: 8px 16px; font-size: 0.82rem;
-      background: rgba(234,179,8,.15); border: 1px solid rgba(234,179,8,.3);
-      border-radius: 8px; color: #fbbf24; cursor: pointer;
-      font-family: inherit; transition: background 0.2s;
-    }
-    .warn-force-btn:hover { background: rgba(234,179,8,.25); }
-
-    /* ── Модалка конфликтов парсера ─────────── */
-    .parse-modal-overlay {
-      position: fixed; inset: 0; z-index: 1000;
-      background: rgba(0,0,0,.65); backdrop-filter: blur(4px);
-      display: flex; align-items: center; justify-content: center; padding: 24px;
-    }
-    .parse-modal {
-      background: var(--surface-1,#1e2036); border: 1px solid rgba(199,211,234,.15);
-      border-radius: 16px; padding: 28px 28px 22px; max-width: 480px; width: 100%;
-      box-shadow: 0 24px 64px rgba(0,0,0,.6);
-    }
-    .parse-modal-title { font-size: 1rem; font-weight: 700; color: #e8ecf8; margin-bottom: 12px; }
-    .parse-modal-desc  { font-size: 0.82rem; color: #7a83a0; line-height: 1.6; margin-bottom: 10px; }
-    .parse-modal-list  { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-bottom: 22px; }
-    .parse-modal-list li {
-      font-size: 0.81rem; color: #aeb8d4;
-      background: rgba(199,211,234,.05); border: 1px solid rgba(199,211,234,.08);
-      border-radius: 8px; padding: 8px 12px; line-height: 1.4;
-    }
-    .parse-modal-list li b { color: #c7d3ea; }
-    .parse-modal-actions { display: flex; gap: 8px; margin-top: 4px; }
-    .pmbtn {
-      flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
-      padding: 12px 14px; font-family: inherit; text-align: left;
-      border-radius: 10px; cursor: pointer; border: 1px solid rgba(199,211,234,.2);
-      background: rgba(199,211,234,.07); transition: background 0.2s;
-    }
-    .pmbtn-title { font-size: 0.82rem; font-weight: 600; color: #c7d3ea; line-height: 1.2; }
-    .pmbtn-desc  { font-size: 0.72rem; color: #7a83a0; line-height: 1.4; }
-    .pmbtn:hover       { background: rgba(199,211,234,.13); }
-    .pmbtn.safe        { border-color: rgba(0,212,255,.3);   background: rgba(0,212,255,.08); }
-    .pmbtn.safe .pmbtn-title { color: var(--accent,#00d4ff); }
-    .pmbtn.safe:hover  { background: rgba(0,212,255,.15); }
-    .pmbtn.danger      { border-color: rgba(248,113,113,.3); background: rgba(248,113,113,.07); }
-    .pmbtn.danger .pmbtn-title { color: #f87171; }
-    .pmbtn.danger:hover { background: rgba(248,113,113,.13); }
-    @media (max-width: 480px) { .parse-modal-actions { flex-direction: column; } }
-
-    .history-section {
-      margin-top: 40px;
-    }
-    .history-toggle {
-      width: 100%; display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 20px;
-      background: rgba(22,26,44,.88); border: 1px solid rgba(199,211,234,.1);
-      border-radius: 12px 12px 0 0; cursor: pointer;
-      font-family: inherit; color: #c7d3ea;
-      font-size: 0.88rem; font-weight: 600;
-      transition: background 0.15s;
-    }
-    .history-toggle:hover { background: rgba(22,26,44,1); }
-    .history-toggle.open { border-bottom-color: transparent; }
-    .history-body {
-      overflow: hidden; max-height: 0;
-      transition: max-height 0.4s ease;
-      background: rgba(14,14,24,.6);
-      border: 1px solid rgba(199,211,234,.1); border-top: none;
-      border-radius: 0 0 12px 12px;
-    }
-    .history-body.open { max-height: 4000px; }
-    .history-list { display: flex; flex-direction: column; gap: 0; }
-    .history-item {
-      border-bottom: 1px solid rgba(199,211,234,.06);
-      overflow: hidden;
-    }
-    .history-item:last-child { border-bottom: none; }
-    .history-item-head {
-      width: 100%; display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 20px; background: none; border: none;
-      cursor: pointer; font-family: inherit; color: #c7d3ea;
-      text-align: left; gap: 12px; transition: background 0.15s;
-    }
-    .history-item-head:hover { background: rgba(199,211,234,.03); }
-    .history-item-meta { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-    .history-item-title { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .history-item-sub { font-size: 0.75rem; color: #7a83a0; }
-    .history-item-score {
-      font-size: 0.7rem; font-weight: 700; padding: 2px 7px;
-      border-radius: 20px; flex-shrink: 0;
-    }
-    .score-high { background: rgba(52,211,153,.15); color: #34d399; }
-    .score-mid  { background: rgba(251,191,36,.12); color: #fbbf24; }
-    .score-low  { background: rgba(248,113,113,.12); color: #f87171; }
-    .history-item-body {
-      max-height: 0; overflow: hidden;
-      transition: max-height 0.3s ease;
-      padding: 0 20px;
-    }
-    .history-item-body.open { max-height: 1200px; padding: 0 20px 16px; }
-    .history-letter-text {
-      white-space: pre-wrap; font-size: 0.85rem; color: #c7d3ea;
-      line-height: 1.65; padding: 14px 16px;
-      background: rgba(6,6,14,.5); border-radius: 8px;
-      border: 1px solid rgba(199,211,234,.08);
-    }
-    .history-letter-text a { color: var(--accent); }
-    .history-copy-btn {
-      margin-top: 8px; padding: 6px 14px; font-size: 0.78rem;
-      background: rgba(199,211,234,.07); border: 1px solid rgba(199,211,234,.15);
-      border-radius: 6px; color: #c7d3ea; cursor: pointer;
-      font-family: inherit; transition: background 0.2s;
-    }
-    .history-copy-btn:hover { background: rgba(199,211,234,.14); }
-
-    .tips {
-      background: rgba(22,26,44,.88);
-      border: 1px solid rgba(167,139,250,.2);
-      border-radius: var(--radius-sm); padding: 16px 18px;
-      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-    }
-    .tips-title { font-size: 0.75rem; font-weight: 700; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
-    .tips ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
-    .tips ul li { font-size: 0.8rem; color: #81899b; padding-left: 14px; position: relative; }
-    .tips ul li::before { content: '·'; position: absolute; left: 4px; color: #a78bfa; }
-
-    .result-panel {
-      background: rgba(22,26,44,.88); border: 1px solid rgba(199,211,234,.13);
-      border-radius: var(--radius); padding: 24px;
-      display: flex; flex-direction: column; gap: 16px; min-height: 500px;
-      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      box-shadow: inset 0 1px 1px rgba(199,211,234,.08), 0 12px 32px rgba(6,6,14,.5);
-      position: relative; overflow: hidden;
-    }
-    .result-panel::before {
-      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(199,211,234,.2), transparent);
-      pointer-events: none;
-    }
-    .result-header { display: flex; align-items: center; justify-content: space-between; }
-    .result-actions { display: flex; gap: 8px; align-items: center; }
-    .result-actions .copy-btn,
-    .result-actions .edit-btn,
-    .result-actions .btn { flex: 1; min-width: 0; justify-content: center; padding: 7px 12px !important; font-size: 0.81rem !important; }
-
-    .empty-state {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 14px; text-align: center; padding: 40px 20px;
-    }
-    .empty-icon {
-      width: 64px; height: 64px; border-radius: 16px;
-      background: rgba(124,58,237,.15); border: 1px solid rgba(124,58,237,.3);
-      display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
-    }
-    .empty-state h3 { font-size: 1rem; font-weight: 600; color: #c7d3ea; }
-    .empty-state p { font-size: 0.85rem; color: #81899b; max-width: 260px; }
-
-    .loading-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; display: none; }
-    .loading-bar { width: 200px; height: 3px; background: rgba(199,211,234,.1); border-radius: 3px; overflow: hidden; }
-    .loading-bar-inner {
-      height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
-      border-radius: 3px; animation: progress 2s ease-in-out infinite;
-    }
-    @keyframes progress {
-      0%   { width: 0%;  margin-left: 0; }
-      50%  { width: 70%; margin-left: 0; }
-      100% { width: 0%;  margin-left: 100%; }
-    }
-    .loading-text { font-size: 0.875rem; color: #81899b; }
-
-    .letter-content {
-      flex: 1; font-size: 0.9rem; line-height: 1.8; color: #c7d3ea;
-      white-space: pre-wrap; display: none; animation: fadeIn 0.4s ease;
-    }
-    .letter-content a { color: #a78bfa; text-decoration: none; }
-    .letter-content a:hover { text-decoration: underline; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-
-    .error-state { display: none; }
-
-    .letter-stats { display: flex; gap: 16px; padding-top: 14px; border-top: 1px solid rgba(199,211,234,.08); display: none; }
-    .stat { display: flex; flex-direction: column; gap: 2px; }
-    .stat-value { font-size: 1rem; font-weight: 700; color: #c7d3ea; }
-    .stat-label { font-size: 0.7rem; color: rgba(199,211,234,.3); text-transform: uppercase; letter-spacing: 0.05em; }
-
-    /* Toast */
-    .toast {
-      position: fixed; bottom: 24px; right: 24px;
-      background: rgba(22,26,44,.97); border: 1px solid rgba(199,211,234,.14);
-      border-radius: 10px; padding: 11px 18px;
-      font-size: 0.875rem; color: #c7d3ea;
-      opacity: 0; transform: translateY(8px);
-      transition: all 0.3s; pointer-events: none; z-index: 100;
-      backdrop-filter: blur(10px);
-    }
-    .toast.show { opacity: 1; transform: translateY(0); }
-
-    /* ── Досье ──────────────────────────────────────────────── */
-    .dosie-inner { gap: 10px; padding-bottom: 24px; }
-    .dosie-hint  { font-size: 0.78rem; color: rgba(199,211,234,.38); padding: 2px 0 6px; line-height: 1.5; }
-
-    /* Подсекции-аккордеоны */
-    .ds { border: 1px solid rgba(199,211,234,.1); border-radius: 10px; overflow: hidden; }
-    .ds-toggle {
-      width: 100%; display: flex; align-items: center; justify-content: space-between;
-      padding: 11px 16px; background: rgba(8,10,22,.35); border: none; cursor: pointer;
-      font-family: inherit; color: rgba(199,211,234,.65); font-size: 0.82rem; font-weight: 600;
-      text-align: left; gap: 10px; transition: background 0.15s;
-    }
-    .ds-toggle:hover { background: rgba(199,211,234,.05); color: #c7d3ea; }
-    .ds-chev { width: 14px; height: 14px; flex-shrink: 0; color: rgba(199,211,234,.3); transition: transform 0.25s; }
-    .ds-chev.open { transform: rotate(180deg); }
-    .ds-body { overflow: hidden; transition: max-height 0.3s ease; }
-    .ds-body-inner {
-      padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px;
-      border-top: 1px solid rgba(199,211,234,.07);
-    }
-
-    /* Поля формы */
-    .dosie-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    @media (max-width: 640px) { .dosie-row { grid-template-columns: 1fr; } }
-    .dosie-field { display: flex; flex-direction: column; gap: 5px; }
-    .dosie-field.full { grid-column: 1 / -1; }
-    .dosie-label { font-size: 0.7rem; font-weight: 700; color: rgba(199,211,234,.42); text-transform: uppercase; letter-spacing: 0.07em; }
-    .dosie-hint-sm { font-size: 0.74rem; color: rgba(199,211,234,.3); line-height: 1.45; margin-top: -2px; }
-
-    .dosie-input, .dosie-select, .dosie-textarea {
-      background: rgba(8,10,22,.5); border: 1px solid rgba(199,211,234,.14);
-      border-radius: var(--radius-sm); padding: 8px 12px;
-      color: #c7d3ea; font-size: 0.845rem; font-family: inherit;
-      outline: none; width: 100%; box-sizing: border-box; transition: border-color 0.2s;
-    }
-    .dosie-input:focus, .dosie-select:focus, .dosie-textarea:focus {
-      border-color: rgba(0,212,255,.45); box-shadow: 0 0 0 3px rgba(0,212,255,.06);
-    }
-    .dosie-select { cursor: pointer; }
-    .dosie-textarea { resize: vertical; line-height: 1.6; min-height: 88px; }
-
-    /* Динамические списки */
-    .dosie-list { display: flex; flex-direction: column; gap: 8px; }
-    .dosie-item {
-      background: rgba(8,10,22,.4); border: 1px solid rgba(199,211,234,.09);
-      border-radius: 8px; padding: 11px 36px 11px 12px; position: relative;
-    }
-    .dosie-item-del {
-      position: absolute; top: 8px; right: 10px;
-      background: none; border: none; cursor: pointer;
-      color: rgba(199,211,234,.22); font-size: 1.05rem; line-height: 1; padding: 2px 4px;
-      transition: color 0.15s;
-    }
-    .dosie-item-del:hover { color: #fca5a5; }
-    .dosie-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-    .dosie-g1 { margin-bottom: 8px; }
-    @media (max-width: 640px) { .dosie-g2 { grid-template-columns: 1fr; } }
-
-    .dosie-add-btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 6px 14px; border: 1px dashed rgba(199,211,234,.18);
-      border-radius: 7px; background: none; cursor: pointer;
-      color: rgba(199,211,234,.4); font-size: 0.78rem; font-family: inherit;
-      transition: all 0.2s; margin-top: 4px;
-    }
-    .dosie-add-btn:hover { border-color: rgba(0,212,255,.4); color: var(--accent); }
-
-    /* Теги */
-    .tag-wrap {
-      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
-      min-height: 40px; padding: 6px 10px;
-      background: rgba(8,10,22,.5); border: 1px solid rgba(199,211,234,.14);
-      border-radius: var(--radius-sm); cursor: text; transition: border-color 0.2s;
-    }
-    .tag-wrap:focus-within { border-color: rgba(0,212,255,.45); box-shadow: 0 0 0 3px rgba(0,212,255,.06); }
-    .tag-chip {
-      display: inline-flex; align-items: center; gap: 4px;
-      background: rgba(124,77,255,.18); border: 1px solid rgba(124,77,255,.3);
-      border-radius: 5px; padding: 3px 8px 3px 10px;
-      font-size: 0.77rem; color: #c4b5fd; white-space: nowrap;
-    }
-    .tag-chip-x {
-      background: none; border: none; cursor: pointer;
-      color: rgba(196,181,253,.45); font-size: 0.9rem; line-height: 1; padding: 0;
-      transition: color 0.15s;
-    }
-    .tag-chip-x:hover { color: #fca5a5; }
-    .tag-text-input {
-      background: none; border: none; outline: none; color: #c7d3ea;
-      font-size: 0.82rem; font-family: inherit; flex: 1; min-width: 120px;
-    }
-
-    /* Чекбоксы */
-    .dosie-checks { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
-    .dosie-check {
-      display: flex; align-items: center; gap: 10px; cursor: pointer;
-      font-size: 0.845rem; color: rgba(199,211,234,.68); padding: 3px 0; user-select: none;
-    }
-    .dosie-check input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
-
-    /* Кнопка сохранения */
-    .dosie-save-row { display: flex; justify-content: flex-end; padding-top: 6px; border-top: 1px solid rgba(199,211,234,.07); }
-  </style>
+  <link rel="stylesheet" href="/static/hh.css">
 </head>
-<body>
-<script>window.PARTICLE_THEME = { aurora: false };</script>
-<script src="/static/effects.js" defer></script>
+<body class="theme-hh">
 
 <nav class="nav">
   <a href="/" class="nav-logo">
@@ -590,407 +28,419 @@
 </nav>
 
 <main class="container">
-  <div class="page-header">
-    <a href="/" class="back-link">← Все инструменты</a>
-    <h1>HH <span>Помощник</span></h1>
-    <p>Вставь текст или ссылку на вакансию — получи сопроводительное письмо за 10 секунд</p>
-  </div>
 
-  <!-- Резюме (коллапс) -->
+  <nav class="breadcrumb" aria-label="Хлебные крошки">
+    <a href="/">Инструменты</a>
+    <span class="crumb-sep">/</span>
+    <span class="crumb-current">HH-ассистент</span>
+  </nav>
+
+  <header class="hh-page-header">
+    <span class="eyebrow"><i data-lucide="briefcase" class="tool-icon"></i> Карьера</span>
+    <h1>HH-ассистент</h1>
+    <p>Вставьте текст или ссылку на вакансию — получите сопроводительное письмо за 10 секунд</p>
+  </header>
+
   {% set has_resume = resume and resume.resume_text %}
-  <div class="resume-card">
-    <button class="resume-toggle" type="button" onclick="toggleResume()">
-      <div class="resume-toggle-left">
-        <span>📄</span>
-        <span class="resume-toggle-title">Моё резюме</span>
-        <span class="resume-badge {{ 'resume-badge-ok' if has_resume else 'resume-badge-warn' }}" id="resume-badge">
-          {%- if has_resume -%}✓ {{ resume.resume_text|length }} символов{%- else -%}Не добавлено{%- endif -%}
-        </span>
-      </div>
-      <svg class="resume-chevron {% if not has_resume %}open{% endif %}" id="resume-chevron"
-           viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-           stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="6 9 12 15 18 9"/>
-      </svg>
+
+  <!-- ── Табы разделов ─────────────────────────────────────────────────── -->
+  <div class="hh-tabs" role="tablist">
+    <button class="hh-tab active" data-view="write" onclick="switchView('write')">
+      <i data-lucide="pen-line"></i> Написать письмо
     </button>
-    <div class="resume-body" id="resume-body" style="max-height: {{ '0px' if has_resume else '700px' }}">
-      <div class="resume-body-inner">
-        <div class="upload-row">
-          <label class="upload-label" for="resume-file">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-            Загрузить PDF / DOCX
-            <input type="file" id="resume-file" accept=".pdf,.doc,.docx" style="display:none" onchange="uploadResumeFile(this)">
-          </label>
-          <span class="upload-sep">или вставьте текст ниже</span>
-          <span class="upload-status" id="upload-status"></span>
-        </div>
-        <textarea id="resume-textarea"
-          placeholder="Имя, должность, опыт работы, навыки, проекты, ссылки на портфолио..."
-          oninput="updateResumeChars()">{{ resume.resume_text if has_resume else '' }}</textarea>
-        <div class="resume-footer">
-          <span class="resume-chars" id="resume-chars">{{ (resume.resume_text|length)|string + ' симв.' if has_resume else '0 симв.' }}</span>
-          <div style="display:flex;gap:8px;align-items:center">
-            <button class="btn btn-secondary" style="padding:9px 16px;font-size:.8rem" type="button" id="parse-dossier-btn" onclick="parseResumeToDossier()">✦ Заполнить досье</button>
-            <button class="btn btn-primary" style="padding:9px 20px;font-size:.875rem" type="button" id="resume-save-btn" onclick="saveResume()">Сохранить</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <button class="hh-tab" data-view="history" onclick="switchView('history')">
+      <i data-lucide="history"></i> История писем
+    </button>
+    <button class="hh-tab" data-view="dossier" onclick="switchView('dossier')">
+      <i data-lucide="folder-open"></i> Досье
+    </button>
+    <button class="hh-tab" data-view="resume" onclick="switchView('resume')">
+      <i data-lucide="file-text"></i> Резюме
+      <span class="resume-badge {{ 'resume-badge-ok' if has_resume else 'resume-badge-warn' }}" id="resume-badge">
+        {%- if has_resume -%}✓{%- else -%}нет{%- endif -%}
+      </span>
+    </button>
   </div>
 
-  <!-- ── Досье ─────────────────────────────────────────────── -->
-  <div class="resume-card">
-    <button class="resume-toggle" type="button" onclick="toggleDosie()">
-      <div class="resume-toggle-left">
-        <span>🗂</span>
-        <span class="resume-toggle-title">Моё досье</span>
-        <span class="resume-badge resume-badge-warn" id="dosie-badge">Не заполнено</span>
-      </div>
-      <svg class="resume-chevron" id="dosie-chevron"
-           viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-           stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="6 9 12 15 18 9"/>
-      </svg>
-    </button>
-    <div class="resume-body" id="dosie-body" style="max-height: 0px">
-      <div class="resume-body-inner dosie-inner">
-        <p class="dosie-hint">Расширенный контекст — используется при генерации писем: проекты, опыт вне резюме, стиль подачи.</p>
+  <!-- ── Вкладка: написать письмо ──────────────────────────────────────── -->
+  <section class="hh-view active" id="view-write">
+    <div class="workspace">
 
-        <!-- 1 — Основная информация -->
-        <div class="ds">
-          <button class="ds-toggle" type="button" onclick="toggleDs(this)">
-            <span>1 — Основная информация</span>
-            <svg class="ds-chev open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="ds-body" style="max-height: 3000px">
-            <div class="ds-body-inner">
-              <div class="dosie-row">
-                <div class="dosie-field full">
-                  <label class="dosie-label">Профессия (одной строкой)</label>
-                  <input class="dosie-input" id="d-profession" placeholder="AI Video Creator · Fullstack Developer">
-                </div>
-                <div class="dosie-field">
-                  <label class="dosie-label">Город / локация</label>
-                  <input class="dosie-input" id="d-location" placeholder="Москва, Россия">
-                </div>
-                <div class="dosie-field">
-                  <label class="dosie-label">Часовой пояс</label>
-                  <input class="dosie-input" id="d-timezone" placeholder="UTC+3">
-                </div>
-                <div class="dosie-field">
-                  <label class="dosie-label">Формат работы</label>
-                  <select class="dosie-select" id="d-work-format">
-                    <option value="">— не указано —</option>
-                    <option value="удалёнка">Удалёнка</option>
-                    <option value="офис">Офис</option>
-                    <option value="гибрид">Гибрид</option>
-                    <option value="любой">Любой</option>
-                  </select>
-                </div>
-              </div>
-              <div class="dosie-field">
-                <label class="dosie-label">Языки</label>
-                <div class="dosie-list" id="d-languages"></div>
-                <button class="dosie-add-btn" type="button" onclick="addLanguage()">+ Добавить язык</button>
-              </div>
-            </div>
-          </div>
-        </div>
+      <!-- Левая колонка: ввод -->
+      <div class="panel">
+        <div class="card card-static vacancy-card">
+          <div class="panel-title">Вакансия</div>
 
-        <!-- 2 — Опыт -->
-        <div class="ds">
-          <button class="ds-toggle" type="button" onclick="toggleDs(this)">
-            <span>2 — Опыт (дополнительно к резюме)</span>
-            <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="ds-body" style="max-height: 0px">
-            <div class="ds-body-inner">
-              <div class="dosie-field">
-                <label class="dosie-label">Общий срок в профессии</label>
-                <input class="dosie-input" id="d-years" placeholder="5 лет, из них 3 — в AI-видео">
-              </div>
-              <div class="dosie-field">
-                <label class="dosie-label">Опыт вне резюме</label>
-                <p class="dosie-hint-sm">Дополнение к резюме: контекст, детали, связи, которые не влезли на hh.ru.</p>
-                <div class="dosie-list" id="d-experience"></div>
-                <button class="dosie-add-btn" type="button" onclick="addExperience()">+ Добавить место работы</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 3 — Проекты -->
-        <div class="ds">
-          <button class="ds-toggle" type="button" onclick="toggleDs(this)">
-            <span>3 — Проекты и портфолио</span>
-            <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="ds-body" style="max-height: 0px">
-            <div class="ds-body-inner">
-              <div class="dosie-list" id="d-projects"></div>
-              <button class="dosie-add-btn" type="button" onclick="addProject()">+ Добавить проект</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 4 — Навыки -->
-        <div class="ds">
-          <button class="ds-toggle" type="button" onclick="toggleDs(this)">
-            <span>4 — Навыки и инструменты</span>
-            <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="ds-body" style="max-height: 0px">
-            <div class="ds-body-inner">
-              <div class="dosie-field">
-                <label class="dosie-label">Навыки и инструменты</label>
-                <p class="dosie-hint-sm">Вводи через запятую или нажимай Enter после каждого тега.</p>
-                <div class="tag-wrap" id="d-skills-wrap" onclick="document.getElementById('d-skills-input').focus()">
-                  <input class="tag-text-input" id="d-skills-input" placeholder="Python, FastAPI, Claude API..." autocomplete="off">
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 5 — Методология -->
-        <div class="ds">
-          <button class="ds-toggle" type="button" onclick="toggleDs(this)">
-            <span>5 — Как я работаю</span>
-            <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="ds-body" style="max-height: 0px">
-            <div class="ds-body-inner">
-              <div class="dosie-field">
-                <label class="dosie-label">Методология и рабочий процесс</label>
-                <p class="dosie-hint-sm">Рабочий процесс, методика, принципы. Часто это выделяет из массы кандидатов.</p>
-                <textarea class="dosie-textarea" id="d-methodology" placeholder="Строю AI-продукты итерациями: прототип за день, затем шлифую по фидбэку. Пишу всё сам — без тяжёлых фреймворков, только то, что нужно задаче."></textarea>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 6 — Доп. контекст -->
-        <div class="ds">
-          <button class="ds-toggle" type="button" onclick="toggleDs(this)">
-            <span>6 — Дополнительный контекст</span>
-            <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="ds-body" style="max-height: 0px">
-            <div class="ds-body-inner">
-              <div class="dosie-field">
-                <label class="dosie-label">Что ещё важно учесть</label>
-                <textarea class="dosie-textarea" id="d-extra" placeholder="Например: ищу частичную занятость; готов к командировкам до 2 раз в год; предпочтительны стартапы на стадии роста."></textarea>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 7 — Тон -->
-        <div class="ds">
-          <button class="ds-toggle" type="button" onclick="toggleDs(this)">
-            <span>7 — Тон и стиль писем</span>
-            <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="ds-body" style="max-height: 0px">
-            <div class="ds-body-inner">
-              <div class="dosie-row">
-                <div class="dosie-field">
-                  <label class="dosie-label">Тон</label>
-                  <select class="dosie-select" id="d-tone">
-                    <option value="">— не указано —</option>
-                    <option value="живой">Живой</option>
-                    <option value="формально-деловой">Формально-деловой</option>
-                    <option value="нейтральный">Нейтральный</option>
-                    <option value="очень неформальный">Очень неформальный</option>
-                  </select>
-                </div>
-                <div class="dosie-field">
-                  <label class="dosie-label">Что не упоминать в письмах</label>
-                  <textarea class="dosie-textarea" id="d-never-mention" style="min-height: 72px" placeholder="Не упоминать ЗП; не писать про фриланс-опыт..."></textarea>
-                </div>
-              </div>
-              <div class="dosie-field">
-                <label class="dosie-label">Концовка письма</label>
-                <div class="dosie-checks">
-                  <label class="dosie-check">
-                    <input type="checkbox" id="d-suggest-call">
-                    Предлагать созвон в конце
-                  </label>
-                  <label class="dosie-check">
-                    <input type="checkbox" id="d-suggest-task">
-                    Предлагать тестовое задание в конце
-                  </label>
-                  <label class="dosie-check">
-                    <input type="checkbox" id="d-just-farewell">
-                    Не предлагать ничего, просто попрощаться
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="dosie-save-row">
-          <button class="btn btn-primary" id="dosie-save-btn" type="button" onclick="saveDosie()" style="padding: 11px 32px; font-size: 0.9rem;">Сохранить досье</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="workspace">
-
-    <!-- Левая панель: ввод -->
-    <div class="panel">
-      <div class="panel-card">
-        <div class="panel-title">Вакансия</div>
-
-        <div class="tabs">
-          <button class="tab-btn active" onclick="switchTab('text')">📋 Текст</button>
-          <button class="tab-btn" onclick="switchTab('url')">🔗 Ссылка</button>
-        </div>
-
-        <div class="tab-panel active" id="tab-text">
-          <textarea id="job-input" placeholder="Вставь сюда описание вакансии с HH или любого другого сайта...&#10;&#10;Чем полнее текст — тем точнее письмо."></textarea>
-          <div class="char-count">
-            <span id="char-count">0</span> символов
-            <button class="draft-clear-btn" id="clear-text-btn" onclick="clearJobText()" title="Очистить" style="display:none">✕ Очистить</button>
-          </div>
-        </div>
-
-        <div class="tab-panel" id="tab-url">
-          <div class="url-row">
-            <input type="text" id="url-input" placeholder="https://hh.ru/vacancy/..."/>
-            <button class="btn btn-secondary fetch-btn" id="fetch-btn" onclick="fetchUrl()">
-              <span id="fetch-icon">↓</span> Загрузить
+          <div class="source-tabs">
+            <button class="source-tab active" onclick="switchTab('text')">
+              <i data-lucide="clipboard-list"></i> Текст
+            </button>
+            <button class="source-tab" onclick="switchTab('url')">
+              <i data-lucide="link"></i> Ссылка
             </button>
           </div>
-          <div class="fetch-status" id="fetch-status"></div>
-          <div class="fetched-preview" id="fetched-preview"></div>
-        </div>
 
-        <button class="analyze-btn" id="analyze-btn" onclick="analyzeVacancy()">
-          <span id="analyze-icon">◎</span>
-          <span id="analyze-text">Проверить совпадение с резюме</span>
-        </button>
-
-        <div class="analysis-card" id="analysis-card">
-          <div class="analysis-score-row">
-            <span class="analysis-score-badge" id="analysis-score-badge"></span>
-            <span class="analysis-reason" id="analysis-reason"></span>
+          <div class="tab-panel active" id="tab-text">
+            <textarea class="textarea" id="job-input" placeholder="Вставьте сюда описание вакансии с HH или любого другого сайта...&#10;&#10;Чем полнее текст — тем точнее письмо."></textarea>
+            <div class="char-count">
+              <span id="char-count">0</span>&nbsp;символов
+              <button class="draft-clear-btn" id="clear-text-btn" onclick="clearJobText()" title="Очистить" style="display:none">✕ Очистить</button>
+            </div>
           </div>
-          <div id="analysis-matches-wrap">
-            <div class="analysis-section-title">Совпадения</div>
-            <div class="analysis-tags" id="analysis-matches"></div>
+
+          <div class="tab-panel" id="tab-url">
+            <div class="url-row">
+              <input type="text" class="input" id="url-input" placeholder="https://hh.ru/vacancy/..."/>
+              <button class="btn-secondary fetch-btn" id="fetch-btn" onclick="fetchUrl()">
+                <span id="fetch-icon">↓</span> Загрузить
+              </button>
+            </div>
+            <div class="fetch-status" id="fetch-status"></div>
+            <div class="fetched-preview" id="fetched-preview"></div>
           </div>
-          <div id="analysis-missing-wrap">
-            <div class="analysis-section-title">Чего не хватает</div>
-            <div class="analysis-tags" id="analysis-missing"></div>
-          </div>
-        </div>
 
-        <div class="custom-context-wrap">
-          <label class="custom-context-label" for="custom-context">Разовая настройка под эту вакансию (необязательно)</label>
-          <div class="ctx-chips">
-            <button type="button" class="ctx-chip" onclick="addCtxChip('Тон неформальный, без официоза')">неформальный тон</button>
-            <button type="button" class="ctx-chip" onclick="addCtxChip('Подсвети AI-опыт сильнее — это главный акцент')">акцент на AI</button>
-            <button type="button" class="ctx-chip" onclick="addCtxChip('Не упоминай зарплатные ожидания')">без ЗП</button>
-            <button type="button" class="ctx-chip" onclick="addCtxChip('Сделай письмо короче, около 100 слов')">короче</button>
-            <button type="button" class="ctx-chip" onclick="addCtxChip('Предложи в финале тестовое задание как CTA')">предложи тестовое</button>
-          </div>
-          <textarea id="custom-context" placeholder="Что упомянуть особенно или что убрать. Например: подсвети опыт с Claude Code сильнее; не упоминай зарплату; тон неформальный."></textarea>
-          <p style="margin:6px 0 0;font-size:0.78rem;color:#7a83a0;line-height:1.5">Настройки досье — базовые для всех писем. Здесь уточняешь только под эту вакансию — имеют приоритет над досье.</p>
-        </div>
-
-        <button class="btn btn-primary generate-btn" id="generate-btn" onclick="generateLetter()">
-          <span id="btn-icon">✦</span>
-          <span id="btn-text">Написать письмо</span>
-        </button>
-      </div>
-
-      <div class="tips">
-        <div class="tips-title">💡 Советы</div>
-        <ul>
-          <li>Текст: вставляй полное описание — требования, задачи, условия</li>
-          <li>Ссылка: работает для большинства сайтов с вакансиями</li>
-          <li>HH.ru может блокировать загрузку — тогда копируй текст вручную</li>
-          <li>Если в вакансии есть вопросы — ответы попадут в письмо</li>
-          <li>Ctrl+Enter — быстрая генерация</li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- Правая панель: результат -->
-    <div class="result-panel" id="result-panel">
-      <div class="result-header">
-        <div class="panel-title" style="flex:1">Сопроводительное письмо</div>
-        <div class="result-actions" id="result-actions" style="display:none">
-          <button class="copy-btn" id="copy-btn" onclick="copyLetter()">
-            <span>⎘</span> Копировать
+          <button class="btn-secondary analyze-btn" id="analyze-btn" onclick="analyzeVacancy()">
+            <span id="analyze-icon"></span>
+            <span id="analyze-text">Проверить совпадение с резюме</span>
           </button>
-          <button class="edit-btn" id="edit-btn" onclick="toggleLetterEdit()">✎ Редактировать</button>
-          <button class="btn btn-secondary" style="padding:6px 12px;font-size:0.8rem" onclick="generateLetter()">
-            ↻ Перегенерировать
+
+          <div class="analysis-card" id="analysis-card">
+            <div class="analysis-score-row">
+              <span class="analysis-score-badge" id="analysis-score-badge"></span>
+              <span class="analysis-reason" id="analysis-reason"></span>
+            </div>
+            <div id="analysis-matches-wrap">
+              <div class="analysis-section-title">Совпадения</div>
+              <div class="analysis-tags" id="analysis-matches"></div>
+            </div>
+            <div id="analysis-missing-wrap">
+              <div class="analysis-section-title">Чего не хватает</div>
+              <div class="analysis-tags" id="analysis-missing"></div>
+            </div>
+          </div>
+
+          <div class="custom-context-wrap">
+            <label class="custom-context-label" for="custom-context">Разовая настройка под эту вакансию (необязательно)</label>
+            <div class="ctx-chips">
+              <button type="button" class="chip" onclick="addCtxChip('Тон неформальный, без официоза')">неформальный тон</button>
+              <button type="button" class="chip" onclick="addCtxChip('Подсвети AI-опыт сильнее — это главный акцент')">акцент на AI</button>
+              <button type="button" class="chip" onclick="addCtxChip('Не упоминай зарплатные ожидания')">без ЗП</button>
+              <button type="button" class="chip" onclick="addCtxChip('Сделай письмо короче, около 100 слов')">короче</button>
+              <button type="button" class="chip" onclick="addCtxChip('Предложи в финале тестовое задание как CTA')">предложи тестовое</button>
+            </div>
+            <textarea class="textarea" id="custom-context" placeholder="Что упомянуть особенно или что убрать. Например: подсвети опыт с Claude Code сильнее; не упоминай зарплату; тон неформальный."></textarea>
+            <p class="ctx-hint">Настройки досье — базовые для всех писем. Здесь уточняете только под эту вакансию — эти указания имеют приоритет над досье.</p>
+          </div>
+
+          <button class="btn-primary generate-btn" id="generate-btn" onclick="generateLetter()">
+            <span id="btn-icon"></span>
+            <span id="btn-text">Написать письмо</span>
           </button>
         </div>
-      </div>
 
-      <div class="empty-state" id="empty-state">
-        <div class="empty-icon">✦</div>
-        <h3>Здесь появится письмо</h3>
-        <p>Вставь текст или ссылку на вакансию и нажми кнопку</p>
-      </div>
-
-      <div class="loading-state" id="loading-state">
-        <div class="spinner" style="width:32px;height:32px;border-width:3px"></div>
-        <div class="loading-bar"><div class="loading-bar-inner"></div></div>
-        <div class="loading-text" id="loading-text">Анализирую вакансию и резюме...</div>
-      </div>
-
-      <div class="error-state" id="error-state">
-        <div class="alert alert-error" id="error-msg"></div>
-      </div>
-
-      <div id="warn-state" style="display:none">
-        <div class="warn-box">
-          <div class="warn-box-text" id="warn-msg"></div>
-          <div class="warn-box-score" id="warn-score"></div>
-          <button class="warn-force-btn" onclick="generateLetter(true)">Сгенерировать всё равно →</button>
+        <div class="card card-static tips">
+          <div class="tips-title"><i data-lucide="lightbulb"></i> Советы</div>
+          <ul>
+            <li>Текст: вставляйте полное описание — требования, задачи, условия</li>
+            <li>Ссылка: работает для большинства сайтов с вакансиями</li>
+            <li>HH.ru может блокировать загрузку — тогда скопируйте текст вручную</li>
+            <li>Если в вакансии есть вопросы — ответы попадут в письмо</li>
+            <li>Ctrl+Enter — быстрая генерация</li>
+          </ul>
         </div>
       </div>
 
-      <div class="letter-content" id="letter-content"></div>
-
-      <div class="letter-stats" id="letter-stats">
-        <div class="stat">
-          <div class="stat-value" id="word-count">—</div>
-          <div class="stat-label">слов</div>
+      <!-- Правая колонка: результат -->
+      <div class="card card-static result-panel" id="result-panel">
+        <div class="result-header">
+          <div class="panel-title" style="flex:1">Сопроводительное письмо</div>
+          <div class="result-actions" id="result-actions" style="display:none">
+            <button class="btn-secondary" id="copy-btn" onclick="copyLetter()">
+              <i data-lucide="copy"></i><span id="copy-btn-label">Копировать</span>
+            </button>
+            <button class="btn-secondary" id="edit-btn" onclick="toggleLetterEdit()">
+              <i data-lucide="edit-3"></i><span id="edit-btn-label">Редактировать</span>
+            </button>
+            <button class="btn-secondary" onclick="generateLetter()">
+              <i data-lucide="refresh-cw"></i>Перегенерировать
+            </button>
+          </div>
         </div>
-        <div class="stat">
-          <div class="stat-value" id="char-count-result">—</div>
-          <div class="stat-label">символов</div>
+
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon"><i data-lucide="sparkles"></i></div>
+          <h3>Здесь появится письмо</h3>
+          <p>Вставьте текст или ссылку на вакансию и нажмите «Написать письмо»</p>
+        </div>
+
+        <div class="loading-state" id="loading-state">
+          <div class="spinner" style="width:32px;height:32px;border-width:3px"></div>
+          <div class="loading-bar"><div class="loading-bar-inner"></div></div>
+          <div class="loading-text" id="loading-text">Анализирую вакансию и резюме...</div>
+        </div>
+
+        <div class="error-state" id="error-state">
+          <div class="alert alert-error">
+            <i data-lucide="alert-circle"></i>
+            <span id="error-msg"></span>
+          </div>
+        </div>
+
+        <div id="warn-state" style="display:none">
+          <div class="warn-box">
+            <div class="warn-box-text" id="warn-msg"></div>
+            <div class="warn-box-score" id="warn-score"></div>
+            <button class="warn-force-btn" onclick="generateLetter(true)">Сгенерировать всё равно →</button>
+          </div>
+        </div>
+
+        <div class="letter-content" id="letter-content"></div>
+
+        <div class="letter-stats" id="letter-stats">
+          <div class="stat">
+            <div class="stat-value" id="word-count">—</div>
+            <div class="stat-label">слов</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="char-count-result">—</div>
+            <div class="stat-label">символов</div>
+          </div>
         </div>
       </div>
+
     </div>
+  </section>
 
-  </div>
-
-  <!-- История писем -->
-  <div class="history-section">
-    <button class="history-toggle" id="history-toggle" onclick="toggleHistory()">
-      <span>📋 Мои письма</span>
-      <span id="history-count-badge" style="font-size:0.75rem;color:#7a83a0;font-weight:400"></span>
-      <span style="font-size:0.8rem;color:#7a83a0;margin-left:auto">▾</span>
-    </button>
-    <div class="history-body" id="history-body">
+  <!-- ── Вкладка: история писем ────────────────────────────────────────── -->
+  <section class="hh-view" id="view-history">
+    <div class="history-view">
+      <div class="history-head">
+        <h2>История писем</h2>
+        <span class="history-count" id="history-count-badge"></span>
+      </div>
       <div class="history-list" id="history-list">
-        <div style="padding:24px 20px;color:#7a83a0;font-size:0.85rem">Загрузка...</div>
+        <div class="history-note">Загрузка...</div>
       </div>
     </div>
-  </div>
+  </section>
+
+  <!-- ── Вкладка: досье ────────────────────────────────────────────────── -->
+  <section class="hh-view" id="view-dossier">
+    <div class="card card-static dosie-view-card">
+      <div class="dosie-head">
+        <h2>Моё досье</h2>
+        <span class="resume-badge resume-badge-warn" id="dosie-badge">Не заполнено</span>
+      </div>
+      <p class="dosie-hint">Расширенный контекст — используется при генерации писем: проекты, опыт вне резюме, стиль подачи.</p>
+
+      <!-- 1 — Основная информация -->
+      <div class="ds">
+        <button class="ds-toggle" type="button" onclick="toggleDs(this)">
+          <span>1 — Основная информация</span>
+          <svg class="ds-chev open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="ds-body" style="max-height: 3000px">
+          <div class="ds-body-inner">
+            <div class="dosie-row">
+              <div class="dosie-field full">
+                <label class="dosie-label">Профессия (одной строкой)</label>
+                <input class="input" id="d-profession" placeholder="AI Video Creator · Fullstack Developer">
+              </div>
+              <div class="dosie-field">
+                <label class="dosie-label">Город / локация</label>
+                <input class="input" id="d-location" placeholder="Москва, Россия">
+              </div>
+              <div class="dosie-field">
+                <label class="dosie-label">Часовой пояс</label>
+                <input class="input" id="d-timezone" placeholder="UTC+3">
+              </div>
+              <div class="dosie-field">
+                <label class="dosie-label">Формат работы</label>
+                <select class="select" id="d-work-format">
+                  <option value="">— не указано —</option>
+                  <option value="удалёнка">Удалёнка</option>
+                  <option value="офис">Офис</option>
+                  <option value="гибрид">Гибрид</option>
+                  <option value="любой">Любой</option>
+                </select>
+              </div>
+            </div>
+            <div class="dosie-field">
+              <label class="dosie-label">Языки</label>
+              <div class="dosie-list" id="d-languages"></div>
+              <button class="dosie-add-btn" type="button" onclick="addLanguage()">+ Добавить язык</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 — Опыт -->
+      <div class="ds">
+        <button class="ds-toggle" type="button" onclick="toggleDs(this)">
+          <span>2 — Опыт (дополнительно к резюме)</span>
+          <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="ds-body" style="max-height: 0px">
+          <div class="ds-body-inner">
+            <div class="dosie-field">
+              <label class="dosie-label">Общий срок в профессии</label>
+              <input class="input" id="d-years" placeholder="5 лет, из них 3 — в AI-видео">
+            </div>
+            <div class="dosie-field">
+              <label class="dosie-label">Опыт вне резюме</label>
+              <p class="dosie-hint-sm">Дополнение к резюме: контекст, детали, связи, которые не влезли на hh.ru.</p>
+              <div class="dosie-list" id="d-experience"></div>
+              <button class="dosie-add-btn" type="button" onclick="addExperience()">+ Добавить место работы</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 — Проекты -->
+      <div class="ds">
+        <button class="ds-toggle" type="button" onclick="toggleDs(this)">
+          <span>3 — Проекты и портфолио</span>
+          <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="ds-body" style="max-height: 0px">
+          <div class="ds-body-inner">
+            <div class="dosie-list" id="d-projects"></div>
+            <button class="dosie-add-btn" type="button" onclick="addProject()">+ Добавить проект</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 — Навыки -->
+      <div class="ds">
+        <button class="ds-toggle" type="button" onclick="toggleDs(this)">
+          <span>4 — Навыки и инструменты</span>
+          <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="ds-body" style="max-height: 0px">
+          <div class="ds-body-inner">
+            <div class="dosie-field">
+              <label class="dosie-label">Навыки и инструменты</label>
+              <p class="dosie-hint-sm">Вводите через запятую или нажимайте Enter после каждого тега.</p>
+              <div class="tag-wrap" id="d-skills-wrap" onclick="document.getElementById('d-skills-input').focus()">
+                <input class="tag-text-input" id="d-skills-input" placeholder="Python, FastAPI, Claude API..." autocomplete="off">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5 — Методология -->
+      <div class="ds">
+        <button class="ds-toggle" type="button" onclick="toggleDs(this)">
+          <span>5 — Как я работаю</span>
+          <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="ds-body" style="max-height: 0px">
+          <div class="ds-body-inner">
+            <div class="dosie-field">
+              <label class="dosie-label">Методология и рабочий процесс</label>
+              <p class="dosie-hint-sm">Рабочий процесс, методика, принципы. Часто это выделяет из массы кандидатов.</p>
+              <textarea class="textarea" id="d-methodology" placeholder="Строю AI-продукты итерациями: прототип за день, затем шлифую по фидбэку. Пишу всё сам — без тяжёлых фреймворков, только то, что нужно задаче."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6 — Доп. контекст -->
+      <div class="ds">
+        <button class="ds-toggle" type="button" onclick="toggleDs(this)">
+          <span>6 — Дополнительный контекст</span>
+          <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="ds-body" style="max-height: 0px">
+          <div class="ds-body-inner">
+            <div class="dosie-field">
+              <label class="dosie-label">Что ещё важно учесть</label>
+              <textarea class="textarea" id="d-extra" placeholder="Например: ищу частичную занятость; готов к командировкам до 2 раз в год; предпочтительны стартапы на стадии роста."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7 — Тон -->
+      <div class="ds">
+        <button class="ds-toggle" type="button" onclick="toggleDs(this)">
+          <span>7 — Тон и стиль писем</span>
+          <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="ds-body" style="max-height: 0px">
+          <div class="ds-body-inner">
+            <div class="dosie-row">
+              <div class="dosie-field">
+                <label class="dosie-label">Тон</label>
+                <select class="select" id="d-tone">
+                  <option value="">— не указано —</option>
+                  <option value="живой">Живой</option>
+                  <option value="формально-деловой">Формально-деловой</option>
+                  <option value="нейтральный">Нейтральный</option>
+                  <option value="очень неформальный">Очень неформальный</option>
+                </select>
+              </div>
+              <div class="dosie-field">
+                <label class="dosie-label">Что не упоминать в письмах</label>
+                <textarea class="textarea" id="d-never-mention" placeholder="Не упоминать ЗП; не писать про фриланс-опыт..."></textarea>
+              </div>
+            </div>
+            <div class="dosie-field">
+              <label class="dosie-label">Концовка письма</label>
+              <div class="dosie-checks">
+                <label class="dosie-check">
+                  <input type="checkbox" id="d-suggest-call">
+                  Предлагать созвон в конце
+                </label>
+                <label class="dosie-check">
+                  <input type="checkbox" id="d-suggest-task">
+                  Предлагать тестовое задание в конце
+                </label>
+                <label class="dosie-check">
+                  <input type="checkbox" id="d-just-farewell">
+                  Не предлагать ничего, просто попрощаться
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dosie-save-row">
+        <button class="btn-primary" id="dosie-save-btn" type="button" onclick="saveDosie()">Сохранить досье</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Вкладка: резюме ───────────────────────────────────────────────── -->
+  <section class="hh-view" id="view-resume">
+    <div class="card card-static resume-view-card">
+      <div class="resume-head">
+        <h2>Моё резюме</h2>
+        <span class="resume-chars" id="resume-chars">{{ (resume.resume_text|length)|string + ' симв.' if has_resume else '0 симв.' }}</span>
+      </div>
+      <div class="upload-row">
+        <label class="upload-label" for="resume-file">
+          <i data-lucide="upload"></i>
+          Загрузить PDF / DOCX
+          <input type="file" id="resume-file" accept=".pdf,.doc,.docx" style="display:none" onchange="uploadResumeFile(this)">
+        </label>
+        <span class="upload-sep">или вставьте текст ниже</span>
+        <span class="upload-status" id="upload-status"></span>
+      </div>
+      <textarea class="textarea" id="resume-textarea"
+        placeholder="Имя, должность, опыт работы, навыки, проекты, ссылки на портфолио..."
+        oninput="updateResumeChars()">{{ resume.resume_text if has_resume else '' }}</textarea>
+      <div class="resume-footer">
+        <span class="dosie-hint-sm">Резюме — база для генерации. Досье дополняет его деталями.</span>
+        <div class="resume-actions">
+          <button class="btn-secondary" type="button" id="parse-dossier-btn" onclick="parseResumeToDossier()">Заполнить досье из резюме</button>
+          <button class="btn-primary" type="button" id="resume-save-btn" onclick="saveResume()">Сохранить резюме</button>
+        </div>
+      </div>
+    </div>
+  </section>
 
 </main>
 
@@ -998,7 +448,7 @@
 
 <div class="parse-modal-overlay" id="parse-modal" style="display:none" onclick="if(event.target===this)closeParsModal()">
   <div class="parse-modal">
-    <div class="parse-modal-title">⚠ Найдены конфликты с текущим досье</div>
+    <div class="parse-modal-title"><i data-lucide="alert-triangle"></i> Найдены конфликты с текущим досье</div>
     <div id="parse-modal-body"></div>
     <div class="parse-modal-actions">
       <button class="pmbtn safe" onclick="applyParsedData('keep')">
@@ -1017,16 +467,18 @@
   </div>
 </div>
 
+<script src="https://unpkg.com/lucide@latest"></script>
 <script>
-  // ── Резюме ──
-  let resumeOpen = {{ 'false' if has_resume else 'true' }};
+  lucide.createIcons();
 
-  function toggleResume() {
-    resumeOpen = !resumeOpen;
-    document.getElementById('resume-body').style.maxHeight = resumeOpen ? '700px' : '0px';
-    document.getElementById('resume-chevron').classList.toggle('open', resumeOpen);
+  // ── Переключение вкладок раздела ─────────────────────────────────────────
+  function switchView(name) {
+    document.querySelectorAll('.hh-tab').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+    document.querySelectorAll('.hh-view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
+    if (name === 'history' && !historyLoaded) renderHistory();
   }
 
+  // ── Резюме ──
   function updateResumeChars() {
     const v = document.getElementById('resume-textarea').value;
     document.getElementById('resume-chars').textContent = v.length.toLocaleString('ru') + ' симв.';
@@ -1047,16 +499,16 @@
       const data = await res.json();
       if (!res.ok || data.error) {
         status.className = 'upload-status err';
-        status.textContent = '⚠ ' + data.error;
+        status.textContent = data.error;
       } else {
         document.getElementById('resume-textarea').value = data.text;
         updateResumeChars();
         status.className = 'upload-status ok';
-        status.textContent = `✓ ${data.text.length.toLocaleString('ru')} символов — нажмите Сохранить`;
+        status.textContent = `✓ ${data.text.length.toLocaleString('ru')} символов — нажмите «Сохранить резюме»`;
       }
     } catch {
       status.className = 'upload-status err';
-      status.textContent = '⚠ Ошибка сети';
+      status.textContent = 'Ошибка сети';
     }
     input.value = '';
   }
@@ -1077,25 +529,22 @@
         const badge = document.getElementById('resume-badge');
         if (text.trim()) {
           badge.className = 'resume-badge resume-badge-ok';
-          badge.textContent = `✓ ${text.length} символов`;
-          resumeOpen = false;
-          document.getElementById('resume-body').style.maxHeight = '0px';
-          document.getElementById('resume-chevron').classList.remove('open');
+          badge.textContent = '✓';
         } else {
           badge.className = 'resume-badge resume-badge-warn';
-          badge.textContent = 'Не добавлено';
+          badge.textContent = 'нет';
         }
         document.getElementById('upload-status').textContent = '';
         showToast('✓ Резюме сохранено');
       } else {
-        showToast('⚠ Ошибка сохранения');
+        showToast('Не удалось сохранить резюме');
       }
     } catch {
-      showToast('⚠ Ошибка сети');
+      showToast('Ошибка сети — резюме не сохранено');
     }
 
     btn.disabled = false;
-    btn.textContent = 'Сохранить';
+    btn.textContent = 'Сохранить резюме';
   }
 
   // ── Парсер резюме → досье ────────────────────────────────────────────────
@@ -1104,12 +553,12 @@
   async function parseResumeToDossier() {
     const btn = document.getElementById('parse-dossier-btn');
     btn.disabled = true;
-    btn.textContent = '⏳ Анализирую...';
+    btn.textContent = 'Анализирую...';
 
     try {
       const res  = await fetch('/api/parse-resume-to-dossier', { method: 'POST' });
       const data = await res.json();
-      if (!res.ok || data.error) { showToast('⚠ ' + data.error); return; }
+      if (!res.ok || data.error) { showToast(data.error); return; }
 
       _parsedData = data;
 
@@ -1147,11 +596,11 @@
         document.getElementById('parse-modal').style.display = 'flex';
       }
     } catch {
-      showToast('⚠ Ошибка сети');
+      showToast('Ошибка сети');
     }
 
     btn.disabled = false;
-    btn.textContent = '✦ Заполнить досье';
+    btn.textContent = 'Заполнить досье из резюме';
   }
 
   function closeParsModal() {
@@ -1206,8 +655,8 @@
     applyList('d-projects',   (data.projects || []).filter(p => p.title),                         p => addProject(p));
 
     _parsedData = null;
-    if (!dosieOpen) toggleDosie();
-    showToast('✦ Досье заполнено — проверь и сохрани');
+    switchView('dossier');
+    showToast('Досье заполнено — проверьте и сохраните');
   }
 
   // ── Вакансия ──
@@ -1236,7 +685,7 @@
 
   function switchTab(tab) {
     activeTab = tab;
-    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    document.querySelectorAll('.source-tab').forEach((b, i) => {
       b.classList.toggle('active', (i === 0) === (tab === 'text'));
     });
     document.getElementById('tab-text').classList.toggle('active', tab === 'text');
@@ -1268,7 +717,7 @@
       const data = await res.json();
       if (!res.ok || data.error) {
         status.className = 'fetch-status visible err';
-        status.textContent = '⚠ ' + data.error;
+        status.textContent = data.error;
       } else {
         fetchedText = data.text;
         status.className = 'fetch-status visible ok';
@@ -1278,7 +727,7 @@
       }
     } catch {
       status.className = 'fetch-status visible err';
-      status.textContent = '⚠ Ошибка сети';
+      status.textContent = 'Ошибка сети';
     } finally {
       fetchBtn.disabled = false;
       fetchIcon.textContent = '↓';
@@ -1334,7 +783,7 @@
       const data = await res.json();
 
       if (!res.ok || data.error) {
-        errorMsg.textContent = '⚠ ' + (data.error || 'Неизвестная ошибка');
+        errorMsg.textContent = data.error || 'Неизвестная ошибка';
         setState('error');
       } else if (data.warning === 'low_relevance') {
         document.getElementById('warn-msg').textContent = data.message || 'Вакансия слабо соответствует резюме.';
@@ -1362,24 +811,20 @@
         if (historyLoaded) renderHistory();
       }
     } catch {
-      errorMsg.textContent = '⚠ Ошибка сети. Проверь подключение.';
+      errorMsg.textContent = 'Ошибка сети. Проверьте подключение.';
       setState('error');
     } finally {
       generateBtn.disabled = false;
-      btnIcon.textContent = '✦';
+      btnIcon.innerHTML = '';
       btnText.textContent = 'Написать письмо';
     }
   }
 
   function copyLetter() {
     navigator.clipboard.writeText(letterContent.innerText).then(() => {
-      const btn = document.getElementById('copy-btn');
-      btn.classList.add('copied');
-      btn.innerHTML = '<span>✓</span> Скопировано';
-      setTimeout(() => {
-        btn.classList.remove('copied');
-        btn.innerHTML = '<span>⎘</span> Копировать';
-      }, 2000);
+      const label = document.getElementById('copy-btn-label');
+      label.textContent = 'Скопировано';
+      setTimeout(() => { label.textContent = 'Копировать'; }, 2000);
     });
   }
 
@@ -1443,15 +888,15 @@
         body: JSON.stringify({ job_text: text }),
       });
       const data = await res.json();
-      if (data.error) { showToast('⚠ ' + data.error); return; }
+      if (data.error) { showToast(data.error); return; }
 
       cachedAnalysis = data;
       renderAnalysisCard(data);
     } catch {
-      showToast('⚠ Ошибка сети');
+      showToast('Ошибка сети');
     } finally {
       btn.disabled = false;
-      icon.textContent = '◎';
+      icon.innerHTML = '';
       txt.textContent = 'Проверить совпадение с резюме';
     }
   }
@@ -1468,7 +913,7 @@
     matchesEl.innerHTML = '';
     (data.key_matches || []).forEach(m => {
       const s = document.createElement('span');
-      s.className = 'analysis-tag tag-match';
+      s.className = 'chip tag-match';
       s.textContent = m;
       matchesEl.appendChild(s);
     });
@@ -1478,7 +923,7 @@
     missingEl.innerHTML = '';
     (data.missing_skills || []).forEach(m => {
       const s = document.createElement('span');
-      s.className = 'analysis-tag tag-miss';
+      s.className = 'chip tag-miss';
       s.textContent = m;
       missingEl.appendChild(s);
     });
@@ -1509,16 +954,14 @@
 
   function toggleLetterEdit() {
     letterEditing = !letterEditing;
-    const btn = document.getElementById('edit-btn');
+    const label = document.getElementById('edit-btn-label');
     if (letterEditing) {
       letterContent.contentEditable = 'true';
       letterContent.focus();
-      btn.textContent = '✓ Готово';
-      btn.classList.add('active');
+      label.textContent = 'Готово';
     } else {
       letterContent.contentEditable = 'false';
-      btn.textContent = '✎ Редактировать';
-      btn.classList.remove('active');
+      label.textContent = 'Редактировать';
       // обновляем счётчик слов по отредактированному тексту
       const plain = letterContent.innerText;
       document.getElementById('word-count').textContent = plain.trim().split(/\s+/).filter(Boolean).length;
@@ -1546,16 +989,7 @@
     }
   }
 
-  // ── Досье ────────────────────────────────────────────────────
-
-  let dosieOpen = false;
-
-  function toggleDosie() {
-    dosieOpen = !dosieOpen;
-    document.getElementById('dosie-body').style.maxHeight = dosieOpen ? '8000px' : '0px';
-    document.getElementById('dosie-chevron').classList.toggle('open', dosieOpen);
-  }
-
+  // ── Досье: аккордеоны секций ─────────────────────────────────────────────
   function toggleDs(btn) {
     const body = btn.nextElementSibling;
     const chev = btn.querySelector('.ds-chev');
@@ -1574,11 +1008,11 @@
       <div class="dosie-g2">
         <div class="dosie-field">
           <label class="dosie-label">Язык</label>
-          <input class="dosie-input lang-name" placeholder="Русский">
+          <input class="input lang-name" placeholder="Русский">
         </div>
         <div class="dosie-field">
           <label class="dosie-label">Уровень</label>
-          <input class="dosie-input lang-level" placeholder="C2 / Родной">
+          <input class="input lang-level" placeholder="C2 / Родной">
         </div>
       </div>`;
     if (lang  != null) item.querySelector('.lang-name').value  = lang;
@@ -1604,28 +1038,28 @@
       <div class="dosie-g2">
         <div class="dosie-field">
           <label class="dosie-label">Компания</label>
-          <input class="dosie-input exp-company" placeholder="ООО Пример">
+          <input class="input exp-company" placeholder="ООО Пример">
         </div>
         <div class="dosie-field">
           <label class="dosie-label">Должность</label>
-          <input class="dosie-input exp-position" placeholder="AI Engineer">
+          <input class="input exp-position" placeholder="AI Engineer">
         </div>
       </div>
       <div class="dosie-g1">
         <div class="dosie-field">
           <label class="dosie-label">Период</label>
-          <input class="dosie-input exp-period" placeholder="2022–2024">
+          <input class="input exp-period" placeholder="2022–2024">
         </div>
       </div>
       <div class="dosie-g1">
         <div class="dosie-field">
           <label class="dosie-label">Что делал</label>
-          <textarea class="dosie-textarea exp-desc" style="min-height:58px" placeholder="Коротко об обязанностях..."></textarea>
+          <textarea class="textarea sm exp-desc" placeholder="Коротко об обязанностях..."></textarea>
         </div>
       </div>
       <div class="dosie-field">
         <label class="dosie-label">Достижения</label>
-        <textarea class="dosie-textarea exp-ach" style="min-height:58px" placeholder="Конкретные результаты с цифрами..."></textarea>
+        <textarea class="textarea sm exp-ach" placeholder="Конкретные результаты с цифрами..."></textarea>
       </div>`;
     item.querySelector('.exp-company').value  = d.company      || '';
     item.querySelector('.exp-position').value = d.position     || '';
@@ -1656,33 +1090,33 @@
       <div class="dosie-g2">
         <div class="dosie-field">
           <label class="dosie-label">Название</label>
-          <input class="dosie-input proj-title" placeholder="EnergyDess Tools">
+          <input class="input proj-title" placeholder="EnergyDess Tools">
         </div>
         <div class="dosie-field">
           <label class="dosie-label">Тип</label>
-          <input class="dosie-input proj-type" placeholder="Web App / AI Tool / Video">
+          <input class="input proj-type" placeholder="Web App / AI Tool / Video">
         </div>
       </div>
       <div class="dosie-g1">
         <div class="dosie-field">
           <label class="dosie-label">URL</label>
-          <input class="dosie-input proj-url" placeholder="https://energydess.ru">
+          <input class="input proj-url" placeholder="https://energydess.ru">
         </div>
       </div>
       <div class="dosie-g1">
         <div class="dosie-field">
           <label class="dosie-label">Описание</label>
-          <textarea class="dosie-textarea proj-desc" style="min-height:56px" placeholder="Что за проект и какую проблему решает..."></textarea>
+          <textarea class="textarea sm proj-desc" placeholder="Что за проект и какую проблему решает..."></textarea>
         </div>
       </div>
       <div class="dosie-g2">
         <div class="dosie-field">
           <label class="dosie-label">Инструменты</label>
-          <input class="dosie-input proj-tools" placeholder="FastAPI, Claude API, SQLite">
+          <input class="input proj-tools" placeholder="FastAPI, Claude API, SQLite">
         </div>
         <div class="dosie-field">
           <label class="dosie-label">Теги (через запятую)</label>
-          <input class="dosie-input proj-tags" placeholder="AI, backend, fullstack">
+          <input class="input proj-tags" placeholder="AI, backend, fullstack">
         </div>
       </div>`;
     item.querySelector('.proj-title').value = d.title       || '';
@@ -1829,9 +1263,9 @@
         badge.className  = 'resume-badge resume-badge-ok';
         badge.textContent = '✓ Заполнено';
       } else {
-        showToast('⚠ Ошибка сохранения');
+        showToast('Не удалось сохранить досье');
       }
-    } catch { showToast('⚠ Ошибка сети'); }
+    } catch { showToast('Ошибка сети — досье не сохранено'); }
     btn.disabled  = false;
     btn.textContent = 'Сохранить досье';
   }
@@ -1860,22 +1294,11 @@
   });
 
   // ── История писем ─────────────────────────────────────────────────────────
-
-  let historyOpen = false;
   let historyLoaded = false;
-
-  function toggleHistory() {
-    historyOpen = !historyOpen;
-    const body   = document.getElementById('history-body');
-    const toggle = document.getElementById('history-toggle');
-    body.classList.toggle('open', historyOpen);
-    toggle.classList.toggle('open', historyOpen);
-    if (historyOpen && !historyLoaded) renderHistory();
-  }
 
   async function renderHistory() {
     const list = document.getElementById('history-list');
-    list.innerHTML = '<div style="padding:24px 20px;color:#7a83a0;font-size:0.85rem">Загрузка...</div>';
+    list.innerHTML = '<div class="history-note">Загрузка...</div>';
     try {
       const res   = await fetch('/api/cover-letters');
       const items = await res.json();
@@ -1885,7 +1308,8 @@
       badge.textContent = items.length ? `${items.length} писем` : '';
 
       if (!items.length) {
-        list.innerHTML = '<div style="padding:24px 20px;color:#7a83a0;font-size:0.85rem">Писем пока нет. Сгенерируй первое!</div>';
+        list.innerHTML = '<div class="history-note">Ещё не написано ни одного письма. ' +
+          '<a href="#" onclick="switchView(\'write\');return false">Начните с вакансии →</a></div>';
         return;
       }
 
@@ -1895,18 +1319,18 @@
         const cls    = score >= 7 ? 'score-high' : score >= 4 ? 'score-mid' : 'score-low';
         const title  = [item.job_title, item.company_name].filter(Boolean).join(' — ') || 'Без названия';
         const div    = document.createElement('div');
-        div.className = 'history-item';
+        div.className = 'card card-static history-item';
         div.innerHTML = `
           <button class="history-item-head" onclick="toggleHistoryItem(this)">
             <div class="history-item-meta">
               <div class="history-item-title">${escHtml(title)}</div>
-              <div class="history-item-sub">${item.created_at}${item.edited ? ' · <span style="color:#7c4dff;font-style:italic">(отредактировано)</span>' : ''}</div>
+              <div class="history-item-sub">${item.created_at}${item.edited ? ' · <span class="edited-mark">(отредактировано)</span>' : ''}</div>
             </div>
             ${score != null ? `<span class="history-item-score ${cls}">${score}/10</span>` : ''}
           </button>
           <div class="history-item-body" id="hist-body-${idx}">
             <div class="history-letter-text">${escHtml(item.letter_text).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')}</div>
-            <button class="history-copy-btn" onclick="copyHistoryLetter(this, ${idx})">⎘ Копировать</button>
+            <button class="btn-secondary history-copy-btn" onclick="copyHistoryLetter(this, ${idx})">Копировать</button>
           </div>`;
         div._letterText = item.letter_text;
         list.appendChild(div);
@@ -1914,7 +1338,7 @@
       // сохраняем тексты для копирования
       window._historyItems = items;
     } catch {
-      list.innerHTML = '<div style="padding:24px 20px;color:#f87171;font-size:0.85rem">⚠ Ошибка загрузки</div>';
+      list.innerHTML = '<div class="history-note err">Не удалось загрузить историю. Обновите страницу.</div>';
     }
   }
 
@@ -1927,13 +1351,18 @@
     const text = (window._historyItems || [])[idx]?.letter_text || '';
     navigator.clipboard.writeText(text).then(() => {
       btn.textContent = '✓ Скопировано';
-      setTimeout(() => { btn.textContent = '⎘ Копировать'; }, 2000);
+      setTimeout(() => { btn.textContent = 'Копировать'; }, 2000);
     });
   }
 
   function escHtml(str) {
     return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
+
+  // ── Стартовая вкладка: без резюме сразу ведём на его заполнение ──────────
+  {% if not has_resume %}
+  switchView('resume');
+  {% endif %}
 </script>
 
 </body>
