@@ -1,0 +1,109 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   profile.css — страница профиля. База и токены — static/style.css.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.profile-wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.profile-wrap h1 { font-size: var(--text-h1); font-weight: 700; }
+.profile-wrap .subtitle { color: var(--text-2); font-size: var(--text-body-sm); margin-top: calc(-1 * var(--space-3)); }
+
+.profile-card h2 { font-size: var(--text-h3); font-weight: 600; margin-bottom: var(--space-1); }
+.profile-card .hint { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-4); line-height: 1.5; }
+
+/* ── Секция: аватар и имя ───────────────────────────────────────────────── */
+.identity-row { display: flex; align-items: center; gap: var(--space-5); flex-wrap: wrap; }
+.identity-fields { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: var(--space-2); }
+.name-row { display: flex; gap: var(--space-2); }
+.name-row .input { flex: 1; }
+.name-status { font-size: var(--text-caption); min-height: 1.2em; }
+.name-status.ok  { color: var(--success); }
+.name-status.err { color: var(--error); }
+
+/* ── Секция: строки настроек ────────────────────────────────────────────── */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  flex-wrap: wrap;
+}
+.setting-row + .setting-row { border-top: 1px solid var(--border-hairline); }
+.setting-label { font-size: var(--text-body-sm); color: var(--text); font-weight: 500; }
+.setting-sub { font-size: var(--text-caption); color: var(--text-faint); margin-top: 2px; }
+.setting-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-2);
+}
+
+/* ── Тумблеры уведомлений ───────────────────────────────────────────────── */
+.toggle {
+  position: relative;
+  width: 40px; height: 22px;
+  flex-shrink: 0;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle .track {
+  position: absolute; inset: 0;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+.toggle .track::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--text-2);
+  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.toggle input:checked + .track { background: var(--accent-brand-dim); border-color: var(--accent-brand); }
+.toggle input:checked + .track::after { transform: translateX(18px); background: var(--accent-brand); }
+.toggle input:focus-visible + .track { box-shadow: 0 0 0 3px var(--accent-brand-dim); }
+
+/* ── Опасная зона ───────────────────────────────────────────────────────── */
+.danger-card { border-color: color-mix(in srgb, var(--error) 25%, transparent); }
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: transparent;
+  color: var(--error);
+  border: 1px solid color-mix(in srgb, var(--error) 40%, transparent);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-weight: 500;
+  font-size: var(--text-body-sm);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+.btn-danger:hover { background: color-mix(in srgb, var(--error) 10%, transparent); }
+
+/* ── Модалки-заглушки ───────────────────────────────────────────────────── */
+.profile-modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: color-mix(in srgb, var(--surface-0) 70%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5);
+}
+.profile-modal-overlay.open { display: flex; }
+.profile-modal-overlay .modal { margin: 0; }
+.modal h3 { font-size: var(--text-h3); font-weight: 600; margin-bottom: var(--space-2); }
+.modal .hint { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-4); line-height: 1.5; }
+.modal .form-col { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-5); }
+.modal-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }

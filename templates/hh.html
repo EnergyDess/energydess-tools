@@ -10,22 +10,9 @@
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/static/hh.css">
 </head>
-<body class="theme-hh">
+<body class="theme-hh has-site-header">
 
-<nav class="nav">
-  <a href="/" class="nav-logo">
-    <span class="nav-logo-symbol">⚡</span>
-    <span>EnergyDess</span>
-  </a>
-  <div class="nav-right">
-    <a href="/" class="nav-hide-mobile">Главная</a>
-    <a href="/profile">Профиль</a>
-    {% if user.is_admin %}
-    <a href="/admin" class="admin-link">Админ</a>
-    {% endif %}
-    <a href="/logout" class="nav-logout">Выйти</a>
-  </div>
-</nav>
+{% include '_header.html' %}
 
 <main class="container">
 
@@ -467,7 +454,10 @@
   </div>
 </div>
 
+{% include '_footer.html' %}
+
 <script src="https://unpkg.com/lucide@latest"></script>
+<script src="/static/ui.js"></script>
 <script>
   lucide.createIcons();
 

@@ -1,0 +1,35 @@
+{# Sticky-шапка сайта (design-system.md, раздел 4). Подключается на всех
+   страницах, кроме auth. Ожидает в контексте user (может отсутствовать). #}
+<header class="site-header">
+  <a href="/" class="header-logo">
+    <span class="nav-logo-symbol">⚡</span>
+    <span>EnergyDess</span>
+  </a>
+
+  <div class="header-search">
+    {# TODO: глобальный поиск (design-system.md, раздел 5) — пока UI-заглушка,
+       индекс и эндпоинт /api/search будут отдельной задачей #}
+    <i data-lucide="search" class="search-icon"></i>
+    <input type="text" class="input" placeholder="Найти инструмент, письмо, продукт…" disabled>
+  </div>
+
+  <div class="header-right">
+    {% if user is defined and user %}
+    <div class="avatar-wrap" id="avatar-wrap">
+      <button class="avatar-btn" type="button" aria-haspopup="menu" aria-expanded="false">
+        {% include '_avatar.html' %}
+      </button>
+      <div class="avatar-dropdown" role="menu">
+        <a href="/profile"><i data-lucide="user"></i> Профиль</a>
+        {% if user.is_admin %}
+        <a href="/admin"><i data-lucide="settings"></i> Админ</a>
+        {% endif %}
+        <a href="/logout"><i data-lucide="log-out"></i> Выйти</a>
+      </div>
+    </div>
+    {% else %}
+    <a href="/login" class="btn-ghost">Войти</a>
+    <a href="/register" class="btn-primary header-cta">Регистрация</a>
+    {% endif %}
+  </div>
+</header>

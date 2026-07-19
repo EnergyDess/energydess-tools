@@ -45,7 +45,7 @@
     }
 
     .hero-title {
-      font-family: var(--font-display);
+      font-family: var(--font);
       font-size: clamp(2.4rem, 5vw, 4rem);
       font-weight: 800;
       letter-spacing: -0.04em;
@@ -217,22 +217,9 @@
 
   </style>
 </head>
-<body>
+<body class="has-site-header">
 
-<nav class="nav">
-  <a href="/" class="nav-logo">
-    <span class="nav-logo-symbol">⚡</span>
-    <span>EnergyDess</span>
-  </a>
-  <div class="nav-right">
-    <a href="/" class="active nav-hide-mobile">Главная</a>
-    <a href="/profile">Профиль</a>
-    {% if user.is_admin %}
-    <a href="/admin" class="admin-link">Админ</a>
-    {% endif %}
-    <a href="/logout" class="nav-logout">Выйти</a>
-  </div>
-</nav>
+{% include '_header.html' %}
 
 <main class="container">
   <section class="hero">
@@ -293,5 +280,10 @@
   </div>
 </main>
 
+{% include '_footer.html' %}
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="/static/ui.js"></script>
+<script>lucide.createIcons();</script>
 </body>
 </html>

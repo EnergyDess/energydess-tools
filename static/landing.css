@@ -1,0 +1,207 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   landing.css — стили лендинга (незалогиненная главная)
+   База и токены — static/style.css. Атмосферный слой разрешён только здесь
+   (design-system.md, раздел 9).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Атмосферный слой: noise поверх всего фона ──────────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url('/static/noise.svg');
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Общее ──────────────────────────────────────────────────────────────── */
+.sec { padding: var(--space-9) var(--space-5); max-width: 1100px; margin: 0 auto; }
+.sec-head { text-align: center; margin-bottom: var(--space-7); }
+.sec-head .eyebrow { display: inline-block; margin-bottom: var(--space-4); }
+.sec-h2 {
+  font-size: var(--text-h2);
+  font-weight: 700;
+  color: var(--text-strong);
+  text-align: center;
+}
+
+/* ── Hero ───────────────────────────────────────────────────────────────── */
+.hero {
+  padding: var(--space-10) var(--space-5) var(--space-9);
+  text-align: center;
+  position: relative;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+/* Мягкий радиальный glow за H1 — статичный */
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 800px;
+  height: 400px;
+  max-width: 100vw;
+  background: radial-gradient(ellipse, var(--accent-brand-dim), transparent 70%);
+  filter: blur(60px);
+  pointer-events: none;
+  z-index: -1;
+}
+.hero .eyebrow { display: inline-block; margin-bottom: var(--space-5); }
+.hero h1 {
+  font-size: var(--text-display);
+  font-weight: 800;
+  line-height: 1.05;
+  color: var(--text-strong);
+  text-shadow: 0 0 40px rgba(255,255,255,0.15);
+  margin-bottom: var(--space-5);
+}
+.hero-sub {
+  font-size: var(--text-body-lg);
+  color: var(--text-2);
+  max-width: 520px;
+  margin: 0 auto var(--space-6);
+  line-height: 1.7;
+}
+.hero-btns {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.hero .btn-primary { padding: var(--space-3) var(--space-6); box-shadow: var(--shadow-glow-brand); }
+
+/* ── Карточки инструментов 2×2 ──────────────────────────────────────────── */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-5);
+}
+.feature-card { display: flex; flex-direction: column; gap: var(--space-3); }
+.feature-card .tool-icon { width: 32px; height: 32px; margin-bottom: var(--space-2); }
+.feature-card h3 { font-size: var(--text-h3); font-weight: 600; color: var(--text); }
+.feature-card p { font-size: var(--text-body-sm); color: var(--text-2); line-height: 1.65; }
+.feature-card .eyebrow { font-size: var(--text-mono); }
+
+/* акцент карточки по инструменту */
+.feature-hh   { --tool-accent: var(--accent-hh);         --tool-accent-dim: var(--accent-hh-dim); }
+.feature-wk   { --tool-accent: var(--accent-workout);    --tool-accent-dim: var(--accent-workout-dim); }
+.feature-nutr { --tool-accent: var(--accent-nutrition);  --tool-accent-dim: var(--accent-nutrition-dim); }
+.feature-ens  { --tool-accent: var(--accent-enshrouded); --tool-accent-dim: var(--accent-enshrouded-dim); }
+.feature-card .eyebrow { color: var(--tool-accent); }
+
+/* ── Блоки возможностей ─────────────────────────────────────────────────── */
+.details { padding: var(--space-6) var(--space-5) var(--space-9); max-width: 1100px; margin: 0 auto; }
+.detail-block {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-8);
+  align-items: center;
+  padding: var(--space-8) 0;
+  border-top: 1px solid var(--border-hairline);
+}
+.detail-block:last-child { border-bottom: 1px solid var(--border-hairline); }
+.detail-block.flip .detail-mock { order: -1; }
+
+.detail-hh   { --blk: var(--accent-hh);         --blk-dim: var(--accent-hh-dim); }
+.detail-wk   { --blk: var(--accent-workout);    --blk-dim: var(--accent-workout-dim); }
+.detail-nutr { --blk: var(--accent-nutrition);  --blk-dim: var(--accent-nutrition-dim); }
+.detail-ens  { --blk: var(--accent-enshrouded); --blk-dim: var(--accent-enshrouded-dim); }
+
+.detail-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: var(--space-4);
+  color: var(--blk);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.detail-label svg { width: 16px; height: 16px; stroke-width: 1.5; }
+.detail-h3 {
+  font-size: var(--text-h2);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--text-strong);
+  margin-bottom: var(--space-4);
+}
+.detail-desc {
+  font-size: var(--text-body);
+  color: var(--text-2);
+  line-height: 1.7;
+  margin-bottom: var(--space-5);
+}
+.detail-features { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.detail-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  font-size: var(--text-body-sm);
+  color: var(--text-2);
+  line-height: 1.55;
+}
+.chk {
+  flex-shrink: 0;
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  margin-top: 1px;
+  background: var(--blk-dim);
+  color: var(--blk);
+}
+
+.detail-mock { position: relative; }
+.mock-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+.mock-card svg { display: block; width: 100%; height: auto; }
+
+/* ── CTA ────────────────────────────────────────────────────────────────── */
+.cta {
+  text-align: center;
+  padding: var(--space-9) var(--space-5) var(--space-10);
+}
+.cta h2 {
+  font-size: var(--text-h1);
+  font-weight: 800;
+  margin-bottom: var(--space-3);
+  color: var(--text-strong);
+}
+.cta .cta-tagline { font-size: var(--text-body-lg); font-weight: 600; color: var(--text); margin-bottom: var(--space-2); }
+.cta .cta-sub { color: var(--text-2); font-size: var(--text-body-sm); margin-bottom: var(--space-6); }
+.cta .btn-primary { padding: var(--space-4) var(--space-7); font-size: var(--text-body-lg); box-shadow: var(--shadow-glow-brand); }
+
+/* ── Появление при скролле: stagger карточек ────────────────────────────── */
+.features-grid .reveal:nth-child(2) { transition-delay: 60ms; }
+.features-grid .reveal:nth-child(3) { transition-delay: 120ms; }
+.features-grid .reveal:nth-child(4) { transition-delay: 180ms; }
+
+/* ── Адаптив ────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .detail-block { grid-template-columns: 1fr; gap: var(--space-6); padding: var(--space-7) 0; }
+  .detail-mock { order: -1 !important; }
+  .detail-text { order: 1 !important; }
+}
+@media (max-width: 640px) {
+  .hero { padding: var(--space-8) var(--space-4) var(--space-7); }
+  .hero-btns { flex-direction: column; align-items: stretch; }
+  .hero-btns .btn-primary, .hero-btns .btn-signature { justify-content: center; text-align: center; }
+  .sec { padding: var(--space-7) var(--space-4); }
+  .features-grid { grid-template-columns: 1fr; gap: var(--space-4); }
+  .details { padding: var(--space-5) var(--space-4) var(--space-7); }
+  .cta { padding: var(--space-8) var(--space-4); }
+}

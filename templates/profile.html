@@ -8,224 +8,172 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
-  <style>
-    .profile-wrap {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 60px 20px;
-    }
-    .profile-wrap h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; color: #c7d3ea; }
-    .profile-wrap .subtitle { color: #81899b; margin-bottom: 40px; font-size: 0.95rem; }
-    .card {
-      background: rgba(22,26,44,.88);
-      border: 1px solid rgba(199,211,234,.13);
-      border-radius: var(--radius);
-      padding: 32px;
-      margin-bottom: 24px;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      box-shadow: inset 0 1px 1px rgba(199,211,234,.08), 0 12px 32px rgba(6,6,14,.5);
-      position: relative; overflow: hidden;
-    }
-    .card::before {
-      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(199,211,234,.22), transparent);
-      pointer-events: none;
-    }
-    .card h2 { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; color: #c7d3ea; }
-    .card .hint { font-size: 0.85rem; color: #81899b; margin-bottom: 20px; line-height: 1.5; }
-    .email-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(199,211,234,.07);
-      border: 1px solid rgba(199,211,234,.16);
-      border-radius: 99px;
-      padding: 8px 16px;
-      font-size: 0.9rem;
-      color: #c7d3ea;
-    }
-    .name-input {
-      flex: 1;
-      background: rgba(8,10,22,.5);
-      border: 1px solid rgba(199,211,234,.16);
-      border-radius: var(--radius-sm);
-      padding: 11px 14px;
-      color: #c7d3ea;
-      font-size: 0.9rem;
-      font-family: inherit;
-      outline: none;
-      transition: border-color .2s, box-shadow .2s;
-      box-sizing: border-box;
-    }
-    .name-input:focus {
-      border-color: rgba(0,212,255,.5);
-      box-shadow: 0 0 0 3px rgba(0,212,255,.07);
-    }
-    textarea {
-      width: 100%;
-      background: rgba(8,10,22,.5);
-      border: 1px solid rgba(199,211,234,.16);
-      border-radius: var(--radius-sm);
-      padding: 14px;
-      color: #c7d3ea;
-      font-size: 0.875rem;
-      font-family: inherit;
-      line-height: 1.6;
-      resize: vertical;
-      outline: none;
-      min-height: 280px;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      box-sizing: border-box;
-    }
-    textarea:focus {
-      border-color: rgba(0,212,255,.5);
-      box-shadow: 0 0 0 3px rgba(0,212,255,.07);
-    }
-    .btn-primary {
-      background: linear-gradient(135deg, var(--accent2) 0%, var(--accent) 100%);
-      color: #fff;
-      border: none;
-      border-radius: var(--radius-sm);
-      padding: 12px 28px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      transition: opacity 0.2s, box-shadow 0.2s;
-      margin-top: 16px;
-    }
-    .btn-primary:hover { opacity: 0.88; box-shadow: 0 6px 24px rgba(124,77,255,.35); }
-    .success-msg {
-      background: rgba(16,185,129,.1);
-      border: 1px solid rgba(16,185,129,.28);
-      color: #6ee7b7;
-      border-radius: var(--radius-sm);
-      padding: 12px 14px;
-      font-size: 0.875rem;
-      margin-bottom: 16px;
-    }
-    .logout-link {
-      color: rgba(199,211,234,.35);
-      font-size: 0.85rem;
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-    .logout-link:hover { color: var(--error); }
-    .upload-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
-    .upload-label {
-      display: inline-flex; align-items: center; gap: 7px;
-      padding: 8px 14px;
-      background: rgba(199,211,234,.06); border: 1px solid rgba(199,211,234,.16);
-      border-radius: var(--radius-sm);
-      font-size: 0.82rem; font-weight: 500; color: #81899b;
-      cursor: pointer; transition: all 0.2s; white-space: nowrap;
-    }
-    .upload-label:hover { border-color: rgba(167,139,250,.45); color: #c7d3ea; }
-    .upload-label svg { width: 15px; height: 15px; flex-shrink: 0; }
-    .upload-sep { font-size: 0.8rem; color: rgba(199,211,234,.3); }
-    .upload-status { font-size: 0.8rem; }
-    .upload-status.ok  { color: #34d399; }
-    .upload-status.err { color: #fca5a5; }
-  </style>
+  <link rel="stylesheet" href="/static/profile.css">
 </head>
-<body>
+<body class="has-site-header">
 
-<nav class="nav">
-  <a href="/" class="nav-logo">
-    <span class="nav-logo-symbol">⚡</span>
-    <span>EnergyDess</span>
-  </a>
-  <div class="nav-right">
-    <a href="/">Главная</a>
-    <a href="/profile" class="active">Профиль</a>
-    {% if user.is_admin %}
-    <a href="/admin" class="admin-link">Админ</a>
-    {% endif %}
-    <a href="/logout" class="nav-logout">Выйти</a>
-  </div>
-</nav>
+{% include '_header.html' %}
 
+<main>
 <div class="profile-wrap">
   <h1>Профиль</h1>
-  <p class="subtitle">Управляйте своими данными для работы инструментов</p>
+  <p class="subtitle">Аккаунт и настройки. Резюме и досье переехали в HH-ассистент.</p>
 
-  <div class="card">
-    <h2>Аккаунт</h2>
-    <p class="hint">Ваш email для входа</p>
-    <div class="email-badge">✉ {{ user.email }}</div>
-
-    <div style="margin-top:28px">
-      <h2 style="margin-bottom:6px">Отображаемое имя</h2>
-      <p class="hint">Так сайт будет к вам обращаться. Если не указать — используется часть email.</p>
-      <div style="display:flex;gap:10px;margin-top:14px">
-        <input type="text" id="display-name-input"
-               class="name-input"
-               value="{{ user.display_name or '' }}"
-               placeholder="{{ user.email.split('@')[0] }}"
-               maxlength="30"
-               onkeydown="if(event.key==='Enter')saveName()">
-        <button type="button" id="name-btn" onclick="saveName()" class="btn-primary"
-                style="padding:11px 22px;font-size:0.875rem;white-space:nowrap;margin-top:0">Сохранить</button>
+  <!-- ── Аватар и имя ── -->
+  <div class="card card-static profile-card">
+    <div class="identity-row">
+      <span class="avatar avatar-lg">{{ (user.display_name or user.email)[:1]|upper }}</span>
+      <div class="identity-fields">
+        <h2>Отображаемое имя</h2>
+        <p class="hint" style="margin-bottom:0">Так сайт будет к вам обращаться. Если не указать — используется часть email.</p>
+        <div class="name-row">
+          <input type="text" id="display-name-input" class="input"
+                 value="{{ user.display_name or '' }}"
+                 placeholder="{{ user.email.split('@')[0] }}"
+                 maxlength="30"
+                 onkeydown="if(event.key==='Enter')saveName()">
+          <button type="button" id="name-btn" onclick="saveName()" class="btn-primary">Сохранить</button>
+        </div>
+        <div id="name-status" class="name-status"></div>
       </div>
-      <div id="name-status" style="font-size:0.8rem;margin-top:8px;min-height:1.2em"></div>
     </div>
   </div>
 
-  <div class="card">
-    <h2>Моё резюме</h2>
-    <p class="hint">Вставьте текст резюме — он будет использоваться при генерации сопроводительных писем. Можно в любом формате, чем подробнее — тем лучше письмо.</p>
+  <!-- ── Аккаунт ── -->
+  <div class="card card-static profile-card">
+    <h2>Аккаунт</h2>
+    <p class="hint">Email для входа и безопасность</p>
 
-    {% if saved %}
-    <div class="success-msg">✓ Резюме сохранено</div>
-    {% endif %}
-
-    <div class="upload-row">
-      <label class="upload-label" for="resume-file-profile">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/>
-          <line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
-        Загрузить PDF / DOCX
-        <input type="file" id="resume-file-profile" accept=".pdf,.doc,.docx" style="display:none" onchange="uploadResumeFileProfile(this)">
-      </label>
-      <span class="upload-sep">или вставьте текст ниже</span>
-      <span class="upload-status" id="upload-status-profile"></span>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Email</div>
+        <div class="setting-value">{{ user.email }}</div>
+      </div>
+      <!-- TODO: реализовать эндпоинт /api/change-email (модалка ниже — UI-заглушка) -->
+      <button class="btn-secondary" onclick="openModal('modal-email')">Изменить email</button>
     </div>
-    <form method="post" action="/profile">
-      <textarea id="resume-textarea-profile" name="resume_text" placeholder="Вставьте текст вашего резюме сюда...">{{ resume.resume_text if resume else '' }}</textarea>
-      <button type="submit" class="btn-primary">Сохранить резюме</button>
-    </form>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Пароль</div>
+        <div class="setting-sub">Последнее изменение неизвестно</div>
+      </div>
+      <!-- TODO: реализовать эндпоинт /api/change-password (модалка ниже — UI-заглушка) -->
+      <button class="btn-secondary" onclick="openModal('modal-password')">Сменить пароль</button>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Часовой пояс</div>
+        <div class="setting-sub">Определён автоматически</div>
+      </div>
+      <!-- TODO: сохранение часового пояса в профиль (эндпоинта пока нет) -->
+      <span class="setting-value" id="tz-value">—</span>
+    </div>
+  </div>
+
+  <!-- ── Уведомления ── -->
+  <div class="card card-static profile-card">
+    <h2>Уведомления</h2>
+    <p class="hint">Пока только настройка интерфейса — рассылки будут подключены позже</p>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Письма о новых функциях</div>
+        <div class="setting-sub">Редкие анонсы новых инструментов</div>
+      </div>
+      <!-- TODO: сохранение настроек уведомлений (эндпоинта пока нет) -->
+      <label class="toggle">
+        <input type="checkbox" checked>
+        <span class="track"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Еженедельная сводка</div>
+        <div class="setting-sub">Итоги по тренировкам и питанию</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox">
+        <span class="track"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- ── Опасная зона ── -->
+  <div class="card card-static profile-card danger-card">
+    <h2>Удаление аккаунта</h2>
+    <p class="hint">Все данные — резюме, досье, письма, программы тренировок — будут удалены безвозвратно.</p>
+    <!-- TODO: реализовать эндпоинт удаления аккаунта (модалка ниже — UI-заглушка) -->
+    <button class="btn-danger" onclick="openModal('modal-delete')">Удалить аккаунт</button>
   </div>
 </div>
-<script>
-async function uploadResumeFileProfile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const status = document.getElementById('upload-status-profile');
-  status.className = 'upload-status';
-  status.textContent = 'Читаю файл...';
-  const fd = new FormData();
-  fd.append('file', file);
-  try {
-    const res  = await fetch('/api/upload-resume', { method: 'POST', body: fd });
-    const data = await res.json();
-    if (!res.ok || data.error) {
-      status.className = 'upload-status err';
-      status.textContent = '⚠ ' + data.error;
-    } else {
-      document.getElementById('resume-textarea-profile').value = data.text;
-      status.className = 'upload-status ok';
-      status.textContent = `✓ ${data.text.length.toLocaleString('ru')} символов — нажмите «Сохранить резюме»`;
-    }
-  } catch {
-    status.className = 'upload-status err';
-    status.textContent = '⚠ Ошибка сети';
-  }
-  input.value = '';
-}
+</main>
 
+{% include '_footer.html' %}
+
+<!-- ── Модалки-заглушки (эндпоинты — TODO) ── -->
+<div class="profile-modal-overlay" id="modal-email" onclick="if(event.target===this)closeModal(this)">
+  <div class="modal">
+    <h3>Изменить email</h3>
+    <p class="hint">Функция в разработке — эндпоинт /api/change-email ещё не реализован.</p>
+    <div class="form-col">
+      <input type="email" class="input" placeholder="Новый email" disabled>
+      <input type="password" class="input" placeholder="Текущий пароль" disabled>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal(this.closest('.profile-modal-overlay'))">Закрыть</button>
+      <button class="btn-primary" disabled>Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="profile-modal-overlay" id="modal-password" onclick="if(event.target===this)closeModal(this)">
+  <div class="modal">
+    <h3>Сменить пароль</h3>
+    <p class="hint">Функция в разработке — эндпоинт /api/change-password ещё не реализован.</p>
+    <div class="form-col">
+      <input type="password" class="input" placeholder="Текущий пароль" disabled>
+      <input type="password" class="input" placeholder="Новый пароль" disabled>
+      <input type="password" class="input" placeholder="Новый пароль ещё раз" disabled>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal(this.closest('.profile-modal-overlay'))">Закрыть</button>
+      <button class="btn-primary" disabled>Сменить</button>
+    </div>
+  </div>
+</div>
+
+<div class="profile-modal-overlay" id="modal-delete" onclick="if(event.target===this)closeModal(this)">
+  <div class="modal">
+    <h3>Удалить аккаунт</h3>
+    <p class="hint">Функция в разработке — эндпоинт удаления ещё не реализован. Для удаления аккаунта напишите администратору.</p>
+    <div class="form-col">
+      <input type="email" class="input" placeholder="Введите ваш email для подтверждения" disabled>
+      <input type="password" class="input" placeholder="Текущий пароль" disabled>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal(this.closest('.profile-modal-overlay'))">Закрыть</button>
+      <button class="btn-danger" disabled>Удалить навсегда</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="/static/ui.js"></script>
+<script>
+lucide.createIcons();
+
+// ── Часовой пояс: автоопределение ──
+document.getElementById('tz-value').textContent =
+  Intl.DateTimeFormat().resolvedOptions().timeZone || 'не определён';
+
+// ── Модалки ──
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(el) { el.classList.remove('open'); }
+
+// ── Сохранение отображаемого имени ──
 async function saveName() {
   const name   = document.getElementById('display-name-input').value.trim();
   const btn    = document.getElementById('name-btn');
@@ -239,16 +187,16 @@ async function saveName() {
       body: JSON.stringify({name}),
     });
     if (res.ok) {
-      status.style.color = '#34d399';
+      status.className = 'name-status ok';
       status.textContent = '✓ Имя сохранено';
       setTimeout(() => status.textContent = '', 2500);
     } else {
-      status.style.color = '#fca5a5';
-      status.textContent = '⚠ Ошибка сохранения';
+      status.className = 'name-status err';
+      status.textContent = 'Не удалось сохранить имя';
     }
   } catch {
-    status.style.color = '#fca5a5';
-    status.textContent = '⚠ Ошибка сети';
+    status.className = 'name-status err';
+    status.textContent = 'Ошибка сети — имя не сохранено';
   }
   btn.disabled = false;
   btn.textContent = 'Сохранить';

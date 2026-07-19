@@ -39,9 +39,26 @@
     els.forEach(function (el) { io.observe(el); });
   }
 
+  // ── Дропдаун аватара в шапке ──
+  function initAvatarDropdown() {
+    var wrap = document.getElementById('avatar-wrap');
+    if (!wrap) return;
+    var btn = wrap.querySelector('.avatar-btn');
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var open = wrap.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', function () {
+      wrap.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    });
+  }
+
   function init() {
     initSignatureBorders();
     initScrollReveal();
+    initAvatarDropdown();
   }
 
   if (document.readyState === 'loading') {

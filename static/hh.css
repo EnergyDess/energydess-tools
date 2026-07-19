@@ -21,7 +21,7 @@ main.container { max-width: 1600px; }
 /* ── Табы разделов (sticky под шапкой) ──────────────────────────────────── */
 .hh-tabs {
   position: sticky;
-  top: 60px; /* высота .nav */
+  top: 64px; /* высота .site-header */
   z-index: 40;
   display: flex;
   gap: var(--space-2);
@@ -725,7 +725,7 @@ main.container { max-width: 1600px; }
 /* ── Адаптив ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .hh-page-header { padding: var(--space-5) 0 var(--space-4); }
-  .hh-tabs { top: 60px; margin-bottom: var(--space-5); }
+  .hh-tabs { top: 64px; margin-bottom: var(--space-5); }
   .hh-tab { padding: var(--space-3) var(--space-3); font-size: var(--text-caption); }
   .result-panel { min-height: 360px; }
   #job-input { min-height: 200px; }

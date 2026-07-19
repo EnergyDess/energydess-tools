@@ -1,0 +1,4 @@
+{# Аватар пользователя: инициал из display_name или email (design-system.md, раздел 4) #}
+<span class="avatar" title="{{ user.display_name or user.email }}">
+  {{- (user.display_name or user.email)[:1]|upper -}}
+</span>

@@ -445,6 +445,14 @@ button.chip:hover, a.chip:hover {
 .avatar:hover { border-color: var(--border-strong); }
 .avatar-lg { width: 96px; height: 96px; font-size: var(--text-h3); }
 
+.avatar-wrap { position: relative; }
+.avatar-btn { background: none; border: none; padding: 0; cursor: pointer; display: inline-flex; }
+.avatar-dropdown { display: none; }
+.avatar-wrap.open .avatar-dropdown { display: block; }
+.header-cta { min-height: 34px; padding: var(--space-2) var(--space-4); font-size: var(--text-body-sm); }
+/* Страницы с новой sticky-шапкой: шапка в потоке, компенсация не нужна */
+body.has-site-header main { padding-top: 0; }
+
 .avatar-dropdown {
   position: absolute;
   top: calc(100% + var(--space-2));
