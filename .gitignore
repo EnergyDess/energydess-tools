@@ -7,3 +7,15 @@ venv/
 .venv/
 server.log
 server.err
+# SSH-утилиты (локальные, не в репу)
+ssh_*.py
+
+# Все логи
+*.log
+
+# Временные файлы Windows
+C*Temp*
+*Temp*.log
+
+# Backup-файлы
+*.old
