@@ -1366,7 +1366,7 @@ Call to action в финале. Тип CTA определяется правил
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess HH Helper"},
                 json={"model": LETTER_MODEL, "messages": [{"role": "user", "content": prompt}],
-                      "temperature": 0.5, "max_tokens": 900},
+                      "temperature": 0.5, "max_tokens": 1500},
                 timeout=40.0,
             )
         if response.status_code != 200:
