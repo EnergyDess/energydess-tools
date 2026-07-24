@@ -445,8 +445,9 @@
   .ex-badge-no_video { background: rgba(0,0,0,.4); color: var(--ak-fog); }
 
   .ex-card-body { padding: 14px 16px; }
-  .ex-card-name { font-size: 0.9rem; font-weight: 600; color: var(--ak-moon); margin-bottom: 6px; line-height: 1.3; }
-  .ex-card-meta { font-size: 0.76rem; color: var(--ak-fog); margin-bottom: 12px; }
+  .ex-card-name { font-size: 0.9rem; font-weight: 600; color: var(--ak-moon); line-height: 1.3; }
+  .ex-card-name-en { font-size: 0.72rem; color: rgba(129,137,155,.7); margin-top: 2px; font-style: italic; }
+  .ex-card-meta { font-size: 0.76rem; color: var(--ak-fog); margin: 8px 0 12px; }
 
   .ex-card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
   .ex-btn {
@@ -469,6 +470,28 @@
   .ex-btn-wrong.active { background: rgba(228,109,76,.28); }
   .ex-btn-replace { background: rgba(0,0,0,.3); border-color: rgba(63,73,89,.7); color: var(--ak-moon); }
   .ex-btn-replace:hover { border-color: var(--ak-frost); }
+
+  /* "Показать технику" — отдельная строка под тремя основными кнопками */
+  .ex-btn-howto {
+    display: flex; width: 100%; margin-top: 8px;
+    background: none; border-color: rgba(63,73,89,.5); color: var(--ak-fog);
+  }
+  .ex-btn-howto:hover { border-color: var(--ak-frost); color: var(--ak-moon); }
+
+  .ex-instructions {
+    display: none;
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: rgba(0,0,0,.25);
+    border: 1px solid rgba(63,73,89,.5);
+    border-radius: 6px;
+  }
+  .ex-instructions.open { display: block; }
+  .ex-instructions ol {
+    margin: 0; padding-left: 18px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .ex-instructions li { font-size: 0.76rem; color: var(--ak-moon); line-height: 1.45; }
 
   .ex-replace-row { display: none; gap: 6px; margin-top: 8px; }
   .ex-replace-row.open { display: flex; }

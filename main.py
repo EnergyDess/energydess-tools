@@ -928,8 +928,12 @@ async def admin_exercises_page(request: Request, user=Depends(get_current_user),
         exercises_data.append({
             "id": e.id,
             "name_ru": e.name_ru,
+            "name_en": e.name or "",
             "muscle_group": group,
             "equipment": e.equipment,
+            "level": e.level or "",
+            "mechanic": e.mechanic or "",
+            "instructions": e.instructions_ru or [],
             "youtube_id": e.youtube_id or "",
             "video_status": status,
         })
