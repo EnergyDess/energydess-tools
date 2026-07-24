@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="/static/style.css">
   {% include '_admin_styles.html' %}
 </head>
-<body>
+<body class="has-site-header">
 
 {% include '_admin_nav.html' %}
 
@@ -18,8 +18,8 @@
   {% set active = 'exercises' %}
   {% include '_admin_subnav.html' %}
 
-  <h1>Упражнения</h1>
-  <p class="subtitle">Проверка видео техники выполнения — {{ total }} упражнений</p>
+  <h1>База упражнений</h1>
+  <p class="subtitle">Проверка видео для {{ total }} упражнений программы тренировок</p>
 
   <!-- Статистика — кликабельные фильтры по статусу -->
   <div class="ex-stats">
@@ -107,6 +107,15 @@ const state = {
   search: '',
   page: 1,
 };
+
+// ── Пришли по ссылке с дашборда с ?status=no_video — применяем сразу ──
+(function applyStatusFromUrl() {
+  const q = new URLSearchParams(window.location.search).get('status');
+  if (q && STATUS_LABELS[q]) {
+    state.status = q;
+    document.getElementById('filter-status').value = q;
+  }
+})();
 
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -331,5 +340,8 @@ function closeVideoModal() {
 renderGrid();
 </script>
 
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="/static/ui.js"></script>
+<script>lucide.createIcons();</script>
 </body>
 </html>

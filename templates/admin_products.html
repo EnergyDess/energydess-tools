@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="/static/style.css">
   {% include '_admin_styles.html' %}
 </head>
-<body>
+<body class="has-site-header">
 
 {% include '_admin_nav.html' %}
 
@@ -149,5 +149,8 @@ function filterFoods(q) {
 }
 </script>
 
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="/static/ui.js"></script>
+<script>lucide.createIcons();</script>
 </body>
 </html>

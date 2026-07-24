@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="/static/style.css">
   {% include '_admin_styles.html' %}
 </head>
-<body>
+<body class="has-site-header">
 
 {% include '_admin_nav.html' %}
 
@@ -25,6 +25,7 @@
     <a href="/admin/users" class="card admin-tile">
       <div class="admin-tile-count">{{ users_count }}</div>
       <div class="admin-tile-label">Пользователи</div>
+      <div class="admin-tile-sub">новых за сегодня: {{ new_users_today }}</div>
     </a>
     <a href="/admin/products" class="card admin-tile">
       <div class="admin-tile-count">{{ foods_count }}</div>
@@ -33,9 +34,19 @@
     <a href="/admin/exercises" class="card admin-tile">
       <div class="admin-tile-count">{{ exercises_count }}</div>
       <div class="admin-tile-label">Упражнения</div>
+      <div class="admin-tile-sub">не проверено: {{ exercises_unchecked }} · без видео: {{ exercises_no_video }}</div>
     </a>
   </div>
+
+  {% if exercises_no_video %}
+  <a href="/admin/exercises?status=no_video" class="admin-quicklink">
+    {{ exercises_no_video }} {{ exercises_no_video_word }} без видео → найти вручную
+  </a>
+  {% endif %}
 </div>
 
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="/static/ui.js"></script>
+<script>lucide.createIcons();</script>
 </body>
 </html>

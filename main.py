@@ -45,6 +45,18 @@ app = FastAPI(title="EnergyDess Tools")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+
+def _plural_ru(n: int, one: str, few: str, many: str) -> str:
+    """Русское склонение существительного по числу. Пример: _plural_ru(21, 'упражнение', 'упражнения', 'упражнений') -> 'упражнение'."""
+    n = abs(n)
+    if 11 <= n % 100 <= 14:
+        return many
+    if n % 10 == 1:
+        return one
+    if 2 <= n % 10 <= 4:
+        return few
+    return many
+
 OPENROUTER_API_KEY  = os.getenv("OPENROUTER_API_KEY", "")
 MODEL               = os.getenv("MODEL",         "anthropic/claude-haiku-4-5")
 LETTER_MODEL        = os.getenv("LETTER_MODEL",  "anthropic/claude-opus-4-5")   # генерация письма
@@ -832,10 +844,21 @@ async def admin_page(request: Request, user=Depends(get_current_user), db: Sessi
     foods_count = db.query(CustomFood).count()
     exercises_count = db.query(Exercise).count()
 
+    today_start = datetime.combine(datetime.utcnow().date(), datetime.min.time())
+    new_users_today = db.query(User).filter(User.id != user.id, User.created_at >= today_start).count()
+
+    exercises_unchecked = db.query(Exercise).filter(Exercise.video_status == "unchecked").count()
+    exercises_no_video = db.query(Exercise).filter(Exercise.video_status == "no_video").count()
+    exercises_no_video_word = _plural_ru(exercises_no_video, "упражнение", "упражнения", "упражнений")
+
     return templates.TemplateResponse(request=request, name="admin.html",
                                       context={"user": user, "users_count": users_count,
                                                "foods_count": foods_count,
-                                               "exercises_count": exercises_count})
+                                               "exercises_count": exercises_count,
+                                               "new_users_today": new_users_today,
+                                               "exercises_unchecked": exercises_unchecked,
+                                               "exercises_no_video": exercises_no_video,
+                                               "exercises_no_video_word": exercises_no_video_word})
 
 
 @app.get("/admin/users")
