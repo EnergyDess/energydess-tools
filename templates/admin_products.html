@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Продукты — Админ — EnergyDess</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/static/style.css">
+  {% include '_admin_styles.html' %}
+</head>
+<body>
+
+{% include '_admin_nav.html' %}
+
+<div class="admin-wrap">
+  {% set active = 'products' %}
+  {% include '_admin_subnav.html' %}
+
+  <h1>База продуктов</h1>
+  <p class="subtitle">Модерация продуктов, добавленных пользователями</p>
+
+  <div class="card">
+    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <span>База продуктов (<span id="food-count">{{ foods|length }}</span>)</span>
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="food-search" placeholder="Поиск по названию, бренду, email..."
+          oninput="filterFoods(this.value)"
+          class="search-input-admin">
+      </div>
+    </div>
+
+    {% if foods %}
+    <div class="table-scroll">
+    <table class="foods-table">
+      <thead>
+        <tr>
+          <th>Пользователь</th>
+          <th>Название</th>
+          <th>Бренд</th>
+          <th>Ккал</th>
+          <th>Б</th>
+          <th>Ж</th>
+          <th>У</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in foods %}
+        <tr data-food-id="{{ f.id }}">
+          <td class="date-cell food-email">{{ f.email }}</td>
+          <td><input class="food-input food-name" type="text" value="{{ f.name }}"></td>
+          <td><input class="food-input food-brand" type="text" value="{{ f.brand }}"></td>
+          <td><input class="food-input food-input-num food-cal" type="number" step="0.1" value="{{ f.calories }}"></td>
+          <td><input class="food-input food-input-num food-prot" type="number" step="0.1" value="{{ f.protein }}"></td>
+          <td><input class="food-input food-input-num food-fat" type="number" step="0.1" value="{{ f.fat }}"></td>
+          <td><input class="food-input food-input-num food-carb" type="number" step="0.1" value="{{ f.carbs }}"></td>
+          <td>
+            <button class="food-save-btn" onclick="saveFood({{ f.id }}, this)" title="Сохранить">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
+            <button class="food-del-btn" onclick="deleteFood({{ f.id }}, this)" title="Удалить">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty-state">Пока никто не добавил продукты в личную базу</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Показывать ✓ только при редактировании строки
+document.querySelectorAll('[data-food-id] .food-input').forEach(input => {
+  input.addEventListener('input', () => {
+    input.closest('tr').querySelector('.food-save-btn').classList.add('dirty');
+  });
+});
+
+async function saveFood(foodId, btn) {
+  const row = btn.closest('tr');
+  const body = {
+    name: row.querySelector('.food-name').value.trim(),
+    brand: row.querySelector('.food-brand').value.trim(),
+    calories: parseFloat(row.querySelector('.food-cal').value) || 0,
+    protein: parseFloat(row.querySelector('.food-prot').value) || 0,
+    fat: parseFloat(row.querySelector('.food-fat').value) || 0,
+    carbs: parseFloat(row.querySelector('.food-carb').value) || 0,
+  };
+  try {
+    const res = await fetch(`/admin/foods/${foodId}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error();
+    btn.classList.remove('dirty'); // скрыть после успешного сохранения
+    showToast('✓ Сохранено');
+  } catch {
+    showToast('✗ Не удалось сохранить');
+  }
+}
+
+async function deleteFood(foodId, btn) {
+  if (!confirm('Удалить этот продукт из базы?')) return;
+  const row = btn.closest('tr');
+  try {
+    const res = await fetch(`/admin/foods/${foodId}`, {method: 'DELETE'});
+    if (!res.ok) throw new Error();
+    row.remove();
+    const tbody = document.querySelector('#food-count').closest('.card').querySelector('tbody');
+    const total = tbody ? tbody.querySelectorAll('tr').length : 0;
+    document.getElementById('food-count').textContent = total;
+    showToast('✓ Удалено');
+  } catch {
+    showToast('✗ Не удалось удалить');
+  }
+}
+
+function filterFoods(q) {
+  const rows = document.querySelectorAll('[data-food-id]');
+  const s = q.trim().toLowerCase();
+  let visible = 0;
+  rows.forEach(row => {
+    const email = row.querySelector('.food-email')?.textContent.toLowerCase() || '';
+    const name  = row.querySelector('.food-name')?.value.toLowerCase() || '';
+    const brand = row.querySelector('.food-brand')?.value.toLowerCase() || '';
+    const show  = !s || email.includes(s) || name.includes(s) || brand.includes(s);
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('food-count').textContent = s ? visible + '/' + rows.length : rows.length;
+}
+</script>
+
+</body>
+</html>

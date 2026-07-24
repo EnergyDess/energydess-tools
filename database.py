@@ -268,6 +268,8 @@ class Exercise(Base):
     category = Column(String, nullable=False)
     images = Column(JSON, nullable=False, default=list)  # относительные пути внутри static/exercises/
     youtube_id = Column(String, nullable=True)  # id видео техники выполнения, null = не найдено / не импортировано
+    video_status = Column(String, nullable=False, default="unchecked")  # unchecked/approved/wrong/no_video — ручная модерация в админке
+    video_replaced_at = Column(DateTime, nullable=True)  # когда админ последний раз заменил youtube_id
 
 
 class WorkoutProfile(Base):
@@ -470,6 +472,8 @@ def migrate_db():
         "ALTER TABLE weight_logs ADD COLUMN bone_mass_kg FLOAT",
         "ALTER TABLE exercises ADD COLUMN youtube_id VARCHAR",
         "ALTER TABLE cover_letters ADD COLUMN edited BOOLEAN DEFAULT 0",
+        "ALTER TABLE exercises ADD COLUMN video_status VARCHAR",
+        "ALTER TABLE exercises ADD COLUMN video_replaced_at DATETIME",
     ]:
         try:
             conn.execute(col)
@@ -486,6 +490,8 @@ def migrate_db():
         "UPDATE workout_profiles SET mesocycle_length_weeks = 10 WHERE mesocycle_length_weeks IS NULL",
         "UPDATE workout_profiles SET use_nutrition_data = 1 WHERE use_nutrition_data IS NULL",
         "UPDATE cover_letters SET edited = 0 WHERE edited IS NULL",
+        "UPDATE exercises SET video_status = 'no_video' WHERE video_status IS NULL AND (youtube_id IS NULL OR youtube_id = '')",
+        "UPDATE exercises SET video_status = 'unchecked' WHERE video_status IS NULL",
     ]:
         try:
             conn.execute(backfill)

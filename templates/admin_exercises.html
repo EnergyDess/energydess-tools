@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Упражнения — Админ — EnergyDess</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/static/style.css">
+  {% include '_admin_styles.html' %}
+</head>
+<body>
+
+{% include '_admin_nav.html' %}
+
+<div class="admin-wrap">
+  {% set active = 'exercises' %}
+  {% include '_admin_subnav.html' %}
+
+  <h1>Упражнения</h1>
+  <p class="subtitle">Проверка видео техники выполнения — {{ total }} упражнений</p>
+
+  <!-- Статистика — кликабельные фильтры по статусу -->
+  <div class="ex-stats">
+    <div class="card ex-stat active" data-status="all">
+      <div class="ex-stat-value" id="stat-all">{{ total }}</div>
+      <div class="ex-stat-label">Всего</div>
+    </div>
+    <div class="card ex-stat" data-status="unchecked">
+      <div class="ex-stat-value" id="stat-unchecked">{{ status_counts.unchecked }}</div>
+      <div class="ex-stat-label">Не проверено</div>
+    </div>
+    <div class="card ex-stat" data-status="approved">
+      <div class="ex-stat-value" id="stat-approved">{{ status_counts.approved }}</div>
+      <div class="ex-stat-label">Одобрено</div>
+    </div>
+    <div class="card ex-stat" data-status="wrong">
+      <div class="ex-stat-value" id="stat-wrong">{{ status_counts.wrong }}</div>
+      <div class="ex-stat-label">Неверное</div>
+    </div>
+    <div class="card ex-stat" data-status="no_video">
+      <div class="ex-stat-value" id="stat-no_video">{{ status_counts.no_video }}</div>
+      <div class="ex-stat-label">Без видео</div>
+    </div>
+  </div>
+
+  <!-- Фильтры -->
+  <div class="ex-filters">
+    <select class="ex-select" id="filter-muscle">
+      <option value="all">Все группы мышц</option>
+      {% for key, label in muscle_groups.items() %}
+      <option value="{{ key }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+
+    <select class="ex-select" id="filter-status">
+      <option value="all">Любой статус</option>
+      <option value="unchecked">Не проверено</option>
+      <option value="approved">Одобрено</option>
+      <option value="wrong">Неверное</option>
+      <option value="no_video">Без видео</option>
+    </select>
+
+    <select class="ex-select" id="filter-equipment">
+      <option value="all">Любое оборудование</option>
+      {% for key, label in equipment_labels.items() %}
+      <option value="{{ key }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+
+    <div class="search-wrap" style="max-width:260px">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="filter-search" placeholder="Поиск по названию..." class="search-input-admin">
+    </div>
+  </div>
+
+  <!-- Сетка карточек — наполняется JS -->
+  <div class="ex-grid" id="ex-grid"></div>
+  <div class="empty-state" id="ex-empty" style="display:none">Ничего не найдено по текущим фильтрам</div>
+
+  <div class="ex-pagination" id="ex-pagination"></div>
+</div>
+
+<!-- Модалка видео -->
+<div class="ex-modal-overlay" id="ex-modal-overlay" onclick="if(event.target===this)closeVideoModal()">
+  <div class="ex-modal">
+    <button class="ex-modal-close" onclick="closeVideoModal()">✕ Закрыть</button>
+    <div id="ex-modal-iframe-wrap"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Данные — весь список передан один раз, дальше работаем в памяти ────────
+const EXERCISES = {{ exercises | tojson }};
+const MUSCLE_LABELS = {{ muscle_groups | tojson }};
+const EQUIPMENT_LABELS = {{ equipment_labels | tojson }};
+const STATUS_LABELS = {unchecked: 'Не проверено', approved: 'Одобрено', wrong: 'Неверное', no_video: 'Без видео'};
+const PAGE_SIZE = 30;
+
+const state = {
+  muscle: 'all',
+  status: 'all',
+  equipment: 'all',
+  search: '',
+  page: 1,
+};
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function escHtml(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getFiltered() {
+  const s = state.search.trim().toLowerCase();
+  return EXERCISES.filter(e => {
+    if (state.muscle !== 'all' && e.muscle_group !== state.muscle) return false;
+    if (state.status !== 'all' && e.video_status !== state.status) return false;
+    if (state.equipment !== 'all' && e.equipment !== state.equipment) return false;
+    if (s && !e.name_ru.toLowerCase().includes(s)) return false;
+    return true;
+  });
+}
+
+function renderStats() {
+  const counts = {all: EXERCISES.length, unchecked: 0, approved: 0, wrong: 0, no_video: 0};
+  EXERCISES.forEach(e => { counts[e.video_status] = (counts[e.video_status] || 0) + 1; });
+  Object.keys(counts).forEach(k => {
+    const el = document.getElementById('stat-' + k);
+    if (el) el.textContent = counts[k];
+  });
+  document.querySelectorAll('.ex-stat').forEach(el => {
+    el.classList.toggle('active', el.dataset.status === state.status);
+  });
+}
+
+function cardHtml(e) {
+  const badge = e.video_status !== 'unchecked'
+    ? `<span class="ex-card-badge ex-badge-${e.video_status}">${STATUS_LABELS[e.video_status]}</span>`
+    : '';
+  const thumb = e.youtube_id
+    ? `<img src="https://img.youtube.com/vi/${e.youtube_id}/mqdefault.jpg" alt="" loading="lazy">
+       <div class="ex-card-play"><svg viewBox="0 0 68 48" width="48" height="34"><path d="M66.5 7.7c-.8-2.9-2.5-5.2-5.4-6C55.8.2 34 0 34 0S12.2.2 6.9 1.7c-2.9.8-4.6 3.1-5.4 6C0 13 0 24 0 24s0 11 1.5 16.3c.8 2.9 2.5 5.1 5.4 5.9C12.2 47.7 34 48 34 48s21.8-.3 27.1-1.8c2.9-.8 4.6-3 5.4-5.9C68 35 68 24 68 24s0-11-1.5-16.3z" fill="#f00"/><path d="M45 24 27 14v20" fill="#fff"/></svg></div>`
+    : `<div class="ex-card-thumb-empty">Без видео</div>`;
+  const equipLabel = EQUIPMENT_LABELS[e.equipment] || e.equipment || '—';
+  const muscleLabel = MUSCLE_LABELS[e.muscle_group] || '—';
+  const warn = e.video_status === 'wrong'
+    ? `<div class="ex-card-warn visible">Видео помечено как неверное — нажми «Заменить», чтобы указать правильное.</div>`
+    : `<div class="ex-card-warn"></div>`;
+
+  return `
+    <div class="card ex-card" data-id="${escHtml(e.id)}">
+      <div class="ex-card-thumb" ${e.youtube_id ? `onclick="openVideoModal('${escHtml(e.youtube_id)}')"` : ''}>
+        ${thumb}
+        ${badge}
+      </div>
+      <div class="ex-card-body">
+        <div class="ex-card-name">${escHtml(e.name_ru)}</div>
+        <div class="ex-card-meta">${muscleLabel} · ${equipLabel}</div>
+        <div class="ex-card-actions">
+          <button class="ex-btn ex-btn-approve ${e.video_status === 'approved' ? 'active' : ''}" onclick="setStatus('${escHtml(e.id)}', 'approved')">✓ Одобрено</button>
+          <button class="ex-btn ex-btn-wrong ${e.video_status === 'wrong' ? 'active' : ''}" onclick="setStatus('${escHtml(e.id)}', 'wrong')">✗ Неверное</button>
+          <button class="ex-btn ex-btn-replace" onclick="toggleReplace('${escHtml(e.id)}')">Заменить</button>
+        </div>
+        <div class="ex-replace-row" id="replace-row-${escHtml(e.id)}">
+          <input type="text" class="ex-replace-input" id="replace-input-${escHtml(e.id)}" placeholder="Ссылка на youtube.com или youtu.be">
+          <button class="ex-replace-save" onclick="saveReplace('${escHtml(e.id)}')">Сохранить</button>
+        </div>
+        ${warn}
+      </div>
+    </div>`;
+}
+
+function renderGrid() {
+  const filtered = getFiltered();
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  if (state.page > totalPages) state.page = totalPages;
+  if (state.page < 1) state.page = 1;
+
+  const start = (state.page - 1) * PAGE_SIZE;
+  const pageItems = filtered.slice(start, start + PAGE_SIZE);
+
+  const grid = document.getElementById('ex-grid');
+  const empty = document.getElementById('ex-empty');
+  if (!pageItems.length) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    grid.innerHTML = pageItems.map(cardHtml).join('');
+  }
+
+  renderPagination(totalPages);
+  renderStats();
+}
+
+function renderPagination(totalPages) {
+  const el = document.getElementById('ex-pagination');
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  const btn = (label, page, disabled, active) =>
+    `<button class="ex-page-btn ${active ? 'active' : ''}" ${disabled ? 'disabled' : ''} onclick="goToPage(${page})">${label}</button>`;
+
+  let html = btn('← Пред', state.page - 1, state.page === 1, false);
+
+  // Окно страниц: текущая ± 2, плюс первая/последняя с многоточием
+  const windowStart = Math.max(1, state.page - 2);
+  const windowEnd = Math.min(totalPages, state.page + 2);
+
+  if (windowStart > 1) {
+    html += btn('1', 1, false, state.page === 1);
+    if (windowStart > 2) html += '<span style="color:var(--ak-fog);padding:0 4px">…</span>';
+  }
+  for (let p = windowStart; p <= windowEnd; p++) {
+    html += btn(String(p), p, false, p === state.page);
+  }
+  if (windowEnd < totalPages) {
+    if (windowEnd < totalPages - 1) html += '<span style="color:var(--ak-fog);padding:0 4px">…</span>';
+    html += btn(String(totalPages), totalPages, false, state.page === totalPages);
+  }
+
+  html += btn('След →', state.page + 1, state.page === totalPages, false);
+  el.innerHTML = html;
+}
+
+function goToPage(p) {
+  state.page = p;
+  renderGrid();
+  window.scrollTo({top: document.querySelector('.ex-filters').offsetTop - 80, behavior: 'smooth'});
+}
+
+// ── Фильтры ──
+document.getElementById('filter-muscle').addEventListener('change', function() {
+  state.muscle = this.value; state.page = 1; renderGrid();
+});
+document.getElementById('filter-status').addEventListener('change', function() {
+  state.status = this.value; state.page = 1; renderGrid();
+});
+document.getElementById('filter-equipment').addEventListener('change', function() {
+  state.equipment = this.value; state.page = 1; renderGrid();
+});
+document.getElementById('filter-search').addEventListener('input', function() {
+  state.search = this.value; state.page = 1; renderGrid();
+});
+
+document.querySelectorAll('.ex-stat').forEach(tile => {
+  tile.addEventListener('click', () => {
+    state.status = tile.dataset.status === 'all' ? 'all' : tile.dataset.status;
+    document.getElementById('filter-status').value = state.status;
+    state.page = 1;
+    renderGrid();
+  });
+});
+
+// ── Действия над карточкой ──
+async function setStatus(id, status) {
+  try {
+    const res = await fetch(`/admin/exercises/${encodeURIComponent(id)}/status`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({status}),
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const ex = EXERCISES.find(e => e.id === id);
+    if (ex) ex.video_status = data.video_status;
+    showToast(status === 'approved' ? '✓ Одобрено' : '✗ Помечено как неверное');
+    renderGrid();
+  } catch {
+    showToast('Не удалось сохранить статус');
+  }
+}
+
+function toggleReplace(id) {
+  const row = document.getElementById('replace-row-' + id);
+  row.classList.toggle('open');
+  if (row.classList.contains('open')) {
+    document.getElementById('replace-input-' + id).focus();
+  }
+}
+
+async function saveReplace(id) {
+  const input = document.getElementById('replace-input-' + id);
+  const url = input.value.trim();
+  if (!url) { input.focus(); return; }
+  if (!/youtube\.com|youtu\.be/.test(url)) {
+    showToast('Ссылка должна быть с youtube.com или youtu.be');
+    return;
+  }
+  try {
+    const res = await fetch(`/admin/exercises/${encodeURIComponent(id)}/replace`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({youtube_url: url}),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      showToast(data.error || 'Не удалось сохранить ссылку');
+      return;
+    }
+    const ex = EXERCISES.find(e => e.id === id);
+    if (ex) { ex.youtube_id = data.youtube_id; ex.video_status = data.video_status; }
+    input.value = '';
+    showToast('✓ Видео заменено');
+    renderGrid();
+  } catch {
+    showToast('Ошибка сети — ссылка не сохранена');
+  }
+}
+
+// ── Модалка видео ──
+function openVideoModal(youtubeId) {
+  const wrap = document.getElementById('ex-modal-iframe-wrap');
+  wrap.innerHTML = `<iframe src="https://www.youtube.com/embed/${escHtml(youtubeId)}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+  document.getElementById('ex-modal-overlay').classList.add('open');
+}
+
+function closeVideoModal() {
+  document.getElementById('ex-modal-overlay').classList.remove('open');
+  document.getElementById('ex-modal-iframe-wrap').innerHTML = ''; // уничтожаем iframe — видео останавливается
+}
+
+renderGrid();
+</script>
+
+</body>
+</html>

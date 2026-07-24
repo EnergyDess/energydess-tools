@@ -1,0 +1,10 @@
+{# Подстраничная навигация админки — переключение между 4 разделами.
+   Подключать ВНУТРИ .admin-wrap (нужен верхний padding контейнера, иначе
+   уходит под фиксированную .nav — см. _admin_nav.html).
+   Параметр `active` — 'dashboard' | 'users' | 'products' | 'exercises'. #}
+<div class="admin-subnav">
+  <a href="/admin" class="{{ 'active' if active == 'dashboard' }}">Дашборд</a>
+  <a href="/admin/users" class="{{ 'active' if active == 'users' }}">Пользователи</a>
+  <a href="/admin/products" class="{{ 'active' if active == 'products' }}">Продукты</a>
+  <a href="/admin/exercises" class="{{ 'active' if active == 'exercises' }}">Упражнения</a>
+</div>

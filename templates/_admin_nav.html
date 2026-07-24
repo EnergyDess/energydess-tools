@@ -1,0 +1,15 @@
+{# Общая nav-шапка админки. Дизайн не менялся — тот же .nav, что и раньше
+   в admin.html. Подключать ДО .admin-wrap (не внутри — position:fixed,
+   на позиционирование вложенность не влияет). #}
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="nav-logo-symbol">⚡</span>
+    <span>EnergyDess</span>
+  </a>
+  <div class="nav-right">
+    <a href="/">Главная</a>
+    <a href="/profile">Профиль</a>
+    <a href="/admin" class="admin-link active">Админ</a>
+    <a href="/logout" class="nav-logout">Выйти</a>
+  </div>
+</nav>

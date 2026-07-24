@@ -782,9 +782,65 @@ async def profile_save(
 
 # ── Админ панель ──────────────────────────────────────────────────────────────
 
+def _admin_guard(user):
+    """Единая проверка доступа для всех admin-роутов. Возвращает True, если можно продолжать."""
+    return bool(user and user.is_admin)
+
+
+# Группировка primary_muscles (17 сырых значений free-exercise-db) в 7 категорий —
+# переиспользует таксономию FOCUS_ZONE_LABELS_RU (arms/shoulders/chest/back/legs/abs/glutes).
+# Проверено на всех 873 упражнениях: у каждого ровно одна группа, 0 расхождений.
+MUSCLE_TO_GROUP = {
+    "chest": "chest",
+    "shoulders": "shoulders", "neck": "shoulders",
+    "lats": "back", "lower back": "back", "middle back": "back", "traps": "back",
+    "biceps": "arms", "triceps": "arms", "forearms": "arms",
+    "quadriceps": "legs", "hamstrings": "legs", "calves": "legs", "abductors": "legs", "adductors": "legs",
+    "abdominals": "abs",
+    "glutes": "glutes",
+}
+MUSCLE_GROUP_LABELS_RU = {
+    "arms": "Руки", "shoulders": "Плечи", "chest": "Грудь", "back": "Спина",
+    "legs": "Ноги", "abs": "Пресс", "glutes": "Ягодицы",
+}
+EXERCISE_EQUIPMENT_LABELS_RU = {
+    "barbell": "Штанга", "dumbbell": "Гантели", "e-z curl bar": "EZ-гриф",
+    "kettlebells": "Гири", "machine": "Тренажёр", "cable": "Блок",
+    "body only": "Без инвентаря", "bands": "Резинки", "exercise ball": "Фитбол",
+    "foam roll": "Массажный ролл", "medicine ball": "Медбол", "other": "Другое",
+}
+
+_YOUTUBE_URL_RE = re.compile(
+    r"(?:youtube\.com/(?:watch\?v=|embed/|shorts/)|youtu\.be/)([A-Za-z0-9_-]{11})"
+)
+
+
+def _parse_youtube_id(url: str) -> Optional[str]:
+    """Извлекает 11-символьный video ID из ссылки youtube.com/youtu.be. None, если не похоже на YouTube."""
+    if not url:
+        return None
+    m = _YOUTUBE_URL_RE.search(url.strip())
+    return m.group(1) if m else None
+
+
 @app.get("/admin")
 async def admin_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    if not user or not user.is_admin:
+    if not _admin_guard(user):
+        return RedirectResponse("/", status_code=302)
+
+    users_count = db.query(User).filter(User.id != user.id).count()
+    foods_count = db.query(CustomFood).count()
+    exercises_count = db.query(Exercise).count()
+
+    return templates.TemplateResponse(request=request, name="admin.html",
+                                      context={"user": user, "users_count": users_count,
+                                               "foods_count": foods_count,
+                                               "exercises_count": exercises_count})
+
+
+@app.get("/admin/users")
+async def admin_users_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not _admin_guard(user):
         return RedirectResponse("/", status_code=302)
 
     users = db.query(User).filter(User.id != user.id).order_by(User.created_at).all()
@@ -799,6 +855,15 @@ async def admin_page(request: Request, user=Depends(get_current_user), db: Sessi
             "created_at": u.created_at,
             "tools": {t["id"]: (u.id, t["id"]) in access_set for t in TOOLS},
         })
+
+    return templates.TemplateResponse(request=request, name="admin_users.html",
+                                      context={"user": user, "users": users_data, "tools": TOOLS})
+
+
+@app.get("/admin/products")
+async def admin_products_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not _admin_guard(user):
+        return RedirectResponse("/", status_code=302)
 
     # Все продукты, добавленные пользователями в личную базу (CustomFood) —
     # для модерации/правки админом
@@ -817,9 +882,41 @@ async def admin_page(request: Request, user=Depends(get_current_user), db: Sessi
         "created_at": f.created_at,
     } for f in foods]
 
-    return templates.TemplateResponse(request=request, name="admin.html",
-                                      context={"user": user, "users": users_data, "tools": TOOLS,
-                                               "foods": foods_data})
+    return templates.TemplateResponse(request=request, name="admin_products.html",
+                                      context={"user": user, "foods": foods_data})
+
+
+@app.get("/admin/exercises")
+async def admin_exercises_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not _admin_guard(user):
+        return RedirectResponse("/", status_code=302)
+
+    exercises = db.query(Exercise).order_by(Exercise.name_ru).all()
+    exercises_data = []
+    status_counts = {"unchecked": 0, "approved": 0, "wrong": 0, "no_video": 0}
+    for e in exercises:
+        status = e.video_status or "unchecked"
+        status_counts[status] = status_counts.get(status, 0) + 1
+        group = None
+        for m in (e.primary_muscles or []):
+            if m in MUSCLE_TO_GROUP:
+                group = MUSCLE_TO_GROUP[m]
+                break
+        exercises_data.append({
+            "id": e.id,
+            "name_ru": e.name_ru,
+            "muscle_group": group,
+            "equipment": e.equipment,
+            "youtube_id": e.youtube_id or "",
+            "video_status": status,
+        })
+
+    return templates.TemplateResponse(request=request, name="admin_exercises.html",
+                                      context={"user": user, "exercises": exercises_data,
+                                               "total": len(exercises_data),
+                                               "status_counts": status_counts,
+                                               "muscle_groups": MUSCLE_GROUP_LABELS_RU,
+                                               "equipment_labels": EXERCISE_EQUIPMENT_LABELS_RU})
 
 
 @app.post("/admin/toggle")
@@ -828,7 +925,7 @@ async def admin_toggle(
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if not user or not user.is_admin:
+    if not _admin_guard(user):
         return JSONResponse({"error": "Forbidden"}, status_code=403)
 
     data = await request.json()
@@ -852,7 +949,7 @@ async def admin_toggle(
 
 @app.put("/admin/foods/{food_id}")
 async def admin_update_food(food_id: int, request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    if not user or not user.is_admin:
+    if not _admin_guard(user):
         return JSONResponse({"error": "Forbidden"}, status_code=403)
 
     food = db.query(CustomFood).filter(CustomFood.id == food_id).first()
@@ -872,7 +969,7 @@ async def admin_update_food(food_id: int, request: Request, user=Depends(get_cur
 
 @app.delete("/admin/foods/{food_id}")
 async def admin_delete_food(food_id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    if not user or not user.is_admin:
+    if not _admin_guard(user):
         return JSONResponse({"error": "Forbidden"}, status_code=403)
 
     food = db.query(CustomFood).filter(CustomFood.id == food_id).first()
@@ -882,6 +979,47 @@ async def admin_delete_food(food_id: int, user=Depends(get_current_user), db: Se
     db.delete(food)
     db.commit()
     return JSONResponse({"ok": True})
+
+
+@app.post("/admin/exercises/{exercise_id}/status")
+async def admin_exercise_set_status(exercise_id: str, request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not _admin_guard(user):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+
+    data = await request.json()
+    status = data.get("status")
+    if status not in ("approved", "wrong"):
+        return JSONResponse({"error": "Недопустимый статус"}, status_code=400)
+
+    ex = db.query(Exercise).filter(Exercise.id == exercise_id).first()
+    if not ex:
+        return JSONResponse({"error": "Не найдено"}, status_code=404)
+
+    ex.video_status = status
+    db.commit()
+    return JSONResponse({"ok": True, "video_status": ex.video_status})
+
+
+@app.post("/admin/exercises/{exercise_id}/replace")
+async def admin_exercise_replace_video(exercise_id: str, request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not _admin_guard(user):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+
+    ex = db.query(Exercise).filter(Exercise.id == exercise_id).first()
+    if not ex:
+        return JSONResponse({"error": "Не найдено"}, status_code=404)
+
+    data = await request.json()
+    url = (data.get("youtube_url") or "").strip()
+    video_id = _parse_youtube_id(url)
+    if not video_id:
+        return JSONResponse({"error": "Ссылка должна быть с youtube.com или youtu.be"}, status_code=400)
+
+    ex.youtube_id = video_id
+    ex.video_status = "unchecked"
+    ex.video_replaced_at = datetime.utcnow()
+    db.commit()
+    return JSONResponse({"ok": True, "youtube_id": ex.youtube_id, "video_status": ex.video_status})
 
 
 # ── Enshrouded Трекер ─────────────────────────────────────────────────────────
