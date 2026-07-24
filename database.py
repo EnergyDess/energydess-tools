@@ -492,6 +492,11 @@ def migrate_db():
         "UPDATE cover_letters SET edited = 0 WHERE edited IS NULL",
         "UPDATE exercises SET video_status = 'no_video' WHERE video_status IS NULL AND (youtube_id IS NULL OR youtube_id = '')",
         "UPDATE exercises SET video_status = 'unchecked' WHERE video_status IS NULL",
+        # Ретроактивная верификация: is_verified раньше не проставлялся всем строкам при
+        # добавлении колонки (NULL). Помечаем как подтверждённых только те аккаунты, у
+        # которых NULL — это существующие пользователи "из прошлого", не бот-волна.
+        # Явные False (реальные неподтверждённые/бот-регистрации) НЕ трогаем.
+        "UPDATE users SET is_verified = 1 WHERE is_verified IS NULL",
     ]:
         try:
             conn.execute(backfill)

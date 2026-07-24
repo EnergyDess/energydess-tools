@@ -65,6 +65,8 @@ PARSER_MODEL        = os.getenv("PARSER_MODEL",  "anthropic/claude-sonnet-4-5") 
 RESEND_API_KEY      = os.getenv("RESEND_API_KEY", "")
 BASE_URL            = os.getenv("BASE_URL", "https://energydess.ru")
 CREDENTIALS_ENCRYPTION_KEY = os.getenv("CREDENTIALS_ENCRYPTION_KEY", "")
+TURNSTILE_SITE_KEY   = os.getenv("TURNSTILE_SITE_KEY", "")    # TODO: выдать ключи через dash.cloudflare.com → Turnstile → Add Site
+TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
 
 
 def _get_fernet():
@@ -130,6 +132,59 @@ def user_has_access(user: User, tool_id: str, db: Session) -> bool:
         ToolAccess.user_id == user.id,
         ToolAccess.tool_id == tool_id
     ).first() is not None
+
+
+def _verification_gate(request: Request, user: User, tool_name: str):
+    """Плашка "подтвердите email" вместо инструмента, если is_verified явно False.
+    None (is_verified не заполнен у старых аккаунтов) — не блокирует."""
+    if user.is_verified is False:
+        return templates.TemplateResponse(request=request, name="verify_required.html",
+                                          context={"user": user, "tool_name": tool_name})
+    return None
+
+
+async def _verify_turnstile(token: str, remote_ip: str = None) -> bool:
+    """Проверка Cloudflare Turnstile через siteverify. Если TURNSTILE_SECRET_KEY
+    не задан (ключи ещё не выданы) — не блокируем регистрацию."""
+    if not TURNSTILE_SECRET_KEY:
+        return True
+    if not token:
+        return False
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            data = {"secret": TURNSTILE_SECRET_KEY, "response": token}
+            if remote_ip:
+                data["remoteip"] = remote_ip
+            r = await client.post("https://challenges.cloudflare.com/turnstile/v0/siteverify", data=data)
+            return bool(r.json().get("success"))
+    except Exception:
+        return False  # ошибка проверки — блокируем, а не пропускаем молча
+
+
+def _issue_verification_token(user) -> str:
+    """Генерирует свежий verification_token (24ч) и записывает в объект user. Не коммитит, не отправляет письмо."""
+    vtok = generate_token()
+    user.verification_token = vtok
+    user.verification_token_expires = datetime.utcnow() + timedelta(hours=24)
+    return vtok
+
+
+def _verification_email_html(link: str) -> str:
+    return f"""
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#07070f;border-radius:16px;border:1px solid rgba(255,255,255,0.08)">
+  <div style="font-size:1.5rem;font-weight:800;margin-bottom:8px;color:#dde2f0">⚡ EnergyDess</div>
+  <div style="color:#5a6888;font-size:0.875rem;margin-bottom:24px">Подтверждение регистрации</div>
+  <p style="color:#dde2f0;line-height:1.6;margin-bottom:24px">
+    Для завершения регистрации перейдите по ссылке ниже. Ссылка действует 24 часа.
+  </p>
+  <a href="{link}"
+     style="display:inline-block;padding:13px 28px;background:linear-gradient(135deg,#7c4dff,#00d4ff);color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:0.95rem">
+    Подтвердить email →
+  </a>
+  <p style="color:#2a3050;font-size:0.78rem;margin-top:24px">
+    Если вы не регистрировались на EnergyDess — просто проигнорируйте это письмо.
+  </p>
+</div>"""
 
 
 async def send_email(to: str, subject: str, html: str):
@@ -542,7 +597,8 @@ async def index(request: Request, user=Depends(get_current_user), db: Session = 
 async def register_page(request: Request, user=Depends(get_current_user)):
     if user:
         return RedirectResponse("/", status_code=302)
-    return templates.TemplateResponse(request=request, name="register.html", context={"error": None})
+    return templates.TemplateResponse(request=request, name="register.html",
+                                      context={"error": None, "turnstile_site_key": TURNSTILE_SITE_KEY})
 
 
 @app.post("/register")
@@ -551,31 +607,34 @@ async def register(
     email: str = Form(...),
     password: str = Form(...),
     password2: str = Form(...),
+    turnstile_token: str = Form(default="", alias="cf-turnstile-response"),
     db: Session = Depends(get_db),
 ):
     email = email.strip().lower()
+    ctx = {"email": email, "turnstile_site_key": TURNSTILE_SITE_KEY}
 
+    if not await _verify_turnstile(turnstile_token, request.client.host if request.client else None):
+        return templates.TemplateResponse(request=request, name="register.html", status_code=400,
+                                          context={**ctx, "error": "Не удалось подтвердить, что вы не робот"})
     if password != password2:
         return templates.TemplateResponse(request=request, name="register.html",
-                                          context={"error": "Пароли не совпадают", "email": email})
+                                          context={**ctx, "error": "Пароли не совпадают"})
     if len(password) < 6:
         return templates.TemplateResponse(request=request, name="register.html",
-                                          context={"error": "Пароль минимум 6 символов", "email": email})
+                                          context={**ctx, "error": "Пароль минимум 6 символов"})
     if db.query(User).filter(User.email == email).first():
         return templates.TemplateResponse(request=request, name="register.html",
-                                          context={"error": "Email уже зарегистрирован", "email": email})
+                                          context={**ctx, "error": "Email уже зарегистрирован"})
 
     is_first = db.query(User).count() == 0
-    vtok = generate_token()
-    vexp = datetime.utcnow() + timedelta(hours=24)
     user = User(
         email=email,
         password_hash=hash_password(password),
         is_admin=is_first,
         is_verified=True if is_first else False,
-        verification_token=None if is_first else vtok,
-        verification_token_expires=None if is_first else vexp,
     )
+    if not is_first:
+        vtok = _issue_verification_token(user)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -586,25 +645,8 @@ async def register(
 
     if not is_first:
         link = f"{BASE_URL}/verify/{vtok}"
-        await send_email(
-            to=email,
-            subject="Подтвердите регистрацию на EnergyDess",
-            html=f"""
-<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#07070f;border-radius:16px;border:1px solid rgba(255,255,255,0.08)">
-  <div style="font-size:1.5rem;font-weight:800;margin-bottom:8px;color:#dde2f0">⚡ EnergyDess</div>
-  <div style="color:#5a6888;font-size:0.875rem;margin-bottom:24px">Подтверждение регистрации</div>
-  <p style="color:#dde2f0;line-height:1.6;margin-bottom:24px">
-    Для завершения регистрации перейдите по ссылке ниже. Ссылка действует 24 часа.
-  </p>
-  <a href="{link}"
-     style="display:inline-block;padding:13px 28px;background:linear-gradient(135deg,#7c4dff,#00d4ff);color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:0.95rem">
-    Подтвердить email →
-  </a>
-  <p style="color:#2a3050;font-size:0.78rem;margin-top:24px">
-    Если вы не регистрировались на EnergyDess — просто проигнорируйте это письмо.
-  </p>
-</div>""",
-        )
+        await send_email(to=email, subject="Подтвердите регистрацию на EnergyDess",
+                         html=_verification_email_html(link))
         return RedirectResponse("/verify-pending", status_code=302)
 
     token = create_token(user.id)
@@ -626,7 +668,7 @@ async def login_page(request: Request, user=Depends(get_current_user),
     elif error == "bad_token":
         msg = "Неверная ссылка подтверждения"
     elif error == "expired_token":
-        msg = "Ссылка устарела — зарегистрируйтесь заново"
+        msg = "Ссылка устарела — войдите в аккаунт, там можно отправить новую ссылку"
     return templates.TemplateResponse(request=request, name="login.html",
                                       context={"error": None, "info": msg})
 
@@ -645,10 +687,9 @@ async def login(
         return templates.TemplateResponse(request=request, name="login.html",
                                           context={"error": "Неверный email или пароль", "email": email})
 
-    if user.is_verified is False:
-        return templates.TemplateResponse(request=request, name="login.html",
-                                          context={"error": "Сначала подтвердите email — проверьте почту", "email": email})
-
+    # is_verified=False НЕ блокирует вход — пользователь логинится как обычно,
+    # блокировка происходит на уровне конкретного инструмента (см. _verification_gate),
+    # где есть кнопка повторной отправки письма (/resend-verification).
     token = create_token(user.id)
     response = RedirectResponse("/", status_code=302)
     response.set_cookie("access_token", token, httponly=True, max_age=60 * 60 * 24 * 30, samesite="lax")
@@ -683,6 +724,25 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
     user.verification_token_expires = None
     db.commit()
     return RedirectResponse("/login?verified=1", status_code=302)
+
+
+@app.post("/resend-verification")
+async def resend_verification(request: Request, tool_name: str = Form(default=""),
+                              user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Повторная отправка письма подтверждения — вызывается с плашки verify_required.html,
+    когда пользователь уже залогинен, но is_verified=False (в отличие от resend через /login,
+    здесь пароль второй раз вводить не нужно — сессия уже аутентифицирована)."""
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    if user.is_verified is not False:
+        return RedirectResponse("/", status_code=302)
+    vtok = _issue_verification_token(user)
+    db.commit()
+    link = f"{BASE_URL}/verify/{vtok}"
+    await send_email(to=user.email, subject="Подтвердите регистрацию на EnergyDess",
+                     html=_verification_email_html(link))
+    return templates.TemplateResponse(request=request, name="verify_required.html",
+                                      context={"user": user, "tool_name": tool_name or "инструменту", "resent": True})
 
 
 # ── Forgot / Reset password ───────────────────────────────────────────────────
@@ -1055,6 +1115,9 @@ async def admin_exercise_replace_video(exercise_id: str, request: Request, user=
 async def enshrouded_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse("/login", status_code=302)
+    gate = _verification_gate(request, user, "Enshrouded")
+    if gate:
+        return gate
     if not user_has_access(user, "enshrouded", db):
         return RedirectResponse("/?locked=enshrouded", status_code=302)
     return templates.TemplateResponse(request=request, name="enshrouded.html", context={"user": user})
@@ -1132,6 +1195,9 @@ async def import_enshrouded_state(request: Request, user=Depends(get_current_use
 async def hh_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse("/login", status_code=302)
+    gate = _verification_gate(request, user, "HH-ассистент")
+    if gate:
+        return gate
     if not user_has_access(user, "hh", db):
         return RedirectResponse("/?locked=hh", status_code=302)
     resume = db.query(Resume).filter(Resume.user_id == user.id).first()
@@ -2090,6 +2156,9 @@ def _diary_totals(logs: list) -> dict:
 async def nutrition_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse("/login", status_code=302)
+    gate = _verification_gate(request, user, "Дневник питания")
+    if gate:
+        return gate
     if not user_has_access(user, "nutrition", db):
         return RedirectResponse("/?locked=nutrition", status_code=302)
     return templates.TemplateResponse(request=request, name="nutrition.html", context={"user": user})
@@ -3063,6 +3132,9 @@ def _workout_equipment_checklist(db: Session):
 async def workout_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse("/login", status_code=302)
+    gate = _verification_gate(request, user, "Программа тренировок")
+    if gate:
+        return gate
     if not user_has_access(user, "workout", db):
         return RedirectResponse("/?locked=workout", status_code=302)
     return templates.TemplateResponse(request=request, name="workout.html", context={

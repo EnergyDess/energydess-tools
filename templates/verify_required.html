@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Подтвердите email — EnergyDess</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    {# TODO: перенести в модульный CSS при миграции этой страницы на design-system.md #}
+    .verify-icon {
+      width: 72px; height: 72px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(124,77,255,0.18), rgba(0,212,255,0.12));
+      border: 1px solid rgba(124,77,255,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem;
+      margin: 0 auto 24px;
+      box-shadow: 0 0 40px rgba(124,77,255,0.12);
+    }
+    .verify-resend-btn {
+      width: 100%;
+      background: rgba(124,77,255,0.1);
+      border: 1px solid rgba(124,77,255,0.3);
+      color: #a78bfa;
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 8px;
+    }
+    .verify-resend-btn:hover { background: rgba(124,77,255,0.2); }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="nav-logo-symbol">⚡</span>
+    <span>EnergyDess</span>
+  </a>
+  <div class="nav-right">
+    <a href="/profile">Профиль</a>
+    <a href="/logout" class="nav-logout">Выйти</a>
+  </div>
+</nav>
+
+<div class="auth-wrap">
+  <div class="auth-box" style="text-align:center">
+    <div class="verify-icon">✉️</div>
+
+    {% if resent %}
+    <h1 style="margin-bottom:8px">Письмо отправлено</h1>
+    <p style="color:var(--text-dim);font-size:0.95rem;margin-bottom:24px">
+      Новая ссылка выслана на <strong style="color:var(--text)">{{ user.email }}</strong> — проверьте почту (действительна 24 часа).
+    </p>
+    {% else %}
+    <h1 style="margin-bottom:8px">Подтвердите email</h1>
+    <p style="color:var(--text-dim);font-size:0.95rem;margin-bottom:4px">
+      Чтобы открыть «{{ tool_name }}», подтвердите почту <strong style="color:var(--text)">{{ user.email }}</strong>.
+    </p>
+    <p style="color:var(--text-faint);font-size:0.8rem;margin-bottom:20px">
+      Мы отправили ссылку при регистрации. Не нашли письмо? Проверьте папку «Спам» или отправьте ещё раз.
+    </p>
+    <form method="post" action="/resend-verification">
+      <input type="hidden" name="tool_name" value="{{ tool_name }}">
+      <button type="submit" class="verify-resend-btn">Отправить письмо ещё раз</button>
+    </form>
+    {% endif %}
+
+    <div style="margin-top:24px">
+      <a href="/" style="color:var(--accent);font-size:0.875rem;text-decoration:none;transition:opacity 0.2s"
+         onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">
+        ← На главную
+      </a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

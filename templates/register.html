@@ -59,6 +59,9 @@
           </button>
         </div>
       </div>
+      {% if turnstile_site_key %}
+      <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="dark" style="margin-bottom:18px"></div>
+      {% endif %}
       <button type="submit" class="auth-btn-primary">Создать аккаунт</button>
     </form>
 
@@ -81,5 +84,8 @@ function toggleEye(inputId, btn) {
   }
 }
 </script>
+{% if turnstile_site_key %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% endif %}
 </body>
 </html>
