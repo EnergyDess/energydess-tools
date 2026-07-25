@@ -40,12 +40,10 @@
        position: sticky — это не зависит от точности расчёта высоты viewport. */
     .nut-app {
       display: flex; flex-direction: column;
-      min-height: calc(100dvh - 60px);
+      /* 64px — высота sticky .site-header (в потоке, компенсация не нужна) */
+      min-height: calc(100dvh - 64px);
       max-width: 540px; width: 100%;
-      /* 60px — компенсация фиксированной шапки .nav: без неё верх приложения
-         (кругляшок калорий) уезжал под хедер. TODO: убрать при миграции на
-         sticky .site-header (фаза 1 дизайн-миграции) */
-      margin: 60px auto 0;
+      margin: 0 auto;
       position: relative;
     }
     @media (min-width: 560px) {
@@ -115,7 +113,7 @@
     @media (max-width: 899px) {
       html.assistant-mode #tab-assistant.active {
         position: fixed;
-        top: var(--assistant-top, calc(60px + var(--hdr-h)));
+        top: var(--assistant-top, calc(64px + var(--hdr-h)));
         bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0));
         left: 50%; transform: translateX(-50%);
         width: 100%; max-width: 540px; min-height: 0;
@@ -786,7 +784,7 @@
       /* ── Full-width horizontal app shell ── */
       .nut-app {
         flex-direction: row; max-width: none;
-        height: calc(100dvh - 60px); overflow: hidden;
+        height: calc(100dvh - 64px); overflow: hidden;
         border: none !important; box-shadow: none !important;
       }
       .nut-hdr { display: none; }
@@ -1025,21 +1023,9 @@
     }
   </style>
 </head>
-<body>
+<body class="has-site-header">
 
-<!-- ── Site navbar ─────────────────────────────────────────────────────────── -->
-<nav class="nav">
-  <a href="/" class="nav-logo">
-    <span class="nav-logo-symbol">⚡</span>
-    <span>EnergyDess</span>
-  </a>
-  <div class="nav-right">
-    <a href="/" class="nav-hide-mobile">Главная</a>
-    <a href="/profile">Профиль</a>
-    {% if user.is_admin %}<a href="/admin" class="admin-link">Админ</a>{% endif %}
-    <a href="/logout" class="nav-logout">Выйти</a>
-  </div>
-</nav>
+{% include '_header.html' %}
 
 <!-- ── App shell ──────────────────────────────────────────────────────────── -->
 <div class="nut-app">
@@ -3424,5 +3410,8 @@ function updateSidePanels(data) {
 }
 </script>
 <div id="wt-tooltip"></div>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="/static/ui.js"></script>
+<script>lucide.createIcons();</script>
 </body>
 </html>

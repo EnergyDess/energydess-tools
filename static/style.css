@@ -153,8 +153,10 @@ body {
 }
 
 .nav, main, footer, .auth-wrap { position: relative; z-index: 1; }
-/* Компенсация высоты фиксированного nav (60px) на страницах со старой шапкой */
-main { padding-top: 60px; }
+/* Компенсация высоты фиксированного nav (60px) — ТОЛЬКО на страницах со старой
+   шапкой (auth, 404). Страницы с sticky .site-header (body.has-site-header)
+   компенсации не требуют и сохраняют собственные padding'и main. */
+body:not(.has-site-header) main { padding-top: 60px; }
 
 h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
 
@@ -453,8 +455,6 @@ button.chip:hover, a.chip:hover {
 .avatar-dropdown { display: none; }
 .avatar-wrap.open .avatar-dropdown { display: block; }
 .header-cta { min-height: 34px; padding: var(--space-2) var(--space-4); font-size: var(--text-body-sm); }
-/* Страницы с новой sticky-шапкой: шапка в потоке, компенсация не нужна */
-body.has-site-header main { padding-top: 0; }
 
 .avatar-dropdown {
   position: absolute;

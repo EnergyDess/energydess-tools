@@ -21,10 +21,9 @@
       position: relative;
       background: var(--surface-0);
       overflow: hidden;
-      min-height: calc(100vh - 60px);
-      /* + 60px сверху — компенсация фиксированной шапки .nav (см. workout.html).
-         TODO: вернуть var(--space-7) при миграции на sticky .site-header (фаза 1) */
-      padding: calc(60px + var(--space-7)) var(--space-4) var(--space-7);
+      /* 64px — высота sticky .site-header (в потоке, компенсация не нужна) */
+      min-height: calc(100vh - 64px);
+      padding: var(--space-7) var(--space-4) var(--space-7);
     }
     .theme-workout .bg-blobs { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
     .theme-workout .bg-blobs span { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.28; will-change: transform; }
@@ -106,22 +105,9 @@
     .wk-eq-regen-banner button { margin-top: var(--space-2); }
   </style>
 </head>
-<body>
+<body class="has-site-header">
 
-<nav class="nav">
-  <a href="/" class="nav-logo">
-    <span class="nav-logo-symbol">⚡</span>
-    <span>EnergyDess</span>
-  </a>
-  <div class="nav-right">
-    <a href="/" class="nav-hide-mobile">Главная</a>
-    <a href="/profile">Профиль</a>
-    {% if user.is_admin %}
-    <a href="/admin" class="admin-link">Админ</a>
-    {% endif %}
-    <a href="/logout" class="nav-logout">Выйти</a>
-  </div>
-</nav>
+{% include '_header.html' %}
 
 <main class="theme-workout">
   <div class="bg-blobs"><span></span><span></span><span></span></div>
@@ -498,5 +484,8 @@
   });
 })();
 </script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="/static/ui.js"></script>
+<script>lucide.createIcons();</script>
 </body>
 </html>

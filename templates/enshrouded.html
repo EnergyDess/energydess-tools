@@ -105,11 +105,13 @@
     .nav, .ens-header, .ens-main, #overlay, #popup, #import-modal, #img-zoom { position:relative; z-index:2; }
 
     /* ── Site Nav override ────────────────────────────────── */
-    .nav { background:rgba(5,3,8,.92)!important; border-bottom:1px solid rgba(160,80,10,.2)!important; }
+    /* Медный оттенок для общей sticky-шапки на этой странице */
+    .site-header { background:rgba(5,3,8,.92); border-bottom:1px solid rgba(160,80,10,.2); }
 
     /* ── ENS Header ───────────────────────────────────────── */
     .ens-header {
-      position:sticky; top:60px; z-index:50;
+      /* 64px — высота sticky .site-header, ens-шапка прилипает под ней */
+      position:sticky; top:64px; z-index:49;
       background:linear-gradient(180deg,rgba(8,5,12,.97) 0%,rgba(6,4,9,.95) 100%);
       backdrop-filter:blur(24px) saturate(1.2);
       border-bottom:1px solid rgba(160,80,10,.25);
@@ -479,7 +481,7 @@
     }
   </style>
 </head>
-<body>
+<body class="has-site-header">
 
 <!-- Enshrouded atmosphere -->
 <div class="ens-atmosphere">
@@ -487,20 +489,7 @@
 </div>
 <div class="ens-grain"></div>
 
-<nav class="nav">
-  <a href="/" class="nav-logo">
-    <span class="nav-logo-symbol">⚡</span>
-    <span>EnergyDess</span>
-  </a>
-  <div class="nav-right">
-    <a href="/" class="nav-hide-mobile">Главная</a>
-    <a href="/profile">Профиль</a>
-    {% if user.is_admin %}
-    <a href="/admin" class="admin-link">Админ</a>
-    {% endif %}
-    <a href="/logout" class="nav-logout">Выйти</a>
-  </div>
-</nav>
+{% include '_header.html' %}
 
 <div class="ens-header">
   <div class="ens-hrow1">
@@ -1190,5 +1179,8 @@ async function doImport() {
 /* ── Init ─────────────────────────────────────────────── */
 loadState();
 </script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="/static/ui.js"></script>
+<script>lucide.createIcons();</script>
 </body>
 </html>
