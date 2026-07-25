@@ -91,23 +91,6 @@
   --dur-fast: 150ms;
   --dur-base: 200ms;
   --dur-slow: 400ms;
-
-  /* ── LEGACY SHIM — TODO: удалить после миграции nutrition/workout/
-     enshrouded/admin/index на новую систему (следующая сессия).
-     Старые имена переменных смаплены на новые токены, чтобы ещё не
-     переработанные страницы не сломались. Новый код эти имена НЕ использует. */
-  --bg:           var(--surface-0);
-  --bg2:          var(--surface-1);
-  --bg3:          var(--surface-2);
-  --border-hi:    var(--border-strong);
-  --accent:       var(--accent-brand);
-  --accent2:      var(--accent-brand);
-  --accent-dim:   var(--accent-brand-dim);
-  --accent2-dim:  var(--accent-brand-dim);
-  --text-dim:     var(--text-2);
-  --radius:       var(--radius-lg);
-  --font-display: var(--font);
-  --grad-btn:     var(--accent-brand);
 }
 
 /* ── Темы инструментов ──────────────────────────────────────────────────── */
