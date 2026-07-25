@@ -88,7 +88,7 @@ def _decrypt(token: str) -> str:
 TOOLS = [
     {
         "id": "hh",
-        "name": "HH Помощник",
+        "name": "HH-ассистент",
         "icon": "📝",
         "color": "purple",
         "url": "/hh",
@@ -1195,7 +1195,7 @@ async def import_enshrouded_state(request: Request, user=Depends(get_current_use
     return JSONResponse({"ok": True, "imported": sum(len(v) for v in data.values())})
 
 
-# ── HH Помощник ───────────────────────────────────────────────────────────────
+# ── HH-ассистент ──────────────────────────────────────────────────────────────
 
 @app.get("/hh")
 async def hh_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
