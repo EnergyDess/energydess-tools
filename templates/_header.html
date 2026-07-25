@@ -16,12 +16,36 @@
   </a>
 
   {% if is_authed %}
-  <div class="header-search">
-    {# TODO: глобальный поиск (design-system.md, раздел 5) — пока UI-заглушка,
-       индекс и эндпоинт /api/search будут отдельной задачей #}
+  {# Поиск-навигация по инструментам. Источник данных — глобал TOOLS из main.py
+     (единственное место), маппинг id → Lucide-иконка ниже. Пункт «Админка»
+     физически не попадает в JSON у не-админа — не скрыт стилями, его нет в DOM.
+     Поиск по содержимому (письма, продукты) — отдельная задача, см. BACKLOG #5. #}
+  {% set tool_icons = {'hh': 'briefcase', 'nutrition': 'salad', 'workout': 'dumbbell', 'enshrouded': 'shield'} %}
+  {% set ns = namespace(items=[]) %}
+  {% for t in TOOLS if t.active %}
+    {% set ns.items = ns.items + [{'id': t.id, 'name': t.name, 'url': t.url,
+                                   'icon': tool_icons.get(t.id, 'box')}] %}
+  {% endfor %}
+  {% if user.is_admin %}
+    {% set ns.items = ns.items + [{'id': 'admin', 'name': 'Админка', 'url': '/admin', 'icon': 'settings'}] %}
+  {% endif %}
+
+  <div class="header-search" id="header-search">
     <i data-lucide="search" class="search-icon"></i>
-    <input type="text" class="input" placeholder="Найти инструмент, письмо, продукт…" disabled>
+    <input type="text" class="input" id="nav-search-input"
+           placeholder="Найти инструмент…"
+           autocomplete="off" spellcheck="false"
+           role="combobox" aria-expanded="false" aria-controls="nav-search-list"
+           aria-autocomplete="list" aria-label="Поиск по инструментам">
+    <div class="search-dropdown" id="nav-search-dropdown" hidden>
+      <ul class="search-list" id="nav-search-list" role="listbox" aria-label="Инструменты"></ul>
+      <div class="search-empty" id="nav-search-empty" hidden>Ничего не найдено</div>
+    </div>
+    <script type="application/json" id="nav-search-data">{{ ns.items | tojson }}</script>
   </div>
+  {# defer — скрипт нужен только там, где есть поиск, поэтому подключается
+     здесь же, а не в каждом из 12 шаблонов со страницами #}
+  <script src="/static/header-search.js" defer></script>
   {% endif %}
 
   <div class="header-right">

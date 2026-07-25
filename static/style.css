@@ -414,12 +414,84 @@ button.chip:hover, a.chip:hover {
   font-size: var(--text-body-sm);
   background: var(--surface-1);
 }
+.header-search .input:focus {
+  border-color: var(--accent-brand);
+  box-shadow: 0 0 0 3px var(--accent-brand-dim);
+}
 .header-search .search-icon {
   position: absolute; left: var(--space-3); top: 50%;
   transform: translateY(-50%);
   color: var(--text-faint);
   width: 16px; height: 16px;
   pointer-events: none;
+}
+
+/* ── Выпадашка поиска-навигации (компонентная база: как .card) ──────────── */
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0; right: 0;
+  z-index: 60;
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-2);
+  max-height: min(60vh, 380px);
+  overflow-y: auto;
+  overscroll-behavior: contain;   /* скролл списка не прокручивает страницу под ним */
+}
+.search-dropdown[hidden] { display: none; }
+.search-list { list-style: none; margin: 0; padding: 0; }
+.search-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-2);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.search-item.active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.search-item-name {
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;   /* длинные названия не переносим */
+}
+.search-item-icon {
+  width: 18px; height: 18px;
+  stroke-width: 1.5;
+  flex-shrink: 0;
+  color: var(--accent-brand);
+}
+/* per-tool акценты — те же, что на карточках инструментов главной */
+.search-item-icon.tool-hh         { color: var(--accent-hh); }
+.search-item-icon.tool-nutrition  { color: var(--accent-nutrition); }
+.search-item-icon.tool-workout    { color: var(--accent-workout); }
+.search-item-icon.tool-enshrouded { color: var(--accent-enshrouded); }
+.search-item-icon.tool-admin      { color: var(--text-2); }
+.search-empty {
+  padding: var(--space-3);
+  font-size: var(--text-caption);
+  color: var(--text-faint);
+  text-align: center;
+}
+.search-empty[hidden] { display: none; }
+/* На узких экранах поле сжимается до ~145px и названия обрезались до «НН Пом…».
+   Выпадашка отвязывается от ширины поля и прижимается к правому краю, чтобы
+   не уехать за левую границу вьюпорта. */
+@media (max-width: 640px) {
+  .search-dropdown {
+    left: auto; right: 0;
+    min-width: 240px;
+    max-width: calc(100vw - var(--space-6));
+  }
 }
 .header-right { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-3); flex: 1 1 0; }
 
