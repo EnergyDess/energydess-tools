@@ -185,17 +185,21 @@
     .tool-card.locked  { opacity: 0.35; cursor: default; pointer-events: none; }
     .tool-card.coming  { opacity: 0.45; cursor: default; pointer-events: none; }
 
-    .tool-icon {
+    /* .tool-badge — локальная плашка иконки инструмента (не путать с глобальным
+       .tool-icon из style.css). Lucide-иконка + per-tool акцент из токенов. */
+    .tool-badge {
       width: 52px; height: 52px;
       border-radius: 13px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.55rem;
       flex-shrink: 0;
+      background: var(--tool-accent-dim, var(--accent-brand-dim));
+      color: var(--tool-accent, var(--accent-brand));
     }
-    .ic-purple { background: rgba(124,77,255,.2);   box-shadow: 0 0 20px rgba(124,77,255,.14); }
-    .ic-blue   { background: rgba(0,212,255,.15);   box-shadow: 0 0 20px rgba(0,212,255,.1);  }
-    .ic-green  { background: rgba(0,229,160,.16);   box-shadow: 0 0 20px rgba(0,229,160,.1);  }
-    .ic-orange { background: rgba(200,140,42,.22);  box-shadow: 0 0 20px rgba(200,140,42,.12); }
+    .tool-badge svg { width: 26px; height: 26px; stroke-width: 1.5; }
+    .tb-hh         { --tool-accent: var(--accent-hh);         --tool-accent-dim: var(--accent-hh-dim); }
+    .tb-nutrition  { --tool-accent: var(--accent-nutrition);  --tool-accent-dim: var(--accent-nutrition-dim); }
+    .tb-workout    { --tool-accent: var(--accent-workout);    --tool-accent-dim: var(--accent-workout-dim); }
+    .tb-enshrouded { --tool-accent: var(--accent-enshrouded); --tool-accent-dim: var(--accent-enshrouded-dim); }
 
     .tool-title { font-size: 1.1rem; font-weight: 700; color: #c7d3ea; letter-spacing: -0.01em; margin-top: 2px; }
     .tool-desc  { font-size: 0.875rem; color: #81899b; line-height: 1.62; flex: 1; }
@@ -213,7 +217,8 @@
       transition: transform 0.25s, color 0.25s;
     }
     .tool-card.unlocked:hover .tool-arrow { transform: translateX(6px); color: var(--accent); }
-    .lock-icon { font-size: 0.9rem; color: var(--text-faint); }
+    .lock-icon { color: var(--text-faint); display: inline-flex; }
+    .lock-icon svg { width: 16px; height: 16px; stroke-width: 1.5; }
 
   </style>
 </head>
@@ -239,12 +244,16 @@
     <div class="section-line"></div>
   </div>
 
+  {# Lucide-иконка по id инструмента — эмодзи из TOOLS в UI не используем
+     (design-system.md, раздел 8); эмодзи рендерились монохромными глифами
+     и выглядели выцветшими #}
+  {% set tool_lucide = {'hh': 'briefcase', 'nutrition': 'salad', 'workout': 'dumbbell', 'enshrouded': 'shield'} %}
   <div class="tools-grid">
     {% for tool in tools %}
 
       {% if not tool.active %}
         <div class="tool-card coming">
-          <div class="tool-icon ic-{{ tool.color }}">{{ tool.icon }}</div>
+          <div class="tool-badge tb-{{ tool.id }}"><i data-lucide="{{ tool_lucide.get(tool.id, 'box') }}"></i></div>
           <div class="tool-title">{{ tool.name }}</div>
           <div class="tool-desc">{{ tool.desc }}</div>
           <div class="tool-footer">
@@ -255,7 +264,7 @@
 
       {% elif tool.has_access %}
         <a href="{{ tool.url }}" class="tool-card unlocked">
-          <div class="tool-icon ic-{{ tool.color }}">{{ tool.icon }}</div>
+          <div class="tool-badge tb-{{ tool.id }}"><i data-lucide="{{ tool_lucide.get(tool.id, 'box') }}"></i></div>
           <div class="tool-title">{{ tool.name }}</div>
           <div class="tool-desc">{{ tool.desc }}</div>
           <div class="tool-footer">
@@ -266,12 +275,12 @@
 
       {% else %}
         <div class="tool-card locked">
-          <div class="tool-icon ic-{{ tool.color }}">{{ tool.icon }}</div>
+          <div class="tool-badge tb-{{ tool.id }}"><i data-lucide="{{ tool_lucide.get(tool.id, 'box') }}"></i></div>
           <div class="tool-title">{{ tool.name }}</div>
           <div class="tool-desc">{{ tool.desc }}</div>
           <div class="tool-footer">
             <span class="badge" style="background:rgba(255,255,255,0.03);color:var(--text-faint);border:1px solid var(--border)">Нет доступа</span>
-            <span class="lock-icon">🔒</span>
+            <span class="lock-icon"><i data-lucide="lock"></i></span>
           </div>
         </div>
       {% endif %}

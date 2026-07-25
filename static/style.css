@@ -131,7 +131,9 @@
 /* ── База ───────────────────────────────────────────────────────────────── */
 html {
   scroll-behavior: smooth;
-  overflow-x: hidden;
+  /* clip, а не hidden: overflow-x:hidden на предке делает его scroll-контейнером
+     и ломает position:sticky у .site-header — хедер переставал прилипать */
+  overflow-x: clip;
   /* Плавная база под 2К/4К: на Full HD ровно 16px, к 4K растёт до 19px.
      Все rem-размеры масштабируются вместе с базой автоматически. */
   font-size: clamp(16px, 13px + 0.15625vw, 19px);
@@ -145,7 +147,7 @@ body {
   min-height: 100vh;
   line-height: 1.6;
   position: relative;
-  overflow-x: hidden;
+  overflow-x: clip;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -401,13 +403,14 @@ button.chip:hover, a.chip:hover {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  flex-shrink: 0;
+  /* равные flex-крылья (логотип слева, аватар справа) — поиск между ними
+     центрируется относительно вьюпорта, а не остатка пространства */
+  flex: 1 1 0;
 }
 .site-header .header-logo:hover { opacity: 0.85; }
 .header-search {
-  flex: 1;
-  max-width: 480px;
-  margin: 0 auto;
+  flex: 0 1 480px;
+  min-width: 0;
   position: relative;
 }
 .header-search .input {
@@ -423,7 +426,7 @@ button.chip:hover, a.chip:hover {
   width: 16px; height: 16px;
   pointer-events: none;
 }
-.header-right { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; margin-left: auto; }
+.header-right { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-3); flex: 1 1 0; }
 
 /* ── Avatar ─────────────────────────────────────────────────────────────── */
 .avatar {

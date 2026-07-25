@@ -31,7 +31,10 @@
       background: var(--surface-0);
       overflow: hidden;
       min-height: calc(100vh - 60px);
-      padding: var(--space-7) var(--space-4) var(--space-7);
+      /* + 60px сверху — компенсация фиксированной шапки .nav: собственный padding
+         перекрывал глобальный main{padding-top:60px}, заголовок уезжал под хедер.
+         TODO: вернуть var(--space-7) при миграции на sticky .site-header (фаза 1) */
+      padding: calc(60px + var(--space-7)) var(--space-4) var(--space-7);
     }
     .theme-workout .bg-blobs {
       position: absolute; inset: 0; z-index: 0;

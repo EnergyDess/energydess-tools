@@ -22,7 +22,9 @@
       background: var(--surface-0);
       overflow: hidden;
       min-height: calc(100vh - 60px);
-      padding: var(--space-7) var(--space-4) var(--space-7);
+      /* + 60px сверху — компенсация фиксированной шапки .nav (см. workout.html).
+         TODO: вернуть var(--space-7) при миграции на sticky .site-header (фаза 1) */
+      padding: calc(60px + var(--space-7)) var(--space-4) var(--space-7);
     }
     .theme-workout .bg-blobs { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
     .theme-workout .bg-blobs span { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.28; will-change: transform; }
