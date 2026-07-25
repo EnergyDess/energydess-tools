@@ -199,7 +199,9 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
   font-size: var(--text-body);
   padding: var(--space-3) var(--space-5);
   border-radius: var(--radius-sm);
-  border: none;
+  /* прозрачная рамка вместо none — чтобы высота совпадала с .btn-secondary
+     и .btn-danger, у которых рамка видимая (иначе primary на 2px ниже) */
+  border: 1px solid transparent;
   cursor: pointer;
   text-decoration: none;
   min-height: 40px;
@@ -440,14 +442,14 @@ button.chip:hover, a.chip:hover {
 
 /* ── Avatar ─────────────────────────────────────────────────────────────── */
 .avatar {
-  width: 32px; height: 32px;
+  width: 36px; height: 36px;
   border-radius: 50%;
   background: var(--accent-brand-dim);
   color: var(--accent-brand);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--text-caption);
+  font-size: var(--text-body-sm);
   font-weight: 700;
   cursor: pointer;
   border: 1px solid var(--border);
@@ -459,7 +461,18 @@ button.chip:hover, a.chip:hover {
 .avatar-lg { width: 96px; height: 96px; font-size: var(--text-h3); }
 
 .avatar-wrap { position: relative; }
-.avatar-btn { background: none; border: none; padding: 0; cursor: pointer; display: inline-flex; }
+/* Кнопка добирает тач-таргет до 44×44 (сам кругляшок 36px) — паддинг
+   отрицательным margin не сдвигает соседей и не ломает высоту шапки */
+.avatar-btn {
+  background: none; border: none; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 4px; margin: -4px;
+  border-radius: 50%;
+}
+.avatar-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-brand-dim);
+}
 .avatar-dropdown { display: none; }
 .avatar-wrap.open .avatar-dropdown { display: block; }
 .header-cta { min-height: 34px; padding: var(--space-2) var(--space-4); font-size: var(--text-body-sm); }

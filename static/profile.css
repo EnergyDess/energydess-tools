@@ -19,7 +19,9 @@
 /* ── Секция: аватар и имя ───────────────────────────────────────────────── */
 .identity-row { display: flex; align-items: center; gap: var(--space-5); flex-wrap: wrap; }
 .identity-fields { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: var(--space-2); }
-.name-row { display: flex; gap: var(--space-2); }
+/* align-items: center — иначе кнопка растягивалась по высоте инпута
+   (stretch по умолчанию) и была на 4px выше остальных кнопок страницы */
+.name-row { display: flex; gap: var(--space-2); align-items: center; }
 .name-row .input { flex: 1; }
 .name-status { font-size: var(--text-caption); min-height: 1.2em; }
 .name-status.ok  { color: var(--success); }
@@ -73,9 +75,13 @@
 
 /* ── Опасная зона ───────────────────────────────────────────────────────── */
 .danger-card { border-color: color-mix(in srgb, var(--error) 25%, transparent); }
+/* Метрики те же, что у .btn-secondary из компонентной базы (min-height,
+   padding, font-size) — отличается только семантикой цвета. Иначе кнопки
+   одного уровня на странице имели разную высоту: 48 у secondary, 47 у danger. */
 .btn-danger {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
   background: transparent;
   color: var(--error);
@@ -84,7 +90,8 @@
   border-radius: var(--radius-sm);
   font-family: var(--font);
   font-weight: 500;
-  font-size: var(--text-body-sm);
+  font-size: var(--text-body);
+  min-height: 40px;
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease);
 }

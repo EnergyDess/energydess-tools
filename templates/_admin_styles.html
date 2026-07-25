@@ -144,7 +144,14 @@
   .foods-table th:nth-child(n+4):nth-child(-n+7),
   .foods-table td:nth-child(n+4):nth-child(-n+7) { padding: var(--space-3) var(--space-2); text-align: center; }
   .food-input-num { text-align: center; padding: var(--space-2) var(--space-2); }
-  .foods-table th:nth-child(8), .foods-table td:nth-child(8) { padding: var(--space-2); white-space: nowrap; width: 88px; }
+  /* последняя колонка (кнопки): справа тот же отступ --space-5, что слева у
+     первой колонки — иначе иконка удаления упиралась в границу карточки.
+     Ширина увеличена на величину отступа, чтобы кнопки не сжались. */
+  .foods-table th:nth-child(8), .foods-table td:nth-child(8) {
+    padding: var(--space-2) var(--space-5) var(--space-2) var(--space-2);
+    white-space: nowrap; width: 112px;
+    text-align: right;   /* прижать кнопки к правому краю — иначе они «плавали» посередине колонки */
+  }
   .foods-table th:nth-child(1), .foods-table td:nth-child(1) { width: 148px; }
   /* col 2 (Название) и col 3 (Бренд) без явной ширины — делят остаток */
   .foods-table th:nth-child(4), .foods-table td:nth-child(4) { width: 96px; }
@@ -197,33 +204,42 @@
   }
   .food-del-btn:hover { background: color-mix(in srgb, var(--error) 22%, transparent); }
 
-  /* ── Поле поиска в шапке карточки ────────────────────────────────────── */
+  /* ── Поле поиска в шапке карточки ──────────────────────────────────────
+     Один слой, как в .header-search: обёртка — только позиционирующий
+     контейнер (без фона и рамки), обрамление несёт сам инпут. Раньше рамка
+     была и у обёртки, и визуально спорила с рамкой карточки — «рамка в рамке». */
   .search-wrap {
-    display: flex; align-items: center; gap: var(--space-2);
-    flex: 1; max-width: 320px; min-width: 180px;
+    position: relative;
+    flex: 1; max-width: 360px; min-width: 220px;
+    box-sizing: border-box;
+  }
+  .search-wrap .search-icon {
+    position: absolute; left: var(--space-3); top: 50%;
+    transform: translateY(-50%);
+    width: 15px; height: 15px;
+    color: var(--text-faint);
+    pointer-events: none;
+  }
+  /* .search-wrap в селекторе обязателен: глобальное input[type="text"] из
+     style.css имеет специфичность 0,1,1 и перебивало одиночный класс —
+     padding-left не применялся, иконка налезала на плейсхолдер */
+  .search-wrap .search-input-admin {
+    width: 100%;
     background: var(--surface-2);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 0 var(--space-3);
-    box-sizing: border-box;
-    transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
-  }
-  .search-wrap .search-icon { flex-shrink: 0; width: 15px; height: 15px; color: var(--text-faint); }
-  .search-input-admin {
-    flex: 1; min-width: 0;
-    background: none; border: none;
-    padding: var(--space-2) 0;
+    padding: var(--space-2) var(--space-3) var(--space-2) 36px;  /* слева место под иконку */
     color: var(--text);
     font-size: var(--text-body-sm);
     font-family: var(--font);
     outline: none;
+    box-sizing: border-box;
+    transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
   }
-  .search-input-admin::placeholder { color: var(--text-faint); }
-  /* глушим глобальный input:focus — рамку/свечение показывает обёртка */
-  .search-input-admin:focus, .search-input-admin:focus-visible {
-    outline: none !important; box-shadow: none !important; border: none !important;
-  }
-  .search-wrap:focus-within {
+  .search-wrap .search-input-admin::placeholder { color: var(--text-faint); }
+  .search-wrap .search-input-admin:focus,
+  .search-wrap .search-input-admin:focus-visible {
+    outline: none;
     border-color: var(--accent-brand);
     box-shadow: 0 0 0 3px var(--accent-brand-dim);
   }
