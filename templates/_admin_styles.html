@@ -124,12 +124,12 @@
   }
   .toggle input:checked + .toggle-track {
     background: rgba(0,212,255,.18);
-    border-color: var(--accent);
+    border-color: var(--accent-brand);
     box-shadow: 0 0 8px rgba(0,212,255,.25);
   }
   .toggle input:checked + .toggle-track::after {
     left: calc(100% - 17px);
-    background: var(--accent);
+    background: var(--accent-brand);
   }
 
   .empty-state {
@@ -358,7 +358,7 @@
     background: rgba(255,255,255,0.03);
   }
   .admin-subnav a.active {
-    color: var(--accent);
+    color: var(--accent-brand);
     background: rgba(0,212,255,0.08);
     border-color: rgba(0,212,255,0.18);
   }
@@ -376,7 +376,7 @@
     transition: border-color .2s, transform .2s;
   }
   .ex-stat:hover { border-color: rgba(0,212,255,.3); transform: translateY(-2px); }
-  .ex-stat.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .ex-stat.active { border-color: var(--accent-brand); box-shadow: 0 0 0 1px var(--accent-brand); }
   .ex-stat-value { font-size: 1.6rem; font-weight: 700; color: var(--ak-glacier); line-height: 1; margin-bottom: 6px; }
   .ex-stat-label { font-size: 0.78rem; color: var(--ak-fog); font-weight: 500; }
 
@@ -509,7 +509,7 @@
   .ex-replace-input:focus { border-color: var(--ak-frost); }
   .ex-replace-save {
     background: rgba(0,212,255,.12); border: 1px solid rgba(0,212,255,.3);
-    color: var(--accent); border-radius: 6px; padding: 0 12px;
+    color: var(--accent-brand); border-radius: 6px; padding: 0 12px;
     font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit;
   }
   .ex-replace-save:hover { background: rgba(0,212,255,.22); }
@@ -537,7 +537,7 @@
   }
   .ex-page-btn:hover:not(:disabled) { border-color: var(--ak-frost); }
   .ex-page-btn:disabled { opacity: .35; cursor: default; }
-  .ex-page-btn.active { background: rgba(0,212,255,.15); border-color: var(--accent); color: var(--accent); }
+  .ex-page-btn.active { background: rgba(0,212,255,.15); border-color: var(--accent-brand); color: var(--accent-brand); }
 
   /* ── Модалка видео ── */
   .ex-modal-overlay {

@@ -20,13 +20,13 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: var(--accent-dim);
+      background: var(--accent-brand-dim);
       border: 1px solid rgba(0,212,255,0.2);
       border-radius: 99px;
       padding: 6px 18px;
       font-family: var(--font-mono);
       font-size: 0.7rem;
-      color: var(--accent);
+      color: var(--accent-brand);
       letter-spacing: 0.1em;
       text-transform: uppercase;
       margin-bottom: 28px;
@@ -35,8 +35,8 @@
     .hero-eyebrow-dot {
       width: 6px; height: 6px;
       border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 6px var(--accent);
+      background: var(--accent-brand);
+      box-shadow: 0 0 6px var(--accent-brand);
       animation: dotPulse 2.2s ease infinite;
     }
     @keyframes dotPulse {
@@ -58,7 +58,7 @@
     }
     .hero-line:nth-child(2) { animation-delay: 0.1s; }
     .hero-accent {
-      background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
+      background: linear-gradient(90deg, var(--accent-brand) 0%, var(--accent-brand) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -66,7 +66,7 @@
 
     .hero-sub {
       font-size: 1rem;
-      color: var(--text-dim);
+      color: var(--text-2);
       animation: fadeUp 0.65s ease both;
       animation-delay: 0.2s;
       letter-spacing: 0.01em;
@@ -85,7 +85,7 @@
       font-size: 0.75rem;
       font-family: var(--font-mono);
       font-weight: 500;
-      color: var(--text-dim);
+      color: var(--text-2);
       letter-spacing: 0.1em;
       text-transform: uppercase;
       white-space: nowrap;
@@ -216,7 +216,7 @@
       color: rgba(199,211,234,.3);
       transition: transform 0.25s, color 0.25s;
     }
-    .tool-card.unlocked:hover .tool-arrow { transform: translateX(6px); color: var(--accent); }
+    .tool-card.unlocked:hover .tool-arrow { transform: translateX(6px); color: var(--accent-brand); }
     .lock-icon { color: var(--text-faint); display: inline-flex; }
     .lock-icon svg { width: 16px; height: 16px; stroke-width: 1.5; }
 

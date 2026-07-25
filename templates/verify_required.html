@@ -56,12 +56,12 @@
 
     {% if resent %}
     <h1 style="margin-bottom:8px">Письмо отправлено</h1>
-    <p style="color:var(--text-dim);font-size:0.95rem;margin-bottom:24px">
+    <p style="color:var(--text-2);font-size:0.95rem;margin-bottom:24px">
       Новая ссылка выслана на <strong style="color:var(--text)">{{ user.email }}</strong> — проверьте почту (действительна 24 часа).
     </p>
     {% else %}
     <h1 style="margin-bottom:8px">Подтвердите email</h1>
-    <p style="color:var(--text-dim);font-size:0.95rem;margin-bottom:4px">
+    <p style="color:var(--text-2);font-size:0.95rem;margin-bottom:4px">
       Чтобы открыть «{{ tool_name }}», подтвердите почту <strong style="color:var(--text)">{{ user.email }}</strong>.
     </p>
     <p style="color:var(--text-faint);font-size:0.8rem;margin-bottom:20px">
@@ -74,7 +74,7 @@
     {% endif %}
 
     <div style="margin-top:24px">
-      <a href="/" style="color:var(--accent);font-size:0.875rem;text-decoration:none;transition:opacity 0.2s"
+      <a href="/" style="color:var(--accent-brand);font-size:0.875rem;text-decoration:none;transition:opacity 0.2s"
          onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">
         ← На главную
       </a>
