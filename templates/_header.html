@@ -1,20 +1,31 @@
 {# Sticky-шапка сайта (design-system.md, раздел 4). Подключается на всех
-   страницах, кроме auth. Ожидает в контексте user (может отсутствовать). #}
-<header class="site-header">
+   страницах, кроме auth. Ожидает в контексте user (может отсутствовать).
+
+   Два состояния:
+   • гость          — только логотип + Войти/Регистрация. Поиск и аватар
+                      не рендерятся: искать нечего (все инструменты за
+                      авторизацией), профиль/выход недоступны.
+   • авторизованный — логотип + глобальный поиск + аватар-дропдаун,
+                      кнопок входа нет.
+   Класс на <header> различает состояния для CSS-раскладки. #}
+{% set is_authed = user is defined and user %}
+<header class="site-header {{ 'site-header-guest' if not is_authed }}">
   <a href="/" class="header-logo">
     <span class="nav-logo-symbol">⚡</span>
     <span>EnergyDess</span>
   </a>
 
+  {% if is_authed %}
   <div class="header-search">
     {# TODO: глобальный поиск (design-system.md, раздел 5) — пока UI-заглушка,
        индекс и эндпоинт /api/search будут отдельной задачей #}
     <i data-lucide="search" class="search-icon"></i>
     <input type="text" class="input" placeholder="Найти инструмент, письмо, продукт…" disabled>
   </div>
+  {% endif %}
 
   <div class="header-right">
-    {% if user is defined and user %}
+    {% if is_authed %}
     <div class="avatar-wrap" id="avatar-wrap">
       <button class="avatar-btn" type="button" aria-haspopup="menu" aria-expanded="false">
         {% include '_avatar.html' %}

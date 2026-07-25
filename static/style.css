@@ -415,6 +415,9 @@ button.chip:hover, a.chip:hover {
   flex: 1 1 0;
 }
 .site-header .header-logo:hover { opacity: 0.85; }
+/* Гостевая шапка: поиска нет, растягивать крылья незачем — логотип слева,
+   кнопки входа справа (обычный space-between) */
+.site-header-guest .header-logo { flex: 0 0 auto; }
 .header-search {
   flex: 0 1 480px;
   min-width: 0;
