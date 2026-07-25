@@ -116,7 +116,7 @@
         <input type="checkbox" id="wkUseNutritionToggle" checked>
         <span>Учитывать данные питания</span>
       </label>
-      <div class="wk-settings-toggle-hint">Норма белка на сегодня и предупреждение о большом дефиците калорий — на основе Дневника питания. Если ты не ведёшь его активно, выключи: подсказки без актуальных данных будут только мешать.</div>
+      <div class="wk-settings-toggle-hint">Норма белка на сегодня и предупреждение о большом дефиците калорий — на основе Дневника питания. Если вы не ведёте его активно, выключите: подсказки без актуальных данных будут только мешать.</div>
     </div>
 
     <div class="wk-card">
@@ -164,7 +164,7 @@
 
     <div class="wk-card">
       <div class="wk-profile-sec-title">Моё оборудование</div>
-      <p class="wk-profile-hint">Отметь, какое оборудование у тебя есть. Не нашёл нужный тренажёр — позже можно скинуть фото в чат ассистенту.</p>
+      <p class="wk-profile-hint">Отметьте, какое оборудование у вас есть. Не нашли нужный тренажёр — позже можно скинуть фото в чат ассистенту.</p>
       <div class="wk-eq-toolbar">
         <span class="wk-eq-count" id="wkEqCount">Отмечено: 0</span>
         <button class="wk-home-btn" id="wkHomeBtn" type="button">🏠 Дом без инвентаря</button>
@@ -278,7 +278,7 @@
     var username = $('#wkScaleUsername').value.trim();
     var password = $('#wkScalePassword').value;
     var msg = $('#wkScaleConnectMsg');
-    if (!username || !password) { msg.textContent = 'Укажи логин и пароль'; return; }
+    if (!username || !password) { msg.textContent = 'Укажите логин и пароль'; return; }
     var btn = this;
     btn.disabled = true;
     msg.textContent = 'Подключаем…';
@@ -293,7 +293,7 @@
         msg.textContent = data.warning || ('Подключено, синхронизировано записей: ' + (data.synced || 0));
         loadScaleStatusWk();
       })
-      .catch(function () { btn.disabled = false; msg.textContent = 'Ошибка сети, попробуй ещё раз.'; });
+      .catch(function () { btn.disabled = false; msg.textContent = 'Ошибка сети, попробуйте ещё раз.'; });
   });
   $('#wkScaleSyncBtn').addEventListener('click', function () {
     var msg = $('#wkScaleSyncMsg');
@@ -335,7 +335,7 @@
   $('#wkUploadPhotosBtn').addEventListener('click', function () {
     var angles = Object.keys(wkBodyPhotoFiles);
     var msg = $('#wkPhotoMsg');
-    if (!angles.length) { msg.textContent = 'Выбери хотя бы одно фото'; return; }
+    if (!angles.length) { msg.textContent = 'Выберите хотя бы одно фото'; return; }
     var today = new Date().toISOString().slice(0, 10);
     var requests = angles.map(function (angle) {
       var fd = new FormData();
@@ -369,7 +369,7 @@
   function renderCompareWk() {
     var oldDate = $('#wkCompareDateOld').value, newDate = $('#wkCompareDateNew').value;
     var view = $('#wkCompareView');
-    if (!oldDate || !newDate) { view.innerHTML = '<p class="wk-profile-hint">Загрузи фото хотя бы за одну дату.</p>'; return; }
+    if (!oldDate || !newDate) { view.innerHTML = '<p class="wk-profile-hint">Загрузите фото хотя бы за одну дату.</p>'; return; }
     function col(date) {
       var angles = wkBodyPhotosCache[date] || {};
       var imgs = ['front', 'side', 'back'].filter(function (a) { return angles[a]; })
@@ -428,7 +428,7 @@
     fetch('/workout/api/profile')
       .then(function (r) { return r.json(); })
       .then(function (full) {
-        if (!full.exists) { msg.textContent = 'Сначала заполни анкету.'; return; }
+        if (!full.exists) { msg.textContent = 'Сначала заполните анкету.'; return; }
         full.equipment = eqState.equipment;
         full.home_only = eqState.home_only;
         return fetch('/workout/api/profile', {
@@ -443,7 +443,7 @@
         loadAnketaSummary();
         $('#wkEqRegenBanner').classList.toggle('show', !!data.material_change);
       })
-      .catch(function () { msg.textContent = 'Ошибка сети, попробуй ещё раз.'; });
+      .catch(function () { msg.textContent = 'Ошибка сети, попробуйте ещё раз.'; });
   });
 
   $('#wkRegenNowBtn').addEventListener('click', function () {
@@ -464,7 +464,7 @@
       .catch(function () {
         btn.disabled = false;
         btn.textContent = '🔄 Обновить программу';
-        alert('Ошибка сети, попробуй ещё раз.');
+        alert('Ошибка сети, попробуйте ещё раз.');
       });
   });
 })();

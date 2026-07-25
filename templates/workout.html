@@ -570,7 +570,7 @@
     <div class="wk-head">
       <span class="eyebrow" style="color:var(--tool-accent);display:inline-flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-3)"><i data-lucide="dumbbell" class="tool-icon"></i> Тренировки</span>
       <h1>Программа тренировок</h1>
-      <p>Несколько вопросов — и соберём программу под тебя</p>
+      <p>Несколько вопросов — и соберём программу под вас</p>
     </div>
 
     <div class="wk-progress">
@@ -615,7 +615,7 @@
 
       <!-- Шаг 2 — Зоны упора (двухступенчато: сначала да/нет, потом чек-лист до 2 зон) -->
       <section class="wk-step" data-step="2">
-        <div class="wk-step-title">Есть зоны, которые хочешь подтянуть? <button type="button" class="wk-tip-btn" data-tip="Выбери только то, что реально отстаёт. Если хочешь развиваться равномерно — пропусти этот шаг.">?</button></div>
+        <div class="wk-step-title">Есть зоны, которые хотите подтянуть? <button type="button" class="wk-tip-btn" data-tip="Выберите только то, что реально отстаёт. Если хотите развиваться равномерно — пропустите этот шаг.">?</button></div>
         <div class="wk-step-sub">Если хочешь развить всё тело равномерно — базовая программа уже покрывает все группы мышц.</div>
         <div class="wk-options" id="wkFocusChoice">
           <div class="wk-option" data-choice="yes">
@@ -628,7 +628,7 @@
           </div>
         </div>
         <div id="wkFocusZonesWrap" style="display:none">
-          <div class="wk-step-sub">Выбери зоны, которые отстают, не более двух.</div>
+          <div class="wk-step-sub">Выберите зоны, которые отстают, не более двух.</div>
           <div class="wk-pain-grid">
             <div class="wk-pain-item wk-focus-item" data-field="focus_zones" data-value="arms">
               <div class="wk-pain-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
@@ -659,7 +659,7 @@
               <div class="wk-pain-label">Ягодицы</div>
             </div>
           </div>
-          <div class="wk-focus-warn" id="wkFocusWarn">Выбери не более 2 приоритетных зон, иначе упор размывается.</div>
+          <div class="wk-focus-warn" id="wkFocusWarn">Выберите не более 2 приоритетных зон, иначе упор размывается.</div>
         </div>
       </section>
 
@@ -672,7 +672,7 @@
           <div class="wk-day-btn" data-field="days_per_week" data-value="{{ d }}">{{ d }}</div>
           {% endfor %}
         </div>
-        <div class="wk-structure-hint" id="wkStructureHint">Выбери количество дней</div>
+        <div class="wk-structure-hint" id="wkStructureHint">Выберите количество дней</div>
       </section>
 
       <!-- Шаг 4 — Стаж -->
@@ -701,7 +701,7 @@
       <!-- Шаг 5 — Ограничения -->
       <section class="wk-step" data-step="5">
         <div class="wk-step-title">Есть ограничения или боли?</div>
-        <div class="wk-step-sub">Отметь зоны, если есть — мы исключим упражнения, которые их нагружают. Если ничего не беспокоит, просто переходи дальше.</div>
+        <div class="wk-step-sub">Отметьте зоны, если есть — мы исключим упражнения, которые их нагружают. Если ничего не беспокоит, просто переходите дальше.</div>
         <div class="wk-pain-grid">
           <div class="wk-pain-item" data-field="pain_zones" data-value="knee">
             <div class="wk-pain-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
@@ -733,7 +733,7 @@
       <!-- Шаг 6 — Мой зал -->
       <section class="wk-step" data-step="6">
         <div class="wk-step-title">Мой зал</div>
-        <div class="wk-step-sub">Отметь, какое оборудование у тебя есть. Не нашёл нужный тренажёр — позже можно скинуть фото в чат ассистенту.</div>
+        <div class="wk-step-sub">Отметьте, какое оборудование у вас есть. Не нашли нужный тренажёр — позже можно скинуть фото в чат ассистенту.</div>
         <div class="wk-nav wk-nav-top" id="wkNavTop">
           <button class="wk-btn wk-btn-ghost" id="wkBackTop"></button>
           <button class="wk-btn wk-btn-primary" id="wkNextTop"></button>
@@ -761,7 +761,7 @@
         <div class="wk-done-panel">
           <div class="ico">✅</div>
           <h2>Профиль сохранён</h2>
-          <p id="wkDoneSub">Собираем программу под тебя…</p>
+          <p id="wkDoneSub">Собираем программу под вас…</p>
           <div class="wk-done-actions">
             <button type="button" class="wk-action-btn" id="wkGeneralChatBtn">💬 Ассистент</button>
             <a class="wk-action-btn" href="/workout/profile" title="Настройки">⚙️ Настройки</a>
@@ -1062,7 +1062,7 @@
             finishEditMode(data.material_change);
           } else {
             showStep('done');
-            $('#wkDoneSub').textContent = 'Собираем программу под тебя…';
+            $('#wkDoneSub').textContent = 'Собираем программу под вас…';
             generateProgram();
           }
         } else {
@@ -1071,7 +1071,7 @@
         }
       })
       .catch(function () {
-        alert('Ошибка сети, попробуй ещё раз');
+        alert('Ошибка сети, попробуйте ещё раз');
         setSavingState(false);
       });
   }
@@ -1134,7 +1134,7 @@
     setSavingState(false);
     showStep('done');
     if (materialChange) {
-      $('#wkDoneSub').textContent = 'Собираем программу под тебя…';
+      $('#wkDoneSub').textContent = 'Собираем программу под вас…';
       generateProgram();
     } else {
       // ничего не изменилось — показываем то, что уже есть, не гоняем
@@ -1143,7 +1143,7 @@
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (data.exists) { renderProgram(data); }
-          else { $('#wkDoneSub').textContent = 'Собираем программу под тебя…'; generateProgram(); }
+          else { $('#wkDoneSub').textContent = 'Собираем программу под вас…'; generateProgram(); }
         });
     }
   }
@@ -1151,13 +1151,13 @@
   // ── Программа тренировок ──
   // ── Тултипы "?" — простым языком, без терминов ──
   var TIPS = {
-    rep_range: 'Начинай с минимума с комфортным весом. Когда сможешь сделать максимум во всех подходах — в следующий раз добавь вес и вернись к минимуму. Так растёт сила.',
-    progression: 'На сколько кг увеличивать вес, когда текущий станет лёгким. Система подберёт автоматически под твоё оборудование.',
-    focus_zones: 'Выбери только то, что реально отстаёт. Если хочешь развиваться равномерно — пропусти этот шаг.',
+    rep_range: 'Начинайте с минимума с комфортным весом. Когда сможете сделать максимум во всех подходах — в следующий раз добавьте вес и вернитесь к минимуму. Так растёт сила.',
+    progression: 'На сколько кг увеличивать вес, когда текущий станет лёгким. Система подберёт автоматически под ваше оборудование.',
+    focus_zones: 'Выберите только то, что реально отстаёт. Если хотите развиваться равномерно — пропустите этот шаг.',
     set_status: 'Не переживай, если не осилил — это просто данные. Система учитывает реальные результаты и не сбрасывает прогресс.',
     cooldown: 'Лёгкое завершение тренировки. Помогает плавно снизить пульс и уменьшить крепатуру на следующий день.',
     chat: 'Чат с ассистентом появится на следующем этапе.',
-    light_day: 'Отметь, если сегодня тренировался через силу или вполовину обычной нагрузки. Такой день не учитывается при расчёте прибавки веса — система не подумает, что ты ослаб.',
+    light_day: 'Отметьте, если сегодня тренировались через силу или вполовину обычной нагрузки. Такой день не учитывается при расчёте прибавки веса — система не подумает, что вы ослабли.',
     alternative: 'Оба упражнения работают на одни мышцы — выбирай что удобнее сегодня.',
   };
   function tipBtn(key) {
@@ -1221,7 +1221,7 @@
       ? '<div class="wk-ex-video" data-youtube-id="' + d.youtube_id + '"></div>'
       : '';
     var reminderBanner = p.status === 'pending_at_gym'
-      ? '<div class="wk-machine-reminder">📍 Напоминание: ты собирался уточнить шкалу этого тренажёра, когда будешь в зале — нажми «изменить» рядом с прогрессией, если сейчас удобно.</div>'
+      ? '<div class="wk-machine-reminder">📍 Напоминание: вы собирались уточнить шкалу этого тренажёра, когда будете в зале — нажмите «изменить» рядом с прогрессией, если сейчас удобно.</div>'
       : '';
     return '<div class="wk-ex-head">' +
         '<div class="wk-ex-img"' + (img ? ' data-lightbox-src="' + img + '"' : '') + '>' + (img ? '<img src="' + img + '" loading="lazy">' : '') + '</div>' +
@@ -1267,12 +1267,12 @@
     var key = 'wk_return_notice_dismissed_' + ex.program_exercise_id;
     if (localStorage.getItem(key)) return '';
     var weightText = ex.return_notice.suggested_weight
-      ? 'начни примерно с <strong>' + ex.return_notice.suggested_weight + ' кг</strong> (заметно меньше прежнего рабочего)'
-      : 'начни с заметно сниженной нагрузки';
+      ? 'начните примерно с <strong>' + ex.return_notice.suggested_weight + ' кг</strong> (заметно меньше прежнего рабочего)'
+      : 'начните с заметно сниженной нагрузки';
     return '<div class="wk-return-notice" data-pe-id="' + ex.program_exercise_id + '">' +
       '<button type="button" class="wk-return-notice-close">×</button>' +
       '<div><strong>Возвращаешь это упражнение после ограничения «' + ex.return_notice.zone + '».</strong> ' + weightText +
-      ' и подними обратно за 2–3 тренировки, а не сразу. Следи за зоной на первых подходах — если боль вернётся, сразу стоп и снова сообщи об этом ассистенту.</div>' +
+      ' и поднимите обратно за 2–3 тренировки, а не сразу. Следите за зоной на первых подходах — если боль вернётся, сразу стоп и снова сообщите об этом ассистенту.</div>' +
     '</div>';
   }
 
@@ -1346,7 +1346,7 @@
     if (!localStorage.getItem(calibKey)) {
       html += '<div class="wk-calibration-banner" id="wkCalibBanner">' +
         '<button type="button" class="wk-calibration-close" id="wkCalibClose">×</button>' +
-        '<div><strong>Первая тренировка — это калибровка.</strong> Веса в полях ориентировочные, меняй на те, что реально можешь сделать с правильной техникой. Прогрессия начнётся от твоих реальных данных.</div>' +
+        '<div><strong>Первая тренировка — это калибровка.</strong> Веса в полях ориентировочные, меняйте на те, что реально можете сделать с правильной техникой. Прогрессия начнётся от ваших реальных данных.</div>' +
       '</div>';
     }
     if ((prog.pain_zones || []).length) {
@@ -1360,7 +1360,7 @@
     html += '<div class="wk-warmup-card">' +
       '<div class="wk-warmup-title">🔥 Разминка перед каждой тренировкой</div>' +
       '<div class="wk-warmup-text">5–7 минут динамической суставной гимнастики сверху вниз: шея, плечи, локти, запястья, бёдра, колени, голени. Только динамические движения — без статической растяжки ≥60 секунд перед силовой, она снижает максимальную силу.</div>' +
-      '<div class="wk-warmup-text wk-warmup-specific">Перед упражнениями со значком 🔧 — добавь 1–2 разминочных подхода с пустым грифом или 40–50% от рабочего веса.</div>' +
+      '<div class="wk-warmup-text wk-warmup-specific">Перед упражнениями со значком 🔧 — добавьте 1–2 разминочных подхода с пустым грифом или 40–50% от рабочего веса.</div>' +
       '</div>';
 
     prog.days.forEach(function (day) {
@@ -1617,12 +1617,12 @@
         updateStatusUI(card);
         if (data.ask_progression_setup) showMachinePrompt(card);
       })
-      .catch(function () { btn.textContent = 'Ошибка, попробуй ещё раз'; });
+      .catch(function () { btn.textContent = 'Ошибка, попробуйте ещё раз'; });
   }
 
   function showMachinePrompt(card) {
     var box = $('.wk-machine-prompt', card);
-    box.innerHTML = '<div class="wk-machine-prompt-text">Это тренажёр с фиксированными блоками? Укажи доступные значения, чтобы прогрессия работала точно.</div>' +
+    box.innerHTML = '<div class="wk-machine-prompt-text">Это тренажёр с фиксированными блоками? Укажите доступные значения, чтобы прогрессия работала точно.</div>' +
       '<div class="wk-machine-prompt-btns">' +
         '<button type="button" class="wk-machine-prompt-btn" data-choice="custom_fixed">Да, настрою сейчас</button>' +
         '<button type="button" class="wk-machine-prompt-btn" data-choice="pending_at_gym">Настрою в зале</button>' +
@@ -1649,7 +1649,7 @@
     box.querySelector('.wk-machine-fixed-save').addEventListener('click', function () {
       var raw = box.querySelector('.wk-machine-fixed-input input').value;
       var values = raw.split(',').map(function (v) { return parseFloat(v.trim()); }).filter(function (v) { return !isNaN(v); });
-      if (values.length < 2) { alert('Укажи хотя бы 2 значения шкалы'); return; }
+      if (values.length < 2) { alert('Укажите хотя бы 2 значения шкалы'); return; }
       saveProgressionSetting(scope, 'custom_fixed', null, values, card);
       box.innerHTML = '';
       box.classList.remove('show');
@@ -1712,13 +1712,13 @@
       var fixedRaw = isMachine ? $('.wk-progedit-fixed', panel).value : '';
       if (fixedRaw.trim()) {
         var values = fixedRaw.split(',').map(function (v) { return parseFloat(v.trim()); }).filter(function (v) { return !isNaN(v); });
-        if (values.length < 2) { alert('Укажи хотя бы 2 значения шкалы'); return; }
+        if (values.length < 2) { alert('Укажите хотя бы 2 значения шкалы'); return; }
         saveProgressionSetting(scope, 'custom_fixed', null, values, card);
       } else {
         var manual = parseFloat($('.wk-progedit-manual', panel).value);
         var preset = panel.querySelector('.wk-preset-btn.selected');
         var step = manual > 0 ? manual : (preset ? parseFloat(preset.dataset.value) : null);
-        if (!step) { alert('Выбери шаг или впиши вручную'); return; }
+        if (!step) { alert('Выберите шаг или впишите вручную'); return; }
         saveProgressionSetting(scope, 'custom_step', step, null, card);
       }
       panel.classList.remove('show');
@@ -1738,7 +1738,7 @@
           picker.innerHTML = '<div class="wk-alt-empty">Подходящих альтернатив не нашлось среди доступного оборудования.</div>';
           return;
         }
-        picker.innerHTML = '<div class="wk-alt-picker-title">Те же мышцы, доступное оборудование — выбери замену на сегодня:</div>' +
+        picker.innerHTML = '<div class="wk-alt-picker-title">Те же мышцы, доступное оборудование — выберите замену на сегодня:</div>' +
           '<div class="wk-alt-options">' +
           data.alternatives.map(function (a) {
             var img = a.image ? '/static/exercises/' + a.image : '';
@@ -1873,7 +1873,7 @@
           if (sug && sug.ready && !hasToday) {
             var box = $('.wk-progress-suggestion', card);
             box.innerHTML = '<div class="wk-progress-suggestion-title">🎉 Время прибавить!</div>' +
-              '<div class="wk-progress-suggestion-text">В прошлый раз ты сделал весь диапазон повторов во всех подходах с ' + sug.last_weight + ' кг. Попробуй ' + sug.suggested_weight + ' кг и начни заново с ' + sug.rep_low + ' повторов.</div>' +
+              '<div class="wk-progress-suggestion-text">В прошлый раз вы сделали весь диапазон повторов во всех подходах с ' + sug.last_weight + ' кг. Попробуйте ' + sug.suggested_weight + ' кг и начните заново с ' + sug.rep_low + ' повторов.</div>' +
               '<div class="wk-progress-suggestion-btns">' +
                 '<button type="button" class="wk-progress-up-btn">Поднять до ' + sug.suggested_weight + ' кг</button>' +
                 '<button type="button" class="wk-progress-keep-btn">Оставить как было</button>' +
@@ -1900,7 +1900,7 @@
 
   function openWorkoutChat(programExerciseId, exerciseName, draftMessage) {
     wkChatContextPeId = programExerciseId || null;
-    $('#wkChatSubtitle').textContent = exerciseName ? 'про упражнение «' + exerciseName + '»' : 'про твою программу';
+    $('#wkChatSubtitle').textContent = exerciseName ? 'про упражнение «' + exerciseName + '»' : 'про вашу программу';
     $('#wkChatOverlay').classList.add('show');
     var input = $('#wkChatInput');
     if (draftMessage) input.value = draftMessage;
@@ -1939,7 +1939,7 @@
   function chatChangesList(changes) {
     return (changes || []).map(function (c) {
       if (c.restored) {
-        var w = c.suggested_weight ? ' (начни ~' + c.suggested_weight + ' кг, не с прежнего рабочего)' : ' (начни с заметно сниженной нагрузки)';
+        var w = c.suggested_weight ? ' (начни ~' + c.suggested_weight + ' кг, не с прежнего рабочего)' : ' (начните с заметно сниженной нагрузки)';
         return '<li>' + c.day + ': вернул ' + c.to + w + '</li>';
       }
       return c.removed
@@ -2046,7 +2046,7 @@
       })
       .catch(function () {
         loading.remove();
-        box.appendChild(chatMsgEl('assistant', 'Ошибка сети, попробуй ещё раз.'));
+        box.appendChild(chatMsgEl('assistant', 'Ошибка сети, попробуйте ещё раз.'));
       });
   }
   $('#wkChatSend').addEventListener('click', sendWorkoutChat);
@@ -2101,7 +2101,7 @@
       })
       .catch(function () {
         loading.remove();
-        box.appendChild(chatMsgEl('assistant', 'Ошибка сети, попробуй ещё раз.'));
+        box.appendChild(chatMsgEl('assistant', 'Ошибка сети, попробуйте ещё раз.'));
       });
     this.value = '';
   });
@@ -2119,7 +2119,7 @@
         }
       })
       .catch(function () {
-        showGenerateError('Ошибка сети, попробуй ещё раз.');
+        showGenerateError('Ошибка сети, попробуйте ещё раз.');
       });
   }
 
@@ -2361,7 +2361,7 @@
     }).then(function (r) { return r.json(); }).then(function (data) {
       var box = $('#wkProgramContainer');
       if (choice === 'injury') {
-        box.innerHTML = '<div class="wk-return-confirm">Если травма или боль до сих пор беспокоит — расскажи об этом ассистенту в чате, он подберёт безопасные замены. Пока первые ' + data.light_days + ' тренировки отмечены лёгкими — прогрессия не потребует роста весов, тренируйся по самочувствию.</div>';
+        box.innerHTML = '<div class="wk-return-confirm">Если травма или боль до сих пор беспокоит — расскажите об этом ассистенту в чате, он подберёт безопасные замены. Пока первые ' + data.light_days + ' тренировки отмечены лёгкими — прогрессия не потребует роста весов, тренируйтесь по самочувствию.</div>';
       } else {
         var pct = Math.round((1 - data.weight_factor) * 100);
         box.innerHTML = '<div class="wk-return-confirm">План на 2 недели: стартовые веса снижены на ' + pct + '%, первые ' + data.light_days + ' тренировки помечены лёгкими и не влияют на прогрессию. Дальше — как обычно, по результатам.</div>';
@@ -2376,7 +2376,7 @@
     .then(function (r) { return r.json(); })
     .then(function (data) {
       if (data.exists && data.onboarded) {
-        $('.wk-done-panel h2').textContent = 'Твоя программа';
+        $('.wk-done-panel h2').textContent = 'Ваша программа';
         showStep('done');
         checkReturnPlan();
         loadWeightChart();

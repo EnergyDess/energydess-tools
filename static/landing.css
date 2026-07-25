@@ -80,18 +80,9 @@ body::before {
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-5);
 }
-.feature-card { display: flex; flex-direction: column; gap: var(--space-3); }
-.feature-card .tool-icon { width: 32px; height: 32px; margin-bottom: var(--space-2); }
-.feature-card h3 { font-size: var(--text-h3); font-weight: 600; color: var(--text); }
-.feature-card p { font-size: var(--text-body-sm); color: var(--text-2); line-height: 1.65; }
-.feature-card .eyebrow { font-size: var(--text-mono); }
-
-/* акцент карточки по инструменту */
-.feature-hh   { --tool-accent: var(--accent-hh);         --tool-accent-dim: var(--accent-hh-dim); }
-.feature-wk   { --tool-accent: var(--accent-workout);    --tool-accent-dim: var(--accent-workout-dim); }
-.feature-nutr { --tool-accent: var(--accent-nutrition);  --tool-accent-dim: var(--accent-nutrition-dim); }
-.feature-ens  { --tool-accent: var(--accent-enshrouded); --tool-accent-dim: var(--accent-enshrouded-dim); }
-.feature-card .eyebrow { color: var(--tool-accent); }
+/* Сама карточка — общий компонент .tool-card из style.css. Здесь остаётся
+   только то, что есть исключительно на лендинге: категорийная метка. */
+.tool-card .eyebrow { font-size: var(--text-mono); color: var(--tool-accent); }
 
 /* ── Блоки возможностей ─────────────────────────────────────────────────── */
 .details { padding: var(--space-6) var(--space-5) var(--space-9); max-width: 1100px; margin: 0 auto; }

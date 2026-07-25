@@ -537,9 +537,9 @@
 <div id="import-modal">
   <div class="import-box">
     <h3>🛡 Импорт данных</h3>
-    <p>Открой старый файл <strong>index.html</strong> в браузере, нажми F12 → Console и введи:</p>
+    <p>Откройте старый файл <strong>index.html</strong> в браузере, нажмите F12 → Console и введите:</p>
     <code>localStorage.getItem('enshrouded_tracker_v3')</code>
-    <p>Скопируй весь результат (включая кавычки) и вставь сюда:</p>
+    <p>Скопируйте весь результат (включая кавычки) и вставьте сюда:</p>
     <textarea id="import-json" placeholder='{"bs_blk":{"head":{"owned":true,...},...},...}'></textarea>
     <div class="import-actions">
       <button class="import-cancel-btn" onclick="document.getElementById('import-modal').classList.remove('open')">Отмена</button>
@@ -784,7 +784,7 @@ async function migrateLocal(localData) {
     document.getElementById('migrate-banner').classList.add('hidden');
     localStorage.removeItem(LOCAL_KEY);
   } catch(e) {
-    btn.textContent = 'Ошибка — попробуй ещё раз';
+    btn.textContent = 'Ошибка — попробуйте ещё раз';
     btn.disabled = false;
   }
 }

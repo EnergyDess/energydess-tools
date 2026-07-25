@@ -2761,7 +2761,7 @@ async function openAIChat() {
 async function loadChatHistory() {
   const data = await api('/nutrition/api/chat-history');
   S.chatHistory = (data.messages && data.messages.length) ? data.messages
-    : [{role:'assistant', content: 'Привет! Спрашивай что угодно про твоё питание — отвечу с учётом дневника за сегодня.'}];
+    : [{role:'assistant', content: 'Привет! Спрашивайте что угодно про ваше питание — отвечу с учётом дневника за сегодня.'}];
   renderChat();
 }
 
@@ -3178,7 +3178,7 @@ async function connectScale() {
   const username = document.getElementById('scale-username').value.trim();
   const password = document.getElementById('scale-password').value;
   const msg = document.getElementById('scale-connect-msg');
-  if (!username || !password) { msg.textContent = 'Укажи логин и пароль'; msg.style.color = '#f87171'; return; }
+  if (!username || !password) { msg.textContent = 'Укажите логин и пароль'; msg.style.color = '#f87171'; return; }
   document.getElementById('scale-connect-btn').disabled = true;
   msg.style.color = 'var(--text-2)';
   msg.textContent = 'Подключаем…';
@@ -3221,7 +3221,7 @@ function previewBodyPhoto(input, angle) {
 async function uploadBodyPhotos() {
   const angles = Object.keys(bodyPhotoFiles);
   const msg = document.getElementById('body-photo-msg');
-  if (!angles.length) { msg.textContent = 'Выбери хотя бы одно фото'; msg.style.color = '#f87171'; return; }
+  if (!angles.length) { msg.textContent = 'Выберите хотя бы одно фото'; msg.style.color = '#f87171'; return; }
   const today = new Date().toISOString().slice(0, 10);
   for (const angle of angles) {
     const fd = new FormData();
@@ -3252,7 +3252,7 @@ function renderCompare() {
   const oldDate = document.getElementById('compare-date-old').value;
   const newDate = document.getElementById('compare-date-new').value;
   const view = document.getElementById('compare-view');
-  if (!oldDate || !newDate) { view.innerHTML = '<p style="font-size:13px;color:var(--text-2)">Загрузи фото хотя бы за одну дату.</p>'; return; }
+  if (!oldDate || !newDate) { view.innerHTML = '<p style="font-size:13px;color:var(--text-2)">Загрузите фото хотя бы за одну дату.</p>'; return; }
   function col(date) {
     const angles = bodyPhotosCache[date] || {};
     const imgs = ['front', 'side', 'back'].filter(a => angles[a])
