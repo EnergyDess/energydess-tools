@@ -248,13 +248,13 @@ function renderPagination(totalPages) {
 
   if (windowStart > 1) {
     html += btn('1', 1, false, state.page === 1);
-    if (windowStart > 2) html += '<span style="color:var(--ak-fog);padding:0 4px">…</span>';
+    if (windowStart > 2) html += '<span style="color:var(--text-faint);padding:0 var(--space-1)">…</span>';
   }
   for (let p = windowStart; p <= windowEnd; p++) {
     html += btn(String(p), p, false, p === state.page);
   }
   if (windowEnd < totalPages) {
-    if (windowEnd < totalPages - 1) html += '<span style="color:var(--ak-fog);padding:0 4px">…</span>';
+    if (windowEnd < totalPages - 1) html += '<span style="color:var(--text-faint);padding:0 var(--space-1)">…</span>';
     html += btn(String(totalPages), totalPages, false, state.page === totalPages);
   }
 
