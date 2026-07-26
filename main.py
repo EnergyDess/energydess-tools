@@ -2,6 +2,7 @@ import asyncio
 import json as _json
 import re
 import socket
+import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
@@ -186,6 +187,113 @@ async def _verify_turnstile(token: str, remote_ip: str = None) -> bool:
             return bool(r.json().get("success"))
     except Exception:
         return False  # ошибка проверки — блокируем, а не пропускаем молча
+
+
+async def _turnstile_check(token: str, remote_ip: str = None) -> tuple[bool, bool]:
+    """Как _verify_turnstile, но различает «проверку не прошли» и «проверить не смогли».
+
+    Возвращает (прошла, доступен_ли_cloudflare). На форме входа это различие
+    принципиально: явное «нет» от Cloudflare — повод отказать, а собственная
+    неспособность достучаться до siteverify — нет, иначе падение стороннего
+    сервиса закрывает вход владельцу.
+    """
+    if not TURNSTILE_SECRET_KEY:
+        return True, True
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            data = {"secret": TURNSTILE_SECRET_KEY, "response": token}
+            if remote_ip:
+                data["remoteip"] = remote_ip
+            r = await client.post("https://challenges.cloudflare.com/turnstile/v0/siteverify", data=data)
+        if r.status_code != 200:
+            return False, False          # siteverify отвечает ошибкой — проверить не смогли
+        return bool(r.json().get("success")), True
+    except (httpx.HTTPError, ValueError):
+        return False, False              # сеть или неразобранный ответ — тоже «не смогли»
+
+
+# ── Защита формы входа от перебора ────────────────────────────────────────────
+# Аккаунт НЕ блокируется никогда: email владельца засвечен в откликах, и любой,
+# кто его знает, мог бы держать админский вход заблокированным навсегда, просто
+# вводя неверный пароль. Ограничиваем по IP — это режет объём перебора, но не
+# даёт запереть конкретного человека.
+
+LOGIN_WINDOW_SEC     = 15 * 60   # скользящее окно учёта неудач
+LOGIN_CAPTCHA_AFTER  = 3         # с этой неудачи требуем Turnstile
+LOGIN_BLOCK_AFTER    = 15        # с этой неудачи отказываем совсем
+LOGIN_BLOCK_SEC      = 15 * 60   # на сколько отказываем
+RATELIMIT_OFF_FILE   = "/data/ratelimit_off"   # аварийный выход, см. BACKLOG №1
+
+# IP -> список меток времени неудачных попыток. В памяти процесса: машина одна,
+# общее состояние не нужно, а писать в БД на каждую попытку входа незачем.
+# Обнуление при рестарте для защиты от перебора допустимо.
+_login_fails: Dict[str, List[float]] = {}
+# IP, для которых уже сообщили о неотработавшей капче. Без этого строка пишется
+# на каждую попытку и превращает лог в шум — а нужен сам факт, что виджет
+# не доходит до пользователя
+_captcha_noop_seen: set = set()
+
+
+def _ratelimit_disabled() -> bool:
+    """Аварийный выход: `flyctl ssh console -C "touch /data/ratelimit_off"`.
+    Файл лежит на volume и переживает рестарт, поэтому о каждом срабатывании
+    сообщаем в лог — иначе защита останется выключенной тихо и навсегда."""
+    if os.path.exists(RATELIMIT_OFF_FILE):
+        print("[login] защита отключена файлом /data/ratelimit_off")
+        return True
+    return False
+
+
+def _client_ip(request: Request) -> str:
+    """Реальный IP посетителя.
+
+    request.client.host здесь бесполезен: приложение стоит за прокси Fly и видит
+    его внутренний адрес (проверено на проде — все запросы приходят с
+    172.16.13.90, и мой из России, и внутренний health-check). Брать его значит
+    считать всех посетителей одним адресом: первая же неудача заперла бы вход всем.
+
+    Заголовкам можно доверять: приложение слушает внутренний порт и снаружи
+    доступно только через прокси Fly, который эти заголовки перезаписывает.
+    """
+    fly = request.headers.get("fly-client-ip")
+    if fly:
+        return fly.strip()
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _login_fail_count(ip: str) -> int:
+    """Сколько неудач с этого IP внутри окна. Заодно чистит протухшее."""
+    порог = time.time() - LOGIN_WINDOW_SEC
+    метки = [t for t in _login_fails.get(ip, []) if t > порог]
+    if метки:
+        _login_fails[ip] = метки
+    else:
+        _login_fails.pop(ip, None)
+    return len(метки)
+
+
+def _login_purge_stale() -> None:
+    """Чистка словаря от IP, у которых все метки протухли: процесс живёт долго,
+    и без этого словарь растёт до бесконечности."""
+    порог = time.time() - LOGIN_WINDOW_SEC
+    for ip in [k for k, v in _login_fails.items() if not any(t > порог for t in v)]:
+        _login_fails.pop(ip, None)
+        _captcha_noop_seen.discard(ip)
+
+
+def _login_delay_for(fails: int) -> float:
+    """Прогрессивная задержка ответа. Человеку незаметна, перебору ломает
+    экономику — и, в отличие от капчи, не зависит от доступности Cloudflare."""
+    if fails >= 8:
+        return 4.0
+    if fails >= 5:
+        return 2.0
+    if fails >= 3:
+        return 1.0
+    return 0.0
 
 
 def _issue_verification_token(user) -> str:
@@ -831,6 +939,12 @@ async def login_page(request: Request, user=Depends(get_current_user),
                      verified: str = None, error: str = None):
     if user:
         return RedirectResponse("/", status_code=302)
+    # Капчу показываем уже при открытии формы, если с этого IP было
+    # достаточно неудач: иначе человек заполнит поля, отправит и только
+    # тогда узнает, что нужна ещё и проверка
+    нужна_капча = (not _ratelimit_disabled()
+                   and _login_fail_count(_client_ip(request)) >= LOGIN_CAPTCHA_AFTER
+                   and bool(TURNSTILE_SITE_KEY))
     msg = None
     if verified:
         msg = "✓ Email подтверждён — теперь можно войти"
@@ -838,8 +952,10 @@ async def login_page(request: Request, user=Depends(get_current_user),
         msg = "Неверная ссылка подтверждения"
     elif error == "expired_token":
         msg = "Ссылка устарела — войдите в аккаунт, там можно отправить новую ссылку"
-    return templates.TemplateResponse(request=request, name="login.html",
-                                      context={"error": None, "info": msg})
+    return templates.TemplateResponse(
+        request=request, name="login.html",
+        context={"error": None, "info": msg,
+                 "turnstile_site_key": TURNSTILE_SITE_KEY if нужна_капча else None})
 
 
 @app.post("/login")
@@ -847,14 +963,71 @@ async def login(
     request: Request,
     email: str = Form(...),
     password: str = Form(...),
+    turnstile_token: str = Form(default="", alias="cf-turnstile-response"),
     db: Session = Depends(get_db),
 ):
     email = email.strip().lower()
+    ip = _client_ip(request)
+    защита = not _ratelimit_disabled()
+    неудач = _login_fail_count(ip) if защита else 0
+    нужна_капча = защита and неудач >= LOGIN_CAPTCHA_AFTER and bool(TURNSTILE_SITE_KEY)
+
+    # ── Жёсткий лимит ────────────────────────────────────────────────────────
+    if защита and неудач >= LOGIN_BLOCK_AFTER:
+        осталось = int((min(_login_fails.get(ip, [0])) + LOGIN_WINDOW_SEC - time.time()) / 60) + 1
+        print(f"[login] IP {ip}: {неудач} неудач за 15 мин — отказ ещё ~{осталось} мин")
+        await asyncio.sleep(_login_delay_for(неудач))
+        return templates.TemplateResponse(
+            request=request, name="login.html", status_code=429,
+            context={"error": f"Слишком много попыток входа. Попробуйте через {осталось} мин.",
+                     "email": email, "turnstile_site_key": TURNSTILE_SITE_KEY if нужна_капча else None})
+
+    # ── Капча после нескольких неудач ────────────────────────────────────────
+    # fail-open: пустой токен (виджет не загрузился ЛИБО проверку не прошли —
+    # серверно неразличимо) и недоступность siteverify пропускают вход. Цена
+    # ошибки асимметрична: запереть владельца в своей же админке из-за
+    # заблокированного Cloudflare хуже, чем пропустить попытку, которую всё
+    # равно режет лимит по IP. Отказ — только на явное «нет» от Cloudflare.
+    if нужна_капча:
+        if not turnstile_token:
+            if ip not in _captcha_noop_seen:
+                _captcha_noop_seen.add(ip)
+                print(f"[login] IP {ip}: капча не отработала (пустой токен) — вход пропущен")
+        else:
+            прошла, доступен = await _turnstile_check(turnstile_token, ip)
+            if not доступен:
+                print(f"[login] IP {ip}: Cloudflare недоступен с сервера — вход пропущен")
+            elif not прошла:
+                print(f"[login] IP {ip}: капча не пройдена — отказ")
+                await asyncio.sleep(_login_delay_for(неудач))
+                return templates.TemplateResponse(
+                    request=request, name="login.html", status_code=400,
+                    context={"error": "Не удалось подтвердить, что вы не робот",
+                             "email": email, "turnstile_site_key": TURNSTILE_SITE_KEY})
+
     user = db.query(User).filter(User.email == email).first()
 
     if not user or not verify_password(password, user.password_hash):
-        return templates.TemplateResponse(request=request, name="login.html",
-                                          context={"error": "Неверный email или пароль", "email": email})
+        if защита:
+            _login_fails.setdefault(ip, []).append(time.time())
+            неудач += 1
+            _login_purge_stale()
+            if неудач == LOGIN_CAPTCHA_AFTER:
+                print(f"[login] IP {ip}: {неудач} неудачи за 15 мин — включена капча")
+            elif неудач == LOGIN_BLOCK_AFTER:
+                print(f"[login] IP {ip}: {неудач} неудач за 15 мин — отказ на 15 мин")
+            # Только asyncio.sleep: time.sleep остановил бы весь event loop,
+            # и на эти секунды сайт замер бы для всех пользователей сразу
+            await asyncio.sleep(_login_delay_for(неудач))
+        показать_капчу = защита and неудач >= LOGIN_CAPTCHA_AFTER and bool(TURNSTILE_SITE_KEY)
+        return templates.TemplateResponse(
+            request=request, name="login.html",
+            context={"error": "Неверный email или пароль", "email": email,
+                     "turnstile_site_key": TURNSTILE_SITE_KEY if показать_капчу else None})
+
+    # Успешный вход — счётчик этого IP обнуляется: владелец доказал, что он владелец
+    _login_fails.pop(ip, None)
+    _captcha_noop_seen.discard(ip)
 
     # is_verified=False НЕ блокирует вход — пользователь логинится как обычно,
     # блокировка происходит на уровне конкретного инструмента (см. _verification_gate),

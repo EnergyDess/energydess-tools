@@ -50,6 +50,12 @@
           </button>
         </div>
       </div>
+      {# Появляется только после нескольких неудачных попыток с этого IP.
+         Если виджет не загрузится (Cloudflare бывает недоступен), вход всё
+         равно пройдёт — защита деградирует до лимита по IP, см. main.py #}
+      {% if turnstile_site_key %}
+      <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="dark" style="margin-bottom:18px"></div>
+      {% endif %}
       <button type="submit" class="auth-btn-primary">Войти</button>
     </form>
 
@@ -79,5 +85,8 @@ function toggleEye(inputId, btn) {
   }
 }
 </script>
+{% if turnstile_site_key %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% endif %}
 </body>
 </html>
