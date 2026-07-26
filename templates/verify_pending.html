@@ -106,8 +106,9 @@
       или напишите на <strong>denison7111@gmail.com</strong>.</span>
     </div>
     {% elif cooldown %}
-    <div class="alert alert-warn" style="margin-bottom:20px;text-align:left">
-      <span>Письмо уже отправлено — проверьте почту. Повторить можно через {{ cooldown }} с.</span>
+    <div class="alert alert-warn" id="cooldown-note" style="margin-bottom:20px;text-align:left">
+      <span>Письмо уже отправлено — проверьте почту. Повторить можно через
+      <strong id="cooldown-left">{{ cooldown }}</strong> с.</span>
     </div>
     {% endif %}
 
@@ -117,7 +118,8 @@
 
     {% if can_resend %}
     <form method="post" action="/verify-pending/resend" style="margin-bottom:20px">
-      <button type="submit" class="btn-secondary">Отправить письмо ещё раз</button>
+      <button type="submit" class="btn-secondary" id="resend-btn"
+              {% if cooldown %}disabled{% endif %}>Отправить письмо ещё раз</button>
     </form>
     {% endif %}
 
@@ -127,5 +129,25 @@
     </a>
   </div>
 </div>
+
+{% if cooldown %}
+<script>
+  // Живой отсчёт: без него число висит неподвижно и страница выглядит
+  // сломанной. По нулю кнопка сама включается, сообщение убирается.
+  (function () {
+    var left = {{ cooldown }};
+    var note = document.getElementById('cooldown-note');
+    var out  = document.getElementById('cooldown-left');
+    var btn  = document.getElementById('resend-btn');
+    var t = setInterval(function () {
+      left -= 1;
+      if (left > 0) { out.textContent = left; return; }
+      clearInterval(t);
+      if (note) note.remove();
+      if (btn) btn.disabled = false;
+    }, 1000);
+  })();
+</script>
+{% endif %}
 </body>
 </html>

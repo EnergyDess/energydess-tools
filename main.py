@@ -245,7 +245,36 @@ def _last_email_failed(db, user_id: int) -> bool:
     return bool(последнее and последнее.error)
 
 
-async def send_email(to: str, subject: str, html: str,
+def _verification_email_text(link: str) -> str:
+    """Текстовая версия письма подтверждения.
+
+    Письмо без plain-text альтернативы — заметный минус в спам-оценке: мало
+    текста плюс одна яркая кнопка-ссылка складываются для фильтра в узнаваемый
+    фишинговый силуэт. Ссылка здесь в явном виде, чтобы её можно было
+    скопировать руками, если кнопка в HTML не сработала.
+    """
+    return f"""EnergyDess — подтверждение регистрации
+
+Для завершения регистрации откройте ссылку (действует 24 часа):
+
+{link}
+
+Если вы не регистрировались на EnergyDess — просто проигнорируйте это письмо.
+"""
+
+
+def _reset_email_text(link: str) -> str:
+    return f"""EnergyDess — сброс пароля
+
+Для установки нового пароля откройте ссылку (действует 1 час):
+
+{link}
+
+Если вы не запрашивали сброс пароля — просто проигнорируйте это письмо.
+"""
+
+
+async def send_email(to: str, subject: str, html: str, text: str = None,
                      db=None, user_id: int = None, kind: str = "verify") -> str | None:
     """Отправляет письмо через Resend. Возвращает None при успехе, иначе строку
     «<код>: <детали>».
@@ -262,6 +291,14 @@ async def send_email(to: str, subject: str, html: str,
         # Не норма, а ошибка конфигурации: письма не уходят вообще
         error = "no_key: RESEND_API_KEY не задан — письма не отправляются"
     else:
+        письмо = {
+            "from": "EnergyDess <noreply@energydess.ru>",
+            "to": [to],
+            "subject": subject,
+            "html": html,
+        }
+        if text:
+            письмо["text"] = text
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 r = await client.post(
@@ -270,12 +307,7 @@ async def send_email(to: str, subject: str, html: str,
                         "Authorization": f"Bearer {RESEND_API_KEY}",
                         "Content-Type": "application/json",
                     },
-                    json={
-                        "from": "EnergyDess <noreply@energydess.ru>",
-                        "to": [to],
-                        "subject": subject,
-                        "html": html,
-                    },
+                    json=письмо,
                 )
             if r.status_code >= 400:
                 # Протухший ключ, слетевшая верификация домена, лимит, отбитый адрес
@@ -719,9 +751,32 @@ async def register(
     if len(password) < 6:
         return templates.TemplateResponse(request=request, name="register.html",
                                           context={**ctx, "error": "Пароль минимум 6 символов"})
-    if db.query(User).filter(User.email == email).first():
-        return templates.TemplateResponse(request=request, name="register.html",
-                                          context={**ctx, "error": "Email уже зарегистрирован"})
+    существующий = db.query(User).filter(User.email == email).first()
+    if существующий:
+        # Подтверждённый адрес — отказ, это нормально
+        if существующий.is_verified is not False:
+            return templates.TemplateResponse(request=request, name="register.html",
+                                              context={**ctx, "error": "Email уже зарегистрирован"})
+        # Неподтверждённый — тупик: письма нет (могло уйти в спам), повторить
+        # неоткуда, перерегистрироваться нельзя. Вместо отказа шлём подтверждение
+        # заново. Пароль не меняем и форму заново проходить не заставляем:
+        # человек уже её заполнял, а сменить чужой пароль так было бы нельзя.
+        осталось = _email_cooldown_left(db, существующий.id)
+        ответ = RedirectResponse("/verify-pending", status_code=302)
+        ответ.set_cookie("pending_verify", create_token(существующий.id),
+                         httponly=True, max_age=60 * 30, samesite="lax")
+        if осталось:
+            # Кулдаун соблюдаем и здесь, иначе форма регистрации станет
+            # способом его обойти и слать письма без ограничений
+            return ответ
+        vtok = _issue_verification_token(существующий)
+        db.commit()
+        ссылка = f"{BASE_URL}/verify/{vtok}"
+        await send_email(to=email, subject="Подтвердите регистрацию на EnergyDess",
+                         html=_verification_email_html(ссылка),
+                         text=_verification_email_text(ссылка),
+                         db=db, user_id=существующий.id, kind="resend")
+        return ответ
 
     is_first = db.query(User).count() == 0
     user = User(
@@ -744,6 +799,7 @@ async def register(
         link = f"{BASE_URL}/verify/{vtok}"
         await send_email(to=email, subject="Подтвердите регистрацию на EnergyDess",
                          html=_verification_email_html(link),
+                         text=_verification_email_text(link),
                          db=db, user_id=user.id, kind="verify")
         response = RedirectResponse("/verify-pending", status_code=302)
         # Короткоживущая метка, чтобы на /verify-pending работала кнопка повтора:
@@ -825,9 +881,12 @@ def _pending_user(pending_verify: str, db: Session):
 async def verify_pending(request: Request, pending_verify: str = Cookie(default=None),
                          db: Session = Depends(get_db)):
     u = _pending_user(pending_verify, db)
+    # Кулдаун считается и при заходе на страницу, а не только после нажатия:
+    # иначе кнопка выглядит активной, а первое же нажатие упирается в отказ
     return templates.TemplateResponse(request=request, name="verify_pending.html",
                                       context={"can_resend": bool(u), "email": u.email if u else None,
-                                               "send_failed": _last_email_failed(db, u.id) if u else False})
+                                               "send_failed": _last_email_failed(db, u.id) if u else False,
+                                               "cooldown": _email_cooldown_left(db, u.id) if u else 0})
 
 
 @app.post("/verify-pending/resend")
@@ -848,8 +907,10 @@ async def verify_pending_resend(request: Request, pending_verify: str = Cookie(d
 
     vtok = _issue_verification_token(u)
     db.commit()
+    ссылка = f"{BASE_URL}/verify/{vtok}"
     ошибка = await send_email(to=u.email, subject="Подтвердите регистрацию на EnergyDess",
-                              html=_verification_email_html(f"{BASE_URL}/verify/{vtok}"),
+                              html=_verification_email_html(ссылка),
+                              text=_verification_email_text(ссылка),
                               db=db, user_id=u.id, kind="resend")
     return templates.TemplateResponse(request=request, name="verify_pending.html",
                                       context={**ctx, "resent": not ошибка, "send_failed": bool(ошибка)})
@@ -892,6 +953,7 @@ async def resend_verification(request: Request, tool_name: str = Form(default=""
     link = f"{BASE_URL}/verify/{vtok}"
     ошибка = await send_email(to=user.email, subject="Подтвердите регистрацию на EnergyDess",
                               html=_verification_email_html(link),
+                              text=_verification_email_text(link),
                               db=db, user_id=user.id, kind="resend")
     return templates.TemplateResponse(request=request, name="verify_required.html",
                                       context={"user": user, "tool_name": tool_name or "инструменту",
@@ -920,6 +982,7 @@ async def forgot_post(request: Request, email: str = Form(...), db: Session = De
             db=db, user_id=user.id, kind="reset",
             to=email,
             subject="Сброс пароля EnergyDess",
+            text=_reset_email_text(link),
             html=f"""
 <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#07070f;border-radius:16px;border:1px solid rgba(255,255,255,0.08)">
   <div style="font-size:1.5rem;font-weight:800;margin-bottom:8px;color:#dde2f0">⚡ EnergyDess</div>

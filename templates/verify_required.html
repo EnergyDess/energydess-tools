@@ -68,11 +68,16 @@
     <a href="/" style="color:var(--accent-brand);font-size:0.875rem;text-decoration:none">← На главную</a>
     {% elif cooldown %}
     <h1 style="margin-bottom:8px">Письмо уже отправлено</h1>
-    <div class="alert alert-warn" style="margin-bottom:20px;text-align:left">
+    <div class="alert alert-warn" id="cooldown-note" style="margin-bottom:20px;text-align:left">
       <span>Проверьте почту <strong>{{ user.email }}</strong> и папку «Спам».
-      Отправить ещё раз можно через {{ cooldown }} с.</span>
+      Отправить ещё раз можно через <strong id="cooldown-left">{{ cooldown }}</strong> с.</span>
     </div>
-    <a href="/" style="color:var(--accent-brand);font-size:0.875rem;text-decoration:none">← На главную</a>
+    {# Кнопка остаётся на месте, но выключенной: по нулю она включится сама,
+       и человеку не придётся гадать, куда она делась и когда вернётся #}
+    <form method="post" action="/resend-verification">
+      <input type="hidden" name="tool_name" value="{{ tool_name }}">
+      <button type="submit" class="verify-resend-btn" id="resend-btn" disabled>Отправить письмо ещё раз</button>
+    </form>
     {% else %}
     <h1 style="margin-bottom:8px">Подтвердите email</h1>
     <p style="color:var(--text-2);font-size:0.95rem;margin-bottom:4px">
@@ -95,5 +100,24 @@
     </div>
   </div>
 </div>
+
+{% if cooldown %}
+<script>
+  // Живой отсчёт — тот же, что на /verify-pending
+  (function () {
+    var left = {{ cooldown }};
+    var note = document.getElementById('cooldown-note');
+    var out  = document.getElementById('cooldown-left');
+    var btn  = document.getElementById('resend-btn');
+    var t = setInterval(function () {
+      left -= 1;
+      if (left > 0) { out.textContent = left; return; }
+      clearInterval(t);
+      if (note) note.remove();
+      if (btn) btn.disabled = false;
+    }, 1000);
+  })();
+</script>
+{% endif %}
 </body>
 </html>
