@@ -57,10 +57,17 @@ if сбоев:
 
 print("\nПОСЛЕДНИЕ ПИСЬМА:")
 for r in c.execute("""SELECT id, created_at, COALESCE(job_title,'') jt, COALESCE(company_name,'') cn,
-                             LENGTH(job_text) L, analysis_error
+                             LENGTH(job_text) L, analysis_error, analysis_json
                       FROM cover_letters ORDER BY created_at DESC LIMIT 12"""):
     заг = " — ".join(x for x in (r["jt"], r["cn"]) if x) or "‹Без названия›"
-    метка = "OK   " if not r["analysis_error"] else "СБОЙ "
+    есть_анализ = r["analysis_json"] not in (None, "", "null")
+    if r["analysis_error"]:
+        метка = "СБОЙ "
+    elif есть_анализ:
+        метка = "OK   "
+    else:
+        # анализа нет, но и причины нет — запись сделана до появления учёта
+        метка = "стар."
     print("  %s #%-4s %s  %5d симв  %s" % (
         метка, r["id"], str(r["created_at"])[:16], r["L"], заг[:48]))
 
