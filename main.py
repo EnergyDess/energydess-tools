@@ -234,12 +234,18 @@ _login_fails: Dict[str, List[float]] = {}
 _captcha_noop_seen: set = set()
 
 
-def _ratelimit_disabled() -> bool:
+def _ratelimit_disabled(ip: str = None, где: str = "") -> bool:
     """Аварийный выход: `flyctl ssh console -C "touch /data/ratelimit_off"`.
     Файл лежит на volume и переживает рестарт, поэтому о каждом срабатывании
-    сообщаем в лог — иначе защита останется выключенной тихо и навсегда."""
+    сообщаем в лог — иначе защита останется выключенной тихо и навсегда.
+
+    Пока файл лежит, режим заодно наблюдательный: печатаем определившийся IP,
+    чтобы убедиться, что это реальный адрес посетителя, а не 172.16.x прокси
+    Fly. Проверять это надо ДО включения лимитов, иначе один неудачный вход
+    запер бы вход всем сразу."""
     if os.path.exists(RATELIMIT_OFF_FILE):
-        print("[login] защита отключена файлом /data/ratelimit_off")
+        print(f"[login] защита отключена файлом /data/ratelimit_off; "
+              f"наблюдаемый IP: {ip or '—'} ({где})")
         return True
     return False
 
@@ -942,8 +948,9 @@ async def login_page(request: Request, user=Depends(get_current_user),
     # Капчу показываем уже при открытии формы, если с этого IP было
     # достаточно неудач: иначе человек заполнит поля, отправит и только
     # тогда узнает, что нужна ещё и проверка
-    нужна_капча = (not _ratelimit_disabled()
-                   and _login_fail_count(_client_ip(request)) >= LOGIN_CAPTCHA_AFTER
+    ip = _client_ip(request)
+    нужна_капча = (not _ratelimit_disabled(ip, "GET /login")
+                   and _login_fail_count(ip) >= LOGIN_CAPTCHA_AFTER
                    and bool(TURNSTILE_SITE_KEY))
     msg = None
     if verified:
@@ -968,7 +975,7 @@ async def login(
 ):
     email = email.strip().lower()
     ip = _client_ip(request)
-    защита = not _ratelimit_disabled()
+    защита = not _ratelimit_disabled(ip, "POST /login")
     неудач = _login_fail_count(ip) if защита else 0
     нужна_капча = защита and неудач >= LOGIN_CAPTCHA_AFTER and bool(TURNSTILE_SITE_KEY)
 
