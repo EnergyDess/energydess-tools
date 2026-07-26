@@ -54,30 +54,26 @@
   <div class="auth-box" style="text-align:center">
     <div class="verify-icon">✉️</div>
 
-    {% if resent %}
+    {# Состояние кнопки задаёт только cooldown, текст сообщения — только notice.
+       Раньше это было слито в одну цепочку if/elif, из-за чего после успешной
+       отправки кнопка оставалась активной, хотя сервер уже был в кулдауне. #}
+    {% if notice == 'sent' %}
     <h1 style="margin-bottom:8px">Письмо отправлено</h1>
-    <p style="color:var(--text-2);font-size:0.95rem;margin-bottom:24px">
+    <p style="color:var(--text-2);font-size:0.95rem;margin-bottom:20px">
       Новая ссылка выслана на <strong style="color:var(--text)">{{ user.email }}</strong> — проверьте почту (действительна 24 часа).
     </p>
-    {% elif send_failed %}
+    {% elif notice == 'failed' %}
     <h1 style="margin-bottom:8px">Не удалось отправить</h1>
     <div class="alert alert-error" style="margin-bottom:20px;text-align:left">
       <span>Письмо не ушло — проблема на нашей стороне, не у вас. Попробуйте через несколько минут
       или напишите на <strong>denison7111@gmail.com</strong>.</span>
     </div>
-    <a href="/" style="color:var(--accent-brand);font-size:0.875rem;text-decoration:none">← На главную</a>
-    {% elif cooldown %}
+    {% elif notice == 'too_soon' %}
     <h1 style="margin-bottom:8px">Письмо уже отправлено</h1>
     <div class="alert alert-warn" id="cooldown-note" style="margin-bottom:20px;text-align:left">
       <span>Проверьте почту <strong>{{ user.email }}</strong> и папку «Спам».
       Отправить ещё раз можно через <strong id="cooldown-left">{{ cooldown }}</strong> с.</span>
     </div>
-    {# Кнопка остаётся на месте, но выключенной: по нулю она включится сама,
-       и человеку не придётся гадать, куда она делась и когда вернётся #}
-    <form method="post" action="/resend-verification">
-      <input type="hidden" name="tool_name" value="{{ tool_name }}">
-      <button type="submit" class="verify-resend-btn" id="resend-btn" disabled>Отправить письмо ещё раз</button>
-    </form>
     {% else %}
     <h1 style="margin-bottom:8px">Подтвердите email</h1>
     <p style="color:var(--text-2);font-size:0.95rem;margin-bottom:4px">
@@ -86,11 +82,19 @@
     <p style="color:var(--text-faint);font-size:0.8rem;margin-bottom:20px">
       Мы отправили ссылку при регистрации. Не нашли письмо? Проверьте папку «Спам» или отправьте ещё раз.
     </p>
+    {% endif %}
+
+    {# Кнопка одна на все ветки: выключена ровно тогда, когда сервер откажет #}
     <form method="post" action="/resend-verification">
       <input type="hidden" name="tool_name" value="{{ tool_name }}">
-      <button type="submit" class="verify-resend-btn">Отправить письмо ещё раз</button>
+      <button type="submit" class="verify-resend-btn" id="resend-btn"
+              {% if cooldown %}disabled{% endif %}>Отправить письмо ещё раз</button>
+      {% if cooldown and notice != 'too_soon' %}
+      <div id="cooldown-hint" style="font-size:0.8rem;color:var(--text-faint);margin-top:8px">
+        Повторить можно через <strong id="cooldown-left">{{ cooldown }}</strong> с.
+      </div>
+      {% endif %}
     </form>
-    {% endif %}
 
     <div style="margin-top:24px">
       <a href="/" style="color:var(--accent-brand);font-size:0.875rem;text-decoration:none;transition:opacity 0.2s"
@@ -107,13 +111,15 @@
   (function () {
     var left = {{ cooldown }};
     var note = document.getElementById('cooldown-note');
+    var hint = document.getElementById('cooldown-hint');
     var out  = document.getElementById('cooldown-left');
     var btn  = document.getElementById('resend-btn');
     var t = setInterval(function () {
       left -= 1;
-      if (left > 0) { out.textContent = left; return; }
+      if (left > 0) { if (out) out.textContent = left; return; }
       clearInterval(t);
       if (note) note.remove();
+      if (hint) hint.remove();
       if (btn) btn.disabled = false;
     }, 1000);
   })();

@@ -156,12 +156,17 @@ def user_has_access(user: User, tool_id: str, db: Session) -> bool:
     ).first() is not None
 
 
-def _verification_gate(request: Request, user: User, tool_name: str):
+def _verification_gate(request: Request, user: User, tool_name: str, db: Session = None):
     """Плашка "подтвердите email" вместо инструмента, если is_verified явно False.
-    None (is_verified не заполнен у старых аккаунтов) — не блокирует."""
+    None (is_verified не заполнен у старых аккаунтов) — не блокирует.
+
+    db нужен, чтобы состояние кнопки совпадало с состоянием сервера: если письмо
+    только что отправляли, кнопка приходит уже выключенной с отсчётом, а не
+    предлагает действие, которое гарантированно упрётся в отказ."""
     if user.is_verified is False:
         return templates.TemplateResponse(request=request, name="verify_required.html",
-                                          context={"user": user, "tool_name": tool_name})
+                                          context={"user": user, "tool_name": tool_name,
+                                                   "cooldown": _email_cooldown_left(db, user.id) if db else 0})
     return None
 
 
@@ -762,7 +767,11 @@ async def register(
         # заново. Пароль не меняем и форму заново проходить не заставляем:
         # человек уже её заполнял, а сменить чужой пароль так было бы нельзя.
         осталось = _email_cooldown_left(db, существующий.id)
-        ответ = RedirectResponse("/verify-pending", status_code=302)
+        # ?sent / ?too_soon задают текст сообщения: после регистрации письмо
+        # ушло впервые и слово «уже» там неуместно, а при попытке повторить
+        # слишком рано — наоборот, на своём месте
+        адрес = "/verify-pending?too_soon=1" if осталось else "/verify-pending?sent=1"
+        ответ = RedirectResponse(адрес, status_code=302)
         ответ.set_cookie("pending_verify", create_token(существующий.id),
                          httponly=True, max_age=60 * 30, samesite="lax")
         if осталось:
@@ -801,7 +810,7 @@ async def register(
                          html=_verification_email_html(link),
                          text=_verification_email_text(link),
                          db=db, user_id=user.id, kind="verify")
-        response = RedirectResponse("/verify-pending", status_code=302)
+        response = RedirectResponse("/verify-pending?sent=1", status_code=302)
         # Короткоживущая метка, чтобы на /verify-pending работала кнопка повтора:
         # сессии там ещё нет (вход не выполняется), а открытая форма с вводом
         # email превратила бы страницу в рассылку писем на любой адрес
@@ -879,13 +888,27 @@ def _pending_user(pending_verify: str, db: Session):
 
 @app.get("/verify-pending")
 async def verify_pending(request: Request, pending_verify: str = Cookie(default=None),
+                         sent: str = None, too_soon: str = None,
                          db: Session = Depends(get_db)):
+    """Страница «проверьте почту».
+
+    Состояние кнопки задаёт только cooldown — он считается по журналу отправок
+    во ВСЕХ ветках, чтобы кнопка не предлагала действие, которое упрётся в отказ.
+    Текст сообщения задаёт notice и от состояния кнопки не зависит: сразу после
+    регистрации письмо отправлено впервые, и слово «уже» там читалось бы как
+    «вы здесь не в первый раз» — человек пугается, что попал не туда.
+    """
     u = _pending_user(pending_verify, db)
-    # Кулдаун считается и при заходе на страницу, а не только после нажатия:
-    # иначе кнопка выглядит активной, а первое же нажатие упирается в отказ
+    notice = None
+    if u and _last_email_failed(db, u.id):
+        notice = "failed"
+    elif too_soon:
+        notice = "too_soon"
+    elif sent:
+        notice = "sent"
     return templates.TemplateResponse(request=request, name="verify_pending.html",
                                       context={"can_resend": bool(u), "email": u.email if u else None,
-                                               "send_failed": _last_email_failed(db, u.id) if u else False,
+                                               "notice": notice,
                                                "cooldown": _email_cooldown_left(db, u.id) if u else 0})
 
 
@@ -903,7 +926,7 @@ async def verify_pending_resend(request: Request, pending_verify: str = Cookie(d
     осталось = _email_cooldown_left(db, u.id)
     if осталось:
         return templates.TemplateResponse(request=request, name="verify_pending.html",
-                                          context={**ctx, "cooldown": осталось})
+                                          context={**ctx, "notice": "too_soon", "cooldown": осталось})
 
     vtok = _issue_verification_token(u)
     db.commit()
@@ -912,8 +935,13 @@ async def verify_pending_resend(request: Request, pending_verify: str = Cookie(d
                               html=_verification_email_html(ссылка),
                               text=_verification_email_text(ссылка),
                               db=db, user_id=u.id, kind="resend")
+    # Кулдаун пересчитывается ПОСЛЕ отправки: письмо только что ушло, значит
+    # кнопка должна выключиться сразу, а не оставаться активной до первого
+    # бесполезного нажатия. При сбое отправки кулдауна нет — повторить можно сразу
     return templates.TemplateResponse(request=request, name="verify_pending.html",
-                                      context={**ctx, "resent": not ошибка, "send_failed": bool(ошибка)})
+                                      context={**ctx,
+                                               "notice": "failed" if ошибка else "sent",
+                                               "cooldown": _email_cooldown_left(db, u.id)})
 
 
 @app.get("/verify/{token}")
@@ -941,12 +969,13 @@ async def resend_verification(request: Request, tool_name: str = Form(default=""
     if user.is_verified is not False:
         return RedirectResponse("/", status_code=302)
 
+    ctx = {"user": user, "tool_name": tool_name or "инструменту"}
+
     # Кулдаун: кнопку можно жать сколько угодно, а письма уходят реальные
     осталось = _email_cooldown_left(db, user.id)
     if осталось:
         return templates.TemplateResponse(request=request, name="verify_required.html",
-                                          context={"user": user, "tool_name": tool_name or "инструменту",
-                                                   "cooldown": осталось})
+                                          context={**ctx, "notice": "too_soon", "cooldown": осталось})
 
     vtok = _issue_verification_token(user)
     db.commit()
@@ -955,9 +984,11 @@ async def resend_verification(request: Request, tool_name: str = Form(default=""
                               html=_verification_email_html(link),
                               text=_verification_email_text(link),
                               db=db, user_id=user.id, kind="resend")
+    # Кулдаун пересчитывается после отправки — кнопка выключается сразу
     return templates.TemplateResponse(request=request, name="verify_required.html",
-                                      context={"user": user, "tool_name": tool_name or "инструменту",
-                                               "resent": not ошибка, "send_failed": bool(ошибка)})
+                                      context={**ctx,
+                                               "notice": "failed" if ошибка else "sent",
+                                               "cooldown": _email_cooldown_left(db, user.id)})
 
 
 # ── Forgot / Reset password ───────────────────────────────────────────────────
@@ -1332,7 +1363,7 @@ async def admin_exercise_replace_video(exercise_id: str, request: Request, user=
 async def enshrouded_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse("/login", status_code=302)
-    gate = _verification_gate(request, user, "Enshrouded")
+    gate = _verification_gate(request, user, "Enshrouded", db)
     if gate:
         return gate
     if not user_has_access(user, "enshrouded", db):
@@ -1412,7 +1443,7 @@ async def import_enshrouded_state(request: Request, user=Depends(get_current_use
 async def hh_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse("/login", status_code=302)
-    gate = _verification_gate(request, user, "HH-ассистент")
+    gate = _verification_gate(request, user, "HH-ассистент", db)
     if gate:
         return gate
     if not user_has_access(user, "hh", db):
@@ -2407,7 +2438,7 @@ def _diary_totals(logs: list) -> dict:
 async def nutrition_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse("/login", status_code=302)
-    gate = _verification_gate(request, user, "Дневник питания")
+    gate = _verification_gate(request, user, "Дневник питания", db)
     if gate:
         return gate
     if not user_has_access(user, "nutrition", db):
@@ -3383,7 +3414,7 @@ def _workout_equipment_checklist(db: Session):
 async def workout_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse("/login", status_code=302)
-    gate = _verification_gate(request, user, "Программа тренировок")
+    gate = _verification_gate(request, user, "Программа тренировок", db)
     if gate:
         return gate
     if not user_has_access(user, "workout", db):
