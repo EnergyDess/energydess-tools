@@ -29,6 +29,19 @@ def generate_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+def decode_token_user_id(token: str) -> int | None:
+    """user_id из подписанного токена, или None если токен битый/просрочен.
+    Нужна там, где сессии ещё нет: например кука pending_verify на /verify-pending,
+    выдаваемая при регистрации до входа. Работа с ключом подписи остаётся здесь,
+    а не расползается по main.py."""
+    if not token:
+        return None
+    try:
+        return int(jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])["sub"])
+    except (JWTError, ValueError, KeyError):
+        return None
+
+
 def get_current_user(access_token: str = Cookie(default=None), db: Session = Depends(get_db)):
     if not access_token:
         return None

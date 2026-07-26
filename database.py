@@ -108,6 +108,31 @@ class HHProfile(Base):
     ending_style = Column(JSON, nullable=True)  # {suggest_call: bool, suggest_test_task: bool, just_farewell: bool}
 
 
+class EmailLog(Base):
+    """Журнал отправок писем через Resend — по одной записи на каждую попытку.
+
+    Заведён потому, что раньше факт отправки не фиксировался нигде: ответ Resend
+    не читался вообще, ошибки глушились, и сбой канала (протухший ключ, лимит,
+    слетевшая верификация домена) остался бы незамеченным.
+
+    Отдельной таблицей, а не полем у пользователя: send_email обслуживает три
+    сценария, попыток бывает несколько (кнопка «отправить ещё раз»), и поле
+    затирало бы ровно ту историю, ради которой заводится. Плюс на этот журнал
+    опирается кулдаун повторной отправки, а позже — rate limiting из BACKLOG №1.
+    """
+    __tablename__ = "email_logs"
+    id = Column(Integer, primary_key=True)
+    # nullable: письмо может уходить на адрес, за которым нет аккаунта
+    user_id = Column(Integer, nullable=True, index=True)
+    to_email = Column(String, nullable=False, index=True)
+    kind = Column(String, nullable=False)      # verify / resend / reset
+    resend_id = Column(String, nullable=True)  # id письма в Resend — сверять с их дашбордом
+    # Причина сбоя в формате «<код>: <детали>», коды: no_key / timeout /
+    # http_<статус> / network / parse. NULL — письмо принято Resend
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 class CoverLetter(Base):
     __tablename__ = "cover_letters"
     id = Column(Integer, primary_key=True)

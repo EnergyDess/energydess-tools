@@ -63,13 +63,22 @@
 
 <div class="auth-wrap">
   <div class="auth-box" style="text-align:center">
-    <div class="verify-icon">✉️</div>
+    <div class="verify-icon">{% if send_failed %}⚠️{% else %}✉️{% endif %}</div>
+    {% if send_failed %}
+    {# Раньше страница утверждала «мы отправили письмо» независимо от того,
+       ушло оно или нет — человек ждал письма, которого не будет #}
+    <h1 style="margin-bottom:8px">Письмо не отправлено</h1>
+    <p style="color:var(--text-2);font-size:0.95rem;margin-bottom:4px">
+      Аккаунт создан, но письмо с подтверждением не ушло.
+    </p>
+    {% else %}
     <h1 style="margin-bottom:8px">Проверьте почту</h1>
     <p style="color:var(--text-2);font-size:0.95rem;margin-bottom:4px">
       Мы отправили письмо с ссылкой для подтверждения.
     </p>
+    {% endif %}
 
-    <div class="verify-steps">
+    <div class="verify-steps"{% if send_failed %} style="display:none"{% endif %}>
       <div class="verify-step">
         <div class="verify-step-num">1</div>
         <span>Откройте письмо от <strong style="color:var(--text)">noreply@energydess.ru</strong></span>
@@ -84,9 +93,34 @@
       </div>
     </div>
 
-    <p style="font-size:0.8rem;color:var(--text-faint);margin-bottom:24px">
+    {# Выход должен быть сразу, а не после того, как человек упрётся в плашку
+       при попытке открыть инструмент. Кнопка доступна только по куке из
+       /register — иначе форма стала бы рассылкой писем на любой адрес. #}
+    {% if resent %}
+    <div class="alert alert-success" style="margin-bottom:20px;text-align:left">
+      <span>Письмо отправлено ещё раз на <strong>{{ email }}</strong>. Ссылка действует 24 часа.</span>
+    </div>
+    {% elif send_failed %}
+    <div class="alert alert-error" style="margin-bottom:20px;text-align:left">
+      <span>Не удалось отправить письмо — проблема на нашей стороне. Попробуйте через несколько минут
+      или напишите на <strong>denison7111@gmail.com</strong>.</span>
+    </div>
+    {% elif cooldown %}
+    <div class="alert alert-warn" style="margin-bottom:20px;text-align:left">
+      <span>Письмо уже отправлено — проверьте почту. Повторить можно через {{ cooldown }} с.</span>
+    </div>
+    {% endif %}
+
+    <p style="font-size:0.8rem;color:var(--text-faint);margin-bottom:16px">
       Не видите письмо? Проверьте папку «Спам».
     </p>
+
+    {% if can_resend %}
+    <form method="post" action="/verify-pending/resend" style="margin-bottom:20px">
+      <button type="submit" class="btn-secondary">Отправить письмо ещё раз</button>
+    </form>
+    {% endif %}
+
     <a href="/login" style="color:var(--accent-brand);font-size:0.875rem;text-decoration:none;transition:opacity 0.2s"
        onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">
       ← Вернуться к входу

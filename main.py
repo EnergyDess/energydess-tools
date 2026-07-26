@@ -5,7 +5,7 @@ import socket
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
-from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, BackgroundTasks, Cookie
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -23,8 +23,9 @@ from database import (get_db, init_db, migrate_db, SessionLocal, User, Resume, T
                       WaterLog, WeightLog, ChatMessage, Exercise, WorkoutProfile,
                       WorkoutProgram, WorkoutProgramDay, WorkoutProgramExercise,
                       WorkoutSession, SetLog, ProgressionSetting, WorkoutExerciseSwap,
-                      ScaleConnection, BodyPhoto, PainZonePatch)
-from auth import hash_password, verify_password, create_token, get_current_user, generate_token
+                      ScaleConnection, BodyPhoto, PainZonePatch, EmailLog)
+from auth import (hash_password, verify_password, create_token, get_current_user,
+                  generate_token, decode_token_user_id)
 from few_shot_examples import build_few_shot_block
 import zepp_client
 
@@ -208,26 +209,101 @@ def _verification_email_html(link: str) -> str:
 </div>"""
 
 
-async def send_email(to: str, subject: str, html: str):
+# Минимальный интервал между письмами одному пользователю. Не полноценный
+# rate limiting (это BACKLOG №1), а защита от долбления кнопки «отправить ещё раз».
+EMAIL_COOLDOWN_SEC = 60
+
+
+def _email_cooldown_left(db, user_id: int) -> int:
+    """Сколько секунд осталось ждать до следующей отправки. 0 — можно слать.
+
+    Считается только по УСПЕШНЫМ отправкам: если предыдущая попытка провалилась,
+    письма у человека нет, и держать его минуту на «письмо уже отправлено» —
+    значит врать ему ровно так же, как раньше врала молчаливая регистрация.
+    """
+    if not user_id:
+        return 0
+    последнее = (db.query(EmailLog)
+                 .filter(EmailLog.user_id == user_id, EmailLog.error.is_(None))
+                 .order_by(EmailLog.created_at.desc())
+                 .first())
+    if not последнее or not последнее.created_at:
+        return 0
+    прошло = (datetime.utcnow() - последнее.created_at).total_seconds()
+    return max(0, int(EMAIL_COOLDOWN_SEC - прошло))
+
+
+def _last_email_failed(db, user_id: int) -> bool:
+    """Провалилась ли последняя попытка отправки. Нужно, чтобы /verify-pending
+    сразу после регистрации не утверждал «мы отправили письмо», если не отправили."""
+    if not user_id:
+        return False
+    последнее = (db.query(EmailLog)
+                 .filter(EmailLog.user_id == user_id)
+                 .order_by(EmailLog.created_at.desc())
+                 .first())
+    return bool(последнее and последнее.error)
+
+
+async def send_email(to: str, subject: str, html: str,
+                     db=None, user_id: int = None, kind: str = "verify") -> str | None:
+    """Отправляет письмо через Resend. Возвращает None при успехе, иначе строку
+    «<код>: <детали>».
+
+    Раньше здесь было три слепые зоны: тихий return без ключа, непрочитанный
+    ответ (не-200 не обнаруживался вообще, даже без исключения) и голый
+    except Exception. Канал мог отвалиться целиком, а регистрация продолжала
+    показывать «письмо отправлено».
+    """
+    resend_id = None
+    error = None
+
     if not RESEND_API_KEY:
-        return
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            await client.post(
-                "https://api.resend.com/emails",
-                headers={
-                    "Authorization": f"Bearer {RESEND_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "from": "EnergyDess <noreply@energydess.ru>",
-                    "to": [to],
-                    "subject": subject,
-                    "html": html,
-                },
-            )
-    except Exception:
-        pass
+        # Не норма, а ошибка конфигурации: письма не уходят вообще
+        error = "no_key: RESEND_API_KEY не задан — письма не отправляются"
+    else:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                r = await client.post(
+                    "https://api.resend.com/emails",
+                    headers={
+                        "Authorization": f"Bearer {RESEND_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "from": "EnergyDess <noreply@energydess.ru>",
+                        "to": [to],
+                        "subject": subject,
+                        "html": html,
+                    },
+                )
+            if r.status_code >= 400:
+                # Протухший ключ, слетевшая верификация домена, лимит, отбитый адрес
+                error = f"http_{r.status_code}: {r.text[:300]}"
+            else:
+                # Resend возвращает {"id": "..."} — по нему видно статус доставки
+                # в их дашборде (delivered / bounced / complained)
+                resend_id = (r.json() or {}).get("id")
+        except httpx.TimeoutException:
+            error = "timeout: Resend не ответил за 10 с"
+        except httpx.HTTPError as e:
+            error = f"network: {type(e).__name__}: {str(e)[:200]}"
+        except ValueError as e:
+            # тело ответа не разобралось как JSON — письмо, вероятно, ушло
+            error = f"parse: {type(e).__name__}: {str(e)[:200]}"
+
+    if error:
+        print(f"[email] сбой отправки на {to} ({kind}): {error}")
+
+    if db is not None:
+        try:
+            db.add(EmailLog(user_id=user_id, to_email=to, kind=kind,
+                            resend_id=resend_id, error=error))
+            db.commit()
+        except Exception as e:
+            # журнал не должен ломать сам сценарий, но молчать о нём тоже нельзя
+            print(f"[email] не удалось записать EmailLog: {type(e).__name__}: {e}")
+    return error
 
 
 @app.exception_handler(404)
@@ -667,8 +743,15 @@ async def register(
     if not is_first:
         link = f"{BASE_URL}/verify/{vtok}"
         await send_email(to=email, subject="Подтвердите регистрацию на EnergyDess",
-                         html=_verification_email_html(link))
-        return RedirectResponse("/verify-pending", status_code=302)
+                         html=_verification_email_html(link),
+                         db=db, user_id=user.id, kind="verify")
+        response = RedirectResponse("/verify-pending", status_code=302)
+        # Короткоживущая метка, чтобы на /verify-pending работала кнопка повтора:
+        # сессии там ещё нет (вход не выполняется), а открытая форма с вводом
+        # email превратила бы страницу в рассылку писем на любой адрес
+        response.set_cookie("pending_verify", create_token(user.id),
+                            httponly=True, max_age=60 * 30, samesite="lax")
+        return response
 
     token = create_token(user.id)
     response = RedirectResponse("/profile", status_code=302)
@@ -728,9 +811,48 @@ async def logout():
 
 # ── Email verification ────────────────────────────────────────────────────────
 
+def _pending_user(pending_verify: str, db: Session):
+    """Пользователь из короткоживущей куки, выданной при регистрации.
+    Только неподтверждённый: для подтверждённого повторная отправка бессмысленна."""
+    uid = decode_token_user_id(pending_verify)
+    if not uid:
+        return None
+    u = db.query(User).filter(User.id == uid).first()
+    return u if (u and u.is_verified is False) else None
+
+
 @app.get("/verify-pending")
-async def verify_pending(request: Request):
-    return templates.TemplateResponse(request=request, name="verify_pending.html")
+async def verify_pending(request: Request, pending_verify: str = Cookie(default=None),
+                         db: Session = Depends(get_db)):
+    u = _pending_user(pending_verify, db)
+    return templates.TemplateResponse(request=request, name="verify_pending.html",
+                                      context={"can_resend": bool(u), "email": u.email if u else None,
+                                               "send_failed": _last_email_failed(db, u.id) if u else False})
+
+
+@app.post("/verify-pending/resend")
+async def verify_pending_resend(request: Request, pending_verify: str = Cookie(default=None),
+                                db: Session = Depends(get_db)):
+    """Повтор отправки сразу после регистрации, когда сессии ещё нет.
+    Личность подтверждается кукой из /register — по email кого угодно письмо
+    отправить нельзя, иначе форма стала бы инструментом рассылки на чужие ящики."""
+    u = _pending_user(pending_verify, db)
+    if not u:
+        return RedirectResponse("/login", status_code=302)
+
+    ctx = {"can_resend": True, "email": u.email}
+    осталось = _email_cooldown_left(db, u.id)
+    if осталось:
+        return templates.TemplateResponse(request=request, name="verify_pending.html",
+                                          context={**ctx, "cooldown": осталось})
+
+    vtok = _issue_verification_token(u)
+    db.commit()
+    ошибка = await send_email(to=u.email, subject="Подтвердите регистрацию на EnergyDess",
+                              html=_verification_email_html(f"{BASE_URL}/verify/{vtok}"),
+                              db=db, user_id=u.id, kind="resend")
+    return templates.TemplateResponse(request=request, name="verify_pending.html",
+                                      context={**ctx, "resent": not ошибка, "send_failed": bool(ошибка)})
 
 
 @app.get("/verify/{token}")
@@ -757,13 +879,23 @@ async def resend_verification(request: Request, tool_name: str = Form(default=""
         return RedirectResponse("/login", status_code=302)
     if user.is_verified is not False:
         return RedirectResponse("/", status_code=302)
+
+    # Кулдаун: кнопку можно жать сколько угодно, а письма уходят реальные
+    осталось = _email_cooldown_left(db, user.id)
+    if осталось:
+        return templates.TemplateResponse(request=request, name="verify_required.html",
+                                          context={"user": user, "tool_name": tool_name or "инструменту",
+                                                   "cooldown": осталось})
+
     vtok = _issue_verification_token(user)
     db.commit()
     link = f"{BASE_URL}/verify/{vtok}"
-    await send_email(to=user.email, subject="Подтвердите регистрацию на EnergyDess",
-                     html=_verification_email_html(link))
+    ошибка = await send_email(to=user.email, subject="Подтвердите регистрацию на EnergyDess",
+                              html=_verification_email_html(link),
+                              db=db, user_id=user.id, kind="resend")
     return templates.TemplateResponse(request=request, name="verify_required.html",
-                                      context={"user": user, "tool_name": tool_name or "инструменту", "resent": True})
+                                      context={"user": user, "tool_name": tool_name or "инструменту",
+                                               "resent": not ошибка, "send_failed": bool(ошибка)})
 
 
 # ── Forgot / Reset password ───────────────────────────────────────────────────
@@ -785,6 +917,7 @@ async def forgot_post(request: Request, email: str = Form(...), db: Session = De
         db.commit()
         link = f"{BASE_URL}/reset-password/{rtok}"
         await send_email(
+            db=db, user_id=user.id, kind="reset",
             to=email,
             subject="Сброс пароля EnergyDess",
             html=f"""

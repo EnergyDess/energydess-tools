@@ -59,6 +59,20 @@
     <p style="color:var(--text-2);font-size:0.95rem;margin-bottom:24px">
       Новая ссылка выслана на <strong style="color:var(--text)">{{ user.email }}</strong> — проверьте почту (действительна 24 часа).
     </p>
+    {% elif send_failed %}
+    <h1 style="margin-bottom:8px">Не удалось отправить</h1>
+    <div class="alert alert-error" style="margin-bottom:20px;text-align:left">
+      <span>Письмо не ушло — проблема на нашей стороне, не у вас. Попробуйте через несколько минут
+      или напишите на <strong>denison7111@gmail.com</strong>.</span>
+    </div>
+    <a href="/" style="color:var(--accent-brand);font-size:0.875rem;text-decoration:none">← На главную</a>
+    {% elif cooldown %}
+    <h1 style="margin-bottom:8px">Письмо уже отправлено</h1>
+    <div class="alert alert-warn" style="margin-bottom:20px;text-align:left">
+      <span>Проверьте почту <strong>{{ user.email }}</strong> и папку «Спам».
+      Отправить ещё раз можно через {{ cooldown }} с.</span>
+    </div>
+    <a href="/" style="color:var(--accent-brand);font-size:0.875rem;text-decoration:none">← На главную</a>
     {% else %}
     <h1 style="margin-bottom:8px">Подтвердите email</h1>
     <p style="color:var(--text-2);font-size:0.95rem;margin-bottom:4px">
