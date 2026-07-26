@@ -7,7 +7,10 @@ primary_region = "fra"
   DB_PATH = "/data/app.db"
   BASE_URL = "https://energydess.ru"
   MODEL = "anthropic/claude-haiku-4-5"
-  LETTER_MODEL = "anthropic/claude-sonnet-4-5"
+  # LETTER_MODEL здесь НЕ задаётся: он выставлен секретом (flyctl secrets),
+  # а секрет перекрывает [env]. Значение в двух местах разъезжается — в файле
+  # лежало sonnet-4-5, тогда как на проде реально работал opus-4-8.
+  # Приоритеты и текущие значения — в CLAUDE.md, раздел 2.
 
 [[mounts]]
   source = "data"

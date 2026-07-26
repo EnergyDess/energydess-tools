@@ -897,6 +897,11 @@ label {
 .badge-green  { background: rgba(16,185,129,0.08); color: var(--success); border: 1px solid rgba(16,185,129,0.18); }
 /* Нейтральный бейдж для состояний без окраски («Нет доступа») */
 .badge-muted  { background: var(--surface-2); color: var(--text-faint); border: 1px solid var(--border); }
+/* Бейдж-предупреждение: результат получен, но неполный («без анализа») */
+.badge-warn   { background: color-mix(in srgb, var(--warning) 10%, transparent);
+                color: var(--warning);
+                border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
+                cursor: help; }
 
 /* ── Alerts ─────────────────────────────────────────────────────────────── */
 .alert {
@@ -909,6 +914,12 @@ label {
 }
 .alert-error   { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: var(--error); }
 .alert-success { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); color: var(--success); }
+/* Предупреждение: операция прошла, но с оговоркой (не ошибка и не успех) */
+.alert-warn    { background: color-mix(in srgb, var(--warning) 8%, transparent);
+                 border: 1px solid color-mix(in srgb, var(--warning) 22%, transparent);
+                 color: var(--warning); }
+.alert-warn strong { color: var(--warning); }
+.alert svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
 
 /* ── Spinner ────────────────────────────────────────────────────────────── */
 .spinner {

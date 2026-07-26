@@ -181,6 +181,15 @@
           </div>
         </div>
 
+        {# Плашка появляется, только если анализ вакансии не отработал: письмо
+           сгенерировано, но без разбора требований. Раньше единственным
+           признаком был заголовок «Без названия» в истории. #}
+        <div class="alert alert-warn" id="analysis-fail-note" style="display:none">
+          <i data-lucide="alert-triangle"></i>
+          <span><strong>Вакансия не разобрана.</strong> Письмо составлено по общему тексту,
+          без учёта конкретных требований работодателя. Стоит сгенерировать заново.</span>
+        </div>
+
         <div class="letter-content" id="letter-content"></div>
 
         <div class="letter-stats" id="letter-stats">
@@ -731,6 +740,9 @@
     letterContent.style.display = state === 'result'  ? 'block' : 'none';
     letterStats.style.display   = state === 'result'  ? 'flex'  : 'none';
     resultActions.style.display = state === 'result'  ? 'flex'  : 'none';
+    // Плашка о несработавшем анализе живёт только вместе с письмом. Иначе она
+    // осталась бы висеть при перегенерации (loading) и на экране ошибки.
+    document.getElementById('analysis-fail-note').style.display = 'none';
     if (state !== 'warn') document.getElementById('warn-state').style.display = 'none';
   }
 
@@ -794,6 +806,13 @@
         lastGeneratedLetterId = data.letter_id || null;
         lastGeneratedLetterText = plain;
         setState('result');
+        // анализ вакансии не отработал — предупреждаем, письмо без разбора
+        // требований. Порядок важен: setState сбрасывает плашку, показываем после
+        if (data.analysis_error) {
+          const failNote = document.getElementById('analysis-fail-note');
+          failNote.style.display = '';
+          failNote.title = data.analysis_error;
+        }
         localStorage.removeItem('hh_draft_job_text');
         localStorage.removeItem('hh_draft_job_url');
         document.getElementById('clear-text-btn').style.display = 'none';
@@ -1316,6 +1335,9 @@
               <div class="history-item-title">${escHtml(title)}</div>
               <div class="history-item-sub">${item.created_at}${item.edited ? ' · <span class="edited-mark">(отредактировано)</span>' : ''}</div>
             </div>
+            ${item.analysis_error
+              ? `<span class="badge badge-warn" title="${escHtml(item.analysis_error)}">без анализа</span>`
+              : ''}
             ${score != null ? `<span class="history-item-score ${cls}">${score}/10</span>` : ''}
           </button>
           <div class="history-item-body" id="hist-body-${idx}">

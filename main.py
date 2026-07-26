@@ -62,6 +62,11 @@ MODEL               = os.getenv("MODEL",         "anthropic/claude-haiku-4-5")
 LETTER_MODEL        = os.getenv("LETTER_MODEL",  "anthropic/claude-opus-4-5")   # генерация письма
 ANALYZE_MODEL       = os.getenv("ANALYZE_MODEL", "anthropic/claude-sonnet-4-5") # анализ вакансии (JSON)
 PARSER_MODEL        = os.getenv("PARSER_MODEL",  "anthropic/claude-sonnet-4-5") # парсер резюме (JSON)
+# Потолок ответа анализа вакансии. Было 700 — и этого не хватало: разбор на русском
+# из 9 полей занимает 600-900 токенов, на длинных вакансиях больше. Ответ обрывался
+# на полуслове, JSON не парсился, сбой глушился. max_tokens — потолок, а не резерв:
+# платим за фактически сгенерированное, поэтому берём с запасом.
+ANALYZE_MAX_TOKENS  = int(os.getenv("ANALYZE_MAX_TOKENS", "2000"))
 RESEND_API_KEY      = os.getenv("RESEND_API_KEY", "")
 BASE_URL            = os.getenv("BASE_URL", "https://energydess.ru")
 CREDENTIALS_ENCRYPTION_KEY = os.getenv("CREDENTIALS_ENCRYPTION_KEY", "")
@@ -1497,7 +1502,11 @@ async def generate_letter(request: Request, user=Depends(get_current_user), db: 
 relevance_score — целое от 1 до 10.
 relevant_portfolio_links — ищи релевантные ссылки в двух источниках: в тексте резюме и в списке проектов из досье (строки вида «Название [URL]»). Возвращай именно URL (строку ссылки), а не названия или описания. Если проект из досье релевантен вакансии — включай его URL. Пустой массив если ничего не подходит.
 """
+    # Сбой анализа больше не проглатывается молча: причина пишется в analysis_error
+    # и доезжает до UI. До этого письмо могло сгенерироваться вообще без разбора
+    # вакансии, а единственным симптомом был заголовок «Без названия».
     analysis = {}
+    analysis_error = None
     try:
         async with httpx.AsyncClient() as client:
             ar = await client.post(
@@ -1505,13 +1514,40 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess HH Helper"},
                 json={"model": ANALYZE_MODEL, "messages": [{"role": "user", "content": analysis_prompt}],
-                      "temperature": 0.3, "max_tokens": 700},
+                      "temperature": 0.3, "max_tokens": ANALYZE_MAX_TOKENS},
                 timeout=40.0,
             )
-        if ar.status_code == 200:
-            analysis = _extract_json(ar.json()["choices"][0]["message"]["content"].strip())
-    except Exception:
-        pass  # анализ упал — продолжаем без него
+        if ar.status_code != 200:
+            # Раньше эта ветка отсутствовала вовсе: не-200 тихо оставлял analysis
+            # пустым, даже не доходя до except
+            analysis_error = f"http_{ar.status_code}: {ar.text[:300]}"
+        else:
+            payload = ar.json()
+            choice = (payload.get("choices") or [{}])[0]
+            # Обрыв по лимиту токенов проверяем ДО парсинга: у оборванного JSON
+            # нет закрывающей скобки, и он неотличим от «модель вернула мусор».
+            # finish_reason == length — прямое доказательство, а не догадка.
+            finish = choice.get("finish_reason") or choice.get("native_finish_reason")
+            content = (choice.get("message") or {}).get("content") or ""
+            if finish == "length":
+                сгенерировано = (payload.get("usage") or {}).get("completion_tokens", "?")
+                analysis_error = (f"truncated: ответ оборван по лимиту токенов "
+                                  f"(сгенерировано {сгенерировано} из {ANALYZE_MAX_TOKENS})")
+            elif not content.strip():
+                analysis_error = f"empty: модель вернула пустой ответ (finish_reason={finish})"
+            else:
+                analysis = _extract_json(content.strip())
+                if not analysis.get("job_title"):
+                    analysis_error = "empty: анализ разобран, но должность не извлечена"
+    except httpx.TimeoutException:
+        analysis_error = "timeout: анализ не ответил за 40 с"
+    except (httpx.HTTPError, ValueError, KeyError, IndexError, _json.JSONDecodeError) as e:
+        # Сужено с голого except Exception: тот маскировал и опечатки в коде
+        # (NameError, AttributeError), не имеющие к вакансии отношения
+        analysis_error = f"parse: {type(e).__name__}: {str(e)[:200]}"
+
+    if analysis_error:
+        print(f"[analyze] сбой анализа вакансии: {analysis_error}")
 
     relevance_score = int(analysis.get("relevance_score", 10))
     job_title = analysis.get("job_title", "")
@@ -1630,6 +1666,7 @@ Call to action в финале. Тип CTA определяется правил
                 job_text=job_text,
                 letter_text=letter,
                 analysis_json=analysis if analysis else None,
+                analysis_error=analysis_error,
                 custom_context=custom_context or None,
                 edited=False,
             )
@@ -1640,7 +1677,8 @@ Call to action в финале. Тип CTA определяется правил
         except Exception:
             pass  # не ломаем генерацию из-за ошибки записи в историю
 
-        return JSONResponse({"letter": letter, "analysis": analysis, "letter_id": letter_id})
+        return JSONResponse({"letter": letter, "analysis": analysis, "letter_id": letter_id,
+                             "analysis_error": analysis_error})
     except httpx.TimeoutException:
         return JSONResponse({"error": "Превышено время ожидания. Попробуй ещё раз."}, status_code=504)
     except Exception as e:
@@ -1667,6 +1705,7 @@ async def get_cover_letters(user=Depends(get_current_user), db: Session = Depend
             "company_name": cl.company_name or "",
             "letter_text": cl.letter_text,
             "relevance_score": (cl.analysis_json or {}).get("relevance_score"),
+            "analysis_error": cl.analysis_error or None,
             "edited": cl.edited or False,
             "created_at": cl.created_at.strftime("%d.%m.%Y %H:%M") if cl.created_at else "",
         }

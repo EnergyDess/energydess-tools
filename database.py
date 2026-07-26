@@ -117,6 +117,11 @@ class CoverLetter(Base):
     job_text = Column(Text, nullable=False)
     letter_text = Column(Text, nullable=False)
     analysis_json = Column(JSON, nullable=True)
+    # Причина, по которой анализ вакансии не отработал. Формат «<код>: <детали>»,
+    # коды: timeout / http_<статус> / truncated / parse / empty. NULL — сбоя не было.
+    # Отдельным полем, а не внутри analysis_json: то поле означает РЕЗУЛЬТАТ анализа
+    # и его читают через .get(...) — подмешивать туда ошибки значит размывать смысл.
+    analysis_error = Column(Text, nullable=True)
     custom_context = Column(Text, nullable=True)
     edited = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -474,6 +479,7 @@ def migrate_db():
         "ALTER TABLE cover_letters ADD COLUMN edited BOOLEAN DEFAULT 0",
         "ALTER TABLE exercises ADD COLUMN video_status VARCHAR",
         "ALTER TABLE exercises ADD COLUMN video_replaced_at DATETIME",
+        "ALTER TABLE cover_letters ADD COLUMN analysis_error TEXT",
     ]:
         try:
             conn.execute(col)
