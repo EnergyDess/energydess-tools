@@ -9,6 +9,10 @@ on:
   # schedule:
   #   - cron: '0 3 * * *'     # ежедневно 03:00 UTC = 06:00 МСК
 
+# ВАЖНО: имена переменных здесь только латиницей. Bash не поддерживает
+# не-ASCII в именах — кириллическое «вывод=$(...)» он принимает за команду
+# и падает с «command not found». Комментарии на русском проблемы не создают.
+
 jobs:
   backup:
     runs-on: ubuntu-latest
@@ -22,18 +26,20 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           set -o pipefail
-          вывод=$(flyctl ssh console -a energydess-tools -C "python /app/make_backup.py" 2>&1 | tr -d '\r')
-          echo "$вывод"
-          строка=$(echo "$вывод" | grep -o 'BACKUP_JSON=.*' | head -1 | sed 's/^BACKUP_JSON=//')
-          if [ -z "$строка" ]; then
+          out=$(flyctl ssh console -a energydess-tools -C "python /app/make_backup.py" 2>&1 | tr -d '\r')
+          echo "$out"
+          meta=$(echo "$out" | grep -o 'BACKUP_JSON=.*' | head -1 | sed 's/^BACKUP_JSON=//')
+          if [ -z "$meta" ]; then
             echo "::error::Дамп не снят — скрипт не вернул BACKUP_JSON"
             exit 1
           fi
-          echo "meta<<КОНЕЦ" >> "$GITHUB_OUTPUT"
-          echo "$строка" >> "$GITHUB_OUTPUT"
-          echo "КОНЕЦ" >> "$GITHUB_OUTPUT"
-          echo "file=$(echo "$строка" | jq -r .file)" >> "$GITHUB_OUTPUT"
-          echo "path=$(echo "$строка" | jq -r .path)" >> "$GITHUB_OUTPUT"
+          {
+            echo "meta<<METAEOF"
+            echo "$meta"
+            echo "METAEOF"
+            echo "file=$(echo "$meta" | jq -r .file)"
+            echo "path=$(echo "$meta" | jq -r .path)"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Скачать дамп с тома
         env:
@@ -46,16 +52,16 @@ jobs:
       # ── Сжатие и шифрование ────────────────────────────────────────────
       - name: Зашифровать
         env:
-          ПАРОЛЬ: ${{ secrets.BACKUP_PASSPHRASE }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
-          if [ -z "$ПАРОЛЬ" ]; then
+          if [ -z "$PASSPHRASE" ]; then
             echo "::error::Секрет BACKUP_PASSPHRASE не задан — бэкап без шифрования не отправляем"
             exit 1
           fi
           gzip -9 "./${{ steps.dump.outputs.file }}"
           # Пароль передаётся файлом, а не аргументом: аргументы видны
           # в списке процессов на раннере
-          printf '%s' "$ПАРОЛЬ" > /tmp/pass
+          printf '%s' "$PASSPHRASE" > /tmp/pass
           gpg --batch --yes --symmetric --cipher-algo AES256 \
               --passphrase-file /tmp/pass \
               "./${{ steps.dump.outputs.file }}.gz"
@@ -65,28 +71,26 @@ jobs:
 
       # ── Проверка размера до отправки ───────────────────────────────────
       - name: Проверить размер
-        id: size
         run: |
-          файл="./${{ steps.dump.outputs.file }}.gz.gpg"
-          байт=$(stat -c%s "$файл")
-          мб=$(( байт / 1024 / 1024 ))
-          echo "bytes=$байт" >> "$GITHUB_OUTPUT"
-          echo "human=$(numfmt --to=iec-i --suffix=B "$байт")" >> "$GITHUB_OUTPUT"
+          f="./${{ steps.dump.outputs.file }}.gz.gpg"
+          bytes=$(stat -c%s "$f")
+          mb=$(( bytes / 1024 / 1024 ))
+          echo "Размер: $bytes байт (~$mb МБ)"
           # Лимит Telegram Bot API на документ — 50 МБ. Упираемся заранее,
           # чтобы узнать об этом из ошибки, а не из молчания
-          if [ "$байт" -gt 47000000 ]; then
-            echo "::error::Бэкап ${мб} МБ — близко к лимиту Telegram (50 МБ). Нужен другой канал доставки."
+          if [ "$bytes" -gt 47000000 ]; then
+            echo "::error::Бэкап ${mb} МБ — близко к лимиту Telegram (50 МБ). Нужен другой канал доставки."
             exit 1
           fi
 
       # ── Отправка ───────────────────────────────────────────────────────
       - name: Отправить в Telegram
         env:
-          ТОКЕН: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          ЧАТ: ${{ secrets.TELEGRAM_CHAT_ID }}
-          МЕТА: ${{ steps.dump.outputs.meta }}
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          META: ${{ steps.dump.outputs.meta }}
         run: |
-          подпись=$(echo "$МЕТА" | jq -r '
+          caption=$(echo "$META" | jq -r '
             "Бэкап базы energydess\n" +
             "\nфайл: \(.file).gz.gpg" +
             "\nснят: \(.created_utc)" +
@@ -99,17 +103,18 @@ jobs:
             "\n  сообщения чатов: \(.counts.chat_messages)" +
             "\n  слоты Enshrouded: \(.counts.enshrouded_slots)" +
             "\n\nРасшифровать:\n  gpg -d \(.file).gz.gpg > \(.file).gz\n  gunzip \(.file).gz"')
-          ответ=$(curl -sS -w '\n%{http_code}' \
-            -F "chat_id=$ЧАТ" \
+          resp=$(curl -sS -w '\n%{http_code}' \
+            -F "chat_id=$CHAT_ID" \
             -F "document=@./${{ steps.dump.outputs.file }}.gz.gpg" \
-            -F "caption=$подпись" \
-            "https://api.telegram.org/bot$ТОКЕН/sendDocument")
-          код=$(echo "$ответ" | tail -1)
-          echo "$ответ" | head -n -1
-          if [ "$код" != "200" ]; then
-            echo "::error::Telegram не принял файл, код $код"
+            -F "caption=$caption" \
+            "https://api.telegram.org/bot$BOT_TOKEN/sendDocument")
+          code=$(echo "$resp" | tail -1)
+          echo "$resp" | head -n -1
+          if [ "$code" != "200" ]; then
+            echo "::error::Telegram не принял файл, код $code"
             exit 1
           fi
+          echo "Файл отправлен"
 
       # ── Уборка ─────────────────────────────────────────────────────────
       - name: Удалить дамп с тома
@@ -119,8 +124,10 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          flyctl ssh console -a energydess-tools \
-            -C "rm -f ${{ steps.dump.outputs.path }}" || true
+          if [ -n "${{ steps.dump.outputs.path }}" ]; then
+            flyctl ssh console -a energydess-tools \
+              -C "rm -f ${{ steps.dump.outputs.path }}" || true
+          fi
 
       # ── Сообщение о сбое ───────────────────────────────────────────────
       - name: Сообщить о сбое
@@ -129,10 +136,10 @@ jobs:
         # от GitHub о провалившемся запуске
         if: failure()
         env:
-          ТОКЕН: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          ЧАТ: ${{ secrets.TELEGRAM_CHAT_ID }}
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          curl -sS -X POST "https://api.telegram.org/bot$ТОКЕН/sendMessage" \
-            -d "chat_id=$ЧАТ" \
+          curl -sS -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
+            -d "chat_id=$CHAT_ID" \
             -d "text=Бэкап базы energydess НЕ выполнен. Запуск: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             || true
