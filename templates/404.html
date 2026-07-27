@@ -80,14 +80,12 @@
     .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.22); }
   </style>
 </head>
-<body>
+<body class="has-site-header">
 
-<nav class="nav">
-  <a href="/" class="nav-logo">
-    <span class="nav-logo-symbol">⚡</span>
-    <span>EnergyDess</span>
-  </a>
-</nav>
+{# Общая шапка, а не минимальная: на 404 человек попадает случайно, и ему
+   отсюда надо выбраться. С поиском и меню аватара выход есть, с одним
+   логотипом оставалось ощущение, что его выкинуло из аккаунта #}
+{% include '_header.html' %}
 
 <div class="not-found">
   <div class="not-found-code">404</div>
@@ -95,7 +93,13 @@
   <p>Кажется, такой страницы не существует или она была перемещена.</p>
   <div class="not-found-actions">
     <a href="/" class="btn-main">На главную →</a>
+    {# «Войти» — только гостю: залогиненному эта кнопка предлагает
+       то, что он уже сделал. Ему полезнее ссылка на инструменты #}
+    {% if user is defined and user %}
+    <a href="/profile" class="btn-ghost">Профиль</a>
+    {% else %}
     <a href="/login" class="btn-ghost">Войти</a>
+    {% endif %}
   </div>
 </div>
 

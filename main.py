@@ -547,9 +547,26 @@ async def send_email(to: str, subject: str, html: str, text: str = None,
     return error
 
 
+def _render_404(request: Request):
+    """404 с общей шапкой.
+
+    Пользователя приходится доставать вручную: в обработчики исключений
+    FastAPI зависимости не внедряет, а без user шапка рисует гостевой
+    вариант — залогиненный видел бы «Войти» на странице ошибки.
+    Сессия закрывается ПОСЛЕ рендера: объект user отвязался бы от сессии,
+    и шаблон не смог бы прочитать его поля."""
+    db = SessionLocal()
+    try:
+        user = get_current_user(access_token=request.cookies.get("access_token"), db=db)
+        return templates.TemplateResponse(request=request, name="404.html",
+                                          status_code=404, context={"user": user})
+    finally:
+        db.close()
+
+
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: HTTPException):
-    return templates.TemplateResponse(request=request, name="404.html", status_code=404)
+    return _render_404(request)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])
@@ -6015,6 +6032,6 @@ async def static_page(slug: str, request: Request, user=Depends(get_current_user
     и «Регистрация» — при живой сессии."""
     страница = STATIC_PAGES.get(slug)
     if not страница:
-        return templates.TemplateResponse(request=request, name="404.html", status_code=404)
+        return _render_404(request)
     return templates.TemplateResponse(request=request, name="page_stub.html",
                                       context={"page": страница, "user": user})
