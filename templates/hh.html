@@ -191,6 +191,15 @@
           без учёта конкретных требований работодателя. Стоит сгенерировать заново.</span>
         </div>
 
+        {# Письмо на экране есть, но в историю не попало. Не пугаем и не
+           перегенерируем — просто говорим, что делать прямо сейчас: скопировать.
+           Иначе человек закроет вкладку и потеряет письмо, не зная об этом. #}
+        <div class="alert alert-warn" id="save-fail-note" style="display:none">
+          <i data-lucide="save-off"></i>
+          <span><strong>Письмо не сохранилось в историю.</strong> Скопируйте его сейчас —
+          после перезагрузки страницы оно пропадёт.</span>
+        </div>
+
         <div class="letter-content" id="letter-content"></div>
 
         <div class="letter-stats" id="letter-stats">
@@ -744,6 +753,7 @@
     // Плашка о несработавшем анализе живёт только вместе с письмом. Иначе она
     // осталась бы висеть при перегенерации (loading) и на экране ошибки.
     document.getElementById('analysis-fail-note').style.display = 'none';
+    document.getElementById('save-fail-note').style.display = 'none';
     if (state !== 'warn') document.getElementById('warn-state').style.display = 'none';
   }
 
@@ -813,6 +823,12 @@
           const failNote = document.getElementById('analysis-fail-note');
           failNote.style.display = '';
           failNote.title = data.analysis_error;
+        }
+        // письмо не попало в историю — подсказываем скопировать сейчас
+        if (data.save_error) {
+          const saveNote = document.getElementById('save-fail-note');
+          saveNote.style.display = '';
+          saveNote.title = data.save_error;
         }
         localStorage.removeItem('hh_draft_job_text');
         localStorage.removeItem('hh_draft_job_url');

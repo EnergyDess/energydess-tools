@@ -19,6 +19,7 @@ import base64
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
+from sqlalchemy.exc import SQLAlchemyError
 
 from database import (get_db, init_db, migrate_db, SessionLocal, User, Resume, ToolAccess, EnshroudedSlot,
                       HHProfile, CoverLetter, NutritionProfile, FoodLog, CustomFood, CustomRecipe, RecipeIngredient,
@@ -1731,7 +1732,7 @@ async def fetch_url(request: Request, user=Depends(get_current_user), db: Sessio
     data = await request.json()
     url = data.get("url", "").strip()
     if not url:
-        return JSONResponse({"error": "Вставь ссылку на вакансию"}, status_code=400)
+        return JSONResponse({"error": "Вставьте ссылку на вакансию"}, status_code=400)
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
 
@@ -1867,7 +1868,7 @@ async def analyze_vacancy(request: Request, user=Depends(get_current_user), db: 
     data = await request.json()
     job_text = data.get("job_text", "").strip()
     if not job_text:
-        return JSONResponse({"error": "Вставь текст вакансии"}, status_code=400)
+        return JSONResponse({"error": "Вставьте ссылку на вакансию или её текст"}, status_code=400)
     if not OPENROUTER_API_KEY:
         return JSONResponse({"error": "API ключ не настроен"}, status_code=500)
 
@@ -1943,14 +1944,14 @@ async def generate_letter(request: Request, user=Depends(get_current_user), db: 
     custom_context = data.get("custom_context", "").strip()
     force = data.get("force", False)
     if not job_text:
-        return JSONResponse({"error": "Вставь текст вакансии"}, status_code=400)
+        return JSONResponse({"error": "Вставьте ссылку на вакансию или её текст"}, status_code=400)
     if not OPENROUTER_API_KEY:
         return JSONResponse({"error": "API ключ не настроен"}, status_code=500)
 
     resume_obj = db.query(Resume).filter(Resume.user_id == user.id).first()
     resume_text = resume_obj.resume_text if resume_obj else ""
     if not resume_text.strip():
-        return JSONResponse({"error": "Сначала добавь своё резюме в профиле"}, status_code=400)
+        return JSONResponse({"error": "Сначала добавьте резюме — вкладка «Резюме» в HH-ассистенте"}, status_code=400)
 
     profile = db.query(HHProfile).filter(HHProfile.user_id == user.id).first()
     compact_dossier = _build_compact_dossier(profile)
@@ -2139,6 +2140,7 @@ Call to action в финале. Тип CTA определяется правил
 
         # ── Сохраняем в историю писем ─────────────────────────────────────────
         letter_id = None
+        save_error = None
         try:
             cl = CoverLetter(
                 user_id=user.id,
@@ -2155,11 +2157,20 @@ Call to action в финале. Тип CTA определяется правил
             db.commit()
             db.refresh(cl)
             letter_id = cl.id
-        except Exception:
-            pass  # не ломаем генерацию из-за ошибки записи в историю
+        except (SQLAlchemyError, ValueError) as e:
+            # Намерение прежнее и верное: письмо уже сгенерировано и не должно
+            # пропадать из-за проблем с БД. Неверно было то, что сбой при этом
+            # нигде не фиксировался — человек закрывал вкладку и терял письмо,
+            # не зная, что в историю оно не попало
+            save_error = f"{type(e).__name__}: {str(e)[:200]}"
+            print(f"[letter] письмо не сохранено в историю: {save_error}")
+            try:
+                db.rollback()
+            except SQLAlchemyError:
+                pass
 
         return JSONResponse({"letter": letter, "analysis": analysis, "letter_id": letter_id,
-                             "analysis_error": analysis_error})
+                             "analysis_error": analysis_error, "save_error": save_error})
     except httpx.TimeoutException:
         return JSONResponse({"error": "Превышено время ожидания. Попробуй ещё раз."}, status_code=504)
     except Exception as e:
@@ -2227,7 +2238,7 @@ async def parse_resume_to_dossier(request: Request, user=Depends(get_current_use
     resume_obj = db.query(Resume).filter(Resume.user_id == user.id).first()
     resume_text = resume_obj.resume_text if resume_obj else ""
     if not resume_text.strip():
-        return JSONResponse({"error": "Сначала добавь резюме"}, status_code=400)
+        return JSONResponse({"error": "Сначала добавьте резюме"}, status_code=400)
 
     prompt = f"""Извлеки структурированные данные из резюме для заполнения профиля кандидата.
 Ответь ТОЛЬКО JSON без ```json и без пояснений.
@@ -3259,7 +3270,7 @@ async def scale_connect(request: Request, user=Depends(get_current_user), db: Se
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
     if not username or not password:
-        return JSONResponse({"error": "Укажи логин и пароль Zepp Life"}, status_code=400)
+        return JSONResponse({"error": "Укажите логин и пароль Zepp Life"}, status_code=400)
     if not CREDENTIALS_ENCRYPTION_KEY:
         return JSONResponse({"error": "Шифрование не настроено на сервере"}, status_code=500)
 
@@ -4645,7 +4656,7 @@ async def workout_save_progression(request: Request, user=Depends(get_current_us
         except (TypeError, ValueError):
             return JSONResponse({"error": "Некорректный список значений"}, status_code=400)
         if len(fixed_values) < 2:
-            return JSONResponse({"error": "Укажи хотя бы 2 значения шкалы"}, status_code=400)
+            return JSONResponse({"error": "Укажите хотя бы 2 значения шкалы"}, status_code=400)
 
     setting = db.query(ProgressionSetting).filter(
         ProgressionSetting.user_id == user.id, ProgressionSetting.scope == scope,
