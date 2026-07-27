@@ -1,6 +1,7 @@
 import asyncio
 import json as _json
 import re
+import ipaddress
 import socket
 import time
 from datetime import datetime, timedelta
@@ -268,6 +269,27 @@ def _client_ip(request: Request) -> str:
     if xff:
         return xff.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
+
+
+def _rate_key(ip: str) -> str:
+    """Ключ, по которому ведётся счётчик неудач.
+
+    Для IPv4 — сам адрес. Для IPv6 — префикс /64, потому что провайдер выдаёт
+    клиенту не один адрес, а целую подсеть /64 (18 квинтиллионов адресов).
+    Считая по полному адресу, мы ловили бы только того, кто сидит на одном
+    IPv6 и не меняет его: любой, кто переключает адрес внутри своей подсети,
+    обходил бы лимит бесплатно и бесконечно.
+
+    Версия адреса определяется разбором через ipaddress, а не наличием
+    двоеточия: заголовок может прийти с портом, в скобках или искажённым.
+    """
+    try:
+        адрес = ipaddress.ip_address(ip)
+    except ValueError:
+        return ip                      # не разобрали — считаем по строке как есть
+    if адрес.version == 6:
+        return str(ipaddress.ip_network(f"{адрес}/64", strict=False))
+    return str(адрес)
 
 
 def _login_fail_count(ip: str) -> int:
@@ -950,7 +972,7 @@ async def login_page(request: Request, user=Depends(get_current_user),
     # тогда узнает, что нужна ещё и проверка
     ip = _client_ip(request)
     нужна_капча = (not _ratelimit_disabled(ip, "GET /login")
-                   and _login_fail_count(ip) >= LOGIN_CAPTCHA_AFTER
+                   and _login_fail_count(_rate_key(ip)) >= LOGIN_CAPTCHA_AFTER
                    and bool(TURNSTILE_SITE_KEY))
     msg = None
     if verified:
@@ -975,14 +997,18 @@ async def login(
 ):
     email = email.strip().lower()
     ip = _client_ip(request)
+    # Счётчик ведётся по ключу: для IPv6 это префикс /64, а не отдельный адрес.
+    # В логи пишем именно ключ — иначе при разборе инцидента будет путаница,
+    # по чему на самом деле сработал лимит
+    ключ = _rate_key(ip)
     защита = not _ratelimit_disabled(ip, "POST /login")
-    неудач = _login_fail_count(ip) if защита else 0
+    неудач = _login_fail_count(ключ) if защита else 0
     нужна_капча = защита and неудач >= LOGIN_CAPTCHA_AFTER and bool(TURNSTILE_SITE_KEY)
 
     # ── Жёсткий лимит ────────────────────────────────────────────────────────
     if защита and неудач >= LOGIN_BLOCK_AFTER:
-        осталось = int((min(_login_fails.get(ip, [0])) + LOGIN_WINDOW_SEC - time.time()) / 60) + 1
-        print(f"[login] IP {ip}: {неудач} неудач за 15 мин — отказ ещё ~{осталось} мин")
+        осталось = int((min(_login_fails.get(ключ, [0])) + LOGIN_WINDOW_SEC - time.time()) / 60) + 1
+        print(f"[login] {ключ}: {неудач} неудач за 15 мин — отказ ещё ~{осталось} мин")
         await asyncio.sleep(_login_delay_for(неудач))
         return templates.TemplateResponse(
             request=request, name="login.html", status_code=429,
@@ -997,15 +1023,15 @@ async def login(
     # равно режет лимит по IP. Отказ — только на явное «нет» от Cloudflare.
     if нужна_капча:
         if not turnstile_token:
-            if ip not in _captcha_noop_seen:
-                _captcha_noop_seen.add(ip)
-                print(f"[login] IP {ip}: капча не отработала (пустой токен) — вход пропущен")
+            if ключ not in _captcha_noop_seen:
+                _captcha_noop_seen.add(ключ)
+                print(f"[login] {ключ}: капча не отработала (пустой токен) — вход пропущен")
         else:
             прошла, доступен = await _turnstile_check(turnstile_token, ip)
             if not доступен:
-                print(f"[login] IP {ip}: Cloudflare недоступен с сервера — вход пропущен")
+                print(f"[login] {ключ}: Cloudflare недоступен с сервера — вход пропущен")
             elif not прошла:
-                print(f"[login] IP {ip}: капча не пройдена — отказ")
+                print(f"[login] {ключ}: капча не пройдена — отказ")
                 await asyncio.sleep(_login_delay_for(неудач))
                 return templates.TemplateResponse(
                     request=request, name="login.html", status_code=400,
@@ -1016,13 +1042,13 @@ async def login(
 
     if not user or not verify_password(password, user.password_hash):
         if защита:
-            _login_fails.setdefault(ip, []).append(time.time())
+            _login_fails.setdefault(ключ, []).append(time.time())
             неудач += 1
             _login_purge_stale()
             if неудач == LOGIN_CAPTCHA_AFTER:
-                print(f"[login] IP {ip}: {неудач} неудачи за 15 мин — включена капча")
+                print(f"[login] {ключ}: {неудач} неудачи за 15 мин — включена капча")
             elif неудач == LOGIN_BLOCK_AFTER:
-                print(f"[login] IP {ip}: {неудач} неудач за 15 мин — отказ на 15 мин")
+                print(f"[login] {ключ}: {неудач} неудач за 15 мин — отказ на 15 мин")
             # Только asyncio.sleep: time.sleep остановил бы весь event loop,
             # и на эти секунды сайт замер бы для всех пользователей сразу
             await asyncio.sleep(_login_delay_for(неудач))
@@ -1033,8 +1059,8 @@ async def login(
                      "turnstile_site_key": TURNSTILE_SITE_KEY if показать_капчу else None})
 
     # Успешный вход — счётчик этого IP обнуляется: владелец доказал, что он владелец
-    _login_fails.pop(ip, None)
-    _captcha_noop_seen.discard(ip)
+    _login_fails.pop(ключ, None)
+    _captcha_noop_seen.discard(ключ)
 
     # is_verified=False НЕ блокирует вход — пользователь логинится как обычно,
     # блокировка происходит на уровне конкретного инструмента (см. _verification_gate),
