@@ -1774,7 +1774,8 @@ async def import_enshrouded_state(request: Request, user=Depends(get_current_use
 # ── HH-ассистент ──────────────────────────────────────────────────────────────
 
 @app.get("/hh")
-async def hh_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+async def hh_page(request: Request, letter: int = None,
+                  user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
         return _tool_preview(request, "hh")
     gate = _verification_gate(request, user, "HH-ассистент", db)
@@ -1783,8 +1784,19 @@ async def hh_page(request: Request, user=Depends(get_current_user), db: Session 
     if not user_has_access(user, "hh", db):
         return RedirectResponse("/?locked=hh", status_code=302)
     resume = db.query(Resume).filter(Resume.user_id == user.id).first()
+    # ?letter=N — переход из поиска. Принадлежность проверяется здесь, а не
+    # только в эндпоинте поиска: иначе подставленный чужой id раскрыл бы
+    # чужое письмо. Не своё — просто игнорируем, без сообщения о том,
+    # существует ли такая запись вообще
+    открыть = None
+    if letter:
+        своё = (db.query(CoverLetter)
+                .filter(CoverLetter.id == letter, CoverLetter.user_id == user.id)
+                .first())
+        открыть = своё.id if своё else None
     return templates.TemplateResponse(request=request, name="hh.html",
-                                      context={"user": user, "resume": resume})
+                                      context={"user": user, "resume": resume,
+                                               "open_letter": открыть})
 
 
 # ── API: сохранение отображаемого имени ──────────────────────────────────────
@@ -2779,7 +2791,8 @@ def _diary_totals(logs: list) -> dict:
 # ── Nutrition: page ───────────────────────────────────────────────────────────
 
 @app.get("/nutrition")
-async def nutrition_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+async def nutrition_page(request: Request, food: int = None,
+                         user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
         return _tool_preview(request, "nutrition")
     gate = _verification_gate(request, user, "Дневник питания", db)
@@ -2787,7 +2800,15 @@ async def nutrition_page(request: Request, user=Depends(get_current_user), db: S
         return gate
     if not user_has_access(user, "nutrition", db):
         return RedirectResponse("/?locked=nutrition", status_code=302)
-    return templates.TemplateResponse(request=request, name="nutrition.html", context={"user": user})
+    # ?food=N — переход из поиска, с той же проверкой принадлежности
+    открыть = None
+    if food:
+        своё = (db.query(CustomFood)
+                .filter(CustomFood.id == food, CustomFood.user_id == user.id)
+                .first())
+        открыть = своё.id if своё else None
+    return templates.TemplateResponse(request=request, name="nutrition.html",
+                                      context={"user": user, "open_food": открыть})
 
 
 # ── Nutrition: profile ────────────────────────────────────────────────────────
@@ -5807,3 +5828,74 @@ async def account_deleted(request: Request):
     ответ = templates.TemplateResponse(request=request, name="account_deleted.html")
     ответ.delete_cookie("access_token")
     return ответ
+
+
+# ── Сквозной поиск ────────────────────────────────────────────────────────────
+#
+# Инструменты сюда не попадают: они уже на клиенте и фильтруются локально,
+# мгновенно и без сети. Навигация не должна ждать сервер.
+#
+# Сравнение делается в Python, а не в SQL, потому что SQLite не знает кириллицы:
+# встроенные LIKE и LOWER регистронезависимы только для ASCII. Замер:
+#   LIKE '%сбер%'  -> находит 'сбербанк', но НЕ 'Сбер' и не 'СБЕР'
+#   LIKE '%apple%' -> находит и 'Apple', и 'APPLE'
+#   LOWER('Сбер')  -> 'Сбер', без изменений
+# То есть основной сценарий — набрать «сбер» и найти «Сбер» — на SQL не работает.
+# SQL сужает выборку по user_id (индекс есть на обеих таблицах), Python
+# доводит сравнение.
+#
+# ПОРОГ ВОЗВРАТА: при тысячах записей на одного пользователя выбирать всё
+# в память перестанет быть бесплатным. Тогда — ICU-расширение SQLite либо
+# отдельные нормализованные колонки под поиск.
+
+SEARCH_MIN_LEN = 2        # 1 символ — слишком широкий запрос
+SEARCH_MAX_LEN = 100      # защита от случайно вставленного текста
+SEARCH_LIMIT = 5          # на группу; остальное сворачивается в «ещё N»
+
+
+def _совпало(запрос: str, *поля) -> bool:
+    """Регистронезависимо, с учётом кириллицы."""
+    for поле in поля:
+        if поле and запрос in поле.lower():
+            return True
+    return False
+
+
+@app.get("/api/search")
+async def api_search(q: str = "", user=Depends(get_current_user),
+                     db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Нужно войти"}, status_code=401)
+
+    запрос = (q or "").strip().lower()[:SEARCH_MAX_LEN]
+    if len(запрос) < SEARCH_MIN_LEN:
+        return JSONResponse({"letters": [], "foods": []})
+
+    # user_id берётся ИЗ СЕССИИ и нигде больше: параметр запроса на выборку
+    # не влияет, иначе поиск отдавал бы чужие данные по подставленному id
+    письма_все = (db.query(CoverLetter)
+                  .filter(CoverLetter.user_id == user.id)
+                  .order_by(CoverLetter.created_at.desc()).all())
+    письма = [p for p in письма_все if _совпало(запрос, p.job_title, p.company_name)]
+
+    продукты_все = (db.query(CustomFood)
+                    .filter(CustomFood.user_id == user.id)
+                    .order_by(CustomFood.name).all())
+    продукты = [p for p in продукты_все if _совпало(запрос, p.name, p.brand)]
+
+    return JSONResponse({
+        "letters": [{
+            "id": p.id,
+            "title": " — ".join(x for x in (p.job_title, p.company_name) if x) or "Без названия",
+            "date": p.created_at.strftime("%d.%m.%Y") if p.created_at else "",
+            "url": f"/hh?letter={p.id}",
+        } for p in письма[:SEARCH_LIMIT]],
+        "letters_more": max(0, len(письма) - SEARCH_LIMIT),
+        "foods": [{
+            "id": p.id,
+            "title": p.name,
+            "sub": p.brand or "",
+            "url": f"/nutrition?food={p.id}",
+        } for p in продукты[:SEARCH_LIMIT]],
+        "foods_more": max(0, len(продукты) - SEARCH_LIMIT),
+    })

@@ -1120,3 +1120,27 @@ label {
   text-decoration: underline; text-underline-offset: 3px;
 }
 .email-typo-fix:hover { color: var(--accent-brand-hover); }
+
+/* ── Группы в поиске ─────────────────────────────────────────────────────
+   Заголовки и «ещё N» — role="presentation": в плоский список пунктов,
+   по которому ходит клавиатура, они не входят и не выделяются */
+.search-group-title {
+  padding: var(--space-3) var(--space-4) var(--space-2);
+  font-family: var(--font-mono); font-size: var(--text-mono);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-faint);
+}
+.search-group-title:not(:first-child) {
+  border-top: 1px solid var(--border-hairline);
+  margin-top: var(--space-2);
+}
+.search-group-more {
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  font-size: var(--text-caption); color: var(--text-faint);
+}
+/* Дата письма или бренд продукта — справа, приглушённо */
+.search-item-sub {
+  margin-left: auto; padding-left: var(--space-3);
+  font-size: var(--text-caption); color: var(--text-faint);
+  white-space: nowrap; flex-shrink: 0;
+}

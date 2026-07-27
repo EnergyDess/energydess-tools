@@ -736,3 +736,17 @@ main.container { max-width: 1600px; }
   .resume-footer { flex-direction: column; align-items: stretch; }
   .resume-actions { flex-direction: column; align-items: stretch; }
 }
+
+/* Письмо, открытое переходом из поиска: короткая подсветка, чтобы глаз
+   нашёл его в списке. Не постоянная — через пару секунд гаснет */
+.history-item-found {
+  border-color: var(--accent-brand) !important;
+  animation: histFound 2.4s var(--ease-out) forwards;
+}
+@keyframes histFound {
+  0%, 60% { box-shadow: 0 0 0 1px var(--accent-brand), 0 0 24px rgba(79,143,255,0.25); }
+  100%    { box-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .history-item-found { animation: none; }
+}

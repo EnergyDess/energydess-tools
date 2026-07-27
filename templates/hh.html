@@ -485,6 +485,9 @@
     document.querySelectorAll('.hh-tab').forEach(b => b.classList.toggle('active', b.dataset.view === name));
     document.querySelectorAll('.hh-view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
     if (name === 'history' && !historyLoaded) renderHistory();
+    // при заходе с ?letter= история должна перерисоваться, даже если уже
+    // загружалась: иначе нужное письмо не раскроется
+    else if (name === 'history' && {{ 'true' if open_letter else 'false' }}) renderHistory();
   }
 
   // ── Резюме ──
@@ -1340,6 +1343,11 @@
       }
 
       list.innerHTML = '';
+      // ?letter=N из поиска: подсветить и раскрыть нужное письмо.
+      // id приходит из шаблона и только если письмо принадлежит этому
+      // пользователю — проверка на сервере, см. hh_page в main.py
+      const открыть = {{ open_letter|tojson if open_letter else 'null' }};
+      let раскрыт = -1;
       items.forEach((item, idx) => {
         const score  = item.relevance_score;
         const cls    = score >= 7 ? 'score-high' : score >= 4 ? 'score-mid' : 'score-low';
@@ -1362,8 +1370,19 @@
             <button class="btn-secondary history-copy-btn" onclick="copyHistoryLetter(this, ${idx})">Копировать</button>
           </div>`;
         div._letterText = item.letter_text;
+        if (открыть && item.id === открыть) раскрыт = idx;
         list.appendChild(div);
       });
+
+      if (раскрыт >= 0) {
+        const тело = document.getElementById('hist-body-' + раскрыт);
+        const карточка = тело && тело.closest('.history-item');
+        if (тело) {
+          тело.classList.add('open');
+          карточка.classList.add('history-item-found');
+          карточка.scrollIntoView({block: 'center', behavior: 'smooth'});
+        }
+      }
       // сохраняем тексты для копирования
       window._historyItems = items;
     } catch {
@@ -1391,6 +1410,14 @@
   // ── Стартовая вкладка: без резюме сразу ведём на его заполнение ──────────
   {% if not has_resume %}
   switchView('resume');
+  {% endif %}
+
+  {% if open_letter %}
+  // Переход из поиска: открываем вкладку истории с нужным письмом.
+  // Вызов стоит В КОНЦЕ скрипта осознанно: switchView трогает historyLoaded,
+  // объявленную через let ниже по файлу, и при вызове сверху падало
+  // «Cannot access before initialization» — письмо не раскрывалось
+  switchView('history');
   {% endif %}
 </script>
 
