@@ -250,3 +250,93 @@ flyctl ssh console -a energydess-tools -C "rm /data/ratelimit_off"      # вкл
 **Замечание про вывод `flyctl ssh console` на Windows:** в конце команды
 регулярно появляется `Error: The handle is invalid.` Это артефакт закрытия
 SSH-сессии, а не ошибка скрипта — вывод до этого момента полный и корректный.
+
+---
+
+## 9. Бэкап базы и восстановление
+
+> Снимки тома Fly (ежедневные, хранятся 5 дней) остаются как были — это
+> первая линия. Выгрузка в Telegram нужна на случай, когда пять дней уже
+> прошли или требуется достать одну таблицу, а не разворачивать образ тома.
+
+### Как устроено
+
+`.github/workflows/backup.yml` раз в сутки: снимает согласованную копию базы
+внутри контейнера (`make_backup.py`), скачивает её, сжимает, шифрует GPG
+и отправляет в Telegram.
+
+**Копия снимается через `sqlite3.Connection.backup()`**, а не копированием
+файла: копировать `app.db` под нагрузкой нельзя — можно получить копию
+посреди транзакции, которая выглядит целой, но не открывается. После снятия
+прогоняется `PRAGMA integrity_check`; не прошёл — бэкап не отправляется.
+
+Секреты в GitHub: `BACKUP_PASSPHRASE`, `TELEGRAM_BOT_TOKEN`,
+`TELEGRAM_CHAT_ID`. Пароль шифрования **не хранится на Fly** — иначе он лежал
+бы там же, где данные.
+
+Размер проверяется до отправки: лимит Telegram Bot API 50 МБ на документ.
+Перерастём — workflow упадёт с внятной ошибкой, а не отправит молча обрезанное.
+
+### Восстановление: скачать и открыть
+
+Всё делается **локально**, на боевую базу ничего не заливается.
+
+```bash
+# 1. Скачать файл из Telegram, например app-2026-07-27.db.gz.gpg
+
+# 2. Расшифровать (пароль спросит интерактивно)
+gpg -d app-2026-07-27.db.gz.gpg > app-2026-07-27.db.gz
+
+# 3. Распаковать
+gunzip app-2026-07-27.db.gz
+
+# 4. Проверить целостность и счётчики
+python -c "import sqlite3; c=sqlite3.connect('app-2026-07-27.db'); \
+print(c.execute('PRAGMA integrity_check').fetchone()[0]); \
+print('users:', c.execute('SELECT COUNT(*) FROM users').fetchone()[0])"
+```
+
+`gpg` уже установлен вместе с Git for Windows (`/usr/bin/gpg`), отдельно
+Gpg4win ставить не нужно. Пароль — тот, что лежит в `BACKUP_PASSPHRASE`
+и в менеджере паролей.
+
+Счётчики сверяются с подписью к файлу в Telegram: она содержит число записей
+по ключевым таблицам на момент снятия.
+
+### Восстановление: залить базу обратно на Fly
+
+> Инструкция на будущее. **Выполнять только осознанно** — заливка затирает
+> боевую базу. Перед этим обязательно снять свежий бэкап текущего состояния.
+
+```bash
+# 1. Сохранить то, что есть сейчас, — на случай если восстановление ошибочно
+flyctl ssh console -a energydess-tools -C "python /app/make_backup.py"
+flyctl ssh sftp get /data/backup/app-СЕГОДНЯ.db ./на-всякий-случай.db -a energydess-tools
+
+# 2. Остановить приложение, чтобы оно не писало в базу во время подмены
+flyctl scale count 0 -a energydess-tools
+
+# 3. Залить восстановленный файл
+flyctl ssh sftp shell -a energydess-tools
+# в открывшейся сессии:
+#   put app-2026-07-27.db /data/app.db.new
+
+# 4. Подменить и поднять приложение
+flyctl ssh console -a energydess-tools -C "sh -c 'mv /data/app.db /data/app.db.old && mv /data/app.db.new /data/app.db'"
+flyctl scale count 1 -a energydess-tools
+
+# 5. Убедиться, что поднялось, и только потом убирать старую
+flyctl ssh console -a energydess-tools -C "python /app/check_analysis.py"
+flyctl ssh console -a energydess-tools -C "rm /data/app.db.old"
+```
+
+Шаг 2 обязателен: подменять файл базы под работающим приложением нельзя —
+открытые соединения продолжат писать в старый inode, и часть данных уйдёт
+в никуда.
+
+### Запуск вручную
+
+```bash
+gh workflow run backup.yml
+gh run watch
+```

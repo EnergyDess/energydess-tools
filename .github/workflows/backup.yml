@@ -1,0 +1,138 @@
+name: Backup
+
+# Расписание пока ВЫКЛЮЧЕНО намеренно: включаем только после того, как
+# восстановление из бэкапа проверено вживую. Иначе копии копятся, а их
+# пригодность неизвестна — это ложное спокойствие, а не бэкап.
+# Чтобы включить: раскомментировать блок schedule ниже.
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: '0 3 * * *'     # ежедневно 03:00 UTC = 06:00 МСК
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      # ── Снимаем согласованную копию на томе ────────────────────────────
+      - name: Снять дамп
+        id: dump
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -o pipefail
+          вывод=$(flyctl ssh console -a energydess-tools -C "python /app/make_backup.py" 2>&1 | tr -d '\r')
+          echo "$вывод"
+          строка=$(echo "$вывод" | grep -o 'BACKUP_JSON=.*' | head -1 | sed 's/^BACKUP_JSON=//')
+          if [ -z "$строка" ]; then
+            echo "::error::Дамп не снят — скрипт не вернул BACKUP_JSON"
+            exit 1
+          fi
+          echo "meta<<КОНЕЦ" >> "$GITHUB_OUTPUT"
+          echo "$строка" >> "$GITHUB_OUTPUT"
+          echo "КОНЕЦ" >> "$GITHUB_OUTPUT"
+          echo "file=$(echo "$строка" | jq -r .file)" >> "$GITHUB_OUTPUT"
+          echo "path=$(echo "$строка" | jq -r .path)" >> "$GITHUB_OUTPUT"
+
+      - name: Скачать дамп с тома
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl ssh sftp get "${{ steps.dump.outputs.path }}" "./${{ steps.dump.outputs.file }}" \
+            -a energydess-tools
+          ls -la "./${{ steps.dump.outputs.file }}"
+
+      # ── Сжатие и шифрование ────────────────────────────────────────────
+      - name: Зашифровать
+        env:
+          ПАРОЛЬ: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$ПАРОЛЬ" ]; then
+            echo "::error::Секрет BACKUP_PASSPHRASE не задан — бэкап без шифрования не отправляем"
+            exit 1
+          fi
+          gzip -9 "./${{ steps.dump.outputs.file }}"
+          # Пароль передаётся файлом, а не аргументом: аргументы видны
+          # в списке процессов на раннере
+          printf '%s' "$ПАРОЛЬ" > /tmp/pass
+          gpg --batch --yes --symmetric --cipher-algo AES256 \
+              --passphrase-file /tmp/pass \
+              "./${{ steps.dump.outputs.file }}.gz"
+          shred -u /tmp/pass 2>/dev/null || rm -f /tmp/pass
+          rm -f "./${{ steps.dump.outputs.file }}.gz"
+          ls -la "./${{ steps.dump.outputs.file }}.gz.gpg"
+
+      # ── Проверка размера до отправки ───────────────────────────────────
+      - name: Проверить размер
+        id: size
+        run: |
+          файл="./${{ steps.dump.outputs.file }}.gz.gpg"
+          байт=$(stat -c%s "$файл")
+          мб=$(( байт / 1024 / 1024 ))
+          echo "bytes=$байт" >> "$GITHUB_OUTPUT"
+          echo "human=$(numfmt --to=iec-i --suffix=B "$байт")" >> "$GITHUB_OUTPUT"
+          # Лимит Telegram Bot API на документ — 50 МБ. Упираемся заранее,
+          # чтобы узнать об этом из ошибки, а не из молчания
+          if [ "$байт" -gt 47000000 ]; then
+            echo "::error::Бэкап ${мб} МБ — близко к лимиту Telegram (50 МБ). Нужен другой канал доставки."
+            exit 1
+          fi
+
+      # ── Отправка ───────────────────────────────────────────────────────
+      - name: Отправить в Telegram
+        env:
+          ТОКЕН: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ЧАТ: ${{ secrets.TELEGRAM_CHAT_ID }}
+          МЕТА: ${{ steps.dump.outputs.meta }}
+        run: |
+          подпись=$(echo "$МЕТА" | jq -r '
+            "Бэкап базы energydess\n" +
+            "\nфайл: \(.file).gz.gpg" +
+            "\nснят: \(.created_utc)" +
+            "\nцелостность: \(.integrity)" +
+            "\n\nЗаписей:" +
+            "\n  пользователи: \(.counts.users)" +
+            "\n  письма: \(.counts.cover_letters)" +
+            "\n  дневник питания: \(.counts.food_logs)" +
+            "\n  замеры веса: \(.counts.weight_logs)" +
+            "\n  сообщения чатов: \(.counts.chat_messages)" +
+            "\n  слоты Enshrouded: \(.counts.enshrouded_slots)" +
+            "\n\nРасшифровать:\n  gpg -d \(.file).gz.gpg > \(.file).gz\n  gunzip \(.file).gz"')
+          ответ=$(curl -sS -w '\n%{http_code}' \
+            -F "chat_id=$ЧАТ" \
+            -F "document=@./${{ steps.dump.outputs.file }}.gz.gpg" \
+            -F "caption=$подпись" \
+            "https://api.telegram.org/bot$ТОКЕН/sendDocument")
+          код=$(echo "$ответ" | tail -1)
+          echo "$ответ" | head -n -1
+          if [ "$код" != "200" ]; then
+            echo "::error::Telegram не принял файл, код $код"
+            exit 1
+          fi
+
+      # ── Уборка ─────────────────────────────────────────────────────────
+      - name: Удалить дамп с тома
+        # always(): копия базы не должна оставаться рядом с базой, даже если
+        # что-то выше сломалось
+        if: always()
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl ssh console -a energydess-tools \
+            -C "rm -f ${{ steps.dump.outputs.path }}" || true
+
+      # ── Сообщение о сбое ───────────────────────────────────────────────
+      - name: Сообщить о сбое
+        # Второй канал обязателен: если Telegram недоступен или токен протух,
+        # это сообщение не дойдёт — и единственным сигналом останется письмо
+        # от GitHub о провалившемся запуске
+        if: failure()
+        env:
+          ТОКЕН: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ЧАТ: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -sS -X POST "https://api.telegram.org/bot$ТОКЕН/sendMessage" \
+            -d "chat_id=$ЧАТ" \
+            -d "text=Бэкап базы energydess НЕ выполнен. Запуск: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            || true
