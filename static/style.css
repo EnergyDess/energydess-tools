@@ -1102,3 +1102,21 @@ label {
   }
   .signature-border rect { animation: none; }
 }
+
+/* ── Подсказка при опечатке в домене почты ───────────────────────────────
+   Не ошибка, а предложение: тон приглушённый, никакого красного. Форма
+   отправляется в любом случае, человек волен проигнорировать */
+.email-typo-hint {
+  margin-top: var(--space-2);
+  font-size: var(--text-caption);
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.email-typo-hint[hidden] { display: none; }
+.email-typo-fix {
+  background: none; border: none; padding: 0;
+  font-family: var(--font); font-size: inherit; font-weight: 600;
+  color: var(--accent-brand); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.email-typo-fix:hover { color: var(--accent-brand-hover); }
