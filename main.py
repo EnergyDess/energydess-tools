@@ -6004,12 +6004,17 @@ STATIC_PAGES = {
 
 
 @app.get("/{slug}", include_in_schema=False)
-async def static_page(slug: str, request: Request):
+async def static_page(slug: str, request: Request, user=Depends(get_current_user)):
     """Статические страницы. Роут объявлен ПОСЛЕДНИМ в файле намеренно:
     он ловит одиночный сегмент пути, и объявленный выше перехватывал бы
-    существующие маршруты вроде /hh или /profile."""
+    существующие маршруты вроде /hh или /profile.
+
+    user обязателен в контексте, хотя сама страница им не пользуется:
+    _header.html определяет вид шапки через `user is defined and user`,
+    и без него залогиненный человек видел гостевые кнопки «Войти»
+    и «Регистрация» — при живой сессии."""
     страница = STATIC_PAGES.get(slug)
     if not страница:
         return templates.TemplateResponse(request=request, name="404.html", status_code=404)
     return templates.TemplateResponse(request=request, name="page_stub.html",
-                                      context={"page": страница})
+                                      context={"page": страница, "user": user})
