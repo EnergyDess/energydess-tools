@@ -356,7 +356,7 @@ async function saveReplace(id) {
 // ── Модалка видео ──
 function openVideoModal(youtubeId) {
   const wrap = document.getElementById('ex-modal-iframe-wrap');
-  wrap.innerHTML = `<iframe src="https://www.youtube.com/embed/${escHtml(youtubeId)}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+  wrap.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${escHtml(youtubeId)}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
   document.getElementById('ex-modal-overlay').classList.add('open');
 }
 

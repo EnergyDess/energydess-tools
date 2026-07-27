@@ -1,45 +1,67 @@
-{# Футер сайта (design-system.md, раздел 6). На всех страницах, кроме auth. #}
+{# Футер сайта (design-system.md, раздел 6). На всех страницах, кроме auth.
+
+   Инструменты берутся из TOOLS, а не перечисляются вручную: добавится
+   инструмент — футер подхватит его сам. Иконка и акцент те же, что
+   в карточках на главной, поэтому раздел узнаётся по цвету. #}
+{% set footer_icons = {'hh': 'briefcase', 'nutrition': 'salad',
+                       'workout': 'dumbbell', 'enshrouded': 'shield'} %}
 <footer class="site-footer">
   <div class="site-footer-grid">
-    <div>
-      <a href="/" class="header-logo">
-        <span class="nav-logo-symbol">⚡</span>
-        <span>EnergyDess</span>
+
+    <div class="footer-about">
+      <a href="/" class="footer-logo">
+        <span class="footer-logo-mark">⚡</span>
+        <span class="footer-logo-name">EnergyDess</span>
       </a>
-    </div>
-    <div>
-      <h4>Продукт</h4>
-      <ul>
-        <li><a href="/">Главная</a></li>
-        <li><a href="/profile">Профиль</a></li>
+      <p class="footer-desc">
+        Личный хаб AI-инструментов: сопроводительные письма под вакансию,
+        дневник питания, программа тренировок. Один аккаунт — всё под рукой.
+      </p>
+      <ul class="footer-contacts">
+        <li>
+          <a href="mailto:denison7111@gmail.com">
+            <i data-lucide="mail"></i> denison7111@gmail.com
+          </a>
+        </li>
       </ul>
     </div>
-    <div>
-      <h4>Инструменты</h4>
+
+    <div class="footer-col">
+      <h4><i data-lucide="layout-grid"></i> Инструменты</h4>
       <ul>
-        <li><a href="/hh">HH-ассистент</a></li>
-        <li><a href="/nutrition">Дневник питания</a></li>
-        <li><a href="/workout">Тренировки</a></li>
-        <li><a href="/enshrouded">Enshrouded</a></li>
+        {% for tool in TOOLS %}
+        <li class="tool-{{ tool.id }}">
+          <a href="{{ tool.url }}">
+            <i data-lucide="{{ footer_icons.get(tool.id, 'box') }}"></i> {{ tool.name }}
+          </a>
+        </li>
+        {% endfor %}
       </ul>
     </div>
-    <div>
-      <h4>Ресурсы</h4>
+
+    <div class="footer-col">
+      <h4><i data-lucide="user"></i> Аккаунт</h4>
       <ul>
-        {# TODO: страницы документации/чейнджлога ещё не существуют #}
-        <li><a href="/">О проекте</a></li>
+        <li><a href="/"><i data-lucide="home"></i> Главная</a></li>
+        <li><a href="/profile"><i data-lucide="settings"></i> Профиль</a></li>
       </ul>
     </div>
-    <div>
-      <h4>Связаться</h4>
+
+    <div class="footer-col">
+      <h4><i data-lucide="info"></i> О проекте</h4>
       <ul>
-        {# TODO: подставить реальные контакты (Telegram / email) #}
-        <li><a href="mailto:hello@energydess.ru">Email</a></li>
+        <li><a href="/about"><i data-lucide="sparkles"></i> О проекте</a></li>
+        <li><a href="/me"><i data-lucide="user-round"></i> Обо мне</a></li>
+        <li><a href="/terms"><i data-lucide="file-text"></i> Правила сайта</a></li>
+        <li><a href="/privacy"><i data-lucide="shield-check"></i> Политика конфиденциальности</a></li>
+        <li><a href="/cookies"><i data-lucide="cookie"></i> Cookies</a></li>
       </ul>
     </div>
+
   </div>
+
   <div class="site-footer-bottom">
     <span>© 2026 EnergyDess</span>
-    <span>Made with intent in Balashikha, MO</span>
+    <span>Собрано вручную для тех, кому нужны инструменты, а не обещания</span>
   </div>
 </footer>

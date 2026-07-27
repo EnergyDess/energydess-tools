@@ -1555,7 +1555,7 @@
         var videoBox = $('.wk-ex-video', howto);
         if (videoBox && videoBox.dataset.youtubeId && !videoBox.firstChild) {
           var iframe = document.createElement('iframe');
-          iframe.src = 'https://www.youtube.com/embed/' + videoBox.dataset.youtubeId;
+          iframe.src = 'https://www.youtube-nocookie.com/embed/' + videoBox.dataset.youtubeId;
           iframe.title = 'Видео техники выполнения';
           iframe.allow = 'accelerometer; encrypted-media; gyroscope; picture-in-picture';
           iframe.allowFullscreen = true;

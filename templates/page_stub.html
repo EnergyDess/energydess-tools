@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% set meta_title = page.title %}
+  {% set meta_desc = page.desc %}
+  {% include '_meta.html' %}
+  {# noindex, пока страница пустая: незачем пускать в поиск заглушку.
+     Снять, когда появится содержимое #}
+  {% if not page.content %}
+  <meta name="robots" content="noindex">
+  {% endif %}
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    /* Общий каркас статических страниц: «О проекте», «Правила», «Cookies»
+       и остальных. Один шаблон на все — различается только содержимым */
+    .doc-wrap { max-width: 760px; margin: 0 auto; padding: var(--space-7) var(--space-4) var(--space-9); }
+    .doc-back {
+      display: inline-flex; align-items: center; gap: var(--space-2);
+      color: var(--text-2); text-decoration: none;
+      font-size: var(--text-body-sm); margin-bottom: var(--space-5);
+      transition: color var(--dur-fast) var(--ease);
+    }
+    .doc-back:hover { color: var(--accent-brand); }
+    .doc-back svg { width: 16px; height: 16px; }
+    .doc-wrap h1 { font-size: var(--text-h1); font-weight: 700; margin-bottom: var(--space-3); }
+    .doc-lead { font-size: var(--text-body-lg); color: var(--text-2); line-height: 1.6; margin-bottom: var(--space-6); }
+    .doc-body { font-size: var(--text-body); color: var(--text-2); line-height: 1.7; }
+    .doc-body h2 { font-size: var(--text-h3); color: var(--text); margin: var(--space-6) 0 var(--space-3); }
+    .doc-body p { margin-bottom: var(--space-4); }
+    .doc-body ul { margin: 0 0 var(--space-4) var(--space-5); }
+    .doc-body li { margin-bottom: var(--space-2); }
+    .doc-body a { color: var(--accent-brand); text-decoration: none; }
+    .doc-body a:hover { text-decoration: underline; }
+    .doc-body code {
+      font-family: var(--font-mono); font-size: 0.9em;
+      background: var(--surface-2); padding: 2px 6px; border-radius: 4px;
+      color: var(--text);
+    }
+    .doc-updated { margin-top: var(--space-7); font-size: var(--text-caption); color: var(--text-faint); }
+  </style>
+</head>
+<body class="has-site-header">
+
+{% include '_header.html' %}
+
+<main class="container">
+  <div class="doc-wrap">
+    <a href="/" class="doc-back"><i data-lucide="arrow-left"></i> На главную</a>
+    <h1>{{ page.title }}</h1>
+    <p class="doc-lead">{{ page.lead }}</p>
+
+    {% if page.content %}
+    <div class="doc-body">{{ page.content|safe }}</div>
+    {% else %}
+    <div class="alert alert-warn">
+      <i data-lucide="pen-line"></i>
+      <span>Страница ещё наполняется — содержимое появится в ближайшее время.</span>
+    </div>
+    {% endif %}
+
+    {% if page.updated %}
+    <p class="doc-updated">Обновлено: {{ page.updated }}</p>
+    {% endif %}
+  </div>
+</main>
+
+{% include '_footer.html' %}
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="/static/ui.js"></script>
+<script>lucide.createIcons();</script>
+</body>
+</html>

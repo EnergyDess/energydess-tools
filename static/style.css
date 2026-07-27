@@ -686,31 +686,74 @@ img.avatar { object-fit: cover; padding: 0; }
 .site-footer {
   background: var(--surface-0);
   border-top: 1px solid var(--border-hairline);
-  padding: var(--space-9) var(--space-6) var(--space-6);
+  padding: var(--space-8) var(--space-6) var(--space-6);
   margin-top: var(--space-9);
 }
 .site-footer-grid {
   max-width: 1200px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 2fr repeat(4, 1fr);
-  gap: var(--space-6);
+  /* Левый блок шире: в нём описание проекта, а не список ссылок */
+  grid-template-columns: 1.6fr repeat(3, 1fr);
+  gap: var(--space-7) var(--space-6);
 }
+
+/* ── Левый блок: логотип, описание, контакты ── */
+.footer-logo {
+  display: inline-flex; align-items: center; gap: var(--space-3);
+  text-decoration: none; margin-bottom: var(--space-4);
+}
+.footer-logo-mark {
+  width: 40px; height: 40px; border-radius: var(--radius-md);
+  background: var(--accent-brand-dim);
+  border: 1px solid rgba(79,143,255,0.28);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+}
+.footer-logo-name {
+  font-size: var(--text-body-lg); font-weight: 800;
+  color: var(--text); letter-spacing: -0.02em;
+}
+.footer-desc {
+  font-size: var(--text-caption); color: var(--text-2);
+  line-height: 1.65; max-width: 34ch; margin-bottom: var(--space-4);
+}
+.footer-contacts { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
+.footer-contacts a { display: inline-flex; align-items: center; gap: var(--space-2); }
+
+/* ── Колонки ссылок ── */
 .site-footer h4 {
-  font-size: var(--text-caption);
-  font-weight: 600;
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--text-body-sm);
+  font-weight: 700;
   color: var(--text);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
   letter-spacing: 0;
 }
-.site-footer ul { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
+/* Иконка заголовка — в акценте: колонка узнаётся до чтения */
+.site-footer h4 svg { width: 16px; height: 16px; color: var(--accent-brand); stroke-width: 2; }
+.site-footer ul { list-style: none; display: flex; flex-direction: column; gap: var(--space-3); }
 .site-footer a {
   color: var(--text-2);
   text-decoration: none;
   font-size: var(--text-body-sm);
   transition: color var(--dur-fast) var(--ease);
 }
+.site-footer li a { display: inline-flex; align-items: center; gap: var(--space-2); }
+.site-footer li svg {
+  width: 15px; height: 15px; flex-shrink: 0;
+  color: var(--text-faint); stroke-width: 1.75;
+  transition: color var(--dur-fast) var(--ease);
+}
 .site-footer a:hover { color: var(--text); }
+/* Иконки инструментов сразу в своём акценте — тот же цвет, что у карточки
+   на главной, поэтому раздел узнаётся по цвету, а не по чтению.
+   У остальных ссылок иконка нейтральная и загорается только на ховере */
+.site-footer li[class*="tool-"] svg { color: var(--tool-accent); opacity: 0.85; }
+.site-footer li[class*="tool-"] a:hover svg { opacity: 1; }
+.site-footer li:not([class*="tool-"]) a:hover svg { color: var(--accent-brand); }
+
+/* ── Нижняя строка ── */
 .site-footer-bottom {
   max-width: 1200px;
   margin: var(--space-7) auto 0;
@@ -718,17 +761,32 @@ img.avatar { object-fit: cover; padding: 0; }
   border-top: 1px solid var(--border-hairline);
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: var(--space-4);
   flex-wrap: wrap;
-  color: var(--text-faint);
   font-size: var(--text-caption);
+  color: var(--text-faint);
 }
-@media (max-width: 900px) {
-  .site-footer-grid { grid-template-columns: repeat(2, 1fr); }
+
+/* ── Адаптив ──────────────────────────────────────────────────────────────
+   Пять колонок в ряд на планшете превращаются в частокол, поэтому
+   раскладка меняется дважды: сначала описание встаёт на всю ширину,
+   потом колонки складываются в две */
+@media (max-width: 1024px) {
+  .site-footer-grid { grid-template-columns: repeat(3, 1fr); }
+  .footer-about { grid-column: 1 / -1; }
+  .footer-desc { max-width: 52ch; }
 }
-@media (max-width: 480px) {
-  .site-footer-grid { grid-template-columns: 1fr; }
+@media (max-width: 640px) {
+  .site-footer { padding: var(--space-7) var(--space-4) var(--space-5); }
+  .site-footer-grid { grid-template-columns: repeat(2, 1fr); gap: var(--space-6) var(--space-4); }
+  .footer-desc { max-width: none; }
+  /* Длинные пункты вроде «Политика конфиденциальности» на 390px не влезают
+     в половину экрана — эта колонка занимает всю ширину */
+  .footer-col:last-child { grid-column: 1 / -1; }
+  .site-footer-bottom { flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 }
+
 
 /* ── Container ──────────────────────────────────────────────────────────── */
 .container { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
