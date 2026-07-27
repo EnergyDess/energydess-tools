@@ -317,6 +317,28 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+# Запросы сброса пароля по IP. Отдельный счётчик от _login_fails: там
+# считаются НЕудачные попытки входа, здесь — сам факт запроса, удачного или
+# нет. Механика окна и ключа общая (см. _rate_key: для IPv6 префикс /64)
+FORGOT_WINDOW_SEC = 15 * 60
+FORGOT_MAX_PER_IP = 5
+# Минимальная длительность ответа: выравнивает тайминг между «адрес найден»
+# и «не найден», иначе разница во времени сама выдаёт, есть ли аккаунт
+FORGOT_MIN_RESPONSE_SEC = 0.7
+_forgot_requests: Dict[str, List[float]] = {}
+
+
+def _forgot_count(ключ: str) -> int:
+    """Сколько запросов сброса с этого адреса внутри окна. Чистит протухшее."""
+    порог = time.time() - FORGOT_WINDOW_SEC
+    метки = [t for t in _forgot_requests.get(ключ, []) if t > порог]
+    if метки:
+        _forgot_requests[ключ] = метки
+    else:
+        _forgot_requests.pop(ключ, None)
+    return len(метки)
+
+
 def _rate_key(ip: str) -> str:
     """Ключ, по которому ведётся счётчик неудач.
 
@@ -1258,8 +1280,58 @@ async def forgot_page(request: Request):
 
 @app.post("/forgot-password")
 async def forgot_post(request: Request, email: str = Form(...), db: Session = Depends(get_db)):
+    """Восстановление пароля.
+
+    Форма отправляет реальные письма на любой существующий адрес, поэтому
+    ограничена с трёх сторон: лимит запросов с одного IP, кулдаун на повторную
+    отправку тому же человеку и единый ответ независимо от того, найден адрес
+    или нет.
+
+    Последнее — не косметика: если на несуществующий адрес отвечать иначе,
+    чем на существующий, форма превращается в инструмент проверки, кто
+    зарегистрирован. Причём выдать может не только текст, но и время ответа:
+    для найденного адреса идёт запрос к Resend, для ненайденного — нет.
+    Поэтому обе ветки дотягиваются до одинаковой минимальной длительности.
+    """
+    начало = time.monotonic()
     email = email.strip().lower()
+    ip = _client_ip(request)
+    ключ = _rate_key(ip)
+    защита = not _ratelimit_disabled(ip, "POST /forgot-password")
+
+    # Ответ одинаковый во всех ветках — человек не должен различать,
+    # что произошло на нашей стороне
+    ответ_ок = lambda: templates.TemplateResponse(
+        request=request, name="forgot_password.html",
+        context={"sent": True, "error": None})
+
+    async def выровнять_время():
+        """Догоняем минимальную длительность: без этого ответ на несуществующий
+        адрес приходит заметно быстрее, и по одному этому видно, есть аккаунт."""
+        прошло = time.monotonic() - начало
+        if прошло < FORGOT_MIN_RESPONSE_SEC:
+            await asyncio.sleep(FORGOT_MIN_RESPONSE_SEC - прошло)
+
+    if защита and _forgot_count(ключ) >= FORGOT_MAX_PER_IP:
+        print(f"[forgot] {ключ}: {FORGOT_MAX_PER_IP}+ запросов за 15 мин — отказ")
+        await выровнять_время()
+        return templates.TemplateResponse(
+            request=request, name="forgot_password.html", status_code=429,
+            context={"sent": False,
+                     "error": "Слишком много запросов. Попробуйте через 15 минут."})
+
+    if защита:
+        _forgot_requests.setdefault(ключ, []).append(time.time())
+
     user = db.query(User).filter(User.email == email).first()
+
+    # Кулдаун по адресу: без него кнопку можно жать сколько угодно, а письма
+    # уходят реальные — чужой ящик заваливается, а лимиты Resend тратятся.
+    # Считается по успешным отправкам (см. _email_cooldown_left)
+    if user and _email_cooldown_left(db, user.id):
+        await выровнять_время()
+        return ответ_ок()
+
     if user:
         rtok = generate_token()
         user.reset_token = rtok
@@ -1287,8 +1359,8 @@ async def forgot_post(request: Request, email: str = Form(...), db: Session = De
   </p>
 </div>""",
         )
-    return templates.TemplateResponse(request=request, name="forgot_password.html",
-                                      context={"sent": True, "error": None})
+    await выровнять_время()
+    return ответ_ок()
 
 
 @app.get("/reset-password/{token}")
