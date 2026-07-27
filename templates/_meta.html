@@ -1,0 +1,48 @@
+{#
+  Мета-теги и Open Graph — единственное место, где они описаны.
+  Раньше их не было вовсе: ссылка на сайт разворачивалась в мессенджерах
+  голым URL, без заголовка, описания и картинки.
+
+  Как пользоваться. В <head> страницы, ПОСЛЕ meta charset и viewport, задать
+  переменные и включить этот файл. Для инструмента достаточно meta_tool с его
+  id — имя и описание придут из TOOLS. Для остальных страниц: meta_title без
+  хвоста «— EnergyDess», он добавится сам, и необязательный meta_desc — без
+  него подставится общее описание сайта. Примеры вызова намеренно не приведены
+  в этом комментарии: Jinja не поддерживает вложенные комментарии, и «#}»
+  внутри примера закрыл бы блок, превратив include в рекурсию.
+
+  Ничего не передав, страница получит общие заголовок и описание сайта.
+  Инструменты не дублируют тексты: имя и описание приходят из TOOLS в main.py,
+  добавление нового инструмента правки этого файла не требует.
+
+  og:image одна на весь сайт. Абсолютный URL обязателен — с относительным
+  путём превью не собирается ни в одном мессенджере.
+#}
+{% set _site = 'EnergyDess' %}
+{% set _default_desc = 'AI-инструменты для работы и повседневных задач. Один аккаунт — всё под рукой.' %}
+{% set _tool = (TOOLS | selectattr('id', 'equalto', meta_tool) | first) if meta_tool is defined and meta_tool else None %}
+
+{% set _title = (_tool.name if _tool else (meta_title if meta_title is defined and meta_title else None)) %}
+{% set _desc  = (_tool.desc if _tool else (meta_desc if meta_desc is defined and meta_desc else _default_desc)) %}
+{% set _full_title = (_title ~ ' — ' ~ _site) if _title else (_site ~ ' — AI-инструменты') %}
+{% set _url = BASE_URL ~ request.url.path %}
+{% set _image = BASE_URL ~ '/static/og.png' %}
+
+  <title>{{ _full_title }}</title>
+  <meta name="description" content="{{ _desc }}">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ _site }}">
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:title" content="{{ _full_title }}">
+  <meta property="og:description" content="{{ _desc }}">
+  <meta property="og:url" content="{{ _url }}">
+  <meta property="og:image" content="{{ _image }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="{{ _site }} — личный хаб AI-инструментов">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ _full_title }}">
+  <meta name="twitter:description" content="{{ _desc }}">
+  <meta name="twitter:image" content="{{ _image }}">

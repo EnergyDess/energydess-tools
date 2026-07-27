@@ -147,6 +147,9 @@ TOOLS = [
 # для поиска-навигации: единственный источник правды — этот TOOLS, добавление
 # инструмента сюда автоматически появляется в поиске на всех страницах.
 templates.env.globals["TOOLS"] = TOOLS
+# Нужен в _meta.html: og:url и og:image требуют АБСОЛЮТНЫХ адресов, с
+# относительным путём превью не собирается ни в одном мессенджере
+templates.env.globals["BASE_URL"] = BASE_URL
 
 
 def user_has_access(user: User, tool_id: str, db: Session) -> bool:

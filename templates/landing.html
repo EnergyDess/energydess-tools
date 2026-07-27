@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EnergyDess — AI-инструменты</title>
+  {% include '_meta.html' %}
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,7 +29,9 @@
         </svg>
         <span>Уже есть аккаунт</span>
       </a>
-      <a href="/demo" class="btn-ghost">Демо-проект</a>
+      {# Ссылка на /demo убрана: страница тестового задания закрыта от
+         случайного захода и от поисковой выдачи (noindex в самом шаблоне).
+         Роут работает — показать её можно прямой ссылкой. #}
     </div>
   </section>
 
