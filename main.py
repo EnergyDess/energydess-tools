@@ -30,7 +30,7 @@ from database import (get_db, init_db, migrate_db, DB_PATH, SessionLocal, User, 
                       ScaleConnection, BodyPhoto, PainZonePatch, EmailLog,
                       delete_user_cascade)
 from auth import (hash_password, verify_password, create_token, get_current_user,
-                  generate_token, decode_token_user_id)
+                  generate_token, decode_token_user_id, _pwd_stamp)
 from few_shot_examples import build_few_shot_block
 import zepp_client
 
@@ -976,7 +976,7 @@ async def register(
         # слишком рано — наоборот, на своём месте
         адрес = "/verify-pending?too_soon=1" if осталось else "/verify-pending?sent=1"
         ответ = RedirectResponse(адрес, status_code=302)
-        ответ.set_cookie("pending_verify", create_token(существующий.id),
+        ответ.set_cookie("pending_verify", create_token(существующий.id, _pwd_stamp(существующий)),
                          httponly=True, max_age=60 * 30, samesite="lax")
         if осталось:
             # Кулдаун соблюдаем и здесь, иначе форма регистрации станет
@@ -1018,11 +1018,11 @@ async def register(
         # Короткоживущая метка, чтобы на /verify-pending работала кнопка повтора:
         # сессии там ещё нет (вход не выполняется), а открытая форма с вводом
         # email превратила бы страницу в рассылку писем на любой адрес
-        response.set_cookie("pending_verify", create_token(user.id),
+        response.set_cookie("pending_verify", create_token(user.id, _pwd_stamp(user)),
                             httponly=True, max_age=60 * 30, samesite="lax")
         return response
 
-    token = create_token(user.id)
+    token = create_token(user.id, _pwd_stamp(user))
     response = RedirectResponse("/profile", status_code=302)
     response.set_cookie("access_token", token, httponly=True, max_age=60 * 60 * 24 * 30, samesite="lax")
     return response
@@ -1137,7 +1137,7 @@ async def login(
     # is_verified=False НЕ блокирует вход — пользователь логинится как обычно,
     # блокировка происходит на уровне конкретного инструмента (см. _verification_gate),
     # где есть кнопка повторной отправки письма (/resend-verification).
-    token = create_token(user.id)
+    token = create_token(user.id, _pwd_stamp(user))
     # Возврат туда, откуда пришли (витрина инструмента), а не на главную
     response = RedirectResponse(_safe_next(next), status_code=302)
     response.set_cookie("access_token", token, httponly=True, max_age=60 * 60 * 24 * 30, samesite="lax")
@@ -1392,6 +1392,10 @@ async def reset_post(
     user.password_hash = hash_password(password)
     user.reset_token = None
     user.reset_token_expires = None
+    # Момент смены отзывает все выданные ранее токены: в них зашит прежний
+    # отпечаток. Иначе тот, кто увёл аккаунт, оставался бы в сессии на месяц —
+    # ровно то, ради чего сброс пароля и существует
+    user.password_changed_at = datetime.utcnow()
     db.commit()
     return templates.TemplateResponse(request=request, name="reset_password.html",
                                       context={"token": token, "error": None, "done": True})

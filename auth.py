@@ -20,9 +20,24 @@ def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
-def create_token(user_id: int) -> str:
+def _pwd_stamp(user) -> int:
+    """Отпечаток пароля для токена: секунды из password_changed_at, 0 если
+    пароль ни разу не меняли."""
+    ts = getattr(user, "password_changed_at", None)
+    return int(ts.timestamp()) if ts else 0
+
+
+def create_token(user_id: int, pwd_stamp: int = 0) -> str:
+    """Токен сессии.
+
+    pwd — отпечаток последней смены пароля. Без него смена пароля не
+    отбирала доступ у того, кто увёл аккаунт: JWT подписан ключом и живёт
+    30 дней независимо от пароля, то есть сброс пароля не выполнял своего
+    единственного назначения.
+    """
     expire = datetime.utcnow() + timedelta(days=TOKEN_EXPIRE_DAYS)
-    return jwt.encode({"sub": str(user_id), "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode({"sub": str(user_id), "pwd": pwd_stamp, "exp": expire},
+                      SECRET_KEY, algorithm=ALGORITHM)
 
 
 def generate_token() -> str:
@@ -48,6 +63,16 @@ def get_current_user(access_token: str = Cookie(default=None), db: Session = Dep
     try:
         payload = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = int(payload["sub"])
-        return db.query(User).filter(User.id == user_id).first()
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return None
+        # Токен, выданный до последней смены пароля, недействителен.
+        # Токены, выпущенные раньше этой правки, поля pwd не содержат — для них
+        # подставляется 0, и они остаются рабочими, пока пароль не меняли.
+        # Разлогинивать всех разом незачем: старая сессия опасна ровно тогда,
+        # когда пароль сменили, а её не отозвали
+        if payload.get("pwd", 0) != _pwd_stamp(user):
+            return None
+        return user
     except (JWTError, Exception):
         return None

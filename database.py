@@ -33,6 +33,10 @@ class User(Base):
     # Часовой пояс в формате IANA (Europe/Moscow). NULL — не выбран,
     # интерфейс подставит определённый браузером
     timezone = Column(String, nullable=True)
+    # Время последней смены пароля. Попадает в JWT и сверяется при каждом
+    # запросе: токен, выданный до смены, перестаёт действовать. Без этого
+    # сброс пароля не отбирал доступ у того, кто увёл аккаунт
+    password_changed_at = Column(DateTime, nullable=True)
 
 
 class Resume(Base):
@@ -514,6 +518,7 @@ def migrate_db():
         "ALTER TABLE cover_letters ADD COLUMN analysis_error TEXT",
         "ALTER TABLE users ADD COLUMN avatar_updated_at DATETIME",
         "ALTER TABLE users ADD COLUMN timezone VARCHAR",
+        "ALTER TABLE users ADD COLUMN password_changed_at DATETIME",
     ]:
         try:
             conn.execute(col)
