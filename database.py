@@ -26,6 +26,13 @@ class User(Base):
     verification_token_expires = Column(DateTime, nullable=True)
     reset_token = Column(String, nullable=True)
     reset_token_expires = Column(DateTime, nullable=True)
+    # Время последней загрузки аватара. NULL — аватара нет, показывается
+    # буква-инициал. Оно же идёт версией в URL картинки: без этого браузер
+    # держал бы старое изображение в кэше и после замены
+    avatar_updated_at = Column(DateTime, nullable=True)
+    # Часовой пояс в формате IANA (Europe/Moscow). NULL — не выбран,
+    # интерфейс подставит определённый браузером
+    timezone = Column(String, nullable=True)
 
 
 class Resume(Base):
@@ -505,6 +512,8 @@ def migrate_db():
         "ALTER TABLE exercises ADD COLUMN video_status VARCHAR",
         "ALTER TABLE exercises ADD COLUMN video_replaced_at DATETIME",
         "ALTER TABLE cover_letters ADD COLUMN analysis_error TEXT",
+        "ALTER TABLE users ADD COLUMN avatar_updated_at DATETIME",
+        "ALTER TABLE users ADD COLUMN timezone VARCHAR",
     ]:
         try:
             conn.execute(col)

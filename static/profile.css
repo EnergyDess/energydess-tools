@@ -114,3 +114,69 @@
 .modal .hint { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-4); line-height: 1.5; }
 .modal .form-col { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-5); }
 .modal-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+
+/* ── Аватар: загрузка и удаление ─────────────────────────────────────────── */
+.avatar-edit { position: relative; flex-shrink: 0; }
+.avatar-edit img.avatar-lg { object-fit: cover; display: block; }
+/* Кнопка поверх аватара: на телефоне попасть в неё проще, чем искать
+   отдельную кнопку ниже, поэтому дублируем действие в двух местах */
+.avatar-upload-btn {
+  position: absolute; right: -2px; bottom: -2px;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--surface-2); border: 1px solid var(--border-strong);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-2);
+  transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.avatar-upload-btn:hover { border-color: var(--accent-brand); color: var(--accent-brand); }
+.avatar-upload-btn svg { width: 16px; height: 16px; stroke-width: 1.75; }
+
+.avatar-actions {
+  display: flex; align-items: center; gap: var(--space-3);
+  margin-top: var(--space-4); flex-wrap: wrap;
+}
+.avatar-hint { font-size: var(--text-caption); color: var(--text-faint); }
+.avatar-hint.ok  { color: var(--success); }
+.avatar-hint.err { color: var(--error); }
+
+/* ── Часовой пояс ────────────────────────────────────────────────────────── */
+.tz-row { align-items: center; gap: var(--space-4); }
+.tz-select { max-width: 320px; }
+.tz-warning { margin-top: var(--space-3); }
+
+/* ── Модалка удаления: что именно будет удалено ──────────────────────────── */
+.delete-preview {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  max-height: 220px; overflow-y: auto;
+}
+.delete-preview-title {
+  font-size: var(--text-caption); color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  font-family: var(--font-mono); margin-bottom: var(--space-3);
+}
+.delete-preview ul { list-style: none; margin: 0; padding: 0; }
+.delete-preview li {
+  display: flex; justify-content: space-between; gap: var(--space-3);
+  padding: 6px 0; font-size: var(--text-body-sm); color: var(--text-2);
+  border-bottom: 1px solid var(--border-hairline);
+}
+.delete-preview li:last-child { border-bottom: none; }
+.delete-preview li b { color: var(--text); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 480px) {
+  /* На узком экране селектор во всю ширину, иначе длинные названия зон
+     выдавливают карточку и появляется горизонтальный скролл */
+  .tz-row { flex-direction: column; align-items: flex-start; }
+  .tz-select { max-width: 100%; width: 100%; }
+  .avatar-actions { width: 100%; }
+  .avatar-actions .btn-secondary, .avatar-actions .btn-ghost { flex: 1; }
+  .avatar-hint { width: 100%; }
+  /* Модалка с полем ввода: при открытой клавиатуре ей нужен собственный
+     скролл, иначе кнопки уезжают за экран и до них не добраться */
+  .profile-modal-overlay .modal { max-height: 88vh; overflow-y: auto; }
+  .delete-preview { max-height: 140px; }
+}

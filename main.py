@@ -1,4 +1,5 @@
 import asyncio
+import io
 import json as _json
 import re
 import ipaddress
@@ -10,7 +11,7 @@ from pydantic import BaseModel
 from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, BackgroundTasks, Cookie
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, FileResponse
 from fastapi.exceptions import HTTPException
 from bs4 import BeautifulSoup
 import httpx
@@ -21,12 +22,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 from sqlalchemy.exc import SQLAlchemyError
 
-from database import (get_db, init_db, migrate_db, SessionLocal, User, Resume, ToolAccess, EnshroudedSlot,
+from database import (get_db, init_db, migrate_db, DB_PATH, SessionLocal, User, Resume, ToolAccess, EnshroudedSlot,
                       HHProfile, CoverLetter, NutritionProfile, FoodLog, CustomFood, CustomRecipe, RecipeIngredient,
                       WaterLog, WeightLog, ChatMessage, Exercise, WorkoutProfile,
                       WorkoutProgram, WorkoutProgramDay, WorkoutProgramExercise,
                       WorkoutSession, SetLog, ProgressionSetting, WorkoutExerciseSwap,
-                      ScaleConnection, BodyPhoto, PainZonePatch, EmailLog)
+                      ScaleConnection, BodyPhoto, PainZonePatch, EmailLog,
+                      delete_user_cascade)
 from auth import (hash_password, verify_password, create_token, get_current_user,
                   generate_token, decode_token_user_id)
 from few_shot_examples import build_few_shot_block
@@ -1331,7 +1333,8 @@ async def profile_page(request: Request, user=Depends(get_current_user), db: Ses
         return RedirectResponse("/login", status_code=302)
     resume = db.query(Resume).filter(Resume.user_id == user.id).first()
     return templates.TemplateResponse(request=request, name="profile.html",
-                                      context={"user": user, "resume": resume, "saved": False})
+                                      context={"user": user, "resume": resume, "saved": False,
+                                               "timezones": TIMEZONES})
 
 
 @app.post("/profile")
@@ -5467,3 +5470,264 @@ async def workout_add_equipment(request: Request, user=Depends(get_current_user)
         profile.home_only = False
         db.commit()
     return JSONResponse({"ok": True, "equipment": equipment})
+
+
+# ── Аватар ────────────────────────────────────────────────────────────────────
+#
+# Приём файлов от пользователей — классический источник дыр, поэтому здесь
+# три правила без исключений:
+#   1. Расширение из имени файла не используется НИГДЕ. «.png» в названии
+#      не значит, что внутри картинка.
+#   2. Картинка всегда пересохраняется через Pillow в новый файл. Это убивает
+#      всё, что могло быть дописано внутрь или после конца изображения.
+#   3. Метаданные не переносятся. У фото с телефона в EXIF лежат GPS-координаты
+#      места съёмки: селфи из дома выдало бы домашний адрес. Там же модель
+#      аппарата и иногда имя владельца.
+
+AVATAR_DIR = os.path.join(os.path.dirname(DB_PATH) if os.path.dirname(DB_PATH) else ".", "avatars")
+AVATAR_SIZE = 256           # 36px в шапке и 96px в профиле, с запасом на retina
+AVATAR_MAX_BYTES = 5 * 1024 * 1024
+AVATAR_MAX_DIMENSION = 8000  # защита от декомпрессионной бомбы
+
+
+def _avatar_path(user_id: int) -> str:
+    return os.path.join(AVATAR_DIR, f"{user_id}.png")
+
+
+def _process_avatar(raw: bytes, user_id: int) -> str | None:
+    """Проверяет, обрабатывает и сохраняет аватар. None — успех, иначе текст ошибки."""
+    from PIL import Image, ImageOps, UnidentifiedImageError
+
+    if len(raw) > AVATAR_MAX_BYTES:
+        return f"Файл больше {AVATAR_MAX_BYTES // (1024 * 1024)} МБ"
+
+    try:
+        # verify() читает заголовок и структуру, не разворачивая картинку целиком:
+        # так проверяется реальное содержимое и заодно отсекается битый файл
+        проверка = Image.open(io.BytesIO(raw))
+        проверка.verify()
+        формат = (проверка.format or "").upper()
+        if формат not in ("PNG", "JPEG", "WEBP"):
+            return "Поддерживаются PNG, JPG и WebP"
+
+        # Размеры смотрим ДО полной распаковки: маленький файл может
+        # разворачиваться в гигабайты в памяти
+        img = Image.open(io.BytesIO(raw))
+        if img.width > AVATAR_MAX_DIMENSION or img.height > AVATAR_MAX_DIMENSION:
+            return f"Слишком большое разрешение, максимум {AVATAR_MAX_DIMENSION}×{AVATAR_MAX_DIMENSION}"
+
+        # Ориентация лежит в EXIF: если просто выбросить метаданные, портретное
+        # фото ляжет боком. Сначала применяем поворот, потом сохраняем без EXIF
+        img = ImageOps.exif_transpose(img)
+        img = img.convert("RGBA")
+        # Квадрат по центру, затем ресайз — иначе прямоугольное фото сплющится
+        img = ImageOps.fit(img, (AVATAR_SIZE, AVATAR_SIZE), method=Image.LANCZOS,
+                           centering=(0.5, 0.5))
+
+        os.makedirs(AVATAR_DIR, exist_ok=True)
+        # save() из чистого объекта: ничего из исходного файла не переносится.
+        # PNG, а не WebP: аватар может попасть в письмо, а Outlook WebP не
+        # понимает вовсе; плюс PNG сохраняет прозрачность загруженного логотипа
+        img.save(_avatar_path(user_id), format="PNG", optimize=True)
+        return None
+    except UnidentifiedImageError:
+        return "Это не изображение"
+    except (OSError, ValueError) as e:
+        print(f"[avatar] не удалось обработать файл пользователя {user_id}: "
+              f"{type(e).__name__}: {e}")
+        return "Не удалось обработать изображение"
+
+
+@app.post("/api/avatar")
+async def upload_avatar(file: UploadFile = File(...),
+                        user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Нужно войти"}, status_code=401)
+    raw = await file.read()
+    if not raw:
+        return JSONResponse({"error": "Файл пустой"}, status_code=400)
+    ошибка = _process_avatar(raw, user.id)
+    if ошибка:
+        return JSONResponse({"error": ошибка}, status_code=400)
+    user.avatar_updated_at = datetime.utcnow()
+    db.commit()
+    return JSONResponse({"ok": True, "v": int(user.avatar_updated_at.timestamp())})
+
+
+@app.delete("/api/avatar")
+async def delete_avatar(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Без этого от неудачного фото не уйти — вернуться к букве-инициалу нельзя."""
+    if not user:
+        return JSONResponse({"error": "Нужно войти"}, status_code=401)
+    try:
+        os.remove(_avatar_path(user.id))
+    except FileNotFoundError:
+        pass
+    user.avatar_updated_at = None
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+@app.get("/avatar/{user_id}")
+async def get_avatar(user_id: int, db: Session = Depends(get_db)):
+    """Отдача картинки. Статику на /data не смонтировать, да и свой роут
+    удобнее: можно управлять кэшем и не отдавать чужого."""
+    путь = _avatar_path(user_id)
+    if not os.path.exists(путь):
+        return JSONResponse({"error": "нет аватара"}, status_code=404)
+    # Кэш надолго: смена аватара меняет ?v= в ссылке, поэтому старый файл
+    # из кэша браузера показан не будет
+    return FileResponse(путь, media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=604800"})
+
+
+# ── Часовой пояс ──────────────────────────────────────────────────────────────
+#
+# Список сокращён осознанно: в zoneinfo почти 600 зон, выбирать из них
+# невозможно. Здесь зоны России от Калининграда до Камчатки плюс СНГ и
+# основные мировые — этого хватает, а список остаётся обозримым.
+TIMEZONES = [
+    ("Россия", [
+        ("Europe/Kaliningrad", "Калининград (UTC+2)"),
+        ("Europe/Moscow", "Москва, Санкт-Петербург (UTC+3)"),
+        ("Europe/Samara", "Самара, Ижевск (UTC+4)"),
+        ("Asia/Yekaterinburg", "Екатеринбург, Пермь, Уфа (UTC+5)"),
+        ("Asia/Omsk", "Омск (UTC+6)"),
+        ("Asia/Novosibirsk", "Новосибирск, Красноярск (UTC+7)"),
+        ("Asia/Irkutsk", "Иркутск, Улан-Удэ (UTC+8)"),
+        ("Asia/Yakutsk", "Якутск, Чита (UTC+9)"),
+        ("Asia/Vladivostok", "Владивосток, Хабаровск (UTC+10)"),
+        ("Asia/Magadan", "Магадан, Сахалин (UTC+11)"),
+        ("Asia/Kamchatka", "Камчатка, Анадырь (UTC+12)"),
+    ]),
+    ("СНГ и соседи", [
+        ("Europe/Minsk", "Минск (UTC+3)"),
+        ("Europe/Kyiv", "Киев (UTC+2/+3)"),
+        ("Asia/Tbilisi", "Тбилиси (UTC+4)"),
+        ("Asia/Yerevan", "Ереван (UTC+4)"),
+        ("Asia/Baku", "Баку (UTC+4)"),
+        ("Asia/Almaty", "Алматы (UTC+5)"),
+        ("Asia/Tashkent", "Ташкент (UTC+5)"),
+        ("Asia/Bishkek", "Бишкек (UTC+6)"),
+    ]),
+    ("Мир", [
+        ("Europe/Lisbon", "Лиссабон (UTC+0/+1)"),
+        ("Europe/London", "Лондон (UTC+0/+1)"),
+        ("Europe/Berlin", "Берлин, Прага, Варшава (UTC+1/+2)"),
+        ("Europe/Belgrade", "Белград, Будапешт (UTC+1/+2)"),
+        ("Europe/Athens", "Афины, Хельсинки (UTC+2/+3)"),
+        ("Europe/Istanbul", "Стамбул (UTC+3)"),
+        ("Asia/Dubai", "Дубай (UTC+4)"),
+        ("Asia/Bangkok", "Бангкок (UTC+7)"),
+        ("Asia/Shanghai", "Шанхай, Пекин (UTC+8)"),
+        ("Asia/Tokyo", "Токио (UTC+9)"),
+        ("Australia/Sydney", "Сидней (UTC+10/+11)"),
+        ("America/New_York", "Нью-Йорк (UTC−5/−4)"),
+        ("America/Chicago", "Чикаго (UTC−6/−5)"),
+        ("America/Denver", "Денвер (UTC−7/−6)"),
+        ("America/Los_Angeles", "Лос-Анджелес (UTC−8/−7)"),
+        ("America/Sao_Paulo", "Сан-Паулу (UTC−3)"),
+    ]),
+]
+_TZ_VALID = {код for _, зоны in TIMEZONES for код, _ in зоны}
+
+
+@app.post("/api/timezone")
+async def save_timezone(request: Request, user=Depends(get_current_user),
+                        db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Нужно войти"}, status_code=401)
+    data = await request.json()
+    tz = (data.get("timezone") or "").strip()
+    # Только из своего списка: произвольная строка отсюда попала бы в
+    # ZoneInfo() при расчёте дат и уронила бы страницу
+    if tz not in _TZ_VALID:
+        return JSONResponse({"error": "Неизвестный часовой пояс"}, status_code=400)
+    user.timezone = tz
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+# ── Удаление аккаунта ─────────────────────────────────────────────────────────
+
+# Человеческие названия таблиц: «Письма: 12» вместо «cover_letters: 12».
+# Перед необратимым действием человек должен видеть цену, а не имена таблиц.
+DELETE_LABELS = {
+    "cover_letters": "Сопроводительные письма",
+    "food_logs": "Записи в дневнике питания",
+    "water_logs": "Записи о воде",
+    "custom_foods": "Свои продукты",
+    "custom_recipes": "Свои рецепты",
+    "weight_logs": "Замеры веса и тела",
+    "body_photos": "Фото прогресса",
+    "chat_messages": "Сообщения в чатах с ассистентами",
+    "workout_programs": "Программы тренировок",
+    "workout_sessions": "Проведённые тренировки",
+    "set_logs": "Записи подходов",
+    "enshrouded_slots": "Отметки в трекере Enshrouded",
+    "hh_profiles": "Досье для писем",
+    "resumes": "Резюме",
+    "nutrition_profiles": "Профиль питания",
+    "workout_profiles": "Профиль тренировок",
+    "scale_connections": "Привязка умных весов",
+}
+
+
+def _delete_preview(user_id: int) -> list:
+    """Что именно будет удалено — по-человечески, без технических таблиц."""
+    отчёт = delete_user_cascade(user_id, dry_run=True)
+    строки = []
+    for таблица, n in отчёт.items():
+        if not n or таблица not in DELETE_LABELS:
+            continue
+        строки.append({"название": DELETE_LABELS[таблица], "сколько": n})
+    строки.sort(key=lambda x: -x["сколько"])
+    return строки
+
+
+@app.get("/api/delete-account/preview")
+async def delete_account_preview(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Нужно войти"}, status_code=401)
+    return JSONResponse({"items": _delete_preview(user.id)})
+
+
+@app.post("/api/delete-account")
+async def delete_account(request: Request, password: str = Form(...),
+                         user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Нужно войти"}, status_code=401)
+
+    # Подтверждение паролем, а не кнопкой «да»: действие необратимо, а чужой
+    # незакрытый ноутбук — самый обычный сценарий
+    if not verify_password(password, user.password_hash):
+        return JSONResponse({"error": "Неверный пароль"}, status_code=400)
+
+    # Последний админ не должен удалять себя: сайт остался бы без управления
+    if user.is_admin:
+        админов = db.query(User).filter(User.is_admin == True).count()  # noqa: E712
+        if админов <= 1:
+            return JSONResponse(
+                {"error": "Это единственный аккаунт администратора. "
+                          "Сначала назначьте другого администратора."}, status_code=400)
+
+    uid = user.id
+    db.close()          # каскад работает своим соединением
+    try:
+        delete_user_cascade(uid)
+    except Exception as e:
+        print(f"[delete-account] не удалось удалить {uid}: {type(e).__name__}: {e}")
+        return JSONResponse({"error": "Не удалось удалить аккаунт. Попробуйте позже."},
+                            status_code=500)
+    # Куку чистим явно: без этого в браузере остаётся токен несуществующего
+    # пользователя, и каждая страница молча считает гостя
+    ответ = JSONResponse({"ok": True, "redirect": "/account-deleted"})
+    ответ.delete_cookie("access_token")
+    return ответ
+
+
+@app.get("/account-deleted")
+async def account_deleted(request: Request):
+    ответ = templates.TemplateResponse(request=request, name="account_deleted.html")
+    ответ.delete_cookie("access_token")
+    return ответ

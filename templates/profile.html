@@ -23,7 +23,20 @@
   <!-- ── Аватар и имя ── -->
   <div class="card card-static profile-card">
     <div class="identity-row">
-      <span class="avatar avatar-lg">{{ (user.display_name or user.email)[:1]|upper }}</span>
+      {# Фолбэк на букву-инициал: если аватара нет, показывается он, как и раньше #}
+      <div class="avatar-edit">
+        {% if user.avatar_updated_at %}
+        <img src="/avatar/{{ user.id }}?v={{ user.avatar_updated_at.timestamp()|int }}"
+             alt="Аватар" class="avatar avatar-lg" id="avatar-img">
+        {% else %}
+        <span class="avatar avatar-lg" id="avatar-letter">{{ (user.display_name or user.email)[:1]|upper }}</span>
+        {% endif %}
+        <label class="avatar-upload-btn" for="avatar-file" title="Загрузить фото">
+          <i data-lucide="camera"></i>
+        </label>
+        <input type="file" id="avatar-file" accept="image/png,image/jpeg,image/webp"
+               hidden onchange="uploadAvatar(this)">
+      </div>
       <div class="identity-fields">
         <h2>Отображаемое имя</h2>
         <p class="hint" style="margin-bottom:0">Так сайт будет к вам обращаться. Если не указать — используется часть email.</p>
@@ -37,6 +50,16 @@
         </div>
         <div id="name-status" class="name-status"></div>
       </div>
+    </div>
+    <div class="avatar-actions">
+      <button type="button" class="btn-secondary" onclick="document.getElementById('avatar-file').click()">
+        Загрузить фото
+      </button>
+      <button type="button" class="btn-ghost" id="avatar-remove"
+              onclick="removeAvatar()" {% if not user.avatar_updated_at %}hidden{% endif %}>
+        Убрать
+      </button>
+      <span class="avatar-hint" id="avatar-status">PNG, JPG или WebP, до 5 МБ</span>
     </div>
   </div>
 
@@ -63,51 +86,41 @@
       <button class="btn-secondary" onclick="openModal('modal-password')">Сменить пароль</button>
     </div>
 
-    <div class="setting-row">
+    <div class="setting-row tz-row">
       <div>
         <div class="setting-label">Часовой пояс</div>
-        <div class="setting-sub">Определён автоматически</div>
+        <div class="setting-sub" id="tz-auto">Определяется…</div>
       </div>
-      <!-- TODO: сохранение часового пояса в профиль (эндпоинта пока нет) -->
-      <span class="setting-value" id="tz-value">—</span>
+      <select class="input tz-select" id="tz-select" onchange="saveTimezone(this.value)">
+        {% for группа, зоны in timezones %}
+        <optgroup label="{{ группа }}">
+          {% for код, подпись in зоны %}
+          <option value="{{ код }}" {% if user.timezone == код %}selected{% endif %}>{{ подпись }}</option>
+          {% endfor %}
+        </optgroup>
+        {% endfor %}
+      </select>
     </div>
+    {# Границы суток сдвинутся, но история не пересчитывается — предупреждаем,
+       чтобы это не выглядело как потеря данных #}
+    <p class="hint tz-warning">
+      После смены пояса записи прошлых дней могут показываться в соседних сутках.
+      Данные не теряются — меняется только граница дня.
+    </p>
+    <div id="tz-status" class="name-status"></div>
   </div>
 
-  <!-- ── Уведомления ── -->
-  <div class="card card-static profile-card">
-    <h2>Уведомления</h2>
-    <p class="hint">Пока только настройка интерфейса — рассылки будут подключены позже</p>
-
-    <div class="setting-row">
-      <div>
-        <div class="setting-label">Письма о новых функциях</div>
-        <div class="setting-sub">Редкие анонсы новых инструментов</div>
-      </div>
-      <!-- TODO: сохранение настроек уведомлений (эндпоинта пока нет) -->
-      <label class="toggle">
-        <input type="checkbox" checked>
-        <span class="track"></span>
-      </label>
-    </div>
-
-    <div class="setting-row">
-      <div>
-        <div class="setting-label">Еженедельная сводка</div>
-        <div class="setting-sub">Итоги по тренировкам и питанию</div>
-      </div>
-      <label class="toggle">
-        <input type="checkbox">
-        <span class="track"></span>
-      </label>
-    </div>
-  </div>
+  {# Блок уведомлений убран: за тумблерами ничего не стояло, и состояние даже
+     не сохранялось между заходами. Живой на вид переключатель, который ничего
+     не делает, читается как «настройки тут не работают» — подозрение переносится
+     и на соседние блоки, которые работают. Вернём вместе с рассылками
+     (BACKLOG №15). #}
 
   <!-- ── Опасная зона ── -->
   <div class="card card-static profile-card danger-card">
     <h2>Удаление аккаунта</h2>
     <p class="hint">Все данные — резюме, досье, письма, программы тренировок — будут удалены безвозвратно.</p>
-    <!-- TODO: реализовать эндпоинт удаления аккаунта (модалка ниже — UI-заглушка) -->
-    <button class="btn-danger" onclick="openModal('modal-delete')">Удалить аккаунт</button>
+    <button class="btn-danger" onclick="openDeleteModal()">Удалить аккаунт</button>
   </div>
 </div>
 </main>
@@ -149,14 +162,24 @@
 <div class="profile-modal-overlay" id="modal-delete" onclick="if(event.target===this)closeModal(this)">
   <div class="modal">
     <h3>Удалить аккаунт</h3>
-    <p class="hint">Функция в разработке — эндпоинт удаления ещё не реализован. Для удаления аккаунта напишите администратору.</p>
-    <div class="form-col">
-      <input type="email" class="input" placeholder="Введите ваш email для подтверждения" disabled>
-      <input type="password" class="input" placeholder="Текущий пароль" disabled>
+    <p class="hint">Действие необратимо. Восстановить данные будет нельзя.</p>
+
+    {# Человек должен видеть цену действия до того, как его подтвердит #}
+    <div class="delete-preview" id="delete-preview">
+      <div class="delete-preview-title">Будет удалено:</div>
+      <ul id="delete-list"><li class="hint">Считаю…</li></ul>
     </div>
+
+    <div class="form-col">
+      <label class="setting-label" for="delete-password">Введите пароль для подтверждения</label>
+      <input type="password" class="input" id="delete-password" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter')confirmDelete()">
+    </div>
+    <div id="delete-error" class="name-status err"></div>
+
     <div class="modal-actions">
-      <button class="btn-ghost" onclick="closeModal(this.closest('.profile-modal-overlay'))">Закрыть</button>
-      <button class="btn-danger" disabled>Удалить навсегда</button>
+      <button class="btn-ghost" onclick="closeModal(this.closest('.profile-modal-overlay'))">Отмена</button>
+      <button class="btn-danger" id="delete-btn" onclick="confirmDelete()">Удалить навсегда</button>
     </div>
   </div>
 </div>
@@ -166,13 +189,151 @@
 <script>
 lucide.createIcons();
 
-// ── Часовой пояс: автоопределение ──
-document.getElementById('tz-value').textContent =
-  Intl.DateTimeFormat().resolvedOptions().timeZone || 'не определён';
+// ── Часовой пояс ──
+const авто = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+const tzSelect = document.getElementById('tz-select');
+document.getElementById('tz-auto').textContent =
+  авто ? 'Определён автоматически: ' + авто : 'Определить автоматически не удалось';
+// Если пояс в профиле не сохранён — подставляем определённый браузером,
+// но только если он есть в нашем списке
+if (!tzSelect.querySelector('option[selected]') && авто) {
+  const подходит = [...tzSelect.options].find(o => o.value === авто);
+  if (подходит) tzSelect.value = авто;
+}
+
+async function saveTimezone(tz) {
+  const статус = document.getElementById('tz-status');
+  статус.className = 'name-status';
+  статус.textContent = 'Сохраняю…';
+  try {
+    const r = await fetch('/api/timezone', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({timezone: tz}),
+    });
+    if (r.ok) {
+      статус.className = 'name-status ok';
+      статус.textContent = '✓ Часовой пояс сохранён';
+      setTimeout(() => статус.textContent = '', 2500);
+    } else {
+      статус.className = 'name-status err';
+      статус.textContent = (await r.json()).error || 'Не удалось сохранить';
+    }
+  } catch {
+    статус.className = 'name-status err';
+    статус.textContent = 'Ошибка сети — пояс не сохранён';
+  }
+}
+
+// ── Аватар ──
+async function uploadAvatar(input) {
+  const файл = input.files && input.files[0];
+  if (!файл) return;
+  const статус = document.getElementById('avatar-status');
+  статус.className = 'avatar-hint';
+  статус.textContent = 'Загружаю…';
+  const данные = new FormData();
+  данные.append('file', файл);
+  try {
+    const r = await fetch('/api/avatar', {method: 'POST', body: данные});
+    const ответ = await r.json();
+    if (!r.ok) {
+      статус.className = 'avatar-hint err';
+      статус.textContent = ответ.error || 'Не удалось загрузить';
+      return;
+    }
+    // ?v= обязателен: без него браузер показал бы старую картинку из кэша
+    const src = '/avatar/{{ user.id }}?v=' + ответ.v;
+    let img = document.getElementById('avatar-img');
+    if (!img) {
+      const буква = document.getElementById('avatar-letter');
+      img = document.createElement('img');
+      img.id = 'avatar-img';
+      img.className = 'avatar avatar-lg';
+      img.alt = 'Аватар';
+      буква.replaceWith(img);
+    }
+    img.src = src;
+    document.getElementById('avatar-remove').hidden = false;
+    статус.className = 'avatar-hint ok';
+    статус.textContent = '✓ Фото обновлено';
+    setTimeout(() => { статус.className = 'avatar-hint';
+                       статус.textContent = 'PNG, JPG или WebP, до 5 МБ'; }, 2500);
+  } catch {
+    статус.className = 'avatar-hint err';
+    статус.textContent = 'Ошибка сети';
+  } finally {
+    input.value = '';   // иначе повторный выбор того же файла не сработает
+  }
+}
+
+async function removeAvatar() {
+  const статус = document.getElementById('avatar-status');
+  try {
+    const r = await fetch('/api/avatar', {method: 'DELETE'});
+    if (!r.ok) throw new Error();
+    const img = document.getElementById('avatar-img');
+    if (img) {
+      const буква = document.createElement('span');
+      буква.id = 'avatar-letter';
+      буква.className = 'avatar avatar-lg';
+      буква.textContent = {{ ((user.display_name or user.email)[:1]|upper)|tojson }};
+      img.replaceWith(буква);
+    }
+    document.getElementById('avatar-remove').hidden = true;
+    статус.className = 'avatar-hint';
+    статус.textContent = 'PNG, JPG или WebP, до 5 МБ';
+  } catch {
+    статус.className = 'avatar-hint err';
+    статус.textContent = 'Не удалось убрать фото';
+  }
+}
 
 // ── Модалки ──
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(el) { el.classList.remove('open'); }
+
+// ── Удаление аккаунта ──
+async function openDeleteModal() {
+  openModal('modal-delete');
+  document.getElementById('delete-password').value = '';
+  document.getElementById('delete-error').textContent = '';
+  const список = document.getElementById('delete-list');
+  список.innerHTML = '<li class="hint">Считаю…</li>';
+  try {
+    const r = await fetch('/api/delete-account/preview');
+    const данные = await r.json();
+    if (!данные.items || !данные.items.length) {
+      список.innerHTML = '<li class="hint">Кроме самого аккаунта — ничего, данных пока нет.</li>';
+      return;
+    }
+    список.innerHTML = данные.items
+      .map(п => `<li><span>${п['название']}</span><b>${п['сколько']}</b></li>`).join('');
+  } catch {
+    список.innerHTML = '<li class="hint">Не удалось посчитать — данные всё равно будут удалены.</li>';
+  }
+}
+
+async function confirmDelete() {
+  const пароль = document.getElementById('delete-password').value;
+  const ошибка = document.getElementById('delete-error');
+  const кнопка = document.getElementById('delete-btn');
+  if (!пароль) { ошибка.textContent = 'Введите пароль'; return; }
+  кнопка.disabled = true;
+  кнопка.textContent = 'Удаляю…';
+  ошибка.textContent = '';
+  try {
+    const данные = new FormData();
+    данные.append('password', пароль);
+    const r = await fetch('/api/delete-account', {method: 'POST', body: данные});
+    const ответ = await r.json();
+    if (r.ok && ответ.redirect) { window.location.href = ответ.redirect; return; }
+    ошибка.textContent = ответ.error || 'Не удалось удалить аккаунт';
+  } catch {
+    ошибка.textContent = 'Ошибка сети — аккаунт не удалён';
+  }
+  кнопка.disabled = false;
+  кнопка.textContent = 'Удалить навсегда';
+}
 
 // ── Сохранение отображаемого имени ──
 async function saveName() {

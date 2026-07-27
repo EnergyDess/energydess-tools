@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% set meta_title = 'Аккаунт удалён' %}
+  {% include '_meta.html' %}
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="nav-logo-symbol">⚡</span>
+    <span>EnergyDess</span>
+  </a>
+</nav>
+
+<div class="auth-wrap">
+  <div class="auth-box" style="text-align:center">
+    <h1 style="margin-bottom:8px">Аккаунт удалён</h1>
+    <p style="color:var(--text-2);font-size:0.95rem;margin-bottom:24px">
+      Все данные удалены безвозвратно. Спасибо, что пользовались.
+    </p>
+    <a href="/" class="btn-primary">На главную</a>
+    <p style="margin-top:20px;font-size:0.8125rem;color:var(--text-faint)">
+      Передумали? Можно <a href="/register" style="color:var(--accent-brand);text-decoration:none">зарегистрироваться заново</a> —
+      адрес почты свободен.
+    </p>
+  </div>
+</div>
+</body>
+</html>
