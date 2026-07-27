@@ -1202,3 +1202,21 @@ label {
   font-size: var(--text-caption); color: var(--text-faint);
   white-space: nowrap; flex-shrink: 0;
 }
+
+/* ── Сердце в подписи футера ─────────────────────────────────────────────
+   Lucide-иконка с заливкой вместо эмодзи: эмодзи в UI запрещены
+   (design-system.md, раздел 8), рендерятся системным шрифтом и выпадают
+   из типографики. Размер привязан к строке через em — масштабируется
+   вместе с текстом. Селектор с .site-footer-bottom, потому что Lucide
+   проставляет width/height атрибутами прямо на svg */
+.site-footer-bottom .footer-made {
+  display: inline-flex; align-items: center; gap: 0.35em;
+}
+.site-footer-bottom .footer-made svg.footer-heart {
+  width: 1.05em; height: 1.05em;
+  color: var(--error);
+  fill: var(--error);
+  stroke: var(--error);
+  stroke-width: 1.5;
+  flex-shrink: 0;
+}
