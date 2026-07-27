@@ -161,6 +161,46 @@ def user_has_access(user: User, tool_id: str, db: Session) -> bool:
     ).first() is not None
 
 
+# Иконка Lucide и категорийная метка по id инструмента. Живут здесь, а не в
+# TOOLS: TOOLS — источник текстов, а это оформление (design-system.md, раздел 7)
+TOOL_ICONS = {"hh": "briefcase", "nutrition": "salad", "workout": "dumbbell", "enshrouded": "shield"}
+TOOL_EYEBROWS = {"hh": "Карьера", "nutrition": "Питание",
+                 "workout": "Тренировки", "enshrouded": "Игры · Enshrouded"}
+
+
+def _safe_next(next_url: str) -> str:
+    """Куда вернуть человека после входа. Только внутренний путь сайта.
+
+    Внешние адреса и протокол-относительные («//чужой.сайт») отбрасываются:
+    иначе форма входа становится открытым редиректом, которым удобно
+    маскировать фишинговые ссылки под наш домен.
+    """
+    if not next_url or not next_url.startswith("/") or next_url.startswith("//"):
+        return "/"
+    return next_url
+
+
+def _tool_preview(request: Request, tool_id: str):
+    """Витрина инструмента для неавторизованных — вместо редиректа на /login.
+
+    Раньше ссылка на инструмент вела в тупик: человек попадал на голую форму
+    входа, не понимая, куда пришёл, а роботы превью считывали мета-теги формы
+    вместо описания инструмента — в Telegram карточка /hh называлась «Вход».
+
+    Роботам и людям отдаётся одно и то же. Развилка по User-Agent была бы
+    клоакингом: поисковик индексирует одно, человек видит другое — расхождение
+    ровно того типа, за которое понижают в выдаче.
+    """
+    tool = next((t for t in TOOLS if t["id"] == tool_id), None)
+    if not tool:
+        return RedirectResponse("/login", status_code=302)
+    return templates.TemplateResponse(
+        request=request, name="tool_preview.html",
+        context={"tool": tool,
+                 "icon": TOOL_ICONS.get(tool_id, "box"),
+                 "eyebrow": TOOL_EYEBROWS.get(tool_id, "Инструмент")})
+
+
 def _verification_gate(request: Request, user: User, tool_name: str, db: Session = None):
     """Плашка "подтвердите email" вместо инструмента, если is_verified явно False.
     None (is_verified не заполнен у старых аккаунтов) — не блокирует.
@@ -967,9 +1007,9 @@ async def register(
 
 @app.get("/login")
 async def login_page(request: Request, user=Depends(get_current_user),
-                     verified: str = None, error: str = None):
+                     verified: str = None, error: str = None, next: str = None):
     if user:
-        return RedirectResponse("/", status_code=302)
+        return RedirectResponse(_safe_next(next), status_code=302)
     # Капчу показываем уже при открытии формы, если с этого IP было
     # достаточно неудач: иначе человек заполнит поля, отправит и только
     # тогда узнает, что нужна ещё и проверка
@@ -986,7 +1026,7 @@ async def login_page(request: Request, user=Depends(get_current_user),
         msg = "Ссылка устарела — войдите в аккаунт, там можно отправить новую ссылку"
     return templates.TemplateResponse(
         request=request, name="login.html",
-        context={"error": None, "info": msg,
+        context={"error": None, "info": msg, "next": _safe_next(next),
                  "turnstile_site_key": TURNSTILE_SITE_KEY if нужна_капча else None})
 
 
@@ -996,6 +1036,7 @@ async def login(
     email: str = Form(...),
     password: str = Form(...),
     turnstile_token: str = Form(default="", alias="cf-turnstile-response"),
+    next: str = Form(default=""),
     db: Session = Depends(get_db),
 ):
     email = email.strip().lower()
@@ -1016,7 +1057,8 @@ async def login(
         return templates.TemplateResponse(
             request=request, name="login.html", status_code=429,
             context={"error": f"Слишком много попыток входа. Попробуйте через {осталось} мин.",
-                     "email": email, "turnstile_site_key": TURNSTILE_SITE_KEY if нужна_капча else None})
+                     "email": email, "next": _safe_next(next),
+                     "turnstile_site_key": TURNSTILE_SITE_KEY if нужна_капча else None})
 
     # ── Капча после нескольких неудач ────────────────────────────────────────
     # fail-open: пустой токен (виджет не загрузился ЛИБО проверку не прошли —
@@ -1039,7 +1081,8 @@ async def login(
                 return templates.TemplateResponse(
                     request=request, name="login.html", status_code=400,
                     context={"error": "Не удалось подтвердить, что вы не робот",
-                             "email": email, "turnstile_site_key": TURNSTILE_SITE_KEY})
+                             "email": email, "next": _safe_next(next),
+                             "turnstile_site_key": TURNSTILE_SITE_KEY})
 
     user = db.query(User).filter(User.email == email).first()
 
@@ -1059,6 +1102,7 @@ async def login(
         return templates.TemplateResponse(
             request=request, name="login.html",
             context={"error": "Неверный email или пароль", "email": email,
+                     "next": _safe_next(next),
                      "turnstile_site_key": TURNSTILE_SITE_KEY if показать_капчу else None})
 
     # Успешный вход — счётчик этого IP обнуляется: владелец доказал, что он владелец
@@ -1069,7 +1113,8 @@ async def login(
     # блокировка происходит на уровне конкретного инструмента (см. _verification_gate),
     # где есть кнопка повторной отправки письма (/resend-verification).
     token = create_token(user.id)
-    response = RedirectResponse("/", status_code=302)
+    # Возврат туда, откуда пришли (витрина инструмента), а не на главную
+    response = RedirectResponse(_safe_next(next), status_code=302)
     response.set_cookie("access_token", token, httponly=True, max_age=60 * 60 * 24 * 30, samesite="lax")
     return response
 
@@ -1571,7 +1616,7 @@ async def admin_exercise_replace_video(exercise_id: str, request: Request, user=
 @app.get("/enshrouded")
 async def enshrouded_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
-        return RedirectResponse("/login", status_code=302)
+        return _tool_preview(request, "enshrouded")
     gate = _verification_gate(request, user, "Enshrouded", db)
     if gate:
         return gate
@@ -1651,7 +1696,7 @@ async def import_enshrouded_state(request: Request, user=Depends(get_current_use
 @app.get("/hh")
 async def hh_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
-        return RedirectResponse("/login", status_code=302)
+        return _tool_preview(request, "hh")
     gate = _verification_gate(request, user, "HH-ассистент", db)
     if gate:
         return gate
@@ -2646,7 +2691,7 @@ def _diary_totals(logs: list) -> dict:
 @app.get("/nutrition")
 async def nutrition_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
-        return RedirectResponse("/login", status_code=302)
+        return _tool_preview(request, "nutrition")
     gate = _verification_gate(request, user, "Дневник питания", db)
     if gate:
         return gate
@@ -3622,7 +3667,7 @@ def _workout_equipment_checklist(db: Session):
 @app.get("/workout")
 async def workout_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
-        return RedirectResponse("/login", status_code=302)
+        return _tool_preview(request, "workout")
     gate = _verification_gate(request, user, "Программа тренировок", db)
     if gate:
         return gate

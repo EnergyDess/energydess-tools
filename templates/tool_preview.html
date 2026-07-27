@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% set meta_tool = tool.id %}
+  {% include '_meta.html' %}
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    /* Витрина инструмента для неавторизованных. Раньше здесь был редирект на
+       /login: ссылка на инструмент вела в тупик — человек попадал на голую
+       форму, не понимая, куда пришёл, а роботы превью считывали мета-теги
+       формы входа вместо описания инструмента.
+       Отдаём одно и то же людям и роботам: подмена по User-Agent — это
+       клоакинг, за расхождение выдачи и страницы понижают в поиске. */
+    .tp-wrap {
+      min-height: calc(100vh - 64px);
+      display: flex; align-items: center; justify-content: center;
+      padding: var(--space-7) var(--space-4);
+    }
+    .tp-card { max-width: 560px; width: 100%; text-align: center; }
+    .tp-icon {
+      width: 72px; height: 72px; margin: 0 auto var(--space-5);
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      background: var(--tool-accent-dim, var(--accent-brand-dim));
+      color: var(--tool-accent, var(--accent-brand));
+    }
+    .tp-icon svg { width: 36px; height: 36px; stroke-width: 1.5; }
+    .tp-eyebrow {
+      font-family: var(--font-mono); font-size: var(--text-mono);
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--tool-accent, var(--accent-brand));
+      display: block; margin-bottom: var(--space-3);
+    }
+    .tp-card h1 { font-size: var(--text-h1); font-weight: 700; color: var(--text); margin-bottom: var(--space-4); }
+    .tp-desc { font-size: var(--text-body-lg); color: var(--text-2); line-height: 1.6; margin-bottom: var(--space-6); }
+    .tp-actions { display: flex; gap: var(--space-3); justify-content: center; flex-wrap: wrap; }
+    .tp-note { margin-top: var(--space-5); font-size: var(--text-caption); color: var(--text-faint); }
+    .tp-note a { color: var(--tool-accent, var(--accent-brand)); text-decoration: none; }
+    .tp-note a:hover { text-decoration: underline; }
+    @media (max-width: 480px) {
+      .tp-actions { flex-direction: column; }
+      .tp-actions > * { width: 100%; }
+    }
+  </style>
+</head>
+<body class="has-site-header tool-{{ tool.id }}">
+
+{% include '_header.html' %}
+
+<main class="container tp-wrap">
+  <div class="card tp-card">
+    <div class="tp-icon"><i data-lucide="{{ icon }}"></i></div>
+    <span class="tp-eyebrow">{{ eyebrow }}</span>
+    <h1>{{ tool.name }}</h1>
+    <p class="tp-desc">{{ tool.desc }}</p>
+
+    <div class="tp-actions">
+      {# next возвращает человека в тот инструмент, с которого он начал,
+         а не на главную — иначе путь «ссылка → вход → ищи заново» #}
+      <a href="/login?next={{ tool.url | urlencode }}" class="btn-primary">Войти</a>
+      <a href="/register" class="btn-secondary">Создать аккаунт</a>
+    </div>
+
+    <p class="tp-note">
+      Инструмент доступен после входа.
+      <a href="/">Посмотреть все инструменты →</a>
+    </p>
+  </div>
+</main>
+
+{% include '_footer.html' %}
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="/static/ui.js"></script>
+<script>lucide.createIcons();</script>
+</body>
+</html>
