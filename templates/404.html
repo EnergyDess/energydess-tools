@@ -10,74 +10,57 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
   <style>
+    /* Последняя страница, оставшаяся вне дизайн-системы после миграции.
+       Было: градиент на цифрах из старой палитры (#a78bfa/#60a5fa/#34d399),
+       собственные .btn-main и .btn-ghost — причём второй переопределял
+       системный класс, — хардкод-цвета и все размеры в пикселях.
+       Стало: токены, компонентные кнопки, ничего своего кроме раскладки. */
     .not-found {
-      min-height: calc(100vh - 60px);
+      /* 64px — высота sticky .site-header. Раньше здесь стояло 60px
+         от прежней минимальной шапки */
+      min-height: calc(100vh - 64px);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       text-align: center;
-      padding: 40px 20px;
+      padding: var(--space-7) var(--space-4);
     }
+    /* Цифра — декоративный фон, а не заголовок: приглушена, чтобы главным
+       на странице была строка «Страница не найдена». Градиент на тексте
+       дизайн-системой запрещён */
     .not-found-code {
       font-family: var(--font);
-      font-size: clamp(6rem, 20vw, 10rem);
+      font-size: clamp(5rem, 16vw, 9rem);
       font-weight: 800;
       letter-spacing: -0.04em;
       line-height: 1;
-      background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 50%, #34d399 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 24px;
+      color: var(--surface-3);
+      margin-bottom: var(--space-4);
+      user-select: none;
     }
     .not-found h1 {
-      font-size: clamp(1.2rem, 3vw, 1.8rem);
+      font-size: var(--text-h2);
       font-weight: 700;
-      letter-spacing: -0.02em;
       color: var(--text);
-      margin-bottom: 14px;
+      margin-bottom: var(--space-3);
     }
     .not-found p {
       color: var(--text-2);
-      font-size: 1rem;
-      max-width: 380px;
+      font-size: var(--text-body);
+      max-width: 42ch;
       line-height: 1.6;
-      margin-bottom: 40px;
+      margin-bottom: var(--space-6);
     }
     .not-found-actions {
       display: flex;
-      gap: 12px;
+      gap: var(--space-3);
       justify-content: center;
       flex-wrap: wrap;
     }
-    .btn-main {
-      background: linear-gradient(135deg, #7c4dff 0%, #00d4ff 100%);
-      color: #fff;
-      padding: 13px 28px;
-      border-radius: 10px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      text-decoration: none;
-      transition: all 0.22s;
-      box-shadow: 0 4px 20px rgba(124,77,255,0.3);
+    @media (max-width: 480px) {
+      .not-found-actions { flex-direction: column; width: 100%; max-width: 280px; }
     }
-    .btn-main:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 30px rgba(124,77,255,0.45);
-    }
-    .btn-ghost {
-      background: transparent;
-      color: var(--text-2);
-      padding: 13px 28px;
-      border-radius: 10px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      text-decoration: none;
-      border: 1px solid var(--border-strong);
-      transition: all 0.2s;
-    }
-    .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.22); }
   </style>
 </head>
 <body class="has-site-header">
@@ -88,17 +71,17 @@
 {% include '_header.html' %}
 
 <div class="not-found">
-  <div class="not-found-code">404</div>
+  <div class="not-found-code" aria-hidden="true">404</div>
   <h1>Страница не найдена</h1>
   <p>Кажется, такой страницы не существует или она была перемещена.</p>
   <div class="not-found-actions">
-    <a href="/" class="btn-main">На главную →</a>
+    <a href="/" class="btn-primary">На главную</a>
     {# «Войти» — только гостю: залогиненному эта кнопка предлагает
-       то, что он уже сделал. Ему полезнее ссылка на инструменты #}
+       то, что он уже сделал. Ему полезнее ссылка на профиль #}
     {% if user is defined and user %}
-    <a href="/profile" class="btn-ghost">Профиль</a>
+    <a href="/profile" class="btn-secondary">Профиль</a>
     {% else %}
-    <a href="/login" class="btn-ghost">Войти</a>
+    <a href="/login" class="btn-secondary">Войти</a>
     {% endif %}
   </div>
 </div>
