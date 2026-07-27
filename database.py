@@ -535,3 +535,139 @@ def migrate_db():
             pass
     conn.commit()
     conn.close()
+
+
+# ── Полное удаление пользователя ──────────────────────────────────────────────
+#
+# Раньше удаление чистило только users и resumes. Данные оставались в двух
+# десятках таблиц, а SQLite переиспользует освободившиеся id — новый
+# пользователь мог унаследовать чужие письма и дневник. Это утечка данных
+# между людьми, а не косметика, поэтому кнопка «Удалить аккаунт» была
+# заблокирована до появления этой функции (BACKLOG №11).
+#
+# Каскад сделан кодом, а не внешними ключами: в схеме их нет вовсе, добавить
+# ретроспективно в SQLite нельзя без пересоздания всех таблиц, а PRAGMA
+# foreign_keys там по умолчанию выключен.
+
+# Таблицы с прямой привязкой по user_id. Порядок значения не имеет —
+# они независимы друг от друга.
+USER_TABLES = [
+    "resumes", "tool_access", "enshrouded_slots", "nutrition_profiles",
+    "hh_profiles", "cover_letters", "food_logs", "custom_foods", "custom_recipes",
+    "water_logs", "chat_messages", "weight_logs", "scale_connections", "body_photos",
+    "workout_profiles", "workout_programs", "workout_sessions", "set_logs",
+    "progression_settings", "workout_exercise_swaps", "pain_zone_patches",
+]
+
+# Таблицы, привязанные к пользователю ЧЕРЕЗ родителя: поиском по user_id их
+# не найти. Удалять строго до родителей, глубина — три уровня.
+CHILD_TABLES = [
+    ("workout_program_exercises", "day_id", "workout_program_days", "program_id",
+     "workout_programs"),
+    ("workout_program_days", "program_id", "workout_programs", None, None),
+    ("recipe_ingredients", "recipe_id", "custom_recipes", None, None),
+]
+
+# email_logs намеренно НЕ удаляется, а обезличивается — см. _anonymize_email_logs
+EXCLUDED_TABLES = {"email_logs", "users", "exercises"}
+
+
+def check_user_tables_complete():
+    """Сверяет список USER_TABLES с реальными моделями.
+
+    Список в коде устареет в тот день, когда добавится новая модель с user_id,
+    и про неё просто забудут. Проверка берёт таблицы из метаданных SQLAlchemy
+    и возвращает те, что не учтены. Пустой список — всё в порядке.
+    """
+    с_user_id = {
+        имя for имя, т in Base.metadata.tables.items()
+        if "user_id" in т.columns
+    }
+    учтено = set(USER_TABLES) | EXCLUDED_TABLES
+    return sorted(с_user_id - учтено)
+
+
+def _anonymize_email_logs(conn, user_id: int) -> int:
+    """Обезличивает журнал отправок вместо удаления.
+
+    Журнал нужен, чтобы разбирать проблемы с доставкой уже после того, как
+    аккаунт удалён: коды сбоев, resend_id и время — не персональные данные.
+    Но адрес почты — персональные, и оставлять его после удаления аккаунта
+    нельзя. Плюс переиспользование id: новый пользователь унаследовал бы чужие
+    записи, а по ним считается кулдаун повторной отправки письма.
+
+    Поэтому: user_id обнуляется, адрес заменяется маской с сохранением домена —
+    статистика доставки по провайдерам остаётся, личность уходит.
+    """
+    строки = conn.execute(
+        "SELECT id, to_email FROM email_logs WHERE user_id = ?", (user_id,)
+    ).fetchall()
+    for id_, адрес in строки:
+        домен = адрес.split("@")[-1] if адрес and "@" in адрес else "неизвестно"
+        conn.execute(
+            "UPDATE email_logs SET user_id = NULL, to_email = ? WHERE id = ?",
+            (f"удалённый@{домен}", id_),
+        )
+    return len(строки)
+
+
+def delete_user_cascade(user_id: int, dry_run: bool = False) -> dict:
+    """Удаляет пользователя со всеми его данными. Возвращает отчёт по таблицам.
+
+    dry_run=True только считает, ничего не трогая, — отчёт нужен как последняя
+    проверка перед необратимым действием.
+
+    Всё в одной транзакции: либо удаляется целиком, либо не удаляется ничего.
+    Половинчатое удаление хуже неудалённого — оно и есть та самая сирота.
+    """
+    отчёт = {}
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute("BEGIN")
+
+        # 1. Внуки и дети — строго до родителей, иначе связь потеряется
+        for таблица, поле, родитель, поле_р, дед in CHILD_TABLES:
+            if дед:
+                условие = (f"{поле} IN (SELECT id FROM {родитель} WHERE {поле_р} IN "
+                           f"(SELECT id FROM {дед} WHERE user_id = ?))")
+            else:
+                условие = f"{поле} IN (SELECT id FROM {родитель} WHERE user_id = ?)"
+            n = conn.execute(f"SELECT COUNT(*) FROM {таблица} WHERE {условие}",
+                             (user_id,)).fetchone()[0]
+            if n and not dry_run:
+                conn.execute(f"DELETE FROM {таблица} WHERE {условие}", (user_id,))
+            отчёт[таблица] = n
+
+        # 2. Всё с прямой привязкой
+        for таблица in USER_TABLES:
+            n = conn.execute(f"SELECT COUNT(*) FROM {таблица} WHERE user_id = ?",
+                             (user_id,)).fetchone()[0]
+            if n and not dry_run:
+                conn.execute(f"DELETE FROM {таблица} WHERE user_id = ?", (user_id,))
+            отчёт[таблица] = n
+
+        # 3. Журнал писем — обезличивание, а не удаление.
+        #    Записи с user_id IS NULL (отправки на адрес без аккаунта) не
+        #    затрагиваются: сравнение с NULL в SQL никогда не истинно
+        n = conn.execute("SELECT COUNT(*) FROM email_logs WHERE user_id = ?",
+                         (user_id,)).fetchone()[0]
+        if n and not dry_run:
+            _anonymize_email_logs(conn, user_id)
+        отчёт["email_logs (обезличено)"] = n
+
+        # 4. Сам пользователь — последним
+        n = conn.execute("SELECT COUNT(*) FROM users WHERE id = ?", (user_id,)).fetchone()[0]
+        if n and not dry_run:
+            conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        отчёт["users"] = n
+
+        if dry_run:
+            conn.rollback()
+        else:
+            conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return отчёт

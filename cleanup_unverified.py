@@ -7,10 +7,15 @@
 аккаунтов с is_verified=NULL (ретроактивно проставлены True миграцией,
 см. database.py migrate_db()) — под удаление попадают только явные False.
 
+Удаление идёт через delete_user_cascade: раньше скрипт чистил только users
+и resumes, оставляя данные в двух десятках таблиц. SQLite переиспользует
+освободившиеся id, поэтому новый пользователь мог унаследовать чужие письма
+и дневник (BACKLOG №11).
+
 Запускать вручную:
     python cleanup_unverified.py [--dry-run]
 
---dry-run — только посчитать и вывести, кто попал бы под удаление, ничего не удалять.
+--dry-run — посчитать и показать отчёт по таблицам, ничего не удаляя.
 
 Пока запускается вручную раз в неделю. Позже — вынести в GitHub Actions cron
 (по аналогии с автодеплоем, .github/workflows/) отдельной задачей.
@@ -21,7 +26,8 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 load_dotenv()
 
-from database import SessionLocal, User, Resume  # noqa: E402
+from database import (SessionLocal, User, delete_user_cascade,  # noqa: E402
+                      check_user_tables_complete)
 
 DAYS_THRESHOLD = 7
 
@@ -30,33 +36,63 @@ def main():
     dry_run = "--dry-run" in sys.argv
     cutoff = datetime.utcnow() - timedelta(days=DAYS_THRESHOLD)
 
+    # Список таблиц в delete_user_cascade устареет в день, когда добавится новая
+    # модель с user_id. Проверяем до удаления, а не после
+    забыты = check_user_tables_complete()
+    if забыты:
+        print("ОСТАНОВЛЕНО: в каскаде не учтены таблицы:", ", ".join(забыты))
+        print("Добавьте их в USER_TABLES в database.py, иначе останутся сироты.")
+        return
+
     db = SessionLocal()
     try:
         stale = db.query(User).filter(
             User.is_verified == False,  # noqa: E712 — явный False, не NULL
             User.created_at < cutoff,
         ).all()
-
         if not stale:
-            print(f"Неподтверждённых аккаунтов старше {DAYS_THRESHOLD} дней не найдено.")
+            print("Неподтверждённых аккаунтов старше %d дней не найдено." % DAYS_THRESHOLD)
             return
-
-        print(f"Найдено {len(stale)} неподтверждённых аккаунтов старше {DAYS_THRESHOLD} дней:")
-        for u in stale:
-            age_days = (datetime.utcnow() - u.created_at).days
-            print(f"  — {u.email} (создан {age_days} дн. назад)")
-
-        if dry_run:
-            print("\n--dry-run: ничего не удалено.")
-            return
-
-        ids = [u.id for u in stale]
-        db.query(Resume).filter(Resume.user_id.in_(ids)).delete(synchronize_session=False)
-        deleted = db.query(User).filter(User.id.in_(ids)).delete(synchronize_session=False)
-        db.commit()
-        print(f"\nУдалено пользователей: {deleted}")
+        цели = [(u.id, u.email, (datetime.utcnow() - u.created_at).days) for u in stale]
     finally:
         db.close()
+
+    print("Найдено %d неподтверждённых аккаунтов старше %d дней:" % (len(цели), DAYS_THRESHOLD))
+    for _, email, дней in цели:
+        print("  — %s (создан %d дн. назад)" % (email, дней))
+
+    # Отчёт по таблицам: сколько и где будет удалено. Когда эту же функцию
+    # позовёт кнопка «Удалить аккаунт», такой отчёт станет последней проверкой
+    # перед необратимым действием
+    итог = {}
+    for uid, _, _ in цели:
+        for таблица, n in delete_user_cascade(uid, dry_run=True).items():
+            итог[таблица] = итог.get(таблица, 0) + n
+
+    print("")
+    print("Будет затронуто записей:")
+    непусто = {т: n for т, n in итог.items() if n}
+    for таблица, n in sorted(непусто.items(), key=lambda x: -x[1]):
+        print("  %-34s %d" % (таблица, n))
+    if len(непусто) <= 1:
+        print("  (кроме самих аккаунтов данных за ними нет)")
+
+    if dry_run:
+        print("")
+        print("--dry-run: ничего не удалено.")
+        return
+
+    удалено = 0
+    for uid, email, _ in цели:
+        try:
+            delete_user_cascade(uid)
+            удалено += 1
+        except Exception as e:
+            # Один сбойный аккаунт не должен останавливать остальные: его
+            # удаление откатится целиком внутри delete_user_cascade
+            print("  ОШИБКА на %s: %s: %s" % (email, type(e).__name__, e))
+    print("")
+    print("Удалено пользователей: %d из %d" % (удалено, len(цели)))
 
 
 if __name__ == "__main__":
