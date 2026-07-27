@@ -603,6 +603,9 @@ button.chip:hover, a.chip:hover {
   user-select: none;
   transition: border-color var(--dur-fast) var(--ease);
 }
+/* Загруженное фото: те же размеры и круг, что у буквы-инициала.
+   object-fit обязателен — без него неквадратная картинка растянется */
+img.avatar { object-fit: cover; padding: 0; }
 .avatar:hover { border-color: var(--border-strong); }
 .avatar-lg { width: 96px; height: 96px; font-size: var(--text-h3); }
 

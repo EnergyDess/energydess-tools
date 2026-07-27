@@ -1,4 +1,17 @@
-{# Аватар пользователя: инициал из display_name или email (design-system.md, раздел 4) #}
+{# Аватар пользователя (design-system.md, раздел 4).
+
+   Загруженное изображение, если оно есть, иначе буква-инициал. Раньше здесь
+   всегда рисовалась буква: фото менялось в профиле, а в шапке на всех
+   страницах оставался инициал.
+
+   ?v= обязателен: без версии браузер держит картинку в кэше (заголовок
+   Cache-Control на роуте /avatar — неделя) и после замены показывает старую.
+#}
+{% if user.avatar_updated_at %}
+<img class="avatar" src="/avatar/{{ user.id }}?v={{ user.avatar_updated_at.timestamp()|int }}"
+     alt="" title="{{ user.display_name or user.email }}">
+{% else %}
 <span class="avatar" title="{{ user.display_name or user.email }}">
   {{- (user.display_name or user.email)[:1]|upper -}}
 </span>
+{% endif %}

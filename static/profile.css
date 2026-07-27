@@ -131,17 +131,14 @@
 .avatar-upload-btn:hover { border-color: var(--accent-brand); color: var(--accent-brand); }
 .avatar-upload-btn svg { width: 16px; height: 16px; stroke-width: 1.75; }
 
-.avatar-actions {
-  display: flex; align-items: center; gap: var(--space-3);
-  margin-top: var(--space-4); flex-wrap: wrap;
-}
+
 .avatar-hint { font-size: var(--text-caption); color: var(--text-faint); }
 .avatar-hint.ok  { color: var(--success); }
 .avatar-hint.err { color: var(--error); }
 
 /* ── Часовой пояс ────────────────────────────────────────────────────────── */
 .tz-row { align-items: center; gap: var(--space-4); }
-.tz-select { max-width: 320px; }
+
 .tz-warning { margin-top: var(--space-3); }
 
 /* ── Модалка удаления: что именно будет удалено ──────────────────────────── */
@@ -179,4 +176,63 @@
      скролл, иначе кнопки уезжают за экран и до них не добраться */
   .profile-modal-overlay .modal { max-height: 88vh; overflow-y: auto; }
   .delete-preview { max-height: 140px; }
+}
+
+/* ── Убрать фото: ссылка, а не равноправная кнопка ───────────────────────── */
+.avatar-remove-link {
+  /* align-self обязателен: в flex-колонке .identity-fields кнопка иначе
+     растягивается на всю ширину, а текст внутри button центрируется —
+     ссылка оказывалась посреди карточки вместо левого края */
+  align-self: flex-start;
+  background: none; border: none; padding: 0;
+  margin-top: var(--space-3);
+  font-family: var(--font); font-size: var(--text-caption);
+  color: var(--text-faint); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.avatar-remove-link:hover { color: var(--error); }
+.avatar-remove-link[hidden] { display: none; }
+
+/* ── Селектор: свой вид вместо нативного ─────────────────────────────────── */
+.select-wrap { position: relative; display: inline-flex; align-items: center; }
+.select-styled {
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  padding-right: 40px;          /* место под свою стрелку */
+  min-width: 300px;
+  cursor: pointer;
+}
+/* Список вариантов рисует система, но фон ей задать можно —
+   иначе в тёмной теме он белый */
+.select-styled option, .select-styled optgroup { background: var(--surface-2); color: var(--text); }
+.select-arrow {
+  position: absolute; right: 12px;
+  width: 16px; height: 16px;
+  color: var(--text-faint); pointer-events: none;
+}
+.select-wrap:hover .select-arrow { color: var(--text-2); }
+
+/* ── Кнопки в строках настроек одной ширины ──────────────────────────────
+   Текст у них разной длины («Изменить email» / «Сменить пароль»), и без
+   общей ширины они расходятся по правому краю в вертикальном списке */
+.setting-btn { min-width: 190px; justify-content: center; }
+
+/* ── Панель сохранения ───────────────────────────────────────────────────── */
+.save-bar {
+  display: flex; align-items: center; gap: var(--space-4);
+  margin-top: var(--space-5); padding-top: var(--space-5);
+  border-top: 1px solid var(--border-hairline);
+  flex-wrap: wrap;
+}
+.save-status { font-size: var(--text-caption); color: var(--text-faint); }
+.save-status.dirty { color: var(--warning); }
+.save-status.ok    { color: var(--success); }
+.save-status.err   { color: var(--error); }
+
+@media (max-width: 480px) {
+  .select-wrap { width: 100%; }
+  .select-styled { min-width: 0; width: 100%; }
+  .setting-btn { min-width: 0; width: 100%; }
+  .save-bar { flex-direction: column; align-items: stretch; }
+  .save-bar .btn-primary { width: 100%; }
+  .save-status { text-align: center; }
 }

@@ -18,12 +18,19 @@
 <main>
 <div class="profile-wrap">
   <h1>Профиль</h1>
-  <p class="subtitle">Аккаунт и настройки. Резюме и досье переехали в HH-ассистент.</p>
+  <p class="subtitle">Аккаунт и настройки</p>
 
-  <!-- ── Аватар и имя ── -->
+  {# Настройки копятся и применяются одной кнопкой внизу: раньше имя
+     сохранялось своей кнопкой, пояс — сам при выборе, аватар — сам при
+     загрузке, и случайный клик применялся сразу. Email и пароль сюда
+     НЕ входят: у них своя проверка (подтверждение на новый адрес, ввод
+     старого пароля), поэтому они вынесены в отдельную карточку ниже. #}
   <div class="card card-static profile-card">
+    <h2>Настройки</h2>
+    <p class="hint">Изменения применяются кнопкой внизу</p>
+
     <div class="identity-row">
-      {# Фолбэк на букву-инициал: если аватара нет, показывается он, как и раньше #}
+      {# Фолбэк на букву-инициал: если аватара нет, показывается он #}
       <div class="avatar-edit">
         {% if user.avatar_updated_at %}
         <img src="/avatar/{{ user.id }}?v={{ user.avatar_updated_at.timestamp()|int }}"
@@ -31,42 +38,67 @@
         {% else %}
         <span class="avatar avatar-lg" id="avatar-letter">{{ (user.display_name or user.email)[:1]|upper }}</span>
         {% endif %}
-        <label class="avatar-upload-btn" for="avatar-file" title="Загрузить фото">
+        <label class="avatar-upload-btn" for="avatar-file" title="Сменить фото">
           <i data-lucide="camera"></i>
         </label>
         <input type="file" id="avatar-file" accept="image/png,image/jpeg,image/webp"
-               hidden onchange="uploadAvatar(this)">
+               hidden onchange="pickAvatar(this)">
       </div>
       <div class="identity-fields">
-        <h2>Отображаемое имя</h2>
-        <p class="hint" style="margin-bottom:0">Так сайт будет к вам обращаться. Если не указать — используется часть email.</p>
-        <div class="name-row">
-          <input type="text" id="display-name-input" class="input"
-                 value="{{ user.display_name or '' }}"
-                 placeholder="{{ user.email.split('@')[0] }}"
-                 maxlength="30"
-                 onkeydown="if(event.key==='Enter')saveName()">
-          <button type="button" id="name-btn" onclick="saveName()" class="btn-primary">Сохранить</button>
-        </div>
-        <div id="name-status" class="name-status"></div>
+        <label class="setting-label" for="display-name-input">Отображаемое имя</label>
+        <input type="text" id="display-name-input" class="input"
+               value="{{ user.display_name or '' }}"
+               placeholder="{{ user.email.split('@')[0] }}"
+               maxlength="30" oninput="markDirty()">
+        <p class="hint" style="margin:6px 0 0">Так сайт будет к вам обращаться. Если не указать — используется часть email.</p>
+        {# Ссылка, а не кнопка в ряд: убрать фото — действие другого веса,
+           чем загрузить. И появляется только когда есть что убирать #}
+        <button type="button" class="avatar-remove-link" id="avatar-remove"
+                onclick="markAvatarRemoved()" {% if not user.avatar_updated_at %}hidden{% endif %}>
+          Убрать фото
+        </button>
+        <span class="avatar-hint" id="avatar-status"></span>
       </div>
     </div>
-    <div class="avatar-actions">
-      <button type="button" class="btn-secondary" onclick="document.getElementById('avatar-file').click()">
-        Загрузить фото
+
+    <div class="setting-row tz-row">
+      <div>
+        <div class="setting-label">Часовой пояс</div>
+        <div class="setting-sub" id="tz-auto">Определяется…</div>
+      </div>
+      {# Свой стиль вместо нативного select: у родного стрелка прижата
+         к краю и отступы несимметричные. На мобильном при этом остаётся
+         родной барабан выбора — элемент тот же, изменено только оформление #}
+      <div class="select-wrap">
+        <select class="input select-styled" id="tz-select" onchange="markDirty()">
+          {% for группа, зоны in timezones %}
+          <optgroup label="{{ группа }}">
+            {% for код, подпись in зоны %}
+            <option value="{{ код }}" {% if user.timezone == код %}selected{% endif %}>{{ подпись }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+        <i data-lucide="chevron-down" class="select-arrow"></i>
+      </div>
+    </div>
+    <p class="hint tz-warning">
+      После смены пояса записи прошлых дней могут показываться в соседних сутках.
+      Данные не теряются — меняется только граница дня.
+    </p>
+
+    <div class="save-bar">
+      <button type="button" class="btn-primary" id="save-btn" onclick="saveSettings()" disabled>
+        Сохранить изменения
       </button>
-      <button type="button" class="btn-ghost" id="avatar-remove"
-              onclick="removeAvatar()" {% if not user.avatar_updated_at %}hidden{% endif %}>
-        Убрать
-      </button>
-      <span class="avatar-hint" id="avatar-status">PNG, JPG или WebP, до 5 МБ</span>
+      <span class="save-status" id="save-status"></span>
     </div>
   </div>
 
-  <!-- ── Аккаунт ── -->
+  <!-- ── Вход и безопасность ── -->
   <div class="card card-static profile-card">
-    <h2>Аккаунт</h2>
-    <p class="hint">Email для входа и безопасность</p>
+    <h2>Вход и безопасность</h2>
+    <p class="hint">Email и пароль меняются отдельно — каждое действие подтверждается</p>
 
     <div class="setting-row">
       <div>
@@ -74,7 +106,7 @@
         <div class="setting-value">{{ user.email }}</div>
       </div>
       <!-- TODO: реализовать эндпоинт /api/change-email (модалка ниже — UI-заглушка) -->
-      <button class="btn-secondary" onclick="openModal('modal-email')">Изменить email</button>
+      <button class="btn-secondary setting-btn" onclick="openModal('modal-email')">Изменить email</button>
     </div>
 
     <div class="setting-row">
@@ -83,31 +115,8 @@
         <div class="setting-sub">Последнее изменение неизвестно</div>
       </div>
       <!-- TODO: реализовать эндпоинт /api/change-password (модалка ниже — UI-заглушка) -->
-      <button class="btn-secondary" onclick="openModal('modal-password')">Сменить пароль</button>
+      <button class="btn-secondary setting-btn" onclick="openModal('modal-password')">Сменить пароль</button>
     </div>
-
-    <div class="setting-row tz-row">
-      <div>
-        <div class="setting-label">Часовой пояс</div>
-        <div class="setting-sub" id="tz-auto">Определяется…</div>
-      </div>
-      <select class="input tz-select" id="tz-select" onchange="saveTimezone(this.value)">
-        {% for группа, зоны in timezones %}
-        <optgroup label="{{ группа }}">
-          {% for код, подпись in зоны %}
-          <option value="{{ код }}" {% if user.timezone == код %}selected{% endif %}>{{ подпись }}</option>
-          {% endfor %}
-        </optgroup>
-        {% endfor %}
-      </select>
-    </div>
-    {# Границы суток сдвинутся, но история не пересчитывается — предупреждаем,
-       чтобы это не выглядело как потеря данных #}
-    <p class="hint tz-warning">
-      После смены пояса записи прошлых дней могут показываться в соседних сутках.
-      Данные не теряются — меняется только граница дня.
-    </p>
-    <div id="tz-status" class="name-status"></div>
   </div>
 
   {# Блок уведомлений убран: за тумблерами ничего не стояло, и состояние даже
@@ -189,102 +198,159 @@
 <script>
 lucide.createIcons();
 
+// ── Настройки: копим изменения, применяем одной кнопкой ──
+// Раньше имя сохранялось своей кнопкой, пояс — сразу при выборе, аватар —
+// сразу при загрузке. Случайный клик применялся мгновенно и молча.
+const исходно = {
+  имя: document.getElementById('display-name-input').value.trim(),
+  пояс: null,          // проставится ниже, после автоопределения
+};
+let выбранныйФайл = null;     // ждёт отправки
+let аватарУдалить = false;
+let грязно = false;
+
+const кнопкаСохранить = document.getElementById('save-btn');
+const статусСохранения = document.getElementById('save-status');
+
+function естьИзменения() {
+  const имя = document.getElementById('display-name-input').value.trim();
+  const пояс = document.getElementById('tz-select').value;
+  return имя !== исходно.имя || пояс !== исходно.пояс
+         || выбранныйФайл !== null || аватарУдалить;
+}
+
+function markDirty() {
+  грязно = естьИзменения();
+  кнопкаСохранить.disabled = !грязно;
+  статусСохранения.className = 'save-status' + (грязно ? ' dirty' : '');
+  статусСохранения.textContent = грязно ? 'Есть несохранённые изменения' : '';
+}
+
+// Уйти со страницы с несохранёнными правками — молча потерять их
+window.addEventListener('beforeunload', (e) => {
+  if (!грязно) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
+// beforeunload не срабатывает на переходах по ссылкам внутри сайта
+document.addEventListener('click', (e) => {
+  const ссылка = e.target.closest('a[href]');
+  if (!ссылка || !грязно) return;
+  const href = ссылка.getAttribute('href');
+  if (!href || href.startsWith('#') || ссылка.target === '_blank') return;
+  if (!confirm('Изменения не сохранены. Уйти со страницы?')) e.preventDefault();
+});
+
 // ── Часовой пояс ──
 const авто = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
 const tzSelect = document.getElementById('tz-select');
 document.getElementById('tz-auto').textContent =
   авто ? 'Определён автоматически: ' + авто : 'Определить автоматически не удалось';
-// Если пояс в профиле не сохранён — подставляем определённый браузером,
+{% if not user.timezone %}
+// Пояс в профиле не сохранён — подставляем определённый браузером,
 // но только если он есть в нашем списке
-if (!tzSelect.querySelector('option[selected]') && авто) {
-  const подходит = [...tzSelect.options].find(o => o.value === авто);
-  if (подходит) tzSelect.value = авто;
-}
+if (авто && [...tzSelect.options].some(o => o.value === авто)) tzSelect.value = авто;
+{% endif %}
+исходно.пояс = tzSelect.value;
 
-async function saveTimezone(tz) {
-  const статус = document.getElementById('tz-status');
-  статус.className = 'name-status';
-  статус.textContent = 'Сохраняю…';
-  try {
-    const r = await fetch('/api/timezone', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({timezone: tz}),
-    });
-    if (r.ok) {
-      статус.className = 'name-status ok';
-      статус.textContent = '✓ Часовой пояс сохранён';
-      setTimeout(() => статус.textContent = '', 2500);
-    } else {
-      статус.className = 'name-status err';
-      статус.textContent = (await r.json()).error || 'Не удалось сохранить';
-    }
-  } catch {
-    статус.className = 'name-status err';
-    статус.textContent = 'Ошибка сети — пояс не сохранён';
-  }
-}
-
-// ── Аватар ──
-async function uploadAvatar(input) {
+// ── Аватар: файл выбран, но ещё не отправлен ──
+function pickAvatar(input) {
   const файл = input.files && input.files[0];
   if (!файл) return;
-  const статус = document.getElementById('avatar-status');
-  статус.className = 'avatar-hint';
-  статус.textContent = 'Загружаю…';
-  const данные = new FormData();
-  данные.append('file', файл);
-  try {
-    const r = await fetch('/api/avatar', {method: 'POST', body: данные});
-    const ответ = await r.json();
-    if (!r.ok) {
-      статус.className = 'avatar-hint err';
-      статус.textContent = ответ.error || 'Не удалось загрузить';
-      return;
-    }
-    // ?v= обязателен: без него браузер показал бы старую картинку из кэша
-    const src = '/avatar/{{ user.id }}?v=' + ответ.v;
-    let img = document.getElementById('avatar-img');
-    if (!img) {
-      const буква = document.getElementById('avatar-letter');
-      img = document.createElement('img');
-      img.id = 'avatar-img';
-      img.className = 'avatar avatar-lg';
-      img.alt = 'Аватар';
-      буква.replaceWith(img);
-    }
-    img.src = src;
-    document.getElementById('avatar-remove').hidden = false;
-    статус.className = 'avatar-hint ok';
-    статус.textContent = '✓ Фото обновлено';
-    setTimeout(() => { статус.className = 'avatar-hint';
-                       статус.textContent = 'PNG, JPG или WebP, до 5 МБ'; }, 2500);
-  } catch {
-    статус.className = 'avatar-hint err';
-    статус.textContent = 'Ошибка сети';
-  } finally {
-    input.value = '';   // иначе повторный выбор того же файла не сработает
+  выбранныйФайл = файл;
+  аватарУдалить = false;
+  // Локальный предпросмотр до отправки: человек видит, что выбрал
+  const url = URL.createObjectURL(файл);
+  let img = document.getElementById('avatar-img');
+  if (!img) {
+    const буква = document.getElementById('avatar-letter');
+    img = document.createElement('img');
+    img.id = 'avatar-img';
+    img.className = 'avatar avatar-lg';
+    img.alt = 'Аватар';
+    буква.replaceWith(img);
   }
+  img.src = url;
+  document.getElementById('avatar-remove').hidden = false;
+  document.getElementById('avatar-status').textContent = 'Новое фото — не забудьте сохранить';
+  input.value = '';
+  markDirty();
 }
 
-async function removeAvatar() {
-  const статус = document.getElementById('avatar-status');
+function markAvatarRemoved() {
+  выбранныйФайл = null;
+  аватарУдалить = true;
+  const img = document.getElementById('avatar-img');
+  if (img) {
+    const буква = document.createElement('span');
+    буква.id = 'avatar-letter';
+    буква.className = 'avatar avatar-lg';
+    буква.textContent = {{ ((user.display_name or user.email)[:1]|upper)|tojson }};
+    img.replaceWith(буква);
+  }
+  document.getElementById('avatar-remove').hidden = true;
+  document.getElementById('avatar-status').textContent = 'Фото будет убрано после сохранения';
+  markDirty();
+}
+
+// ── Сохранение всего разом ──
+async function saveSettings() {
+  кнопкаСохранить.disabled = true;
+  кнопкаСохранить.textContent = 'Сохраняю…';
+  статусСохранения.className = 'save-status';
+  статусСохранения.textContent = '';
+  const сбои = [];
+
   try {
-    const r = await fetch('/api/avatar', {method: 'DELETE'});
-    if (!r.ok) throw new Error();
-    const img = document.getElementById('avatar-img');
-    if (img) {
-      const буква = document.createElement('span');
-      буква.id = 'avatar-letter';
-      буква.className = 'avatar avatar-lg';
-      буква.textContent = {{ ((user.display_name or user.email)[:1]|upper)|tojson }};
-      img.replaceWith(буква);
+    const имя = document.getElementById('display-name-input').value.trim();
+    if (имя !== исходно.имя) {
+      const r = await fetch('/api/save-display-name', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: имя}),
+      });
+      if (r.ok) исходно.имя = имя; else сбои.push('имя');
     }
-    document.getElementById('avatar-remove').hidden = true;
-    статус.className = 'avatar-hint';
-    статус.textContent = 'PNG, JPG или WebP, до 5 МБ';
+
+    const пояс = document.getElementById('tz-select').value;
+    if (пояс !== исходно.пояс) {
+      const r = await fetch('/api/timezone', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({timezone: пояс}),
+      });
+      if (r.ok) исходно.пояс = пояс; else сбои.push('часовой пояс');
+    }
+
+    if (выбранныйФайл) {
+      const данные = new FormData();
+      данные.append('file', выбранныйФайл);
+      const r = await fetch('/api/avatar', {method: 'POST', body: данные});
+      const ответ = await r.json();
+      if (r.ok) {
+        // ?v= обязателен: иначе браузер отдаст старую картинку из кэша
+        document.getElementById('avatar-img').src = '/avatar/{{ user.id }}?v=' + ответ.v;
+        выбранныйФайл = null;
+      } else {
+        сбои.push(ответ.error || 'фото');
+      }
+    } else if (аватарУдалить) {
+      const r = await fetch('/api/avatar', {method: 'DELETE'});
+      if (r.ok) аватарУдалить = false; else сбои.push('удаление фото');
+    }
   } catch {
-    статус.className = 'avatar-hint err';
-    статус.textContent = 'Не удалось убрать фото';
+    сбои.push('сеть');
+  }
+
+  грязно = естьИзменения();
+  кнопкаСохранить.disabled = !грязно;
+  кнопкаСохранить.textContent = 'Сохранить изменения';
+  if (сбои.length) {
+    статусСохранения.className = 'save-status err';
+    статусСохранения.textContent = 'Не удалось сохранить: ' + сбои.join(', ');
+  } else {
+    статусСохранения.className = 'save-status ok';
+    статусСохранения.textContent = '✓ Сохранено';
+    document.getElementById('avatar-status').textContent = '';
+    setTimeout(() => { if (!грязно) статусСохранения.textContent = ''; }, 2500);
   }
 }
 
@@ -335,34 +401,6 @@ async function confirmDelete() {
   кнопка.textContent = 'Удалить навсегда';
 }
 
-// ── Сохранение отображаемого имени ──
-async function saveName() {
-  const name   = document.getElementById('display-name-input').value.trim();
-  const btn    = document.getElementById('name-btn');
-  const status = document.getElementById('name-status');
-  btn.disabled = true;
-  btn.textContent = 'Сохраняю...';
-  try {
-    const res = await fetch('/api/save-display-name', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({name}),
-    });
-    if (res.ok) {
-      status.className = 'name-status ok';
-      status.textContent = '✓ Имя сохранено';
-      setTimeout(() => status.textContent = '', 2500);
-    } else {
-      status.className = 'name-status err';
-      status.textContent = 'Не удалось сохранить имя';
-    }
-  } catch {
-    status.className = 'name-status err';
-    status.textContent = 'Ошибка сети — имя не сохранено';
-  }
-  btn.disabled = false;
-  btn.textContent = 'Сохранить';
-}
 </script>
 </body>
 </html>
