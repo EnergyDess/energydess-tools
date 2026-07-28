@@ -8,7 +8,9 @@
   {% include '_meta.html' %}
   {# noindex, пока страница пустая: незачем пускать в поиск заглушку.
      Снять, когда появится содержимое #}
-  {% if not page.content %}
+  {# noindex только у страниц без содержимого — снимается сам,
+     как только контент появляется #}
+  {% if not page.content and not page.content_before %}
   <meta name="robots" content="noindex">
   {% endif %}
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
@@ -28,7 +30,7 @@
     .doc-back:hover { color: var(--accent-brand); }
     .doc-back svg { width: 16px; height: 16px; }
     .doc-wrap h1 { font-size: var(--text-h1); font-weight: 700; margin-bottom: var(--space-3); }
-    .doc-lead { font-size: var(--text-body-lg); color: var(--text-2); line-height: 1.6; margin-bottom: var(--space-6); }
+    .doc-lead { font-style: italic; font-size: var(--text-body-lg); color: var(--text-2); line-height: 1.6; margin-bottom: var(--space-6); }
     .doc-body { font-size: var(--text-body); color: var(--text-2); line-height: 1.7; }
     .doc-body h2 { font-size: var(--text-h3); color: var(--text); margin: var(--space-6) 0 var(--space-3); }
     .doc-body p { margin-bottom: var(--space-4); }
@@ -42,6 +44,74 @@
       color: var(--text);
     }
     .doc-updated { margin-top: var(--space-7); font-size: var(--text-caption); color: var(--text-faint); }
+
+    /* Карточка автора: фото слева, имя и роль справа, текст под ними */
+    .doc-person {
+      display: flex; align-items: center; gap: var(--space-5);
+      margin-bottom: var(--space-6);
+    }
+    .doc-person-photo {
+      width: 132px; height: 132px; border-radius: var(--radius-lg);
+      object-fit: cover; flex-shrink: 0;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+    }
+    /* Заглушка, пока фото не загружено: инициал в той же рамке */
+    .doc-person-photo--empty {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 3rem; font-weight: 800; color: var(--accent-brand);
+      background: var(--accent-brand-dim);
+    }
+    .doc-person-name { font-size: var(--text-h3); font-weight: 700; color: var(--text); }
+    .doc-person-role {
+      font-family: var(--font-mono); font-size: var(--text-mono);
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--accent-brand); margin-top: var(--space-2);
+    }
+
+    /* Нумерованный блок «Как я работаю» */
+    .doc-body ol.doc-steps { list-style: none; margin: 0; counter-reset: шаг; }
+    .doc-body ol.doc-steps li {
+      counter-increment: шаг;
+      display: flex; align-items: flex-start; gap: var(--space-3);
+      margin-bottom: var(--space-3);
+    }
+    .doc-body ol.doc-steps li::before {
+      content: counter(шаг);
+      flex-shrink: 0;
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--accent-brand-dim); color: var(--accent-brand);
+      font-family: var(--font-mono); font-size: var(--text-mono); font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 2px;
+    }
+
+    /* Список инструментов — те же иконки и акценты, что в футере */
+    .doc-tools { list-style: none; margin: 0 0 var(--space-5); padding: 0; display: grid; gap: var(--space-3); }
+    .doc-tools li { margin: 0; }
+    .doc-tools a {
+      display: flex; align-items: center; gap: var(--space-4);
+      padding: var(--space-4);
+      background: var(--surface-1); border: 1px solid var(--border);
+      border-radius: var(--radius-md); text-decoration: none;
+      transition: border-color var(--dur-base) var(--ease);
+    }
+    .doc-tools a:hover { border-color: var(--tool-accent); text-decoration: none; }
+    .doc-tools-icon {
+      width: 40px; height: 40px; border-radius: var(--radius-sm);
+      background: var(--tool-accent-dim); color: var(--tool-accent);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .doc-tools-icon svg { width: 20px; height: 20px; stroke-width: 1.5; }
+    .doc-tools-name { display: block; font-weight: 600; color: var(--text); font-size: var(--text-body); }
+    .doc-tools-desc { display: block; font-size: var(--text-caption); color: var(--text-2); line-height: 1.5; margin-top: 2px; }
+
+    @media (max-width: 480px) {
+      /* Фото над текстом: рядом на 390px остаётся полоска в две строки */
+      .doc-person { flex-direction: column; align-items: flex-start; gap: var(--space-4); }
+      .doc-person-photo { width: 108px; height: 108px; }
+      .doc-tools a { align-items: flex-start; gap: var(--space-3); padding: var(--space-3); }
+    }
   </style>
 </head>
 <body class="has-site-header">
@@ -54,9 +124,52 @@
     <h1>{{ page.title }}</h1>
     <p class="doc-lead">{{ page.lead }}</p>
 
+    {% if page.photo_name %}
+    <div class="doc-person">
+      {% if page.photo_exists %}
+      <img src="{{ page.photo }}" alt="{{ page.photo_name }}" class="doc-person-photo">
+      {% else %}
+      {# Фото ещё не загружено — показываем инициал, чтобы вёрстка не поехала #}
+      <div class="doc-person-photo doc-person-photo--empty">{{ page.photo_name[:1] }}</div>
+      {% endif %}
+      <div>
+        <div class="doc-person-name">{{ page.photo_name }}</div>
+        <div class="doc-person-role">{{ page.photo_role }}</div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if page.content_before %}
+    <div class="doc-body">{{ page.content_before|safe }}</div>
+    {% endif %}
+
+    {# Список инструментов из TOOLS: писать руками нельзя — страница
+       устареет при добавлении нового инструмента #}
+    {% if page.tools %}
+    {% set doc_icons = {'hh': 'briefcase', 'nutrition': 'salad',
+                        'workout': 'dumbbell', 'enshrouded': 'shield'} %}
+    <ul class="doc-tools">
+      {% for tool in TOOLS %}
+      <li class="tool-{{ tool.id }}">
+        <a href="{{ tool.url }}">
+          <span class="doc-tools-icon"><i data-lucide="{{ doc_icons.get(tool.id, 'box') }}"></i></span>
+          <span>
+            <span class="doc-tools-name">{{ tool.name }}</span>
+            <span class="doc-tools-desc">{{ tool.desc }}</span>
+          </span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if page.content_after %}
+    <div class="doc-body">{{ page.content_after|safe }}</div>
+    {% endif %}
+
     {% if page.content %}
     <div class="doc-body">{{ page.content|safe }}</div>
-    {% else %}
+    {% elif not page.content_before %}
     <div class="alert alert-warn">
       <i data-lucide="pen-line"></i>
       <span>Страница ещё наполняется — содержимое появится в ближайшее время.</span>
