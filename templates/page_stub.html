@@ -45,28 +45,36 @@
     }
     .doc-updated { margin-top: var(--space-7); font-size: var(--text-caption); color: var(--text-faint); }
 
-    /* Карточка автора: фото слева, имя и роль справа, текст под ними */
-    .doc-person {
-      display: flex; align-items: center; gap: var(--space-5);
-      margin-bottom: var(--space-6);
-    }
+    /* Карточка автора: вертикальное фото слева, текст обтекает справа
+       и продолжается под ним. Именно float, а не grid: с сеткой текст
+       не может «затечь» под фото, и под снимком оставалась бы пустота */
+    .doc-person { margin-bottom: var(--space-5); }
+    .doc-person::after { content: ''; display: block; clear: both; }
     .doc-person-photo {
-      width: 132px; height: 132px; border-radius: var(--radius-lg);
-      object-fit: cover; flex-shrink: 0;
+      float: left;
+      width: 300px;
+      margin: 0 var(--space-5) var(--space-4) 0;
+      border-radius: var(--radius-lg);
       border: 1px solid var(--border);
       background: var(--surface-2);
+      display: block;
     }
-    /* Заглушка, пока фото не загружено: инициал в той же рамке */
+    /* Заглушка, пока фото не загружено: тех же пропорций, чтобы вёрстка
+       не прыгала при появлении файла */
     .doc-person-photo--empty {
+      aspect-ratio: 620 / 1111;
       display: flex; align-items: center; justify-content: center;
-      font-size: 3rem; font-weight: 800; color: var(--accent-brand);
+      font-size: 4rem; font-weight: 800; color: var(--accent-brand);
       background: var(--accent-brand-dim);
     }
-    .doc-person-name { font-size: var(--text-h3); font-weight: 700; color: var(--text); }
+    .doc-person-name {
+      font-size: var(--text-h3); font-weight: 700; color: var(--text);
+      margin-bottom: var(--space-2);
+    }
     .doc-person-role {
       font-family: var(--font-mono); font-size: var(--text-mono);
       letter-spacing: 0.1em; text-transform: uppercase;
-      color: var(--accent-brand); margin-top: var(--space-2);
+      color: var(--accent-brand); margin-bottom: var(--space-4);
     }
 
     /* Нумерованный блок «Как я работаю» */
@@ -107,9 +115,9 @@
     .doc-tools-desc { display: block; font-size: var(--text-caption); color: var(--text-2); line-height: 1.5; margin-top: 2px; }
 
     @media (max-width: 480px) {
-      /* Фото над текстом: рядом на 390px остаётся полоска в две строки */
-      .doc-person { flex-direction: column; align-items: flex-start; gap: var(--space-4); }
-      .doc-person-photo { width: 108px; height: 108px; }
+      /* Обтекание на 390px бессмысленно: рядом с фото поместилось бы
+         по два слова в строке. Фото на всю ширину, текст под ним */
+      .doc-person-photo { float: none; width: 100%; margin: 0 0 var(--space-4); }
       .doc-tools a { align-items: flex-start; gap: var(--space-3); padding: var(--space-3); }
     }
   </style>
@@ -125,17 +133,19 @@
     <p class="doc-lead">{{ page.lead }}</p>
 
     {% if page.photo_name %}
+    {# Текст лежит ВНУТРИ этого блока — иначе он не обтекал бы плавающее
+       фото, а начинался бы под ним #}
     <div class="doc-person">
       {% if page.photo_exists %}
       <img src="{{ page.photo }}" alt="{{ page.photo_name }}" class="doc-person-photo">
       {% else %}
-      {# Фото ещё не загружено — показываем инициал, чтобы вёрстка не поехала #}
       <div class="doc-person-photo doc-person-photo--empty">{{ page.photo_name[:1] }}</div>
       {% endif %}
-      <div>
-        <div class="doc-person-name">{{ page.photo_name }}</div>
-        <div class="doc-person-role">{{ page.photo_role }}</div>
-      </div>
+      <div class="doc-person-name">{{ page.photo_name }}</div>
+      <div class="doc-person-role">{{ page.photo_role }}</div>
+      {% if page.content %}
+      <div class="doc-body">{{ page.content|safe }}</div>
+      {% endif %}
     </div>
     {% endif %}
 
@@ -167,9 +177,9 @@
     <div class="doc-body">{{ page.content_after|safe }}</div>
     {% endif %}
 
-    {% if page.content %}
+    {% if page.content and not page.photo_name %}
     <div class="doc-body">{{ page.content|safe }}</div>
-    {% elif not page.content_before %}
+    {% elif not page.content and not page.content_before %}
     <div class="alert alert-warn">
       <i data-lucide="pen-line"></i>
       <span>Страница ещё наполняется — содержимое появится в ближайшее время.</span>
