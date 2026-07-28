@@ -2,7 +2,11 @@
 """
 Готовит фото для страницы «Обо мне» — той же процедурой, что аватары.
 
-    python prepare_photo.py путь-к-фото.jpg
+    python prepare_photo.py путь-к-фото.jpg [центр-по-вертикали]
+
+Второй аргумент — какую часть кадра брать по высоте, от 0 (самый верх)
+до 1 (самый низ). По умолчанию 0.4. Для портретов, где лицо в верхней
+трети, нужно 0..0.15, иначе кроп срежет голову.
 
 Правила те же и по тем же причинам:
   1. Формат берётся из содержимого файла, а не из расширения имени.
@@ -30,6 +34,7 @@ def main():
         print("укажите путь к файлу: python prepare_photo.py фото.jpg")
         return 1
     исходник = sys.argv[1]
+    центр = float(sys.argv[2]) if len(sys.argv) > 2 else 0.4
     if not os.path.exists(исходник):
         print("файл не найден:", исходник)
         return 1
@@ -61,7 +66,7 @@ def main():
         img = ImageOps.exif_transpose(img)      # поворот до удаления EXIF
         img = img.convert("RGB")                # JPEG не умеет альфу
         img = ImageOps.fit(img, (РАЗМЕР, РАЗМЕР), method=Image.LANCZOS,
-                           centering=(0.5, 0.4))   # лицо обычно выше центра
+                           centering=(0.5, центр))
         os.makedirs("static", exist_ok=True)
         img.save(ВЫХОД, format="JPEG", quality=88, optimize=True, progressive=True)
     except UnidentifiedImageError:
@@ -74,6 +79,10 @@ def main():
     print("  размер   : %dx%d" % готово.size)
     print("  EXIF     : %d тегов" % len(готово.getexif()))
     print("  вес      : %.1f КБ" % (os.path.getsize(ВЫХОД) / 1024))
+    print()
+    print("Кадр не тот? Повторите со вторым аргументом:")
+    print("  меньше — взять выше по кадру, больше — ниже")
+    print("  пример: python prepare_photo.py %s 0.05" % исходник)
     return 0
 
 
