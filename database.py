@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, B
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 import os
+import re
 import sqlite3
 
 # DB_PATH задаётся через .env на Fly.io (volume монтируется в /data),
@@ -15,6 +16,12 @@ Base = declarative_base()
 
 class User(Base):
     __tablename__ = "users"
+    # sqlite_autoincrement — чтобы id не переиспользовались после удаления
+    # аккаунта: иначе SQLite отдаёт новому пользователю max(id)+1, и тот
+    # наследует привязанное к номеру предыдущего (файл аватара, к примеру).
+    # Действует на новых базах; существующую переводит
+    # _migrate_users_autoincrement()
+    __table_args__ = {"sqlite_autoincrement": True}
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
@@ -263,18 +270,24 @@ class WeightLog(Base):
 
 class ScaleConnection(Base):
     """Подключение умных весов Xiaomi через неофициальный API Zepp Life
-    (см. zepp_client.py). Логин/пароль хранятся зашифрованными (Fernet,
-    ключ — CREDENTIALS_ENCRYPTION_KEY). app_token/zepp_user_id — кеш токена
-    сессии, чтобы не логиниться паролем при каждой синхронизации: полный
-    логин по паролю разлогинивает пользователя в мобильном приложении
-    Zepp Life (особенность их серверной сессии, не наша)."""
+    (см. zepp_client.py). Все четыре поля с учётными данными зашифрованы
+    (Fernet, ключ — CREDENTIALS_ENCRYPTION_KEY), см. crypto.py.
+
+    encrypted_app_token/encrypted_zepp_user_id — кеш токена сессии, чтобы
+    не логиниться паролем при каждой синхронизации: полный логин по паролю
+    разлогинивает пользователя в мобильном приложении Zepp Life (особенность
+    их серверной сессии, не наша).
+
+    Токен раньше лежал открытым рядом с зашифрованным паролем — и это сводило
+    шифрование пароля почти на нет: украв базу, чужие измерения можно было
+    читать прямо по токену, пароль для этого не нужен."""
     __tablename__ = "scale_connections"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, unique=True, nullable=False, index=True)
     encrypted_username = Column(Text, nullable=False)
     encrypted_password = Column(Text, nullable=False)
-    app_token = Column(Text, nullable=True)
-    zepp_user_id = Column(String, nullable=True)
+    encrypted_app_token = Column(Text, nullable=True)
+    encrypted_zepp_user_id = Column(Text, nullable=True)
     last_sync_at = Column(DateTime, nullable=True)
     last_sync_status = Column(String, nullable=True)  # ok/error
     last_sync_error = Column(Text, nullable=True)
@@ -519,6 +532,8 @@ def migrate_db():
         "ALTER TABLE users ADD COLUMN avatar_updated_at DATETIME",
         "ALTER TABLE users ADD COLUMN timezone VARCHAR",
         "ALTER TABLE users ADD COLUMN password_changed_at DATETIME",
+        "ALTER TABLE scale_connections ADD COLUMN encrypted_app_token TEXT",
+        "ALTER TABLE scale_connections ADD COLUMN encrypted_zepp_user_id TEXT",
     ]:
         try:
             conn.execute(col)
@@ -548,7 +563,143 @@ def migrate_db():
         except Exception:
             pass
     conn.commit()
+    _migrate_users_autoincrement(conn)
+    _migrate_zepp_token_encryption(conn)
     conn.close()
+
+
+def _migrate_zepp_token_encryption(conn) -> int:
+    """Зашифровывает токены Zepp, лежавшие открытыми, и стирает исходные.
+
+    Старые колонки app_token/zepp_user_id удаляются: обнулить значение
+    недостаточно — колонка осталась бы в схеме, и первая же невнимательная
+    правка снова начала бы писать в неё plaintext.
+
+    После удаления делаем VACUUM. Без него страницы с прежним открытым
+    токеном остаются в файле как свободное место и уезжают в ежедневный
+    бэкап — то есть смысл шифрования теряется ровно там, где он важнее всего.
+
+    Возвращает число перенесённых записей.
+    """
+    колонки = {r[1] for r in conn.execute("PRAGMA table_info(scale_connections)")}
+    if "app_token" not in колонки:
+        return 0        # миграция уже прошла
+
+    import crypto
+    if not crypto.is_configured():
+        # Без ключа шифровать нечем. Стереть открытые токены всё равно можно —
+        # но это разорвало бы работающие подключения, поэтому решает человек
+        print("[migrate] токены Zepp остались открытыми: "
+              "CREDENTIALS_ENCRYPTION_KEY не задан")
+        return 0
+
+    строки = conn.execute(
+        "SELECT id, app_token, zepp_user_id FROM scale_connections "
+        "WHERE app_token IS NOT NULL OR zepp_user_id IS NOT NULL"
+    ).fetchall()
+
+    перенесено = 0
+    try:
+        conn.execute("BEGIN")
+        for id_, токен, zepp_id in строки:
+            conn.execute(
+                "UPDATE scale_connections SET encrypted_app_token = ?, "
+                "encrypted_zepp_user_id = ? WHERE id = ?",
+                (crypto.encrypt_optional(токен), crypto.encrypt_optional(zepp_id), id_),
+            )
+            перенесено += 1
+        conn.execute("ALTER TABLE scale_connections DROP COLUMN app_token")
+        conn.execute("ALTER TABLE scale_connections DROP COLUMN zepp_user_id")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"[migrate] токены Zepp не зашифрованы: {type(e).__name__}: {e}")
+        return 0
+
+    conn.execute("VACUUM")      # вне транзакции — SQLite иначе откажет
+    print(f"[migrate] токены Zepp зашифрованы, записей: {перенесено}, файл сжат")
+    return перенесено
+
+
+def _migrate_users_autoincrement(conn) -> bool:
+    """Переводит users на AUTOINCREMENT, чтобы id не переиспользовались.
+
+    Зачем. Без AUTOINCREMENT SQLite выдаёт новой строке max(id)+1. Удалили
+    последнего пользователя — следующий зарегистрировавшийся получает его
+    номер. Каскад чистит базу, но аватар лежит файлом /data/avatars/<id>.png,
+    и новый человек увидел бы в шапке чужое лицо. Мы как раз собирались
+    удалять 67 ботовых аккаунтов, что уронило бы max(id) сразу на десятки.
+
+    Файл аватара теперь удаляется в delete_user_cascade — это первый рубеж.
+    AUTOINCREMENT — второй: он закрывает не конкретно аватары, а сам приём
+    «привязать что-то внешнее к id пользователя». Любая будущая привязка
+    (файл, кеш, запись у стороннего сервиса) наследования уже не получит.
+
+    AUTOINCREMENT в SQLite задаётся только при CREATE TABLE, поэтому таблицу
+    приходится пересоздавать: скопировать, подменить, вернуть индексы. Делаем
+    один раз и идемпотентно — признаком служит наличие users в sqlite_sequence.
+
+    Возвращает True, если миграция выполнена сейчас.
+    """
+    есть = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'"
+    ).fetchone()
+    if есть and conn.execute(
+        "SELECT 1 FROM sqlite_sequence WHERE name='users'"
+    ).fetchone():
+        return False        # уже переведена
+
+    ddl = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='users'"
+    ).fetchone()
+    if not ddl:
+        return False        # базы ещё нет — таблицу создаст SQLAlchemy, уже с AUTOINCREMENT
+
+    # Колонки берём из самой базы, а не из модели: они добавлялись миграциями
+    # выше, и перечислять их здесь руками значит однажды разойтись со схемой
+    колонки = [r[1] for r in conn.execute("PRAGMA table_info(users)")]
+    список = ", ".join(f'"{c}"' for c in колонки)
+
+    # Переносим тело исходного DDL, заменив объявление ключа. Всё, кроме
+    # первичного ключа, остаётся как было — типы, NOT NULL, порядок колонок
+    тело = ddl[0]
+    тело = re.sub(r"\bid\s+INTEGER\s+NOT\s+NULL\s*,", "", тело, count=1, flags=re.I)
+    тело = re.sub(r"PRIMARY\s+KEY\s*\(\s*id\s*\)",
+                  "id INTEGER PRIMARY KEY AUTOINCREMENT", тело, count=1, flags=re.I)
+    тело = тело.replace("CREATE TABLE users", "CREATE TABLE users_ai_new", 1)
+    if "AUTOINCREMENT" not in тело:
+        # DDL оказался не той формы, что мы ожидали. Молча продолжать нельзя:
+        # без пересоздания id продолжат переиспользоваться
+        print("[migrate] AUTOINCREMENT для users не применён: неожидаемый DDL")
+        return False
+
+    индексы = [r[0] for r in conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name='users' "
+        "AND sql IS NOT NULL")]
+
+    try:
+        conn.execute("BEGIN")
+        conn.execute(тело)
+        conn.execute(f"INSERT INTO users_ai_new ({список}) SELECT {список} FROM users")
+        conn.execute("DROP TABLE users")
+        conn.execute("ALTER TABLE users_ai_new RENAME TO users")
+        for sql in индексы:
+            conn.execute(sql)      # UNIQUE на email в том числе — снялся вместе с таблицей
+        # Ставим планку вручную: sqlite_sequence заполняется при вставке, а мы
+        # копировали строки в новую таблицу. Без этого seq остался бы от
+        # последней вставки, а не от максимума
+        conn.execute("DELETE FROM sqlite_sequence WHERE name='users'")
+        conn.execute("INSERT INTO sqlite_sequence(name, seq) "
+                     "SELECT 'users', COALESCE(MAX(id), 0) FROM users")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"[migrate] AUTOINCREMENT для users не применён: {type(e).__name__}: {e}")
+        return False
+
+    целостность = conn.execute("PRAGMA integrity_check").fetchone()[0]
+    print(f"[migrate] users переведена на AUTOINCREMENT, integrity_check: {целостность}")
+    return True
 
 
 # ── Полное удаление пользователя ──────────────────────────────────────────────
@@ -684,4 +835,37 @@ def delete_user_cascade(user_id: int, dry_run: bool = False) -> dict:
         raise
     finally:
         conn.close()
+
+    # 5. Файл аватара — единственное, что лежит вне базы и привязано к id.
+    #    Строго после commit: упади транзакция, файл остался бы удалённым
+    #    у живого аккаунта. В обратную сторону ошибка дешевле — осиротевший
+    #    файл никому не показывается, потому что показывать его больше некому
+    отчёт["файл аватара"] = _delete_avatar_file(user_id, dry_run=dry_run)
     return отчёт
+
+
+def _delete_avatar_file(user_id: int, dry_run: bool = False) -> int:
+    """Удаляет /data/avatars/<id>.png. Возвращает 1, если файл был.
+
+    Каскад чистил только базу, и аватар оставался на диске. Сам по себе
+    осиротевший файл безвреден, но имя ему даёт id пользователя, а id в SQLite
+    переиспользуются — новый человек получал бы в шапке чужое лицо. Второй
+    рубеж против этого — AUTOINCREMENT, см. _migrate_users_autoincrement.
+
+    Путь собирается здесь, а не берётся из main.py: импорт из main в database
+    развернул бы зависимость наоборот и потянул за собой весь FastAPI.
+    """
+    каталог = os.path.join(os.path.dirname(DB_PATH) or ".", "avatars")
+    путь = os.path.join(каталог, f"{user_id}.png")
+    if not os.path.exists(путь):
+        return 0
+    if dry_run:
+        return 1
+    try:
+        os.remove(путь)
+    except OSError as e:
+        # Не рушим удаление аккаунта из-за файла: база уже вычищена, и
+        # возврат к прежнему состоянию невозможен. Но и молчать нельзя
+        print(f"[delete] аватар {путь} не удалён: {type(e).__name__}: {e}")
+        return 0
+    return 1

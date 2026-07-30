@@ -75,26 +75,17 @@ PARSER_MODEL        = os.getenv("PARSER_MODEL",  "anthropic/claude-sonnet-4-5") 
 ANALYZE_MAX_TOKENS  = int(os.getenv("ANALYZE_MAX_TOKENS", "2000"))
 RESEND_API_KEY      = os.getenv("RESEND_API_KEY", "")
 BASE_URL            = os.getenv("BASE_URL", "https://energydess.ru")
-CREDENTIALS_ENCRYPTION_KEY = os.getenv("CREDENTIALS_ENCRYPTION_KEY", "")
 TURNSTILE_SITE_KEY   = os.getenv("TURNSTILE_SITE_KEY", "")    # TODO: выдать ключи через dash.cloudflare.com → Turnstile → Add Site
 TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
 
 
-def _get_fernet():
-    """Шифрование логина/пароля весов Xiaomi при хранении в БД (см.
-    ScaleConnection). Ключ — секрет окружения, не хардкод."""
-    from cryptography.fernet import Fernet
-    if not CREDENTIALS_ENCRYPTION_KEY:
-        raise RuntimeError("CREDENTIALS_ENCRYPTION_KEY не настроен")
-    return Fernet(CREDENTIALS_ENCRYPTION_KEY.encode())
-
-
-def _encrypt(text: str) -> str:
-    return _get_fernet().encrypt(text.encode()).decode()
-
-
-def _decrypt(token: str) -> str:
-    return _get_fernet().decrypt(token.encode()).decode()
+# Шифрование учётных данных весов Xiaomi при хранении в БД (см.
+# ScaleConnection). Живёт в crypto.py: тем же шифрованием пользуется миграция
+# в database.py, а импортировать main оттуда нельзя
+import crypto                                                      # noqa: E402
+from crypto import (encrypt as _encrypt, decrypt as _decrypt,      # noqa: E402
+                    encrypt_optional as _encrypt_opt,
+                    decrypt_optional as _decrypt_opt)
 
 # Описания здесь — для лаунчера залогиненного пользователя: он уже внутри,
 # ему нужно «что внутри инструмента». На лендинге у карточек своя задача —
@@ -3325,18 +3316,23 @@ def _sync_scale(db: Session, conn: ScaleConnection) -> dict:
     делаем так редко, не на каждую синхронизацию)."""
     username = _decrypt(conn.encrypted_username)
     password = _decrypt(conn.encrypted_password)
+    # Токен тоже зашифрован: открытым он давал доступ к чужим измерениям
+    # в обход пароля. Расшифрованный живёт только в этих переменных
+    токен = _decrypt_opt(conn.encrypted_app_token)
+    zepp_id = _decrypt_opt(conn.encrypted_zepp_user_id)
 
     def _do_fetch():
-        return zepp_client.fetch_weight_records(conn.app_token, conn.zepp_user_id)
+        return zepp_client.fetch_weight_records(токен, zepp_id)
 
     try:
-        if not conn.app_token:
+        if not токен:
             raise zepp_client.ZeppApiError("нет кешированного токена")
         records = _do_fetch()
     except (zepp_client.ZeppApiError, Exception):
         tokens = zepp_client.login(username, password)
-        conn.app_token = tokens["app_token"]
-        conn.zepp_user_id = tokens["zepp_user_id"]
+        токен, zepp_id = tokens["app_token"], tokens["zepp_user_id"]
+        conn.encrypted_app_token = _encrypt_opt(токен)
+        conn.encrypted_zepp_user_id = _encrypt_opt(zepp_id)
         records = _do_fetch()
 
     saved = 0
@@ -3388,7 +3384,7 @@ async def scale_connect(request: Request, user=Depends(get_current_user), db: Se
     password = data.get("password") or ""
     if not username or not password:
         return JSONResponse({"error": "Укажите логин и пароль Zepp Life"}, status_code=400)
-    if not CREDENTIALS_ENCRYPTION_KEY:
+    if not crypto.is_configured():
         return JSONResponse({"error": "Шифрование не настроено на сервере"}, status_code=500)
 
     try:
@@ -3404,8 +3400,8 @@ async def scale_connect(request: Request, user=Depends(get_current_user), db: Se
         db.add(conn)
     conn.encrypted_username = _encrypt(username)
     conn.encrypted_password = _encrypt(password)
-    conn.app_token = tokens["app_token"]
-    conn.zepp_user_id = tokens["zepp_user_id"]
+    conn.encrypted_app_token = _encrypt_opt(tokens["app_token"])
+    conn.encrypted_zepp_user_id = _encrypt_opt(tokens["zepp_user_id"])
     db.commit()
 
     try:
@@ -5784,6 +5780,7 @@ DELETE_LABELS = {
     "nutrition_profiles": "Профиль питания",
     "workout_profiles": "Профиль тренировок",
     "scale_connections": "Привязка умных весов",
+    "файл аватара": "Загруженный аватар",
 }
 
 

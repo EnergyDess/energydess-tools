@@ -1,11 +1,22 @@
-name: Backup
+name: Backup + очистка
 
 # Расписание включено 2026-07-27, после того как восстановление проверено
 # вживую: файл скачан, расшифрован, integrity_check ok, счётчики по шести
 # таблицам сошлись с подписью. Бэкап, который ни разу не разворачивали,
 # бэкапом не считается — поэтому порядок был именно такой.
+#
+# Очистка неподтверждённых аккаунтов живёт здесь же, а не отдельным workflow,
+# ровно из-за порядка: удалять данные можно только когда архив этого дня уже
+# отправлен. Отдельное расписание давало бы порядок «скорее всего», а шаг
+# внутри — гарантированный: при сбое бэкапа шаги ниже не выполняются вообще.
 on:
   workflow_dispatch:
+    inputs:
+      cleanup:
+        description: 'Очистка неподтверждённых при ручном запуске'
+        type: choice
+        default: 'dry-run'
+        options: ['dry-run', 'delete']
   schedule:
     - cron: '0 3 * * *'     # ежедневно 03:00 UTC = 06:00 МСК
 
@@ -116,6 +127,43 @@ jobs:
           fi
           echo "Файл отправлен"
 
+      # ── Очистка неподтверждённых аккаунтов ─────────────────────────────
+      # Шаг идёт ПОСЛЕ отправки архива и без if: always() намеренно. Упал
+      # бэкап — удаления не будет: единственная страховка от ошибки в пороге
+      # или в самом скрипте это архив, снятый до неё.
+      #
+      # По расписанию удаляем, вручную по умолчанию только считаем. Иначе
+      # безобидная проверка «работает ли workflow» снесла бы аккаунты.
+      - name: Удалить неподтверждённые аккаунты старше 7 дней
+        id: cleanup
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MODE: ${{ github.event_name == 'schedule' && 'delete' || inputs.cleanup }}
+        run: |
+          set -o pipefail
+          if [ "$MODE" = "delete" ]; then flags=""; else flags="--dry-run"; fi
+          echo "Режим: $MODE"
+          out=$(flyctl ssh console -a energydess-tools \
+                -C "python /app/cleanup_unverified.py $flags" 2>&1 | tr -d '\r')
+          echo "$out"
+          # Скрипт останавливается сам, если в каскаде не учтена новая таблица.
+          # Такой отказ должен ронять шаг, а не проходить незамеченным
+          if echo "$out" | grep -q "ОСТАНОВЛЕНО"; then
+            echo "::error::Очистка остановлена: в каскаде не учтены таблицы"
+            exit 1
+          fi
+          # В Telegram сообщаем только когда что-то реально удалено: ежедневное
+          # «удалять нечего» превратило бы канал в шум, который перестают читать
+          removed=$(echo "$out" | sed -n 's/^Удалено пользователей: \([0-9]*\) из.*/\1/p')
+          if [ -n "$removed" ] && [ "$removed" -gt 0 ]; then
+            curl -sS -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
+              -d "chat_id=$CHAT_ID" \
+              -d "text=Очистка energydess: удалено неподтверждённых аккаунтов — $removed (старше 7 дней). Данные есть в архиве этого дня." \
+              >/dev/null || true
+          fi
+
       # ── Уборка ─────────────────────────────────────────────────────────
       - name: Удалить дамп с тома
         # always(): копия базы не должна оставаться рядом с базой, даже если
@@ -141,5 +189,5 @@ jobs:
         run: |
           curl -sS -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
             -d "chat_id=$CHAT_ID" \
-            -d "text=Бэкап базы energydess НЕ выполнен. Запуск: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            -d "text=Задача «бэкап + очистка» energydess завершилась сбоем. Какой именно шаг упал — видно в логе, бэкап мог и пройти. Запуск: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             || true
