@@ -227,7 +227,7 @@ jobs:
         if: failure()
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CHAT_ID: '999999999'   # ВРЕМЕННО: несуществующий чат, проверка ветки доставки
         run: |
           source .github/scripts/telegram.sh
           tg_send_message "Задача «бэкап + очистка» energydess завершилась сбоем. Какой именно шаг упал — видно в логе, бэкап мог и пройти. Запуск: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
