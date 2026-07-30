@@ -213,7 +213,7 @@ jobs:
             # сообщение незачем. Поэтому Telegram, тем же путём, что
             # и остальные уведомления.
             if flyctl ssh console -a energydess-tools \
-                 -C "rm -f ${{ steps.dump.outputs.path }}"; then
+                 -C "sh -c 'exit 1'"; then    # ВРЕМЕННО: уборка не срабатывает
               echo "Дамп удалён с тома"
             else
               echo "::warning::Не удалось удалить ${{ steps.dump.outputs.path }} — на томе осталась НЕзашифрованная копия базы, уберите вручную"
