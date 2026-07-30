@@ -199,17 +199,29 @@ jobs:
         if: always()
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -n "${{ steps.dump.outputs.path }}" ]; then
             # Шаг намеренно не роняет прогон: он идёт под always() и, упав,
-            # перекрыл бы собой настоящую причину сбоя выше. Но и молчать
-            # нельзя — незашифрованная копия базы осталась бы лежать на томе.
-            # Поэтому warning: он виден в сводке прогона
+            # перекрыл бы собой настоящую причину сбоя выше.
+            #
+            # Но лога тут мало. Событие охранное: незашифрованная копия базы
+            # с чужими персональными данными осталась лежать там, где лежать
+            # не должна. Лог GitHub Actions — ровно то место, где полтора
+            # месяца жил немой 404, и второй раз доверять ему такое
+            # сообщение незачем. Поэтому Telegram, тем же путём, что
+            # и остальные уведомления.
             if flyctl ssh console -a energydess-tools \
                  -C "rm -f ${{ steps.dump.outputs.path }}"; then
               echo "Дамп удалён с тома"
             else
               echo "::warning::Не удалось удалить ${{ steps.dump.outputs.path }} — на томе осталась НЕзашифрованная копия базы, уберите вручную"
+              source .github/scripts/telegram.sh
+              # Недоставка тоже не роняет шаг — причина та же, always().
+              # Но и молча не проходит: ::error:: виден в сводке прогона
+              tg_send_message "ВНИМАНИЕ, energydess: не удалось удалить временный дамп ${{ steps.dump.outputs.path }} — на томе осталась НЕзашифрованная копия базы. Уберите вручную: flyctl ssh console -a energydess-tools -C \"rm -f ${{ steps.dump.outputs.path }}\" — запуск ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+                || echo "::error::Про незашифрованную копию не удалось сообщить в Telegram — сигнал остался только в этом логе"
             fi
           fi
 
