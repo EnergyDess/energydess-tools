@@ -106,7 +106,7 @@ jobs:
       # только на бумаге.
       - name: Проверить размер
         env:
-          MAX_BYTES: '47000000'    # лимит Telegram Bot API 50 МБ, с запасом
+          MAX_BYTES: '1000000'      # ВРЕМЕННО занижен для проверки ветки    # лимит Telegram Bot API 50 МБ, с запасом
           MIN_BYTES: '10000'       # нижняя граница, см. ниже
         run: |
           f="./${{ steps.dump.outputs.file }}.gz.gpg"
