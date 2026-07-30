@@ -30,7 +30,7 @@ jobs:
     steps:
       # Нужен ради .github/scripts/telegram.sh — без выкачки репозитория
       # его в раннере просто нет
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       # ── Снимаем согласованную копию на томе ────────────────────────────
