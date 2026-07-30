@@ -2656,7 +2656,17 @@ def _image_mime(file: UploadFile) -> str:
             "heif": "image/heif"}.get(ext, "image/jpeg")
 
 
-def _upright_jpeg(content: bytes, max_dim: int = 1920, quality: int = 85) -> bytes | None:
+# Качество JPEG для всего, что грузит пользователь. Было 85, поднято до 90
+# после проверки на реальных вложениях: 8 из 10 оказались не фотографиями,
+# а скриншотами карточек товара — с мелким текстом состава и КБЖУ, который
+# модель с них и читает. Текст при 85 не пострадал (проверено: модель
+# считала «426 ккал, 197 г, Б18 Ж20 У44» верно), но запас лишним не будет.
+# Замер на тех же десяти картинках: +15.5% веса, 1.43 МБ → 1.65 МБ.
+JPEG_QUALITY = 90
+
+
+def _upright_jpeg(content: bytes, max_dim: int = 1920,
+                  quality: int = JPEG_QUALITY) -> bytes | None:
     """Пересобирает фото: применяет ориентацию из EXIF, уменьшает, сохраняет
     JPEG без метаданных. None — не изображение или файл битый.
 
@@ -2670,6 +2680,12 @@ def _upright_jpeg(content: bytes, max_dim: int = 1920, quality: int = 85) -> byt
     from PIL import Image, ImageOps
     try:
         img = Image.open(io.BytesIO(content))
+        # Формат исходника пишем в лог намеренно: обработчик всё приводит
+        # к JPEG, то есть сам же уничтожает улики. Мы не знаем, присылают ли
+        # люди PNG-скриншоты — а от этого зависит, нужна ли ветка «сохранять
+        # в формате исходника». Через месяц посмотрим на факты, а не на догадки
+        print(f"[image] вход: {img.format} {img.width}x{img.height} "
+              f"{len(content) // 1024} КБ, EXIF {len(img.getexif() or {})} тегов")
         img = ImageOps.exif_transpose(img)
         img = img.convert("RGB")
         img.thumbnail((max_dim, max_dim))
@@ -2680,7 +2696,8 @@ def _upright_jpeg(content: bytes, max_dim: int = 1920, quality: int = 85) -> byt
         return None
 
 
-def _make_thumbnail(content: bytes, max_dim: int = 1920, quality: int = 85) -> str | None:
+def _make_thumbnail(content: bytes, max_dim: int = 1920,
+                    quality: int = JPEG_QUALITY) -> str | None:
     """Копия фото для хранения в истории чата (data URL JPEG) — Full HD,
     чтобы вьюер на весь экран открывал её без замыливания."""
     готовое = _upright_jpeg(content, max_dim, quality)
@@ -3486,7 +3503,10 @@ async def upload_body_photo(file: UploadFile = File(...), angle: str = Form(...)
     content = await file.read()
     if not content:
         return JSONResponse({"error": "Пустой файл"}, status_code=400)
-    thumb = _make_thumbnail(content, max_dim=1600, quality=88)
+    # Качество общее (JPEG_QUALITY), отдельное число здесь было бы третьим
+    # источником правды. Меньший max_dim оставлен: фото тела снимаются
+    # для сравнения силуэта по неделям, разрешение Full HD тут избыточно
+    thumb = _make_thumbnail(content, max_dim=1600)
     if not thumb:
         return JSONResponse({"error": "Не удалось обработать фото"}, status_code=400)
 
@@ -5710,16 +5730,30 @@ async def delete_avatar(user=Depends(get_current_user), db: Session = Depends(ge
 
 
 @app.get("/avatar/{user_id}")
-async def get_avatar(user_id: int, db: Session = Depends(get_db)):
-    """Отдача картинки. Статику на /data не смонтировать, да и свой роут
-    удобнее: можно управлять кэшем и не отдавать чужого."""
+async def get_avatar(user_id: int, user=Depends(get_current_user)):
+    """Отдача аватара — только своего, либо любого администратору.
+
+    Раньше проверки не было вовсе, хотя комментарий здесь обещал «не
+    отдавать чужого». Идентификаторы последовательные, так что перебором
+    `/avatar/1`, `/avatar/2`… любой желающий получал фотографии лиц всех
+    пользователей. Обоснования «аватар и так виден всем» здесь не работает:
+    на сайте нет ни одного места, где один пользователь видит другого —
+    ни ленты, ни чужих профилей. Легитимно аватар видят двое: владелец
+    и администратор в списке аккаунтов.
+
+    404, а не 403: отказ по правам подтвердил бы, что у этого номера
+    аватар есть.
+    """
+    if not user or (user.id != user_id and not user.is_admin):
+        return JSONResponse({"error": "нет аватара"}, status_code=404)
     путь = _avatar_path(user_id)
     if not os.path.exists(путь):
         return JSONResponse({"error": "нет аватара"}, status_code=404)
-    # Кэш надолго: смена аватара меняет ?v= в ссылке, поэтому старый файл
-    # из кэша браузера показан не будет
+    # private, а не public: кэш общего прокси не должен раздавать чужое лицо
+    # третьим лицам. Смена аватара меняет ?v= в ссылке, поэтому браузер
+    # старую версию не покажет
     return FileResponse(путь, media_type="image/png",
-                        headers={"Cache-Control": "public, max-age=604800"})
+                        headers={"Cache-Control": "private, max-age=604800"})
 
 
 # ── Часовой пояс ──────────────────────────────────────────────────────────────
