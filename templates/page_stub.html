@@ -44,6 +44,89 @@
       color: var(--text);
     }
     .doc-updated { margin-top: var(--space-7); font-size: var(--text-caption); color: var(--text-faint); }
+    /* Дата сверху — для документов, где она важна сразу: читатель должен
+       понимать, насколько текст свеж, до того как начнёт его читать */
+    .doc-updated--top { margin: calc(-1 * var(--space-3)) 0 var(--space-6); }
+
+    /* ── Длинный документ ──────────────────────────────────────────────
+       Политика конфиденциальности — самая длинная страница проекта.
+       Сплошной текст такой длины не читают, поэтому разделы отделены
+       линией и щедрым отступом: это те же «---», что в исходном тексте */
+    .doc-body--long h2 {
+      margin-top: var(--space-8);
+      padding-top: var(--space-6);
+      border-top: 1px solid var(--border);
+    }
+    .doc-body--long > h2:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+    .doc-body--long h3 {
+      font-size: var(--text-body-lg); color: var(--text); font-weight: 600;
+      margin: var(--space-5) 0 var(--space-2);
+    }
+
+    /* Смысловой якорь страницы: особая категория данных. Не .alert —
+       тот рассчитан на одну строку caption-размером, а здесь список
+       и два абзаца основного текста */
+    .doc-callout {
+      margin: var(--space-5) 0;
+      padding: var(--space-5);
+      border-radius: var(--radius-md);
+      border: 1px solid color-mix(in srgb, var(--warning) 22%, transparent);
+      border-left: 3px solid var(--warning);
+      background: color-mix(in srgb, var(--warning) 6%, transparent);
+    }
+    .doc-callout > :first-child { margin-top: 0; }
+    .doc-callout > :last-child { margin-bottom: 0; }
+    .doc-callout strong { color: var(--warning); }
+
+    /* ── Таблицы ────────────────────────────────────────────────────────
+       На десктопе обычная таблица. На узком экране она превращается
+       в карточки: в 390px три колонки с длинным текстом складываются
+       в кашу, а горизонтальный скролл заставлял бы возить страницу
+       вправо-влево на каждой строке */
+    .doc-table-wrap { margin: var(--space-4) 0 var(--space-5); }
+    .doc-table {
+      width: 100%; border-collapse: collapse;
+      font-size: var(--text-body-sm); line-height: 1.6;
+    }
+    .doc-table th, .doc-table td {
+      padding: var(--space-3);
+      text-align: left; vertical-align: top;
+      border-bottom: 1px solid var(--border);
+    }
+    .doc-table th {
+      color: var(--text); font-weight: 600;
+      background: var(--surface-1);
+      border-bottom: 1px solid var(--border-strong, var(--border));
+      white-space: nowrap;
+    }
+    .doc-table td { color: var(--text-2); }
+    .doc-table td:first-child { color: var(--text); }
+    .doc-table tbody tr:last-child td { border-bottom: none; }
+
+    @media (max-width: 600px) {
+      /* Каждая строка — карточка, подпись колонки берётся из data-label:
+         без неё в одноколоночной раскладке непонятно, что за значение */
+      .doc-table, .doc-table tbody, .doc-table tr, .doc-table td { display: block; width: 100%; }
+      .doc-table thead { display: none; }
+      .doc-table tr {
+        margin-bottom: var(--space-3);
+        padding: var(--space-4);
+        background: var(--surface-1);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+      }
+      .doc-table td { padding: 0; border: none; }
+      .doc-table td + td { margin-top: var(--space-3); }
+      .doc-table td::before {
+        content: attr(data-label);
+        display: block;
+        font-family: var(--font-mono); font-size: var(--text-mono);
+        letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--text-faint);
+        margin-bottom: 2px;
+      }
+      .doc-table td:first-child { font-weight: 600; }
+    }
 
     /* Карточка автора: вертикальное фото слева, текст обтекает справа
        и продолжается под ним. Именно float, а не grid: с сеткой текст
@@ -132,6 +215,12 @@
     <h1>{{ page.title }}</h1>
     <p class="doc-lead">{{ page.lead }}</p>
 
+    {# Дата задаётся один раз, полем updated. updated_top только выбирает,
+       показать её до текста или после — двух дат в шаблоне нет #}
+    {% if page.updated and page.updated_top %}
+    <p class="doc-updated doc-updated--top">Обновлено: {{ page.updated }}</p>
+    {% endif %}
+
     {% if page.photo_name %}
     {# Текст лежит ВНУТРИ этого блока — иначе он не обтекал бы плавающее
        фото, а начинался бы под ним #}
@@ -178,7 +267,7 @@
     {% endif %}
 
     {% if page.content and not page.photo_name %}
-    <div class="doc-body">{{ page.content|safe }}</div>
+    <div class="doc-body{% if page.long %} doc-body--long{% endif %}">{{ page.content|safe }}</div>
     {% elif not page.content and not page.content_before %}
     <div class="alert alert-warn">
       <i data-lucide="pen-line"></i>
@@ -186,7 +275,7 @@
     </div>
     {% endif %}
 
-    {% if page.updated %}
+    {% if page.updated and not page.updated_top %}
     <p class="doc-updated">Обновлено: {{ page.updated }}</p>
     {% endif %}
   </div>
