@@ -374,3 +374,83 @@ flyctl ssh console -a energydess-tools -C "rm /data/app.db.old"
 gh workflow run backup.yml
 gh run watch
 ```
+
+---
+
+## 10. Восстановление файлов из снапшота тома
+
+> Вторая линия, отдельная от выгрузки в Telegram. Туда уезжает **только
+> база**, а файлы на томе — аватары и вложения переписки — в архив
+> не попадают. Их единственная защита это снапшоты Fly.
+>
+> **Retention поднят до 30 дней** (2026-07-31, было 5). Снапшоты
+> инкрементальные, у Fly первые 10 ГБ бесплатны, а все наши пять снимков
+> занимают 144 МиБ — то есть 30 дней ничего не стоят. Потолок Fly — 60.
+
+### Главное: базу откатывать не нужно
+
+Снапшот разворачивается **в отдельный том и монтируется в отдельную
+машину**, параллельно работающему приложению. Боевой том при этом
+не затрагивается вообще. То есть достать один файл недельной давности
+можно, не трогая ни базу, ни чужие данные.
+
+Проверено 2026-07-31 живым восстановлением: файл достали, sha256 совпал
+с боевым побайтово, картинка открылась.
+
+### Процедура
+
+```bash
+# 1. Выбрать снапшот — колонка CREATED AT показывает возраст
+flyctl volumes snapshots list vol_4ql97qxo2lyodj8r
+
+# 2. Создать из него отдельный том (боевой не трогается)
+flyctl volumes create restore_test --snapshot-id vs_ВЫБРАННЫЙ \
+  --region fra --size 1 -a energydess-tools --yes
+
+# 3. Узнать id нового тома и текущий образ приложения
+flyctl volumes list -a energydess-tools
+flyctl image show -a energydess-tools
+
+# 4. Поднять временную машину с этим томом. Образ берём свой же —
+#    в нём есть python, которым удобно проверять базу
+flyctl machine run registry.fly.io/energydess-tools:ТЕГ_ОБРАЗА \
+  --volume vol_НОВЫЙ:/mnt/restore \
+  --region fra -a energydess-tools --name restore-check \
+  --vm-memory 256 --restart no \
+  sleep 900
+
+# 5. Посмотреть, что внутри
+flyctl ssh console -a energydess-tools --machine ID_МАШИНЫ \
+  -C "sh -c 'ls -la /mnt/restore /mnt/restore/avatars'"
+
+# 6. Забрать файл к себе. MSYS_NO_PATHCONV=1 обязателен в Git Bash:
+#    без него /mnt/... превращается в C:/Program Files/Git/mnt/...
+MSYS_NO_PATHCONV=1 flyctl ssh sftp get /mnt/restore/avatars/1.png ./restored.png \
+  -a energydess-tools
+
+# 7. УБРАТЬ ЗА СОБОЙ — иначе машина и том капают в счёт
+flyctl machine stop ID_МАШИНЫ -a energydess-tools
+flyctl machine destroy ID_МАШИНЫ -a energydess-tools --force
+flyctl volumes destroy vol_НОВЫЙ --yes
+```
+
+Проверить, что убрано:
+
+```bash
+flyctl volumes list -a energydess-tools    # должен остаться один том data
+flyctl machine list -a energydess-tools    # одна машина приложения
+```
+
+### Что можно посмотреть в базе из снапшота, не разворачивая её
+
+База на восстановленном томе открывается только на чтение — этого хватает,
+чтобы сверить состояние на дату или вытащить одну запись:
+
+```bash
+flyctl ssh console -a energydess-tools --machine ID_МАШИНЫ -C "python -c \"
+import sqlite3
+c=sqlite3.connect('file:/mnt/restore/app.db?mode=ro', uri=True)
+print(c.execute('PRAGMA integrity_check').fetchone()[0])
+print('users:', c.execute('SELECT COUNT(*) FROM users').fetchone()[0])
+\""
+```
