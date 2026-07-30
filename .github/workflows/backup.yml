@@ -28,6 +28,9 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
+      # Нужен ради .github/scripts/telegram.sh — без выкачки репозитория
+      # его в раннере просто нет
+      - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       # ── Снимаем согласованную копию на томе ────────────────────────────
@@ -50,15 +53,31 @@ jobs:
             echo "METAEOF"
             echo "file=$(echo "$meta" | jq -r .file)"
             echo "path=$(echo "$meta" | jq -r .path)"
+            echo "bytes=$(echo "$meta" | jq -r .bytes)"
           } >> "$GITHUB_OUTPUT"
 
       - name: Скачать дамп с тома
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          EXPECTED: ${{ steps.dump.outputs.bytes }}
         run: |
           flyctl ssh sftp get "${{ steps.dump.outputs.path }}" "./${{ steps.dump.outputs.file }}" \
             -a energydess-tools
           ls -la "./${{ steps.dump.outputs.file }}"
+          # Размер сверяется с тем, что скрипт намерил на томе. Оборванная
+          # загрузка даёт файл меньше исходного, но вполне «существующий»:
+          # дальше он сожмётся, зашифруется, пройдёт порог по размеру
+          # и уедет в Telegram как полноценный архив
+          got=$(stat -c%s "./${{ steps.dump.outputs.file }}")
+          if [ -z "$EXPECTED" ]; then
+            echo "::error::make_backup.py не вернул размер — сверить нечем"
+            exit 1
+          fi
+          if [ "$got" != "$EXPECTED" ]; then
+            echo "::error::Скачано $got байт вместо $EXPECTED — дамп дошёл не целиком"
+            exit 1
+          fi
+          echo "Размер совпал с исходным: $got байт"
 
       # ── Сжатие и шифрование ────────────────────────────────────────────
       - name: Зашифровать
@@ -81,16 +100,30 @@ jobs:
           ls -la "./${{ steps.dump.outputs.file }}.gz.gpg"
 
       # ── Проверка размера до отправки ───────────────────────────────────
+      # MAX_BYTES вынесен в env, чтобы порог можно было занизить одной
+      # строкой и увидеть эту ветку в работе. До 2026-07-30 она ни разу
+      # не исполнялась — то есть защита от переполнения существовала
+      # только на бумаге.
       - name: Проверить размер
+        env:
+          MAX_BYTES: '47000000'    # лимит Telegram Bot API 50 МБ, с запасом
+          MIN_BYTES: '10000'       # нижняя граница, см. ниже
         run: |
           f="./${{ steps.dump.outputs.file }}.gz.gpg"
           bytes=$(stat -c%s "$f")
           mb=$(( bytes / 1024 / 1024 ))
-          echo "Размер: $bytes байт (~$mb МБ)"
-          # Лимит Telegram Bot API на документ — 50 МБ. Упираемся заранее,
-          # чтобы узнать об этом из ошибки, а не из молчания
-          if [ "$bytes" -gt 47000000 ]; then
-            echo "::error::Бэкап ${mb} МБ — близко к лимиту Telegram (50 МБ). Нужен другой канал доставки."
+          echo "Размер: $bytes байт (~$mb МБ), потолок $MAX_BYTES"
+          # Верхняя граница: упираемся заранее, чтобы узнать об этом
+          # из ошибки, а не из молчания
+          if [ "$bytes" -gt "$MAX_BYTES" ]; then
+            echo "::error::Бэкап ${mb} МБ при потолке $((MAX_BYTES/1024/1024)) МБ — упираемся в лимит Telegram (50 МБ). Нужен другой канал доставки."
+            exit 1
+          fi
+          # Нижняя: пустой или почти пустой архив тоже проходил проверку
+          # «не больше 47 МБ» и уезжал как настоящий. Ложное спокойствие
+          # хуже отказа — про отказ хотя бы приходит уведомление
+          if [ "$bytes" -lt "$MIN_BYTES" ]; then
+            echo "::error::Архив всего $bytes байт — это не похоже на базу, отправку останавливаем"
             exit 1
           fi
 
@@ -114,18 +147,8 @@ jobs:
             "\n  сообщения чатов: \(.counts.chat_messages)" +
             "\n  слоты Enshrouded: \(.counts.enshrouded_slots)" +
             "\n\nРасшифровать:\n  gpg -d \(.file).gz.gpg > \(.file).gz\n  gunzip \(.file).gz"')
-          resp=$(curl -sS -w '\n%{http_code}' \
-            -F "chat_id=$CHAT_ID" \
-            -F "document=@./${{ steps.dump.outputs.file }}.gz.gpg" \
-            -F "caption=$caption" \
-            "https://api.telegram.org/bot$BOT_TOKEN/sendDocument")
-          code=$(echo "$resp" | tail -1)
-          echo "$resp" | head -n -1
-          if [ "$code" != "200" ]; then
-            echo "::error::Telegram не принял файл, код $code"
-            exit 1
-          fi
-          echo "Файл отправлен"
+          source .github/scripts/telegram.sh
+          tg_send_document "./${{ steps.dump.outputs.file }}.gz.gpg" "$caption"
 
       # ── Очистка неподтверждённых аккаунтов ─────────────────────────────
       # Шаг идёт ПОСЛЕ отправки архива и без if: always() намеренно. Упал
@@ -154,14 +177,19 @@ jobs:
             echo "::error::Очистка остановлена: в каскаде не учтены таблицы"
             exit 1
           fi
+          # Скрипт продолжает работу, если отдельный аккаунт удалить не вышло,
+          # и печатает «ОШИБКА на <адрес>». Без этой проверки шаг зеленел бы
+          # при частично выполненной очистке
+          if echo "$out" | grep -q "ОШИБКА на"; then
+            echo "::error::Часть аккаунтов не удалилась — см. строки «ОШИБКА на» выше"
+            exit 1
+          fi
           # В Telegram сообщаем только когда что-то реально удалено: ежедневное
           # «удалять нечего» превратило бы канал в шум, который перестают читать
           removed=$(echo "$out" | sed -n 's/^Удалено пользователей: \([0-9]*\) из.*/\1/p')
           if [ -n "$removed" ] && [ "$removed" -gt 0 ]; then
-            curl -sS -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
-              -d "chat_id=$CHAT_ID" \
-              -d "text=Очистка energydess: удалено неподтверждённых аккаунтов — $removed (старше 7 дней). Данные есть в архиве этого дня." \
-              >/dev/null || true
+            source .github/scripts/telegram.sh
+            tg_send_message "Очистка energydess: удалено неподтверждённых аккаунтов — $removed (старше 7 дней). Данные есть в архиве этого дня."
           fi
 
       # ── Уборка ─────────────────────────────────────────────────────────
@@ -173,21 +201,33 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           if [ -n "${{ steps.dump.outputs.path }}" ]; then
-            flyctl ssh console -a energydess-tools \
-              -C "rm -f ${{ steps.dump.outputs.path }}" || true
+            # Шаг намеренно не роняет прогон: он идёт под always() и, упав,
+            # перекрыл бы собой настоящую причину сбоя выше. Но и молчать
+            # нельзя — незашифрованная копия базы осталась бы лежать на томе.
+            # Поэтому warning: он виден в сводке прогона
+            if flyctl ssh console -a energydess-tools \
+                 -C "rm -f ${{ steps.dump.outputs.path }}"; then
+              echo "Дамп удалён с тома"
+            else
+              echo "::warning::Не удалось удалить ${{ steps.dump.outputs.path }} — на томе осталась НЕзашифрованная копия базы, уберите вручную"
+            fi
           fi
 
       # ── Сообщение о сбое ───────────────────────────────────────────────
       - name: Сообщить о сбое
         # Второй канал обязателен: если Telegram недоступен или токен протух,
         # это сообщение не дойдёт — и единственным сигналом останется письмо
-        # от GitHub о провалившемся запуске
+        # от GitHub о провалившемся запуске.
+        #
+        # Раньше здесь стояло «|| true» и ответ не читался вовсе. 27 июля
+        # запрос ушёл на URL без токена, Telegram ответил 404, шаг остался
+        # зелёным — и о поломке бэкапа никто не узнал. Теперь недоставка
+        # роняет шаг: сломанная сигнализация должна быть видна как сбой,
+        # а не как успех.
         if: failure()
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          curl -sS -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
-            -d "chat_id=$CHAT_ID" \
-            -d "text=Задача «бэкап + очистка» energydess завершилась сбоем. Какой именно шаг упал — видно в логе, бэкап мог и пройти. Запуск: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            || true
+          source .github/scripts/telegram.sh
+          tg_send_message "Задача «бэкап + очистка» energydess завершилась сбоем. Какой именно шаг упал — видно в логе, бэкап мог и пройти. Запуск: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
