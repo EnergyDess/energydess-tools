@@ -2656,19 +2656,53 @@ def _image_mime(file: UploadFile) -> str:
             "heif": "image/heif"}.get(ext, "image/jpeg")
 
 
-def _make_thumbnail(content: bytes, max_dim: int = 1920, quality: int = 85) -> str | None:
-    """Копия фото для хранения в истории чата (data URL JPEG) — Full HD,
-    чтобы вьюер на весь экран открывал её без замыливания."""
+def _upright_jpeg(content: bytes, max_dim: int = 1920, quality: int = 85) -> bytes | None:
+    """Пересобирает фото: применяет ориентацию из EXIF, уменьшает, сохраняет
+    JPEG без метаданных. None — не изображение или файл битый.
+
+    Порядок как в _process_avatar и по той же причине: ориентация лежит
+    в EXIF, а save() из чистого объекта метаданные не переносит. Не применить
+    поворот до сохранения — и портретное фото с телефона ляжет на бок,
+    потому что определить верх браузеру больше нечем. Раньше здесь этого
+    шага не было, и все вертикальные снимки в чатах лежали именно так.
+    """
     import io
-    from PIL import Image
+    from PIL import Image, ImageOps
     try:
-        img = Image.open(io.BytesIO(content)).convert("RGB")
+        img = Image.open(io.BytesIO(content))
+        img = ImageOps.exif_transpose(img)
+        img = img.convert("RGB")
         img.thumbnail((max_dim, max_dim))
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=quality)
-        return f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
+        return buf.getvalue()
     except Exception:
         return None
+
+
+def _make_thumbnail(content: bytes, max_dim: int = 1920, quality: int = 85) -> str | None:
+    """Копия фото для хранения в истории чата (data URL JPEG) — Full HD,
+    чтобы вьюер на весь экран открывал её без замыливания."""
+    готовое = _upright_jpeg(content, max_dim, quality)
+    if готовое is None:
+        return None
+    return f"data:image/jpeg;base64,{base64.b64encode(готовое).decode()}"
+
+
+def _for_vision(content: bytes, file: UploadFile) -> tuple[str, str]:
+    """Готовит фото для отправки в модель: (base64, mime).
+
+    Раньше уходил исходный файл с телефона — вместе с EXIF и во весь размер.
+    Модель могла и не читать EXIF, то есть распознавала снимок, лежащий
+    на боку. Плюс оригинал бывает в разы тяжелее, чем нужно для разбора.
+
+    Если пересобрать не удалось, отправляем как было: пусть решает модель —
+    это ровно прежнее поведение, а не отказ.
+    """
+    готовое = _upright_jpeg(content)
+    if готовое is None:
+        return base64.b64encode(content).decode(), _image_mime(file)
+    return base64.b64encode(готовое).decode(), "image/jpeg"
 
 
 async def _call_vision(b64: str, mime: str, prompt: str, max_tokens: int = 400) -> str:
@@ -3614,8 +3648,7 @@ async def nut_ai_photo(file: UploadFile = File(...), description: str = Form("")
     content = await file.read()
     if not content:
         return JSONResponse({"error": "Пустой файл"}, status_code=400)
-    b64 = base64.b64encode(content).decode()
-    mime = _image_mime(file)
+    b64, mime = _for_vision(content, file)
 
     extra = f"\nДополнительное описание от пользователя: {description.strip()}" if description.strip() else ""
     prompt = f"""На фото еда. Определи что изображено и оцени калорийность на 100г.{extra}
@@ -3639,8 +3672,7 @@ async def nut_ai_chat_photo(file: UploadFile = File(...), message: str = Form(""
     content = await file.read()
     if not content:
         return JSONResponse({"error": "Пустой файл"}, status_code=400)
-    b64 = base64.b64encode(content).decode()
-    mime = _image_mime(file)
+    b64, mime = _for_vision(content, file)
     user_text = message.strip()
     thumb = _make_thumbnail(content)
 
@@ -5526,8 +5558,7 @@ async def workout_chat_photo(file: UploadFile = File(...), message: str = Form("
     content = await file.read()
     if not content:
         return JSONResponse({"error": "Пустой файл"}, status_code=400)
-    b64 = base64.b64encode(content).decode()
-    mime = _image_mime(file)
+    b64, mime = _for_vision(content, file)
     thumb = _make_thumbnail(content)
 
     db.add(ChatMessage(user_id=user.id, role="user", content=message or "[фото тренажёра]", image_data=thumb, tool="workout"))
