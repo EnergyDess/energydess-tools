@@ -2,6 +2,7 @@ import asyncio
 import io
 import json as _json
 import re
+import secrets
 import ipaddress
 import socket
 import time
@@ -3512,17 +3513,28 @@ async def upload_body_photo(file: UploadFile = File(...), angle: str = Form(...)
     # Качество общее (JPEG_QUALITY), отдельное число здесь было бы третьим
     # источником правды. Меньший max_dim оставлен: фото тела снимаются
     # для сравнения силуэта по неделям, разрешение Full HD тут избыточно
-    thumb = _make_thumbnail(content, max_dim=1600)
-    if not thumb:
+    готовое = _upright_jpeg(content, max_dim=1600)
+    if not готовое:
         return JSONResponse({"error": "Не удалось обработать фото"}, status_code=400)
+    токен = _save_media("body", user.id, готовое)
+    if not токен:
+        return JSONResponse({"error": "Не удалось сохранить фото"}, status_code=500)
 
     existing = db.query(BodyPhoto).filter(
         BodyPhoto.user_id == user.id, BodyPhoto.log_date == date, BodyPhoto.angle == angle,
     ).first()
     if existing:
-        existing.image_data = thumb
+        # Снимок за эту дату и ракурс заменяется: старый файл убираем сразу,
+        # иначе он останется на томе навсегда, никем не читаемый
+        старый = existing.image_path
+        existing.image_path, existing.image_data = токен, None
+        if старый:
+            try:
+                os.remove(_media_path("body", user.id, старый))
+            except (OSError, ValueError) as e:
+                print(f"[media] старое фото {старый} не удалено: {type(e).__name__}: {e}")
     else:
-        db.add(BodyPhoto(user_id=user.id, log_date=date, angle=angle, image_data=thumb))
+        db.add(BodyPhoto(user_id=user.id, log_date=date, angle=angle, image_path=токен))
     db.commit()
     return JSONResponse({"ok": True})
 
@@ -3534,7 +3546,7 @@ async def list_body_photos(user=Depends(get_current_user), db: Session = Depends
     rows = db.query(BodyPhoto).filter(BodyPhoto.user_id == user.id).order_by(BodyPhoto.log_date.desc()).all()
     by_date = {}
     for r in rows:
-        by_date.setdefault(r.log_date, {})[r.angle] = r.image_data
+        by_date.setdefault(r.log_date, {})[r.angle] = _media_src("body", r)
     dates = sorted(by_date.keys(), reverse=True)
     return JSONResponse({"dates": dates, "photos": by_date})
 
@@ -3580,8 +3592,9 @@ async def nut_chat_history(user=Depends(get_current_user), db: Session = Depends
     result = []
     for m in msgs:
         item = {"role": m.role, "content": m.content}
-        if m.image_data:
-            item["image"] = m.image_data
+        картинка = _media_src("chat", m)
+        if картинка:
+            item["image"] = картинка
         result.append(item)
     return JSONResponse({"messages": result})
 
@@ -3700,7 +3713,11 @@ async def nut_ai_chat_photo(file: UploadFile = File(...), message: str = Form(""
         return JSONResponse({"error": "Пустой файл"}, status_code=400)
     b64, mime = _for_vision(content, file)
     user_text = message.strip()
-    thumb = _make_thumbnail(content)
+    # Файл на том, в базу — только токен. Не удалось сохранить (нет места,
+    # права) — запись всё равно создаётся, но без картинки: потерять текст
+    # переписки из-за файла было бы хуже
+    готовое = _upright_jpeg(content)
+    токен = _save_media("chat", user.id, готовое) if готовое else None
 
     comment = f"\nКомментарий пользователя: {user_text}" if user_text else ""
     prompt = f"""На фото еда, которую съел пользователь.{comment}
@@ -3709,7 +3726,7 @@ async def nut_ai_chat_photo(file: UploadFile = File(...), message: str = Form(""
 Ответь ТОЛЬКО JSON без ```json и без пояснений:
 {{"name":"название блюда","brand":"заведение или производитель (пустая строка, если неизвестно)","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":300}}"""
 
-    db.add(ChatMessage(user_id=user.id, role="user", content=user_text or "[фото блюда]", image_data=thumb))
+    db.add(ChatMessage(user_id=user.id, role="user", content=user_text or "[фото блюда]", image_path=токен))
 
     try:
         text = await _call_vision(b64, mime, prompt)
@@ -5444,7 +5461,8 @@ async def workout_chat_history(user=Depends(get_current_user), db: Session = Dep
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     msgs = db.query(ChatMessage).filter(ChatMessage.user_id == user.id, ChatMessage.tool == "workout").order_by(
         ChatMessage.created_at).limit(100).all()
-    return JSONResponse({"messages": [{"role": m.role, "content": m.content, "image": m.image_data} for m in msgs]})
+    return JSONResponse({"messages": [{"role": m.role, "content": m.content,
+                                       "image": _media_src("chat", m)} for m in msgs]})
 
 
 @app.post("/workout/api/chat")
@@ -5585,9 +5603,10 @@ async def workout_chat_photo(file: UploadFile = File(...), message: str = Form("
     if not content:
         return JSONResponse({"error": "Пустой файл"}, status_code=400)
     b64, mime = _for_vision(content, file)
-    thumb = _make_thumbnail(content)
+    готовое = _upright_jpeg(content)
+    токен = _save_media("chat", user.id, готовое) if готовое else None
 
-    db.add(ChatMessage(user_id=user.id, role="user", content=message or "[фото тренажёра]", image_data=thumb, tool="workout"))
+    db.add(ChatMessage(user_id=user.id, role="user", content=message or "[фото тренажёра]", image_path=токен, tool="workout"))
     db.commit()
 
     cluster_labels = {item["label"] for item in _workout_equipment_checklist(db)}
@@ -5650,6 +5669,63 @@ async def workout_add_equipment(request: Request, user=Depends(get_current_user)
 #   3. Метаданные не переносятся. У фото с телефона в EXIF лежат GPS-координаты
 #      места съёмки: селфи из дома выдало бы домашний адрес. Там же модель
 #      аппарата и иногда имя владельца.
+
+# ── Приватные медиафайлы: вложения переписки и фото тела ──────────────────────
+#
+# Лежат на томе, а не в базе: base64 раздувает объём на треть, и каждая
+# картинка попадала в каждый ежедневный архив, уезжающий в Telegram.
+# Для снимков тела это худший вариант из возможных (BACKLOG №20).
+#
+# Каталог ВНЕ static: FastAPI туда ничего не монтирует, прямого URL
+# к файлу не существует. Отдача только через /media/{kind}/{token}
+# с проверкой владения — см. _serve_private_media.
+MEDIA_ROOT = os.path.join(os.path.dirname(DB_PATH) if os.path.dirname(DB_PATH) else ".", "media")
+MEDIA_KINDS = ("chat", "body")
+
+
+def _media_path(kind: str, user_id: int, token: str) -> str:
+    """Путь к приватному файлу. Ничего из запроса сюда не попадает как есть:
+    kind сверяется со списком, user_id — целое из базы, token — только
+    буквы, цифры и -_ (его выдаёт secrets.token_urlsafe). Поэтому выйти
+    за пределы каталога через ../ нечем.
+
+    Подкаталог на пользователя нужен, чтобы каскад удалял папку целиком,
+    а не перебирал файлы. Права при этом проверяются по записи в базе,
+    а не по пути: путь — способ хранения, а не способ доступа.
+    """
+    if kind not in MEDIA_KINDS:
+        raise ValueError("неизвестный вид медиа: %r" % kind)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{8,64}", token or ""):
+        raise ValueError("недопустимый токен")
+    return os.path.join(MEDIA_ROOT, kind, str(int(user_id)), token + ".jpg")
+
+
+def _media_user_dir(kind: str, user_id: int) -> str:
+    return os.path.join(MEDIA_ROOT, kind, str(int(user_id)))
+
+
+def _save_media(kind: str, user_id: int, содержимое: bytes) -> str | None:
+    """Кладёт файл на том, возвращает токен для записи в базу.
+
+    Имя файла — случайное, а не производное от id: id в SQLite
+    переиспользуются, и файл, названный по номеру, достался бы следующему
+    владельцу этого номера. AUTOINCREMENT это закрывает, но опираться
+    на одну защиту не стоит — здесь наследование невозможно by design,
+    потому что токен новому пользователю неоткуда узнать.
+    """
+    if not содержимое:
+        return None
+    токен = secrets.token_urlsafe(16)
+    путь = _media_path(kind, user_id, токен)
+    os.makedirs(os.path.dirname(путь), exist_ok=True)
+    with open(путь, "wb") as f:
+        f.write(содержимое)
+    return токен
+
+
+def _media_url(kind: str, token: str | None) -> str | None:
+    return f"/media/{kind}/{token}" if token else None
+
 
 AVATAR_DIR = os.path.join(os.path.dirname(DB_PATH) if os.path.dirname(DB_PATH) else ".", "avatars")
 AVATAR_SIZE = 256           # 36px в шапке и 96px в профиле, с запасом на retina
@@ -5733,6 +5809,45 @@ async def delete_avatar(user=Depends(get_current_user), db: Session = Depends(ge
     user.avatar_updated_at = None
     db.commit()
     return JSONResponse({"ok": True})
+
+
+@app.get("/media/{kind}/{token}")
+async def get_media(kind: str, token: str, user=Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    """Приватный файл: вложение переписки или фото тела.
+
+    Один эндпоинт на оба вида намеренно — правило доступа тут одно, и два
+    похожих обработчика разошлись бы при первой же правке.
+
+    Проверка ровно одна: запись с таким токеном существует И принадлежит
+    запрашивающему. Исключений по is_admin нет и быть не должно —
+    см. CLAUDE.md §5.1: политика конфиденциальности обещает, что фотографии
+    и переписка администратору не показываются, и обход сделал бы её
+    неверной молча.
+
+    404 вместо 403 везде: 403 подтверждает, что файл с таким токеном есть.
+    """
+    таблицы = {"chat": ChatMessage, "body": BodyPhoto}
+    модель = таблицы.get(kind)
+    if not user or модель is None:
+        return JSONResponse({"error": "не найдено"}, status_code=404)
+
+    запись = db.query(модель).filter(модель.image_path == token).first()
+    if not запись or запись.user_id != user.id:
+        return JSONResponse({"error": "не найдено"}, status_code=404)
+
+    try:
+        путь = _media_path(kind, user.id, token)
+    except ValueError:
+        return JSONResponse({"error": "не найдено"}, status_code=404)
+    if not os.path.exists(путь):
+        print(f"[media] запись {kind}/{запись.id} есть, файла нет: {путь}")
+        return JSONResponse({"error": "не найдено"}, status_code=404)
+
+    # no-store, а не просто private: снимок тела не должен оставаться
+    # в кэше общего компьютера после выхода из аккаунта
+    return FileResponse(путь, media_type="image/jpeg",
+                        headers={"Cache-Control": "private, no-store"})
 
 
 @app.get("/avatar/{user_id}")
@@ -5858,6 +5973,7 @@ DELETE_LABELS = {
     "workout_profiles": "Профиль тренировок",
     "scale_connections": "Привязка умных весов",
     "файл аватара": "Загруженный аватар",
+    "медиафайлы": "Файлы вложений и фото",
 }
 
 

@@ -3,6 +3,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 import os
 import re
+import shutil
 import sqlite3
 
 # DB_PATH задаётся через .env на Fly.io (volume монтируется в /data),
@@ -241,7 +242,12 @@ class ChatMessage(Base):
     user_id = Column(Integer, nullable=False, index=True)
     role = Column(String, nullable=False)  # user/assistant
     content = Column(Text, nullable=False)
-    image_data = Column(Text, nullable=True)  # миниатюра прикреплённого фото (data URL), если было
+    # Вложение переписки. image_path — токен файла на томе (см. _media_path),
+    # image_data — старый способ хранения, data URL прямо в базе. Читать
+    # через _media_url_or_data: пустой путь означает «запись из тех, что
+    # ещё не мигрировали», и тогда работает image_data
+    image_path = Column(String, nullable=True)
+    image_data = Column(Text, nullable=True)  # legacy: data URL, вытесняется image_path
     tool = Column(String, nullable=False, default="nutrition")  # nutrition/workout — общая таблица на оба чата
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -301,7 +307,8 @@ class BodyPhoto(Base):
     user_id = Column(Integer, nullable=False, index=True)
     log_date = Column(String, nullable=False)
     angle = Column(String, nullable=False)  # front/side/back
-    image_data = Column(Text, nullable=False)  # data URL, как ChatMessage.image_data
+    image_path = Column(String, nullable=True)   # токен файла на томе
+    image_data = Column(Text, nullable=True)     # legacy: data URL
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -534,6 +541,8 @@ def migrate_db():
         "ALTER TABLE users ADD COLUMN password_changed_at DATETIME",
         "ALTER TABLE scale_connections ADD COLUMN encrypted_app_token TEXT",
         "ALTER TABLE scale_connections ADD COLUMN encrypted_zepp_user_id TEXT",
+        "ALTER TABLE chat_messages ADD COLUMN image_path VARCHAR",
+        "ALTER TABLE body_photos ADD COLUMN image_path VARCHAR",
     ]:
         try:
             conn.execute(col)
@@ -973,12 +982,46 @@ def delete_user_cascade(user_id: int, dry_run: bool = False) -> dict:
     finally:
         conn.close()
 
-    # 5. Файл аватара — единственное, что лежит вне базы и привязано к id.
-    #    Строго после commit: упади транзакция, файл остался бы удалённым
-    #    у живого аккаунта. В обратную сторону ошибка дешевле — осиротевший
-    #    файл никому не показывается, потому что показывать его больше некому
+    # 5. Файлы вне базы — аватар и приватные медиа. Строго после commit:
+    #    упади транзакция, файлы остались бы удалёнными у живого аккаунта.
+    #    В обратную сторону ошибка дешевле — осиротевший файл никому
+    #    не показывается, потому что показывать его больше некому
     отчёт["файл аватара"] = _delete_avatar_file(user_id, dry_run=dry_run)
+    отчёт["медиафайлы"] = _delete_media_dirs(user_id, dry_run=dry_run)
     return отчёт
+
+
+def _delete_media_dirs(user_id: int, dry_run: bool = False) -> int:
+    """Удаляет каталоги приватных медиа: вложения переписки и фото тела.
+    Возвращает число удалённых файлов.
+
+    Каталогом целиком, а не по одному файлу: список файлов в базе может
+    разойтись с диском (запись удалили, файл остался), и тогда перебор
+    по записям оставил бы мусор. Каталог пользователя не содержит ничего,
+    кроме его же файлов, поэтому удалять его безопасно.
+    """
+    корень = os.path.join(os.path.dirname(DB_PATH) or ".", "media")
+    удалено = 0
+    for вид in ("chat", "body"):
+        каталог = os.path.join(корень, вид, str(int(user_id)))
+        if not os.path.isdir(каталог):
+            continue
+        try:
+            файлы = os.listdir(каталог)
+        except OSError as e:
+            print(f"[delete] каталог {каталог} не прочитан: {type(e).__name__}: {e}")
+            continue
+        удалено += len(файлы)
+        if dry_run:
+            continue
+        try:
+            shutil.rmtree(каталог)
+        except OSError as e:
+            # Не рушим удаление аккаунта из-за файлов: база уже вычищена,
+            # вернуться к прежнему состоянию невозможно. Но и молчать нельзя
+            print(f"[delete] каталог {каталог} не удалён: {type(e).__name__}: {e}")
+            удалено -= len(файлы)
+    return удалено
 
 
 def _delete_avatar_file(user_id: int, dry_run: bool = False) -> int:
