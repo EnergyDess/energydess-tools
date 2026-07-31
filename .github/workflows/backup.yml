@@ -192,6 +192,54 @@ jobs:
             tg_send_message "Очистка energydess: удалено неподтверждённых аккаунтов — $removed (старше 7 дней). Данные есть в архиве этого дня."
           fi
 
+      # ── Снимок справочника: не протух ли ───────────────────────────────
+      # Выгрузка справочника остаётся ручной — она нужна несколько раз в год,
+      # и права на запись в репозиторий ради этого выдавать незачем. Но
+      # ручное без сигнала протухает молча: снимок отстанет в тот день,
+      # когда правишь видео в админке, а выяснится это в единственный день,
+      # когда снимок понадобится.
+      #
+      # Поэтому сверяем ежедневно и сообщаем только при расхождении.
+      # Шаг не роняет прогон: отставший снимок — это не сбой бэкапа,
+      # а напоминание обновить файл.
+      - name: Сверить снимок справочника с базой
+        if: always() && steps.dump.outcome == 'success'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -o pipefail
+          snapshot=$(ls -1 backups/exercises/exercises-*.json 2>/dev/null | tail -1)
+          if [ -z "$snapshot" ]; then
+            echo "::warning::Снимка справочника в репозитории нет вовсе — сверять не с чем"
+            exit 0
+          fi
+          live=$(flyctl ssh console -a energydess-tools \
+                 -C "sh -c 'cd /app && python dump_exercises.py --fingerprint'" 2>&1 \
+                 | tr -d '\r' | grep -o 'FINGERPRINT=.*' | sed 's/^FINGERPRINT=//')
+          file=$(python dump_exercises.py --fingerprint-file "$snapshot" \
+                 | grep -o 'FINGERPRINT=.*' | sed 's/^FINGERPRINT=//')
+          echo "база:   $live"
+          echo "снимок: $file ($snapshot)"
+          if [ -z "$live" ]; then
+            echo "::warning::Отпечаток базы получить не удалось — сверка не выполнена"
+            exit 0
+          fi
+          live_hash=$(echo "$live" | jq -r .хеш)
+          file_hash=$(echo "$file" | jq -r .хеш)
+          if [ "$live_hash" = "$file_hash" ]; then
+            echo "Снимок актуален (хеш $live_hash)"
+            exit 0
+          fi
+          echo "::warning::Снимок справочника отстал от базы: $file_hash против $live_hash"
+          source .github/scripts/telegram.sh
+          tg_send_message "energydess: снимок справочника упражнений отстал от базы.
+          В базе:  $(echo "$live" | jq -r '\"\(.всего) упражнений, \(.с_видео) с видео\"')
+          В файле: $(echo "$file" | jq -r '\"\(.всего) упражнений, \(.с_видео) с видео, снят \(.снят)\"')
+          Обновить: flyctl ssh console -a energydess-tools -C \"sh -c 'cd /app && python dump_exercises.py --dump'\" — и забрать файл через sftp, см. CLAUDE.md §11." \
+            || echo "::error::Про отставший снимок не удалось сообщить в Telegram"
+
       # ── Уборка ─────────────────────────────────────────────────────────
       - name: Удалить дамп с тома
         # always(): копия базы не должна оставаться рядом с базой, даже если
