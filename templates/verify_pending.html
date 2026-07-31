@@ -51,6 +51,27 @@
       flex-shrink: 0;
       margin-top: 1px;
     }
+
+    /* Утилиты страниц подтверждения. Раньше это лежало инлайном в разметке
+       (CLAUDE.md §6.0.2): атрибут style= бьёт любой файловый селектор,
+       и никакая правка в style.css до него не дошла бы. */
+    .v-center     { text-align: center; }
+    .v-lead       { color: var(--text-2); font-size: var(--text-body-sm); margin-bottom: var(--space-5); }
+    .v-lead-plain { color: var(--text-2); font-size: var(--text-body-sm); }
+    .v-strong     { color: var(--text); }
+    .v-sm         { font-size: var(--text-body-sm); }
+    .v-mb-4       { margin-bottom: var(--space-1); }
+    .v-mb-8       { margin-bottom: var(--space-2); }
+    .v-mb-20      { margin-bottom: var(--space-5); }
+    .v-mt-8       { margin-top: var(--space-2); }
+    .v-mt-20      { margin-top: var(--space-5); }
+    .v-block      { margin-bottom: var(--space-5); text-align: left; }
+    .v-note       { font-size: var(--text-caption); color: var(--text-faint); }
+    .v-mb-16      { margin-bottom: var(--space-4); }
+    .v-mt-24      { margin-top: var(--space-6); }
+    .v-link       { color: var(--accent-brand); font-size: var(--text-body-sm);
+                    text-decoration: none; transition: opacity var(--dur-fast) var(--ease); }
+    .v-link:hover { opacity: 0.8; }
   </style>
 </head>
 <body>
@@ -63,18 +84,18 @@
 </nav>
 
 <div class="auth-wrap">
-  <div class="auth-box" style="text-align:center">
+  <div class="auth-box" class="v-center">
     <div class="verify-icon">{% if notice == 'failed' %}⚠️{% else %}✉️{% endif %}</div>
     {% if notice == 'failed' %}
     {# Раньше страница утверждала «мы отправили письмо» независимо от того,
        ушло оно или нет — человек ждал письма, которого не будет #}
-    <h1 style="margin-bottom:8px">Письмо не отправлено</h1>
-    <p style="color:var(--text-2);font-size:0.95rem;margin-bottom:4px">
+    <h1 class="v-mb-8">Письмо не отправлено</h1>
+    <p class="v-lead v-mb-4">
       Аккаунт создан, но письмо с подтверждением не ушло.
     </p>
     {% else %}
-    <h1 style="margin-bottom:8px">Проверьте почту</h1>
-    <p style="color:var(--text-2);font-size:0.95rem;margin-bottom:4px">
+    <h1 class="v-mb-8">Проверьте почту</h1>
+    <p class="v-lead v-mb-4">
       Мы отправили письмо с ссылкой для подтверждения.
     </p>
     {% endif %}
@@ -82,7 +103,7 @@
     <div class="verify-steps"{% if notice == 'failed' %} style="display:none"{% endif %}>
       <div class="verify-step">
         <div class="verify-step-num">1</div>
-        <span>Откройте письмо от <strong style="color:var(--text)">noreply@energydess.ru</strong></span>
+        <span>Откройте письмо от <strong class="v-strong">noreply@energydess.ru</strong></span>
       </div>
       <div class="verify-step">
         <div class="verify-step-num">2</div>
@@ -101,40 +122,40 @@
        регистрации письмо отправлено впервые, и то же слово читалось бы как
        «вы здесь не в первый раз» #}
     {% if notice == 'sent' %}
-    <div class="alert alert-success" style="margin-bottom:20px;text-align:left">
+    <div class="alert alert-success" class="v-block">
       <span>Письмо отправлено на <strong>{{ email }}</strong>. Ссылка действует 24 часа.</span>
     </div>
     {% elif notice == 'failed' %}
-    <div class="alert alert-error" style="margin-bottom:20px;text-align:left">
+    <div class="alert alert-error" class="v-block">
       <span>Не удалось отправить письмо — проблема на нашей стороне. Попробуйте через несколько минут —
       кнопка ниже отправит письмо ещё раз.</span>
     </div>
     {% elif notice == 'too_soon' %}
-    <div class="alert alert-warn" id="cooldown-note" style="margin-bottom:20px;text-align:left">
+    <div class="alert alert-warn" id="cooldown-note" class="v-block">
       <span>Письмо уже отправлено — проверьте почту. Повторить можно через
       <strong id="cooldown-left">{{ cooldown }}</strong> с.</span>
     </div>
     {% endif %}
 
-    <p style="font-size:0.8rem;color:var(--text-faint);margin-bottom:16px">
+    <p class="v-note v-mb-16">
       Не видите письмо? Проверьте папку «Спам».
     </p>
 
     {% if can_resend %}
-    <form method="post" action="/verify-pending/resend" style="margin-bottom:20px">
+    <form method="post" action="/verify-pending/resend" class="v-mb-20">
       <button type="submit" class="btn-secondary" id="resend-btn"
               {% if cooldown %}disabled{% endif %}>Отправить письмо ещё раз</button>
       {# Кнопка выключена по кулдауну — объясняем, почему и до каких пор.
          В ветке too_soon счётчик уже показан в рыжей плашке, второй раз не нужен #}
       {% if cooldown and notice != 'too_soon' %}
-      <div id="cooldown-hint" style="font-size:0.8rem;color:var(--text-faint);margin-top:8px">
+      <div id="cooldown-hint" class="v-note v-mt-8">
         Повторить можно через <strong id="cooldown-left">{{ cooldown }}</strong> с.
       </div>
       {% endif %}
     </form>
     {% endif %}
 
-    <a href="/login" style="color:var(--accent-brand);font-size:0.875rem;text-decoration:none;transition:opacity 0.2s"
+    <a href="/login" class="v-link"
        onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">
       ← Вернуться к входу
     </a>

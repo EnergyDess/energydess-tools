@@ -216,9 +216,25 @@ grep -rnE '^\s*\.(card|btn-primary|btn-secondary|btn-ghost|input|badge|alert|ava
 grep -rnE '^\s*--(surface|border|text|accent|space|radius|dur|ease|font)[a-z0-9-]*\s*:' \
   templates/ static/hh.css static/profile.css static/landing.css
 
-# 3. инлайновые стили в разметке
-grep -rnoE 'style="[^"]*"' templates/ | grep -vE '\{\{|\{%|display\s*:\s*(none|block|flex|grid);?"'
+# 3. инлайновые стили в разметке — исключаем ТОЛЬКО целиком законные
+grep -rnoE 'style="[^"]*"' templates/   | grep -vE 'style="\s*(--[a-z0-9_-]+\s*:[^;"]*;?\s*)+"'   | grep -vE 'style="\s*display\s*:\s*(none|block|flex|grid|inline-flex)\s*;?\s*"'   | grep -vE 'style="\s*[a-z-]+\s*:\s*\{\{[^"]*\}\}[a-z%]*\s*;?\s*"'
 ```
+
+Третий греп написан именно так, потому что первая его версия имела слепое
+пятно того самого класса, за которым мы гоняемся: она отсеивала строку
+целиком, если в ней встречалось `{{`. То есть `style="width: {{ x }}%"`
+пропускался законно, а `style="width: {{ x }}%; border: 1px solid red"` —
+незаконно, и проверка рапортовала «чисто». Теперь исключается только то,
+что законно **целиком**: смесь законного и статики ловится.
+
+Проверять изменения этого грепа надо на четырёх примерах сразу:
+
+| Пример | Ожидание |
+|---|---|
+| `style="--n: 3"` | пропустить |
+| `style="--n: 3; margin-top: 8px"` | **поймать** |
+| `style="width: {{ x }}%"` | пропустить |
+| `style="width: {{ x }}%; border: 1px solid red"` | **поймать** |
 
 #### Где инлайн допустим осознанно
 
