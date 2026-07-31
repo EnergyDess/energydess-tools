@@ -5727,6 +5727,19 @@ def _media_url(kind: str, token: str | None) -> str | None:
     return f"/media/{kind}/{token}" if token else None
 
 
+def _media_src(kind: str, запись) -> str | None:
+    """Что подставить в <img src>: ссылку на файл либо старый data URL.
+
+    Фолбэк на image_data оставлен на время миграции: записи, которые
+    почему-то не перенеслись, продолжают показываться, а не превращаются
+    в битые картинки. Пустой image_path — это «ещё не мигрировала»,
+    а не ошибка.
+    """
+    if getattr(запись, "image_path", None):
+        return _media_url(kind, запись.image_path)
+    return getattr(запись, "image_data", None)
+
+
 AVATAR_DIR = os.path.join(os.path.dirname(DB_PATH) if os.path.dirname(DB_PATH) else ".", "avatars")
 AVATAR_SIZE = 256           # 36px в шапке и 96px в профиле, с запасом на retina
 AVATAR_MAX_BYTES = 5 * 1024 * 1024
