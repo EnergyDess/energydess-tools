@@ -598,15 +598,21 @@ async def deploy_hook(request: Request):
 
 
 def _import_exercises_if_empty():
-    """База упражнений (с переводом и кластеризацией оборудования, уже
-    посчитанными ранее) лежит в exercises_data.json — грузим один раз при
-    первом старте, если таблица пустая (напр. свежий volume на проде).
-    Идемпотентно: на непустой таблице ничего не делает."""
+    """Первичное наполнение справочника из exercises_seed.json — один раз
+    при первом старте, если таблица пустая (напр. свежий volume на проде).
+    Идемпотентно: на непустой таблице ничего не делает.
+
+    Это СЕМЯ, а не бэкап: 873 упражнения с переводом и кластеризацией
+    оборудования, но БЕЗ youtube_id — их проставил многодневный импорт уже
+    после наполнения. Снимок справочника вместе с видео лежит отдельно,
+    в backups/exercises/, и накатывается через dump_exercises.py --restore.
+    Файл назывался exercises_data.json и был переименован ровно затем,
+    чтобы эти две вещи нельзя было перепутать."""
     db = SessionLocal()
     try:
         if db.query(Exercise).first():
             return
-        path = os.path.join(os.path.dirname(__file__), "exercises_data.json")
+        path = os.path.join(os.path.dirname(__file__), "exercises_seed.json")
         if not os.path.exists(path):
             return
         with open(path, encoding="utf-8") as f:

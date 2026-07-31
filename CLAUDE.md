@@ -59,7 +59,11 @@ auth.py              — хэширование и токены
 crypto.py            — шифрование чужих учётных данных (Fernet)
 check_privacy.py     — сверка политики конфиденциальности со схемой базы
 zepp_client.py       — Zepp Life API (умные весы Xiaomi)
-exercises_data.json  — база упражнений (873 упражнения)
+exercises_seed.json  — СЕМЯ справочника: 873 упражнения БЕЗ youtube_id,
+                       только для первичного наполнения пустой базы
+dump_exercises.py    — выгрузка/восстановление справочника (BACKLOG №21)
+backups/exercises/   — снимки справочника ВМЕСТЕ с youtube_id, в образ
+                       не попадают (см. .dockerignore)
 templates/           — HTML-шаблоны Jinja2
   index, landing, hh, nutrition, workout, workout_profile, enshrouded,
   admin, profile, login, register
