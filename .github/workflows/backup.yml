@@ -226,8 +226,16 @@ jobs:
             echo "::warning::Отпечаток базы получить не удалось — сверка не выполнена"
             exit 0
           fi
-          live_hash=$(echo "$live" | jq -r .hash)
-          file_hash=$(echo "$file" | jq -r .hash)
+          live_hash=$(echo "$live" | jq -r '.hash // empty')
+          file_hash=$(echo "$file" | jq -r '.hash // empty')
+          # «Не смогли прочитать» и «не совпало» — разные вещи, и путать их
+          # нельзя: пустой отпечаток против непустого выглядит как
+          # расхождение и шлёт ложную тревогу. Так и вышло при первом
+          # прогоне, когда на проде ещё стоял скрипт без --fingerprint
+          if [ -z "$live_hash" ] || [ -z "$file_hash" ]; then
+            echo "::warning::Отпечаток не разобрался (база: '$live_hash', снимок: '$file_hash') — сверка не выполнена, тревогу не поднимаем"
+            exit 0
+          fi
           if [ "$live_hash" = "$file_hash" ]; then
             echo "Снимок актуален (хеш $live_hash)"
             exit 0
