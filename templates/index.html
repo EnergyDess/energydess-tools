@@ -110,27 +110,10 @@
       .hero-title { font-size: 1.9rem; }
     }
 
-    /* Карточка инструмента — общий компонент .card + .tool-card из style.css
-       (тот же, что на лендинге). Локальные хардкоды фона/рамки/тени/паддинга
-       и backdrop-filter убраны — компонент один на оба контекста.
-       Здесь остаётся только появление при загрузке, специфичное для лаунчера. */
-    .tool-card {
-      opacity: 0;
-      animation: cardReveal 0.6s cubic-bezier(.22,1,.36,1) both;
-    }
-    .tool-card:nth-child(1) { animation-delay: 0.3s; }
-    .tool-card:nth-child(2) { animation-delay: 0.38s; }
-    .tool-card:nth-child(3) { animation-delay: 0.46s; }
-    .tool-card:nth-child(4) { animation-delay: 0.54s; }
-    .tool-card:nth-child(5) { animation-delay: 0.62s; }
-    .tool-card:nth-child(6) { animation-delay: 0.7s; }
-    @keyframes cardReveal {
-      from { opacity: 0; transform: translateY(28px) scale(0.97); }
-      to   { opacity: 1; transform: translateY(0) scale(1); }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .tool-card { animation: none; opacity: 1; }
-    }
+    /* Карточка инструмента — общий компонент .card + .tool-card из style.css.
+       Появление при загрузке тоже системное (.stagger-in), номер позиции
+       приходит из цикла через --n. Раньше здесь лежало переопределение
+       .tool-card с шестью :nth-child — CLAUDE.md §6.0.2. */
 
     .lock-icon { color: var(--text-faint); display: inline-flex; }
     .lock-icon svg { width: 16px; height: 16px; stroke-width: 1.5; }
@@ -167,7 +150,7 @@
     {% for tool in tools %}
 
       {% if not tool.active %}
-        <div class="card tool-card tool-{{ tool.id }} is-soon">
+        <div class="card tool-card stagger-in tool-{{ tool.id }} is-soon" style="--n: {{ loop.index0 }}">
           <div class="tool-card-icon"><i data-lucide="{{ tool_lucide.get(tool.id, 'box') }}"></i></div>
           <div class="tool-card-title">{{ tool.name }}</div>
           <div class="tool-card-desc">{{ tool.desc }}</div>
@@ -178,7 +161,7 @@
         </div>
 
       {% elif tool.has_access %}
-        <a href="{{ tool.url }}" class="card tool-card tool-{{ tool.id }}">
+        <a href="{{ tool.url }}" class="card tool-card stagger-in tool-{{ tool.id }}" style="--n: {{ loop.index0 }}">
           <div class="tool-card-icon"><i data-lucide="{{ tool_lucide.get(tool.id, 'box') }}"></i></div>
           <div class="tool-card-title">{{ tool.name }}</div>
           <div class="tool-card-desc">{{ tool.desc }}</div>
@@ -189,7 +172,7 @@
         </a>
 
       {% else %}
-        <div class="card tool-card tool-{{ tool.id }} is-locked">
+        <div class="card tool-card stagger-in tool-{{ tool.id }} is-locked" style="--n: {{ loop.index0 }}">
           <div class="tool-card-icon"><i data-lucide="{{ tool_lucide.get(tool.id, 'box') }}"></i></div>
           <div class="tool-card-title">{{ tool.name }}</div>
           <div class="tool-card-desc">{{ tool.desc }}</div>

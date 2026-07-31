@@ -800,6 +800,31 @@ img.avatar { object-fit: cover; padding: 0; }
 }
 .reveal.revealed { opacity: 1; transform: translateY(0); }
 
+/* ── Появление списка при загрузке ──────────────────────────────────────────
+   Рядом с .reveal и по той же причине: это тот же приём, только повод другой.
+   .reveal ждёт скролла и нужен длинным страницам; .stagger-in отыгрывает
+   сразу, поочерёдно — для списков, которые видны с первого экрана.
+
+   Задержку задаёт элемент через --шаг (по умолчанию 80мс на позицию),
+   номер позиции — через --n. Пишется в разметке как значение, а не как
+   стиль: см. CLAUDE.md §6.0.2, CSS-переменная-параметр — законный инлайн.
+
+   Появился из index.html, где .tool-card переопределял системный компонент
+   ради этой анимации. Механизм общий для любого списка карточек, поэтому
+   живёт в системе, а не в шаблоне лаунчера. */
+.stagger-in {
+  opacity: 0;
+  animation: staggerIn var(--dur-slow, 0.6s) var(--ease-out) both;
+  animation-delay: calc(var(--n, 0) * var(--шаг, 80ms) + var(--старт, 300ms));
+}
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(28px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stagger-in { animation: none; opacity: 1; }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    LEGACY-КОМПОНЕНТЫ — используются страницами, ещё не мигрированными на новую
    систему (nutrition, workout, enshrouded, admin, index, auth). Значения
