@@ -226,8 +226,8 @@ jobs:
             echo "::warning::Отпечаток базы получить не удалось — сверка не выполнена"
             exit 0
           fi
-          live_hash=$(echo "$live" | jq -r .хеш)
-          file_hash=$(echo "$file" | jq -r .хеш)
+          live_hash=$(echo "$live" | jq -r .hash)
+          file_hash=$(echo "$file" | jq -r .hash)
           if [ "$live_hash" = "$file_hash" ]; then
             echo "Снимок актуален (хеш $live_hash)"
             exit 0
@@ -235,8 +235,8 @@ jobs:
           echo "::warning::Снимок справочника отстал от базы: $file_hash против $live_hash"
           source .github/scripts/telegram.sh
           tg_send_message "energydess: снимок справочника упражнений отстал от базы.
-          В базе:  $(echo "$live" | jq -r '\"\(.всего) упражнений, \(.с_видео) с видео\"')
-          В файле: $(echo "$file" | jq -r '\"\(.всего) упражнений, \(.с_видео) с видео, снят \(.снят)\"')
+          В базе:  $(echo "$live" | jq -r '"\(.total) упражнений, \(.with_video) с видео"')
+          В файле: $(echo "$file" | jq -r '"\(.total) упражнений, \(.with_video) с видео, снят \(.taken)"')
           Обновить: flyctl ssh console -a energydess-tools -C \"sh -c 'cd /app && python dump_exercises.py --dump'\" — и забрать файл через sftp, см. CLAUDE.md §11." \
             || echo "::error::Про отставший снимок не удалось сообщить в Telegram"
 

@@ -206,10 +206,14 @@ def _отпечаток(записи):
         "%s|%s|%s" % (з["id"], з.get("youtube_id") or "", з.get("video_status") or "")
         for з in sorted(записи, key=lambda з: з["id"])
     )
+    # Ключи латиницей намеренно: отпечаток читает jq в workflow, а он
+    # спотыкается на не-ASCII именах полей («.хеш» — синтаксическая ошибка,
+    # нужно .["хеш"]). Внутри самого снимка ключи остаются русскими:
+    # его читает человек, а не скрипт
     return {
-        "всего": len(записи),
-        "с_видео": sum(1 for з in записи if з.get("youtube_id")),
-        "хеш": hashlib.sha256(сырое.encode("utf-8")).hexdigest()[:16],
+        "total": len(записи),
+        "with_video": sum(1 for з in записи if з.get("youtube_id")),
+        "hash": hashlib.sha256(сырое.encode("utf-8")).hexdigest()[:16],
     }
 
 
@@ -233,7 +237,7 @@ def отпечаток_файла(путь):
     with open(путь, encoding="utf-8") as f:
         документ = json.load(f)
     отп = _отпечаток(документ["упражнения"])
-    отп["снят"] = документ.get("снят_utc", "?")
+    отп["taken"] = документ.get("снят_utc", "?")
     print("FINGERPRINT=" + json.dumps(отп, ensure_ascii=False))
     return 0
 
