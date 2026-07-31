@@ -242,12 +242,10 @@ class ChatMessage(Base):
     user_id = Column(Integer, nullable=False, index=True)
     role = Column(String, nullable=False)  # user/assistant
     content = Column(Text, nullable=False)
-    # Вложение переписки. image_path — токен файла на томе (см. _media_path),
-    # image_data — старый способ хранения, data URL прямо в базе. Читать
-    # через _media_url_or_data: пустой путь означает «запись из тех, что
-    # ещё не мигрировали», и тогда работает image_data
+    # Вложение переписки: токен файла на томе (см. _media_path в main.py).
+    # Картинки хранились в base64 прямо здесь, колонка image_data удалена
+    # миграцией после переезда — BACKLOG №20
     image_path = Column(String, nullable=True)
-    image_data = Column(Text, nullable=True)  # legacy: data URL, вытесняется image_path
     tool = Column(String, nullable=False, default="nutrition")  # nutrition/workout — общая таблица на оба чата
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -308,7 +306,6 @@ class BodyPhoto(Base):
     log_date = Column(String, nullable=False)
     angle = Column(String, nullable=False)  # front/side/back
     image_path = Column(String, nullable=True)   # токен файла на томе
-    image_data = Column(Text, nullable=True)     # legacy: data URL
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -574,7 +571,48 @@ def migrate_db():
     conn.commit()
     _migrate_users_autoincrement(conn)
     _migrate_zepp_token_encryption(conn)
+    _migrate_drop_image_data(conn)
     conn.close()
+
+
+def _migrate_drop_image_data(conn) -> int:
+    """Убирает колонки image_data после переезда картинок в файлы.
+
+    Две причины делать это, а не оставлять колонку пустой.
+
+    Первая — она сломана. У body_photos.image_data стоит NOT NULL,
+    и ALTER TABLE его не снимает: модель поменяли на nullable, а схема
+    осталась прежней. Первая же загрузка фото тела падала на INSERT
+    с IntegrityError. Записей там не было ни одной, поэтому дефект
+    и не проявлялся — он ждал первого пользователя.
+
+    Вторая — пока колонка жива, жив и фолбэк «пустой путь, читаем
+    image_data», а он маскирует поломку записи: сломанный путь записи
+    обслуживался бы исправным чтением, и база тихо росла бы обратно.
+
+    Удаляем ТОЛЬКО если непустых значений не осталось. Есть хоть одно —
+    значит миграция не доделана, и колонка нужна.
+    """
+    удалено = 0
+    for таблица in ("chat_messages", "body_photos"):
+        колонки = {r[1] for r in conn.execute("PRAGMA table_info(%s)" % таблица)}
+        if "image_data" not in колонки:
+            continue
+        осталось = conn.execute(
+            "SELECT COUNT(*) FROM %s WHERE image_data IS NOT NULL "
+            "AND image_data <> ''" % таблица).fetchone()[0]
+        if осталось:
+            print(f"[migrate] {таблица}.image_data не удалена: непустых записей "
+                  f"{осталось}, сначала migrate_media.py")
+            continue
+        try:
+            conn.execute("ALTER TABLE %s DROP COLUMN image_data" % таблица)
+            conn.commit()
+            удалено += 1
+            print(f"[migrate] {таблица}.image_data удалена")
+        except Exception as e:
+            print(f"[migrate] {таблица}.image_data не удалена: {type(e).__name__}: {e}")
+    return удалено
 
 
 def _migrate_zepp_token_encryption(conn) -> int:

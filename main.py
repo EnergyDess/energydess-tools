@@ -3527,7 +3527,7 @@ async def upload_body_photo(file: UploadFile = File(...), angle: str = Form(...)
         # Снимок за эту дату и ракурс заменяется: старый файл убираем сразу,
         # иначе он останется на томе навсегда, никем не читаемый
         старый = existing.image_path
-        existing.image_path, existing.image_data = токен, None
+        existing.image_path = токен
         if старый:
             try:
                 os.remove(_media_path("body", user.id, старый))
@@ -5728,16 +5728,14 @@ def _media_url(kind: str, token: str | None) -> str | None:
 
 
 def _media_src(kind: str, запись) -> str | None:
-    """Что подставить в <img src>: ссылку на файл либо старый data URL.
+    """Что подставить в <img src>. None — картинки у записи нет.
 
-    Фолбэк на image_data оставлен на время миграции: записи, которые
-    почему-то не перенеслись, продолжают показываться, а не превращаются
-    в битые картинки. Пустой image_path — это «ещё не мигрировала»,
-    а не ошибка.
+    Фолбэк на image_data убран вместе с самой колонкой: пока он жил,
+    сломанная запись обслуживалась исправным чтением, и регресс
+    (картинка снова легла в base64) не проявился бы никак — база просто
+    тихо росла бы обратно. Теперь единственный источник — файл.
     """
-    if getattr(запись, "image_path", None):
-        return _media_url(kind, запись.image_path)
-    return getattr(запись, "image_data", None)
+    return _media_url(kind, getattr(запись, "image_path", None))
 
 
 AVATAR_DIR = os.path.join(os.path.dirname(DB_PATH) if os.path.dirname(DB_PATH) else ".", "avatars")
