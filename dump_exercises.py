@@ -25,6 +25,7 @@
 и затевалось.
 """
 import argparse
+import hashlib
 import json
 import os
 import sqlite3
@@ -193,16 +194,68 @@ def восстановить(путь, dry_run=False):
     return 0
 
 
+def _отпечаток(записи):
+    """Короткая подпись справочника: сколько записей, сколько с видео и хеш
+    значимых полей.
+
+    Значимые — ровно те, ради которых снимок и делается: id, youtube_id,
+    video_status. Названия и инструкции меняются вместе с seed-файлом
+    и восстанавливаются из репозитория, а эти три — нет.
+    """
+    сырое = "\n".join(
+        "%s|%s|%s" % (з["id"], з.get("youtube_id") or "", з.get("video_status") or "")
+        for з in sorted(записи, key=lambda з: з["id"])
+    )
+    return {
+        "всего": len(записи),
+        "с_видео": sum(1 for з in записи if з.get("youtube_id")),
+        "хеш": hashlib.sha256(сырое.encode("utf-8")).hexdigest()[:16],
+    }
+
+
+def отпечаток_базы():
+    conn = sqlite3.connect("file:%s?mode=ro" % _db_path(), uri=True)
+    try:
+        записи = [{"id": r[0], "youtube_id": r[1], "video_status": r[2]}
+                  for r in conn.execute(
+                      "SELECT id, youtube_id, video_status FROM exercises")]
+    finally:
+        conn.close()
+    print("FINGERPRINT=" + json.dumps(_отпечаток(записи), ensure_ascii=False))
+    return 0
+
+
+def отпечаток_файла(путь):
+    if not os.path.exists(путь):
+        print("FINGERPRINT=" + json.dumps({"ошибка": "файла нет: %s" % путь},
+                                          ensure_ascii=False))
+        return 1
+    with open(путь, encoding="utf-8") as f:
+        документ = json.load(f)
+    отп = _отпечаток(документ["упражнения"])
+    отп["снят"] = документ.get("снят_utc", "?")
+    print("FINGERPRINT=" + json.dumps(отп, ensure_ascii=False))
+    return 0
+
+
 def main():
     p = argparse.ArgumentParser(description="Выгрузка/восстановление справочника упражнений")
     p.add_argument("--dump", action="store_true", help="выгрузить справочник в файл")
     p.add_argument("--restore", metavar="ФАЙЛ", help="импортировать справочник из файла")
     p.add_argument("--dry-run", action="store_true", help="с --restore: только показать разницу")
+    p.add_argument("--fingerprint", action="store_true",
+                   help="подпись справочника в текущей базе (для сверки со снимком)")
+    p.add_argument("--fingerprint-file", metavar="ФАЙЛ",
+                   help="подпись справочника в файле снимка")
     a = p.parse_args()
     if a.dump:
         return выгрузить()
     if a.restore:
         return восстановить(a.restore, a.dry_run)
+    if a.fingerprint:
+        return отпечаток_базы()
+    if a.fingerprint_file:
+        return отпечаток_файла(a.fingerprint_file)
     p.print_help()
     return 1
 
