@@ -295,21 +295,10 @@ main.container { max-width: 1600px; }
 .loading-text { font-size: var(--text-caption); color: var(--text-2); }
 
 .error-state { display: none; }
-.alert {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-caption);
-  line-height: 1.5;
-}
-.alert svg { width: 18px; height: 18px; stroke-width: 1.5; flex-shrink: 0; margin-top: 1px; }
-.alert-error {
-  background: color-mix(in srgb, var(--error) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--error) 20%, transparent);
-  color: var(--error);
-}
+/* .alert / .alert svg / .alert-error переехали в style.css: компонент
+   системный, и страница переопределяла его целиком. Значения ушли туда
+   как есть — вид этой страницы не изменился, изменился вид остальных,
+   которые до сих пор получали версию не по шкале. */
 
 .warn-box {
   background: color-mix(in srgb, var(--warning) 8%, transparent);

@@ -74,6 +74,8 @@ static/
   hh.css             — стили HH-ассистента (вынесены из шаблона)
   landing.css        — стили лендинга
   profile.css        — стили профиля
+  workout.css        — стили раздела тренировок (вынесены из шаблона)
+  modal.js           — поведение модального окна (каркас в templates/_modal.html)
   ui.js              — общий UI-слой (running-border, dropdown аватара)
   header-search.js   — глобальный поиск в шапке
   noise.svg          — atmospheric noise для лендинга (см. design-system.md, раздел 9)
@@ -85,8 +87,15 @@ YOUTUBE_IMPORT_PROGRESS.md — рабочий журнал по фиче имп�
 
 **Модульный CSS:** `style.css` держит только общее — токены, компонентную
 базу, темы. Стили конкретной страницы выносятся в свой файл рядом
-(`hh.css`, `landing.css`, `profile.css`). Новую страницу оформлять так же,
-а не наращивать `style.css` и не оставлять inline `<style>` в шаблоне.
+(`hh.css`, `landing.css`, `profile.css`, `workout.css`). Новую страницу
+оформлять так же, а не наращивать `style.css` и не оставлять inline
+`<style>` в шаблоне.
+
+**Заводите новый страничный CSS — впишите его в грепы §6.0.2.** Проверки 1
+и 2 перечисляют файлы поимённо, и файл, которого нет в списке, молча
+выпадает из-под контроля: проверка продолжает печатать «чисто», просто
+уже не про всё. Это тот же класс отказа, что и «немой сбой» из §6.0.1,
+только в инструменте проверки.
 
 **Удалённые/legacy файлы:**
 - `static/effects.js` — удалён (была частицы «созвездие» с интерактивностью мышью)
@@ -210,11 +219,11 @@ bash, ключи JSON, которые разбирает `jq`, имена фай
 ```bash
 # 1. системные классы вне style.css
 grep -rnE '^\s*\.(card|btn-primary|btn-secondary|btn-ghost|input|badge|alert|avatar|chip|toggle|modal|container|tool-card)\s*[,{:]' \
-  templates/ static/hh.css static/profile.css static/landing.css
+  templates/ static/hh.css static/profile.css static/landing.css static/workout.css
 
 # 2. токены вне :root в style.css
-grep -rnE '^\s*--(surface|border|text|accent|space|radius|dur|ease|font)[a-z0-9-]*\s*:' \
-  templates/ static/hh.css static/profile.css static/landing.css
+grep -rnE '^\s*--(surface|border|text|accent|tool-accent|space|radius|dur|ease|font)[a-z0-9-]*\s*:' \
+  templates/ static/hh.css static/profile.css static/landing.css static/workout.css
 
 # 3. инлайновые стили в разметке — исключаем ТОЛЬКО целиком законные
 grep -rnoE 'style="[^"]*"' templates/   | grep -vE 'style="\s*(--[a-z0-9_-]+\s*:[^;"]*;?\s*)+"'   | grep -vE 'style="\s*display\s*:\s*(none|block|flex|grid|inline-flex)\s*;?\s*"'   | grep -vE 'style="\s*[a-z-]+\s*:\s*\{\{[^"]*\}\}[a-z%]*\s*;?\s*"'
@@ -247,6 +256,15 @@ grep -Pn '<[a-zA-Z][^>]*\s([a-zA-Z][a-zA-Z0-9-]*)="[^"]*"[^>]*\s\1=' templates/*
 | `-P`, а не `-E` | нужна обратная ссылка `\1` — «тот же атрибут второй раз». В POSIX ERE её нет |
 | `[^>]*` между атрибутами | ограничивает поиск ОДНИМ тегом: без этого `<div class="a"><span class="b">` в одной строке считалось бы дублем |
 | построчно | тег, разорванный переносом, греп пропустит. На 2026-08-03 сверено многострочным разбором — числа сошлись (7 и 7), но это везение, а не гарантия |
+
+**Второй греп до 2026-08-03 не видел `--tool-accent`.** Список префиксов
+(`surface|border|text|accent|…`) требует, чтобы имя начиналось сразу после
+`--`, а тут между ними стоит `tool`. То есть самый переопределяемый токен
+проекта — акцент раздела, ради которого темы и существуют, — выпадал
+из проверки целиком, и она при этом продолжала печатать «чисто». Ровно тот
+же класс отказа, что и «немой сбой» из §6.0.1: страница переопределила бы
+акцент у себя, инструмент бы промолчал. Префикс добавлен; новых срабатываний
+это не дало — значит, пятном мы не воспользовались.
 
 Четвёртый и пятый греп — про ту же болезнь, что первые три, только на этаж
 выше: страница не переопределяет систему **и не пересобирает её заново**.

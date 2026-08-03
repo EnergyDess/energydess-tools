@@ -45,7 +45,8 @@
     .wk-profile-hint { font-size: 0.8125rem; color: var(--text-2); line-height: 1.5; margin-bottom: var(--space-2); }
     .wk-profile-input { width: 100%; box-sizing: border-box; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; color: var(--text); font-size: 0.875rem; margin-bottom: 8px; }
     .wk-profile-input option { background: var(--surface-2); color: var(--text); }
-    .wk-profile-btn { background: var(--tool-accent); border: none; color: #fff; padding: 9px 16px; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+    /* Текст тёмный: на янтарном --tool-accent белый даёт 2.15, --surface-0 — 9.17 */
+    .wk-profile-btn { background: var(--tool-accent); border: none; color: var(--surface-0); padding: 9px 16px; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 600; cursor: pointer; }
     .wk-profile-btn-sm { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 7px 14px; border-radius: 99px; font-size: 0.8125rem; cursor: pointer; }
     .wk-profile-btn-danger { color: #f87171; }
     .wk-profile-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: var(--space-2); }
@@ -71,7 +72,8 @@
     .wk-eq-count { color: var(--text-2); font-size: 0.875rem; font-family: var(--font-mono); }
     .wk-home-btn { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: var(--space-3) var(--space-4); border-radius: var(--radius-sm); font-size: 0.875rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
     .wk-home-btn:hover { border-color: var(--border-strong); }
-    .wk-home-btn.active { background: var(--tool-accent); color: #06251f; border-color: transparent; font-weight: 600; }
+    /* Было #06251f — тёмно-зелёный хардкод из чужой темы, 7.57. --surface-0 даёт 9.17 */
+    .wk-home-btn.active { background: var(--tool-accent); color: var(--surface-0); border-color: transparent; font-weight: 600; }
     .wk-eq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
     .wk-eq-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; cursor: pointer; transition: all 0.2s; position: relative; }
     .wk-eq-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
@@ -80,7 +82,10 @@
     .wk-eq-card img { width: 100%; height: 100%; object-fit: cover; opacity: 0.88; transition: opacity 0.2s, transform 0.2s; }
     .wk-eq-card:hover img { transform: scale(1.05); }
     .wk-eq-card.selected img { opacity: 1; }
-    .wk-eq-check { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: rgba(10,8,20,0.7); border: 1.5px solid rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    /* галочка внутри — SVG со stroke="currentColor": цвет задаётся здесь.
+       Видна она только в состоянии .selected, то есть всегда на янтарной
+       заливке, — отсюда тёмный цвет (белая давала 2.15, --surface-0 даёт 9.17) */
+    .wk-eq-check { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: rgba(10,8,20,0.7); border: 1.5px solid rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center; transition: all 0.2s; color: var(--surface-0); }
     .wk-eq-card.selected .wk-eq-check { background: var(--tool-accent); border-color: var(--tool-accent); }
     .wk-eq-check svg { opacity: 0; transition: opacity 0.15s; }
     .wk-eq-card.selected .wk-eq-check svg { opacity: 1; }
@@ -174,7 +179,7 @@
         {% for item in equipment_options %}
         <div class="wk-eq-card" data-value="{{ item.label }}">
           <div class="wk-eq-img-wrap"><img src="/static/exercises/{{ item.image }}" alt="{{ item.name_ru }}" loading="lazy"></div>
-          <div class="wk-eq-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
+          <div class="wk-eq-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></div>
           <div class="wk-eq-names">
             <div class="wk-eq-name-ru">{{ item.name_ru }}</div>
             <div class="wk-eq-name-en">{{ item.name_en }}</div>

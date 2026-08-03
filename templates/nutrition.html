@@ -145,7 +145,8 @@
       width: 22px; height: 22px; border-radius: 7px;
       background: var(--nut-g); display: flex; align-items: center; justify-content: center;
     }
-    .nav-plus svg { width: 14px; height: 14px; color: #fff; }
+    /* Иконка на зелёной заливке: белая давала 2.54, --surface-0 даёт 7.76 */
+    .nav-plus svg { width: 14px; height: 14px; color: var(--surface-0); }
 
     /* ── Card base ── */
     .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 10px; }
@@ -453,7 +454,8 @@
     .t-lbl { font-size: 0.62rem; color: var(--text-2); font-weight: 600; }
     .save-btn {
       width: 100%; height: 48px; border-radius: 13px; border: none;
-      background: var(--nut-g); color: #fff; font-size: 0.95rem; font-weight: 700;
+      /* тёмная надпись: белая на зелёном 2.54, --surface-0 — 7.76 */
+      background: var(--nut-g); color: var(--surface-0); font-size: 0.95rem; font-weight: 700;
       cursor: pointer; transition: opacity .15s; -webkit-tap-highlight-color: transparent;
     }
     .save-btn:active { opacity: .85; }
@@ -503,7 +505,8 @@
     .calc-macros { font-size: 0.76rem; color: var(--text-2); font-weight: 600; margin-top: 2px; }
     .add-btn {
       width: 100%; height: 48px; border-radius: 13px; border: none;
-      background: var(--nut-g); color: #fff; font-size: 0.95rem; font-weight: 700;
+      /* тёмная надпись: белая на зелёном 2.54, --surface-0 — 7.76 */
+      background: var(--nut-g); color: var(--surface-0); font-size: 0.95rem; font-weight: 700;
       cursor: pointer; transition: opacity .15s; margin-bottom: 16px;
       -webkit-tap-highlight-color: transparent;
     }
@@ -523,7 +526,8 @@
       cursor: pointer; -webkit-tap-highlight-color: transparent;
       transition: background .15s, color .15s, border-color .15s;
     }
-    .scan-torch-btn.on { background: var(--nut-g); color: #06150c; border-color: var(--nut-g); }
+    /* было #06150c — тёмный хардкод, 7.39; --surface-0 даёт 7.76 и убирает свой оттенок */
+    .scan-torch-btn.on { background: var(--nut-g); color: var(--surface-0); border-color: var(--nut-g); }
     .scan-manual { width: 100%; height: 44px; background: var(--surface-sunken); border: 1px solid var(--border); border-radius: 11px; padding: 0 13px; color: var(--text); font-size: 0.92rem; outline: none; font-family: var(--font); }
     .scan-manual:focus { border-color: var(--nut-g); }
 
@@ -568,7 +572,8 @@
     .chat-in:focus { border-color: var(--nut-g); }
     .chat-send {
       width: 42px; height: 42px; background: var(--nut-g); border: none; border-radius: 10px;
-      color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      /* иконка на зелёной заливке: белая 2.54, --surface-0 — 7.76 */
+      color: var(--surface-0); cursor: pointer; display: flex; align-items: center; justify-content: center;
       flex-shrink: 0; -webkit-tap-highlight-color: transparent;
     }
     .chat-send:active { opacity: .85; }
@@ -636,7 +641,10 @@
     }
     .voice-rec-del { background: rgba(239,68,68,.12); color: #ef4444; }
     .voice-rec-del svg { width: 15px; height: 15px; }
-    .voice-rec-send { background: var(--nut-g); color: #fff; }
+    /* иконка на зелёной заливке: белая 2.54, --surface-0 — 7.76.
+       Соседний .voice-rec-del не трогаем: у него фон полупрозрачный красный
+       на тёмной подложке, там как раз светлый цвет и нужен */
+    .voice-rec-send { background: var(--nut-g); color: var(--surface-0); }
     .voice-rec-send svg { width: 17px; height: 17px; }
     .voice-rec-send:active { opacity: .9; }
     /* Плавающая кнопка паузы/продолжения над кнопкой отправки — без удержания пальца */
@@ -1132,7 +1140,7 @@
           <div class="m-card"><div class="m-val" id="m-hips">—</div><div class="m-lbl">Ягодицы, см</div></div>
           <div class="m-card"><div class="m-val" id="m-chest">—</div><div class="m-lbl">Грудь, см</div></div>
         </div>
-        <button class="save-btn" style="margin-top:0" onclick="openModal('modal-measure')">📏 Записать замер</button>
+        <button class="save-btn" style="margin-top:0" onclick="открыть_модалку('modal-measure')">📏 Записать замер</button>
       </div>
       <div class="d-right">
         <div class="chart-box"><div class="week-title">График веса</div><svg class="wt-svg" id="wt-svg"></svg></div>
@@ -1733,7 +1741,7 @@ function editFoodItem(id) {
   document.getElementById('g-input').value = item.grams;
   setPorMealChips(mealType);
   updateCalc();
-  openModal('modal-portion');
+  открыть_модалку('modal-portion');
 }
 
 async function delFood(id) {
@@ -1752,14 +1760,14 @@ async function addWater(ml) {
 
 function openWaterManual() {
   document.getElementById('water-input').value = '';
-  openModal('modal-water');
+  открыть_модалку('modal-water');
   setTimeout(()=>document.getElementById('water-input').focus(),150);
 }
 
 function confirmWaterManual() {
   const ml = parseInt(document.getElementById('water-input').value) || 0;
   if (ml <= 0) return;
-  closeModal('modal-water');
+  закрыть_модалку('modal-water');
   addWater(ml);
 }
 
@@ -1775,14 +1783,14 @@ function openSearchFor(mealId) {
 
 function openSearchForRecipe() {
   S.addingIng = true;
-  openModal('modal-recipe-ing');
+  открыть_модалку('modal-recipe-ing');
   setIngTab('recent');
   setTimeout(()=>document.getElementById('ring-input').focus(),150);
 }
 
 // S.addingIng сбрасывает подписка modal:close — раньше это делала только эта
 // функция, то есть только крестик, и после клика вне окна флаг оставался поднятым
-function closeIngSearch() { closeModal('modal-recipe-ing'); }
+function closeIngSearch() { закрыть_модалку('modal-recipe-ing'); }
 
 function setSearchMeal(btn) {
   document.querySelectorAll('.s-chip').forEach(b=>b.classList.remove('active'));
@@ -1908,7 +1916,7 @@ function renderIngResults(results, query) {
 function openCustomFoodModal() {
   clearCustomFoodForm();
   document.getElementById('cf-name').value = S.lastQuery || document.getElementById('s-input').value || '';
-  openModal('modal-custom');
+  открыть_модалку('modal-custom');
   setTimeout(()=>document.getElementById('cf-name').focus(),150);
 }
 
@@ -1931,7 +1939,7 @@ function openPortion(food) {
   updatePorSub();
   setPorMealChips(S.addingIng ? null : S.searchMeal);
   updateCalc();
-  openModal('modal-portion');
+  открыть_модалку('modal-portion');
 }
 
 function updatePorName() {
@@ -2006,7 +2014,7 @@ async function confirmAdd() {
   const f=S.portionFood, g=parseFloat(document.getElementById('g-input').value)||100;
   if (S.addingIng) {
     S.recipeIngs.push({name:f.name,grams:g,calories:f.calories,protein:f.protein,fat:f.fat,carbs:f.carbs});
-    closeModal('modal-portion');
+    закрыть_модалку('modal-portion');
     updateRecipeModal();
     setIngTab('recent');
     toast('Ингредиент добавлен', true);
@@ -2018,7 +2026,7 @@ async function confirmAdd() {
       meal_type:S.porMeal,
     })});
     S.editingFoodId = null;
-    closeModal('modal-portion');
+    закрыть_модалку('modal-portion');
     loadDiary(S.today);
     toast('Сохранено!',true);
     return;
@@ -2038,7 +2046,7 @@ async function confirmAdd() {
       calories:f.calories,protein:f.protein,fat:f.fat,carbs:f.carbs,
     })});
   }
-  closeModal('modal-portion');
+  закрыть_модалку('modal-portion');
   loadDiary(S.today);
   toast('Добавлено!',true);
   goTab('diary');
@@ -2060,7 +2068,7 @@ async function stopScanner() {
 }
 
 async function openScanner() {
-  openModal('modal-scanner');
+  открыть_модалку('modal-scanner');
   document.getElementById('barcode-input').value='';
   await stopScanner();
   const myToken = ++S.scanToken;
@@ -2087,7 +2095,7 @@ async function openScanner() {
         if (myToken !== S.scanToken) return; // результат от уже закрытой сессии сканера — игнорируем
         S.scanToken++;
         await stopScanner();
-        closeModal('modal-scanner');
+        закрыть_модалку('modal-scanner');
         await handleBarcode(code);
       },
       ()=>{}
@@ -2125,8 +2133,8 @@ async function toggleTorch() {
 
 // Уборка (камера, фонарик) переехала на подписку modal:close — см.
 // setupModalCleanup. Здесь остался только выход из окна, чтобы вызов из
-// lookupBarcode читался по смыслу, а не как closeModal по строке-идентификатору
-function closeScanner() { closeModal('modal-scanner'); }
+// lookupBarcode читался по смыслу, а не как закрытие по строке-идентификатору
+function closeScanner() { закрыть_модалку('modal-scanner'); }
 
 async function lookupBarcode() {
   const code = document.getElementById('barcode-input').value.trim();
@@ -2143,7 +2151,7 @@ async function handleBarcode(code) {
   else {
     clearCustomFoodForm();
     document.getElementById('cf-barcode').value=code;
-    openModal('modal-custom');
+    открыть_модалку('modal-custom');
     toast(`Код ${code} не найден — введите вручную`, false);
   }
 }
@@ -2193,7 +2201,7 @@ async function handlePhoto(e) {
   S.photoFile = blob;
   if (dataUrl) document.getElementById('pa-preview').src = dataUrl;
   document.getElementById('pa-desc').value = '';
-  openModal('modal-photo-analyze');
+  открыть_модалку('modal-photo-analyze');
   setTimeout(()=>document.getElementById('pa-desc').focus(),150);
 }
 
@@ -2208,7 +2216,7 @@ async function runPhotoAnalyze() {
   try {
     const data = await fetch('/nutrition/api/ai-photo',{method:'POST',body:fd}).then(r=>r.json());
     if (data.ok) {
-      closeModal('modal-photo-analyze');
+      закрыть_модалку('modal-photo-analyze');
       S.photoFile = null;
       openPortion({name:data.food.name,brand:data.food.brand||'',calories:data.food.calories,
         protein:data.food.protein||0,fat:data.food.fat||0,carbs:data.food.carbs||0});
@@ -2537,13 +2545,13 @@ async function saveCustomFood() {
     carbs:parseFloat(document.getElementById('cf-carb').value)||0,
   })});
   clearCustomFoodForm();
-  closeModal('modal-custom'); openPortion(food);
+  закрыть_модалку('modal-custom'); openPortion(food);
 }
 
 // ── Recipes ───────────────────────────────────────────────────────────────────
 function openCreateRecipe() {
   S.recipeIngs=[]; document.getElementById('rec-name').value='';
-  updateRecipeModal(); openModal('modal-recipe');
+  updateRecipeModal(); открыть_модалку('modal-recipe');
 }
 
 function updateRecipeModal() {
@@ -2566,7 +2574,7 @@ async function saveRecipe() {
   const name=document.getElementById('rec-name').value.trim();
   if (!name||!S.recipeIngs.length) { toast('Добавьте название и ингредиенты', false); return; }
   await api('/nutrition/api/recipes',{method:'POST',body:JSON.stringify({name,ingredients:S.recipeIngs})});
-  closeModal('modal-recipe'); toast('Рецепт сохранён!',true);
+  закрыть_модалку('modal-recipe'); toast('Рецепт сохранён!',true);
 }
 
 function openRecipeLog(recipe) {
@@ -2575,7 +2583,7 @@ function openRecipeLog(recipe) {
   document.getElementById('frac-pct').value=50;
   document.querySelectorAll('.frac-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.frac-btn')[2].classList.add('active');
-  updateRecCalc(); openModal('modal-recipe-log');
+  updateRecCalc(); открыть_модалку('modal-recipe-log');
 }
 
 function setFrac(f,btn) {
@@ -2603,7 +2611,7 @@ async function confirmAddRecipe() {
     carbs:r.carbs/r.total_grams*100,
     meal_type:S.searchMeal,date:S.today,
   })});
-  closeModal('modal-recipe-log'); loadDiary(S.today); toast('Рецепт добавлен!',true);
+  закрыть_модалку('modal-recipe-log'); loadDiary(S.today); toast('Рецепт добавлен!',true);
   goTab('diary');
   document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector('[data-tab="diary"]').classList.add('active');
@@ -2617,7 +2625,7 @@ async function delRecipe(id) {
 // История чата хранится на сервере — открыть можно как через плавающую кнопку,
 // так и через вкладку «Ассистент», везде показывается один и тот же диалог
 async function openAIChat() {
-  openModal('modal-ai');
+  открыть_модалку('modal-ai');
   await loadChatHistory();
 }
 
@@ -2717,7 +2725,7 @@ function openImageViewer(idx) {
   const src = S.chatHistory[idx]?.image;
   if (!src) return;
   document.getElementById('img-viewer-src').src = src;
-  openModal('modal-img-viewer');
+  открыть_модалку('modal-img-viewer');
 }
 
 const MEAL_NAMES = {breakfast:'завтрак', lunch:'обед', dinner:'ужин', snack:'перекус'};
@@ -2845,7 +2853,7 @@ function showHistFood(mealId, id) {
   document.getElementById('hfd-prot').textContent=item.protein.toFixed(1)+' г';
   document.getElementById('hfd-fat').textContent=item.fat.toFixed(1)+' г';
   document.getElementById('hfd-carb').textContent=item.carbs.toFixed(1)+' г';
-  openModal('modal-food-detail');
+  открыть_модалку('modal-food-detail');
 }
 
 async function loadWeekly() {
@@ -3008,7 +3016,7 @@ async function saveMeasure() {
   const hi=document.getElementById('mw-hips').value;  if(hi) d.hips_cm=parseFloat(hi);
   const ch=document.getElementById('mw-chest').value; if(ch) d.chest_cm=parseFloat(ch);
   await api('/nutrition/api/weight',{method:'POST',body:JSON.stringify(d)});
-  closeModal('modal-measure'); loadWeightData(); toast('Замер сохранён',true);
+  закрыть_модалку('modal-measure'); loadWeightData(); toast('Замер сохранён',true);
 }
 
 // ── Profile ───────────────────────────────────────────────────────────────────
@@ -3159,14 +3167,14 @@ async function saveProfile() {
 }
 
 // ── Модалки ───────────────────────────────────────────────────────────────────
-// openModal / closeModal живут в static/modal.js — вместе с Escape, кликом вне
-// окна, кнопкой закрытия, фокусом и блокировкой фона. Здесь остаётся только
-// то, что специфично для дневника: уборка при закрытии конкретных окон.
+// открыть_модалку / закрыть_модалку живут в static/modal.js — вместе с Escape,
+// кликом вне окна, кнопкой закрытия, фокусом и блокировкой фона. Здесь остаётся
+// только то, что специфично для дневника: уборка при закрытии конкретных окон.
 //
 // Подписка на modal:close, а не своя кнопка закрытия. Раньше камера сканера
-// останавливалась только по крестику: клик вне окна звал общий closeModal,
+// останавливалась только по крестику: клик вне окна звал общее закрытие,
 // и камера оставалась включённой. Событие приходит от ЛЮБОГО способа
-// закрытия, поэтому забыть один из них больше нельзя.
+// закрытия и на любой глубине стопки, поэтому забыть один из них больше нельзя.
 function setupModalCleanup() {
   document.getElementById('modal-scanner').addEventListener('modal:close', () => {
     S.scanToken++;
@@ -3212,7 +3220,7 @@ function setupModalDragClose() {
         sheet.style.opacity = '0';
         setTimeout(() => {
           // Без развилки по id: уборка сканера приехала на modal:close
-          closeModal(overlay.id);
+          закрыть_модалку(overlay.id);
           sheet.style.transition = '';
           sheet.style.transform = '';
           sheet.style.opacity = '';

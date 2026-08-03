@@ -49,7 +49,15 @@
 
   /* Accents */
   --accent-brand: #4F8FFF;
-  --accent-brand-hover: #6BA0FF;
+  /* Наведение УХОДИТ В ТЁМНУЮ СТОРОНУ, а не в светлую. Было #6BA0FF: белая
+     надпись на кнопке падала с 3.13 до 2.59, то есть кнопка теряла
+     читаемость ровно в тот момент, когда на неё смотрят. Тот же тон и
+     насыщенность (hsl 218, 100%), светлота 65% → 54%: белый на заливке
+     4.63 (проходит WCAG AA), сам цвет как текст на --surface-0 — 4.25.
+     Альтернатива «тёмный текст на hover» отвергнута: надпись мигала бы
+     с белой на тёмную при наведении, а состояние всё равно осталось бы
+     светлее базового. Держать ЭТОТ токен светлее базового нельзя. */
+  --accent-brand-hover: #146AFF;
   --accent-brand-dim: rgba(79,143,255,0.15);
 
   --accent-hh: #4F8FFF;
@@ -1128,22 +1136,66 @@ label {
                 cursor: help; }
 
 /* ── Alerts ─────────────────────────────────────────────────────────────── */
+/* Значения подняты сюда из hh.css, где компонент был переопределён целиком.
+   Взята страничная версия, а не системная: у неё отступы по шкале 4px
+   (12/16 и 12 против 13px 17px и 10px), а иконка 18px читается рядом
+   с текстом 13px. Замер расхождения до правки — один и тот же
+   .alert.alert-error на /hh и на любой другой странице отличался по пяти
+   свойствам: padding, gap, line-height, фон и размер svg. */
 .alert {
-  padding: 13px 17px;
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-sm);
   font-size: var(--text-caption);
+  line-height: 1.5;
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: var(--space-3);
 }
-.alert-error   { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: var(--error); }
-.alert-success { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); color: var(--success); }
+.alert-error   { background: color-mix(in srgb, var(--error) 8%, transparent);
+                 border: 1px solid color-mix(in srgb, var(--error) 20%, transparent);
+                 color: var(--error); }
+.alert-success { background: color-mix(in srgb, var(--success) 8%, transparent);
+                 border: 1px solid color-mix(in srgb, var(--success) 20%, transparent);
+                 color: var(--success); }
 /* Предупреждение: операция прошла, но с оговоркой (не ошибка и не успех) */
 .alert-warn    { background: color-mix(in srgb, var(--warning) 8%, transparent);
                  border: 1px solid color-mix(in srgb, var(--warning) 22%, transparent);
                  color: var(--warning); }
 .alert-warn strong { color: var(--warning); }
-.alert svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+.alert svg { width: 18px; height: 18px; stroke-width: 1.5; flex-shrink: 0; margin-top: 1px; }
+
+/* ── Toggle ─────────────────────────────────────────────────────────────── */
+/* Переехал из profile.css. Компонента в системе не было вовсе, поэтому
+   каждая страница, которой понадобился тумблер, писала свой: профиль 40×22,
+   админка 38×22 — расходятся уже сегодня. Дорожка намеренно на --surface-3,
+   а не на --surface-sunken: тумблер интерактивен, ему нужно читаться как
+   элемент управления (design-system.md 1.1). */
+.toggle {
+  position: relative;
+  width: 40px; height: 22px;
+  flex-shrink: 0;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle .track {
+  position: absolute; inset: 0;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+.toggle .track::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--text-2);
+  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.toggle input:checked + .track { background: var(--accent-brand-dim); border-color: var(--accent-brand); }
+.toggle input:checked + .track::after { transform: translateX(18px); background: var(--accent-brand); }
+.toggle input:focus-visible + .track { box-shadow: 0 0 0 3px var(--accent-brand-dim); }
 
 /* ── Spinner ────────────────────────────────────────────────────────────── */
 .spinner {
@@ -1356,7 +1408,12 @@ body.auth-layout .auth-wrap {
   color: var(--accent-brand); cursor: pointer;
   text-decoration: underline; text-underline-offset: 3px;
 }
-.email-typo-fix:hover { color: var(--accent-brand-hover); }
+/* Не --accent-brand-hover: этот токен теперь темнее базового, потому что
+   описывает наведение на ЗАЛИВКУ. Здесь он был бы текстом на тёмном фоне,
+   где направление обратное — и подсказка теряла бы контраст при наведении
+   (6.29 → 4.25). Осветление до --text-strong: 6.29 → 19.30. Подчёркивание
+   у кнопки постоянное, так что цвет тут не единственный признак. */
+.email-typo-fix:hover { color: var(--text-strong); }
 
 /* ── Группы в поиске ─────────────────────────────────────────────────────
    Заголовки и «ещё N» — role="presentation": в плоский список пунктов,

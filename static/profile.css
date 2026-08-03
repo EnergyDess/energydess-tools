@@ -45,33 +45,11 @@
   color: var(--text-2);
 }
 
-/* ── Тумблеры уведомлений ───────────────────────────────────────────────── */
-.toggle {
-  position: relative;
-  width: 40px; height: 22px;
-  flex-shrink: 0;
-}
-.toggle input { opacity: 0; width: 0; height: 0; }
-.toggle .track {
-  position: absolute; inset: 0;
-  background: var(--surface-3);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease);
-}
-.toggle .track::after {
-  content: '';
-  position: absolute;
-  top: 2px; left: 2px;
-  width: 16px; height: 16px;
-  border-radius: 50%;
-  background: var(--text-2);
-  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
-}
-.toggle input:checked + .track { background: var(--accent-brand-dim); border-color: var(--accent-brand); }
-.toggle input:checked + .track::after { transform: translateX(18px); background: var(--accent-brand); }
-.toggle input:focus-visible + .track { box-shadow: 0 0 0 3px var(--accent-brand-dim); }
+/* Тумблер переехал в style.css. Здесь он был не переопределением —
+   в системе компонента не существовало вовсе, и профиль объявлял его
+   у себя. Второй экземпляр живёт в _admin_styles.html (38×22 вместо 40×22):
+   два расходящихся тумблера — ровно то, ради чего компонент и заводят
+   в системе. Админский остаётся долгом, он вне этого этапа. */
 
 /* ── Опасная зона ───────────────────────────────────────────────────────── */
 .danger-card { border-color: color-mix(in srgb, var(--error) 25%, transparent); }
