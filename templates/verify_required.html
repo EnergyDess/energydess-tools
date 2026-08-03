@@ -59,18 +59,14 @@
     .v-link:hover { opacity: 0.8; }
   </style>
 </head>
-<body>
+<body class="auth-layout has-site-header">
 
-<nav class="nav">
-  <a href="/" class="nav-logo">
-    <span class="nav-logo-symbol">⚡</span>
-    <span>EnergyDess</span>
-  </a>
-  <div class="nav-right">
-    <a href="/profile">Профиль</a>
-    <a href="/logout" class="nav-logout">Выйти</a>
-  </div>
-</nav>
+{# Общая шапка вместо своей .nav и пары текстовых ссылок. Здесь она в третьем
+   состоянии: user есть, поэтому аватар с «Профиль/Выйти» на месте, а поиска
+   нет — ровно потому, что человек стоит перед этой плашкой: инструменты
+   ему закрыты, и выпадашка вела бы обратно сюда же.
+   Футера нет: условия приняты при регистрации. #}
+{% include '_header.html' %}
 
 <div class="auth-wrap">
   <div class="auth-box" class="v-center">
@@ -147,5 +143,8 @@
   })();
 </script>
 {% endif %}
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="/static/ui.js"></script>
+<script>lucide.createIcons();</script>
 </body>
 </html>

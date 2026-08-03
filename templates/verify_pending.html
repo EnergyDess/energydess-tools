@@ -74,14 +74,14 @@
     .v-link:hover { opacity: 0.8; }
   </style>
 </head>
-<body>
+<body class="auth-layout has-site-header">
 
-<nav class="nav">
-  <a href="/" class="nav-logo">
-    <span class="nav-logo-symbol">⚡</span>
-    <span>EnergyDess</span>
-  </a>
-</nav>
+{# Общая шапка вместо своей .nav. Здесь она гостевая, и это не упущение:
+   /register сессию не открывает — до подтверждения почты человек ходит
+   по куке pending_verify, а не по access_token. Аватар и «Выйти» показывать
+   не из чего и нечего выходить. Футера тоже нет: условия уже приняты
+   на предыдущем шаге, повторять правовые ссылки здесь незачем. #}
+{% include '_header.html' %}
 
 <div class="auth-wrap">
   <div class="auth-box" class="v-center">
@@ -185,5 +185,8 @@
   })();
 </script>
 {% endif %}
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="/static/ui.js"></script>
+<script>lucide.createIcons();</script>
 </body>
 </html>

@@ -491,9 +491,11 @@ button.chip:hover, a.chip:hover {
   flex: 1 1 0;
 }
 .site-header .header-logo:hover { opacity: 0.85; }
-/* Гостевая шапка: поиска нет, растягивать крылья незачем — логотип слева,
-   кнопки входа справа (обычный space-between) */
-.site-header-guest .header-logo { flex: 0 0 auto; }
+/* Шапка без поиска (гость либо неподтверждённый аккаунт): растягивать крылья
+   незачем — логотип слева, кнопки входа или аватар справа (space-between).
+   Класс по признаку «поиска нет», а не «гость»: состояний с пустой серединой
+   два, и второе тоже не должно уводить логотип к центру. */
+.site-header-nosearch .header-logo { flex: 0 0 auto; }
 .header-search {
   flex: 0 1 480px;
   min-width: 0;
@@ -766,6 +768,43 @@ img.avatar { object-fit: cover; padding: 0; }
   flex-wrap: wrap;
   font-size: var(--text-caption);
   color: var(--text-faint);
+}
+
+/* ── Тонкий вариант футера ────────────────────────────────────────────────
+   Для страниц входа: колонок нет, остаются копирайт и три правовые ссылки.
+   Разметка — в _footer.html под флагом footer_thin, вариант принадлежит
+   системе, а не странице (CLAUDE.md §6.0.2).
+
+   margin-top снят намеренно: страницы входа выстроены в колонку во всю
+   высоту экрана (.auth-layout), и отступ сверху разорвал бы футер
+   и середину, вместо того чтобы прижать его к низу. */
+.site-footer-thin {
+  padding: 0 var(--space-6) var(--space-5);
+  margin-top: 0;
+}
+/* Нижняя строка в тонком варианте сама себе футер — второй разделительной
+   линии над ней не нужно, её роль играет border-top самого footer */
+.site-footer-thin .site-footer-bottom {
+  margin-top: 0;
+  padding-top: var(--space-5);
+  border-top: none;
+}
+/* Селектор из двух классов, а не один .footer-legal: правило выше
+   (.site-footer ul) ставит колонку и специфичностью 0,2,0 перебило бы
+   одиночный класс — ссылки встали бы столбиком и на десктопе */
+.site-footer-thin .footer-legal {
+  list-style: none;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+}
+.site-footer-thin .footer-legal a { font-size: var(--text-caption); }
+
+@media (max-width: 640px) {
+  .site-footer-thin { padding: 0 var(--space-4) var(--space-5); }
+  /* На 390px три ссылки в строку не встают — колонкой, с шагом из шкалы */
+  .site-footer-thin .footer-legal { flex-direction: column; gap: var(--space-2); }
 }
 
 /* ── Адаптив ──────────────────────────────────────────────────────────────
@@ -1074,6 +1113,22 @@ label {
   align-items: center;
   justify-content: center;
   padding: 60px 20px 40px;
+}
+
+/* Раскладка пути входа: шапка сверху, тонкий футер снизу, форма растягивается
+   между ними. Без колонки .auth-wrap со своим min-height:100vh-60px вытолкнул
+   бы футер за нижний край, и на пустой странице появился бы скролл ровно
+   на высоту футера. Компенсация 60px под старую фиксированную .nav здесь тоже
+   больше не нужна: .site-header стоит в потоке и место занимает сам. */
+body.auth-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+body.auth-layout .auth-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: var(--space-7) var(--space-5);
 }
 .auth-box {
   background: var(--surface-1);

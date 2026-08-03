@@ -10,17 +10,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
+<body class="auth-layout has-site-header">
 
-<nav class="nav">
-  <a href="/" class="nav-logo">
-    <span class="nav-logo-symbol">⚡</span>
-    <span>EnergyDess</span>
-  </a>
-  <ul class="nav-links">
-    <li><a href="/register">Регистрация</a></li>
-  </ul>
-</nav>
+{# Общая шапка вместо своей .nav. Здесь она рисуется гостевой сама: user
+   в контекст /login не приходит, а состояние выводится из данных #}
+{% include '_header.html' %}
 
 <div class="auth-wrap">
   <div class="auth-box">
@@ -76,6 +70,11 @@
   </div>
 </div>
 
+{# Тонкий вариант: только правовые ссылки. Колонки «Инструменты» и «Аккаунт»
+   вели бы на то, что человеку до входа недоступно #}
+{% set footer_thin = true %}
+{% include '_footer.html' %}
+
 <script>
 function toggleEye(inputId, btn) {
   const input = document.getElementById(inputId);
@@ -93,5 +92,8 @@ function toggleEye(inputId, btn) {
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 {% endif %}
 <script src="/static/email-typo.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="/static/ui.js"></script>
+<script>lucide.createIcons();</script>
 </body>
 </html>
