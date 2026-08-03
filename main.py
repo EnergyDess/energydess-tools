@@ -1191,15 +1191,21 @@ async def verify_pending(request: Request, pending_verify: str = Cookie(default=
     Текст сообщения задаёт notice и от состояния кнопки не зависит: сразу после
     регистрации письмо отправлено впервые, и слово «уже» там читалось бы как
     «вы здесь не в первый раз» — человек пугается, что попал не туда.
+
+    Без опознанного человека notice не выставляется вовсе. Он приходит из адреса
+    (?sent=1), а адрес — не факт об этом человеке: кука живёт 30 минут, и по
+    сохранённой ссылке страница уверенно писала «Письмо отправлено на None».
+    Раз сказать нечего — шаблон покажет ветку «мы вас не узнаём».
     """
     u = _pending_user(pending_verify, db)
     notice = None
-    if u and _last_email_failed(db, u.id):
-        notice = "failed"
-    elif too_soon:
-        notice = "too_soon"
-    elif sent:
-        notice = "sent"
+    if u:
+        if _last_email_failed(db, u.id):
+            notice = "failed"
+        elif too_soon:
+            notice = "too_soon"
+        elif sent:
+            notice = "sent"
     return templates.TemplateResponse(request=request, name="verify_pending.html",
                                       context={"can_resend": bool(u), "email": u.email if u else None,
                                                "notice": notice,

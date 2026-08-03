@@ -458,45 +458,17 @@
     }
     .save-btn:active { opacity: .85; }
 
-    /* ── Modals ── */
-    .modal-ov {
-      position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 200;
-      display: flex; align-items: flex-end; justify-content: center;
-      opacity: 0; pointer-events: none; transition: opacity .2s;
-    }
-    .modal-ov.open { opacity: 1; pointer-events: all; }
+    /* ── Модалки ──
+       Каркас, оформление и поведение переехали в систему: разметку даёт
+       макрос из _modal.html, классы .modal-* лежат в style.css, Escape,
+       клик вне окна, фокус и блокировка фона — в static/modal.js.
+       Здесь остались только этажи наложения и стили содержимого. */
     /* Модалки, которые могут открываться поверх других модалок */
     #modal-recipe-ing   { z-index: 205; }
     #modal-portion      { z-index: 210; }
     #modal-custom       { z-index: 215; }
     #modal-photo-analyze{ z-index: 215; }
     .pa-preview { width: 100%; max-height: 240px; object-fit: cover; border-radius: 12px; margin-bottom: 13px; }
-    .modal-sh {
-      width: 100%; max-width: 540px; background: var(--surface-1);
-      border-radius: 20px 20px 0 0;
-      padding-bottom: env(safe-area-inset-bottom, 14px);
-      transform: translateY(100%); transition: transform .25s cubic-bezier(.4,0,.2,1);
-      max-height: 92vh; display: flex; flex-direction: column;
-    }
-    .modal-ov.open .modal-sh { transform: translateY(0); }
-    /* Зона захвата шире видимой полоски — иначе пальцем не попасть */
-    .modal-drag {
-      width: 100%; height: 40px; flex-shrink: 0; touch-action: none;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .modal-drag::after { content: ''; width: 36px; height: 4px; background: var(--border-strong); border-radius: 2px; }
-    .modal-hdr {
-      display: flex; align-items: center; padding: 12px 16px 10px;
-      border-bottom: 1px solid var(--border); flex-shrink: 0; touch-action: none;
-    }
-    .modal-title { font-size: 0.97rem; font-weight: 700; flex: 1; }
-    .modal-x {
-      width: 30px; height: 30px; border-radius: 50%; background: var(--surface-sunken);
-      border: none; color: var(--text-2); font-size: 1.1rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .modal-body { padding: 14px 16px 0; overflow-y: auto; flex: 1; }
 
     /* ── Portion modal ── */
     .por-name { font-size: 0.97rem; font-weight: 700; margin-bottom: 3px; }
@@ -583,24 +555,7 @@
       display: block; max-width: 200px; width: 100%; border-radius: 10px;
       margin-bottom: 6px; cursor: zoom-in;
     }
-    #modal-img-viewer { align-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-    #modal-img-viewer .modal-sh {
-      background: transparent; box-shadow: none; width: 94vw; max-width: 94vw; height: 88vh; max-height: 88vh;
-      border-radius: 0; padding-bottom: 0;
-      transform: scale(.94); opacity: 0; transition: transform .2s ease, opacity .2s ease;
-    }
-    #modal-img-viewer.open .modal-sh { transform: scale(1); opacity: 1; }
-    #modal-img-viewer .modal-body { padding: 0; display: flex; justify-content: center; align-items: center; position: relative; height: 100%; }
-    /* width/height: 100% + object-fit:contain — фото всегда заполняет почти весь экран,
-       независимо от исходного разрешения снимка (даже маленькое растягивается под рамку) */
-    #modal-img-viewer img { width: 100%; height: 100%; border-radius: 12px; object-fit: contain; display: block; }
-    #modal-img-viewer .img-close {
-      position: absolute; top: 14px; right: 14px; width: 40px; height: 40px; border-radius: 50%;
-      background: rgba(15,18,32,.85); border: 1px solid rgba(255,255,255,.18); color: #fff; font-size: 1.35rem;
-      display: flex; align-items: center; justify-content: center; cursor: pointer;
-      box-shadow: 0 4px 16px rgba(0,0,0,.4); z-index: 2;
-      -webkit-tap-highlight-color: transparent;
-    }
+    /* Просмотр фото — вариант .modal-ov-viewer в style.css, не своя модалка */
     .chat-input-row {
       display: flex; gap: 8px; padding: 12px 0 0;
       border-top: 1px solid var(--border); flex-shrink: 0; position: relative;
@@ -1351,15 +1306,14 @@
   </nav>
 </div><!-- /nut-app -->
 
+{# Двенадцать модалок дневника собраны одним макросом. До него каркас лежал
+   двенадцатью копиями, и вместе с ним копировались три дыры: Escape не работал
+   ни в одной, фокус после закрытия оставался внутри спрятанного окна, а сами
+   окна всегда были в порядке табуляции. Подробности — в _modal.html. #}
+{% import '_modal.html' as m %}
+
 <!-- ─── MODAL: Portion ─── -->
-<div class="modal-ov" id="modal-portion" onclick="bgClose(event,'modal-portion')">
-  <div class="modal-sh">
-    <div class="modal-drag"></div>
-    <div class="modal-hdr">
-      <span class="modal-title" id="por-title">Добавить</span>
-      <button class="modal-x" onclick="closeModal('modal-portion')">×</button>
-    </div>
-    <div class="modal-body">
+{% call m.modal('modal-portion', 'Добавить', title_id='por-title') %}
       <div class="por-name" id="por-name"></div>
       <div class="por-sub-row">
         <div class="por-sub" id="por-sub"></div>
@@ -1394,19 +1348,12 @@
         <div class="calc-macros" id="c-macros">Б: 0г  Ж: 0г  У: 0г</div>
       </div>
       <button class="add-btn" id="por-add-btn" onclick="confirmAdd()">Добавить в дневник</button>
-    </div>
-  </div>
-</div>
+{% endcall %}
 
 <!-- ─── MODAL: Scanner ─── -->
-<div class="modal-ov" id="modal-scanner" onclick="bgClose(event,'modal-scanner')">
-  <div class="modal-sh">
-    <div class="modal-drag"></div>
-    <div class="modal-hdr">
-      <span class="modal-title">Штрих-код</span>
-      <button class="modal-x" onclick="closeScanner()">×</button>
-    </div>
-    <div class="modal-body">
+{# Камеру останавливает подписка на modal:close (см. скрипт ниже), а не своя
+   кнопка: выход из окна должен быть один на все три способа закрытия #}
+{% call m.modal('modal-scanner', 'Штрих-код') %}
       <div class="scan-wrap">
         <div id="qr-reader"></div>
         <div class="scan-overlay"></div>
@@ -1418,19 +1365,10 @@
       <input class="scan-manual" id="barcode-input" type="text" placeholder="4600000000000" inputmode="numeric"
              onkeydown="if(event.key==='Enter')lookupBarcode()">
       <button class="add-btn" style="margin-top:10px;margin-bottom:16px" onclick="lookupBarcode()">Найти</button>
-    </div>
-  </div>
-</div>
+{% endcall %}
 
 <!-- ─── MODAL: Custom food ─── -->
-<div class="modal-ov" id="modal-custom" onclick="bgClose(event,'modal-custom')">
-  <div class="modal-sh">
-    <div class="modal-drag"></div>
-    <div class="modal-hdr">
-      <span class="modal-title">Добавить вручную</span>
-      <button class="modal-x" onclick="closeModal('modal-custom')">×</button>
-    </div>
-    <div class="modal-body">
+{% call m.modal('modal-custom', 'Добавить вручную') %}
       <div class="f-field"><label class="f-label">Название *</label><input type="text" class="f-input" id="cf-name" placeholder="Куриное филе"></div>
       <div class="f-field"><label class="f-label">Бренд / заведение</label><input type="text" class="f-input" id="cf-brand" placeholder="Например, ресторан или производитель"></div>
       <div class="f-field"><label class="f-label">Штрих-код</label><input type="text" class="f-input" id="cf-barcode"></div>
@@ -1442,66 +1380,36 @@
         <div class="f-field"><label class="f-label">Углеводы, г</label><input type="number" class="f-input" id="cf-carb" placeholder="0"></div>
       </div>
       <button class="add-btn" onclick="saveCustomFood()" style="margin-bottom:16px">Сохранить и добавить</button>
-    </div>
-  </div>
-</div>
+{% endcall %}
 
 <!-- ─── MODAL: Детали продукта из истории ─── -->
-<div class="modal-ov" id="modal-food-detail" onclick="bgClose(event,'modal-food-detail')">
-  <div class="modal-sh">
-    <div class="modal-drag"></div>
-    <div class="modal-hdr">
-      <span class="modal-title" id="hfd-name">Продукт</span>
-      <button class="modal-x" onclick="closeModal('modal-food-detail')">×</button>
-    </div>
-    <div class="modal-body">
+{% call m.modal('modal-food-detail', 'Продукт', title_id='hfd-name') %}
       <div class="por-sub" id="hfd-sub" style="margin-bottom:14px"></div>
       <div class="macros-row" style="margin-bottom:16px">
         <div class="macro-card"><div class="macro-label">Белки</div><div class="macro-val" style="color:var(--prot)" id="hfd-prot">—</div></div>
         <div class="macro-card"><div class="macro-label">Жиры</div><div class="macro-val" style="color:var(--fat)" id="hfd-fat">—</div></div>
         <div class="macro-card"><div class="macro-label">Углеводы</div><div class="macro-val" style="color:var(--carb)" id="hfd-carb">—</div></div>
       </div>
-    </div>
-  </div>
-</div>
+{% endcall %}
 
 <!-- ─── MODAL: Manual water ─── -->
-<div class="modal-ov" id="modal-water" onclick="bgClose(event,'modal-water')">
-  <div class="modal-sh">
-    <div class="modal-drag"></div>
-    <div class="modal-hdr">
-      <span class="modal-title">💧 Добавить воду</span>
-      <button class="modal-x" onclick="closeModal('modal-water')">×</button>
-    </div>
-    <div class="modal-body">
+{% call m.modal('modal-water', '💧 Добавить воду') %}
       <div class="g-wrap">
         <input type="number" class="g-input" id="water-input" placeholder="150" min="1" max="5000" onkeydown="if(event.key==='Enter')confirmWaterManual()">
         <span class="g-lbl">мл</span>
       </div>
       <button class="add-btn" onclick="confirmWaterManual()" style="margin-bottom:16px">Добавить</button>
-    </div>
-  </div>
-</div>
+{% endcall %}
 
 <!-- ─── MODAL: Просмотр фото из чата ─── -->
-<div class="modal-ov" id="modal-img-viewer" onclick="bgClose(event,'modal-img-viewer')">
-  <div class="modal-sh">
-    <div class="modal-body">
+{# chrome=false: рамка окна мешала бы самой картинке. Каркас, поведение
+   и кнопка закрытия — общие, отличие целиком в варианте оформления #}
+{% call m.modal('modal-img-viewer', 'Фото из чата', variant='modal-ov-viewer', chrome=false) %}
       <img id="img-viewer-src" src="" alt="Фото из чата">
-      <button class="img-close" onclick="closeModal('modal-img-viewer')">×</button>
-    </div>
-  </div>
-</div>
+{% endcall %}
 
 <!-- ─── MODAL: Photo analyze ─── -->
-<div class="modal-ov" id="modal-photo-analyze" onclick="bgClose(event,'modal-photo-analyze')">
-  <div class="modal-sh">
-    <div class="modal-drag"></div>
-    <div class="modal-hdr">
-      <span class="modal-title">📸 Анализ фото</span>
-      <button class="modal-x" onclick="closeModal('modal-photo-analyze')">×</button>
-    </div>
-    <div class="modal-body">
+{% call m.modal('modal-photo-analyze', '📸 Анализ фото') %}
       <img class="pa-preview" id="pa-preview" alt="">
       <div class="f-field">
         <label class="f-label">Опишите блюдо (необязательно)</label>
@@ -1514,19 +1422,10 @@
         </div>
       </div>
       <button class="add-btn" id="pa-analyze-btn" onclick="runPhotoAnalyze()" style="margin-top:13px;margin-bottom:16px">Анализировать</button>
-    </div>
-  </div>
-</div>
+{% endcall %}
 
 <!-- ─── MODAL: Create recipe ─── -->
-<div class="modal-ov" id="modal-recipe" onclick="bgClose(event,'modal-recipe')">
-  <div class="modal-sh">
-    <div class="modal-drag"></div>
-    <div class="modal-hdr">
-      <span class="modal-title">Новый рецепт</span>
-      <button class="modal-x" onclick="closeModal('modal-recipe')">×</button>
-    </div>
-    <div class="modal-body">
+{% call m.modal('modal-recipe', 'Новый рецепт') %}
       <div class="f-field"><label class="f-label">Название</label><input type="text" class="f-input" id="rec-name" placeholder="Творожная запеканка"></div>
       <div class="f-label" style="font-weight:600;margin-bottom:7px">Ингредиенты</div>
       <div class="ing-list" id="ing-list"></div>
@@ -1536,19 +1435,13 @@
         <div class="calc-macros" id="rec-macros">Б: 0г  Ж: 0г  У: 0г  — 0г</div>
       </div>
       <button class="add-btn" onclick="saveRecipe()" style="margin-bottom:16px">Сохранить рецепт</button>
-    </div>
-  </div>
-</div>
+{% endcall %}
 
 <!-- ─── MODAL: Add recipe ingredient (search) ─── -->
-<div class="modal-ov" id="modal-recipe-ing" onclick="bgClose(event,'modal-recipe-ing')">
-  <div class="modal-sh">
-    <div class="modal-drag"></div>
-    <div class="modal-hdr">
-      <span class="modal-title">Добавить ингредиент</span>
-      <button class="modal-x" onclick="closeIngSearch()">×</button>
-    </div>
-    <div class="modal-body">
+{# Флаг S.addingIng сбрасывает подписка на modal:close — раньше это делала
+   только кнопка, и после Escape... которого не было, — после клика вне окна
+   флаг оставался поднятым #}
+{% call m.modal('modal-recipe-ing', 'Добавить ингредиент') %}
       <div class="s-bar">
         <input type="search" class="s-input" id="ring-input" placeholder="Поиск ингредиента..."
                oninput="onSearchIng(this.value)" autocomplete="off" enterkeyhint="search">
@@ -1558,19 +1451,10 @@
         <button class="s-tab"        id="rt-frequent" onclick="setIngTab('frequent')">Частые</button>
       </div>
       <div id="ring-results"></div>
-    </div>
-  </div>
-</div>
+{% endcall %}
 
 <!-- ─── MODAL: Log recipe ─── -->
-<div class="modal-ov" id="modal-recipe-log" onclick="bgClose(event,'modal-recipe-log')">
-  <div class="modal-sh">
-    <div class="modal-drag"></div>
-    <div class="modal-hdr">
-      <span class="modal-title" id="rl-title">Рецепт</span>
-      <button class="modal-x" onclick="closeModal('modal-recipe-log')">×</button>
-    </div>
-    <div class="modal-body">
+{% call m.modal('modal-recipe-log', 'Рецепт', title_id='rl-title') %}
       <div style="font-size:.8rem;color:var(--text-2);font-weight:600;margin-bottom:9px">Сколько съели от общего объёма?</div>
       <div class="frac-btns" id="frac-btns">
         <button class="frac-btn" onclick="setFrac(.25,this)">¼</button>
@@ -1589,19 +1473,12 @@
         <div class="calc-macros" id="rl-macros"></div>
       </div>
       <button class="add-btn" onclick="confirmAddRecipe()" style="margin-bottom:16px">Добавить</button>
-    </div>
-  </div>
-</div>
+{% endcall %}
 
 <!-- ─── MODAL: AI Chat ─── -->
-<div class="modal-ov" id="modal-ai" onclick="bgClose(event,'modal-ai')">
-  <div class="modal-sh" style="max-height:80vh">
-    <div class="modal-drag"></div>
-    <div class="modal-hdr">
-      <span class="modal-title">🥗 AI-нутрициолог</span>
-      <button class="modal-x" onclick="closeModal('modal-ai')">×</button>
-    </div>
-    <div class="modal-body" style="display:flex;flex-direction:column;padding-bottom:0">
+{# modal-ov-column вместо двух инлайновых style= на листе и теле: лента чата
+   сама себе скролл-контейнер, высота листа фиксирована #}
+{% call m.modal('modal-ai', '🥗 AI-нутрициолог', variant='modal-ov-column') %}
       <div class="chat-msgs" id="chat-msgs"></div>
       <div class="chat-attach-preview" style="display:none">
         <img class="chat-attach-img" alt="">
@@ -1635,19 +1512,10 @@
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
         </button>
       </div>
-    </div>
-  </div>
-</div>
+{% endcall %}
 
 <!-- ─── MODAL: Measure ─── -->
-<div class="modal-ov" id="modal-measure" onclick="bgClose(event,'modal-measure')">
-  <div class="modal-sh">
-    <div class="modal-drag"></div>
-    <div class="modal-hdr">
-      <span class="modal-title">Записать замер</span>
-      <button class="modal-x" onclick="closeModal('modal-measure')">×</button>
-    </div>
-    <div class="modal-body">
+{% call m.modal('modal-measure', 'Записать замер') %}
       <div class="f-field"><label class="f-label">Вес, кг</label><input type="number" class="f-input" id="mw-kg"    placeholder="70.5" step="0.1"></div>
       <div class="f-label" style="font-weight:600;margin-bottom:8px">Замеры тела</div>
       <div class="meas-grid">
@@ -1656,9 +1524,7 @@
         <div class="f-field"><label class="f-label">Грудь, см</label><input type="number" class="f-input" id="mw-chest" placeholder="90"></div>
       </div>
       <button class="add-btn" onclick="saveMeasure()" style="margin-bottom:16px">Сохранить</button>
-    </div>
-  </div>
-</div>
+{% endcall %}
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
@@ -1703,6 +1569,7 @@ let searchReqId = 0;
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   setupModalDragClose();
+  setupModalCleanup();
   attachVoiceButton('assistant-chat-mic', 'chat', 'assistant-chat-in');
   attachVoiceButton('chat-in-mic', 'chat', 'chat-in');
   attachVoiceButton('pa-mic-btn', 'field', 'pa-desc');
@@ -1913,10 +1780,9 @@ function openSearchForRecipe() {
   setTimeout(()=>document.getElementById('ring-input').focus(),150);
 }
 
-function closeIngSearch() {
-  S.addingIng = false;
-  closeModal('modal-recipe-ing');
-}
+// S.addingIng сбрасывает подписка modal:close — раньше это делала только эта
+// функция, то есть только крестик, и после клика вне окна флаг оставался поднятым
+function closeIngSearch() { closeModal('modal-recipe-ing'); }
 
 function setSearchMeal(btn) {
   document.querySelectorAll('.s-chip').forEach(b=>b.classList.remove('active'));
@@ -2257,14 +2123,10 @@ async function toggleTorch() {
   } catch(e) { console.log('Torch',e); }
 }
 
-function closeScanner() {
-  S.scanToken++;
-  stopScanner();
-  document.getElementById('scan-torch-btn').style.display = 'none';
-  document.getElementById('scan-torch-btn').classList.remove('on');
-  S.torchOn = false;
-  closeModal('modal-scanner');
-}
+// Уборка (камера, фонарик) переехала на подписку modal:close — см.
+// setupModalCleanup. Здесь остался только выход из окна, чтобы вызов из
+// lookupBarcode читался по смыслу, а не как closeModal по строке-идентификатору
+function closeScanner() { closeModal('modal-scanner'); }
 
 async function lookupBarcode() {
   const code = document.getElementById('barcode-input').value.trim();
@@ -3296,10 +3158,28 @@ async function saveProfile() {
   if (data.ok) { showTargets(data.targets); S.profile={...body,...data.targets}; loadDiary(S.today); toast('Профиль сохранён!',true); }
 }
 
-// ── Modal utils ───────────────────────────────────────────────────────────────
-function openModal(id)  { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-function bgClose(e,id)  { if (e.target.id===id) closeModal(id); }
+// ── Модалки ───────────────────────────────────────────────────────────────────
+// openModal / closeModal живут в static/modal.js — вместе с Escape, кликом вне
+// окна, кнопкой закрытия, фокусом и блокировкой фона. Здесь остаётся только
+// то, что специфично для дневника: уборка при закрытии конкретных окон.
+//
+// Подписка на modal:close, а не своя кнопка закрытия. Раньше камера сканера
+// останавливалась только по крестику: клик вне окна звал общий closeModal,
+// и камера оставалась включённой. Событие приходит от ЛЮБОГО способа
+// закрытия, поэтому забыть один из них больше нельзя.
+function setupModalCleanup() {
+  document.getElementById('modal-scanner').addEventListener('modal:close', () => {
+    S.scanToken++;
+    stopScanner();
+    const t = document.getElementById('scan-torch-btn');
+    t.style.display = 'none';
+    t.classList.remove('on');
+    S.torchOn = false;
+  });
+  document.getElementById('modal-recipe-ing').addEventListener('modal:close', () => {
+    S.addingIng = false;
+  });
+}
 
 // ── Свайп вниз за "ручку" модалки — закрывает её ──────────────────────────────
 function setupModalDragClose() {
@@ -3331,8 +3211,8 @@ function setupModalDragClose() {
         sheet.style.transform = 'translateY(100%)';
         sheet.style.opacity = '0';
         setTimeout(() => {
-          if (overlay.id === 'modal-scanner') closeScanner();
-          else closeModal(overlay.id);
+          // Без развилки по id: уборка сканера приехала на modal:close
+          closeModal(overlay.id);
           sheet.style.transition = '';
           sheet.style.transform = '';
           sheet.style.opacity = '';
@@ -3407,6 +3287,7 @@ function updateSidePanels(data) {
 }
 </script>
 <div id="wt-tooltip"></div>
+<script src="/static/modal.js"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="/static/ui.js"></script>
 <script>lucide.createIcons();</script>

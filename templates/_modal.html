@@ -1,0 +1,60 @@
+{# Каркас модального окна (design-system.md, раздел 2.5).
+
+   До этого компонента каркас существовал двенадцатью копиями в дневнике
+   питания, и копирование протащило за собой три дефекта разом: Escape
+   не закрывал ни одну, фокус после закрытия оставался на невидимом поле
+   внутри спрятанной модалки, а сами модалки — 73 фокусируемых элемента
+   из 142 на странице — лежали в порядке табуляции всегда, открыты они
+   или нет. Клавиатурой пройти по странице было нельзя.
+
+   Поведение целиком в static/modal.js: он ведёт стек открытых окон
+   (модалка над модалкой — обычное дело в дневнике), Escape, клик вне окна,
+   кнопку закрытия, сохранение и возврат фокуса, inert на закрытых
+   и блокировку прокрутки фона.
+
+   Разметка обязана давать скрипту ровно две вещи: `.modal-ov` с id
+   и `[data-modal-close]` на кнопке. Ничего больше страница не подключает —
+   ни onclick, ни своего обработчика клавиш.
+
+   Параметры:
+     id       — обязателен, по нему открывают: openModal('modal-water')
+     title    — текст заголовка; при chrome=false не выводится
+     title_id — id заголовка, если его меняет скрипт страницы (por-title
+                и подобные). Без него генерируется <id>-title — на него
+                ссылается aria-labelledby, поэтому он нужен всегда
+     variant  — доп. класс на оверлей: modal-ov-viewer и что появится дальше
+     chrome   — false убирает «ручку» и шапку. Кнопка закрытия остаётся,
+                но плавает поверх содержимого: так устроен просмотр фото,
+                где рамка окна мешала бы самой картинке
+
+   Применение:
+     {% raw %}{% import '_modal.html' as m %}
+     {% call m.modal('modal-water', '💧 Добавить воду') %}
+       …содержимое…
+     {% endcall %}{% endraw %}
+#}
+{% macro modal(id, title='', title_id='', variant='', chrome=true) %}
+{% set tid = title_id or id ~ '-title' %}
+<div class="modal-ov {{ variant }}" id="{{ id }}"
+     role="dialog" aria-modal="true" aria-labelledby="{{ tid }}" inert>
+  <div class="modal-sh" tabindex="-1">
+    {% if chrome %}
+    <div class="modal-drag"></div>
+    <div class="modal-hdr">
+      <span class="modal-title" id="{{ tid }}">{{ title }}</span>
+      <button class="modal-x" type="button" data-modal-close aria-label="Закрыть">×</button>
+    </div>
+    {% else %}
+    {# Заголовок нужен screen reader'у даже там, где его не рисуют:
+       aria-labelledby без цели молча ломает объявление диалога #}
+    <span id="{{ tid }}" class="modal-sr-only">{{ title }}</span>
+    {% endif %}
+    <div class="modal-body">
+      {% if not chrome %}
+      <button class="modal-x modal-x-float" type="button" data-modal-close aria-label="Закрыть">×</button>
+      {% endif %}
+      {{ caller() }}
+    </div>
+  </div>
+</div>
+{% endmacro %}
