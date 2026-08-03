@@ -69,7 +69,7 @@
 {% include '_header.html' %}
 
 <div class="auth-wrap">
-  <div class="auth-box" class="v-center">
+  <div class="auth-box v-center">
     <div class="verify-icon">✉️</div>
 
     {# Состояние кнопки задаёт только cooldown, текст сообщения — только notice.
@@ -82,13 +82,13 @@
     </p>
     {% elif notice == 'failed' %}
     <h1 class="v-mb-8">Не удалось отправить</h1>
-    <div class="alert alert-error" class="v-block">
+    <div class="alert alert-error v-block">
       <span>Письмо не ушло — проблема на нашей стороне, не у вас. Попробуйте через несколько минут —
       кнопка ниже отправит письмо ещё раз.</span>
     </div>
     {% elif notice == 'too_soon' %}
     <h1 class="v-mb-8">Письмо уже отправлено</h1>
-    <div class="alert alert-warn" id="cooldown-note" class="v-block">
+    <div class="alert alert-warn v-block" id="cooldown-note">
       <span>Проверьте почту <strong>{{ user.email }}</strong> и папку «Спам».
       Отправить ещё раз можно через <strong id="cooldown-left">{{ cooldown }}</strong> с.</span>
     </div>

@@ -84,7 +84,7 @@
 {% include '_header.html' %}
 
 <div class="auth-wrap">
-  <div class="auth-box" class="v-center">
+  <div class="auth-box v-center">
     <div class="verify-icon">{% if notice == 'failed' %}⚠️{% else %}✉️{% endif %}</div>
     {% if notice == 'failed' %}
     {# Раньше страница утверждала «мы отправили письмо» независимо от того,
@@ -122,16 +122,16 @@
        регистрации письмо отправлено впервые, и то же слово читалось бы как
        «вы здесь не в первый раз» #}
     {% if notice == 'sent' %}
-    <div class="alert alert-success" class="v-block">
+    <div class="alert alert-success v-block">
       <span>Письмо отправлено на <strong>{{ email }}</strong>. Ссылка действует 24 часа.</span>
     </div>
     {% elif notice == 'failed' %}
-    <div class="alert alert-error" class="v-block">
+    <div class="alert alert-error v-block">
       <span>Не удалось отправить письмо — проблема на нашей стороне. Попробуйте через несколько минут —
       кнопка ниже отправит письмо ещё раз.</span>
     </div>
     {% elif notice == 'too_soon' %}
-    <div class="alert alert-warn" id="cooldown-note" class="v-block">
+    <div class="alert alert-warn v-block" id="cooldown-note">
       <span>Письмо уже отправлено — проверьте почту. Повторить можно через
       <strong id="cooldown-left">{{ cooldown }}</strong> с.</span>
     </div>
