@@ -26,8 +26,9 @@
 
   position: relative;
   background: var(--surface-0);
-  /* 64px — высота sticky .site-header (в потоке, компенсация не нужна) */
-  min-height: calc(100vh - 64px);
+  /* Высоты здесь нет: остаток экрана отдаёт .page-fill на странице-колонке
+     (style.css). Раньше стояло min-height: calc(100vh - 64px) — высота
+     .site-header, записанная числом. */
   padding: var(--space-7) var(--space-4) var(--space-7);
 }
 

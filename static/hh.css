@@ -632,17 +632,12 @@ main.container { max-width: 1600px; }
    .parse-modal-overlay, .parse-modal и .parse-modal-title: своя копия
    каркаса без Escape и без возврата фокуса.
 
-   Иконка-предупреждение раньше стояла в заголовке; заголовок теперь
-   в шапке компонента и принимает только текст, поэтому иконка переехала
-   в начало пояснения. Цвет и размер у неё те же. */
+   Иконка-предупреждение снова в заголовке — через слот icon у макроса
+   (.modal-icon + .modal-icon-warning в style.css). Здесь её нет и своих
+   правил под неё тоже: пояснение вернулось к обычному абзацу. */
 .parse-modal-desc {
   font-size: var(--text-caption); color: var(--text-2); line-height: 1.6;
   margin-bottom: var(--space-2);
-  display: flex; align-items: flex-start; gap: var(--space-2);
-}
-.parse-modal-desc svg {
-  width: 18px; height: 18px; stroke-width: 1.5;
-  color: var(--warning); flex-shrink: 0; margin-top: 1px;
 }
 .parse-modal-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-5); }
 .parse-modal-list li {

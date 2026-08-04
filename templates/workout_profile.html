@@ -16,8 +16,8 @@
       color-scheme: dark;
       position: relative;
       background: var(--surface-0);
-      /* 64px — высота sticky .site-header (в потоке, компенсация не нужна) */
-      min-height: calc(100vh - 64px);
+      /* Высоты здесь нет: остаток экрана отдаёт .page-fill на странице-колонке
+         (style.css). Раньше стояло min-height: calc(100vh - 64px). */
       padding: var(--space-7) var(--space-4) var(--space-7);
     }
 
@@ -97,11 +97,11 @@
     .wk-eq-regen-banner button { margin-top: var(--space-2); }
   </style>
 </head>
-<body class="has-site-header">
+<body class="has-site-header page-column">
 
 {% include '_header.html' %}
 
-<main class="theme-workout">
+<main class="theme-workout page-fill">
 
   <div class="wkp-shell">
     <div class="wkp-head">

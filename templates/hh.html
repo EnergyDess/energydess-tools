@@ -456,12 +456,14 @@
    свой оверлей .parse-modal-overlay, показ через style.display и onclick
    в разметке: Escape не закрывал, фокус после закрытия оставался внутри.
 
-   Иконка-предупреждение переехала из заголовка в тело: у макроса заголовок
-   принимает только текст, а вставить туда разметку нельзя — Jinja
-   экранирует. Слот под иконку в шапке компонента напрашивается, но это
-   правка системного компонента, а её сначала обсуждают. #}
+   Иконка-предупреждение стоит в заголовке — через слот icon у макроса.
+   До слота она уехала в начало пояснения: title принимает только текст,
+   разметку туда не вписать. Причина была технической, а результат —
+   предупреждение без акцента ровно там, где акцент и нужен. Поэтому
+   починили компонент, а не страницу. #}
 {% import '_modal.html' as m %}
-{% call m.modal('parse-modal', 'Найдены конфликты с текущим досье') %}
+{% call m.modal('parse-modal', 'Найдены конфликты с текущим досье',
+                icon='alert-triangle', icon_tone='warning') %}
     <div id="parse-modal-body"></div>
     <div class="parse-modal-actions">
       <button class="pmbtn safe" onclick="applyParsedData('keep')">
@@ -606,7 +608,7 @@
       } else {
         // Сценарий В — показываем модалку
         document.getElementById('parse-modal-body').innerHTML =
-          '<p class="parse-modal-desc"><i data-lucide="alert-triangle"></i>' +
+          '<p class="parse-modal-desc">' +
           'Парсер нашёл данные, но некоторые поля уже заполнены:</p>' +
           '<ul class="parse-modal-list">' +
           conflicts.map(c => c.currentCount != null
@@ -614,9 +616,6 @@
             : `<li><b>${escHtml(c.label)}:</b> сейчас «${escHtml(c.current.substring(0,50))}», парсер предлагает «${escHtml(c.suggested.substring(0,50))}»</li>`
           ).join('') + '</ul>';
         открыть_модалку('parse-modal');
-        // Иконку рисуем ПОСЛЕ вставки: lucide заменяет <i data-lucide> на svg
-        // один раз при загрузке страницы, а этот блок собран только что
-        lucide.createIcons();
       }
     } catch {
       showToast('Ошибка сети');

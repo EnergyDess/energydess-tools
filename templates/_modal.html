@@ -26,21 +26,47 @@
      chrome   — false убирает «ручку» и шапку. Кнопка закрытия остаётся,
                 но плавает поверх содержимого: так устроен просмотр фото,
                 где рамка окна мешала бы самой картинке
+     icon     — знак ПЕРЕД заголовком: имя иконки Lucide ('alert-triangle')
+                либо эмодзи ('💧'). Слот, а не текст в title, потому что
+                иначе значок неизбежно уезжает в тело окна: title принимает
+                только текст, Jinja экранирует разметку, и <i data-lucide>
+                туда не вписать. Ровно это и случилось с предупреждением
+                в модалке конфликтов hh — оно потеряло акцент там, где он
+                и нужен. Эмодзи в заголовках дневника уехали бы тем же путём
+     icon_tone — окраска значка. Пусто — цвет вторичного текста; 'warning' —
+                янтарь. Новый тон заводится в style.css рядом с .modal-icon,
+                а не классом со страницы (CLAUDE.md §6.0.2)
+
+   Lucide или эмодзи различаются по самой строке: имя иконки — ASCII
+   из букв, цифр и дефисов, эмодзи под это не подходит ни одним символом.
+   Отдельного параметра поэтому нет — перепутать нечего, а вызов остаётся
+   одинаковым до и после замены эмодзи на Lucide (BACKLOG №31).
+
+   Значок помечен aria-hidden и лежит ВНЕ элемента с title_id: доступное имя
+   диалога собирается по aria-labelledby, и значок в нём был бы шумом.
+   Для эмодзи это ещё и исправление — «💧 Добавить воду» программа чтения
+   объявляла как «капля воды Добавить воду».
 
    Применение:
      {% raw %}{% import '_modal.html' as m %}
-     {% call m.modal('modal-water', '💧 Добавить воду') %}
+     {% call m.modal('modal-water', 'Добавить воду', icon='💧') %}
        …содержимое…
      {% endcall %}{% endraw %}
 #}
-{% macro modal(id, title='', title_id='', variant='', chrome=true) %}
+{% macro modal(id, title='', title_id='', variant='', chrome=true, icon='', icon_tone='') %}
 {% set tid = title_id or id ~ '-title' %}
+{% set icon_lucide = icon and icon.isascii() and icon.replace('-', '').isalnum() %}
 <div class="modal-ov {{ variant }}" id="{{ id }}"
      role="dialog" aria-modal="true" aria-labelledby="{{ tid }}" inert>
   <div class="modal-sh" tabindex="-1">
     {% if chrome %}
     <div class="modal-drag"></div>
     <div class="modal-hdr">
+      {%- if icon %}
+      <span class="modal-icon{% if icon_tone %} modal-icon-{{ icon_tone }}{% endif %}" aria-hidden="true">
+        {%- if icon_lucide %}<i data-lucide="{{ icon }}"></i>{% else %}{{ icon }}{% endif -%}
+      </span>
+      {%- endif %}
       <span class="modal-title" id="{{ tid }}">{{ title }}</span>
       <button class="modal-x" type="button" data-modal-close aria-label="Закрыть">×</button>
     </div>

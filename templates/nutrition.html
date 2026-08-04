@@ -11,12 +11,12 @@
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/static/nutrition.css">
 </head>
-<body class="has-site-header">
+<body class="has-site-header page-column">
 
 {% include '_header.html' %}
 
 <!-- ── App shell ──────────────────────────────────────────────────────────── -->
-<div class="nut-app">
+<div class="nut-app page-fill">
 
   <!-- App header -->
   <header class="nut-hdr">
@@ -429,7 +429,7 @@
 {% endcall %}
 
 <!-- ─── MODAL: Manual water ─── -->
-{% call m.modal('modal-water', '💧 Добавить воду') %}
+{% call m.modal('modal-water', 'Добавить воду', icon='💧') %}
       <div class="g-wrap">
         <input type="number" class="g-input" id="water-input" placeholder="150" min="1" max="5000" onkeydown="if(event.key==='Enter')confirmWaterManual()">
         <span class="g-lbl">мл</span>
@@ -445,7 +445,7 @@
 {% endcall %}
 
 <!-- ─── MODAL: Photo analyze ─── -->
-{% call m.modal('modal-photo-analyze', '📸 Анализ фото') %}
+{% call m.modal('modal-photo-analyze', 'Анализ фото', icon='📸') %}
       <img class="pa-preview" id="pa-preview" alt="">
       <div class="f-field">
         <label class="f-label">Опишите блюдо (необязательно)</label>
@@ -514,7 +514,7 @@
 <!-- ─── MODAL: AI Chat ─── -->
 {# modal-ov-column вместо двух инлайновых style= на листе и теле: лента чата
    сама себе скролл-контейнер, высота листа фиксирована #}
-{% call m.modal('modal-ai', '🥗 AI-нутрициолог', variant='modal-ov-column') %}
+{% call m.modal('modal-ai', 'AI-нутрициолог', icon='🥗', variant='modal-ov-column') %}
       <div class="chat-msgs" id="chat-msgs"></div>
       <div class="chat-attach-preview" style="display:none">
         <img class="chat-attach-img" alt="">

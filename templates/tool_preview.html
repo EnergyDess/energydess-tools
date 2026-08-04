@@ -17,7 +17,13 @@
        Отдаём одно и то же людям и роботам: подмена по User-Agent — это
        клоакинг, за расхождение выдачи и страницы понижают в поиске. */
     .tp-wrap {
-      min-height: calc(100vh - 64px);
+      /* Остаток экрана отдаёт .page-fill на странице-колонке (style.css).
+         Раньше здесь стояло min-height: calc(100vh - 64px) — «экран минус
+         шапка», без учёта футера. На 1280×800 это давало блоку 736px при
+         содержимом в 605px: 131px пустой полосы, которую нечем заполнить,
+         и футер уезжал ниже сгиба на эту же величину. Единственная из пяти
+         страниц, где отличие видно глазом: карточка поднялась на 67px.
+         Остальные четыре футера не имеют, и остаток там прежний. */
       display: flex; align-items: center; justify-content: center;
       padding: var(--space-7) var(--space-4);
     }
@@ -48,11 +54,11 @@
     }
   </style>
 </head>
-<body class="has-site-header tool-{{ tool.id }}">
+<body class="has-site-header page-column tool-{{ tool.id }}">
 
 {% include '_header.html' %}
 
-<main class="container tp-wrap">
+<main class="container tp-wrap page-fill">
   <div class="card tp-card">
     <div class="tp-icon"><i data-lucide="{{ icon }}"></i></div>
     <span class="tp-eyebrow">{{ eyebrow }}</span>

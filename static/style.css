@@ -153,6 +153,32 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Страница-колонка: главный блок забирает остаток экрана ─────────────────
+   Пришло на смену `min-height: calc(100vh - 64px)`, которое стояло на пяти
+   страницах и в каждой повторяло высоту .site-header числом. Зависимость
+   там была не по существу: браузер сам умеет отдать блоку остаток, если
+   раскладку описать колонкой. Осталось вычитание только там, где оно
+   осмысленно, — у прилипающих под-навигаций (`top: 64px`), см.
+   design-system.md §4.1.
+
+   Две части, обе обязательны: класс на <body> и класс на том блоке,
+   который должен вырасти. Класс, а не селектор `> main`, — намеренно:
+   у дневника питания главный блок это <div class="nut-app">, а <main>
+   даёт position: relative + z-index: 1 (правило ниже), то есть свой
+   stacking context, из которого position:fixed вкладки ассистента уже
+   не выбирается. Тег менять ради раскладки нельзя.
+
+   `flex: 1 0 auto`, а не `flex: 1`: базой берётся содержимое, поэтому
+   длинный контент растит блок и страница прокручивается как обычно.
+   `flex: 1` (база 0) прижал бы блок к остатку экрана и всё, что ниже,
+   стало бы недостижимым — прокручивать было бы нечего.
+
+   dvh, а не vh: на мобильных vh считается по вьюпорту БЕЗ адресной строки,
+   и на коротком экране появлялась бы лишняя полоса прокрутки в высоту этой
+   строки. У дневника здесь уже стояло 100dvh — теперь так везде. */
+body.page-column { display: flex; flex-direction: column; min-height: 100dvh; }
+.page-fill { flex: 1 0 auto; }
+
 .nav, main, footer, .auth-wrap { position: relative; z-index: 1; }
 /* Компенсация высоты фиксированного nav (60px) — ТОЛЬКО на страницах со старой
    шапкой (auth, 404). Страницы с sticky .site-header (body.has-site-header)
@@ -493,6 +519,21 @@ button.chip:hover, a.chip:hover {
   display: flex; align-items: center; padding: 12px 16px 10px;
   border-bottom: 1px solid var(--border); flex-shrink: 0; touch-action: none;
 }
+/* Слот под значок перед заголовком (параметр icon у макроса). Появился
+   потому, что без него значок из заголовка уезжал в тело окна: title
+   принимает только текст, и <i data-lucide> туда не вписать — Jinja
+   экранирует разметку. Различие по виду тогда обосновано не смыслом,
+   а ограничением компонента, а это повод править компонент.
+   Принимает и Lucide, и эмодзи: у Lucide размер задаёт svg ниже,
+   эмодзи рисуется собственным кеглем. */
+.modal-icon {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  margin-right: var(--space-2); font-size: 1.05rem; line-height: 1;
+  color: var(--text-2);
+}
+.modal-icon svg { width: 18px; height: 18px; stroke-width: 1.5; }
+/* Тон значка. Новый заводится здесь, а не классом со страницы. */
+.modal-icon-warning { color: var(--warning); }
 .modal-title { font-size: 0.97rem; font-weight: 700; flex: 1; }
 .modal-x {
   width: 30px; height: 30px; border-radius: 50%; background: var(--surface-sunken);

@@ -16,9 +16,9 @@
        системный класс, — хардкод-цвета и все размеры в пикселях.
        Стало: токены, компонентные кнопки, ничего своего кроме раскладки. */
     .not-found {
-      /* 64px — высота sticky .site-header. Раньше здесь стояло 60px
-         от прежней минимальной шапки */
-      min-height: calc(100vh - 64px);
+      /* Высоты здесь больше нет: остаток экрана отдаёт .page-fill
+         на странице-колонке (style.css). Раньше стояло
+         min-height: calc(100vh - 64px) — высота шапки числом. */
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -63,14 +63,14 @@
     }
   </style>
 </head>
-<body class="has-site-header">
+<body class="has-site-header page-column">
 
 {# Общая шапка, а не минимальная: на 404 человек попадает случайно, и ему
    отсюда надо выбраться. С поиском и меню аватара выход есть, с одним
    логотипом оставалось ощущение, что его выкинуло из аккаунта #}
 {% include '_header.html' %}
 
-<div class="not-found">
+<div class="not-found page-fill">
   <div class="not-found-code" aria-hidden="true">404</div>
   <h1>Страница не найдена</h1>
   <p>Кажется, такой страницы не существует или она была перемещена.</p>
