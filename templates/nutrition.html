@@ -9,979 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
-  <style>
-    /* ── Nutrition vars — акцент привязан к per-tool identity (emerald,
-       design-system.md раздел 7.3), производные тинты через color-mix ── */
-    :root {
-      --nut-g:     var(--accent-nutrition);
-      --nut-g-dim: var(--accent-nutrition-dim);
-      --nut-g-glo: color-mix(in srgb, var(--accent-nutrition) 25%, transparent);
-      --prot: #f472b6;
-      --fat:  #fbbf24;
-      --carb: #60a5fa;
-      --wat:  #38bdf8;
-      --nav-h: 64px;
-      --hdr-h: 54px;
-      /* Локальные --bg2/--bg3/--text-dim убраны: страница перешла на системные
-         --surface-1 / --surface-sunken / --text-2 (см. design-system.md 1.1).
-         Граница чуть плотнее общей — карточки здесь мелкие и плотно уложены. */
-      --border: rgba(255,255,255,.10);
-    }
-
-    /* ── App shell ── */
-    /* Раньше .nut-app занимал ровно высоту окна (через flex/--app-h и т.п.), а
-       .nut-content скроллился внутри при overflow:hidden на body — но 100vh/100dvh/
-       window.innerHeight по-разному не совпадают с реальной видимой областью в разных
-       мобильных браузерах (Chrome/Яндекс/Я.Старт), из-за чего нижнюю панель .nut-nav
-       периодически обрезало или утаскивало за экран. Теперь страница скроллится целиком
-       как обычно ("sticky footer" раскладка: .nut-app — min-height на весь экран,
-       .nut-content растягивается на свободное место), а .nut-nav прижата к низу через
-       position: sticky — это не зависит от точности расчёта высоты viewport. */
-    .nut-app {
-      display: flex; flex-direction: column;
-      /* 64px — высота sticky .site-header (в потоке, компенсация не нужна) */
-      min-height: calc(100dvh - 64px);
-      max-width: 540px; width: 100%;
-      margin: 0 auto;
-      position: relative;
-    }
-    @media (min-width: 560px) {
-      .nut-app {
-        border-left:  1px solid var(--border);
-        border-right: 1px solid var(--border);
-        box-shadow: 0 0 120px rgba(34,197,94,.09), 0 0 40px rgba(0,212,255,.06);
-      }
-    }
-
-    /* ── App header ── */
-    .nut-hdr {
-      height: var(--hdr-h); min-height: var(--hdr-h);
-      display: flex; align-items: center; gap: 12px; padding: 0 14px;
-      background: var(--surface-1); border-bottom: 1px solid var(--border);
-      position: relative; z-index: 10; flex-shrink: 0;
-    }
-    /* Вкладка ассистента целиком построена на position:fixed (top/bottom считает
-       сам браузер от реального вьюпорта — см. #tab-assistant.active и .nut-nav).
-       Это верно только при scrollY=0: иначе шапка/контент, которые в потоке,
-       уезжают вместе со страницей, а зафиксированные элементы остаются на месте —
-       получается рассинхрон (чёрная полоса, обрезанный текст, "пропадающая" шапка
-       сайта). Поэтому на время вкладки ассистента блокируем скролл страницы целиком —
-       внутри неё прокручивается только лента сообщений (.chat-msgs). */
-    html.assistant-mode, html.assistant-mode body {
-      overflow: hidden;
-    }
-    .nut-hdr-back {
-      width: 34px; height: 34px; border-radius: 9px;
-      background: var(--surface-sunken); border: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: center;
-      color: var(--text-2); cursor: pointer; font-size: 1rem;
-      flex-shrink: 0; -webkit-tap-highlight-color: transparent;
-      transition: color .15s;
-    }
-    .nut-hdr-back:hover { color: var(--text); }
-    .nut-hdr-title { font-size: 0.95rem; font-weight: 700; flex: 1; }
-    .nut-hdr-date  { font-size: 0.78rem; color: var(--text); font-weight: 700; white-space: nowrap; }
-
-    /* ── Content ── */
-    .nut-content {
-      flex: 1;
-      /* место под нижнюю панель — она position:fixed и не занимает место в потоке */
-      padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0));
-    }
-
-    /* ── Tabs ── */
-    .nut-tab { display: none; padding: 14px 14px 24px; min-height: 100%; animation: fadeIn .2s ease; }
-    .nut-tab.active { display: block; }
-    #tab-assistant.active {
-      display: flex; flex-direction: column;
-      /* нижний паддинг = верхнему (14px от .nut-tab) — без него .nut-tab даёт 24px
-         снизу, и вместе с паддингом .chat-input-row получался заметный лишний зазор
-         между полем ввода и нижней навигацией */
-      padding-bottom: 14px;
-    }
-    /* Вкладка ассистента зафиксирована между шапкой .nut-hdr сверху и нижней
-       навигацией снизу — это даёт ей определённую высоту, без которой
-       .chat-msgs{flex:1} не может посчитать свою высоту и включить внутренний
-       скролл (через flex от .nut-app{min-height:...} высота не определена,
-       контент просто растягивает страницу, а overflow:hidden блокирует любой
-       скролл — ни страницы, ни чата). top считается не по захардкоженным
-       60px + var(--hdr-h) (на некоторых устройствах реальная высота .nav/.nut-hdr
-       отличалась на пару пикселей, и нижняя граница шапки обрезала текст), а
-       по реальной нижней границе .nut-hdr — JS пишет её в --assistant-top при
-       переключении на вкладку (см. goTab). Прокручивается только .chat-msgs. */
-    @media (max-width: 899px) {
-      html.assistant-mode #tab-assistant.active {
-        position: fixed;
-        top: var(--assistant-top, calc(64px + var(--hdr-h)));
-        bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0));
-        left: 50%; transform: translateX(-50%);
-        width: 100%; max-width: 540px; min-height: 0;
-      }
-    }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
-
-    /* ── Bottom nav ── */
-    /* position: fixed + bottom: 0 — панель всегда прижата к низу экрана, независимо
-       от того, помещается контент в один экран или странице нужен скролл, и независимо
-       от точности расчёта высоты viewport (в отличие от overflow:hidden + точная
-       высота, что обрезало панель в некоторых мобильных браузерах).
-       left: 50% + translateX(-50%) + max-width — повторяет центрирование .nut-app. */
-    .nut-nav {
-      position: fixed; left: 50%; bottom: 0; transform: translateX(-50%);
-      width: 100%; max-width: 540px; z-index: 15;
-      height: var(--nav-h); display: flex; align-items: stretch;
-      background: var(--surface-1); border-top: 1px solid var(--border);
-      padding-bottom: env(safe-area-inset-bottom, 0); flex-shrink: 0;
-    }
-    .nut-nav-btn {
-      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 3px; background: none; border: none; cursor: pointer;
-      color: var(--text-2); font-size: 0.62rem; font-weight: 600;
-      transition: color .15s; -webkit-tap-highlight-color: transparent;
-    }
-    .nut-nav-btn svg { width: 21px; height: 21px; }
-    .nut-nav-btn.active { color: var(--nut-g); }
-    .nav-plus {
-      width: 22px; height: 22px; border-radius: 7px;
-      background: var(--nut-g); display: flex; align-items: center; justify-content: center;
-    }
-    /* Иконка на зелёной заливке: белая давала 2.54, --surface-0 даёт 7.76 */
-    .nav-plus svg { width: 14px; height: 14px; color: var(--surface-0); }
-
-    /* ── Card base ── */
-    .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 10px; }
-
-    /* ── Calorie ring ── */
-    .ring-wrap { display: flex; justify-content: center; padding: 16px 0 6px; }
-    /* z-index: 0 создаёт собственный стек-контекст — иначе ::before с z-index:-1
-       уходит за фон родительской карточки и пульсация становится не видна */
-    .ring-container { position: relative; z-index: 0; display: flex; align-items: center; justify-content: center; }
-    /* Мягкое зелёное "сияние" за кольцом — даёт глубину и premium-ощущение.
-       Пульсирует всегда, независимо от заполнения — оживляет кольцо, когда дневник пуст. */
-    .ring-container::before {
-      content: ''; position: absolute; inset: -4%; border-radius: 50%;
-      background: radial-gradient(circle, rgba(34,197,94,.45) 0%, transparent 70%);
-      opacity: .5; z-index: -1; pointer-events: none;
-      animation: ring-glow-pulse 3.2s ease-in-out infinite;
-    }
-    .ring-svg { width: 170px; height: 170px; }
-    .ring-track { fill: none; stroke: var(--surface-sunken); stroke-width: 13; }
-    .ring-fill {
-      fill: none; stroke: var(--nut-g); stroke-width: 13; stroke-linecap: round;
-      stroke-dasharray: 440; stroke-dashoffset: 440;
-      transform-origin: center; transform: rotate(-90deg);
-      transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1);
-      filter: drop-shadow(0 0 6px var(--nut-g-glo));
-      animation: ring-fill-glow 2.6s ease-in-out infinite;
-    }
-    .ring-fill.over { stroke: #ef4444; filter: drop-shadow(0 0 6px rgba(239,68,68,.4)); animation: none; }
-    @keyframes ring-glow-pulse {
-      0%, 100% { opacity: .35; transform: scale(.92); }
-      50%      { opacity: .9;  transform: scale(1.08); }
-    }
-    @keyframes ring-fill-glow {
-      0%, 100% { filter: drop-shadow(0 0 6px var(--nut-g-glo)); }
-      50%      { filter: drop-shadow(0 0 13px var(--nut-g-glo)); }
-    }
-    .ring-center { position: absolute; text-align: center; }
-    .ring-center.pulse { animation: ring-pop .5s cubic-bezier(.34,1.56,.64,1); }
-    @keyframes ring-pop {
-      0%   { transform: scale(1); }
-      45%  { transform: scale(1.1); }
-      100% { transform: scale(1); }
-    }
-    .ring-remain {
-      font-size: 1.65rem; font-weight: 800; line-height: 1; font-family: var(--font);
-      font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
-      background: linear-gradient(135deg, #fff 10%, var(--nut-g) 95%);
-      -webkit-background-clip: text; background-clip: text; color: transparent;
-    }
-    /* Подпись и счётчик "X из Y" — единый жирный белый стиль для читаемости */
-    .ring-lbl {
-      font-size: 0.72rem; color: var(--text); font-weight: 700; margin-top: 4px;
-      letter-spacing: .08em; text-transform: uppercase;
-    }
-    .ring-eaten {
-      font-size: 0.72rem; color: var(--text); font-weight: 700; margin-top: 3px;
-      font-variant-numeric: tabular-nums; opacity: .9;
-    }
-
-    /* ── Macros ── */
-    .macros-row { display: flex; gap: 8px; margin: 10px 0; }
-    .macro-card { flex: 1; background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 10px 11px; }
-    .macro-label { font-size: 0.7rem; color: var(--text); font-weight: 700; margin-bottom: 5px; }
-    /* контур дорожек — углубление на карточке даёт всего 1.05:1, читаемость
-       добираем контуром, а не затемнением (design-system.md 1.1) */
-    .macro-bar { height: 5px; background: var(--surface-sunken); border-radius: 3px; overflow: hidden; margin-bottom: 5px; box-shadow: inset 0 0 0 1px var(--border); }
-    .macro-bar-fill { height: 100%; border-radius: 3px; transition: width .8s ease; }
-    .macro-val { font-size: 0.75rem; font-weight: 600; }
-
-    /* ── Water ── */
-    .water-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 13px 14px; margin-bottom: 10px; }
-    .water-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
-    .water-val { margin-left: auto; font-size: 0.82rem; color: var(--wat); font-weight: 700; }
-    .water-bar { height: 7px; background: var(--surface-sunken); border-radius: 4px; overflow: hidden; margin-bottom: 10px; box-shadow: inset 0 0 0 1px var(--border); }
-    .water-bar-fill { height: 100%; background: var(--wat); border-radius: 4px; transition: width .6s ease; box-shadow: 0 0 8px rgba(56,189,248,.35); }
-    .water-btns { display: flex; gap: 7px; }
-    .water-btn {
-      flex: 1; height: 34px; background: rgba(56,189,248,.1); border: 1px solid rgba(56,189,248,.2);
-      border-radius: 9px; color: var(--wat); font-size: 0.78rem; font-weight: 600;
-      cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .1s;
-    }
-    .water-btn:active { background: rgba(56,189,248,.22); }
-    .water-btn-manual {
-      width: 100%; height: 34px; margin-top: 7px; background: var(--surface-sunken);
-      border: 1px solid var(--border); border-radius: 9px; color: var(--text-2);
-      font-size: 0.78rem; font-weight: 600; cursor: pointer;
-      -webkit-tap-highlight-color: transparent; transition: all .1s;
-    }
-    .water-btn-manual:active { color: var(--wat); border-color: rgba(56,189,248,.3); }
-
-    /* ── Meals ── */
-    .meal-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 9px; overflow: hidden; }
-    .meal-hdr {
-      display: flex; align-items: center; gap: 9px; padding: 11px 13px;
-      cursor: default; -webkit-tap-highlight-color: transparent;
-    }
-    .meal-icon { font-size: 1rem; }
-    .meal-name { font-size: 0.87rem; font-weight: 700; flex: 1; }
-    .meal-kcal { font-size: 0.8rem; color: var(--nut-g); font-weight: 600; }
-    .meal-add {
-      width: 30px; height: 30px; border-radius: 8px;
-      background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2);
-      color: var(--nut-g); font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
-      cursor: pointer; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
-    }
-    .meal-items { border-top: 1px solid var(--border); }
-    .food-item { display: flex; align-items: center; gap: 9px; padding: 9px 13px; border-bottom: 1px solid var(--border); }
-    .food-item:last-child { border-bottom: none; }
-    .food-info { flex: 1; min-width: 0; }
-    .food-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .food-sub  { font-size: 0.7rem; color: var(--text); font-weight: 700; margin-top: 1px; }
-    .food-kcal { font-size: 0.8rem; color: var(--nut-g); font-weight: 600; white-space: nowrap; }
-    .food-del  {
-      width: 26px; height: 26px; border-radius: 7px; background: rgba(239,68,68,.1);
-      border: 1px solid rgba(239,68,68,.2); color: #ef4444;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; flex-shrink: 0; font-size: .95rem; -webkit-tap-highlight-color: transparent;
-    }
-
-    /* ── AI chat button ── */
-    .ai-btn {
-      width: 100%; padding: 13px; border-radius: 13px; border: none;
-      background: linear-gradient(135deg, var(--nut-g-dim), rgba(34,197,94,.05));
-      border: 1px solid rgba(34,197,94,.22); color: var(--nut-g);
-      font-size: 0.88rem; font-weight: 600; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      transition: background .15s; margin: 4px 0 10px; -webkit-tap-highlight-color: transparent;
-    }
-    .ai-btn:active { background: rgba(34,197,94,.22); }
-
-    /* ── Search ── */
-    .search-back { display: none; }
-    .s-chips { display: flex; gap: 7px; margin-bottom: 12px; }
-    .s-chip {
-      flex: 1; padding: 6px 8px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
-      background: var(--surface-sunken); border: 1px solid var(--border); color: var(--text-2);
-      cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
-      text-align: center; white-space: nowrap;
-    }
-    .s-chip.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
-    .s-bar { display: flex; gap: 8px; margin-bottom: 12px; position: relative; }
-    .s-input {
-      flex: 1; height: 44px; background: var(--surface-sunken); border: 1px solid var(--border);
-      border-radius: 11px; padding: 0 13px; color: var(--text); font-size: 0.93rem;
-      outline: none; transition: border-color .15s; font-family: var(--font);
-    }
-    .s-input:focus { border-color: var(--nut-g); }
-    .s-input::placeholder { color: var(--text-2); }
-    .icon-btn {
-      width: 44px; height: 44px; border-radius: 11px; background: var(--surface-sunken);
-      border: 1px solid var(--border); color: var(--text-2);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; flex-shrink: 0; transition: color .15s, border-color .15s;
-      -webkit-tap-highlight-color: transparent;
-      touch-action: none; -webkit-touch-callout: none;
-      -webkit-user-select: none; user-select: none;
-    }
-    .icon-btn:active { color: var(--nut-g); border-color: var(--nut-g); }
-    .icon-btn svg { width: 19px; height: 19px; }
-    .s-tabs { display: flex; background: var(--surface-sunken); border-radius: 9px; padding: 3px; margin-bottom: 11px; }
-    .s-tab {
-      flex: 1; height: 32px; border-radius: 7px; border: none; background: none;
-      color: var(--text-2); font-size: 0.76rem; font-weight: 600;
-      cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
-    }
-    .s-tab.active { background: var(--surface-1); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
-    .r-list { display: flex; flex-direction: column; gap: 6px; }
-    .r-item {
-      display: flex; align-items: center; gap: 11px; padding: 11px 13px;
-      background: var(--surface-1); border-radius: 11px; cursor: pointer;
-      transition: background .1s; border: 1px solid var(--border);
-      -webkit-tap-highlight-color: transparent;
-    }
-    .r-item:active { background: var(--surface-sunken); }
-    .r-info { flex: 1; min-width: 0; }
-    .r-name  { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .r-brand { font-size: 0.7rem; color: var(--text-2); font-weight: 600; }
-    .r-kcal  { font-size: 0.8rem; color: var(--nut-g); font-weight: 700; white-space: nowrap; }
-    .r-per   { font-size: 0.65rem; color: var(--text-2); font-weight: 600; }
-    .empty   { text-align: center; color: var(--text-2); font-weight: 600; padding: 28px 16px; font-size: 0.87rem; }
-
-    /* ── AI estimate fallback ── */
-    .ai-estimate-btn {
-      width: 100%; padding: 12px; margin-top: 10px; border-radius: 11px;
-      background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.25);
-      color: var(--nut-g); font-size: 0.82rem; font-weight: 600; cursor: pointer;
-      -webkit-tap-highlight-color: transparent; transition: background .15s;
-    }
-    .ai-estimate-btn:active { background: rgba(34,197,94,.22); }
-
-    /* ── Ручное добавление продукта ── */
-    .add-manual-btn {
-      width: 100%; padding: 11px; margin-bottom: 11px; border-radius: 11px;
-      background: var(--surface-sunken); border: 1px dashed var(--border);
-      color: var(--text-2); font-size: 0.82rem; font-weight: 600; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 7px;
-      -webkit-tap-highlight-color: transparent; transition: border-color .15s, color .15s;
-    }
-    .add-manual-btn:active { border-color: var(--nut-g); color: var(--nut-g); }
-
-    /* ── History ── */
-    .h-date { text-align: center; font-size: 0.88rem; font-weight: 700; text-transform: capitalize; }
-    .mini-ring-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 6px 0 14px; }
-    .h-arrow {
-      width: 34px; height: 34px; border-radius: 50%; background: var(--nut-g-dim);
-      border: 1px solid rgba(34,197,94,.25); color: var(--nut-g); font-size: 1.05rem;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
-      transition: background .15s;
-    }
-    .h-arrow:active { background: rgba(34,197,94,.25); }
-    .h-arrow:disabled { opacity: .35; cursor: default; }
-    .mini-ring-wrap { display: flex; justify-content: center; }
-    .mini-ring-svg { width: 110px; height: 110px; }
-    .mini-ring-track { fill: none; stroke: var(--surface-sunken); stroke-width: 10; }
-    .mini-ring-fill {
-      fill: none; stroke: var(--nut-g); stroke-width: 10; stroke-linecap: round;
-      stroke-dasharray: 283; stroke-dashoffset: 283;
-      transform-origin: center; transform: rotate(-90deg);
-      transition: stroke-dashoffset .8s ease;
-    }
-    .week-box { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-top: 14px; }
-    .week-title { font-size: 0.68rem; color: var(--text-2); text-transform: uppercase; letter-spacing: .07em; font-weight: 600; margin-bottom: 10px; }
-    .week-bars { display: flex; gap: 5px; align-items: flex-end; height: 72px; }
-    .w-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-    .w-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
-    .w-bar { width: 100%; border-radius: 4px 4px 0 0; background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.25); min-height: 3px; transition: background .15s, box-shadow .15s; }
-    .w-bar.today { background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo); }
-    .w-col.active .w-bar { background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo); }
-    .w-day  { font-size: 0.62rem; color: var(--text); font-weight: 700; }
-    .w-col.active .w-day { color: var(--nut-g); font-weight: 700; }
-    .w-kcal { font-size: 0.62rem; color: var(--nut-g); font-weight: 600; }
-    .w-trained { font-size: 0.7rem; }
-
-    /* ── Weight ── */
-    .wt-hero { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 10px; text-align: center; }
-    .wt-big  { font-size: 2.8rem; font-weight: 800; line-height: 1; font-family: var(--font); }
-    .wt-unit { font-size: 1.1rem; color: var(--text-2); font-weight: 600; }
-    .wt-sub  { font-size: 0.75rem; color: var(--text-2); font-weight: 600; margin-top: 5px; }
-    .wt-prog { margin-top: 13px; }
-    .wt-prog-lbl { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-2); font-weight: 600; margin-bottom: 5px; }
-    .wt-prog-bar { height: 7px; background: var(--surface-sunken); border-radius: 4px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--border); }
-    .wt-prog-fill { height: 100%; background: var(--nut-g); border-radius: 4px; transition: width .8s ease; box-shadow: 0 0 8px var(--nut-g-glo); }
-    .measures { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 10px 0; }
-    .m-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 11px; padding: 11px 9px; text-align: center; }
-    .m-val { font-size: 1.25rem; font-weight: 700; }
-    .m-lbl { font-size: 0.65rem; color: var(--text-2); font-weight: 600; margin-top: 2px; }
-    .chart-box { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 10px; overflow: hidden; }
-    .wt-svg { width: 100%; height: 160px; overflow: visible; }
-    #wt-tooltip {
-      position: fixed; z-index: 9999; display: none; pointer-events: none;
-      background: rgba(22,26,44,.97); border: 1px solid rgba(199,211,234,.13);
-      border-radius: 10px; padding: 10px 14px; min-width: 148px;
-      font-size: 0.8rem; color: var(--text);
-      box-shadow: 0 8px 28px rgba(0,0,0,.55);
-      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-    }
-    .wt-tt-date { font-size: 0.72rem; color: var(--text-2); font-weight: 600; margin-bottom: 7px; text-transform: capitalize; white-space: nowrap; }
-    .wt-tt-row { display: flex; justify-content: space-between; gap: 18px; margin-bottom: 3px; }
-    .wt-tt-row:last-child { margin-bottom: 0; }
-    .wt-tt-row span { color: var(--text-2); font-size: 0.75rem; }
-    .wt-tt-row strong { color: var(--nut-g); font-weight: 700; font-size: 0.82rem; }
-
-    /* ── Profile ── */
-    .p-sec { margin-bottom: 18px; }
-    .p-sec-title { font-size: 0.68rem; color: var(--text-2); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; margin-bottom: 9px; }
-    .body-photo-slot {
-      aspect-ratio: 3/4; border: 1.5px dashed var(--border); border-radius: 10px;
-      display: flex; align-items: center; justify-content: center; cursor: pointer;
-      color: var(--text-2); font-size: 0.78rem; text-align: center; overflow: hidden;
-      background: var(--surface-1); transition: border-color .2s;
-    }
-    .body-photo-slot:hover { border-color: var(--nut-g); }
-    .body-photo-slot img { width: 100%; height: 100%; object-fit: cover; }
-    .compare-col { flex: 1; min-width: 140px; text-align: center; }
-    .compare-col img { width: 100%; border-radius: 10px; aspect-ratio: 3/4; object-fit: cover; }
-    .compare-col-label { font-size: 0.72rem; color: var(--text-2); margin-top: 6px; }
-    .f-label { font-size: 0.76rem; color: var(--text-2); font-weight: 600; margin-bottom: 5px; display: block; }
-    .f-input {
-      width: 100%; height: 44px; background: var(--surface-sunken); border: 1px solid var(--border);
-      border-radius: 11px; padding: 0 13px; color: var(--text); font-size: 0.93rem;
-      outline: none; transition: border-color .15s; font-family: var(--font);
-    }
-    .f-input:focus { border-color: var(--nut-g); }
-    .f-field { margin-bottom: 11px; }
-    .radio-row { display: flex; gap: 7px; }
-    .radio-btn {
-      flex: 1; height: 40px; border-radius: 10px; border: 1px solid var(--border);
-      background: var(--surface-sunken); color: var(--text-2); font-size: 0.8rem; font-weight: 600;
-      cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
-    }
-    .radio-btn.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
-    .act-btn {
-      width: 100%; text-align: left; padding: 10px 13px; border-radius: 10px;
-      border: 1px solid var(--border); background: var(--surface-sunken); color: var(--text-2);
-      font-size: 0.8rem; font-weight: 600; cursor: pointer; margin-bottom: 5px;
-      transition: all .15s; -webkit-tap-highlight-color: transparent; font-family: var(--font);
-    }
-    .act-btn.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
-    .targets-box { background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2); border-radius: 13px; padding: 13px 14px; margin: 14px 0; }
-    .targets-title { font-size: 0.76rem; color: var(--nut-g); font-weight: 700; margin-bottom: 8px; }
-    .targets-row { display: flex; gap: 7px; }
-    .t-item { flex: 1; text-align: center; }
-    .t-val { font-size: 1.05rem; font-weight: 700; }
-    .t-lbl { font-size: 0.62rem; color: var(--text-2); font-weight: 600; }
-    .save-btn {
-      width: 100%; height: 48px; border-radius: 13px; border: none;
-      /* тёмная надпись: белая на зелёном 2.54, --surface-0 — 7.76 */
-      background: var(--nut-g); color: var(--surface-0); font-size: 0.95rem; font-weight: 700;
-      cursor: pointer; transition: opacity .15s; -webkit-tap-highlight-color: transparent;
-    }
-    .save-btn:active { opacity: .85; }
-
-    /* ── Модалки ──
-       Каркас, оформление и поведение переехали в систему: разметку даёт
-       макрос из _modal.html, классы .modal-* лежат в style.css, Escape,
-       клик вне окна, фокус и блокировка фона — в static/modal.js.
-       Здесь остались только этажи наложения и стили содержимого. */
-    /* Модалки, которые могут открываться поверх других модалок */
-    #modal-recipe-ing   { z-index: 205; }
-    #modal-portion      { z-index: 210; }
-    #modal-custom       { z-index: 215; }
-    #modal-photo-analyze{ z-index: 215; }
-    .pa-preview { width: 100%; max-height: 240px; object-fit: cover; border-radius: 12px; margin-bottom: 13px; }
-
-    /* ── Portion modal ── */
-    .por-name { font-size: 0.97rem; font-weight: 700; margin-bottom: 3px; }
-    .por-sub-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 13px; }
-    .por-sub  { font-size: 0.76rem; color: var(--text-2); font-weight: 600; }
-    .por-edit-btn {
-      flex-shrink: 0; display: flex; align-items: center; gap: 4px;
-      padding: 5px 11px; border-radius: 20px; background: var(--surface-sunken); border: 1px solid var(--border);
-      color: var(--text-2); font-size: 0.72rem; font-weight: 600; cursor: pointer;
-      -webkit-tap-highlight-color: transparent; transition: all .15s; white-space: nowrap;
-    }
-    .por-edit-btn.active { color: var(--nut-g); border-color: rgba(34,197,94,.35); background: var(--nut-g-dim); }
-    .por-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 0 0 14px; }
-    .por-edit-grid .f-field { margin-bottom: 0; }
-    .g-wrap   { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
-    .g-input  {
-      width: 95px; height: 48px; background: var(--surface-sunken); border: 1px solid var(--border);
-      border-radius: 11px; color: var(--text); font-size: 1.25rem; font-weight: 700;
-      text-align: center; outline: none; transition: border-color .15s;
-    }
-    .g-input:focus { border-color: var(--nut-g); }
-    .g-lbl { color: var(--text-2); font-size: 0.88rem; font-weight: 600; }
-    .q-grams { display: flex; gap: 7px; margin-bottom: 14px; flex-wrap: wrap; }
-    .q-btn {
-      padding: 6px 13px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border);
-      color: var(--text-2); font-size: 0.78rem; font-weight: 600; cursor: pointer;
-      -webkit-tap-highlight-color: transparent; transition: all .1s;
-    }
-    .q-btn:active { color: var(--nut-g); border-color: var(--nut-g); }
-    .calc-box { background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2); border-radius: 11px; padding: 11px 13px; margin-bottom: 14px; }
-    .calc-kcal   { font-size: 1.45rem; font-weight: 800; color: var(--nut-g); font-family: var(--font); }
-    .calc-macros { font-size: 0.76rem; color: var(--text-2); font-weight: 600; margin-top: 2px; }
-    .add-btn {
-      width: 100%; height: 48px; border-radius: 13px; border: none;
-      /* тёмная надпись: белая на зелёном 2.54, --surface-0 — 7.76 */
-      background: var(--nut-g); color: var(--surface-0); font-size: 0.95rem; font-weight: 700;
-      cursor: pointer; transition: opacity .15s; margin-bottom: 16px;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .add-btn:active { opacity: .85; }
-
-    /* ── Scanner ── */
-    /* Html5Qrcode очищает содержимое #qr-reader при инициализации,
-       поэтому рамку и кнопку фонарика выносим в отдельную обёртку */
-    .scan-wrap { width: 100%; aspect-ratio: 1; background: #000; border-radius: 11px; overflow: hidden; position: relative; margin-bottom: 12px; }
-    #qr-reader { width: 100%; height: 100%; }
-    .scan-overlay { position: absolute; inset: 38% 8%; border: 2px solid var(--nut-g); border-radius: 7px; pointer-events: none; }
-    .scan-torch-btn {
-      position: absolute; top: 10px; right: 10px; z-index: 5;
-      width: 38px; height: 38px; border-radius: 50%;
-      background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.25);
-      color: #fff; display: flex; align-items: center; justify-content: center;
-      cursor: pointer; -webkit-tap-highlight-color: transparent;
-      transition: background .15s, color .15s, border-color .15s;
-    }
-    /* было #06150c — тёмный хардкод, 7.39; --surface-0 даёт 7.76 и убирает свой оттенок */
-    .scan-torch-btn.on { background: var(--nut-g); color: var(--surface-0); border-color: var(--nut-g); }
-    .scan-manual { width: 100%; height: 44px; background: var(--surface-sunken); border: 1px solid var(--border); border-radius: 11px; padding: 0 13px; color: var(--text); font-size: 0.92rem; outline: none; font-family: var(--font); }
-    .scan-manual:focus { border-color: var(--nut-g); }
-
-    /* ── Custom food ── */
-    .cf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
-
-    /* ── AI Chat ── */
-    .chat-msgs {
-      overflow-y: auto; padding: 10px 0; display: flex; flex-direction: column; gap: 10px;
-      flex: 1; min-height: 180px;
-      scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
-    }
-    .chat-msg { max-width: 88%; }
-    .chat-msg.ai   { align-self: flex-start; }
-    .chat-msg.user { align-self: flex-end; }
-    .chat-bubble {
-      padding: 10px 13px; border-radius: 16px;
-      font-size: 0.87rem; line-height: 1.58;
-    }
-    .chat-bubble.ai {
-      background: var(--surface-sunken); border: 1px solid var(--border);
-      border-radius: 4px 16px 16px 16px; color: var(--text);
-    }
-    .chat-bubble.user {
-      background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2);
-      border-radius: 16px 4px 16px 16px; color: var(--nut-g);
-    }
-    .chat-bubble-img {
-      display: block; max-width: 200px; width: 100%; border-radius: 10px;
-      margin-bottom: 6px; cursor: zoom-in;
-    }
-    /* Просмотр фото — вариант .modal-ov-viewer в style.css, не своя модалка */
-    .chat-input-row {
-      display: flex; gap: 8px; padding: 12px 0 0;
-      border-top: 1px solid var(--border); flex-shrink: 0; position: relative;
-    }
-    .chat-in {
-      flex: 1; height: 42px; background: var(--surface-sunken); border: 1px solid var(--border);
-      border-radius: 10px; padding: 0 12px; color: var(--text); font-size: 0.9rem;
-      outline: none; font-family: var(--font);
-    }
-    .chat-in:focus { border-color: var(--nut-g); }
-    .chat-send {
-      width: 42px; height: 42px; background: var(--nut-g); border: none; border-radius: 10px;
-      /* иконка на зелёной заливке: белая 2.54, --surface-0 — 7.76 */
-      color: var(--surface-0); cursor: pointer; display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; -webkit-tap-highlight-color: transparent;
-    }
-    .chat-send:active { opacity: .85; }
-    .chat-send svg { width: 18px; height: 18px; }
-    .chat-attach-btn {
-      width: 42px; height: 42px; background: var(--surface-sunken); border: 1px solid var(--border);
-      border-radius: 10px; color: var(--text-2); cursor: pointer; display: flex;
-      align-items: center; justify-content: center; flex-shrink: 0;
-      -webkit-tap-highlight-color: transparent; transition: color .15s, border-color .15s;
-      touch-action: none; -webkit-touch-callout: none;
-      -webkit-user-select: none; user-select: none;
-    }
-    .chat-attach-btn:active { color: var(--nut-g); border-color: var(--nut-g); }
-    .chat-attach-btn svg { width: 18px; height: 18px; }
-    .chat-attach-preview {
-      display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin-top: 10px;
-      background: var(--surface-sunken); border: 1px solid var(--border); border-radius: 11px; flex-shrink: 0;
-    }
-    .chat-attach-preview img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
-    .chat-attach-preview span { flex: 1; font-size: 0.8rem; color: var(--text-2); }
-    .chat-attach-preview button {
-      width: 26px; height: 26px; border-radius: 50%; background: var(--surface-1); border: none;
-      color: var(--text-2); font-size: 1rem; cursor: pointer; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent;
-    }
-    /* ── Меню "Камера / Галерея" у кнопки-скрепки ── */
-    .attach-wrap { position: relative; flex-shrink: 0; }
-    .attach-menu {
-      position: absolute; bottom: calc(100% + 8px); left: 0; display: none; flex-direction: column;
-      background: var(--surface-sunken); border: 1px solid var(--border); border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0,0,0,.4); overflow: hidden; z-index: 60; min-width: 168px;
-      animation: voice-fade-in .12s ease;
-    }
-    .attach-menu button {
-      display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 14px;
-      background: none; border: none; color: var(--text); font-size: 0.85rem; text-align: left;
-      cursor: pointer; -webkit-tap-highlight-color: transparent;
-    }
-    .attach-menu button:active { background: var(--surface-1); color: var(--nut-g); }
-    .attach-menu svg { width: 18px; height: 18px; flex-shrink: 0; }
-    /* ── Запись голосового сообщения (оверлей вместо строки ввода) ── */
-    @keyframes mic-pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
-    @keyframes voice-fade-in { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: scale(1); } }
-    .voice-rec-overlay {
-      position: absolute; inset: 0; display: flex; align-items: center; gap: 8px;
-      padding: 0 6px; background: var(--surface-1); border-radius: 11px; z-index: 2;
-      animation: voice-fade-in .15s ease;
-    }
-    .voice-rec-dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; flex-shrink: 0; animation: mic-pulse 1s infinite; }
-    .voice-rec-dot.paused { animation: none; background: var(--text-2); }
-    .voice-rec-timer {
-      font-size: 0.85rem; font-weight: 700; color: var(--text); flex-shrink: 0;
-      min-width: 36px; font-variant-numeric: tabular-nums;
-    }
-    .voice-rec-wave { flex: 1; height: 28px; min-width: 0; }
-    .voice-rec-wave canvas { width: 100%; height: 100%; display: block; }
-    .chat-attach-btn.voice-active, .icon-btn.voice-active {
-      visibility: hidden;
-    }
-    /* Удалить запись (слева) и отправить (справа) */
-    .voice-rec-del, .voice-rec-send {
-      width: 36px; height: 36px; border-radius: 50%; border: none; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center; cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .voice-rec-del { background: rgba(239,68,68,.12); color: #ef4444; }
-    .voice-rec-del svg { width: 15px; height: 15px; }
-    /* иконка на зелёной заливке: белая 2.54, --surface-0 — 7.76.
-       Соседний .voice-rec-del не трогаем: у него фон полупрозрачный красный
-       на тёмной подложке, там как раз светлый цвет и нужен */
-    .voice-rec-send { background: var(--nut-g); color: var(--surface-0); }
-    .voice-rec-send svg { width: 17px; height: 17px; }
-    .voice-rec-send:active { opacity: .9; }
-    /* Плавающая кнопка паузы/продолжения над кнопкой отправки — без удержания пальца */
-    .voice-pause-float {
-      position: fixed; width: 40px; height: 40px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center; cursor: pointer;
-      background: var(--surface-sunken); color: var(--nut-g); border: 1px solid var(--nut-g);
-      box-shadow: 0 4px 14px rgba(0,0,0,.35); z-index: 220;
-      -webkit-tap-highlight-color: transparent; transition: color .15s, border-color .15s;
-    }
-    .voice-pause-float svg { width: 17px; height: 17px; flex-shrink: 0; }
-    .voice-pause-float.is-paused { color: #ef4444; border-color: #ef4444; animation: mic-pulse 1.4s infinite; }
-
-    /* ── Голосовое сообщение в чате ── */
-    .voice-bubble { min-width: 200px; }
-    .voice-row { display: flex; align-items: center; gap: 8px; }
-    .voice-play-btn {
-      width: 32px; height: 32px; border-radius: 50%; border: none; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center; cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .chat-bubble.user .voice-play-btn { background: rgba(34,197,94,.18); color: var(--nut-g); }
-    .chat-bubble.ai .voice-play-btn   { background: var(--surface-1); color: var(--text); }
-    .voice-play-btn svg { width: 13px; height: 13px; }
-    .voice-wave-static { flex: 1; display: flex; align-items: center; gap: 2px; height: 24px; min-width: 0; }
-    .voice-wave-static .vw-bar { width: 3px; border-radius: 2px; flex-shrink: 0; opacity: .55; }
-    .chat-bubble.user .voice-wave-static .vw-bar { background: var(--nut-g); }
-    .chat-bubble.ai .voice-wave-static .vw-bar { background: var(--text-2); }
-    .voice-dur { font-size: 0.74rem; color: var(--text-2); font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
-    .voice-tr-toggle {
-      margin-top: 7px; background: none; border: none; padding: 0; cursor: pointer;
-      font-size: 0.74rem; font-weight: 700; color: var(--nut-g); font-family: var(--font);
-      display: flex; align-items: center; gap: 3px; -webkit-tap-highlight-color: transparent;
-    }
-    .voice-tr-toggle svg { width: 11px; height: 11px; transition: transform .15s; }
-    .voice-tr-toggle.open svg { transform: rotate(180deg); }
-    .voice-tr-text {
-      display: none; margin-top: 6px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.08);
-      font-size: 0.85rem; line-height: 1.5;
-    }
-    .voice-tr-text.show { display: block; }
-    .voice-transcribing { margin-top: 6px; font-size: 0.78rem; color: var(--text-2); font-weight: 600; font-style: italic; }
-    /* ── Кнопки выбора приёма пищи в чате ── */
-    .meal-picker-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 9px; }
-    .meal-picker-btns button {
-      padding: 9px 6px; border-radius: 9px; background: var(--surface-1); border: 1px solid var(--border);
-      color: var(--text); font-size: 0.8rem; font-weight: 600; cursor: pointer;
-      -webkit-tap-highlight-color: transparent; transition: background .1s, border-color .1s;
-    }
-    .meal-picker-btns button:active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.25); }
-
-    /* ── Recipe modals ── */
-    .ing-list { margin-bottom: 10px; }
-    .ing-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
-    .ing-name { flex: 1; font-size: 0.83rem; }
-    .ing-g    { font-size: 0.78rem; color: var(--nut-g); }
-    .ing-del  { color: #ef4444; background: none; border: none; font-size: 1rem; cursor: pointer; padding: 0 4px; }
-    .ing-add-btn {
-      width: 100%; height: 38px; border-radius: 9px; background: var(--surface-sunken);
-      border: 1px solid var(--border); color: var(--text-2); font-size: 0.83rem;
-      cursor: pointer; -webkit-tap-highlight-color: transparent; font-family: var(--font);
-    }
-    .frac-btns { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
-    .frac-btn {
-      padding: 7px 13px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border);
-      color: var(--text-2); font-size: 0.82rem; cursor: pointer;
-      -webkit-tap-highlight-color: transparent; transition: all .1s;
-    }
-    .frac-btn.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
-
-    /* ── Measure modal ── */
-    .meas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
-
-    /* ── Toast ── */
-    .toast {
-      position: fixed; bottom: calc(var(--nav-h) + 14px); left: 50%;
-      transform: translateX(-50%) translateY(14px);
-      background: var(--surface-sunken); border: 1px solid var(--border); border-radius: 11px;
-      padding: 9px 17px; font-size: 0.83rem; font-weight: 600;
-      opacity: 0; transition: all .22s; z-index: 300; white-space: nowrap; pointer-events: none;
-    }
-    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-    .toast.green { border-color: rgba(34,197,94,.35); color: var(--nut-g); }
-
-    /* ── Spinner / dots ── */
-    .spin { width: 18px; height: 18px; border: 2px solid var(--border-strong); border-top-color: var(--nut-g); border-radius: 50%; animation: spin .6s linear infinite; margin: 0 auto; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .dots { display: flex; gap: 4px; align-items: center; }
-    .dot  { width: 6px; height: 6px; border-radius: 50%; background: var(--nut-g); animation: dotB .8s ease infinite; }
-    .dot:nth-child(2) { animation-delay: .15s; }
-    .dot:nth-child(3) { animation-delay: .3s; }
-    @keyframes dotB { 0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)} }
-
-    /* ═══════════════════════════════════════════════════════════
-       DESKTOP LAYOUT  (≥ 900px) — single-viewport horizontal app
-       ═══════════════════════════════════════════════════════════ */
-    /* Sidebar header — hidden on mobile */
-    .sidebar-hd, .sidebar-date { display: none; }
-
-    @media (min-width: 900px) {
-      /* ── Full-width horizontal app shell ── */
-      .nut-app {
-        flex-direction: row; max-width: none;
-        height: calc(100dvh - 64px); overflow: hidden;
-        border: none !important; box-shadow: none !important;
-      }
-      .nut-hdr { display: none; }
-
-      /* ── Sidebar (placed first, on the left) ── */
-      .nut-nav {
-        position: static; left: auto; bottom: auto; transform: none; max-width: none;
-        order: -1;
-        flex-direction: column; width: 240px; min-width: 240px;
-        height: 100%; border-top: none; border-right: 1px solid var(--border);
-        padding: 0 10px 10px; gap: 2px; align-items: stretch;
-        justify-content: flex-start; background: rgba(7,7,15,.88);
-        backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-        overflow: hidden;
-      }
-      .sidebar-hd {
-        display: flex; align-items: center; gap: 8px;
-        padding: 22px 12px 14px;
-        font-family: var(--font); font-size: 1rem; font-weight: 800;
-        white-space: nowrap;
-        border-bottom: 1px solid var(--border); margin: 0 0 10px;
-        flex-shrink: 0;
-        background: linear-gradient(90deg, var(--nut-g), var(--wat));
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-      }
-      .sidebar-hd span:first-child { -webkit-text-fill-color: initial; font-size: 1.3rem; }
-      .sidebar-date {
-        display: flex; align-items: center; gap: 7px;
-        font-size: .82rem; color: var(--text-2); font-weight: 600; text-transform: capitalize;
-        padding: 0 12px 16px; font-family: var(--font-mono); flex-shrink: 0;
-        letter-spacing: .04em;
-      }
-      .sidebar-date::before {
-        content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
-        background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo);
-      }
-      .nut-nav-btn {
-        flex: none;
-        flex-direction: row; height: 48px; width: 100%;
-        padding: 0 14px; justify-content: flex-start;
-        gap: 12px; font-size: .96rem; border-radius: 11px;
-        transition: background .15s, color .15s;
-      }
-      .nut-nav-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
-      .nut-nav-btn:hover:not(.active) { background: rgba(255,255,255,.04); color: var(--text); }
-      .nut-nav-btn.active {
-        background: var(--nut-g-dim) !important; border: 1px solid rgba(34,197,94,.2);
-        color: var(--nut-g) !important;
-      }
-      /* «Добавить» — без рамки и фона, зеленеет только когда активна */
-      .nut-nav-btn[data-tab="search"] {
-        margin: 8px 0 10px;
-        background: transparent;
-        border: 1px solid transparent;
-        color: var(--text-2);
-      }
-      .nut-nav-btn[data-tab="search"]:hover { background: rgba(255,255,255,.04); color: var(--text); }
-      .nav-plus { width: 24px; height: 24px; border-radius: 7px; box-shadow: none; margin: 0; flex-shrink: 0; }
-      .nav-plus svg { width: 15px; height: 15px; }
-
-      /* ── Content area: pinned to viewport height ── */
-      .nut-content {
-        flex: 1; min-width: 0; min-height: 0; padding-bottom: 0;
-        overflow: hidden; background: transparent;
-      }
-      .nut-tab {
-        height: 100%; min-height: 0; box-sizing: border-box;
-        padding: 30px 36px;
-      }
-
-      /* ── Each column scrolls on its own — the page itself never does ── */
-      .d-left, .d-right {
-        display: flex; flex-direction: column; gap: 14px;
-        height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden;
-        padding-right: 6px;
-      }
-      .d-left::-webkit-scrollbar, .d-right::-webkit-scrollbar,
-      #tab-search.active::-webkit-scrollbar, .chat-msgs::-webkit-scrollbar,
-      #tab-diary.active::-webkit-scrollbar { width: 5px; }
-      .d-left::-webkit-scrollbar-thumb, .d-right::-webkit-scrollbar-thumb,
-      #tab-search.active::-webkit-scrollbar-thumb, .chat-msgs::-webkit-scrollbar-thumb,
-      #tab-diary.active::-webkit-scrollbar-thumb {
-        background: var(--border-strong); border-radius: 3px;
-      }
-      .d-left::-webkit-scrollbar-track, .d-right::-webkit-scrollbar-track,
-      #tab-search.active::-webkit-scrollbar-track, .chat-msgs::-webkit-scrollbar-track,
-      #tab-diary.active::-webkit-scrollbar-track { background: transparent; }
-
-      /* ── DIARY: один вертикальный столбец: кольцо → макросы → AI → блюда → вода ── */
-      #tab-diary.active {
-        display: flex;
-        flex-direction: column;
-        gap: 18px;
-        overflow-y: auto;
-        overflow-x: hidden;
-      }
-
-      /* Верхняя секция: кольцо сверху, макросы ниже, AI кнопка под ними */
-      #tab-diary.active .d-left {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        height: auto !important;
-        min-height: 0 !important;
-        overflow: visible !important;
-        padding-right: 0 !important;
-        gap: 18px;
-        flex-shrink: 0;
-      }
-
-      /* Кольцо: большое */
-      .ring-wrap { padding: 8px 0; flex-shrink: 0; }
-      .ring-svg { width: 220px; height: 220px; }
-      .ring-remain { font-size: 2.6rem; line-height: 1.1; }
-      .ring-lbl { font-size: .9rem; margin: 3px 0; }
-      .ring-eaten { font-size: .9rem; }
-
-      /* Макросы — полная ширина, горизонтальный ряд под кольцом */
-      .macros-row { width: 100%; flex: none; display: flex; flex-direction: row; gap: 14px; }
-      .macro-card { flex: 1; padding: 18px 24px; }
-      .macro-label { font-size: .9rem; }
-      .macro-val { font-size: 1.1rem; }
-
-      /* AI кнопка */
-      .ai-btn { flex-shrink: 0; }
-
-      /* Нижняя секция: 4 узкие карточки блюд + вода */
-      #tab-diary.active .d-right {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 12px;
-        height: auto !important;
-        min-height: 0 !important;
-        overflow: visible !important;
-        padding-right: 0;
-        flex-shrink: 0;
-      }
-
-      /* 4 карточки блюд в ряд, компактная высота (как карточка воды) */
-      #meals-wrap {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
-      }
-      .meal-card {
-        display: flex; flex-direction: column;
-        margin-bottom: 0; min-height: 0; transition: border-color .15s;
-      }
-      .meal-card:hover { border-color: var(--border-strong); }
-      .meal-hdr { padding: 13px 16px; flex-shrink: 0; }
-      .meal-icon { font-size: 1.05rem; }
-      .meal-name { font-size: .98rem; }
-      .meal-kcal { font-size: .88rem; }
-      .meal-items { max-height: 90px; overflow-y: auto; min-height: 0; }
-      .food-item { padding: 7px 14px; }
-      .food-name { font-size: .9rem; }
-      .food-sub { font-size: .76rem; }
-      .food-kcal { font-size: .84rem; }
-      .water-card { flex-shrink: 0; padding: 13px 18px; }
-      .water-val { font-size: .92rem; }
-      .water-btn { height: 34px; font-size: .86rem; }
-
-      /* ── SEARCH: single column, readable width, centered ── */
-      #tab-search.active { display: block; overflow-y: auto; max-width: 800px; margin: 0 auto; }
-
-      /* ── ASSISTANT: centered chat column, fills the screen ── */
-      #tab-assistant.active {
-        height: 100%; max-width: 760px; margin: 0 auto; width: 100%;
-        padding-bottom: 30px;
-      }
-      #tab-assistant .chat-bubble { font-size: 0.92rem; }
-      .search-back {
-        display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px;
-        padding: 10px 18px; border-radius: 10px; background: var(--surface-1);
-        border: 1px solid var(--border); color: var(--text-2);
-        font-size: .9rem; font-weight: 600; cursor: pointer;
-        transition: color .15s, border-color .15s;
-      }
-      .search-back:hover { color: var(--nut-g); border-color: rgba(34,197,94,.3); }
-      .s-chip { font-size: .88rem; padding: 9px 17px; }
-      .s-input { height: 50px; font-size: 1.05rem; }
-      .icon-btn { width: 50px; height: 50px; }
-      .s-tab { height: 40px; font-size: .88rem; }
-      .r-item { padding: 14px 16px; }
-      .r-name { font-size: 1rem; }
-      .r-brand { font-size: .82rem; }
-      .r-kcal { font-size: .94rem; }
-      .r-per { font-size: .8rem; }
-
-      /* ── HISTORY: left ring+meals, right chart fills column ── */
-      #tab-history.active { display: grid; grid-template-columns: 300px 1fr; gap: 28px; overflow: hidden; }
-      .h-date { font-size: 1.02rem; }
-      .h-arrow { width: 38px; height: 38px; font-size: 1.15rem; }
-      .mini-ring-svg { width: 168px; height: 168px; }
-      #hist-kcal { font-size: 1.9rem !important; }
-      .week-box { padding: 22px; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
-      .week-title { font-size: .85rem; }
-      .week-bars { flex: 1; height: auto; min-height: 0; }
-      .w-day, .w-kcal { font-size: .82rem; }
-
-      /* ── WEIGHT: left stats, right chart fills column ── */
-      #tab-weight.active { display: grid; grid-template-columns: 300px 1fr; gap: 28px; overflow: hidden; }
-      .wt-big { font-size: 4rem; }
-      .wt-sub { font-size: .92rem; }
-      .wt-prog-lbl { font-size: .85rem; }
-      .measures { gap: 12px; }
-      .m-card { padding: 16px 12px; }
-      .m-val { font-size: 1.5rem; }
-      .m-lbl { font-size: .75rem; }
-      .chart-box { padding: 24px; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
-      .chart-box .week-title { flex-shrink: 0; }
-      .wt-svg { flex: 1; width: 100%; height: auto; min-height: 0; }
-
-      /* ── PROFILE: two equal columns ── */
-      #tab-profile.active { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; overflow: hidden; }
-      .p-sec-title { font-size: .82rem; }
-      .f-label { font-size: .88rem; }
-      .f-input { height: 48px; font-size: 1.02rem; }
-      .radio-btn { height: 46px; font-size: .92rem; }
-      .act-btn { padding: 13px 16px; font-size: .92rem; }
-      .targets-title { font-size: .9rem; }
-      .t-val { font-size: 1.3rem; }
-      .t-lbl { font-size: .8rem; }
-      .save-btn { height: 54px; font-size: 1.05rem; }
-
-      /* Раньше здесь карточки перекрывались хардкодами rgba(22,26,44,.88) и
-         rgba(26,30,50,.92) с backdrop-filter — блок подгонял десктоп под
-         старое значение --bg2. За карточками только фон страницы (вся цепочка
-         предков прозрачна), так что альфа и размытие работы не делали, а
-         хардкоды перекрывали токен. Убрано: десктоп и мобильный теперь дают
-         одинаковый --surface-1. */
-    }
-  </style>
+  <link rel="stylesheet" href="/static/nutrition.css">
 </head>
 <body class="has-site-header">
 
@@ -1021,18 +49,18 @@
         <div class="macros-row">
           <div class="macro-card">
             <div class="macro-label">Белок</div>
-            <div class="macro-bar"><div class="macro-bar-fill" id="bar-prot" style="background:var(--prot);width:0%"></div></div>
-            <div class="macro-val" id="val-prot" style="color:var(--prot)">—</div>
+            <div class="macro-bar"><div class="macro-bar-fill mb-prot" id="bar-prot"></div></div>
+            <div class="macro-val val-prot" id="val-prot">—</div>
           </div>
           <div class="macro-card">
             <div class="macro-label">Жиры</div>
-            <div class="macro-bar"><div class="macro-bar-fill" id="bar-fat" style="background:var(--fat);width:0%"></div></div>
-            <div class="macro-val" id="val-fat" style="color:var(--fat)">—</div>
+            <div class="macro-bar"><div class="macro-bar-fill mb-fat" id="bar-fat"></div></div>
+            <div class="macro-val val-fat" id="val-fat">—</div>
           </div>
           <div class="macro-card">
             <div class="macro-label">Углеводы</div>
-            <div class="macro-bar"><div class="macro-bar-fill" id="bar-carb" style="background:var(--carb);width:0%"></div></div>
-            <div class="macro-val" id="val-carb" style="color:var(--carb)">—</div>
+            <div class="macro-bar"><div class="macro-bar-fill mb-carb" id="bar-carb"></div></div>
+            <div class="macro-val val-carb" id="val-carb">—</div>
           </div>
         </div>
         <button class="ai-btn" onclick="openAIChat()">
@@ -1044,11 +72,11 @@
         <div id="meals-wrap"></div>
         <div class="water-card">
           <div class="water-hdr">
-            <span style="font-size:1.1rem">💧</span>
-            <span style="font-size:0.88rem;font-weight:600">Вода</span>
+            <span class="water-emoji">💧</span>
+            <span class="water-name">Вода</span>
             <span class="water-val" id="water-val">0 / 2000 мл</span>
           </div>
-          <div class="water-bar"><div class="water-bar-fill" id="water-bar" style="width:0%"></div></div>
+          <div class="water-bar"><div class="water-bar-fill" id="water-bar"></div></div>
           <div class="water-btns">
             <button class="water-btn" onclick="addWater(200)">+200</button>
             <button class="water-btn" onclick="addWater(250)">+250</button>
@@ -1097,14 +125,14 @@
         <div class="mini-ring-row">
           <button class="h-arrow" id="h-arrow-prev" onclick="histShift(-1)">‹</button>
           <div class="mini-ring-wrap">
-            <div style="position:relative;display:flex;align-items:center;justify-content:center;">
+            <div class="mini-ring-stack">
               <svg class="mini-ring-svg" viewBox="0 0 120 120">
                 <circle class="mini-ring-track" cx="60" cy="60" r="45"/>
                 <circle class="mini-ring-fill" cx="60" cy="60" r="45" id="hist-ring"/>
               </svg>
-              <div style="position:absolute;text-align:center;">
-                <div id="hist-kcal" style="font-size:1.25rem;font-weight:800;">—</div>
-                <div style="font-size:0.63rem;color:var(--text-2);font-weight:600">ккал</div>
+              <div class="mini-ring-center">
+                <div class="hist-kcal-val" id="hist-kcal">—</div>
+                <div class="hist-kcal-lbl">ккал</div>
               </div>
             </div>
           </div>
@@ -1129,10 +157,10 @@
           <div class="wt-prog" id="wt-prog" style="display:none">
             <div class="wt-prog-lbl">
               <span id="wt-start">—</span>
-              <span id="wt-left" style="color:var(--nut-g)">—</span>
+              <span class="val-accent" id="wt-left">—</span>
               <span id="wt-target">—</span>
             </div>
-            <div class="wt-prog-bar"><div class="wt-prog-fill" id="wt-fill" style="width:0%"></div></div>
+            <div class="wt-prog-bar"><div class="wt-prog-fill" id="wt-fill"></div></div>
           </div>
         </div>
         <div class="measures">
@@ -1140,7 +168,7 @@
           <div class="m-card"><div class="m-val" id="m-hips">—</div><div class="m-lbl">Ягодицы, см</div></div>
           <div class="m-card"><div class="m-val" id="m-chest">—</div><div class="m-lbl">Грудь, см</div></div>
         </div>
-        <button class="save-btn" style="margin-top:0" onclick="открыть_модалку('modal-measure')">📏 Записать замер</button>
+        <button class="save-btn save-btn-flush" onclick="открыть_модалку('modal-measure')">📏 Записать замер</button>
       </div>
       <div class="d-right">
         <div class="chart-box"><div class="week-title">График веса</div><svg class="wt-svg" id="wt-svg"></svg></div>
@@ -1168,49 +196,49 @@
         <div class="p-sec">
           <div class="p-sec-title">Умные весы Xiaomi</div>
           <div id="scale-disconnected">
-            <p style="color:var(--text-2);font-size:13px;margin-bottom:10px;line-height:1.5">Подключи весы Mi Body Composition Scale через аккаунт Zepp Life — вес и состав тела будут подтягиваться автоматически. Это неофициальная интеграция: если Zepp Life изменит свой API, синхронизация может прерваться — тогда просто продолжай вводить вес вручную, ничего не сломается.</p>
-            <input type="text" class="f-input" id="scale-username" placeholder="email или телефон Zepp Life" style="margin-bottom:8px">
-            <input type="password" class="f-input" id="scale-password" placeholder="пароль" style="margin-bottom:8px">
+            <p class="p-note">Подключи весы Mi Body Composition Scale через аккаунт Zepp Life — вес и состав тела будут подтягиваться автоматически. Это неофициальная интеграция: если Zepp Life изменит свой API, синхронизация может прерваться — тогда просто продолжай вводить вес вручную, ничего не сломается.</p>
+            <input type="text" class="f-input scale-input" id="scale-username" placeholder="email или телефон Zepp Life">
+            <input type="password" class="f-input scale-input" id="scale-password" placeholder="пароль">
             <button class="save-btn" onclick="connectScale()" id="scale-connect-btn">Подключить весы Xiaomi</button>
-            <div id="scale-connect-msg" style="font-size:13px;margin-top:8px"></div>
+            <div class="p-msg" id="scale-connect-msg"></div>
           </div>
           <div id="scale-connected" style="display:none">
-            <p style="font-size:13px;color:var(--text-2)">Подключено. Последняя синхронизация: <span id="scale-last-sync">—</span></p>
-            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-              <button class="act-btn" onclick="syncScaleNow()" style="flex:none">↻ Синхронизировать сейчас</button>
-              <button class="act-btn" onclick="disconnectScale()" style="flex:none;color:#f87171">Отключить</button>
+            <p class="p-note-inline">Подключено. Последняя синхронизация: <span id="scale-last-sync">—</span></p>
+            <div class="p-actions">
+              <button class="act-btn act-btn-auto" onclick="syncScaleNow()">↻ Синхронизировать сейчас</button>
+              <button class="act-btn act-btn-auto act-btn-danger" onclick="disconnectScale()">Отключить</button>
             </div>
-            <div id="scale-sync-msg" style="font-size:13px;margin-top:8px"></div>
+            <div class="p-msg" id="scale-sync-msg"></div>
           </div>
         </div>
 
         <div class="p-sec">
           <div class="p-sec-title">Прогресс тела</div>
-          <p style="font-size:12px;color:var(--text-2);margin-bottom:10px;line-height:1.5">Визуальный дневник прогресса. Для точного анализа состава тела используй умные весы или обратись к специалисту.</p>
-          <div style="display:flex;gap:8px;margin-bottom:10px">
-            <div style="flex:1">
+          <p class="p-note-sm">Визуальный дневник прогресса. Для точного анализа состава тела используй умные весы или обратись к специалисту.</p>
+          <div class="body-photo-row">
+            <div class="body-photo-col">
               <input type="file" accept="image/*" id="photo-front" style="display:none" onchange="previewBodyPhoto(this,'front')">
               <div class="body-photo-slot" onclick="document.getElementById('photo-front').click()" id="slot-front">+ Спереди</div>
             </div>
-            <div style="flex:1">
+            <div class="body-photo-col">
               <input type="file" accept="image/*" id="photo-side" style="display:none" onchange="previewBodyPhoto(this,'side')">
               <div class="body-photo-slot" onclick="document.getElementById('photo-side').click()" id="slot-side">+ Сбоку</div>
             </div>
-            <div style="flex:1">
+            <div class="body-photo-col">
               <input type="file" accept="image/*" id="photo-back" style="display:none" onchange="previewBodyPhoto(this,'back')">
               <div class="body-photo-slot" onclick="document.getElementById('photo-back').click()" id="slot-back">+ Сзади</div>
             </div>
           </div>
           <button class="save-btn" onclick="uploadBodyPhotos()">Сохранить фото за сегодня</button>
-          <div id="body-photo-msg" style="font-size:13px;margin-top:8px"></div>
+          <div class="p-msg" id="body-photo-msg"></div>
 
-          <div class="p-sec-title" style="margin-top:18px">Сравнение по датам</div>
-          <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
-            <select class="f-input" id="compare-date-old" style="flex:1;min-width:120px" onchange="renderCompare()"></select>
-            <span style="color:var(--text-2)">→</span>
-            <select class="f-input" id="compare-date-new" style="flex:1;min-width:120px" onchange="renderCompare()"></select>
+          <div class="p-sec-title p-sec-title-gap">Сравнение по датам</div>
+          <div class="compare-row">
+            <select class="f-input compare-select" id="compare-date-old" onchange="renderCompare()"></select>
+            <span class="compare-arrow">→</span>
+            <select class="f-input compare-select" id="compare-date-new" onchange="renderCompare()"></select>
           </div>
-          <div id="compare-view" style="display:flex;gap:10px;flex-wrap:wrap"></div>
+          <div class="compare-view" id="compare-view"></div>
         </div>
       </div>
       <div class="d-right">
@@ -1234,10 +262,10 @@
           <div class="targets-title">Расчётные нормы</div>
           <div class="targets-row">
             <div class="t-item"><div class="t-val" id="t-cal">—</div><div class="t-lbl">ккал/день</div></div>
-            <div class="t-item"><div class="t-val" id="t-prot" style="color:var(--prot)">—г</div><div class="t-lbl">Белок</div></div>
-            <div class="t-item"><div class="t-val" id="t-fat"  style="color:var(--fat)">—г</div><div class="t-lbl">Жиры</div></div>
-            <div class="t-item"><div class="t-val" id="t-carb" style="color:var(--carb)">—г</div><div class="t-lbl">Углеводы</div></div>
-            <div class="t-item"><div class="t-val" id="t-wat"  style="color:var(--wat)">—</div><div class="t-lbl">Вода, мл</div></div>
+            <div class="t-item"><div class="t-val val-prot" id="t-prot">—г</div><div class="t-lbl">Белок</div></div>
+            <div class="t-item"><div class="t-val val-fat" id="t-fat">—г</div><div class="t-lbl">Жиры</div></div>
+            <div class="t-item"><div class="t-val val-carb" id="t-carb">—г</div><div class="t-lbl">Углеводы</div></div>
+            <div class="t-item"><div class="t-val val-wat" id="t-wat">—</div><div class="t-lbl">Вода, мл</div></div>
           </div>
         </div>
         <button class="save-btn" onclick="saveProfile()">Сохранить</button>
@@ -1328,7 +356,7 @@
         <button class="por-edit-btn" id="por-edit-btn" onclick="togglePorEdit()" type="button">✏️ Изменить</button>
       </div>
       <div class="por-edit-grid" id="por-edit-grid" style="display:none">
-        <div class="f-field" style="grid-column:1 / -1"><label class="f-label">Бренд / заведение</label><input type="text" class="f-input" id="pe-brand" placeholder="Например, ресторан или производитель" oninput="onPorEdit()"></div>
+        <div class="f-field f-field-wide"><label class="f-label">Бренд / заведение</label><input type="text" class="f-input" id="pe-brand" placeholder="Например, ресторан или производитель" oninput="onPorEdit()"></div>
         <div class="f-field"><label class="f-label">Калории на 100г</label><input type="number" class="f-input" id="pe-kcal" oninput="onPorEdit()"></div>
         <div class="f-field"><label class="f-label">Белки, г</label><input type="number" class="f-input" id="pe-prot" oninput="onPorEdit()"></div>
         <div class="f-field"><label class="f-label">Жиры, г</label><input type="number" class="f-input" id="pe-fat" oninput="onPorEdit()"></div>
@@ -1369,10 +397,10 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M15 16v-3.34a4 4 0 10-6 0V16a2 2 0 002 2h2a2 2 0 002-2zM12 2v2M4.93 4.93l1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
         </button>
       </div>
-      <div style="font-size:.8rem;color:var(--text-2);font-weight:600;text-align:center;margin-bottom:9px">или введите штрих-код вручную</div>
+      <div class="nut-hint nut-hint-center">или введите штрих-код вручную</div>
       <input class="scan-manual" id="barcode-input" type="text" placeholder="4600000000000" inputmode="numeric"
              onkeydown="if(event.key==='Enter')lookupBarcode()">
-      <button class="add-btn" style="margin-top:10px;margin-bottom:16px" onclick="lookupBarcode()">Найти</button>
+      <button class="add-btn add-btn-gap-sm" onclick="lookupBarcode()">Найти</button>
 {% endcall %}
 
 <!-- ─── MODAL: Custom food ─── -->
@@ -1380,23 +408,23 @@
       <div class="f-field"><label class="f-label">Название *</label><input type="text" class="f-input" id="cf-name" placeholder="Куриное филе"></div>
       <div class="f-field"><label class="f-label">Бренд / заведение</label><input type="text" class="f-input" id="cf-brand" placeholder="Например, ресторан или производитель"></div>
       <div class="f-field"><label class="f-label">Штрих-код</label><input type="text" class="f-input" id="cf-barcode"></div>
-      <div class="f-label" style="font-weight:600;margin-bottom:8px">КБЖУ на 100г</div>
+      <div class="f-label f-label-group">КБЖУ на 100г</div>
       <div class="cf-grid">
         <div class="f-field"><label class="f-label">Калории *</label><input type="number" class="f-input" id="cf-cal"  placeholder="165"></div>
         <div class="f-field"><label class="f-label">Белок, г</label><input type="number" class="f-input" id="cf-prot" placeholder="31"></div>
         <div class="f-field"><label class="f-label">Жиры, г</label><input type="number" class="f-input" id="cf-fat"  placeholder="3.6"></div>
         <div class="f-field"><label class="f-label">Углеводы, г</label><input type="number" class="f-input" id="cf-carb" placeholder="0"></div>
       </div>
-      <button class="add-btn" onclick="saveCustomFood()" style="margin-bottom:16px">Сохранить и добавить</button>
+      <button class="add-btn" onclick="saveCustomFood()">Сохранить и добавить</button>
 {% endcall %}
 
 <!-- ─── MODAL: Детали продукта из истории ─── -->
 {% call m.modal('modal-food-detail', 'Продукт', title_id='hfd-name') %}
-      <div class="por-sub" id="hfd-sub" style="margin-bottom:14px"></div>
-      <div class="macros-row" style="margin-bottom:16px">
-        <div class="macro-card"><div class="macro-label">Белки</div><div class="macro-val" style="color:var(--prot)" id="hfd-prot">—</div></div>
-        <div class="macro-card"><div class="macro-label">Жиры</div><div class="macro-val" style="color:var(--fat)" id="hfd-fat">—</div></div>
-        <div class="macro-card"><div class="macro-label">Углеводы</div><div class="macro-val" style="color:var(--carb)" id="hfd-carb">—</div></div>
+      <div class="por-sub por-sub-gap" id="hfd-sub"></div>
+      <div class="macros-row macros-row-modal">
+        <div class="macro-card"><div class="macro-label">Белки</div><div class="macro-val val-prot" id="hfd-prot">—</div></div>
+        <div class="macro-card"><div class="macro-label">Жиры</div><div class="macro-val val-fat" id="hfd-fat">—</div></div>
+        <div class="macro-card"><div class="macro-label">Углеводы</div><div class="macro-val val-carb" id="hfd-carb">—</div></div>
       </div>
 {% endcall %}
 
@@ -1406,7 +434,7 @@
         <input type="number" class="g-input" id="water-input" placeholder="150" min="1" max="5000" onkeydown="if(event.key==='Enter')confirmWaterManual()">
         <span class="g-lbl">мл</span>
       </div>
-      <button class="add-btn" onclick="confirmWaterManual()" style="margin-bottom:16px">Добавить</button>
+      <button class="add-btn" onclick="confirmWaterManual()">Добавить</button>
 {% endcall %}
 
 <!-- ─── MODAL: Просмотр фото из чата ─── -->
@@ -1421,7 +449,7 @@
       <img class="pa-preview" id="pa-preview" alt="">
       <div class="f-field">
         <label class="f-label">Опишите блюдо (необязательно)</label>
-        <div class="s-bar" style="margin-bottom:0">
+        <div class="s-bar s-bar-flush">
           <input type="text" class="s-input" id="pa-desc" placeholder="Например: с майонезом, порция побольше..."
                  onkeydown="if(event.key==='Enter')runPhotoAnalyze()">
           <button class="icon-btn" id="pa-mic-btn" title="Голосовое сообщение">
@@ -1429,20 +457,20 @@
           </button>
         </div>
       </div>
-      <button class="add-btn" id="pa-analyze-btn" onclick="runPhotoAnalyze()" style="margin-top:13px;margin-bottom:16px">Анализировать</button>
+      <button class="add-btn add-btn-gap" id="pa-analyze-btn" onclick="runPhotoAnalyze()">Анализировать</button>
 {% endcall %}
 
 <!-- ─── MODAL: Create recipe ─── -->
 {% call m.modal('modal-recipe', 'Новый рецепт') %}
       <div class="f-field"><label class="f-label">Название</label><input type="text" class="f-input" id="rec-name" placeholder="Творожная запеканка"></div>
-      <div class="f-label" style="font-weight:600;margin-bottom:7px">Ингредиенты</div>
+      <div class="f-label f-label-group-tight">Ингредиенты</div>
       <div class="ing-list" id="ing-list"></div>
       <button class="ing-add-btn" onclick="openSearchForRecipe()">+ Ингредиент</button>
-      <div class="calc-box" style="margin-top:11px">
+      <div class="calc-box calc-box-gap">
         <div class="calc-kcal"   id="rec-kcal">0 ккал</div>
         <div class="calc-macros" id="rec-macros">Б: 0г  Ж: 0г  У: 0г  — 0г</div>
       </div>
-      <button class="add-btn" onclick="saveRecipe()" style="margin-bottom:16px">Сохранить рецепт</button>
+      <button class="add-btn" onclick="saveRecipe()">Сохранить рецепт</button>
 {% endcall %}
 
 <!-- ─── MODAL: Add recipe ingredient (search) ─── -->
@@ -1463,7 +491,7 @@
 
 <!-- ─── MODAL: Log recipe ─── -->
 {% call m.modal('modal-recipe-log', 'Рецепт', title_id='rl-title') %}
-      <div style="font-size:.8rem;color:var(--text-2);font-weight:600;margin-bottom:9px">Сколько съели от общего объёма?</div>
+      <div class="nut-hint">Сколько съели от общего объёма?</div>
       <div class="frac-btns" id="frac-btns">
         <button class="frac-btn" onclick="setFrac(.25,this)">¼</button>
         <button class="frac-btn" onclick="setFrac(.33,this)">⅓</button>
@@ -1472,7 +500,7 @@
         <button class="frac-btn" onclick="setFrac(.75,this)">¾</button>
         <button class="frac-btn" onclick="setFrac(1,this)">Всё</button>
       </div>
-      <div class="g-wrap" style="margin-bottom:13px">
+      <div class="g-wrap g-wrap-gap">
         <input type="number" class="g-input" id="frac-pct" value="50" min="1" max="100" oninput="updateRecCalc()">
         <span class="g-lbl">%</span>
       </div>
@@ -1480,7 +508,7 @@
         <div class="calc-kcal"   id="rl-kcal">0 ккал</div>
         <div class="calc-macros" id="rl-macros"></div>
       </div>
-      <button class="add-btn" onclick="confirmAddRecipe()" style="margin-bottom:16px">Добавить</button>
+      <button class="add-btn" onclick="confirmAddRecipe()">Добавить</button>
 {% endcall %}
 
 <!-- ─── MODAL: AI Chat ─── -->
@@ -1493,7 +521,7 @@
         <span>Фото прикреплено</span>
         <button onclick="clearChatAttachment()">×</button>
       </div>
-      <div class="chat-input-row" style="padding-bottom:14px">
+      <div class="chat-input-row chat-input-row-modal">
         <div class="attach-wrap">
           <input type="file" id="modal-chat-photo-in" accept="image/*" style="display:none" onchange="onChatAttach(event)">
           <input type="file" id="modal-chat-photo-cam" accept="image/*" capture="environment" style="display:none" onchange="onChatAttach(event)">
@@ -1525,13 +553,13 @@
 <!-- ─── MODAL: Measure ─── -->
 {% call m.modal('modal-measure', 'Записать замер') %}
       <div class="f-field"><label class="f-label">Вес, кг</label><input type="number" class="f-input" id="mw-kg"    placeholder="70.5" step="0.1"></div>
-      <div class="f-label" style="font-weight:600;margin-bottom:8px">Замеры тела</div>
+      <div class="f-label f-label-group">Замеры тела</div>
       <div class="meas-grid">
         <div class="f-field"><label class="f-label">Талия, см</label><input type="number" class="f-input" id="mw-waist" placeholder="80"></div>
         <div class="f-field"><label class="f-label">Ягодицы, см</label><input type="number" class="f-input" id="mw-hips"  placeholder="95"></div>
         <div class="f-field"><label class="f-label">Грудь, см</label><input type="number" class="f-input" id="mw-chest" placeholder="90"></div>
       </div>
-      <button class="add-btn" onclick="saveMeasure()" style="margin-bottom:16px">Сохранить</button>
+      <button class="add-btn" onclick="saveMeasure()">Сохранить</button>
 {% endcall %}
 
 <!-- Toast -->
@@ -1701,7 +729,7 @@ function renderMeals(meals) {
 function foodItemHTML(item) {
   return `<div class="food-item" onclick="editFoodItem(${item.id})">
     <div class="food-info">
-      <div class="food-name">${esc(item.name)}${item.brand?`<span style="font-weight:600;color:var(--text-2);font-size:.68rem"> · ${esc(item.brand)}</span>`:''}</div>
+      <div class="food-name">${esc(item.name)}${item.brand?`<span class="food-brand"> · ${esc(item.brand)}</span>`:''}</div>
       <div class="food-sub">${item.grams}г · Б:${item.protein}г Ж:${item.fat}г У:${item.carbs}г</div>
     </div>
     <span class="food-kcal">${Math.round(item.calories)}</span>
@@ -1841,15 +869,15 @@ async function loadRecipesList() {
   const wrap = document.getElementById('s-results');
   if (!data.recipes?.length) {
     wrap.innerHTML = `<div class="empty">Нет рецептов — создайте первый!</div>
-      <button class="save-btn" style="margin-top:10px" onclick="openCreateRecipe()">+ Создать рецепт</button>`;
+      <button class="save-btn save-btn-gap" onclick="openCreateRecipe()">+ Создать рецепт</button>`;
     return;
   }
-  wrap.innerHTML = `<button class="ai-btn" style="margin-bottom:10px" onclick="openCreateRecipe()">+ Создать рецепт</button>` +
+  wrap.innerHTML = `<button class="ai-btn ai-btn-gap" onclick="openCreateRecipe()">+ Создать рецепт</button>` +
     `<div class="r-list">` + data.recipes.map(r=>`
     <div class="r-item" onclick='openRecipeLog(${JSON.stringify(r)})'>
       <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${r.ingredients.length} ингр. · ${r.total_grams}г</div></div>
       <div><div class="r-kcal">${Math.round(r.calories)} ккал</div><div class="r-per">на всё</div></div>
-      <button onclick="event.stopPropagation();delRecipe(${r.id})" style="color:#ef4444;background:none;border:none;font-size:1.1rem;padding:4px;cursor:pointer">×</button>
+      <button class="recipe-del" onclick="event.stopPropagation();delRecipe(${r.id})">×</button>
     </div>`).join('') + `</div>`;
 }
 
@@ -2743,7 +1771,7 @@ function logPendingFood(mealType) {
 
 function renderChat() {
   const html = !S.chatHistory.length
-    ? '<div style="text-align:center;padding:24px 0"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>'
+    ? '<div class="chat-empty"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>'
     : S.chatHistory.map((m,idx)=>{
         if (m.content === '__meal_picker__') {
           return `<div class="chat-msg ai"><div class="chat-bubble ai">
@@ -2797,7 +1825,25 @@ function renderChat() {
     if (!wrap) return;
     wrap.innerHTML = html;
     wrap.scrollTop = wrap.scrollHeight;
+    подписатьКромкуЛенты(wrap);
+    обновитьКромкуЛенты(wrap);
   });
+}
+
+// ── Верхняя кромка ленты чата ────────────────────────────────────────────────
+// Класс .scrolled включает маску-градиент (см. nutrition.css, .chat-msgs).
+// Ставится только когда выше есть что смотреть: на нулевой прокрутке первое
+// сообщение не обрезано, и растворять его нельзя — это обещало бы
+// продолжение, которого нет.
+function обновитьКромкуЛенты(лента) {
+  лента.classList.toggle('scrolled', лента.scrollTop > 4);
+}
+// Подписка одна на элемент: renderChat зовётся на каждое сообщение, и без
+// флага обработчики копились бы до конца сессии.
+function подписатьКромкуЛенты(лента) {
+  if (лента.dataset.кромка) return;
+  лента.dataset.кромка = '1';
+  лента.addEventListener('scroll', () => обновитьКромкуЛенты(лента), { passive: true });
 }
 
 // ── History ───────────────────────────────────────────────────────────────────
@@ -2831,8 +1877,8 @@ async function loadHistory(date) {
     const items=data.meals[m.id]||[];
     const total=items.reduce((s,i)=>s+i.calories,0);
     if (!items.length) return '';
-    return `<div class="meal-card" style="margin-bottom:7px">
-      <div class="meal-hdr" style="cursor:default">
+    return `<div class="meal-card meal-card-tight">
+      <div class="meal-hdr meal-hdr-static">
         <span class="meal-icon">${m.icon}</span>
         <span class="meal-name">${m.name}</span>
         <span class="meal-kcal">${Math.round(total)} ккал</span>
@@ -2941,10 +1987,10 @@ function drawWeightChart(logs) {
 
   /* точки и хит-зоны */
   const dots = wts.map((l, i) =>
-    `<circle class="wt-dot" id="wtd-${i}" cx="${xPos(i).toFixed(1)}" cy="${yPos(l.weight_kg).toFixed(1)}" r="4.5" fill="var(--nut-g)" stroke="var(--surface-1)" stroke-width="2" vector-effect="non-scaling-stroke" style="cursor:pointer;transition:r .1s"/>`
+    `<circle class="wt-dot" id="wtd-${i}" cx="${xPos(i).toFixed(1)}" cy="${yPos(l.weight_kg).toFixed(1)}" r="4.5" fill="var(--nut-g)" stroke="var(--surface-1)" stroke-width="2" vector-effect="non-scaling-stroke"/>`
   ).join('');
   const hits = wts.map((l, i) =>
-    `<circle class="wt-hit" cx="${xPos(i).toFixed(1)}" cy="${yPos(l.weight_kg).toFixed(1)}" r="22" fill="transparent" data-i="${i}" style="cursor:pointer;"/>`
+    `<circle class="wt-hit" cx="${xPos(i).toFixed(1)}" cy="${yPos(l.weight_kg).toFixed(1)}" r="22" fill="transparent" data-i="${i}"/>`
   ).join('');
 
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
@@ -3123,12 +2169,12 @@ function renderCompare() {
   const oldDate = document.getElementById('compare-date-old').value;
   const newDate = document.getElementById('compare-date-new').value;
   const view = document.getElementById('compare-view');
-  if (!oldDate || !newDate) { view.innerHTML = '<p style="font-size:13px;color:var(--text-2)">Загрузите фото хотя бы за одну дату.</p>'; return; }
+  if (!oldDate || !newDate) { view.innerHTML = '<p class="p-note-inline">Загрузите фото хотя бы за одну дату.</p>'; return; }
   function col(date) {
     const angles = bodyPhotosCache[date] || {};
     const imgs = ['front', 'side', 'back'].filter(a => angles[a])
-      .map(a => `<img src="${angles[a]}" style="margin-bottom:4px">`).join('');
-    return `<div class="compare-col">${imgs || '<p style="font-size:12px;color:var(--text-2)">нет фото</p>'}<div class="compare-col-label">${date}</div></div>`;
+      .map(a => `<img src="${angles[a]}">`).join('');
+    return `<div class="compare-col">${imgs || '<p class="compare-empty">нет фото</p>'}<div class="compare-col-label">${date}</div></div>`;
   }
   view.innerHTML = col(oldDate) + col(newDate);
 }

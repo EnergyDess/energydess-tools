@@ -73,6 +73,7 @@ static/
   style.css          — базовые стили: токены, компонентная база, темы
   hh.css             — стили HH-ассистента (вынесены из шаблона)
   landing.css        — стили лендинга
+  nutrition.css      — стили дневника питания (вынесены из шаблона)
   profile.css        — стили профиля
   workout.css        — стили раздела тренировок (вынесены из шаблона)
   modal.js           — поведение модального окна (каркас в templates/_modal.html)
@@ -87,7 +88,7 @@ YOUTUBE_IMPORT_PROGRESS.md — рабочий журнал по фиче имп�
 
 **Модульный CSS:** `style.css` держит только общее — токены, компонентную
 базу, темы. Стили конкретной страницы выносятся в свой файл рядом
-(`hh.css`, `landing.css`, `profile.css`, `workout.css`). Новую страницу
+(`hh.css`, `landing.css`, `nutrition.css`, `profile.css`, `workout.css`). Новую страницу
 оформлять так же, а не наращивать `style.css` и не оставлять inline
 `<style>` в шаблоне.
 
@@ -219,14 +220,14 @@ bash, ключи JSON, которые разбирает `jq`, имена фай
 ```bash
 # 1. системные классы вне style.css
 grep -rnE '^\s*\.(card|btn-primary|btn-secondary|btn-ghost|input|badge|alert|avatar|chip|toggle|modal|container|tool-card)\s*[,{:]' \
-  templates/ static/hh.css static/profile.css static/landing.css static/workout.css
+  templates/ static/hh.css static/profile.css static/landing.css static/workout.css static/nutrition.css
 
 # 2. токены вне :root в style.css
 grep -rnE '^\s*--(surface|border|text|accent|tool-accent|space|radius|dur|ease|font)[a-z0-9-]*\s*:' \
-  templates/ static/hh.css static/profile.css static/landing.css static/workout.css
+  templates/ static/hh.css static/profile.css static/landing.css static/workout.css static/nutrition.css
 
 # 3. инлайновые стили в разметке — исключаем ТОЛЬКО целиком законные
-grep -rnoE 'style="[^"]*"' templates/   | grep -vE 'style="\s*(--[a-z0-9_-]+\s*:[^;"]*;?\s*)+"'   | grep -vE 'style="\s*display\s*:\s*(none|block|flex|grid|inline-flex)\s*;?\s*"'   | grep -vE 'style="\s*[a-z-]+\s*:\s*\{\{[^"]*\}\}[a-z%]*\s*;?\s*"'
+grep -rnoE 'style="[^"]*"' templates/   | grep -vE 'style="\s*(--[a-z0-9_-]+\s*:[^;"]*;?\s*)+"'   | grep -vE 'style="\s*display\s*:\s*(none|block|flex|grid|inline-flex)\s*;?\s*"'   | grep -vE 'style="\s*[a-z-]+\s*:\s*\{\{[^"]*\}\}[a-z%]*\s*;?\s*"'   | grep -vE 'style="\s*[a-z-]+\s*:\s*\$\{[^"]*\}[a-z%]*\s*;?\s*"'
 
 # 4. страницы со своей шапкой вместо общей
 grep -LE "_header\.html|_admin_nav\.html" templates/*.html | grep -v '/_'
@@ -313,7 +314,15 @@ grep -Pn '<[a-zA-Z][^>]*\s([a-zA-Z][a-zA-Z0-9-]*)="[^"]*"[^>]*\s\1=' templates/*
 незаконно, и проверка рапортовала «чисто». Теперь исключается только то,
 что законно **целиком**: смесь законного и статики ловится.
 
-Проверять изменения этого грепа надо на четырёх примерах сразу:
+**Пятое звено — `${...}` — добавлено 2026-08-04.** Разметку у нас собирает
+не только Jinja: в `nutrition.html` и `workout.html` куски HTML строит
+скрипт шаблонными строками, и `style="height:${h}%"` — такое же рантаймовое
+значение, как `{{ }}`, записать его в CSS точно так же нечем. Пока звена
+не было, эти строки попадали в вывод как долг, которого нет. Форма у звена
+намеренно та же, что у Jinja-звена: пропускается ОДНО свойство, значение
+которого целиком выражение. Смесь выражения со статикой ловится по-прежнему.
+
+Проверять изменения этого грепа надо на шести примерах сразу:
 
 | Пример | Ожидание |
 |---|---|
@@ -321,6 +330,8 @@ grep -Pn '<[a-zA-Z][^>]*\s([a-zA-Z][a-zA-Z0-9-]*)="[^"]*"[^>]*\s\1=' templates/*
 | `style="--n: 3; margin-top: 8px"` | **поймать** |
 | `style="width: {{ x }}%"` | пропустить |
 | `style="width: {{ x }}%; border: 1px solid red"` | **поймать** |
+| `style="height:${h}%"` | пропустить |
+| `style="height:${h}%; color: red"` | **поймать** |
 
 #### Где инлайн допустим осознанно
 
@@ -447,7 +458,7 @@ python check_privacy.py     # 27 таблиц против текста, код 
 > краткий перечень. При закрытии долга обновлять оба файла.
 
 - Программа тренировок (`workout`) — не допилена: подбор упражнений через LLM без чёткой системы разминки/заминки, импорт видео из YouTube в процессе (см. `YOUTUBE_IMPORT_PROGRESS.md`).
-- Дневник питания — вертикальный sidebar на десктопе (mobile-first порт, требует переработки под горизонтальный layout). Токены и хардкоды там уже вычищены (BACKLOG.md, задача 4), остаётся именно раскладка.
+- Дневник питания — вертикальный sidebar на десктопе (mobile-first порт, требует переработки под горизонтальный layout). Токены и хардкоды вычищены (BACKLOG.md, задача 4), стили вынесены в `static/nutrition.css`, переопределения системы сняты, инлайны и `!important` — ноль (этап 3, 2026-08-04). Остаётся именно раскладка и кегли мельче 13px (BACKLOG.md, задача 35).
 - Смена email — UI-заглушка в профиле есть, эндпоинт `/api/change-email` не реализован.
 - Удаление аккаунта как feature — не реализовано, в профиле блока нет.
 - Голый `except: pass` в пайплайне анализа вакансии — BACKLOG.md, задача 8.
