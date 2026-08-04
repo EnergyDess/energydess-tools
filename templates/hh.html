@@ -452,9 +452,16 @@
 
 <div class="toast" id="toast"></div>
 
-<div class="parse-modal-overlay" id="parse-modal" style="display:none" onclick="if(event.target===this)closeParsModal()">
-  <div class="parse-modal">
-    <div class="parse-modal-title"><i data-lucide="alert-triangle"></i> Найдены конфликты с текущим досье</div>
+{# Модалка на общем компоненте (design-system.md, раздел 2.5). Раньше —
+   свой оверлей .parse-modal-overlay, показ через style.display и onclick
+   в разметке: Escape не закрывал, фокус после закрытия оставался внутри.
+
+   Иконка-предупреждение переехала из заголовка в тело: у макроса заголовок
+   принимает только текст, а вставить туда разметку нельзя — Jinja
+   экранирует. Слот под иконку в шапке компонента напрашивается, но это
+   правка системного компонента, а её сначала обсуждают. #}
+{% import '_modal.html' as m %}
+{% call m.modal('parse-modal', 'Найдены конфликты с текущим досье') %}
     <div id="parse-modal-body"></div>
     <div class="parse-modal-actions">
       <button class="pmbtn safe" onclick="applyParsedData('keep')">
@@ -470,13 +477,13 @@
         <span class="pmbtn-desc">Мои данные будут перезаписаны данными парсера</span>
       </button>
     </div>
-  </div>
-</div>
+{% endcall %}
 
 {% include '_footer.html' %}
 
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="/static/ui.js"></script>
+<script src="/static/modal.js"></script>
 <script>
   lucide.createIcons();
 
@@ -599,13 +606,17 @@
       } else {
         // Сценарий В — показываем модалку
         document.getElementById('parse-modal-body').innerHTML =
-          '<p class="parse-modal-desc">Парсер нашёл данные, но некоторые поля уже заполнены:</p>' +
+          '<p class="parse-modal-desc"><i data-lucide="alert-triangle"></i>' +
+          'Парсер нашёл данные, но некоторые поля уже заполнены:</p>' +
           '<ul class="parse-modal-list">' +
           conflicts.map(c => c.currentCount != null
             ? `<li><b>${escHtml(c.label)}:</b> ${c.currentCount} существующих, парсер предлагает ${c.suggestedCount} новых</li>`
             : `<li><b>${escHtml(c.label)}:</b> сейчас «${escHtml(c.current.substring(0,50))}», парсер предлагает «${escHtml(c.suggested.substring(0,50))}»</li>`
           ).join('') + '</ul>';
-        document.getElementById('parse-modal').style.display = 'flex';
+        открыть_модалку('parse-modal');
+        // Иконку рисуем ПОСЛЕ вставки: lucide заменяет <i data-lucide> на svg
+        // один раз при загрузке страницы, а этот блок собран только что
+        lucide.createIcons();
       }
     } catch {
       showToast('Ошибка сети');
@@ -615,15 +626,19 @@
     btn.textContent = 'Заполнить досье из резюме';
   }
 
-  function closeParsModal() {
-    document.getElementById('parse-modal').style.display = 'none';
-    _parsedData = null;
-  }
+  // Уборка на событии компонента, а не в своей функции закрытия. Закрыть
+  // окно можно четырьмя способами (крестик, клик вне, Escape, выбор одного
+  // из трёх решений), и разобранные данные не должны пережить ни один:
+  // иначе следующий разбор увидел бы чужой _parsedData.
+  document.getElementById('parse-modal')
+    .addEventListener('modal:close', () => { _parsedData = null; });
 
   function applyParsedData(mode) {
-    const data = _parsedData;   // сохраняем до закрытия — closeParsModal обнуляет _parsedData
+    // Копию берём ДО закрытия: обработчик modal:close обнуляет _parsedData,
+    // а срабатывает он синхронно внутри закрыть_модалку
+    const data = _parsedData;
     if (!data) return;
-    closeParsModal();
+    закрыть_модалку('parse-modal');
 
     const fieldEmpty = id => !document.getElementById(id)?.value?.trim();
     const listEmpty  = id => (document.getElementById(id)?.children.length ?? 0) === 0;

@@ -14,7 +14,12 @@
 .profile-wrap .subtitle { color: var(--text-2); font-size: var(--text-body-sm); margin-top: calc(-1 * var(--space-3)); }
 
 .profile-card h2 { font-size: var(--text-h3); font-weight: 600; margin-bottom: var(--space-1); }
-.profile-card .hint { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-4); line-height: 1.5; }
+/* Без предка: пояснение встречается и в карточке, и в теле модалки. Было
+   двумя одинаковыми правилами — .profile-card .hint и .modal .hint; второе
+   держалось на том, что модалки страницы лежали внутри своего .modal.
+   После перехода на компонент такого предка нет, а дублировать правило под
+   .modal-body значило бы цепляться за системный класс из страничного файла. */
+.hint { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-4); line-height: 1.5; }
 
 /* ── Секция: аватар и имя ───────────────────────────────────────────────── */
 .identity-row { display: flex; align-items: center; gap: var(--space-5); flex-wrap: wrap; }
@@ -75,23 +80,23 @@
 }
 .btn-danger:hover { background: color-mix(in srgb, var(--error) 10%, transparent); }
 
-/* ── Модалки-заглушки ───────────────────────────────────────────────────── */
-.profile-modal-overlay {
-  position: fixed; inset: 0; z-index: 100;
-  background: color-mix(in srgb, var(--surface-0) 70%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-5);
-}
-.profile-modal-overlay.open { display: flex; }
-.profile-modal-overlay .modal { margin: 0; }
-.modal h3 { font-size: var(--text-h3); font-weight: 600; margin-bottom: var(--space-2); }
-.modal .hint { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-4); line-height: 1.5; }
-.modal .form-col { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-5); }
-.modal-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+/* ── Содержимое модалок ──────────────────────────────────────────────────
+   Сам оверлей, шапка, заголовок и кнопка закрытия — компонент
+   (_modal.html + modal.js + .modal-* в style.css). Здесь только начинка.
+
+   Что отсюда убрано и почему:
+     .profile-modal-overlay        — свой оверлей, заменён компонентом
+     .profile-modal-overlay .modal — то же
+     .modal h3                     — заголовок теперь в шапке компонента
+     .modal .hint                  — дубль правила выше, поднят до .hint
+   Три из них цеплялись за системный .modal из страничного файла. Греп
+   §6.0.2 их не ловил: проверка 1 ищет `.modal` в начале строки перед
+   `{`, `,` или `:`, а `.modal h3` — это селектор потомка. */
+.form-col { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-5); }
+/* Не .modal-actions: в системе весь префикс .modal-* занят компонентом
+   (.modal-hdr, .modal-body, .modal-x…), и класс с таким именем читался бы
+   как его часть, не будучи ею. Ряд кнопок под формой — страничный. */
+.form-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
 
 /* ── Аватар: загрузка и удаление ─────────────────────────────────────────── */
 .avatar-edit { position: relative; flex-shrink: 0; }
@@ -150,9 +155,10 @@
   .avatar-actions { width: 100%; }
   .avatar-actions .btn-secondary, .avatar-actions .btn-ghost { flex: 1; }
   .avatar-hint { width: 100%; }
-  /* Модалка с полем ввода: при открытой клавиатуре ей нужен собственный
-     скролл, иначе кнопки уезжают за экран и до них не добраться */
-  .profile-modal-overlay .modal { max-height: 88vh; overflow-y: auto; }
+  /* Правило про собственный скролл модалки убрано: компонент делает это сам
+     и на всех ширинах — .modal-sh ограничен 92vh, .modal-body прокручивается
+     (style.css). Оставить страничную копию значило бы завести второй источник
+     той же величины: 88vh против 92vh, и расходиться они начали бы молча. */
   .delete-preview { max-height: 140px; }
 }
 

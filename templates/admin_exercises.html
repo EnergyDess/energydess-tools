@@ -83,13 +83,14 @@
   <div class="ex-pagination" id="ex-pagination"></div>
 </div>
 
-<!-- Модалка видео -->
-<div class="ex-modal-overlay" id="ex-modal-overlay" onclick="if(event.target===this)closeVideoModal()">
-  <div class="ex-modal">
-    <button class="ex-modal-close" onclick="closeVideoModal()">✕ Закрыть</button>
-    <div id="ex-modal-iframe-wrap"></div>
-  </div>
-</div>
+{# Просмотр видео на общем компоненте, вариант modal-ov-viewer — тот же
+   случай, что просмотр фото в дневнике: рамка окна мешала бы содержимому,
+   поэтому chrome=false и плавающая кнопка закрытия.
+   Раньше здесь был свой оверлей .ex-modal-overlay со своим onclick. #}
+{% import '_modal.html' as m %}
+{% call m.modal('ex-video-modal', 'Видео упражнения', variant='modal-ov-viewer', chrome=false) %}
+      <div class="ex-video-box" id="ex-modal-iframe-wrap"></div>
+{% endcall %}
 
 <div class="toast" id="toast"></div>
 
@@ -357,19 +358,25 @@ async function saveReplace(id) {
 function openVideoModal(youtubeId) {
   const wrap = document.getElementById('ex-modal-iframe-wrap');
   wrap.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${escHtml(youtubeId)}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-  document.getElementById('ex-modal-overlay').classList.add('open');
+  открыть_модалку('ex-video-modal');
 }
 
-function closeVideoModal() {
-  document.getElementById('ex-modal-overlay').classList.remove('open');
-  document.getElementById('ex-modal-iframe-wrap').innerHTML = ''; // уничтожаем iframe — видео останавливается
-}
+// Уничтожение iframe — на событии компонента, а не в своей функции закрытия.
+// Это ровно тот случай, что камера у сканера штрих-кодов: пока закрытие было
+// одно (своя кнопка и клик вне звали одну и ту же функцию), уборка держалась
+// на ней. Компонент добавил Escape — и закрытие им прошло бы мимо уборки:
+// оверлей исчез, а видео продолжало бы играть со звуком за кадром.
+// Ни ошибки, ни следа в консоли — только звук из ниоткуда.
+document.getElementById('ex-video-modal').addEventListener('modal:close', () => {
+  document.getElementById('ex-modal-iframe-wrap').innerHTML = '';
+});
 
 renderGrid();
 </script>
 
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="/static/ui.js"></script>
+<script src="/static/modal.js"></script>
 <script>lucide.createIcons();</script>
 </body>
 </html>

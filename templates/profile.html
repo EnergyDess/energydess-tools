@@ -106,7 +106,7 @@
         <div class="setting-value">{{ user.email }}</div>
       </div>
       <!-- TODO: реализовать эндпоинт /api/change-email (модалка ниже — UI-заглушка) -->
-      <button class="btn-secondary setting-btn" onclick="openModal('modal-email')">Изменить email</button>
+      <button class="btn-secondary setting-btn" onclick="открыть_модалку('modal-email')">Изменить email</button>
     </div>
 
     <div class="setting-row">
@@ -115,7 +115,7 @@
         <div class="setting-sub">Последнее изменение неизвестно</div>
       </div>
       <!-- TODO: реализовать эндпоинт /api/change-password (модалка ниже — UI-заглушка) -->
-      <button class="btn-secondary setting-btn" onclick="openModal('modal-password')">Сменить пароль</button>
+      <button class="btn-secondary setting-btn" onclick="открыть_модалку('modal-password')">Сменить пароль</button>
     </div>
   </div>
 
@@ -136,41 +136,38 @@
 
 {% include '_footer.html' %}
 
-<!-- ── Модалки-заглушки (эндпоинты — TODO) ── -->
-<div class="profile-modal-overlay" id="modal-email" onclick="if(event.target===this)closeModal(this)">
-  <div class="modal">
-    <h3>Изменить email</h3>
+{# Модалки на общем компоненте (design-system.md, раздел 2.5). Раньше здесь
+   был свой оверлей .profile-modal-overlay со своим onclick в разметке:
+   Escape не закрывал, фокус после закрытия оставался внутри спрятанного окна,
+   а содержимое всех трёх лежало в порядке табуляции всегда. #}
+{% import '_modal.html' as m %}
+
+{% call m.modal('modal-email', 'Изменить email') %}
     <p class="hint">Функция в разработке — эндпоинт /api/change-email ещё не реализован.</p>
     <div class="form-col">
       <input type="email" class="input" placeholder="Новый email" disabled>
       <input type="password" class="input" placeholder="Текущий пароль" disabled>
     </div>
-    <div class="modal-actions">
-      <button class="btn-ghost" onclick="closeModal(this.closest('.profile-modal-overlay'))">Закрыть</button>
+    <div class="form-actions">
+      <button class="btn-ghost" type="button" data-modal-close>Закрыть</button>
       <button class="btn-primary" disabled>Сохранить</button>
     </div>
-  </div>
-</div>
+{% endcall %}
 
-<div class="profile-modal-overlay" id="modal-password" onclick="if(event.target===this)closeModal(this)">
-  <div class="modal">
-    <h3>Сменить пароль</h3>
+{% call m.modal('modal-password', 'Сменить пароль') %}
     <p class="hint">Функция в разработке — эндпоинт /api/change-password ещё не реализован.</p>
     <div class="form-col">
       <input type="password" class="input" placeholder="Текущий пароль" disabled>
       <input type="password" class="input" placeholder="Новый пароль" disabled>
       <input type="password" class="input" placeholder="Новый пароль ещё раз" disabled>
     </div>
-    <div class="modal-actions">
-      <button class="btn-ghost" onclick="closeModal(this.closest('.profile-modal-overlay'))">Закрыть</button>
+    <div class="form-actions">
+      <button class="btn-ghost" type="button" data-modal-close>Закрыть</button>
       <button class="btn-primary" disabled>Сменить</button>
     </div>
-  </div>
-</div>
+{% endcall %}
 
-<div class="profile-modal-overlay" id="modal-delete" onclick="if(event.target===this)closeModal(this)">
-  <div class="modal">
-    <h3>Удалить аккаунт</h3>
+{% call m.modal('modal-delete', 'Удалить аккаунт') %}
     <p class="hint">Действие необратимо. Восстановить данные будет нельзя.</p>
 
     {# Человек должен видеть цену действия до того, как его подтвердит #}
@@ -186,15 +183,15 @@
     </div>
     <div id="delete-error" class="name-status err"></div>
 
-    <div class="modal-actions">
-      <button class="btn-ghost" onclick="closeModal(this.closest('.profile-modal-overlay'))">Отмена</button>
+    <div class="form-actions">
+      <button class="btn-ghost" type="button" data-modal-close>Отмена</button>
       <button class="btn-danger" id="delete-btn" onclick="confirmDelete()">Удалить навсегда</button>
     </div>
-  </div>
-</div>
+{% endcall %}
 
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="/static/ui.js"></script>
+<script src="/static/modal.js"></script>
 <script>
 lucide.createIcons();
 
@@ -355,12 +352,22 @@ async function saveSettings() {
 }
 
 // ── Модалки ──
-function openModal(id)  { document.getElementById(id).classList.add('open'); }
-function closeModal(el) { el.classList.remove('open'); }
+// Своей пары openModal/closeModal здесь больше нет: открывает и закрывает
+// компонент (static/modal.js), кнопки закрытия помечены data-modal-close.
+
+// Уборка при закрытии — на событии, а не в кнопке «Отмена». Закрыть окно
+// удаления можно четырьмя способами (крестик, «Отмена», Escape, клик вне),
+// и введённый пароль не должен пережить ни один из них. Раньше поле
+// чистилось только при следующем ОТКРЫТИИ, то есть между закрытием
+// и открытием пароль лежал в DOM.
+document.getElementById('modal-delete').addEventListener('modal:close', () => {
+  document.getElementById('delete-password').value = '';
+  document.getElementById('delete-error').textContent = '';
+});
 
 // ── Удаление аккаунта ──
 async function openDeleteModal() {
-  openModal('modal-delete');
+  открыть_модалку('modal-delete');
   document.getElementById('delete-password').value = '';
   document.getElementById('delete-error').textContent = '';
   const список = document.getElementById('delete-list');

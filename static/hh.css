@@ -626,35 +626,24 @@ main.container { max-width: 1600px; }
 .history-letter-text a { color: var(--tool-accent); }
 .history-copy-btn { margin-top: var(--space-2); }
 
-/* ── Модалка конфликтов парсера ─────────────────────────────────────────── */
-.parse-modal-overlay {
-  position: fixed; inset: 0; z-index: 1000;
-  background: color-mix(in srgb, var(--surface-0) 70%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex; align-items: center; justify-content: center;
-  padding: var(--space-5);
+/* ── Модалка конфликтов парсера ─────────────────────────────────────────────
+   Оверлей, лист, шапка, заголовок и кнопка закрытия — компонент
+   (_modal.html + modal.js + .modal-* в style.css). Отсюда убраны
+   .parse-modal-overlay, .parse-modal и .parse-modal-title: своя копия
+   каркаса без Escape и без возврата фокуса.
+
+   Иконка-предупреждение раньше стояла в заголовке; заголовок теперь
+   в шапке компонента и принимает только текст, поэтому иконка переехала
+   в начало пояснения. Цвет и размер у неё те же. */
+.parse-modal-desc {
+  font-size: var(--text-caption); color: var(--text-2); line-height: 1.6;
+  margin-bottom: var(--space-2);
+  display: flex; align-items: flex-start; gap: var(--space-2);
 }
-.parse-modal {
-  background: var(--surface-1);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xl);
-  padding: var(--space-6);
-  max-width: 560px;
-  width: 100%;
-  box-shadow: var(--shadow-lg);
+.parse-modal-desc svg {
+  width: 18px; height: 18px; stroke-width: 1.5;
+  color: var(--warning); flex-shrink: 0; margin-top: 1px;
 }
-.parse-modal-title {
-  font-size: var(--text-body);
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: var(--space-3);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.parse-modal-title svg { width: 18px; height: 18px; stroke-width: 1.5; color: var(--warning); }
-.parse-modal-desc { font-size: var(--text-caption); color: var(--text-2); line-height: 1.6; margin-bottom: var(--space-2); }
 .parse-modal-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-5); }
 .parse-modal-list li {
   font-size: var(--text-caption);

@@ -518,36 +518,18 @@
   }
 
   /* ── Модалка видео ──────────────────────────────────────────────────── */
-  .ex-modal-overlay {
-    position: fixed; inset: 0; z-index: 1000;
-    background: color-mix(in srgb, var(--surface-0) 75%, transparent);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    display: none; align-items: center; justify-content: center;
-    padding: var(--space-5);
-  }
-  .ex-modal-overlay.open { display: flex; }
-  .ex-modal {
+  /* Оверлей, лист и кнопка закрытия — компонент (вариант modal-ov-viewer).
+     Здесь остался только сам видео-контейнер: 16/9 в 800px по-прежнему
+     нужен, иначе ролик растянулся бы на весь лист просмотра, рассчитанный
+     под фотографию. Убраны .ex-modal-overlay (своя копия каркаса)
+     и .ex-modal-close (кнопка компонента её заменила). */
+  .ex-video-box {
     width: 100%; max-width: 800px;
     aspect-ratio: 16/9;
     background: #000;   /* видео-контейнер — чёрный по смыслу, не токен темы */
     border-radius: var(--radius-md);
     overflow: hidden;
-    position: relative;
     box-shadow: var(--shadow-lg);
   }
-  .ex-modal iframe { width: 100%; height: 100%; border: none; }
-  .ex-modal-close {
-    position: absolute; top: var(--space-3); right: var(--space-3); z-index: 2;
-    background: color-mix(in srgb, var(--surface-0) 60%, transparent);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-sm);
-    color: var(--text);
-    cursor: pointer;
-    font-family: var(--font);
-    font-size: var(--text-caption);
-    padding: var(--space-2) var(--space-3);
-    transition: background var(--dur-fast) var(--ease);
-  }
-  .ex-modal-close:hover { background: color-mix(in srgb, var(--surface-0) 85%, transparent); }
+  .ex-video-box iframe { width: 100%; height: 100%; border: none; display: block; }
 </style>
