@@ -13,3 +13,7 @@ python-multipart
 pypdf
 python-docx
 Pillow
+# База часовых поясов IANA для zoneinfo (agent_slots.py считает встречи
+# в Europe/Moscow). В python:3.12-slim и на Windows системной базы нет,
+# и ZoneInfo падает с ZoneInfoNotFoundError прямо на импорте модуля.
+tzdata

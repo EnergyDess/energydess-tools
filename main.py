@@ -52,6 +52,14 @@ app = FastAPI(title="EnergyDess Tools")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# Календарные вебхуки голосового агента (ElevenLabs): /api/agent/slots и
+# /api/agent/slots/check. Отдельным модулем, потому что общего с остальным
+# приложением у них ничего нет — ни базы, ни сессии, ни шаблонов.
+# Импорт стоит ПОСЛЕ load_dotenv(): модуль читает AGENT_WEBHOOK_KEY на уровне
+# файла и падает без него, а до load_dotenv() переменной из .env ещё нет.
+from agent_slots import router as agent_router                      # noqa: E402
+app.include_router(agent_router)
+
 
 def _plural_ru(n: int, one: str, few: str, many: str) -> str:
     """Русское склонение существительного по числу. Пример: _plural_ru(21, 'упражнение', 'упражнения', 'упражнений') -> 'упражнение'."""
