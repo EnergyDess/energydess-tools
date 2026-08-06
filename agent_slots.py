@@ -12,9 +12,19 @@
 производительности, а не аскеза — вебхук должен ответить меньше чем за
 500 мс, иначе агент повиснет в паузе посреди разговора. Всё, что делает
 модуль, — арифметика над датами.
+
+ЗАНЯТОСТЬ СЛОТОВ ЗДЕСЬ СИНТЕТИЧЕСКАЯ. Настоящего календаря встреч у модуля
+нет, и появиться ему неоткуда — состояния мы не храним. Занятость считается
+хешем от строки «дата час»: функция чистая, один и тот же слот всегда даёт
+один и тот же ответ, поэтому два запроса подряд не противоречат друг другу
+и агенту не приходится извиняться за передумавший сервер. Когда появится
+настоящий календарь, менять придётся ровно две функции — `slot_is_busy`
+и `free_hours`; всё остальное про них не знает.
 """
 
+import hashlib
 import os
+import random
 import re
 import secrets
 from datetime import date as _date, datetime, time as _time, timedelta, timezone
@@ -46,10 +56,14 @@ TZ = ZoneInfo("Europe/Moscow")   # часовой пояс встреч, не з
 
 WORK_START_HOUR = 9              # первое время начала встречи
 WORK_END_HOUR = 17               # последнее время начала, включительно
-MORNING_HOUR = 10                # первый предлагаемый вариант
-AFTERNOON_HOUR = 15              # второй предлагаемый вариант
 EARLY_BEFORE_HOUR = 12           # утренний вариант обязан быть раньше этого часа
 LATE_AFTER_HOUR = 14             # дневной — позже этого
+
+# Доля занятых слотов и нижняя граница свободных в дне. Доля вынесена
+# константой, а не зашита в условие: это единственная ручка, которой
+# настраивается «загруженность календаря», и искать её придётся именно здесь.
+BUSY_SHARE = 0.40
+MIN_FREE_SLOTS = 4
 
 # Праздники не учитываем — осознанное упрощение. Производственный календарь
 # России меняется постановлением правительства каждый год, и держать его
@@ -142,14 +156,6 @@ def is_working_day(d: _date) -> bool:
     return d.weekday() < 5
 
 
-def next_working_day(d: _date) -> _date:
-    """Ближайший рабочий день СТРОГО после переданного."""
-    d += timedelta(days=1)
-    while not is_working_day(d):
-        d += timedelta(days=1)
-    return d
-
-
 def first_available_day(today: _date, not_before: Optional[_date] = None) -> _date:
     """Ближайший день, на который можно записаться.
 
@@ -172,10 +178,69 @@ def is_working_hour(t: _time) -> bool:
     return WORK_START_HOUR <= t.hour <= WORK_END_HOUR and t.minute == 0
 
 
+def working_hours() -> List[int]:
+    """Все часы, в которые встреча в принципе может начаться."""
+    return list(range(WORK_START_HOUR, WORK_END_HOUR + 1))
+
+
+# ─────────────────────────── Занятость слотов ───────────────────────────
+
+def _digest(ключ: str) -> int:
+    """Число из sha256. Ключ — только латиница и цифры (CLAUDE.md, §6.0).
+
+    Хеш взят криптографический, а не встроенный `hash()`: последний солится
+    случайным значением на каждый запуск процесса (PYTHONHASHSEED), и «чистая
+    функция» разъезжалась бы после каждого рестарта — то есть ровно то, чего
+    мы избегаем, только незаметно.
+    """
+    return int.from_bytes(hashlib.sha256(ключ.encode("ascii")).digest()[:8], "big")
+
+
+def slot_is_busy(day: _date, hour: int) -> bool:
+    """Занят ли слот. Чистая функция от даты и часа, без состояния.
+
+    ВНИМАНИЕ: это не настоящий календарь, а его правдоподобная имитация —
+    см. шапку модуля. Здесь только «сырой» ответ хеша; наружу ходить надо
+    через `free_hours`, которая ещё и держит минимум свободных слотов в дне.
+    """
+    return _digest(f"{day:%Y-%m-%d} {hour:02d}") % 10_000 < BUSY_SHARE * 10_000
+
+
+def free_hours(day: _date) -> List[int]:
+    """Свободные часы дня по возрастанию. Для выходного — пустой список.
+
+    Хеш независим по слотам, поэтому день, где занято почти всё, не просто
+    возможен, а неизбежен на горизонте месяцев: при доле 0.4 и девяти слотах
+    свободных остаётся меньше четырёх примерно в 10% дней (замерено на десяти
+    годах календаря: 256 дней из 2607). Это раз в две недели, когда агенту
+    почти нечего предложить. Поэтому снизу стоит жёсткая граница: не хватило —
+    освобождаем занятые по порядку, с раннего часа, пока не наберётся
+    MIN_FREE_SLOTS. Гарантия и съедает разницу между BUSY_SHARE и фактической
+    долей занятых (0.40 против 0.39).
+    """
+    if not is_working_day(day):
+        return []
+    все = working_hours()
+    свободные = [h for h in все if not slot_is_busy(day, h)]
+    if len(свободные) < MIN_FREE_SLOTS:
+        for h in все:
+            if h not in свободные:
+                свободные.append(h)
+                if len(свободные) >= MIN_FREE_SLOTS:
+                    break
+        свободные.sort()
+    return свободные
+
+
+def is_free(day: _date, hour: int) -> bool:
+    """Занятость с учётом гарантии минимума — то, что видит внешний мир."""
+    return hour in free_hours(day)
+
+
 # ───────────────────────── Человеческая фраза ───────────────────────────
 
 def human_phrase(dt: datetime, now: datetime,
-                 with_date: bool = False, allow_tomorrow: bool = True) -> str:
+                 with_date: bool = False, time_only: bool = False) -> str:
     """Фраза, которую агент произнесёт вслух.
 
     «завтра» подставляется только если дата — действительно следующий
@@ -187,12 +252,19 @@ def human_phrase(dt: datetime, now: datetime,
     «в понедельник» через полторы недели неотличимо от ближайшего) — либо
     когда об этом просит вызывающий: при подтверждении конкретной даты
     её проговаривают полностью, ради этого эндпоинт проверки и существует.
+
+    `time_only` — второй вариант того же дня: одно время без дня недели.
+    День, названный дважды подряд («в пятницу в 10:00 или в пятницу в 15:00»),
+    звучит как автоответчик; человек в этом месте говорит «…или в 15:00».
     """
+    clock = f"в {dt:%H:%M}"
+    if time_only:
+        return clock
+
     days = (dt.date() - now.date()).days
-    tomorrow = allow_tomorrow and days == 1
+    tomorrow = days == 1
     show_date = with_date or days > 6
     weekday = WEEKDAYS_ACC[dt.weekday()]
-    clock = f"в {dt:%H:%M}"
 
     if not tomorrow and not show_date:
         return f"{weekday} {clock}"
@@ -213,36 +285,48 @@ def slot_id(dt: datetime) -> str:
 
 
 def make_slot(dt: datetime, now: datetime,
-              with_date: bool = False, allow_tomorrow: bool = True) -> Dict[str, str]:
+              with_date: bool = False, time_only: bool = False) -> Dict[str, str]:
     return {"id": slot_id(dt),
-            "human": human_phrase(dt, now, with_date, allow_tomorrow)}
+            "human": human_phrase(dt, now, with_date, time_only)}
+
+
+def pick_two_hours(day: _date) -> List[int]:
+    """Два разных свободных часа дня: сначала утро+день, иначе любые два.
+
+    Выбор случайный, но детерминированный: генератор засеивается хешем даты,
+    поэтому повторный запрос в тот же день вернёт те же два времени. Иначе
+    собеседник, переспросивший «повторите, пожалуйста», услышал бы другое —
+    и решил бы, что первое уже заняли, пока он думал.
+
+    Разнесение обязательно: два соседних часа — это выбор без выбора. Если
+    в одной из половин дня свободного часа нет, берём два любых свободных,
+    но заведомо разных — минимум в четыре слота на день это позволяет всегда.
+    """
+    свободные = free_hours(day)
+    rnd = random.Random(_digest(f"pick {day:%Y-%m-%d}"))
+
+    утро = [h for h in свободные if h < EARLY_BEFORE_HOUR]
+    день = [h for h in свободные if h > LATE_AFTER_HOUR]
+    if утро and день:
+        return [rnd.choice(утро), rnd.choice(день)]
+
+    # Половина дня выпала целиком. Разносим как можем: два разных часа
+    # из того, что осталось. Меньше двух там быть не может — MIN_FREE_SLOTS.
+    return sorted(rnd.sample(свободные, 2))
 
 
 def build_options(now: datetime, not_before: Optional[_date] = None) -> List[Dict[str, str]]:
-    """Два предложения времени: утро и день ближайшего доступного дня."""
+    """Два предложения времени из свободных слотов ближайшего рабочего дня."""
     day = first_available_day(now.date(), not_before)
-    first = datetime.combine(day, _time(hour=MORNING_HOUR), tzinfo=TZ)
-    second = datetime.combine(day, _time(hour=AFTERNOON_HOUR), tzinfo=TZ)
+    часы = pick_two_hours(day)
+    first = datetime.combine(day, _time(hour=часы[0]), tzinfo=TZ)
+    second = datetime.combine(day, _time(hour=часы[1]), tzinfo=TZ)
 
-    # Варианты обязаны быть разнесены: один до 12:00, другой после 14:00 —
-    # иначе человеку предлагается выбор без выбора. При нынешних константах
-    # (10 и 15) условие выполняется всегда; проверка стоит на случай, если
-    # часы поменяют, и тогда второй вариант уезжает на следующий рабочий день,
-    # а не молча превращается в дубль первого.
-    разнесены = (first.hour < EARLY_BEFORE_HOUR
-                 and second.hour > LATE_AFTER_HOUR
-                 and is_working_hour(first.time())
-                 and is_working_hour(second.time()))
-    if not разнесены:
-        second = datetime.combine(next_working_day(day),
-                                  _time(hour=AFTERNOON_HOUR), tzinfo=TZ)
-
-    # «завтра» произносится один раз. Обе фразы идут подряд в одной реплике
-    # («завтра, в пятницу, в 10:00 или в пятницу в 15:00»), и повтор звучит
-    # как речь робота — которым агент как раз старается не звучать.
+    # Оба варианта в одном дне — день недели называется один раз, второй
+    # вариант остаётся одним временем. Подробнее — в docstring human_phrase.
     один_день = first.date() == second.date()
     return [make_slot(first, now),
-            make_slot(second, now, allow_tomorrow=not один_день)]
+            make_slot(second, now, time_only=один_день)]
 
 
 # ──────────────────────────── Разбор ввода ──────────────────────────────
@@ -406,6 +490,12 @@ def check_slot(request: Request, body: CheckRequest) -> Dict[str, Any]:
         else:
             hint = f"встречи назначаем с {WORK_START_HOUR}:00 до {WORK_END_HOUR}:00"
         return отказ("outside_hours", hint)
+
+    # 6. Занятость — последней. Порядок не косметика: сказать «это время
+    # занято» про субботу или про три часа ночи значит соврать и подтолкнуть
+    # собеседника переспросить то же самое на час раньше.
+    if not is_free(d, t.hour):
+        return отказ("busy", "это время уже занято")
 
     # Дату проговариваем полностью — эндпоинт для того и нужен, чтобы
     # собеседник услышал и день недели, и число, и мог поправить.
