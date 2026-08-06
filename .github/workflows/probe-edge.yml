@@ -21,6 +21,12 @@ on:
       pause:
         description: Пауза между парами, секунды
         default: "0.5"
+      address:
+        description: >
+          Адрес, куда стучаться. Пусто — обычное разрешение имени (проверяет
+          весь путь целиком: DNS, новый адрес, кромку). Явный адрес нужен,
+          только чтобы сравнить два адреса до правки DNS.
+        default: ""
 
 jobs:
   probe:
@@ -37,18 +43,25 @@ jobs:
         env:
           ITERATIONS: ${{ inputs.iterations }}
           PAUSE: ${{ inputs.pause }}
+          ADDRESS: ${{ inputs.address }}
         run: |
           cat > probe.py <<'PY'
           import os, socket, ssl, statistics, time
           from datetime import datetime, timezone
 
           ХОСТ = "energydess.ru"
-          IPV4 = "66.241.125.76"
           ПОВТОРОВ = int(os.environ["ITERATIONS"])
           ПАУЗА = float(os.environ["PAUSE"])
           ЗАПРОСЫ = [("GET", "/api/agent/slots"), ("POST", "/api/agent/slots/check")]
 
-          def один(путь, метод, sni=ХОСТ, семейство=socket.AF_INET, адрес=IPV4):
+          # Пусто — разрешаем имя как все, то есть проверяем весь путь, включая DNS.
+          ЗАДАННЫЙ = os.environ.get("ADDRESS", "").strip()
+          IPV4 = ЗАДАННЫЙ or socket.getaddrinfo(ХОСТ, 443, socket.AF_INET)[0][4][0]
+          print(f"проверяем {ХОСТ} по адресу {IPV4}"
+                + ("" if ЗАДАННЫЙ else " (получен из DNS)"))
+
+          def один(путь, метод, sni=ХОСТ, семейство=socket.AF_INET, адрес=None):
+              адрес = адрес or IPV4
               начало = time.perf_counter()
               ctx = ssl.create_default_context()
               if sni != ХОСТ:
@@ -86,7 +99,7 @@ jobs:
                                   f"{метод} {путь} -> {итог} ({мс:.0f} мс)")
               time.sleep(ПАУЗА)
 
-          print(f"\n=== ОБЩИЙ IPv4 {IPV4}, {ПОВТОРОВ} пар")
+          print(f"\n=== {ХОСТ} через {IPV4}, {ПОВТОРОВ} пар")
           for итог, сколько in sorted(итоги.items(), key=lambda x: -x[1]):
               print(f"  {сколько:>4} × {итог}")
           print(f"  медиана {statistics.median(времена):.0f} мс, "
