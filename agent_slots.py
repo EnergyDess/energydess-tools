@@ -305,7 +305,13 @@ def get_slots(request: Request, after: Optional[str] = Query(default=None)) -> D
     `after` (ГГГГ-ММ-ДД) сдвигает поиск вперёд — например, когда собеседник
     сказал «не раньше следующей недели». Приблизить дату он не может.
     """
-    not_before = parse_date(after, "after") if after is not None else None
+    try:
+        not_before = parse_date(after, "after") if after is not None else None
+    except HTTPException as e:
+        # Отказ по формату — тоже вызов, и в логе он нужен: молча отброшенный
+        # запрос выглядит как «агент не позвонил», а он звонил и получил 422.
+        log_call("GET /api/agent/slots", {"after": after}, f"422 {e.detail}")
+        raise
     now = now_msk()
     options = build_options(now, not_before)
 
@@ -346,14 +352,18 @@ def check_slot(request: Request, body: CheckRequest) -> Dict[str, Any]:
     произнесённым и посчитанным — самая частая ошибка модели, и ловится она
     только так. Причина возвращается первая сработавшая, в порядке проверок.
     """
-    d = parse_date(body.date, "date")
-    t = parse_time(body.time, "time")
+    входные = {"date": body.date, "time": body.time,
+               "expected_weekday": body.expected_weekday}
+    try:
+        d = parse_date(body.date, "date")
+        t = parse_time(body.time, "time")
+    except HTTPException as e:
+        log_call("POST /api/agent/slots/check", входные, f"422 {e.detail}")
+        raise
+
     now = now_msk()
     today = now.date()
     dt = datetime.combine(d, t, tzinfo=TZ)
-
-    входные = {"date": body.date, "time": body.time,
-               "expected_weekday": body.expected_weekday}
 
     def отказ(reason: str, hint: str) -> Dict[str, Any]:
         # Альтернативы отдаём ВСЕГДА: агент, оставшийся без вариантов,

@@ -318,6 +318,19 @@ def test_вызовы_попадают_в_лог(client, freeze, capsys):
     assert KEY not in "\n".join(строки)   # ключ в лог не попадает никогда
 
 
+def test_отказ_по_формату_тоже_в_логе(client, freeze, capsys):
+    """422 — это тоже вызов. Без записи он выглядит как «агент не позвонил»."""
+    freeze("2026-08-06T09:00")
+    client.get("/api/agent/slots?after=06.08.2026", headers=auth())
+    client.post("/api/agent/slots/check", headers=auth(),
+                json={"date": "не дата", "time": "15:00",
+                      "expected_weekday": "пятница"})
+
+    строки = [s for s in capsys.readouterr().out.splitlines() if "[agent]" in s]
+    assert len(строки) == 2
+    assert all("422" in s for s in строки)
+
+
 # ────────────────────────── Производительность ──────────────────────────
 
 def test_ответ_быстрее_500мс(client, freeze):
