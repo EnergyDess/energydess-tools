@@ -61,6 +61,56 @@ from agent_slots import router as agent_router                      # noqa: E402
 app.include_router(agent_router)
 
 
+@app.middleware("http")
+async def log_request(request: Request, call_next):
+    """Одна строка на каждый запрос: откуда, что, сколько миллисекунд, чем кончилось.
+
+    Появилось после разбора сбоя 6 августа. Тогда вебхуки голосового агента
+    четыре раза подряд получили «connection reset by peer», а доказать, что
+    приложение здорово, удалось только по метрикам Prometheus и гистограмме
+    времени ответа — на что ушло три часа. Причина: uvicorn пишет факт ответа,
+    но не пишет НИ длительность, НИ идентификатор запроса Fly, ни адрес
+    клиента. Сопоставить свою запись с чужим журналом было нечем.
+
+    `Fly-Request-Id` — тот же идентификатор, что Fly отдаёт клиенту
+    в заголовке ответа. По нему запрос сшивается с журналом принимающей
+    стороны в одну строку, без гадания по секундам.
+
+    `/static/` пропускаем: браузер тянет оттуда десяток файлов на страницу,
+    и полезные строки утонули бы среди них.
+    """
+    if request.url.path.startswith("/static/"):
+        return await call_next(request)
+
+    старт = time.perf_counter()
+    метка = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    путь = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+    ip = (request.headers.get("Fly-Client-IP")
+          or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+          or (request.client.host if request.client else "—"))
+    rid = request.headers.get("Fly-Request-Id", "—")
+    ua = (request.headers.get("User-Agent", "—") or "—")[:60]
+    proto = f"HTTP/{request.scope.get('http_version', '?')}"
+
+    def строка(итог: str, мс: float) -> str:
+        return (f"[req] {метка}Z {request.method} {путь} {итог} {мс:.0f}ms "
+                f"ip={ip} rid={rid} {proto} ua={ua!r}")
+
+    try:
+        ответ = await call_next(request)
+    except Exception as e:
+        # Не глушим: печатаем и пробрасываем дальше. Проглоченное здесь
+        # исключение превратило бы 500 в запрос без единого следа —
+        # ровно та немота, из-за которой этот middleware и появился.
+        print(строка(f"ИСКЛЮЧЕНИЕ {type(e).__name__}: {e}",
+                     (time.perf_counter() - старт) * 1000), flush=True)
+        raise
+
+    print(строка(str(ответ.status_code), (time.perf_counter() - старт) * 1000),
+          flush=True)
+    return ответ
+
+
 def _plural_ru(n: int, one: str, few: str, many: str) -> str:
     """Русское склонение существительного по числу. Пример: _plural_ru(21, 'упражнение', 'упражнения', 'упражнений') -> 'упражнение'."""
     n = abs(n)

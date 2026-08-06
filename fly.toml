@@ -23,6 +23,25 @@ primary_region = "fra"
   auto_start_machines = true
   min_machines_running = 1
 
+# Проверка живости. До 6 августа её не было вовсе (`flyctl config show`
+# показывал `checks: null`), и это значило две вещи. Первая: прокси Fly слал
+# трафик в машину сразу после старта, а uvicorn поднимается за 5-8 секунд —
+# в деплое 6 августа окно между SIGINT в 19:48:27 и «Application startup
+# complete» в 19:48:35 составило восемь секунд, и все восемь Fly считал
+# приложение готовым. Вторая: зависший процесс, который держит порт, но
+# не отвечает, никто бы не заменил — политика restart on-failure ловит только
+# падение.
+#
+# grace_period с запасом ко времени старта: импорт main.py тянет few_shot_examples
+# и модели SQLAlchemy, на shared-cpu-1x это те самые 5-8 секунд. Меньше запаса —
+# и проверка начнёт валить машину на старте, то есть чинить нечиненное.
+[[http_service.checks]]
+  interval = "15s"
+  timeout = "3s"
+  grace_period = "20s"
+  method = "GET"
+  path = "/health"
+
 [[vm]]
   size = "shared-cpu-1x"
   memory = "256mb"
