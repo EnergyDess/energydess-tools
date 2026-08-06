@@ -1,0 +1,104 @@
+# Диагностическая проба кромки Fly с внешней машины (раннер GitHub, США).
+#
+# Зачем: 6 августа вебхуки голосового агента получали «connection reset by peer»
+# на общем IPv4 66.241.125.76. С машины в России сбой не воспроизводится
+# (60 запросов из 60 успешны), а агент ходит из США — то есть через другую
+# точку присутствия Fly. Эта проба даёт вторую точку обзора.
+#
+# Ключ не нужен намеренно: 403 от приложения — такой же полноценный признак
+# «соединение прошло насквозь», как и 200, а секрет в лог раннера не попадает.
+#
+# Запускается только руками: gh workflow run probe-edge.yml
+
+name: Probe edge
+
+on:
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: Сколько пар запросов сделать
+        default: "60"
+      pause:
+        description: Пауза между парами, секунды
+        default: "0.5"
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Откуда смотрим
+        run: |
+          echo "внешний адрес раннера:"
+          curl -s --max-time 10 https://api.ipify.org; echo
+          echo "какая точка присутствия Fly отвечает:"
+          curl -sI --max-time 10 https://energydess.ru/health | grep -i "fly-request-id" || true
+
+      - name: Проба соединений
+        env:
+          ITERATIONS: ${{ inputs.iterations }}
+          PAUSE: ${{ inputs.pause }}
+        run: |
+          cat > probe.py <<'PY'
+          import os, socket, ssl, statistics, time
+          from datetime import datetime, timezone
+
+          ХОСТ = "energydess.ru"
+          IPV4 = "66.241.125.76"
+          ПОВТОРОВ = int(os.environ["ITERATIONS"])
+          ПАУЗА = float(os.environ["PAUSE"])
+          ЗАПРОСЫ = [("GET", "/api/agent/slots"), ("POST", "/api/agent/slots/check")]
+
+          def один(путь, метод, sni=ХОСТ, семейство=socket.AF_INET, адрес=IPV4):
+              начало = time.perf_counter()
+              ctx = ssl.create_default_context()
+              if sni != ХОСТ:
+                  ctx.check_hostname = False
+                  ctx.verify_mode = ssl.CERT_NONE
+              try:
+                  raw = socket.socket(семейство, socket.SOCK_STREAM)
+                  raw.settimeout(20)
+                  raw.connect((адрес, 443))
+                  with ctx.wrap_socket(raw, server_hostname=sni or None) as s:
+                      s.sendall((f"{метод} {путь} HTTP/1.1\r\nHost: {ХОСТ}\r\n"
+                                 "Connection: close\r\n\r\n").encode())
+                      ответ = s.recv(64)
+                  мс = (time.perf_counter() - начало) * 1000
+                  строка = ответ.split(b"\r\n")[0].decode("latin-1") if ответ else "ПУСТОЙ ОТВЕТ"
+                  return строка.replace("HTTP/1.1 ", ""), мс
+              except ConnectionResetError:
+                  return "RST connection reset by peer", (time.perf_counter()-начало)*1000
+              except socket.timeout:
+                  return "ТАЙМАУТ 20 с", (time.perf_counter()-начало)*1000
+              except ssl.SSLError as e:
+                  return f"ОШИБКА TLS: {e.reason or e}", (time.perf_counter()-начало)*1000
+              except OSError as e:
+                  return f"ОШИБКА СЕТИ: {e}", (time.perf_counter()-начало)*1000
+
+          итоги, времена, сбои = {}, [], []
+          for i in range(ПОВТОРОВ):
+              for метод, путь in ЗАПРОСЫ:
+                  итог, мс = один(путь, метод)
+                  итоги[итог] = итоги.get(итог, 0) + 1
+                  времена.append(мс)
+                  ок = итог.startswith(("200", "403", "405"))
+                  if not ок:
+                      сбои.append(f"  #{i+1} {datetime.now(timezone.utc):%H:%M:%S}Z "
+                                  f"{метод} {путь} -> {итог} ({мс:.0f} мс)")
+              time.sleep(ПАУЗА)
+
+          print(f"\n=== ОБЩИЙ IPv4 {IPV4}, {ПОВТОРОВ} пар")
+          for итог, сколько in sorted(итоги.items(), key=lambda x: -x[1]):
+              print(f"  {сколько:>4} × {итог}")
+          print(f"  медиана {statistics.median(времена):.0f} мс, "
+                f"максимум {max(времена):.0f} мс")
+          if сбои:
+              print("  СБОИ:"); print("\n".join(сбои))
+
+          print("\n=== крайние случаи установки соединения")
+          for подпись, sni in (("без SNI", ""), ("чужое имя в SNI", "example.com")):
+              итог, мс = один("/api/agent/slots", "GET", sni=sni)
+              print(f"  {подпись}: {итог} ({мс:.0f} мс)")
+
+          print(f"\nИТОГО сбоев: {len(сбои)} из {ПОВТОРОВ*len(ЗАПРОСЫ)}")
+          PY
+          python3 probe.py
