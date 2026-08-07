@@ -3,15 +3,34 @@
 
    Файл описывает ТОЛЬКО раскладку этой страницы. Ни одного системного класса
    в качестве субъекта селектора, ни одного токена вне :root в style.css —
-   см. CLAUDE.md, §6.0.2. Карточки, кнопки и eyebrow берутся из компонентной
-   базы как есть; здесь только то, чего в системе нет и быть не должно, —
-   сетка конкретного экрана.
+   см. CLAUDE.md, §6.0.2. Карточки и eyebrow берутся из компонентной базы
+   как есть; здесь только то, чего в системе нет и быть не должно, — сетка
+   конкретного экрана.
+
+   Композиция подчинена одному: главный элемент страницы — виджет, а не текст.
+   Поэтому первый экран занят приглашением позвонить, а справка про устройство
+   уходит за сгиб.
    ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Виджет висит по центру снизу (placement="bottom"), position: fixed,
+   z-index 1000. Без запаса он накрыл бы хвост последней секции и футер. */
+.bot-main {
+  padding-bottom: var(--space-9);
+}
 
 /* ── Первый экран ──────────────────────────────────────────────────────── */
 
+/* 78dvh, а не вычитание высоты шапки в пикселях: доля не разъедется, если
+   шапка когда-нибудь станет выше, и dvh считает реальную высоту окна
+   на телефоне, где адресная строка то появляется, то прячется.
+   min-height, а не height: на узком экране содержимое имеет право быть выше. */
 .bot-hero {
-  padding: var(--space-8) 40px var(--space-7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 78dvh;
+  padding: var(--space-7) 40px var(--space-6);
   text-align: center;
 }
 
@@ -23,19 +42,21 @@
 }
 
 .bot-lead {
-  max-width: 42rem;
+  max-width: 38rem;
   margin: var(--space-4) auto 0;
   font-size: var(--text-body-lg);
   line-height: 1.6;
   color: var(--text-2);
 }
 
-/* Центральная плашка: единственное, что человеку нужно прочитать,
-   прежде чем нажать кнопку виджета. */
+/* Единственный акцентированный блок на странице. Свечение и цветная рамка
+   держат взгляд здесь, а не на списках ниже. */
 .bot-call {
   max-width: 34rem;
-  margin: var(--space-7) auto 0;
+  margin: var(--space-6) auto 0;
   padding: var(--space-6) var(--space-5);
+  border-color: var(--accent-brand);
+  box-shadow: var(--shadow-glow-brand);
   text-align: center;
 }
 
@@ -77,6 +98,69 @@
   color: var(--text-faint);
 }
 
+/* ── Виджет заблокирован ───────────────────────────────────────────────── */
+
+/* Показывается скриптом снятием атрибута hidden. Правило с [hidden]
+   обязательно и стоит первым: display на классе иначе перебил бы
+   встроенное display:none у атрибута, и предупреждение висело бы всегда. */
+.bot-blocked[hidden] {
+  display: none;
+}
+
+.bot-blocked {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  max-width: 34rem;
+  margin: var(--space-5) auto 0;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  text-align: left;
+}
+
+.bot-blocked p {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.bot-blocked-mark {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--warning);
+}
+
+.bot-blocked-mark svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ── Подсказка «читайте дальше» ────────────────────────────────────────── */
+
+.bot-scroll-cue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: center;
+  margin: var(--space-7) 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-faint);
+}
+
+.bot-scroll-cue svg {
+  width: 18px;
+  height: 18px;
+  animation: bot-nudge 2.4s var(--ease) infinite;
+}
+
+@keyframes bot-nudge {
+  0%, 70%, 100% { transform: translateY(0); }
+  85%           { transform: translateY(4px); }
+}
+
 /* ── Секции ────────────────────────────────────────────────────────────── */
 
 .bot-section {
@@ -92,8 +176,16 @@
 
 /* ── Что делает агент ──────────────────────────────────────────────────── */
 
+/* Две колонки и никаких разделителей: раньше это был список во всю ширину
+   с линейками между строк, и он перетягивал внимание с виджета на себя.
+   Теперь читается как справка, чем и является. */
+/* 24rem, а не меньше: при 19rem в контейнер влезали три колонки, и строки
+   в них ломались посреди фразы. Две колонки держат каждый пункт в одну-две
+   строки — список читается взглядом, а не прочитывается. */
 .bot-list {
-  max-width: 46rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
+  gap: var(--space-3) var(--space-6);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -101,24 +193,17 @@
 
 .bot-list li {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--space-3);
   align-items: baseline;
-  padding: var(--space-4) 0;
-  border-bottom: 1px solid var(--border-hairline);
-  font-size: var(--text-body);
+  font-size: var(--text-body-sm);
   line-height: 1.6;
   color: var(--text-2);
 }
 
-.bot-list li:last-child {
-  border-bottom: none;
-}
-
 .bot-list-num {
   flex: 0 0 auto;
-  min-width: 1.5rem;
   font-family: var(--font-mono);
-  font-size: var(--text-caption);
+  font-size: var(--text-mono);
   color: var(--accent-brand);
 }
 
@@ -179,16 +264,44 @@
 
 /* ── Технические заметки ───────────────────────────────────────────────── */
 
+/* Ширину держит сама карточка, а не абзац внутри неё. Мера чтения нужна
+   в любом случае — строка на всю ширину контейнера нечитаема, — но когда
+   её задавал абзац, карточка оставалась во всю ширину и выглядела
+   наполовину пустой. Теперь узкий блок читается как осознанная колонка. */
 .bot-notes {
-  padding: var(--space-5);
+  max-width: 46rem;
+  padding: var(--space-6) var(--space-5);
 }
 
 .bot-notes p {
-  max-width: 42rem;
   margin: 0;
   font-size: var(--text-body);
   line-height: 1.7;
   color: var(--text-2);
+}
+
+/* Отступ между абзацами, а не под каждым: у последнего он превратился бы
+   в лишний воздух перед нижней границей карточки. */
+.bot-notes p + p {
+  margin-top: var(--space-4);
+}
+
+/* Абзацы начинаются с назывной фразы — «Архитектура.», «Замеры.». Она
+   работает как подзаголовок внутри строки, поэтому берёт основной цвет
+   текста: на фоне --text-2 разница видна, и блок сканируется взглядом. */
+.bot-notes strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bot-notes code {
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text);
+  overflow-wrap: anywhere;
 }
 
 /* ── Мобильная версия ──────────────────────────────────────────────────── */
@@ -197,32 +310,28 @@
    (style.css, 16px), чтобы колонка текста не разъезжалась с шапкой. */
 @media (max-width: 768px) {
   .bot-hero {
-    padding: var(--space-7) 16px var(--space-6);
+    /* Первый экран на телефоне не растягиваем: под шапкой остаётся мало места,
+       и вертикальное центрирование выталкивало бы подсказку за край. */
+    min-height: 0;
+    padding: var(--space-6) 16px var(--space-6);
+  }
+
+  .bot-call {
+    margin-top: var(--space-5);
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .bot-scroll-cue {
+    margin-top: var(--space-6);
   }
 
   .bot-section {
     padding: 0 16px var(--space-6);
   }
-
-  .bot-call {
-    /* Кнопка виджета висит в правом нижнем углу поверх содержимого.
-       Запас снизу у последней секции добавлен там же, ниже. */
-    margin-top: var(--space-6);
-    padding: var(--space-5) var(--space-4);
-  }
-}
-
-/* Виджет ElevenLabs — фиксированный кружок в правом нижнем углу, z-index 1000.
-   На узком экране он перекрывает низ страницы, поэтому последней секции
-   нужен запас, иначе развёрнутый виджет закроет хвост текста. */
-@media (max-width: 768px) {
-  .bot-section:last-of-type {
-    padding-bottom: var(--space-8);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bot-call-mark {
-    transition: none;
+  .bot-scroll-cue svg {
+    animation: none;
   }
 }
