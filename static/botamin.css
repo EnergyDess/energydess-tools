@@ -1,0 +1,228 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   /botamin — витрина голосового агента (тестовое задание Botamin)
+
+   Файл описывает ТОЛЬКО раскладку этой страницы. Ни одного системного класса
+   в качестве субъекта селектора, ни одного токена вне :root в style.css —
+   см. CLAUDE.md, §6.0.2. Карточки, кнопки и eyebrow берутся из компонентной
+   базы как есть; здесь только то, чего в системе нет и быть не должно, —
+   сетка конкретного экрана.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Первый экран ──────────────────────────────────────────────────────── */
+
+.bot-hero {
+  padding: var(--space-8) 40px var(--space-7);
+  text-align: center;
+}
+
+.bot-hero h1 {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-h1);
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.bot-lead {
+  max-width: 42rem;
+  margin: var(--space-4) auto 0;
+  font-size: var(--text-body-lg);
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+/* Центральная плашка: единственное, что человеку нужно прочитать,
+   прежде чем нажать кнопку виджета. */
+.bot-call {
+  max-width: 34rem;
+  margin: var(--space-7) auto 0;
+  padding: var(--space-6) var(--space-5);
+  text-align: center;
+}
+
+.bot-call-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: var(--space-4);
+  border-radius: 999px;
+  background: var(--accent-brand-dim);
+  color: var(--accent-brand);
+}
+
+.bot-call-mark svg {
+  width: 26px;
+  height: 26px;
+}
+
+.bot-call-title {
+  margin: 0;
+  font-size: var(--text-h3);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+.bot-call-note {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-body-sm);
+  line-height: 1.65;
+  color: var(--text-2);
+}
+
+.bot-call-hint {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-faint);
+}
+
+/* ── Секции ────────────────────────────────────────────────────────────── */
+
+.bot-section {
+  padding: 0 40px var(--space-7);
+}
+
+.bot-section h2 {
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-h2);
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+/* ── Что делает агент ──────────────────────────────────────────────────── */
+
+.bot-list {
+  max-width: 46rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bot-list li {
+  display: flex;
+  gap: var(--space-4);
+  align-items: baseline;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--border-hairline);
+  font-size: var(--text-body);
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.bot-list li:last-child {
+  border-bottom: none;
+}
+
+.bot-list-num {
+  flex: 0 0 auto;
+  min-width: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--accent-brand);
+}
+
+/* ── Как устроено ──────────────────────────────────────────────────────── */
+
+/* auto-fill, а не фиксированные колонки: на широком экране карточки встают
+   в ряд, на узком схлопываются сами, без медиазапроса на каждый брейкпоинт.
+   Минимум 400px выбран по числу карточек: при 280px в контейнер 1120px влезали
+   три колонки, и четвёртая карточка оставалась одна в ряду с дырой справа.
+   400px даёт 2×2 на десктопе и одну колонку на телефоне. */
+.bot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: var(--space-5);
+}
+
+@media (max-width: 520px) {
+  /* Ниже 400px + отступы колонка перестала бы влезать целиком: minmax
+     не сжимает трек ниже минимума и выталкивает его за край экрана. */
+  .bot-grid { grid-template-columns: 1fr; }
+}
+
+.bot-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5);
+}
+
+.bot-card h3 {
+  margin: 0;
+  font-size: var(--text-h3);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bot-card p {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  line-height: 1.65;
+  color: var(--text-2);
+}
+
+.bot-card code {
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text);
+  /* Путь длиннее колонки не должен растягивать сетку и рождать
+     горизонтальную прокрутку. Но и рвать его посреди слова без нужды
+     тоже нельзя — `break-all` резал /api/agent/slots как «/api/agen»
+     и «t/slots» даже там, где место было. `anywhere` переносит только
+     когда иначе не влезает. */
+  overflow-wrap: anywhere;
+}
+
+/* ── Технические заметки ───────────────────────────────────────────────── */
+
+.bot-notes {
+  padding: var(--space-5);
+}
+
+.bot-notes p {
+  max-width: 42rem;
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: 1.7;
+  color: var(--text-2);
+}
+
+/* ── Мобильная версия ──────────────────────────────────────────────────── */
+
+/* Боковые отступы совпадают с системным .container на этой же ширине
+   (style.css, 16px), чтобы колонка текста не разъезжалась с шапкой. */
+@media (max-width: 768px) {
+  .bot-hero {
+    padding: var(--space-7) 16px var(--space-6);
+  }
+
+  .bot-section {
+    padding: 0 16px var(--space-6);
+  }
+
+  .bot-call {
+    /* Кнопка виджета висит в правом нижнем углу поверх содержимого.
+       Запас снизу у последней секции добавлен там же, ниже. */
+    margin-top: var(--space-6);
+    padding: var(--space-5) var(--space-4);
+  }
+}
+
+/* Виджет ElevenLabs — фиксированный кружок в правом нижнем углу, z-index 1000.
+   На узком экране он перекрывает низ страницы, поэтому последней секции
+   нужен запас, иначе развёрнутый виджет закроет хвост текста. */
+@media (max-width: 768px) {
+  .bot-section:last-of-type {
+    padding-bottom: var(--space-8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bot-call-mark {
+    transition: none;
+  }
+}

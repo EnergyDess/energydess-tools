@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% include '_meta.html' %}
+  {# Витрина тестового задания. Из выдачи убрана и ни одной ссылкой с сайта
+     не связана: виджет тратит платные минуты, и случайный заход по поиску
+     стоил бы денег. Пара к этому — Disallow в /robots.txt (main.py). #}
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/botamin.css">
+</head>
+<body class="has-site-header page-column">
+
+{% include '_header.html' %}
+
+<main class="page-fill">
+
+  <section class="container bot-hero">
+    <span class="eyebrow">Тестовое задание</span>
+    <h1>Голосовой ИИ-агент для Botamin</h1>
+    <p class="bot-lead">Тестовое задание. Нажмите кнопку и поговорите с агентом голосом.</p>
+
+    <div class="card bot-call">
+      <span class="bot-call-mark" aria-hidden="true">
+        <i data-lucide="phone-call"></i>
+      </span>
+      <p class="bot-call-title">Кнопка звонка — в правом нижнем углу экрана</p>
+      <p class="bot-call-note">
+        Виджет ElevenLabs ставит себя туда сам и держится там при прокрутке.
+        Браузер спросит доступ к микрофону — без него агент не услышит.
+        Разговор идёт голосом, набирать ничего не нужно.
+      </p>
+      <p class="bot-call-hint">Наушники избавят от эха, но не обязательны.</p>
+    </div>
+  </section>
+
+  <section class="container bot-section">
+    <h2>Что делает агент</h2>
+    <ul class="bot-list">
+      <li><span class="bot-list-num">1</span><span>Узнаёт сферу компании собеседника</span></li>
+      <li><span class="bot-list-num">2</span><span>Подаёт кейс из его отрасли, а не общий рассказ о себе</span></li>
+      <li><span class="bot-list-num">3</span><span>Согласовывает дату и время встречи</span></li>
+      <li><span class="bot-list-num">4</span><span>Собирает контакты для подтверждения</span></li>
+      <li><span class="bot-list-num">5</span><span>Квалифицирует лид — отделяет интерес от вежливости</span></li>
+    </ul>
+  </section>
+
+  <section class="container bot-section">
+    <h2>Как устроено</h2>
+    <div class="bot-grid">
+
+      <article class="card bot-card">
+        <span class="eyebrow">Агент</span>
+        <h3>Один агент, шесть узлов</h3>
+        <p>Сценарий разговора собран из шести узлов workflow. Состояние диалога
+           держит платформа — на нашей стороне сессий нет.</p>
+      </article>
+
+      <article class="card bot-card">
+        <span class="eyebrow">Календарь</span>
+        <h3>Даты считает сервер</h3>
+        <p>Два вебхука на этом же домене: <code>/api/agent/slots</code> отдаёт
+           свободные слоты, <code>/api/agent/slots/check</code> проверяет дату,
+           которую агент назвал вслух. Модель не считает даты сама — она в этом
+           ошибается.</p>
+      </article>
+
+      <article class="card bot-card">
+        <span class="eyebrow">Модель и голос</span>
+        <h3>Qwen3.5-397B-A17B</h3>
+        <p>Речь синтезирует ElevenLabs V3. Выбор в пользу скорости отклика:
+           в разговоре пауза заметнее неточной формулировки.</p>
+      </article>
+
+      <article class="card bot-card">
+        <span class="eyebrow">Задержка</span>
+        <h3>Вебхук отвечает за 1–4 мс</h3>
+        <p>Замерено на проде. Полный оборот вместе с сетью — 230–430 мс
+           в зависимости от того, из какого региона звонят. Обращений к базе
+           и внешним сервисам в этом пути нет вообще.</p>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="container bot-section">
+    <h2>Технические заметки</h2>
+    {# ЗАГЛУШКА. Денис пришлёт текст отдельно — заменить абзац целиком
+       перед сдачей. Разметка блока при замене не меняется. #}
+    <div class="card bot-notes">
+      <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer posuere
+         erat a ante venenatis dapibus posuere velit aliquet. Nullam quis risus eget
+         urna mollis ornare vel eu leo. Cras mattis consectetur purus sit amet
+         fermentum. Donec ullamcorper nulla non metus auctor fringilla. Maecenas sed
+         diam eget risus varius blandit sit amet non magna.</p>
+    </div>
+  </section>
+
+</main>
+
+{# Виджет — прямым потомком body, без единой обёртки. Он рисует себя
+   position: fixed, а любой предок с transform, filter, contain или
+   overflow создаёт новый контейнер позиционирования и обрезает его
+   по своим границам. Код вставлен ровно в том виде, в каком выдан
+   платформой: размещение (правый нижний угол) — его собственная
+   настройка по умолчанию. #}
+<elevenlabs-convai agent-id="agent_9101kz7bshe4e3fra5b8cmax5t0p"></elevenlabs-convai>
+<script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
+
+{% set footer_thin = true %}
+{% include '_footer.html' %}
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>lucide.createIcons();</script>
+</body>
+</html>

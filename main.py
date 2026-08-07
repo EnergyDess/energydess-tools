@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, BackgroundTasks, Cookie
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, RedirectResponse, FileResponse
+from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, PlainTextResponse
 from fastapi.exceptions import HTTPException
 from bs4 import BeautifulSoup
 import httpx
@@ -976,6 +976,46 @@ DEMO_PROGRAMS = {
 @app.get("/demo")
 async def demo_page(request: Request):
     return templates.TemplateResponse(request=request, name="demo_landing.html", context={})
+
+
+@app.get("/botamin")
+async def botamin_page(request: Request, user=Depends(get_current_user)):
+    """Витрина голосового агента (тестовое задание Botamin).
+
+    Страница публичная и без авторизации, но из выдачи убрана и ни одной
+    ссылкой с сайта не связана: виджет тратит платные минуты разговора,
+    и случайный заход по поиску стоил бы денег. Защиты две — noindex
+    в шаблоне и Disallow в /robots.txt, — и обе нужны вместе: noindex
+    убирает страницу из индекса, robots.txt не пускает на неё робота.
+
+    user в контексте обязателен, хотя страница им не пользуется:
+    _header.html выбирает вид шапки через `user is defined and user`,
+    и без него залогиненный человек увидел бы гостевые кнопки при живой
+    сессии. Та же причина, что у static_page ниже.
+    """
+    return templates.TemplateResponse(
+        request=request, name="botamin.html",
+        context={"user": user,
+                 "meta_title": "Голосовой ИИ-агент для Botamin",
+                 "meta_desc": "Демонстрация голосового агента: запись на "
+                              "видеовстречу разговором, календарная логика "
+                              "на стороне сервера."})
+
+
+@app.get("/robots.txt")
+async def robots_txt():
+    """Правила для поисковых роботов.
+
+    До сегодняшнего дня файла не было вовсе — робот получал 404 и обходил
+    сайт целиком, что нас устраивало. Появился /botamin, который стоит денег
+    при каждом открытии, и его надо закрыть.
+
+    Обратная сторона Disallow: файл публичный, и строка в нём сообщает всем
+    желающим, что такой путь существует. Для страницы, которую и так знает
+    любой, кому дали ссылку, размен приемлемый; полагаться только на него
+    нельзя — потому в шаблоне ещё и noindex.
+    """
+    return PlainTextResponse("User-agent: *\nDisallow: /botamin\n")
 
 
 @app.get("/demo/program/{slug}")
