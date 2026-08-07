@@ -12,6 +12,7 @@
 день, разнесённость, свободен ли слот, совпадение двух ответов подряд.
 """
 
+import re
 from datetime import date, time, timedelta
 
 import agent_slots
@@ -316,6 +317,77 @@ def test_в_human_нет_цифрового_времени(client, freeze):
     for фраза in произносимое:
         assert ":00" not in фраза, фраза
         assert "0" not in фраза.replace("10", "").replace("11", ""), фраза
+
+
+def test_ни_в_одном_hint_нет_цифрового_времени(client, freeze):
+    """Обход ВСЕХ шести причин отказа: агент произносит hint вслух.
+
+    Тест перебирает причины по списку из самого кода, а не по выписанному
+    руками: появится седьмая — она попадёт сюда сама. Проверка, которая
+    молчит про новую ветку, хуже отсутствующей: она создаёт уверенность.
+    """
+    freeze("2026-08-06T09:00")
+    день_с_занятым = первый_день_с_занятым_слотом(date(2026, 8, 7))
+
+    запросы = {
+        "weekday_mismatch": {"date": "2026-08-07", "time": "15:00",
+                             "expected_weekday": "среда"},
+        "past": {"date": "2026-08-05", "time": "15:00",
+                 "expected_weekday": "среда"},
+        "today": {"date": "2026-08-06", "time": "15:00",
+                  "expected_weekday": "четверг"},
+        "weekend": {"date": "2026-08-08", "time": "15:00",
+                    "expected_weekday": "суббота"},
+        "outside_hours": {"date": "2026-08-07", "time": "18:00",
+                          "expected_weekday": "пятница"},
+        "outside_hours_минуты": {"date": "2026-08-07", "time": "15:30",
+                                 "expected_weekday": "пятница"},
+        "busy": {"date": f"{день_с_занятым}",
+                 "time": f"{занятый_час(день_с_занятым):02d}:00",
+                 "expected_weekday": agent_slots.WEEKDAYS_NOM[день_с_занятым.weekday()]},
+    }
+
+    причины = set()
+    for метка, тело in запросы.items():
+        данные = client.post("/api/agent/slots/check", headers=auth(),
+                             json=тело).json()
+        assert данные["ok"] is False, метка
+        причины.add(данные["reason"])
+        assert not re.search(r"\d{1,2}:\d{2}", данные["hint"]), (метка, данные["hint"])
+        for а in данные["alternatives"]:
+            assert not re.search(r"\d{1,2}:\d{2}", а["human"]), (метка, а["human"])
+
+    # Все причины из кода должны быть покрыты: иначе тест обходит не всё.
+    assert причины == {"weekday_mismatch", "past", "today", "weekend",
+                       "outside_hours", "busy"}
+
+
+def test_hint_про_часы_приёма_собран_из_констант(client, freeze):
+    """Фраза строится из WORK_START_HOUR и WORK_END_HOUR, а не написана руками:
+    сдвинут границы — текст обязан поехать следом, а не начать врать."""
+    freeze("2026-08-06T09:00")
+    данные = client.post("/api/agent/slots/check", headers=auth(),
+                         json={"date": "2026-08-07", "time": "18:00",
+                               "expected_weekday": "пятница"}).json()
+    assert данные["hint"] == "встречи назначаем с 9 утра до 5 часов дня"
+    assert agent_slots.spoken_hours_range() == "с 9 утра до 5 часов дня"
+
+
+def test_hint_про_начало_часа(client, freeze):
+    freeze("2026-08-06T09:00")
+    данные = client.post("/api/agent/slots/check", headers=auth(),
+                         json={"date": "2026-08-07", "time": "15:30",
+                               "expected_weekday": "пятница"}).json()
+    assert данные["hint"] == ("встречи начинаются в начале часа, "
+                              "например, в 3 часа дня")
+
+
+def test_родительный_падеж_в_обороте_до(client, freeze):
+    """«до полудня», а не «до полдень» — если границы приёма сдвинут."""
+    assert agent_slots._genitive("полдень") == "полудня"
+    assert agent_slots._genitive("полночь") == "полуночи"
+    assert agent_slots._genitive("час дня") == "часа дня"
+    assert agent_slots._genitive("5 часов дня") == "5 часов дня"
 
 
 def test_id_остаётся_машинным(client, freeze):
