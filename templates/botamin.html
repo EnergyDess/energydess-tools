@@ -33,7 +33,7 @@
       <span class="bot-call-mark" aria-hidden="true">
         <i data-lucide="phone-call"></i>
       </span>
-      <p class="bot-call-title">Кнопка «Начать звонок» — внизу экрана</p>
+      <p class="bot-call-title">Кнопка «Начать звонок» — в правом нижнем углу</p>
       <p class="bot-call-note">
         Браузер спросит доступ к микрофону — без него агент не услышит.
         Набирать ничего не нужно, разговор идёт голосом.
@@ -169,11 +169,13 @@
 {# Виджет — прямым потомком body, без единой обёртки. Он рисует себя
    position: fixed, а любой предок с transform, filter, contain или overflow
    создаёт новый контейнер позиционирования и обрезает его по своим границам.
-   placement="bottom" — единственное изменение выданного кода: по умолчанию
-   виджет садится в правый нижний угол, а главному элементу страницы место
-   по центру. Список допустимых значений зашит в самом виджете:
-   top-left, top, top-right, bottom-left, bottom, bottom-right. #}
-<elevenlabs-convai agent-id="agent_9101kz7bshe4e3fra5b8cmax5t0p" placement="bottom"></elevenlabs-convai>
+   Код вставлен ровно в том виде, в каком выдан платформой: атрибут
+   placement здесь стоял, и он убран. По центру снизу (placement="bottom")
+   виджет ложился поверх текста на всех ширинах — накрывал строки списка
+   «Что делает агент» и хвост «Технических заметок». В правом нижнем углу
+   (значение по умолчанию) он попадает на поле страницы, а не на колонку
+   текста: та ограничена по ширине и центрирована. #}
+<elevenlabs-convai agent-id="agent_9101kz7bshe4e3fra5b8cmax5t0p"></elevenlabs-convai>
 <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
 
 {% set footer_thin = true %}
