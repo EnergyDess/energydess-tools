@@ -7,7 +7,7 @@
 
 import os
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 import pytest
@@ -62,6 +62,17 @@ def auth(**kwargs):
 def час_дня(строка: str) -> int:
     """Час из id слота «2026-08-07T10:00»."""
     return int(строка[11:13])
+
+
+def сказано(строка: str) -> str:
+    """Как время из id слота звучит вслух: «2026-08-07T16:00» → «в 4 часа дня».
+
+    Тесты композиции (завтра, день недели, число) проверяют СБОРКУ фразы,
+    а не выбор слов для времени, и потому берут его у самой функции. Сам
+    выбор слов проверяется отдельно и с прописанными руками ожиданиями —
+    см. test_время_словами: иначе тест сверял бы реализацию с самой собой.
+    """
+    return agent_slots.spoken_time(time(hour=час_дня(строка)))
 
 
 def свободный_час(день: date) -> int:

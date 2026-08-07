@@ -12,10 +12,10 @@
 день, разнесённость, свободен ли слот, совпадение двух ответов подряд.
 """
 
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 
 import agent_slots
-from conftest import (KEY, auth, час_дня, свободный_час, занятый_час,
+from conftest import (KEY, auth, час_дня, сказано, свободный_час, занятый_час,
                       первый_день_с_занятым_слотом)
 
 
@@ -79,7 +79,7 @@ def test_3_среда_утро_даёт_четверг_со_словом_зав�
     options = client.get("/api/agent/slots", headers=auth()).json()["options"]
     assert all(o["id"].startswith("2026-08-06") for o in options)
     assert "завтра" in options[0]["human"]
-    assert options[0]["human"] == f"завтра, в четверг, в {час_дня(options[0]['id'])}:00"
+    assert options[0]["human"] == f"завтра, в четверг, {сказано(options[0]['id'])}"
 
 
 def test_8_варианты_разнесены(client, freeze):
@@ -235,7 +235,7 @@ def test_after_дальше_шести_дней_проговаривает_чи�
     options = client.get("/api/agent/slots?after=2026-08-17",
                          headers=auth()).json()["options"]
     assert options[0]["human"] == (
-        f"в понедельник, 17 августа, в {час_дня(options[0]['id'])}:00")
+        f"в понедельник, 17 августа, {сказано(options[0]['id'])}")
 
 
 def test_after_на_выходной_переносится_на_понедельник(client, freeze):
@@ -260,6 +260,73 @@ def test_after_кривого_формата_422(client, freeze):
     assert "ГГГГ-ММ-ДД" in r.json()["detail"]
 
 
+# ─────────────────────────── Время словами ──────────────────────────────
+
+def test_время_словами():
+    """Цифры «16:00» синтез читает как «нуль-наль» — вслух идут слова.
+
+    Ожидания прописаны руками, а не взяты у самой функции: тест, который
+    сверяет реализацию с реализацией, проходит всегда и не значит ничего.
+    """
+    ожидания = {
+        9: "в 9 утра", 10: "в 10 утра", 11: "в 11 утра",
+        12: "в полдень",
+        13: "в час дня", 14: "в 2 часа дня", 15: "в 3 часа дня",
+        16: "в 4 часа дня", 17: "в 5 часов дня",
+    }
+    for час, фраза in ожидания.items():
+        assert agent_slots.spoken_time(time(hour=час)) == фраза, час
+
+
+def test_время_словами_вне_часов_приёма():
+    """Границы приёма — константы. Сдвинут их — форма обязана остаться верной."""
+    ожидания = {
+        0: "в полночь", 1: "в час ночи", 2: "в 2 часа ночи",
+        5: "в 5 утра", 8: "в 8 утра",
+        18: "в 6 вечера", 22: "в 10 вечера", 23: "в 11 часов ночи",
+    }
+    for час, фраза in ожидания.items():
+        assert agent_slots.spoken_time(time(hour=час)) == фраза, час
+
+
+def test_не_круглый_час_остаётся_цифрами():
+    """Слотов не на круглый час не бывает, но если появятся — лучше цифры,
+    чем слова, которые перестанут соответствовать времени."""
+    assert agent_slots.spoken_time(time(15, 30)) == "в 15:30"
+
+
+def test_в_human_нет_цифрового_времени(client, freeze):
+    """Ни один произносимый ответ не должен содержать «:00»."""
+    freeze("2026-08-06T10:00")
+    произносимое = []
+    данные = client.get("/api/agent/slots", headers=auth()).json()
+    произносимое += [o["human"] for o in данные["options"]]
+
+    отказ = client.post("/api/agent/slots/check", headers=auth(),
+                        json={"date": "2026-08-08", "time": "15:00",
+                              "expected_weekday": "суббота"}).json()
+    произносимое += [a["human"] for a in отказ["alternatives"]]
+
+    час = свободный_час(date(2026, 8, 7))
+    успех = client.post("/api/agent/slots/check", headers=auth(),
+                        json={"date": "2026-08-07", "time": f"{час:02d}:00",
+                              "expected_weekday": "пятница"}).json()
+    произносимое.append(успех["slot"]["human"])
+
+    for фраза in произносимое:
+        assert ":00" not in фраза, фраза
+        assert "0" not in фраза.replace("10", "").replace("11", ""), фраза
+
+
+def test_id_остаётся_машинным(client, freeze):
+    """Словесная форма — только в human. id разбирает программа."""
+    freeze("2026-08-06T10:00")
+    данные = client.get("/api/agent/slots", headers=auth()).json()
+    for o in данные["options"]:
+        assert o["id"].endswith(":00"), o
+        assert " " not in o["id"], o
+
+
 # ──────────────────── День недели произносится один раз ─────────────────
 
 def test_второй_вариант_того_же_дня_без_дня_недели(client, freeze):
@@ -268,7 +335,7 @@ def test_второй_вариант_того_же_дня_без_дня_неде
     options = client.get("/api/agent/slots", headers=auth()).json()["options"]
     assert options[0]["id"][:10] == options[1]["id"][:10]
 
-    assert options[1]["human"] == f"в {час_дня(options[1]['id'])}:00"
+    assert options[1]["human"] == сказано(options[1]["id"])
     for день in agent_slots.WEEKDAYS_NOM:
         assert день[:-1] not in options[1]["human"], день
     assert "завтра" not in options[1]["human"]
@@ -287,7 +354,7 @@ def test_второй_вариант_в_другой_день_называет_�
     from datetime import datetime
     now = datetime(2026, 8, 6, 10, 0, tzinfo=agent_slots.TZ)
     другой_день = datetime(2026, 8, 10, 15, 0, tzinfo=agent_slots.TZ)
-    assert agent_slots.human_phrase(другой_день, now) == "в понедельник в 15:00"
+    assert agent_slots.human_phrase(другой_день, now) == "в понедельник в 3 часа дня"
 
 
 # ──────────────────────────── check: отказы ─────────────────────────────
@@ -480,9 +547,10 @@ def test_успех_проговаривает_число_и_месяц(client, 
     данные = client.post("/api/agent/slots/check", headers=auth(),
                          json={"date": "2026-08-07", "time": f"{час:02d}:00",
                                "expected_weekday": "пятница"}).json()
+    вслух = agent_slots.spoken_time(time(hour=час))
     assert данные == {"ok": True,
                       "slot": {"id": f"2026-08-07T{час:02d}:00",
-                               "human": f"в пятницу, 7 августа, в {час:02d}:00"}}
+                               "human": f"в пятницу, 7 августа, {вслух}"}}
 
 
 # ───────────────────────── Разбор входных данных ────────────────────────
