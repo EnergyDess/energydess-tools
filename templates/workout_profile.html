@@ -19,10 +19,20 @@
 <main class="wkp-page page-fill">
 
   <div class="wkp-shell">
+    {# Единственная страница проекта, у которой родитель НЕ достижим из шапки:
+       логотип ведёт в лаунчер, а «/workout» из шапки не открыть ничем.
+       Поэтому здесь крошки, а на самих страницах инструментов их нет —
+       design-system.md §10.3. Раньше тут стояла безымянная стрелка
+       .wkp-back: она вела туда же, но не говорила куда, и была третьим
+       способом вернуться назад при двух уже описанных (§10.4) #}
+    <nav class="breadcrumb" aria-label="Хлебные крошки">
+      <a href="/">Инструменты</a>
+      <span class="crumb-sep">/</span>
+      <a href="/workout">Тренировки</a>
+      <span class="crumb-sep">/</span>
+      <span class="crumb-current">Профиль</span>
+    </nav>
     <div class="wkp-head">
-      <a href="/workout" class="wkp-back" title="К программе">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-      </a>
       <h1><i data-lucide="settings" class="tool-icon wkp-head-icon"></i> Профиль тренировок</h1>
     </div>
 

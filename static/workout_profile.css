@@ -41,10 +41,10 @@
   gap: var(--space-5);
 }
 .wkp-head { display: flex; align-items: center; gap: var(--space-3); }
-/* font-size здесь не задаётся: внутри ссылки только <svg> с width/height 20,
-   на который кегль текста не влияет. В прежней копии стояло 1.3rem вхолостую. */
-.wkp-back { color: var(--text-2); text-decoration: none; display: flex; align-items: center; }
-.wkp-back:hover { color: var(--text); }
+/* .wkp-back удалён 2026-08-10 (BACKLOG.md, задача 39): стрелка «назад»
+   заменена системными крошками. Она была третьим способом вернуться
+   при двух описанных в design-system.md §10.4 и, в отличие от крошек,
+   не называла, куда ведёт. */
 .wkp-head h1 { font-family: var(--font); font-size: var(--text-h2); font-weight: 700; color: var(--text); }
 /* Значок внутри строки заголовка: базовая линия svg не совпадает с базовой
    линией текста, отсюда подгонка. Свой класс, а не правило на системном

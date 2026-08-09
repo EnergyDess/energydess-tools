@@ -422,9 +422,10 @@
   padding: var(--space-3) var(--space-6) var(--space-3) var(--space-3);
   position: relative;
 }
-/* Фон полей внутри под-карточки задаёт .input-nested / .textarea-nested
-   в разметке — вариант живёт в style.css, страница его не повторяет */
-.dosie-item .textarea.sm { min-height: 58px; }
+/* Фон полей внутри под-карточки задаёт .input-nested / .textarea-nested,
+   высоту — .textarea-compact; оба варианта живут в style.css, страница
+   их не повторяет. Своего правила на поля у .dosie-item больше нет
+   (BACKLOG.md, задача 45) */
 .dosie-item-del {
   position: absolute; top: var(--space-2); right: var(--space-2);
   background: none; border: none; cursor: pointer;

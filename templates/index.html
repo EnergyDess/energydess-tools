@@ -134,7 +134,10 @@
       <span class="hero-line">Мои инструменты</span>
       <span class="hero-line hero-accent">для умной работы</span>
     </h1>
-    <p class="hero-sub">Привет, {{ user.display_name or user.email.split('@')[0] }} 👋</p>
+    {# 👋 убрана (задача 31): это настроение, а не значок. design-system.md §8
+       такое разрешает и там же говорит «лучше без». Тот же разбор, что
+       у «Увидимся в следующий раз» в дневнике 2026-08-08 #}
+    <p class="hero-sub">Привет, {{ user.display_name or user.email.split('@')[0] }}</p>
   </section>
 
   <div class="section-header">

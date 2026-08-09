@@ -17,12 +17,11 @@
 
 <main class="container container-wide">
 
-  <nav class="breadcrumb" aria-label="Хлебные крошки">
-    <a href="/">Инструменты</a>
-    <span class="crumb-sep">/</span>
-    <span class="crumb-current">HH-ассистент</span>
-  </nav>
-
+  {# Крошек здесь нет с 2026-08-10 и быть не должно: родитель у страницы
+     один — лаунчер, а он и так стоит в шапке логотипом. Строка
+     «Инструменты / HH-ассистент» повторяла его ссылкой и заголовок H1
+     под собой — три элемента подряд об одном. Правило и разбор —
+     design-system.md §10.3, BACKLOG.md задача 39 #}
   <header class="hh-page-header">
     <span class="eyebrow"><i data-lucide="briefcase" class="tool-icon"></i> Карьера</span>
     <h1>HH-ассистент</h1>
@@ -1097,12 +1096,12 @@
       <div class="dosie-g1">
         <div class="dosie-field">
           <label class="field-label dosie-label">Что делал</label>
-          <textarea class="textarea textarea-nested sm exp-desc" placeholder="Коротко об обязанностях..."></textarea>
+          <textarea class="textarea textarea-nested textarea-compact exp-desc" rows="2" placeholder="Коротко об обязанностях..."></textarea>
         </div>
       </div>
       <div class="dosie-field">
         <label class="field-label dosie-label">Достижения</label>
-        <textarea class="textarea textarea-nested sm exp-ach" placeholder="Конкретные результаты с цифрами..."></textarea>
+        <textarea class="textarea textarea-nested textarea-compact exp-ach" rows="2" placeholder="Конкретные результаты с цифрами..."></textarea>
       </div>`;
     item.querySelector('.exp-company').value  = d.company      || '';
     item.querySelector('.exp-position').value = d.position     || '';
@@ -1149,7 +1148,7 @@
       <div class="dosie-g1">
         <div class="dosie-field">
           <label class="field-label dosie-label">Описание</label>
-          <textarea class="textarea textarea-nested sm proj-desc" placeholder="Что за проект и какую проблему решает..."></textarea>
+          <textarea class="textarea textarea-nested textarea-compact proj-desc" rows="2" placeholder="Что за проект и какую проблему решает..."></textarea>
         </div>
       </div>
       <div class="dosie-g2">
