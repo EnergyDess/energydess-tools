@@ -60,14 +60,37 @@
   --accent-brand-hover: #146AFF;
   --accent-brand-dim: rgba(79,143,255,0.15);
 
+  /* У каждого акцента ТРИ значения: сам цвет, приглушённый фон и наведение.
+     Наведение считается одним рецептом на все четыре: тот же тон и та же
+     насыщенность, светлота сдвинута ОТ цвета надписи на заливке. Направление
+     задаёт надпись, размер шага — работа, которую шагу поручено сделать:
+
+       белая надпись (hh, enshrouded) — заливка ТЕМНЕЕТ на 11 пунктов.
+         Шаг большой, потому что чинит: в покое там 3.13 и 3.19, впритык
+         к границе 3.0, а после шага 4.63 и 5.29 — уже с запасом.
+       тёмная надпись (nutrition, workout) — заливка СВЕТЛЕЕТ на 6 пунктов.
+         Чинить нечего, в покое 7.76 и 9.17; шагу остаётся только быть
+         замеченным. Те же 11 пунктов дали бы #16EBA4 — неоновая мята,
+         прямо запрещённая настроением раздела (design-system.md §7.3).
+
+     Замеры контраста надписи покой → наведение:
+       hh          #4F8FFF → #146AFF   белый        3.13 → 4.63
+       nutrition   #10B981 → #12D595   --surface-0  7.76 → 10.29
+       workout     #F59E0B → #F6AA28   --surface-0  9.17 → 10.03
+       enshrouded  #D97706 → #A25904   белый        3.19 → 5.29
+     Ни одно не падает — это и есть проверяемое условие правила. */
   --accent-hh: #4F8FFF;
   --accent-hh-dim: rgba(79,143,255,0.15);
+  --accent-hh-hover: #146AFF;          /* совпадает с брендовым: акцент тот же */
   --accent-nutrition: #10B981;
   --accent-nutrition-dim: rgba(16,185,129,0.15);
+  --accent-nutrition-hover: #12D595;
   --accent-workout: #F59E0B;
   --accent-workout-dim: rgba(245,158,11,0.15);
+  --accent-workout-hover: #F6AA28;
   --accent-enshrouded: #D97706;
   --accent-enshrouded-dim: rgba(217,119,6,0.15);
+  --accent-enshrouded-hover: #A25904;
 
   /* Semantic */
   --success: #10B981;
@@ -106,22 +129,44 @@
   --dur-slow: 400ms;
 }
 
-/* ── Темы инструментов ──────────────────────────────────────────────────── */
-.theme-hh {
+/* ── Темы инструментов ──────────────────────────────────────────────────────
+   АКЦЕНТ НЕ ОБЪЯВЛЯЕТСЯ В ОДИНОЧКУ. Комплект из четырёх: сама заливка,
+   приглушённый фон, наведение и ЦВЕТ НАДПИСИ на заливке. Разделить их —
+   это и есть баг задачи 43: .btn-primary брала фон из акцента, а белую
+   надпись держала константой, и на янтаре получалось 2.15.
+
+   Поэтому .theme-* (страница инструмента) и .tool-* (карточка инструмента
+   на лендинге, а на /nutrition и /workout для гостя — и весь <body> страницы
+   tool_preview.html) объявлены ОДНИМ правилом. Раньше это были два списка
+   в разных местах файла, и второй знал про акцент, но не знал про надпись:
+   кнопка «Войти» на превью получила бы белый текст на зелёном. Один список
+   разъехаться не может.
+
+   Про сам цвет надписи — design-system.md §1.4, «Цвет текста на акцентной
+   заливке»: граница 3.0, ниже — var(--surface-0), выше — белый. */
+.theme-hh, .tool-hh {
   --tool-accent: var(--accent-hh);
   --tool-accent-dim: var(--accent-hh-dim);
+  --tool-accent-hover: var(--accent-hh-hover);
+  --tool-accent-ink: var(--text-strong);   /* белый на #4F8FFF — 3.13 */
 }
-.theme-nutrition {
+.theme-nutrition, .tool-nutrition {
   --tool-accent: var(--accent-nutrition);
   --tool-accent-dim: var(--accent-nutrition-dim);
+  --tool-accent-hover: var(--accent-nutrition-hover);
+  --tool-accent-ink: var(--surface-0);     /* белый дал бы 2.54, тёмный — 7.76 */
 }
-.theme-workout {
+.theme-workout, .tool-workout {
   --tool-accent: var(--accent-workout);
   --tool-accent-dim: var(--accent-workout-dim);
+  --tool-accent-hover: var(--accent-workout-hover);
+  --tool-accent-ink: var(--surface-0);     /* белый дал бы 2.15, тёмный — 9.17 */
 }
-.theme-enshrouded {
+.theme-enshrouded, .tool-enshrouded {
   --tool-accent: var(--accent-enshrouded);
   --tool-accent-dim: var(--accent-enshrouded-dim);
+  --tool-accent-hover: var(--accent-enshrouded-hover);
+  --tool-accent-ink: var(--text-strong);   /* белый на #D97706 — 3.19 */
 }
 
 /* ── База ───────────────────────────────────────────────────────────────── */
@@ -213,12 +258,10 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
    .card + .tool-card + класс акцента (.tool-hh / .tool-nutrition / …).
    Отличается только наличием категорийной метки — на лендинге она есть,
    на лаунчере не нужна. Раньше это были два разных компонента: лендинг на
-   .card, а главная — самостоятельный набор хардкодов. */
-.tool-hh         { --tool-accent: var(--accent-hh);         --tool-accent-dim: var(--accent-hh-dim); }
-.tool-nutrition  { --tool-accent: var(--accent-nutrition);  --tool-accent-dim: var(--accent-nutrition-dim); }
-.tool-workout    { --tool-accent: var(--accent-workout);    --tool-accent-dim: var(--accent-workout-dim); }
-.tool-enshrouded { --tool-accent: var(--accent-enshrouded); --tool-accent-dim: var(--accent-enshrouded-dim); }
+   .card, а главная — самостоятельный набор хардкодов.
 
+   Сами классы акцента .tool-* объявлены выше, ОДНИМ правилом с темами
+   разделов: акцент не ездит без цвета надписи, см. комментарий там. */
 .tool-card {
   display: flex;
   flex-direction: column;
@@ -294,14 +337,25 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
   .tool-card:hover .tool-card-arrow { transform: none; }
 }
 
-/* ── Buttons ────────────────────────────────────────────────────────────── */
+/* ── Buttons ──────────────────────────────────────────────────────────────
+   ГЛАВНАЯ КНОПКА ОКРАШИВАЕТСЯ АКЦЕНТОМ СВОЕГО РАЗДЕЛА, а не брендом.
+   Это не новое решение: design-system.md §1.4 первым же пунктом списка
+   «где разрешён акцент» называет primary CTA внутри инструмента. Правило
+   было записано, код его не выполнял — .btn-primary читала --accent-brand
+   жёстко, и на янтарной странице единственным синим пятном была как раз
+   главная кнопка. Поля, чипы, вкладки и focus-ring акцент читали.
+
+   Три свойства кнопки перестают быть константами и едут комплектом
+   (см. блок тем): заливка, надпись, наведение. Вне раздела --tool-accent
+   не объявлен, и каждый var() падает на брендовое значение — форма записи
+   ровно та же, что у полей и чипов, нового идиома здесь нет. */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  background: var(--accent-brand);
-  color: #fff;
+  background: var(--tool-accent, var(--accent-brand));
+  color: var(--tool-accent-ink, var(--text-strong));
   font-family: var(--font);
   font-weight: 600;
   font-size: var(--text-body);
@@ -317,7 +371,7 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
               background var(--dur-fast) var(--ease),
               filter var(--dur-fast) var(--ease);
 }
-.btn-primary:hover { background: var(--accent-brand-hover); transform: scale(1.02); }
+.btn-primary:hover { background: var(--tool-accent-hover, var(--accent-brand-hover)); transform: scale(1.02); }
 .btn-primary:active { transform: scale(1); }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
@@ -402,9 +456,13 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
   transition: border-color var(--dur-fast) var(--ease),
               background var(--dur-fast) var(--ease);
 }
+/* Наведение тоже в акценте раздела. Иначе на янтарной странице получалось бы
+   две главные кнопки разного цвета: primary янтарная, а стоящая рядом
+   secondary синеет под курсором. Заливки у secondary нет, поэтому вопрос
+   цвета надписи здесь не возникает — --tool-accent-ink ей не нужен. */
 .btn-secondary:hover {
-  border-color: var(--accent-brand);
-  background: var(--accent-brand-dim);
+  border-color: var(--tool-accent, var(--accent-brand));
+  background: var(--tool-accent-dim, var(--accent-brand-dim));
 }
 .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -542,6 +600,9 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
   font-size: var(--text-caption);
   font-weight: 500;
   cursor: default;
+  /* чип — одна короткая подпись, переносить её нечего и незачем: в узком
+     ряду перенос сделал бы соседние чипы разновысокими */
+  white-space: nowrap;
   transition: border-color var(--dur-fast) var(--ease),
               background var(--dur-fast) var(--ease),
               color var(--dur-fast) var(--ease);
@@ -557,13 +618,20 @@ button.chip:hover, a.chip:hover {
   border-color: var(--tool-accent, var(--accent-brand));
 }
 
+/* Mono-label над заголовком. Цвет — акцент раздела: так это и записано
+   в design-system.md §7.1 («один mono-label, цвет = акцент»). Читал он его
+   до 2026-08-09 не сам: три страницы дописывали `color: var(--tool-accent)`
+   у себя — hh.css, workout.css и landing.css, тремя одинаковыми строками.
+   Та же болезнь, что была у главной кнопки, только дешевле в симптомах.
+   Вне раздела акцент не объявлен и подпись остаётся вторичным текстом —
+   это лендинг, где .eyebrow стоит ещё и над обычными секциями. */
 .eyebrow {
   font-family: var(--font-mono);
   font-size: var(--text-mono);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-2);
+  color: var(--tool-accent, var(--text-2));
 }
 
 /* ── Вкладки раздела ──────────────────────────────────────────────────────
@@ -844,9 +912,24 @@ html.modal-open, html.modal-open body { overflow: hidden; }
   font-size: var(--text-body-sm);
   background: var(--surface-1);
 }
+/* Акцент раздела, а не бренд. Правило вообще не должно было существовать:
+   .input:focus в компонентной базе уже красит фокус в --tool-accent, а это —
+   его копия с брендовым цветом, и она выигрывала по специфичности — (0,3,0)
+   против (0,2,0).
+
+   Из-за неё design-system.md §7.7 полтора месяца утверждал неправду: «на
+   страницах тренировок focus-ring теперь янтарный». Замер 2026-08-06 был
+   настоящий, но мерил он ДРУГОЕ — что --tool-accent у .site-header
+   разрешается (разрешался, #F59E0B). Вывод про кольцо из него не следовал
+   и проверен не был: 2026-08-09 замер самого кольца дал синий на всех
+   четырёх разделах. Родня задачи 44 — правильная разметка, правильный
+   токен, третье правило молча выигрывает.
+
+   Строки остаются только затем, чтобы задать цвет; геометрия и переход
+   приходят из компонента. */
 .header-search .input:focus {
-  border-color: var(--accent-brand);
-  box-shadow: 0 0 0 3px var(--accent-brand-dim);
+  border-color: var(--tool-accent, var(--accent-brand));
+  box-shadow: 0 0 0 3px var(--tool-accent-dim, var(--accent-brand-dim));
 }
 .header-search .search-icon {
   position: absolute; left: var(--space-3); top: 50%;

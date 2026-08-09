@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/static/nutrition.css">
 </head>
-<body class="has-site-header page-column">
+<body class="theme-nutrition has-site-header page-column">
 
 {% include '_header.html' %}
 
@@ -92,28 +92,28 @@
     <section class="nut-tab" id="tab-search">
       <button class="search-back" onclick="handleBack()">← Назад в дневник</button>
       <div class="s-chips" id="meal-chips">
-        <button class="s-chip active" data-meal="breakfast" onclick="setSearchMeal(this)"><i data-lucide="sunrise"></i> Завтрак</button>
-        <button class="s-chip" data-meal="lunch"     onclick="setSearchMeal(this)"><i data-lucide="sun"></i> Обед</button>
-        <button class="s-chip" data-meal="dinner"    onclick="setSearchMeal(this)"><i data-lucide="moon"></i> Ужин</button>
-        <button class="s-chip" data-meal="snack"     onclick="setSearchMeal(this)"><i data-lucide="apple"></i> Перекус</button>
+        <button class="chip active" data-meal="breakfast" onclick="setSearchMeal(this)"><i data-lucide="sunrise"></i> Завтрак</button>
+        <button class="chip" data-meal="lunch"     onclick="setSearchMeal(this)"><i data-lucide="sun"></i> Обед</button>
+        <button class="chip" data-meal="dinner"    onclick="setSearchMeal(this)"><i data-lucide="moon"></i> Ужин</button>
+        <button class="chip" data-meal="snack"     onclick="setSearchMeal(this)"><i data-lucide="apple"></i> Перекус</button>
       </div>
       <div class="s-bar">
-        <input type="search" class="s-input" id="s-input" placeholder="Поиск еды..."
+        <input type="search" class="input input-compact" id="s-input" placeholder="Поиск еды..."
                oninput="onSearch(this.value)" autocomplete="off" enterkeyhint="search">
-        <button class="icon-btn" onclick="openPhoto()" title="Фото">
+        <button class="btn-icon btn-icon-solid" onclick="openPhoto()" title="Фото">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
         </button>
-        <button class="icon-btn" onclick="openScanner()" title="Штрих-код">
+        <button class="btn-icon btn-icon-solid" onclick="openScanner()" title="Штрих-код">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path d="M3 5v4M3 3h4M21 3h-4M21 5v4M3 19v-4M3 21h4M21 21h-4M21 19v-4"/><path d="M7 8h2v8H7zM11 8h2v8h-2zM15 8h2v8h-2z"/>
           </svg>
         </button>
       </div>
       <button class="add-manual-btn" onclick="openCustomFoodModal()"><i data-lucide="pencil"></i> Добавить свой продукт</button>
-      <div class="s-tabs">
-        <button class="s-tab active" id="st-recent"   onclick="setSearchTab('recent')">Недавние</button>
-        <button class="s-tab"        id="st-frequent" onclick="setSearchTab('frequent')">Частые</button>
-        <button class="s-tab"        id="st-recipes"  onclick="setSearchTab('recipes')">Рецепты</button>
+      <div class="segmented s-tabs" id="s-tabs">
+        <button class="segmented-btn active" id="st-recent"   onclick="setSearchTab('recent')">Недавние</button>
+        <button class="segmented-btn"        id="st-frequent" onclick="setSearchTab('frequent')">Частые</button>
+        <button class="segmented-btn"        id="st-recipes"  onclick="setSearchTab('recipes')">Рецепты</button>
       </div>
       <div id="s-results"></div>
     </section>
@@ -168,7 +168,7 @@
           <div class="m-card"><div class="m-val" id="m-hips">—</div><div class="m-lbl">Ягодицы, см</div></div>
           <div class="m-card"><div class="m-val" id="m-chest">—</div><div class="m-lbl">Грудь, см</div></div>
         </div>
-        <button class="save-btn save-btn-flush" onclick="открыть_модалку('modal-measure')"><i data-lucide="ruler"></i> Записать замер</button>
+        <button class="btn-primary btn-block save-btn-flush" onclick="открыть_модалку('modal-measure')"><i data-lucide="ruler"></i> Записать замер</button>
       </div>
       <div class="d-right">
         <div class="chart-box"><div class="week-title">График веса</div><svg class="wt-svg" id="wt-svg"></svg></div>
@@ -187,19 +187,19 @@
               <button class="radio-btn"        data-val="female" onclick="setRad(this)">Женский</button>
             </div>
           </div>
-          <div class="f-field"><label class="field-label f-label">Возраст</label><input type="number" class="f-input" id="p-age"    placeholder="25" min="10" max="100"></div>
-          <div class="f-field"><label class="field-label f-label">Вес, кг</label><input type="number" class="f-input" id="p-weight" placeholder="70" min="30" max="250" step="0.1"></div>
-          <div class="f-field"><label class="field-label f-label">Рост, см</label><input type="number" class="f-input" id="p-height" placeholder="170" min="120" max="250"></div>
-          <div class="f-field"><label class="field-label f-label">Цель по весу, кг</label><input type="number" class="f-input" id="p-target" placeholder="65" min="30" max="250" step="0.1"></div>
+          <div class="f-field"><label class="field-label f-label">Возраст</label><input type="number" class="input input-compact" id="p-age"    placeholder="25" min="10" max="100"></div>
+          <div class="f-field"><label class="field-label f-label">Вес, кг</label><input type="number" class="input input-compact" id="p-weight" placeholder="70" min="30" max="250" step="0.1"></div>
+          <div class="f-field"><label class="field-label f-label">Рост, см</label><input type="number" class="input input-compact" id="p-height" placeholder="170" min="120" max="250"></div>
+          <div class="f-field"><label class="field-label f-label">Цель по весу, кг</label><input type="number" class="input input-compact" id="p-target" placeholder="65" min="30" max="250" step="0.1"></div>
         </div>
 
         <div class="p-sec">
           <div class="p-sec-title">Умные весы Xiaomi</div>
           <div id="scale-disconnected">
             <p class="p-note">Подключи весы Mi Body Composition Scale через аккаунт Zepp Life — вес и состав тела будут подтягиваться автоматически. Это неофициальная интеграция: если Zepp Life изменит свой API, синхронизация может прерваться — тогда просто продолжай вводить вес вручную, ничего не сломается.</p>
-            <input type="text" class="f-input scale-input" id="scale-username" placeholder="email или телефон Zepp Life">
-            <input type="password" class="f-input scale-input" id="scale-password" placeholder="пароль">
-            <button class="save-btn" onclick="connectScale()" id="scale-connect-btn">Подключить весы Xiaomi</button>
+            <input type="text" class="input input-compact scale-input" id="scale-username" placeholder="email или телефон Zepp Life">
+            <input type="password" class="input input-compact scale-input" id="scale-password" placeholder="пароль">
+            <button class="btn-primary btn-block" onclick="connectScale()" id="scale-connect-btn">Подключить весы Xiaomi</button>
             <div class="p-msg" id="scale-connect-msg"></div>
           </div>
           <div id="scale-connected" style="display:none">
@@ -229,14 +229,14 @@
               <div class="body-photo-slot" onclick="document.getElementById('photo-back').click()" id="slot-back">+ Сзади</div>
             </div>
           </div>
-          <button class="save-btn" onclick="uploadBodyPhotos()">Сохранить фото за сегодня</button>
+          <button class="btn-primary btn-block" onclick="uploadBodyPhotos()">Сохранить фото за сегодня</button>
           <div class="p-msg" id="body-photo-msg"></div>
 
           <div class="p-sec-title p-sec-title-gap">Сравнение по датам</div>
           <div class="compare-row">
-            <select class="f-input compare-select" id="compare-date-old" onchange="renderCompare()"></select>
+            <select class="select input-compact compare-select" id="compare-date-old" onchange="renderCompare()"></select>
             <span class="compare-arrow">→</span>
-            <select class="f-input compare-select" id="compare-date-new" onchange="renderCompare()"></select>
+            <select class="select input-compact compare-select" id="compare-date-new" onchange="renderCompare()"></select>
           </div>
           <div class="compare-view" id="compare-view"></div>
         </div>
@@ -268,7 +268,7 @@
             <div class="t-item"><div class="t-val val-wat" id="t-wat">—</div><div class="t-lbl">Вода, мл</div></div>
           </div>
         </div>
-        <button class="save-btn" onclick="saveProfile()">Сохранить</button>
+        <button class="btn-primary btn-block" onclick="saveProfile()">Сохранить</button>
       </div>
     </section>
 
@@ -298,7 +298,7 @@
             </button>
           </div>
         </div>
-        <input type="text" class="chat-in" id="assistant-chat-in" placeholder="Задайте вопрос о питании..."
+        <input type="text" class="input input-compact" id="assistant-chat-in" placeholder="Задайте вопрос о питании..."
                onkeydown="if(event.key==='Enter')sendChat('assistant-chat-in')">
         <button class="chat-attach-btn" id="assistant-chat-mic" title="Голосовое сообщение">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
@@ -356,17 +356,17 @@
         <button class="por-edit-btn" id="por-edit-btn" onclick="togglePorEdit()" type="button"><i data-lucide="pencil"></i> Изменить</button>
       </div>
       <div class="por-edit-grid" id="por-edit-grid" style="display:none">
-        <div class="f-field f-field-wide"><label class="field-label f-label">Бренд / заведение</label><input type="text" class="f-input" id="pe-brand" placeholder="Например, ресторан или производитель" oninput="onPorEdit()"></div>
-        <div class="f-field"><label class="field-label f-label">Калории на 100г</label><input type="number" class="f-input" id="pe-kcal" oninput="onPorEdit()"></div>
-        <div class="f-field"><label class="field-label f-label">Белки, г</label><input type="number" class="f-input" id="pe-prot" oninput="onPorEdit()"></div>
-        <div class="f-field"><label class="field-label f-label">Жиры, г</label><input type="number" class="f-input" id="pe-fat" oninput="onPorEdit()"></div>
-        <div class="f-field"><label class="field-label f-label">Углеводы, г</label><input type="number" class="f-input" id="pe-carb" oninput="onPorEdit()"></div>
+        <div class="f-field f-field-wide"><label class="field-label f-label">Бренд / заведение</label><input type="text" class="input input-compact" id="pe-brand" placeholder="Например, ресторан или производитель" oninput="onPorEdit()"></div>
+        <div class="f-field"><label class="field-label f-label">Калории на 100г</label><input type="number" class="input input-compact" id="pe-kcal" oninput="onPorEdit()"></div>
+        <div class="f-field"><label class="field-label f-label">Белки, г</label><input type="number" class="input input-compact" id="pe-prot" oninput="onPorEdit()"></div>
+        <div class="f-field"><label class="field-label f-label">Жиры, г</label><input type="number" class="input input-compact" id="pe-fat" oninput="onPorEdit()"></div>
+        <div class="f-field"><label class="field-label f-label">Углеводы, г</label><input type="number" class="input input-compact" id="pe-carb" oninput="onPorEdit()"></div>
       </div>
       <div class="s-chips" id="por-meal-chips">
-        <button class="s-chip" data-meal="breakfast" onclick="setPorMeal(this)"><i data-lucide="sunrise"></i> Завтрак</button>
-        <button class="s-chip" data-meal="lunch"     onclick="setPorMeal(this)"><i data-lucide="sun"></i> Обед</button>
-        <button class="s-chip" data-meal="dinner"    onclick="setPorMeal(this)"><i data-lucide="moon"></i> Ужин</button>
-        <button class="s-chip" data-meal="snack"     onclick="setPorMeal(this)"><i data-lucide="apple"></i> Перекус</button>
+        <button class="chip" data-meal="breakfast" onclick="setPorMeal(this)"><i data-lucide="sunrise"></i> Завтрак</button>
+        <button class="chip" data-meal="lunch"     onclick="setPorMeal(this)"><i data-lucide="sun"></i> Обед</button>
+        <button class="chip" data-meal="dinner"    onclick="setPorMeal(this)"><i data-lucide="moon"></i> Ужин</button>
+        <button class="chip" data-meal="snack"     onclick="setPorMeal(this)"><i data-lucide="apple"></i> Перекус</button>
       </div>
       <div class="g-wrap">
         <input type="number" class="g-input" id="g-input" value="100" min="1" max="5000" oninput="updateCalc()" onfocus="setTimeout(()=>this.select())">
@@ -405,15 +405,15 @@
 
 <!-- ─── MODAL: Custom food ─── -->
 {% call m.modal('modal-custom', 'Добавить вручную') %}
-      <div class="f-field"><label class="field-label f-label">Название *</label><input type="text" class="f-input" id="cf-name" placeholder="Куриное филе"></div>
-      <div class="f-field"><label class="field-label f-label">Бренд / заведение</label><input type="text" class="f-input" id="cf-brand" placeholder="Например, ресторан или производитель"></div>
-      <div class="f-field"><label class="field-label f-label">Штрих-код</label><input type="text" class="f-input" id="cf-barcode"></div>
+      <div class="f-field"><label class="field-label f-label">Название *</label><input type="text" class="input input-compact" id="cf-name" placeholder="Куриное филе"></div>
+      <div class="f-field"><label class="field-label f-label">Бренд / заведение</label><input type="text" class="input input-compact" id="cf-brand" placeholder="Например, ресторан или производитель"></div>
+      <div class="f-field"><label class="field-label f-label">Штрих-код</label><input type="text" class="input input-compact" id="cf-barcode"></div>
       <div class="f-label f-label-group">КБЖУ на 100г</div>
       <div class="cf-grid">
-        <div class="f-field"><label class="field-label f-label">Калории *</label><input type="number" class="f-input" id="cf-cal"  placeholder="165"></div>
-        <div class="f-field"><label class="field-label f-label">Белок, г</label><input type="number" class="f-input" id="cf-prot" placeholder="31"></div>
-        <div class="f-field"><label class="field-label f-label">Жиры, г</label><input type="number" class="f-input" id="cf-fat"  placeholder="3.6"></div>
-        <div class="f-field"><label class="field-label f-label">Углеводы, г</label><input type="number" class="f-input" id="cf-carb" placeholder="0"></div>
+        <div class="f-field"><label class="field-label f-label">Калории *</label><input type="number" class="input input-compact" id="cf-cal"  placeholder="165"></div>
+        <div class="f-field"><label class="field-label f-label">Белок, г</label><input type="number" class="input input-compact" id="cf-prot" placeholder="31"></div>
+        <div class="f-field"><label class="field-label f-label">Жиры, г</label><input type="number" class="input input-compact" id="cf-fat"  placeholder="3.6"></div>
+        <div class="f-field"><label class="field-label f-label">Углеводы, г</label><input type="number" class="input input-compact" id="cf-carb" placeholder="0"></div>
       </div>
       <button class="add-btn" onclick="saveCustomFood()">Сохранить и добавить</button>
 {% endcall %}
@@ -450,9 +450,9 @@
       <div class="f-field">
         <label class="field-label f-label">Опишите блюдо (необязательно)</label>
         <div class="s-bar s-bar-flush">
-          <input type="text" class="s-input" id="pa-desc" placeholder="Например: с майонезом, порция побольше..."
+          <input type="text" class="input input-compact" id="pa-desc" placeholder="Например: с майонезом, порция побольше..."
                  onkeydown="if(event.key==='Enter')runPhotoAnalyze()">
-          <button class="icon-btn" id="pa-mic-btn" title="Голосовое сообщение">
+          <button class="btn-icon btn-icon-solid" id="pa-mic-btn" title="Голосовое сообщение">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
           </button>
         </div>
@@ -462,7 +462,7 @@
 
 <!-- ─── MODAL: Create recipe ─── -->
 {% call m.modal('modal-recipe', 'Новый рецепт') %}
-      <div class="f-field"><label class="field-label f-label">Название</label><input type="text" class="f-input" id="rec-name" placeholder="Творожная запеканка"></div>
+      <div class="f-field"><label class="field-label f-label">Название</label><input type="text" class="input input-compact" id="rec-name" placeholder="Творожная запеканка"></div>
       <div class="f-label f-label-group-tight">Ингредиенты</div>
       <div class="ing-list" id="ing-list"></div>
       <button class="ing-add-btn" onclick="openSearchForRecipe()">+ Ингредиент</button>
@@ -479,12 +479,12 @@
    флаг оставался поднятым #}
 {% call m.modal('modal-recipe-ing', 'Добавить ингредиент') %}
       <div class="s-bar">
-        <input type="search" class="s-input" id="ring-input" placeholder="Поиск ингредиента..."
+        <input type="search" class="input input-compact" id="ring-input" placeholder="Поиск ингредиента..."
                oninput="onSearchIng(this.value)" autocomplete="off" enterkeyhint="search">
       </div>
-      <div class="s-tabs">
-        <button class="s-tab active" id="rt-recent"   onclick="setIngTab('recent')">Недавние</button>
-        <button class="s-tab"        id="rt-frequent" onclick="setIngTab('frequent')">Частые</button>
+      <div class="segmented s-tabs">
+        <button class="segmented-btn active" id="rt-recent"   onclick="setIngTab('recent')">Недавние</button>
+        <button class="segmented-btn"        id="rt-frequent" onclick="setIngTab('frequent')">Частые</button>
       </div>
       <div id="ring-results"></div>
 {% endcall %}
@@ -539,7 +539,7 @@
             </button>
           </div>
         </div>
-        <input type="text" class="chat-in" id="chat-in" placeholder="Задайте вопрос о питании..."
+        <input type="text" class="input input-compact" id="chat-in" placeholder="Задайте вопрос о питании..."
                onkeydown="if(event.key==='Enter')sendChat()">
         <button class="chat-attach-btn" id="chat-in-mic" title="Голосовое сообщение">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
@@ -552,12 +552,12 @@
 
 <!-- ─── MODAL: Measure ─── -->
 {% call m.modal('modal-measure', 'Записать замер') %}
-      <div class="f-field"><label class="field-label f-label">Вес, кг</label><input type="number" class="f-input" id="mw-kg"    placeholder="70.5" step="0.1"></div>
+      <div class="f-field"><label class="field-label f-label">Вес, кг</label><input type="number" class="input input-compact" id="mw-kg"    placeholder="70.5" step="0.1"></div>
       <div class="f-label f-label-group">Замеры тела</div>
       <div class="meas-grid">
-        <div class="f-field"><label class="field-label f-label">Талия, см</label><input type="number" class="f-input" id="mw-waist" placeholder="80"></div>
-        <div class="f-field"><label class="field-label f-label">Ягодицы, см</label><input type="number" class="f-input" id="mw-hips"  placeholder="95"></div>
-        <div class="f-field"><label class="field-label f-label">Грудь, см</label><input type="number" class="f-input" id="mw-chest" placeholder="90"></div>
+        <div class="f-field"><label class="field-label f-label">Талия, см</label><input type="number" class="input input-compact" id="mw-waist" placeholder="80"></div>
+        <div class="f-field"><label class="field-label f-label">Ягодицы, см</label><input type="number" class="input input-compact" id="mw-hips"  placeholder="95"></div>
+        <div class="f-field"><label class="field-label f-label">Грудь, см</label><input type="number" class="input input-compact" id="mw-chest" placeholder="90"></div>
       </div>
       <button class="add-btn" onclick="saveMeasure()">Сохранить</button>
 {% endcall %}
@@ -802,7 +802,7 @@ function confirmWaterManual() {
 // ── Search ────────────────────────────────────────────────────────────────────
 function openSearchFor(mealId) {
   S.searchMeal = mealId; S.addingIng = false;
-  document.querySelectorAll('.s-chip').forEach(b=>b.classList.toggle('active',b.dataset.meal===mealId));
+  document.querySelectorAll('#meal-chips .chip, #por-meal-chips .chip').forEach(b=>b.classList.toggle('active',b.dataset.meal===mealId));
   goTab('search');
   document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector('[data-tab="search"]').classList.add('active');
@@ -821,7 +821,7 @@ function openSearchForRecipe() {
 function closeIngSearch() { закрыть_модалку('modal-recipe-ing'); }
 
 function setSearchMeal(btn) {
-  document.querySelectorAll('.s-chip').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#meal-chips .chip, #por-meal-chips .chip').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   S.searchMeal = btn.dataset.meal;
 }
@@ -844,7 +844,7 @@ async function runSearch(q) {
 
 function setSearchTab(tab) {
   S.searchTab = tab;
-  document.querySelectorAll('.s-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#s-tabs .segmented-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('st-'+tab).classList.add('active');
   document.getElementById('s-input').value = '';
   searchReqId++;
@@ -869,7 +869,7 @@ async function loadRecipesList() {
   const wrap = document.getElementById('s-results');
   if (!data.recipes?.length) {
     wrap.innerHTML = `<div class="empty">Нет рецептов — создайте первый!</div>
-      <button class="save-btn save-btn-gap" onclick="openCreateRecipe()">+ Создать рецепт</button>`;
+      <button class="btn-primary btn-block save-btn-gap" onclick="openCreateRecipe()">+ Создать рецепт</button>`;
     return;
   }
   wrap.innerHTML = `<button class="ai-btn ai-btn-gap" onclick="openCreateRecipe()">+ Создать рецепт</button>` +
@@ -911,7 +911,7 @@ async function runSearchIng(q) {
 
 function setIngTab(tab) {
   S.ingTab = tab;
-  document.querySelectorAll('#modal-recipe-ing .s-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#modal-recipe-ing .segmented-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('rt-'+tab).classList.add('active');
   document.getElementById('ring-input').value = '';
   ingSearchReqId++;
@@ -1016,11 +1016,11 @@ function setPorMealChips(mealId) {
   if (!mealId) { wrap.style.display = 'none'; return; }
   wrap.style.display = '';
   S.porMeal = mealId;
-  wrap.querySelectorAll('.s-chip').forEach(b=>b.classList.toggle('active', b.dataset.meal===mealId));
+  wrap.querySelectorAll('.chip').forEach(b=>b.classList.toggle('active', b.dataset.meal===mealId));
 }
 
 function setPorMeal(btn) {
-  document.querySelectorAll('#por-meal-chips .s-chip').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#por-meal-chips .chip').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   S.porMeal = btn.dataset.meal;
   if (!S.editingFoodId && !S.addingIng) {
@@ -1987,7 +1987,7 @@ function drawWeightChart(logs) {
 
   /* точки и хит-зоны */
   const dots = wts.map((l, i) =>
-    `<circle class="wt-dot" id="wtd-${i}" cx="${xPos(i).toFixed(1)}" cy="${yPos(l.weight_kg).toFixed(1)}" r="4.5" fill="var(--nut-g)" stroke="var(--surface-1)" stroke-width="2" vector-effect="non-scaling-stroke"/>`
+    `<circle class="wt-dot" id="wtd-${i}" cx="${xPos(i).toFixed(1)}" cy="${yPos(l.weight_kg).toFixed(1)}" r="4.5" fill="var(--tool-accent)" stroke="var(--surface-1)" stroke-width="2" vector-effect="non-scaling-stroke"/>`
   ).join('');
   const hits = wts.map((l, i) =>
     `<circle class="wt-hit" cx="${xPos(i).toFixed(1)}" cy="${yPos(l.weight_kg).toFixed(1)}" r="22" fill="transparent" data-i="${i}"/>`
@@ -1996,12 +1996,12 @@ function drawWeightChart(logs) {
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.removeAttribute('preserveAspectRatio');
   svg.innerHTML = `<defs><linearGradient id="wtGrad" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0%" stop-color="var(--nut-g)" stop-opacity=".22"/>
-    <stop offset="100%" stop-color="var(--nut-g)" stop-opacity="0"/>
+    <stop offset="0%" stop-color="var(--tool-accent)" stop-opacity=".22"/>
+    <stop offset="100%" stop-color="var(--tool-accent)" stop-opacity="0"/>
   </linearGradient></defs>
   ${grid}${yLbls}${xLbls}
   <polygon points="${areaPts}" fill="url(#wtGrad)" stroke="none"/>
-  <polyline points="${pts}" fill="none" stroke="var(--nut-g)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+  <polyline points="${pts}" fill="none" stroke="var(--tool-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
   ${dots}${hits}`;
 
   /* тултип с датой, весом и замерами */
@@ -2010,7 +2010,7 @@ function drawWeightChart(logs) {
   function showTip(i, cx, cy) {
     const l = wts[i];
     const dot = document.getElementById('wtd-' + i);
-    if (dot) { dot.setAttribute('r', '6.5'); dot.style.filter = 'drop-shadow(0 0 6px var(--nut-g))'; }
+    if (dot) { dot.setAttribute('r', '6.5'); dot.style.filter = 'drop-shadow(0 0 6px var(--tool-accent))'; }
     const dateStr = new Date(l.date).toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' });
     let html = `<div class="wt-tt-date">${dateStr}</div>
       <div class="wt-tt-row"><span>Вес</span><strong>${l.weight_kg} кг</strong></div>`;

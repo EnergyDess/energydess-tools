@@ -35,12 +35,19 @@
 /* Капля воды берёт цвет воды, зелень раздела — зелёный: у эмодзи цвет был
    свой, у Lucide он наследуется, и без этих двух строк оба стали бы серыми */
 .water-emoji svg.lucide { color: var(--wat); }
-.sidebar-hd svg.lucide  { color: var(--nut-g); }
+.sidebar-hd svg.lucide  { color: var(--tool-accent); }
 
 /* ── Переменные страницы ──────────────────────────────────────────────────
    Только то, чего нет в системе: цвета нутриентов и две высоты раскладки.
    Имена с префиксом --nut-* / --prot и т.д. — системных токенов страница
    не объявляет (CLAUDE.md §6.0.2, проверка 2).
+
+   ЗЕЛЁНОГО ЗДЕСЬ БОЛЬШЕ НЕТ. Стояли --nut-g и --nut-g-dim, ведшие акцент
+   раздела мимо системы: 64 и 16 обращений, плюс 24 записи rgba(34,197,94)
+   литералом. Литералы вдобавок были ДРУГИМ зелёным (#22C55E против
+   системного #10B981) — рамка чипа не совпадала с его же заливкой.
+   Всё переведено на --tool-accent, который теперь разрешается: <body>
+   несёт .theme-nutrition (BACKLOG.md, задача 38).
 
    СИСТЕМНЫЙ --border ЗДЕСЬ БОЛЬШЕ НЕ ПЕРЕОПРЕДЕЛЯЕТСЯ. Стояло
    rgba(255,255,255,.10) против системных .08, и это была не косметика,
@@ -52,9 +59,6 @@
    от системы незачем.
    Нужна граница плотнее — в системе для этого есть --border-strong. */
 :root {
-  --nut-g:     var(--accent-nutrition);
-  --nut-g-dim: var(--accent-nutrition-dim);
-  --nut-g-glo: color-mix(in srgb, var(--accent-nutrition) 25%, transparent);
   --prot: #f472b6;
   --fat:  #fbbf24;
   --carb: #60a5fa;
@@ -62,6 +66,12 @@
   --nav-h: 4rem;
   --hdr-h: 3.375rem;
 }
+
+/* Свечение выведено из акцента раздела, поэтому объявляется НА <body>,
+   а не в :root: акцент приносит класс темы, и в :root он ещё не разрешён.
+   Объявление в :root дало бы недействительное значение при вычислении
+   и молчаливый отказ — тот самый, из-за которого задача 38 и возникла. */
+body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
 
 /* ── App shell ── */
 /* Раньше .nut-app занимал ровно высоту окна (через flex/--app-h и т.п.), а
@@ -88,7 +98,7 @@
   .nut-app {
     border-left:  1px solid var(--border);
     border-right: 1px solid var(--border);
-    box-shadow: 0 0 120px rgba(34,197,94,.09), 0 0 40px rgba(0,212,255,.06);
+    box-shadow: 0 0 120px color-mix(in srgb, var(--tool-accent) 9%, transparent), 0 0 40px rgba(0,212,255,.06);
   }
 }
 
@@ -197,10 +207,10 @@ html.assistant-mode, html.assistant-mode body {
   transition: color .15s; -webkit-tap-highlight-color: transparent;
 }
 .nut-nav-btn svg { width: 1.3125rem; height: 1.3125rem; }
-.nut-nav-btn.active { color: var(--nut-g); }
+.nut-nav-btn.active { color: var(--tool-accent); }
 .nav-plus {
   width: 1.375rem; height: 1.375rem; border-radius: 0.4375rem;
-  background: var(--nut-g); display: flex; align-items: center; justify-content: center;
+  background: var(--tool-accent); display: flex; align-items: center; justify-content: center;
 }
 /* Иконка на зелёной заливке: белая давала 2.54, --surface-0 даёт 7.76 */
 .nav-plus svg { width: 0.875rem; height: 0.875rem; color: var(--surface-0); }
@@ -229,18 +239,18 @@ html.assistant-mode, html.assistant-mode body {
    Пульсирует всегда, независимо от заполнения — оживляет кольцо, когда дневник пуст. */
 .ring-container::before {
   content: ''; position: absolute; inset: -4%; border-radius: 50%;
-  background: radial-gradient(circle, rgba(34,197,94,.45) 0%, transparent 70%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--tool-accent) 45%, transparent) 0%, transparent 70%);
   opacity: .5; z-index: -1; pointer-events: none;
   animation: ring-glow-pulse 3.2s ease-in-out infinite;
 }
 .ring-svg { width: 10.625rem; height: 10.625rem; }
 .ring-track { fill: none; stroke: var(--surface-sunken); stroke-width: 13; }
 .ring-fill {
-  fill: none; stroke: var(--nut-g); stroke-width: 13; stroke-linecap: round;
+  fill: none; stroke: var(--tool-accent); stroke-width: 13; stroke-linecap: round;
   stroke-dasharray: 440; stroke-dashoffset: 440;
   transform-origin: center; transform: rotate(-90deg);
   transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1);
-  filter: drop-shadow(0 0 6px var(--nut-g-glo));
+  filter: drop-shadow(0 0 6px var(--nut-glow));
   animation: ring-fill-glow 2.6s ease-in-out infinite;
 }
 .ring-fill.over { stroke: #ef4444; filter: drop-shadow(0 0 6px rgba(239,68,68,.4)); animation: none; }
@@ -249,8 +259,8 @@ html.assistant-mode, html.assistant-mode body {
   50%      { opacity: .9;  transform: scale(1.08); }
 }
 @keyframes ring-fill-glow {
-  0%, 100% { filter: drop-shadow(0 0 6px var(--nut-g-glo)); }
-  50%      { filter: drop-shadow(0 0 13px var(--nut-g-glo)); }
+  0%, 100% { filter: drop-shadow(0 0 6px var(--nut-glow)); }
+  50%      { filter: drop-shadow(0 0 13px var(--nut-glow)); }
 }
 .ring-center { position: absolute; text-align: center; }
 .ring-center.pulse { animation: ring-pop .5s cubic-bezier(.34,1.56,.64,1); }
@@ -262,7 +272,7 @@ html.assistant-mode, html.assistant-mode body {
 .ring-remain {
   font-size: 1.65rem; font-weight: 800; line-height: 1; font-family: var(--font);
   font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
-  background: linear-gradient(135deg, #fff 10%, var(--nut-g) 95%);
+  background: linear-gradient(135deg, #fff 10%, var(--tool-accent) 95%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 /* Подпись и счётчик "X из Y" — единый жирный белый стиль для читаемости */
@@ -314,11 +324,11 @@ html.assistant-mode, html.assistant-mode body {
 }
 .meal-icon { font-size: 1rem; }
 .meal-name { font-size: 0.87rem; font-weight: 700; flex: 1; }
-.meal-kcal { font-size: 0.8125rem; color: var(--nut-g); font-weight: 600; }
+.meal-kcal { font-size: 0.8125rem; color: var(--tool-accent); font-weight: 600; }
 .meal-add {
   width: 1.875rem; height: 1.875rem; border-radius: 0.5rem;
-  background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2);
-  color: var(--nut-g); font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
+  background: var(--tool-accent-dim); border: 1px solid color-mix(in srgb, var(--tool-accent) 20%, transparent);
+  color: var(--tool-accent); font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
   cursor: pointer; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
 }
 .meal-items { border-top: 1px solid var(--border); }
@@ -327,7 +337,7 @@ html.assistant-mode, html.assistant-mode body {
 .food-info { flex: 1; min-width: 0; }
 .food-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .food-sub  { font-size: 0.8125rem; color: var(--text); font-weight: 700; margin-top: 0.0625rem; }
-.food-kcal { font-size: 0.8125rem; color: var(--nut-g); font-weight: 600; white-space: nowrap; }
+.food-kcal { font-size: 0.8125rem; color: var(--tool-accent); font-weight: 600; white-space: nowrap; }
 .food-del  {
   width: 1.625rem; height: 1.625rem; border-radius: 0.4375rem; background: rgba(239,68,68,.1);
   border: 1px solid rgba(239,68,68,.2); color: #ef4444;
@@ -338,50 +348,44 @@ html.assistant-mode, html.assistant-mode body {
 /* ── AI chat button ── */
 .ai-btn {
   width: 100%; padding: 0.8125rem; border-radius: 0.8125rem; border: none;
-  background: linear-gradient(135deg, var(--nut-g-dim), rgba(34,197,94,.05));
-  border: 1px solid rgba(34,197,94,.22); color: var(--nut-g);
+  background: linear-gradient(135deg, var(--tool-accent-dim), color-mix(in srgb, var(--tool-accent) 5%, transparent));
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 22%, transparent); color: var(--tool-accent);
   font-size: 0.88rem; font-weight: 600; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 0.5rem;
   transition: background .15s; margin: 0.25rem 0 0.625rem; -webkit-tap-highlight-color: transparent;
 }
-.ai-btn:active { background: rgba(34,197,94,.22); }
+.ai-btn:active { background: color-mix(in srgb, var(--tool-accent) 22%, transparent); }
 
 /* ── Search ── */
 .search-back { display: none; }
-.s-chips { display: flex; gap: 0.4375rem; margin-bottom: 0.75rem; }
-.s-chip {
-  flex: 1; padding: 0.375rem 0.5rem; border-radius: 1.25rem; font-size: 0.8125rem; font-weight: 600;
-  background: var(--surface-sunken); border: 1px solid var(--border); color: var(--text-2);
-  cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
-  text-align: center; white-space: nowrap;
-}
-.s-chip.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
+/* ── Вкладка «Добавить»: три системных компонента и раскладка вокруг них ──
+   Здесь стояли .s-chip, .s-input, .icon-btn и .s-tab — четыре копии того,
+   что в системе называется .chip, .input, .btn-icon и .segmented-btn
+   (BACKLOG.md, задача 42). Сведение ждало задачу 38: до неё --tool-accent
+   на этой странице не разрешался, и системное поле получило бы синий фокус
+   вместо зелёного — то есть уборка вышла бы регрессом.
+
+   Осталась только раскладка: ряд, ширины, отступы. Свойства раскладки
+   принадлежат родителю, а не компоненту, — CLAUDE.md §6.0.2, таблица
+   законных строк проверки 1. */
+/* Ряд прокручивается по горизонтали, как .tab-bar в системе. Системный
+   .chip шире самодельного .s-chip, который тут стоял: у него gap 8px между
+   значком и подписью и паддинг 4/12 против 6/8 — примерно двенадцать
+   лишних пикселей на чип. На 390px четыре чипа перестали помещаться,
+   и «Перекус» уезжал за край. Поймано пиксельной сверкой мобильной сцены.
+   Прокрутка, а не уменьшение паддингов: паддинг принадлежит компоненту,
+   и правка его здесь была бы ровно тем переопределением, ради ухода
+   от которого всё и делалось. */
+.s-chips { display: flex; gap: 0.4375rem; margin-bottom: 0.75rem; overflow-x: auto; }
+/* flex: 1 0 auto — растут поровну, когда ряд шире содержимого (десктоп),
+   и НЕ сжимаются ниже своей подписи, когда уже (мобильный): там едет
+   прокрутка. flex: 1 (базис 0) дал бы сжатие и обрезанный текст. */
+.s-chips .chip { flex: 1 0 auto; justify-content: center; }
 .s-bar { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; position: relative; }
-.s-input {
-  flex: 1; height: 2.75rem; background: var(--surface-sunken); border: 1px solid var(--border);
-  border-radius: 0.6875rem; padding: 0 0.8125rem; color: var(--text); font-size: 0.93rem;
-  outline: none; transition: border-color .15s; font-family: var(--font);
-}
-.s-input:focus { border-color: var(--nut-g); }
-.s-input::placeholder { color: var(--text-2); }
-.icon-btn {
-  width: 2.75rem; height: 2.75rem; border-radius: 0.6875rem; background: var(--surface-sunken);
-  border: 1px solid var(--border); color: var(--text-2);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; flex-shrink: 0; transition: color .15s, border-color .15s;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: none; -webkit-touch-callout: none;
-  -webkit-user-select: none; user-select: none;
-}
-.icon-btn:active { color: var(--nut-g); border-color: var(--nut-g); }
-.icon-btn svg { width: 1.1875rem; height: 1.1875rem; }
-.s-tabs { display: flex; background: var(--surface-sunken); border-radius: 0.5625rem; padding: 0.1875rem; margin-bottom: 0.6875rem; }
-.s-tab {
-  flex: 1; height: 2rem; border-radius: 0.4375rem; border: none; background: none;
-  color: var(--text-2); font-size: 0.8125rem; font-weight: 600;
-  cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
-}
-.s-tab.active { background: var(--surface-1); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+/* .input-compact даёт 44px, и кнопки в ряду обязаны совпасть по высоте:
+   это тот случай, про который §2.1 говорит «размер задаёт место установки» */
+.s-bar .btn-icon { width: 2.75rem; height: 2.75rem; }
+.s-tabs { margin-bottom: 0.6875rem; }
 .r-list { display: flex; flex-direction: column; gap: 0.375rem; }
 .r-item {
   display: flex; align-items: center; gap: 0.6875rem; padding: 0.6875rem 0.8125rem;
@@ -393,18 +397,18 @@ html.assistant-mode, html.assistant-mode body {
 .r-info { flex: 1; min-width: 0; }
 .r-name  { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .r-brand { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; }
-.r-kcal  { font-size: 0.8125rem; color: var(--nut-g); font-weight: 700; white-space: nowrap; }
+.r-kcal  { font-size: 0.8125rem; color: var(--tool-accent); font-weight: 700; white-space: nowrap; }
 .r-per   { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; }
 .empty   { text-align: center; color: var(--text-2); font-weight: 600; padding: 1.75rem 1rem; font-size: 0.87rem; }
 
 /* ── AI estimate fallback ── */
 .ai-estimate-btn {
   width: 100%; padding: 0.75rem; margin-top: 0.625rem; border-radius: 0.6875rem;
-  background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.25);
-  color: var(--nut-g); font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  background: var(--tool-accent-dim); border: 1px solid color-mix(in srgb, var(--tool-accent) 25%, transparent);
+  color: var(--tool-accent); font-size: 0.82rem; font-weight: 600; cursor: pointer;
   -webkit-tap-highlight-color: transparent; transition: background .15s;
 }
-.ai-estimate-btn:active { background: rgba(34,197,94,.22); }
+.ai-estimate-btn:active { background: color-mix(in srgb, var(--tool-accent) 22%, transparent); }
 
 /* ── Ручное добавление продукта ── */
 .add-manual-btn {
@@ -414,25 +418,25 @@ html.assistant-mode, html.assistant-mode body {
   display: flex; align-items: center; justify-content: center; gap: 0.4375rem;
   -webkit-tap-highlight-color: transparent; transition: border-color .15s, color .15s;
 }
-.add-manual-btn:active { border-color: var(--nut-g); color: var(--nut-g); }
+.add-manual-btn:active { border-color: var(--tool-accent); color: var(--tool-accent); }
 
 /* ── History ── */
 .h-date { text-align: center; font-size: 0.88rem; font-weight: 700; text-transform: capitalize; }
 .mini-ring-row { display: flex; align-items: center; justify-content: center; gap: 0.875rem; margin: 0.375rem 0 0.875rem; }
 .h-arrow {
-  width: 2.125rem; height: 2.125rem; border-radius: 50%; background: var(--nut-g-dim);
-  border: 1px solid rgba(34,197,94,.25); color: var(--nut-g); font-size: 1.05rem;
+  width: 2.125rem; height: 2.125rem; border-radius: 50%; background: var(--tool-accent-dim);
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 25%, transparent); color: var(--tool-accent); font-size: 1.05rem;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
   transition: background .15s;
 }
-.h-arrow:active { background: rgba(34,197,94,.25); }
+.h-arrow:active { background: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
 .h-arrow:disabled { opacity: .35; cursor: default; }
 .mini-ring-wrap { display: flex; justify-content: center; }
 .mini-ring-svg { width: 6.875rem; height: 6.875rem; }
 .mini-ring-track { fill: none; stroke: var(--surface-sunken); stroke-width: 10; }
 .mini-ring-fill {
-  fill: none; stroke: var(--nut-g); stroke-width: 10; stroke-linecap: round;
+  fill: none; stroke: var(--tool-accent); stroke-width: 10; stroke-linecap: round;
   stroke-dasharray: 283; stroke-dashoffset: 283;
   transform-origin: center; transform: rotate(-90deg);
   transition: stroke-dashoffset .8s ease;
@@ -442,12 +446,12 @@ html.assistant-mode, html.assistant-mode body {
 .week-bars { display: flex; gap: 0.3125rem; align-items: flex-end; height: 4.5rem; }
 .w-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.1875rem; height: 100%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .w-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
-.w-bar { width: 100%; border-radius: 0.25rem 0.25rem 0 0; background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.25); min-height: 0.1875rem; transition: background .15s, box-shadow .15s; }
-.w-bar.today { background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo); }
-.w-col.active .w-bar { background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo); }
+.w-bar { width: 100%; border-radius: 0.25rem 0.25rem 0 0; background: var(--tool-accent-dim); border: 1px solid color-mix(in srgb, var(--tool-accent) 25%, transparent); min-height: 0.1875rem; transition: background .15s, box-shadow .15s; }
+.w-bar.today { background: var(--tool-accent); box-shadow: 0 0 8px var(--nut-glow); }
+.w-col.active .w-bar { background: var(--tool-accent); box-shadow: 0 0 8px var(--nut-glow); }
 .w-day  { font-size: 0.8125rem; color: var(--text); font-weight: 700; }
-.w-col.active .w-day { color: var(--nut-g); font-weight: 700; }
-.w-kcal { font-size: 0.8125rem; color: var(--nut-g); font-weight: 600; }
+.w-col.active .w-day { color: var(--tool-accent); font-weight: 700; }
+.w-kcal { font-size: 0.8125rem; color: var(--tool-accent); font-weight: 600; }
 .w-trained { font-size: 0.8125rem; }
 
 /* ── Weight ── */
@@ -458,7 +462,7 @@ html.assistant-mode, html.assistant-mode body {
 .wt-prog { margin-top: 0.8125rem; }
 .wt-prog-lbl { display: flex; justify-content: space-between; font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-bottom: 0.3125rem; }
 .wt-prog-bar { height: 0.4375rem; background: var(--surface-sunken); border-radius: 0.25rem; overflow: hidden; box-shadow: inset 0 0 0 1px var(--border); }
-.wt-prog-fill { height: 100%; background: var(--nut-g); border-radius: 0.25rem; transition: width .8s ease; box-shadow: 0 0 8px var(--nut-g-glo); }
+.wt-prog-fill { height: 100%; background: var(--tool-accent); border-radius: 0.25rem; transition: width .8s ease; box-shadow: 0 0 8px var(--nut-glow); }
 .measures { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin: 0.625rem 0; }
 .m-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 0.6875rem; padding: 0.6875rem 0.5625rem; text-align: center; }
 .m-val { font-size: 1.25rem; font-weight: 700; }
@@ -477,7 +481,7 @@ html.assistant-mode, html.assistant-mode body {
 .wt-tt-row { display: flex; justify-content: space-between; gap: 1.125rem; margin-bottom: 0.1875rem; }
 .wt-tt-row:last-child { margin-bottom: 0; }
 .wt-tt-row span { color: var(--text-2); font-size: 0.8125rem; }
-.wt-tt-row strong { color: var(--nut-g); font-weight: 700; font-size: 0.82rem; }
+.wt-tt-row strong { color: var(--tool-accent); font-weight: 700; font-size: 0.82rem; }
 
 /* ── Profile ── */
 .p-sec { margin-bottom: 1.125rem; }
@@ -488,18 +492,15 @@ html.assistant-mode, html.assistant-mode body {
   color: var(--text-2); font-size: 0.8125rem; text-align: center; overflow: hidden;
   background: var(--surface-1); transition: border-color .2s;
 }
-.body-photo-slot:hover { border-color: var(--nut-g); }
+.body-photo-slot:hover { border-color: var(--tool-accent); }
 .body-photo-slot img { width: 100%; height: 100%; object-fit: cover; }
 .compare-col { flex: 1; min-width: 8.75rem; text-align: center; }
 .compare-col img { width: 100%; border-radius: 0.625rem; aspect-ratio: 3/4; object-fit: cover; margin-bottom: 0.25rem; }
 .compare-col-label { font-size: 0.8125rem; color: var(--text-2); margin-top: 0.375rem; }
 .f-label { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-bottom: 0.3125rem; display: block; }
-.f-input {
-  width: 100%; height: 2.75rem; background: var(--surface-sunken); border: 1px solid var(--border);
-  border-radius: 0.6875rem; padding: 0 0.8125rem; color: var(--text); font-size: 0.93rem;
-  outline: none; transition: border-color .15s; font-family: var(--font);
-}
-.f-input:focus { border-color: var(--nut-g); }
+/* .f-input здесь больше нет: это была копия системного .input (25 полей
+   в шести формах). Теперь .input .input-compact, у списков .select.
+   BACKLOG.md, задача 42. */
 .f-field { margin-bottom: 0.6875rem; }
 .radio-row { display: flex; gap: 0.4375rem; }
 .radio-btn {
@@ -507,16 +508,16 @@ html.assistant-mode, html.assistant-mode body {
   background: var(--surface-sunken); color: var(--text-2); font-size: 0.8125rem; font-weight: 600;
   cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
 }
-.radio-btn.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
+.radio-btn.active { background: var(--tool-accent-dim); border-color: color-mix(in srgb, var(--tool-accent) 35%, transparent); color: var(--tool-accent); }
 .act-btn {
   width: 100%; text-align: left; padding: 0.625rem 0.8125rem; border-radius: 0.625rem;
   border: 1px solid var(--border); background: var(--surface-sunken); color: var(--text-2);
   font-size: 0.8125rem; font-weight: 600; cursor: pointer; margin-bottom: 0.3125rem;
   transition: all .15s; -webkit-tap-highlight-color: transparent; font-family: var(--font);
 }
-.act-btn.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
-.targets-box { background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2); border-radius: 0.8125rem; padding: 0.8125rem 0.875rem; margin: 0.875rem 0; }
-.targets-title { font-size: 0.8125rem; color: var(--nut-g); font-weight: 700; margin-bottom: 0.5rem; }
+.act-btn.active { background: var(--tool-accent-dim); border-color: color-mix(in srgb, var(--tool-accent) 35%, transparent); color: var(--tool-accent); }
+.targets-box { background: var(--tool-accent-dim); border: 1px solid color-mix(in srgb, var(--tool-accent) 20%, transparent); border-radius: 0.8125rem; padding: 0.8125rem 0.875rem; margin: 0.875rem 0; }
+.targets-title { font-size: 0.8125rem; color: var(--tool-accent); font-weight: 700; margin-bottom: 0.5rem; }
 .targets-row { display: flex; gap: 0.4375rem; }
 .t-item { flex: 1; text-align: center; }
 .t-val { font-size: 1.05rem; font-weight: 700; }
@@ -526,13 +527,12 @@ html.assistant-mode, html.assistant-mode body {
    строку, и ряд из трёх ячеек становится разновысоким. Единственный узел
    из сорока восьми, где подъём дал перенос. BACKLOG.md, задача 35. */
 .t-lbl { font-size: 0.62rem; color: var(--text-2); font-weight: 600; }
-.save-btn {
-  width: 100%; height: 3rem; border-radius: 0.8125rem; border: none;
-  /* тёмная надпись: белая на зелёном 2.54, --surface-0 — 7.76 */
-  background: var(--nut-g); color: var(--surface-0); font-size: 0.95rem; font-weight: 700;
-  cursor: pointer; transition: opacity .15s; -webkit-tap-highlight-color: transparent;
-}
-.save-btn:active { opacity: .85; }
+/* .save-btn здесь больше нет — это .btn-primary .btn-block. Копия жила
+   ровно из-за пробела, который закрыт задачей 43: у системной главной
+   кнопки не было акцента раздела, и страница написала свою, чтобы получить
+   зелёную заливку с тёмной надписью. Замер, который её оправдывал (белая
+   на зелёном 2.54, --surface-0 — 7.76), переехал в систему как
+   --tool-accent-ink, см. design-system.md §1.4. */
 
 /* ── Модалки ──
    Каркас, оформление и поведение переехали в систему: разметку даёт
@@ -556,16 +556,23 @@ html.assistant-mode, html.assistant-mode body {
   color: var(--text-2); font-size: 0.8125rem; font-weight: 600; cursor: pointer;
   -webkit-tap-highlight-color: transparent; transition: all .15s; white-space: nowrap;
 }
-.por-edit-btn.active { color: var(--nut-g); border-color: rgba(34,197,94,.35); background: var(--nut-g-dim); }
+.por-edit-btn.active { color: var(--tool-accent); border-color: color-mix(in srgb, var(--tool-accent) 35%, transparent); background: var(--tool-accent-dim); }
 .por-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5625rem; margin: 0 0 0.875rem; }
 .por-edit-grid .f-field { margin-bottom: 0; }
 .g-wrap   { display: flex; align-items: center; gap: 0.5625rem; margin-bottom: 0.625rem; }
+/* .g-input к системному полю НЕ сводится, и это названо вслух (задача 42,
+   категория «законный контрол экрана»). Это не поле формы, а главный орган
+   управления окном порции: одно число, которое правят чаще всего в дневнике.
+   Кегль 1.25rem против 1rem у .input, вес 700, выравнивание по центру,
+   фиксированная ширина под три-четыре цифры — всё это не «поле, чуть-чуть
+   другое», а другая роль. Варианта «крупный числовой ввод» в системе нет,
+   и заводить его ради одного места было бы тем же долгом с другой стороны. */
 .g-input  {
   width: 5.9375rem; height: 3rem; background: var(--surface-sunken); border: 1px solid var(--border);
   border-radius: 0.6875rem; color: var(--text); font-size: 1.25rem; font-weight: 700;
   text-align: center; outline: none; transition: border-color .15s;
 }
-.g-input:focus { border-color: var(--nut-g); }
+.g-input:focus { border-color: var(--tool-accent); }
 .g-lbl { color: var(--text-2); font-size: 0.88rem; font-weight: 600; }
 .q-grams { display: flex; gap: 0.4375rem; margin-bottom: 0.875rem; flex-wrap: wrap; }
 .q-btn {
@@ -573,14 +580,14 @@ html.assistant-mode, html.assistant-mode body {
   color: var(--text-2); font-size: 0.8125rem; font-weight: 600; cursor: pointer;
   -webkit-tap-highlight-color: transparent; transition: all .1s;
 }
-.q-btn:active { color: var(--nut-g); border-color: var(--nut-g); }
-.calc-box { background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2); border-radius: 0.6875rem; padding: 0.6875rem 0.8125rem; margin-bottom: 0.875rem; }
-.calc-kcal   { font-size: 1.45rem; font-weight: 800; color: var(--nut-g); font-family: var(--font); }
+.q-btn:active { color: var(--tool-accent); border-color: var(--tool-accent); }
+.calc-box { background: var(--tool-accent-dim); border: 1px solid color-mix(in srgb, var(--tool-accent) 20%, transparent); border-radius: 0.6875rem; padding: 0.6875rem 0.8125rem; margin-bottom: 0.875rem; }
+.calc-kcal   { font-size: 1.45rem; font-weight: 800; color: var(--tool-accent); font-family: var(--font); }
 .calc-macros { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-top: 0.125rem; }
 .add-btn {
   width: 100%; height: 3rem; border-radius: 0.8125rem; border: none;
   /* тёмная надпись: белая на зелёном 2.54, --surface-0 — 7.76 */
-  background: var(--nut-g); color: var(--surface-0); font-size: 0.95rem; font-weight: 700;
+  background: var(--tool-accent); color: var(--surface-0); font-size: 0.95rem; font-weight: 700;
   cursor: pointer; transition: opacity .15s; margin-bottom: 1rem;
   -webkit-tap-highlight-color: transparent;
 }
@@ -591,7 +598,7 @@ html.assistant-mode, html.assistant-mode body {
    поэтому рамку и кнопку фонарика выносим в отдельную обёртку */
 .scan-wrap { width: 100%; aspect-ratio: 1; background: #000; border-radius: 0.6875rem; overflow: hidden; position: relative; margin-bottom: 0.75rem; }
 #qr-reader { width: 100%; height: 100%; }
-.scan-overlay { position: absolute; inset: 38% 8%; border: 2px solid var(--nut-g); border-radius: 0.4375rem; pointer-events: none; }
+.scan-overlay { position: absolute; inset: 38% 8%; border: 2px solid var(--tool-accent); border-radius: 0.4375rem; pointer-events: none; }
 .scan-torch-btn {
   position: absolute; top: 0.625rem; right: 0.625rem; z-index: 5;
   width: 2.375rem; height: 2.375rem; border-radius: 50%;
@@ -601,9 +608,9 @@ html.assistant-mode, html.assistant-mode body {
   transition: background .15s, color .15s, border-color .15s;
 }
 /* было #06150c — тёмный хардкод, 7.39; --surface-0 даёт 7.76 и убирает свой оттенок */
-.scan-torch-btn.on { background: var(--nut-g); color: var(--surface-0); border-color: var(--nut-g); }
+.scan-torch-btn.on { background: var(--tool-accent); color: var(--surface-0); border-color: var(--tool-accent); }
 .scan-manual { width: 100%; height: 2.75rem; background: var(--surface-sunken); border: 1px solid var(--border); border-radius: 0.6875rem; padding: 0 0.8125rem; color: var(--text); font-size: 0.92rem; outline: none; font-family: var(--font); }
-.scan-manual:focus { border-color: var(--nut-g); }
+.scan-manual:focus { border-color: var(--tool-accent); }
 
 /* ── Custom food ── */
 .cf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5625rem; }
@@ -655,8 +662,8 @@ html.assistant-mode, html.assistant-mode body {
   border-radius: 0.25rem 1rem 1rem 1rem; color: var(--text);
 }
 .chat-bubble.user {
-  background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2);
-  border-radius: 1rem 0.25rem 1rem 1rem; color: var(--nut-g);
+  background: var(--tool-accent-dim); border: 1px solid color-mix(in srgb, var(--tool-accent) 20%, transparent);
+  border-radius: 1rem 0.25rem 1rem 1rem; color: var(--tool-accent);
 }
 .chat-bubble-img {
   display: block; max-width: 12.5rem; width: 100%; border-radius: 0.625rem;
@@ -665,16 +672,15 @@ html.assistant-mode, html.assistant-mode body {
 /* Просмотр фото — вариант .modal-ov-viewer в style.css, не своя модалка */
 .chat-input-row {
   display: flex; gap: 0.5rem; padding: 0.75rem 0 0;
+  /* по центру, а не растяжкой: поле теперь системное (44px), а кнопки рядом
+     сохранили свои 42px — при stretch они прижались бы к верху ряда */
+  align-items: center;
   border-top: 1px solid var(--border); flex-shrink: 0; position: relative;
 }
-.chat-in {
-  flex: 1; height: 2.625rem; background: var(--surface-sunken); border: 1px solid var(--border);
-  border-radius: 0.625rem; padding: 0 0.75rem; color: var(--text); font-size: 0.9rem;
-  outline: none; font-family: var(--font);
-}
-.chat-in:focus { border-color: var(--nut-g); }
+/* поле ввода — .input .input-compact; ряду нужен только его flex-рост */
+.chat-input-row .input { flex: 1; }
 .chat-send {
-  width: 2.625rem; height: 2.625rem; background: var(--nut-g); border: none; border-radius: 0.625rem;
+  width: 2.625rem; height: 2.625rem; background: var(--tool-accent); border: none; border-radius: 0.625rem;
   /* иконка на зелёной заливке: белая 2.54, --surface-0 — 7.76 */
   color: var(--surface-0); cursor: pointer; display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; -webkit-tap-highlight-color: transparent;
@@ -689,7 +695,7 @@ html.assistant-mode, html.assistant-mode body {
   touch-action: none; -webkit-touch-callout: none;
   -webkit-user-select: none; user-select: none;
 }
-.chat-attach-btn:active { color: var(--nut-g); border-color: var(--nut-g); }
+.chat-attach-btn:active { color: var(--tool-accent); border-color: var(--tool-accent); }
 .chat-attach-btn svg { width: 1.125rem; height: 1.125rem; }
 .chat-attach-preview {
   display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem 0.625rem; margin-top: 0.625rem;
@@ -715,7 +721,7 @@ html.assistant-mode, html.assistant-mode body {
   background: none; border: none; color: var(--text); font-size: 0.85rem; text-align: left;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
-.attach-menu button:active { background: var(--surface-1); color: var(--nut-g); }
+.attach-menu button:active { background: var(--surface-1); color: var(--tool-accent); }
 .attach-menu svg { width: 1.125rem; height: 1.125rem; flex-shrink: 0; }
 /* ── Запись голосового сообщения (оверлей вместо строки ввода) ── */
 @keyframes mic-pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
@@ -747,14 +753,14 @@ html.assistant-mode, html.assistant-mode body {
 /* иконка на зелёной заливке: белая 2.54, --surface-0 — 7.76.
    Соседний .voice-rec-del не трогаем: у него фон полупрозрачный красный
    на тёмной подложке, там как раз светлый цвет и нужен */
-.voice-rec-send { background: var(--nut-g); color: var(--surface-0); }
+.voice-rec-send { background: var(--tool-accent); color: var(--surface-0); }
 .voice-rec-send svg { width: 1.0625rem; height: 1.0625rem; }
 .voice-rec-send:active { opacity: .9; }
 /* Плавающая кнопка паузы/продолжения над кнопкой отправки — без удержания пальца */
 .voice-pause-float {
   position: fixed; width: 2.5rem; height: 2.5rem; border-radius: 50%;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
-  background: var(--surface-sunken); color: var(--nut-g); border: 1px solid var(--nut-g);
+  background: var(--surface-sunken); color: var(--tool-accent); border: 1px solid var(--tool-accent);
   box-shadow: 0 4px 14px rgba(0,0,0,.35); z-index: 220;
   -webkit-tap-highlight-color: transparent; transition: color .15s, border-color .15s;
 }
@@ -769,17 +775,17 @@ html.assistant-mode, html.assistant-mode body {
   display: flex; align-items: center; justify-content: center; cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.chat-bubble.user .voice-play-btn { background: rgba(34,197,94,.18); color: var(--nut-g); }
+.chat-bubble.user .voice-play-btn { background: color-mix(in srgb, var(--tool-accent) 18%, transparent); color: var(--tool-accent); }
 .chat-bubble.ai .voice-play-btn   { background: var(--surface-1); color: var(--text); }
 .voice-play-btn svg { width: 0.8125rem; height: 0.8125rem; }
 .voice-wave-static { flex: 1; display: flex; align-items: center; gap: 0.125rem; height: 1.5rem; min-width: 0; }
 .voice-wave-static .vw-bar { width: 0.1875rem; border-radius: 0.125rem; flex-shrink: 0; opacity: .55; }
-.chat-bubble.user .voice-wave-static .vw-bar { background: var(--nut-g); }
+.chat-bubble.user .voice-wave-static .vw-bar { background: var(--tool-accent); }
 .chat-bubble.ai .voice-wave-static .vw-bar { background: var(--text-2); }
 .voice-dur { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .voice-tr-toggle {
   margin-top: 0.4375rem; background: none; border: none; padding: 0; cursor: pointer;
-  font-size: 0.8125rem; font-weight: 700; color: var(--nut-g); font-family: var(--font);
+  font-size: 0.8125rem; font-weight: 700; color: var(--tool-accent); font-family: var(--font);
   display: flex; align-items: center; gap: 0.1875rem; -webkit-tap-highlight-color: transparent;
 }
 .voice-tr-toggle svg { width: 0.6875rem; height: 0.6875rem; transition: transform .15s; }
@@ -797,13 +803,13 @@ html.assistant-mode, html.assistant-mode body {
   color: var(--text); font-size: 0.8125rem; font-weight: 600; cursor: pointer;
   -webkit-tap-highlight-color: transparent; transition: background .1s, border-color .1s;
 }
-.meal-picker-btns button:active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.25); }
+.meal-picker-btns button:active { background: var(--tool-accent-dim); border-color: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
 
 /* ── Recipe modals ── */
 .ing-list { margin-bottom: 0.625rem; }
 .ing-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
 .ing-name { flex: 1; font-size: 0.83rem; }
-.ing-g    { font-size: 0.8125rem; color: var(--nut-g); }
+.ing-g    { font-size: 0.8125rem; color: var(--tool-accent); }
 .ing-del  { color: #ef4444; background: none; border: none; font-size: 1rem; cursor: pointer; padding: 0 0.25rem; }
 .ing-add-btn {
   width: 100%; height: 2.375rem; border-radius: 0.5625rem; background: var(--surface-sunken);
@@ -816,7 +822,7 @@ html.assistant-mode, html.assistant-mode body {
   color: var(--text-2); font-size: 0.82rem; cursor: pointer;
   -webkit-tap-highlight-color: transparent; transition: all .1s;
 }
-.frac-btn.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
+.frac-btn.active { background: var(--tool-accent-dim); border-color: color-mix(in srgb, var(--tool-accent) 35%, transparent); color: var(--tool-accent); }
 
 /* ── Measure modal ── */
 .meas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5625rem; }
@@ -830,13 +836,13 @@ html.assistant-mode, html.assistant-mode body {
   opacity: 0; transition: all .22s; z-index: 300; white-space: nowrap; pointer-events: none;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-.toast.green { border-color: rgba(34,197,94,.35); color: var(--nut-g); }
+.toast.green { border-color: color-mix(in srgb, var(--tool-accent) 35%, transparent); color: var(--tool-accent); }
 
 /* ── Spinner / dots ── */
-.spin { width: 1.125rem; height: 1.125rem; border: 2px solid var(--border-strong); border-top-color: var(--nut-g); border-radius: 50%; animation: spin .6s linear infinite; margin: 0 auto; }
+.spin { width: 1.125rem; height: 1.125rem; border: 2px solid var(--border-strong); border-top-color: var(--tool-accent); border-radius: 50%; animation: spin .6s linear infinite; margin: 0 auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .dots { display: flex; gap: 0.25rem; align-items: center; }
-.dot  { width: 0.375rem; height: 0.375rem; border-radius: 50%; background: var(--nut-g); animation: dotB .8s ease infinite; }
+.dot  { width: 0.375rem; height: 0.375rem; border-radius: 50%; background: var(--tool-accent); animation: dotB .8s ease infinite; }
 .dot:nth-child(2) { animation-delay: .15s; }
 .dot:nth-child(3) { animation-delay: .3s; }
 @keyframes dotB { 0%,100%{transform:translateY(0)}50%{transform:translateY(-0.3125rem)} }
@@ -856,7 +862,7 @@ html.assistant-mode, html.assistant-mode body {
 .val-fat    { color: var(--fat); }
 .val-carb   { color: var(--carb); }
 .val-wat    { color: var(--wat); }
-.val-accent { color: var(--nut-g); }
+.val-accent { color: var(--tool-accent); }
 .mb-prot { background: var(--prot); }
 .mb-fat  { background: var(--fat); }
 .mb-carb { background: var(--carb); }
@@ -985,7 +991,7 @@ html.assistant-mode, html.assistant-mode body {
     white-space: nowrap;
     border-bottom: 1px solid var(--border); margin: 0 0 0.625rem;
     flex-shrink: 0;
-    background: linear-gradient(90deg, var(--nut-g), var(--wat));
+    background: linear-gradient(90deg, var(--tool-accent), var(--wat));
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   }
   /* Значок опущен из градиентной заливки заголовка: -webkit-text-fill-color
@@ -1000,7 +1006,7 @@ html.assistant-mode, html.assistant-mode body {
   }
   .sidebar-date::before {
     content: ''; width: 0.375rem; height: 0.375rem; border-radius: 50%; flex-shrink: 0;
-    background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo);
+    background: var(--tool-accent); box-shadow: 0 0 8px var(--nut-glow);
   }
   .nut-nav-btn {
     flex: none;
@@ -1025,8 +1031,8 @@ html.assistant-mode, html.assistant-mode body {
     color: var(--text-2);
   }
   .nut-nav-btn.active {
-    background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2);
-    color: var(--nut-g);
+    background: var(--tool-accent-dim); border: 1px solid color-mix(in srgb, var(--tool-accent) 20%, transparent);
+    color: var(--tool-accent);
   }
   /* :not(.active) обязателен. Без него специфичность 0,3,0 перебивает .active
      (0,2,0), и активная «Добавить» теряла зелёный при наведении — тот же
@@ -1158,7 +1164,7 @@ html.assistant-mode, html.assistant-mode body {
     font-size: .9rem; font-weight: 600; cursor: pointer;
     transition: color .15s, border-color .15s;
   }
-  .search-back:hover { color: var(--nut-g); border-color: rgba(34,197,94,.3); }
+  .search-back:hover { color: var(--tool-accent); border-color: color-mix(in srgb, var(--tool-accent) 30%, transparent); }
   .s-chip { font-size: .88rem; padding: 0.5625rem 1.0625rem; }
   .s-input { height: 3.125rem; font-size: 1.05rem; }
   .icon-btn { width: 3.125rem; height: 3.125rem; }

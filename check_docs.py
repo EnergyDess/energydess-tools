@@ -101,6 +101,19 @@ import pathlib
     'source-tabs': 'сведён к .segmented, §11',
     'wk-profile-input': 'сведён к .input / .select, §11',
     'food-input': 'сведён к .input .input-sm, §11',
+    # дневник питания, сведён 2026-08-09 следом за задачами 43 и 38
+    'f-input': 'сведён к .input .input-compact / .select, §11',
+    's-input': 'сведён к .input .input-compact, §11',
+    'chat-in': 'сведён к .input .input-compact, §11',
+    's-chip': 'сведён к .chip, §11',
+    's-tab': 'сведён к .segmented-btn, §11',
+    'icon-btn': 'сведён к .btn-icon .btn-icon-solid, §11',
+    'save-btn': 'сведён к .btn-primary .btn-block, §11',
+    # §7.3 называет их ИМЕННО как убранные: страница вела ими акцент мимо
+    # системы, теперь читает --tool-accent. Имена нужны, чтобы опознать
+    # их в истории git и в чужой голове
+    '--nut-g': 'убран, заменён на --tool-accent (§7.3, BACKLOG 38)',
+    '--nut-g-dim': 'убран, заменён на --tool-accent-dim (§7.3, BACKLOG 38)',
 }
 
 # Файлы, названные в документации ИМЕННО как удалённые, переименованные

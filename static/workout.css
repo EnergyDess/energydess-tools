@@ -121,7 +121,7 @@
 /* Eyebrow над заголовком — было инлайном на элементе (CLAUDE.md §6.0.2:
    токен внутри style= не делает инлайн законным) */
 .wk-head .eyebrow {
-  color: var(--tool-accent);
+  /* цвета здесь нет: .eyebrow сам читает --tool-accent (style.css) */
   display: inline-flex; align-items: center; gap: var(--space-2);
   margin-bottom: var(--space-3);
 }
