@@ -11,11 +11,11 @@
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/static/workout.css">
 </head>
-<body class="has-site-header page-column">
+<body class="theme-workout has-site-header page-column">
 
 {% include '_header.html' %}
 
-<main class="theme-workout wk-page page-fill">
+<main class="wk-page page-fill">
 
   <div class="wk-shell">
     <div class="wk-head">
@@ -37,27 +37,27 @@
         <div class="wk-step-sub">Это определит баланс объёма и интенсивности в программе.</div>
         <div class="wk-options">
           <div class="wk-option" data-field="goal" data-value="mass">
-            <div class="wk-option-icon">📈</div>
+            <div class="wk-option-icon"><i data-lucide="trending-up"></i></div>
             <div class="wk-option-label">Масса</div>
             <div class="wk-option-desc">Набор мышечной массы</div>
           </div>
           <div class="wk-option" data-field="goal" data-value="strength">
-            <div class="wk-option-icon">🏋️</div>
+            <div class="wk-option-icon"><i data-lucide="dumbbell"></i></div>
             <div class="wk-option-label">Сила</div>
             <div class="wk-option-desc">Рост рабочих весов</div>
           </div>
           <div class="wk-option" data-field="goal" data-value="lose">
-            <div class="wk-option-icon">🔥</div>
+            <div class="wk-option-icon"><i data-lucide="flame"></i></div>
             <div class="wk-option-label">Похудение</div>
             <div class="wk-option-desc">Снижение веса тела</div>
           </div>
           <div class="wk-option" data-field="goal" data-value="maintain">
-            <div class="wk-option-icon">⚖️</div>
+            <div class="wk-option-icon"><i data-lucide="scale"></i></div>
             <div class="wk-option-label">Поддержание</div>
             <div class="wk-option-desc">Сохранить форму</div>
           </div>
           <div class="wk-option" data-field="goal" data-value="recomp">
-            <div class="wk-option-icon">🔄</div>
+            <div class="wk-option-icon"><i data-lucide="refresh-cw"></i></div>
             <div class="wk-option-label">Рекомпозиция</div>
             <div class="wk-option-desc">Масса + жиросжигание · важен Дневник питания</div>
           </div>
@@ -70,11 +70,11 @@
         <div class="wk-step-sub">Если хочешь развить всё тело равномерно — базовая программа уже покрывает все группы мышц.</div>
         <div class="wk-options" id="wkFocusChoice">
           <div class="wk-option" data-choice="yes">
-            <div class="wk-option-icon">🎯</div>
+            <div class="wk-option-icon"><i data-lucide="target"></i></div>
             <div class="wk-option-label">Да, есть отстающие</div>
           </div>
           <div class="wk-option" data-choice="no">
-            <div class="wk-option-icon">⚖️</div>
+            <div class="wk-option-icon"><i data-lucide="scale"></i></div>
             <div class="wk-option-label">Нет, хочу развиваться равномерно</div>
           </div>
         </div>
@@ -132,17 +132,17 @@
         <div class="wk-step-sub">Поможет выбрать подходящую нагрузку и технику упражнений.</div>
         <div class="wk-options">
           <div class="wk-option" data-field="level" data-value="beginner">
-            <div class="wk-option-icon">🌱</div>
+            <div class="wk-option-icon"><i data-lucide="sprout"></i></div>
             <div class="wk-option-label">Новичок</div>
             <div class="wk-option-desc">До 1 года</div>
           </div>
           <div class="wk-option" data-field="level" data-value="intermediate">
-            <div class="wk-option-icon">💪</div>
+            <div class="wk-option-icon"><i data-lucide="biceps-flexed"></i></div>
             <div class="wk-option-label">Средний</div>
             <div class="wk-option-desc">1–3 года</div>
           </div>
           <div class="wk-option" data-field="level" data-value="expert">
-            <div class="wk-option-icon">🏆</div>
+            <div class="wk-option-icon"><i data-lucide="trophy"></i></div>
             <div class="wk-option-label">Опытный</div>
             <div class="wk-option-desc">3+ года</div>
           </div>
@@ -176,7 +176,7 @@
           </div>
         </div>
         <div class="wk-disclaimer">
-          <span class="ico">⚠️</span>
+          <span class="ico"><i data-lucide="triangle-alert"></i></span>
           <span>Это фитнес-помощник, а не медицинский сервис. При реальной травме или боли — обратись к врачу; здесь нет лечебных предписаний, только исключение нагружающих упражнений.</span>
         </div>
       </section>
@@ -191,7 +191,7 @@
         </div>
         <div class="wk-eq-toolbar">
           <span class="wk-eq-count" id="wkEqCount">Отмечено: 0</span>
-          <button class="wk-home-btn" id="wkHomeBtn" type="button">🏠 Дом без инвентаря</button>
+          <button class="wk-home-btn" id="wkHomeBtn" type="button"><i data-lucide="house"></i> Дом без инвентаря</button>
         </div>
         <div class="wk-eq-grid" id="wkEqGrid">
           {% for item in equipment_options %}
@@ -210,12 +210,12 @@
       <!-- Готово -->
       <section class="wk-step" data-step="done">
         <div class="wk-done-panel">
-          <div class="ico">✅</div>
+          <div class="ico"><i data-lucide="circle-check"></i></div>
           <h2>Профиль сохранён</h2>
           <p id="wkDoneSub">Собираем программу под вас…</p>
           <div class="wk-done-actions">
-            <button type="button" class="wk-action-btn" id="wkGeneralChatBtn">💬 Ассистент</button>
-            <a class="wk-action-btn" href="/workout/profile" title="Настройки">⚙️ Настройки</a>
+            <button type="button" class="wk-action-btn" id="wkGeneralChatBtn"><i data-lucide="message-circle"></i> Ассистент</button>
+            <a class="wk-action-btn" href="/workout/profile" title="Настройки"><i data-lucide="settings"></i> Настройки</a>
           </div>
         </div>
         <div class="wk-nutrition-box" id="wkNutritionBox" style="display:none">
@@ -245,7 +245,7 @@
   </div>
 </main>
 
-{# Оверлеи обязаны лежать ПОСЛЕ </main> и получать тему классом на себе.
+{# Оверлеи обязаны лежать ПОСЛЕ </main>.
 
    Почему не внутрь: style.css:148 даёт каждому <main> position: relative
    и z-index: 1, то есть собственный stacking context. Оттуда position: fixed
@@ -253,25 +253,28 @@
    с z-index 50, потому что браузер сравнивает не их, а контекст main
    с шапкой. Проверено переносом: лайтбокс перестал накрывать шапку.
 
-   Почему класс темы: до этой правки его тут не было, и var(--tool-accent)
-   внутри оверлеев не разрешался ни во что — акцент объявлен на .theme-workout,
-   а они ей не потомки. Замерено на дереве до правки: фон сообщения
-   пользователя в чате rgba(0,0,0,0) вместо amber, подпись в шапке чата
-   и рамка тултипа цветом обычного текста, фон кнопки отправки прозрачный.
-   В консоли при этом чисто: неразрешённая переменная делает свойство
-   недействительным, и оно молча откатывается к унаследованному значению. #}
-<div class="wk-chart-tooltip theme-workout" id="wkChartTooltip"></div>
+   Класса темы на них больше НЕТ, и приписывать его новым оверлеям не нужно.
+   Тема с 2026-08-06 объявлена на <body> (задача 32), а <body> — предок
+   всего, включая элементы, которых ещё нет в разметке. Три ручные копии,
+   стоявшие здесь, были лечением симптома: акцент объявлялся на <main>,
+   а оверлеи ему не потомки, и var(--tool-accent) не разрешался ни во что —
+   замерено на дереве: фон сообщения пользователя в чате rgba(0,0,0,0)
+   вместо amber, рамка тултипа цветом обычного текста. В консоли при этом
+   чисто, отказ немой. Список из трёх копий проверить было нечем: греп
+   показывал те оверлеи, которым класс приписали, а искать надо было те,
+   которым забыли. #}
+<div class="wk-chart-tooltip" id="wkChartTooltip"></div>
 
-<div class="wk-lightbox theme-workout" id="wkLightbox">
+<div class="wk-lightbox" id="wkLightbox">
   <button type="button" class="wk-lightbox-close" id="wkLightboxClose">×</button>
   <img id="wkLightboxImg" src="" alt="">
 </div>
 
-<div class="wk-chat-overlay theme-workout" id="wkChatOverlay">
+<div class="wk-chat-overlay" id="wkChatOverlay">
   <div class="wk-chat-panel">
     <div class="wk-chat-header">
       <div>
-        <div class="wk-chat-title">💬 Ассистент</div>
+        <div class="wk-chat-title"><i data-lucide="message-circle"></i> Ассистент</div>
         <div class="wk-chat-subtitle" id="wkChatSubtitle"></div>
       </div>
       <button type="button" class="wk-chat-close" id="wkChatClose">×</button>
@@ -670,7 +673,7 @@
 
   function exHeaderHTML(d) {
     var img = d.image ? '/static/exercises/' + d.image : '';
-    var warmupBadge = d.needs_warmup ? ' <span class="wk-warmup-badge" title="Нужна специфическая разминка">🔧</span>' : '';
+    var warmupBadge = d.needs_warmup ? ' <span class="wk-warmup-badge" title="Нужна специфическая разминка"><i data-lucide="wrench"></i></span>' : '';
     var primary = muscleList(d.primary_muscles);
     var secondary = muscleList(d.secondary_muscles);
     var muscleLine = 'Целевые мышцы: ' + primary + (secondary ? ' <span class="dim">(+ ' + secondary + ')</span>' : '');
@@ -689,7 +692,7 @@
       ? '<div class="wk-ex-video" data-youtube-id="' + d.youtube_id + '"></div>'
       : '';
     var reminderBanner = p.status === 'pending_at_gym'
-      ? '<div class="wk-machine-reminder">📍 Напоминание: вы собирались уточнить шкалу этого тренажёра, когда будете в зале — нажмите «изменить» рядом с прогрессией, если сейчас удобно.</div>'
+      ? '<div class="wk-machine-reminder"><i data-lucide="map-pin"></i> Напоминание: вы собирались уточнить шкалу этого тренажёра, когда будете в зале — нажмите «изменить» рядом с прогрессией, если сейчас удобно.</div>'
       : '';
     return '<div class="wk-ex-head">' +
         '<div class="wk-ex-img"' + (img ? ' data-lightbox-src="' + img + '"' : '') + '>' + (img ? '<img src="' + img + '" loading="lazy">' : '') + '</div>' +
@@ -700,10 +703,10 @@
             (p.kind === 'weight' ? '<button type="button" class="wk-ex-progbtn">изменить</button>' + tipBtn('progression') : '') +
           '</div>' +
           '<div class="wk-ex-alt-row"><button type="button" class="wk-ex-altbtn">↔ Альтернатива</button>' + tipBtn('alternative') +
-            (p.kind === 'weight' ? '<button type="button" class="wk-ex-chartbtn">📊 График</button>' : '') +
+            (p.kind === 'weight' ? '<button type="button" class="wk-ex-chartbtn"><i data-lucide="bar-chart-3"></i> График</button>' : '') +
           '</div>' +
         '</div>' +
-        '<button type="button" class="wk-ex-chat" data-ex-name="' + d.name_ru + '" title="Спросить ассистента">💬</button>' +
+        '<button type="button" class="wk-ex-chat" data-ex-name="' + d.name_ru + '" title="Спросить ассистента"><i data-lucide="message-circle"></i></button>' +
       '</div>' +
       reminderBanner +
       '<div class="wk-progedit-panel"></div>' +
@@ -826,9 +829,9 @@
       '</div>';
     }
     html += '<div class="wk-warmup-card">' +
-      '<div class="wk-warmup-title">🔥 Разминка перед каждой тренировкой</div>' +
+      '<div class="wk-warmup-title"><i data-lucide="flame"></i> Разминка перед каждой тренировкой</div>' +
       '<div class="wk-warmup-text">5–7 минут динамической суставной гимнастики сверху вниз: шея, плечи, локти, запястья, бёдра, колени, голени. Только динамические движения — без статической растяжки ≥60 секунд перед силовой, она снижает максимальную силу.</div>' +
-      '<div class="wk-warmup-text wk-warmup-specific">Перед упражнениями со значком 🔧 — добавьте 1–2 разминочных подхода с пустым грифом или 40–50% от рабочего веса.</div>' +
+      '<div class="wk-warmup-text wk-warmup-specific">Перед упражнениями со значком <i data-lucide="wrench" class="wk-inline-ico"></i> — добавьте 1–2 разминочных подхода с пустым грифом или 40–50% от рабочего веса.</div>' +
       '</div>';
 
     prog.days.forEach(function (day) {
@@ -870,7 +873,7 @@
                 return '<button type="button" class="wk-skip-reason-btn" data-reason="' + k + '">' + SKIP_REASON_LABELS[k] + '</button>';
               }).join('') +
             '</div>' +
-            '<div class="wk-skip-note">Записано. Увидимся в следующий раз 👍</div>' +
+            '<div class="wk-skip-note">Записано. Увидимся в следующий раз</div>' +
           '</div>';
       core.forEach(function (ex) { html += exCard(ex, day.id); });
       if (bonus.length) {
@@ -878,7 +881,7 @@
         bonus.forEach(function (ex) { html += exCard(ex, day.id); });
         html += '</div>';
       }
-      html += '<div class="wk-cooldown"><span class="wk-cooldown-ico">🧊</span> Заминка: 5 минут лёгкого кардио + статическая растяжка 20–30 с на проработанные группы' +
+      html += '<div class="wk-cooldown"><span class="wk-cooldown-ico"><i data-lucide="snowflake"></i></span> Заминка: 5 минут лёгкого кардио + статическая растяжка 20–30 с на проработанные группы' +
         (muscles.length ? ' (' + muscles.join(', ') + ')' : '') + tipBtn('cooldown') +
         '</div>';
       html += '</div></div>';
@@ -1340,7 +1343,7 @@
           var sug = info.progression_suggestion;
           if (sug && sug.ready && !hasToday) {
             var box = $('.wk-progress-suggestion', card);
-            box.innerHTML = '<div class="wk-progress-suggestion-title">🎉 Время прибавить!</div>' +
+            box.innerHTML = '<div class="wk-progress-suggestion-title"><i data-lucide="party-popper"></i> Время прибавить!</div>' +
               '<div class="wk-progress-suggestion-text">В прошлый раз вы сделали весь диапазон повторов во всех подходах с ' + sug.last_weight + ' кг. Попробуйте ' + sug.suggested_weight + ' кг и начните заново с ' + sug.rep_low + ' повторов.</div>' +
               '<div class="wk-progress-suggestion-btns">' +
                 '<button type="button" class="wk-progress-up-btn">Поднять до ' + sug.suggested_weight + ' кг</button>' +
@@ -1433,34 +1436,34 @@
     var el = document.createElement('div');
     el.className = 'wk-chat-result';
     if (result.type === 'swap_exercise') {
-      el.innerHTML = '✅ Заменил на сегодня: <strong>' + result.from + '</strong> → <strong>' + result.to + '</strong>';
+      el.innerHTML = '<i data-lucide="circle-check"></i> Заменил на сегодня: <strong>' + result.from + '</strong> → <strong>' + result.to + '</strong>';
       reloadProgramAfterPatch();
     } else if (result.type === 'set_pain_zone') {
       var list = chatChangesList(result.changes);
-      el.innerHTML = '✅ Зона «' + result.zone + '» добавлена в ограничения.' +
+      el.innerHTML = '<i data-lucide="circle-check"></i> Зона «' + result.zone + '» добавлена в ограничения.' +
         (list ? '<div>Изменения в программе:</div><ul class="wk-chat-result-list">' + list + '</ul>' + chatDayCountsLine(result.changes, result.day_counts)
               : '<div>В текущей программе конфликтующих упражнений не нашлось.</div>');
       reloadProgramAfterPatch();
     } else if (result.type === 'clear_pain_zone' && result.already_cleared) {
-      el.innerHTML = 'ℹ️ Зона «' + result.zone + '» уже не в ограничениях — снимать нечего.';
+      el.innerHTML = '<i data-lucide="info"></i> Зона «' + result.zone + '» уже не в ограничениях — снимать нечего.';
     } else if (result.type === 'clear_pain_zone') {
       var list3 = chatChangesList(result.changes);
-      el.innerHTML = '✅ Зона «' + result.zone + '» снята с ограничений.' +
+      el.innerHTML = '<i data-lucide="circle-check"></i> Зона «' + result.zone + '» снята с ограничений.' +
         (list3 ? '<div>Возвращены упражнения:</div><ul class="wk-chat-result-list">' + list3 + '</ul>' + chatDayCountsLine(result.changes, result.day_counts)
                : '<div>Заменённых упражнений по этой зоне не нашлось.</div>') +
         '<div class="wk-chat-result-disclaimer">Возвращайся осторожно: первые тренировки — сниженный вес, поднимай обратно за 2–3 тренировки. Если боль вернётся — снова стоп и сообщи об этом.</div>';
       reloadProgramAfterPatch();
     } else if (result.type === 'set_focus_zones') {
-      el.innerHTML = '✅ Акцент теперь на: <strong>' + result.zones.join(', ') + '</strong>. Учтётся при следующей генерации/обновлении программы.';
+      el.innerHTML = '<i data-lucide="circle-check"></i> Акцент теперь на: <strong>' + result.zones.join(', ') + '</strong>. Учтётся при следующей генерации/обновлении программы.';
     } else if (result.type === 'remove_equipment') {
       var list2 = chatChangesList(result.changes);
-      el.innerHTML = '✅ Убрал «' + result.cluster + '» из «Моего зала».' +
+      el.innerHTML = '<i data-lucide="circle-check"></i> Убрал «' + result.cluster + '» из «Моего зала».' +
         (list2 ? '<div>Изменения в программе:</div><ul class="wk-chat-result-list">' + list2 + '</ul>' + chatDayCountsLine(result.changes, result.day_counts) : '');
       reloadProgramAfterPatch();
     } else if (result.type === 'shorten_today') {
       el.innerHTML = result.guidance;
     } else if (result.type === 'error') {
-      el.innerHTML = '⚠️ Не получилось применить действие: ' + result.error;
+      el.innerHTML = '<i data-lucide="triangle-alert"></i> Не получилось применить действие: ' + result.error;
     } else {
       return;
     }
@@ -1596,7 +1599,7 @@
     box.innerHTML = '<div class="wk-prog-error">' + message + '</div>' +
       '<div class="wk-prog-error-actions">' +
         '<button type="button" class="wk-action-btn" id="wkRetryGenBtn">↻ Попробовать снова</button>' +
-        '<a class="wk-action-btn" href="/workout/profile">⚙️ Изменить оборудование</a>' +
+        '<a class="wk-action-btn" href="/workout/profile"><i data-lucide="settings"></i> Изменить оборудование</a>' +
       '</div>';
     $('#wkDoneSub').textContent = 'Не удалось собрать программу';
     $('#wkRetryGenBtn').addEventListener('click', generateProgram);
@@ -1729,7 +1732,7 @@
         var warnEl = $('#wkNutritionWarning');
         if (data.calorie_deficit_warning) {
           warnEl.style.display = '';
-          warnEl.innerHTML = '⚠️ Сегодня большой дефицит калорий (~' + data.deficit_kcal + ' ккал) — мышцам может не хватить энергии для восстановления. Постарайся добрать белок.';
+          warnEl.innerHTML = '<i data-lucide="triangle-alert"></i> Сегодня большой дефицит калорий (~' + data.deficit_kcal + ' ккал) — мышцам может не хватить энергии для восстановления. Постарайся добрать белок.';
         } else {
           warnEl.style.display = 'none';
         }
@@ -1800,7 +1803,7 @@
     var box = $('#wkProgramContainer');
     $('#wkDoneSub').textContent = '';
     box.innerHTML = '<div class="wk-return-modal">' +
-      '<div class="wk-return-title">👋 Добро пожаловать обратно!</div>' +
+      '<div class="wk-return-title">Добро пожаловать обратно!</div>' +
       '<div class="wk-return-text">Последняя тренировка была ' + info.gap_days + ' дней назад. Как будем возвращаться?</div>' +
       '<div class="wk-return-options">' +
         '<div class="wk-return-option" data-choice="short">' +

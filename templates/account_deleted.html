@@ -10,27 +10,54 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
+<body class="auth-layout has-site-header">
 
-<nav class="nav">
-  <a href="/" class="nav-logo">
-    <span class="nav-logo-symbol">⚡</span>
-    <span>EnergyDess</span>
-  </a>
-</nav>
+{# Общая шапка вместо своей .nav. Гостевое состояние она выводит сама: роут
+   /account-deleted user в контекст не кладёт и тут же гасит куку
+   (main.py, account_deleted), так что «Войти / Регистрация» — ровно то,
+   что здесь уместно. Раньше на странице стоял собственный <nav> с одним
+   логотипом: копия шапки, которая жила отдельной жизнью (BACKLOG.md,
+   задача 27).
+
+   Класс той копии здесь намеренно НЕ назван словами. Проверка 4b
+   из CLAUDE.md §6.0.2 ищет его в разметке грепом, а греп не отличает
+   комментарий от кода: написанный полностью, он снова попал бы в вывод —
+   и следующий решил бы, что страницу не перевели. Тот же случай, что
+   с комментарием в nutrition.css, где пришлось убрать скобки. #}
+{% include '_header.html' %}
 
 <div class="auth-wrap">
-  <div class="auth-box" style="text-align:center">
-    <h1 style="margin-bottom:8px">Аккаунт удалён</h1>
-    <p style="color:var(--text-2);font-size:0.95rem;margin-bottom:24px">
-      Все данные удалены безвозвратно. Спасибо, что пользовались.
-    </p>
-    <a href="/" class="btn-primary">На главную</a>
-    <p style="margin-top:20px;font-size:0.8125rem;color:var(--text-faint)">
-      Передумали? Можно <a href="/register" style="color:var(--accent-brand);text-decoration:none">зарегистрироваться заново</a> —
-      адрес почты свободен.
-    </p>
+  <div class="auth-box">
+    <div class="auth-result">
+      <h1>Аккаунт удалён</h1>
+      <p class="auth-result-text">
+        Все данные удалены безвозвратно. Спасибо, что пользовались.
+      </p>
+      <a href="/" class="btn-primary">На главную</a>
+      <p class="auth-result-note">
+        Передумали? Можно <a href="/register">зарегистрироваться заново</a> —
+        адрес почты свободен.
+      </p>
+    </div>
   </div>
 </div>
+
+{# Тонкий вариант, а не полный, и не «без футера» (BACKLOG.md, задачи 27 и 28).
+   Полный отпадает по той же причине, что на пути входа: колонка «Инструменты»
+   ведёт за авторизацию, а «Аккаунт» — на профиль, которого больше нет; для
+   человека, который только что удалился, это тупики.
+
+   А вот совсем без футера — хуже. Правовые ссылки здесь не формальность:
+   удаление аккаунта это ровно тот момент, когда человек хочет свериться,
+   что и на сколько остаётся у нас после удаления (политика, раздел
+   «Сколько мы храним данные»: снимки состояния сервера — 30 дней). Держать
+   этот ответ на расстоянии одного клика — единственное, что мы ещё можем
+   для него сделать. #}
+{% set footer_thin = true %}
+{% include '_footer.html' %}
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="/static/ui.js"></script>
+<script>lucide.createIcons();</script>
 </body>
 </html>

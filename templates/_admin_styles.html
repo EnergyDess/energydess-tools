@@ -19,11 +19,7 @@
     margin-bottom: var(--space-6);
   }
   @media (max-width: 1200px) { .admin-wrap { padding: var(--space-7) var(--space-5); } }
-  @media (max-width: 640px) {
-    .admin-wrap { padding: var(--space-6) var(--space-4); }
-    .card-header { flex-direction: column; align-items: flex-start !important; }
-    .card-header > div { max-width: 100% !important; width: 100%; }
-  }
+  @media (max-width: 640px) { .admin-wrap { padding: var(--space-6) var(--space-4); } }
 
   /* ── Карточка-контейнер таблицы: .card из компонентной базы + модификатор.
      Свой padding не нужен (у th/td собственный), hover-подъём для таблицы
@@ -34,12 +30,23 @@
     box-shadow: var(--shadow-sm);
     border-color: var(--border);
   }
+  /* Ряд «название слева, поиск справа». Раскладка была инлайновым style=
+     на обеих админ-страницах (CLAUDE.md §6.0.2); из-за него мобильному
+     медиазапросу приходилось перебивать её через !important. Инлайна нет —
+     !important тоже не нужен, но медиазапрос обязан стоять НИЖЕ базового
+     правила: при равной специфичности выигрывает последний. */
   .card-header {
     padding: var(--space-4) var(--space-5);   /* по горизонтали совпадает с th/td */
     border-bottom: 1px solid var(--border);
     font-size: var(--text-body-sm);
     font-weight: 600;
     color: var(--text);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-4); flex-wrap: wrap;
+  }
+  @media (max-width: 640px) {
+    .card-header { flex-direction: column; align-items: flex-start; }
+    .card-header > div { max-width: 100%; width: 100%; }
   }
 
   .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -80,36 +87,11 @@
   .email-cell { color: var(--text-2); font-size: var(--text-caption); font-weight: 500; }
   .date-cell  { color: var(--text-2); font-size: var(--text-caption); }
 
-  /* ── Тумблер доступа к инструменту ───────────────────────────────────── */
-  .toggle { position: relative; width: 38px; height: 22px; cursor: pointer; display: inline-block; }
-  .toggle input { opacity: 0; width: 0; height: 0; }
-  .toggle-track {
-    position: absolute; inset: 0;
-    background: var(--surface-3);
-    border: 1px solid var(--border-strong);
-    border-radius: 999px;
-    transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
-  }
-  .toggle-track::after {
-    content: '';
-    position: absolute; left: 3px; top: 50%;
-    transform: translateY(-50%);
-    width: 14px; height: 14px;
-    border-radius: 50%;
-    background: var(--text-2);
-    transition: left var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
-  }
-  .toggle input:checked + .toggle-track {
-    background: var(--accent-brand-dim);
-    border-color: var(--accent-brand);
-  }
-  .toggle input:checked + .toggle-track::after {
-    left: calc(100% - 17px);
-    background: var(--accent-brand);
-  }
-  .toggle input:focus-visible + .toggle-track {
-    box-shadow: 0 0 0 3px var(--accent-brand-dim);
-  }
+  /* Тумблер доступа к инструменту берётся из компонентной базы (.toggle,
+     style.css). Своя копия жила здесь и успела разъехаться с системной:
+     38×22 против 40×22, бегунок 14 против 16, сдвиг бегунка через left
+     вместо transform. Удалена в задаче 26 BACKLOG; дорожка в разметке
+     переименована с .toggle-track на системный .track. */
 
   .empty-state {
     padding: var(--space-8) var(--space-5);
@@ -516,6 +498,8 @@
     border-color: var(--accent-brand);
     color: var(--accent-brand);
   }
+  /* Многоточие между блоками номеров страниц — не кнопка, а разрыв ряда */
+  .ex-page-gap { color: var(--text-faint); padding: 0 var(--space-1); }
 
   /* ── Модалка видео ──────────────────────────────────────────────────── */
   /* Оверлей, лист и кнопка закрытия — компонент (вариант modal-ov-viewer).

@@ -72,7 +72,15 @@ body::before {
   align-items: center;
   flex-wrap: wrap;
 }
-.hero .btn-primary { padding: var(--space-3) var(--space-6); box-shadow: var(--shadow-glow-brand); }
+/* Свечение кнопки в hero — класс .btn-glow в разметке (style.css).
+   Размер не меняем: рядом .btn-signature высотой 40px, ряд обязан быть ровным */
+
+/* Разделитель между секциями лендинга: системный .divider во всю ширину,
+   но обрезанный по ширине текстовых блоков (.details тоже 1100px).
+   Свой класс, а не переопределение .divider — компонент общий.
+   Вертикальный отступ снят намеренно: его дают паддинги соседних .sec,
+   а собственные --space-8 сверху и снизу добавили бы к ним ещё 144px. */
+.divider-sec { margin: 0 auto; max-width: 1100px; }
 
 /* ── Карточки инструментов 2×2 ──────────────────────────────────────────── */
 .features-grid {
@@ -174,7 +182,7 @@ body::before {
 }
 .cta .cta-tagline { font-size: var(--text-body-lg); font-weight: 600; color: var(--text); margin-bottom: var(--space-2); }
 .cta .cta-sub { color: var(--text-2); font-size: var(--text-body-sm); margin-bottom: var(--space-6); }
-.cta .btn-primary { padding: var(--space-4) var(--space-7); font-size: var(--text-body-lg); box-shadow: var(--shadow-glow-brand); }
+/* Финальный CTA — .btn-lg .btn-glow в разметке (style.css) */
 
 /* ── Появление при скролле: stagger карточек ────────────────────────────── */
 .features-grid .reveal:nth-child(2) { transition-delay: 60ms; }

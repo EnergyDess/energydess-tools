@@ -4,6 +4,39 @@
    Источник правды по визуалу: design-system.md.
    ═══════════════════════════════════════════════════════════════════════════ */
 
+/* ── Размеры иконок Lucide ────────────────────────────────────────────────
+   Дневник был вторым по числу эмодзи (48 штук, BACKLOG.md задача 31).
+   Эмодзи — глиф шрифта: размер ему давал font-size родителя, и в файле
+   этих font-size россыпь — 0.8125rem у значка тренировки, 1rem у приёма
+   пищи, 1.05rem на мобильном, 1.1rem у капли, 1.3rem в шапке сайдбара.
+   У Lucide размер — атрибуты на самом svg, наследования нет.
+
+   Поэтому 1em: значок берёт кегль у своей строки, то есть ровно у тех
+   font-size, что уже расставлены. Ни одно из пяти чисел переписывать
+   не пришлось, и следующий, кто поменяет кегль строки, получит
+   согласованный значок бесплатно.
+
+   .modal-ov в селекторе — контекст, а не субъект (правило красит svg).
+   Он нужен, потому что модалки лежат ВНЕ .nut-app, а чипы приёмов пищи
+   внутри окна «Добавить» — те же самые. Файл грузится только на этой
+   странице, так что за её пределы правило не выходит. ── */
+.nut-app i[data-lucide],
+.modal-ov i[data-lucide] {
+  /* место под значок до дорисовки — иначе строка дёргается */
+  display: inline-block; width: 1em; height: 1em;
+}
+.nut-app svg.lucide,
+.modal-ov svg.lucide {
+  width: 1em; height: 1em;
+  stroke-width: 1.75;
+  flex-shrink: 0;
+  vertical-align: -0.14em;
+}
+/* Капля воды берёт цвет воды, зелень раздела — зелёный: у эмодзи цвет был
+   свой, у Lucide он наследуется, и без этих двух строк оба стали бы серыми */
+.water-emoji svg.lucide { color: var(--wat); }
+.sidebar-hd svg.lucide  { color: var(--nut-g); }
+
 /* ── Переменные страницы ──────────────────────────────────────────────────
    Только то, чего нет в системе: цвета нутриентов и две высоты раскладки.
    Имена с префиксом --nut-* / --prot и т.д. — системных токенов страница
@@ -86,7 +119,7 @@ html.assistant-mode, html.assistant-mode body {
 }
 .nut-hdr-back:hover { color: var(--text); }
 .nut-hdr-title { font-size: 0.95rem; font-weight: 700; flex: 1; }
-.nut-hdr-date  { font-size: 0.78rem; color: var(--text); font-weight: 700; white-space: nowrap; }
+.nut-hdr-date  { font-size: 0.8125rem; color: var(--text); font-weight: 700; white-space: nowrap; }
 
 /* ── Content ── */
 .nut-content {
@@ -147,6 +180,16 @@ html.assistant-mode, html.assistant-mode body {
   background: var(--surface-1); border-top: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom, 0); flex-shrink: 0;
 }
+/* КЕГЛЬ 0.62rem (9.9px) — НИЖЕ МИНИМУМА 0.8125rem И ОСТАВЛЕН ОСОЗНАННО.
+   Шесть пунктов с подписью под иконкой делят 390px, слот выходит 62.5px.
+   Замерено на 390px 2026-08-06 подстановкой кеглей: при 0.8125rem слоты
+   перестают быть равными (61.3 / 63 / 66.7 — flex раздаёт ширину по
+   содержимому), а «Добавить» и «Ассистент» упираются в границу слота
+   без единого пикселя воздуха: текст 63.0 при слоте 63.0 и 66.7 при 66.7.
+   Потолок, при котором слоты ещё равны, — 0.75rem, и там «Ассистент»
+   тоже вплотную (61.6 из 62.5). Поднимать нечего, не переверстав панель.
+   На десктопе проблемы нет: медиазапрос 900px даёт .96rem — там панель
+   вертикальная и ширина не делится на шесть. BACKLOG.md, задача 35. */
 .nut-nav-btn {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 0.1875rem; background: none; border: none; cursor: pointer;
@@ -224,23 +267,23 @@ html.assistant-mode, html.assistant-mode body {
 }
 /* Подпись и счётчик "X из Y" — единый жирный белый стиль для читаемости */
 .ring-lbl {
-  font-size: 0.72rem; color: var(--text); font-weight: 700; margin-top: 0.25rem;
+  font-size: 0.8125rem; color: var(--text); font-weight: 700; margin-top: 0.25rem;
   letter-spacing: .08em; text-transform: uppercase;
 }
 .ring-eaten {
-  font-size: 0.72rem; color: var(--text); font-weight: 700; margin-top: 0.1875rem;
+  font-size: 0.8125rem; color: var(--text); font-weight: 700; margin-top: 0.1875rem;
   font-variant-numeric: tabular-nums; opacity: .9;
 }
 
 /* ── Macros ── */
 .macros-row { display: flex; gap: 0.5rem; margin: 0.625rem 0; }
 .macro-card { flex: 1; background: var(--surface-1); border: 1px solid var(--border); border-radius: 0.75rem; padding: 0.625rem 0.6875rem; }
-.macro-label { font-size: 0.7rem; color: var(--text); font-weight: 700; margin-bottom: 0.3125rem; }
+.macro-label { font-size: 0.8125rem; color: var(--text); font-weight: 700; margin-bottom: 0.3125rem; }
 /* контур дорожек — углубление на карточке даёт всего 1.05:1, читаемость
    добираем контуром, а не затемнением (design-system.md 1.1) */
 .macro-bar { height: 0.3125rem; background: var(--surface-sunken); border-radius: 0.1875rem; overflow: hidden; margin-bottom: 0.3125rem; box-shadow: inset 0 0 0 1px var(--border); }
 .macro-bar-fill { height: 100%; border-radius: 0.1875rem; transition: width .8s ease; }
-.macro-val { font-size: 0.75rem; font-weight: 600; }
+.macro-val { font-size: 0.8125rem; font-weight: 600; }
 
 /* ── Water ── */
 .water-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 0.875rem; padding: 0.8125rem 0.875rem; margin-bottom: 0.625rem; }
@@ -251,14 +294,14 @@ html.assistant-mode, html.assistant-mode body {
 .water-btns { display: flex; gap: 0.4375rem; }
 .water-btn {
   flex: 1; height: 2.125rem; background: rgba(56,189,248,.1); border: 1px solid rgba(56,189,248,.2);
-  border-radius: 0.5625rem; color: var(--wat); font-size: 0.78rem; font-weight: 600;
+  border-radius: 0.5625rem; color: var(--wat); font-size: 0.8125rem; font-weight: 600;
   cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .1s;
 }
 .water-btn:active { background: rgba(56,189,248,.22); }
 .water-btn-manual {
   width: 100%; height: 2.125rem; margin-top: 0.4375rem; background: var(--surface-sunken);
   border: 1px solid var(--border); border-radius: 0.5625rem; color: var(--text-2);
-  font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  font-size: 0.8125rem; font-weight: 600; cursor: pointer;
   -webkit-tap-highlight-color: transparent; transition: all .1s;
 }
 .water-btn-manual:active { color: var(--wat); border-color: rgba(56,189,248,.3); }
@@ -271,7 +314,7 @@ html.assistant-mode, html.assistant-mode body {
 }
 .meal-icon { font-size: 1rem; }
 .meal-name { font-size: 0.87rem; font-weight: 700; flex: 1; }
-.meal-kcal { font-size: 0.8rem; color: var(--nut-g); font-weight: 600; }
+.meal-kcal { font-size: 0.8125rem; color: var(--nut-g); font-weight: 600; }
 .meal-add {
   width: 1.875rem; height: 1.875rem; border-radius: 0.5rem;
   background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2);
@@ -283,8 +326,8 @@ html.assistant-mode, html.assistant-mode body {
 .food-item:last-child { border-bottom: none; }
 .food-info { flex: 1; min-width: 0; }
 .food-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.food-sub  { font-size: 0.7rem; color: var(--text); font-weight: 700; margin-top: 0.0625rem; }
-.food-kcal { font-size: 0.8rem; color: var(--nut-g); font-weight: 600; white-space: nowrap; }
+.food-sub  { font-size: 0.8125rem; color: var(--text); font-weight: 700; margin-top: 0.0625rem; }
+.food-kcal { font-size: 0.8125rem; color: var(--nut-g); font-weight: 600; white-space: nowrap; }
 .food-del  {
   width: 1.625rem; height: 1.625rem; border-radius: 0.4375rem; background: rgba(239,68,68,.1);
   border: 1px solid rgba(239,68,68,.2); color: #ef4444;
@@ -307,7 +350,7 @@ html.assistant-mode, html.assistant-mode body {
 .search-back { display: none; }
 .s-chips { display: flex; gap: 0.4375rem; margin-bottom: 0.75rem; }
 .s-chip {
-  flex: 1; padding: 0.375rem 0.5rem; border-radius: 1.25rem; font-size: 0.78rem; font-weight: 600;
+  flex: 1; padding: 0.375rem 0.5rem; border-radius: 1.25rem; font-size: 0.8125rem; font-weight: 600;
   background: var(--surface-sunken); border: 1px solid var(--border); color: var(--text-2);
   cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
   text-align: center; white-space: nowrap;
@@ -335,7 +378,7 @@ html.assistant-mode, html.assistant-mode body {
 .s-tabs { display: flex; background: var(--surface-sunken); border-radius: 0.5625rem; padding: 0.1875rem; margin-bottom: 0.6875rem; }
 .s-tab {
   flex: 1; height: 2rem; border-radius: 0.4375rem; border: none; background: none;
-  color: var(--text-2); font-size: 0.76rem; font-weight: 600;
+  color: var(--text-2); font-size: 0.8125rem; font-weight: 600;
   cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
 }
 .s-tab.active { background: var(--surface-1); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
@@ -349,9 +392,9 @@ html.assistant-mode, html.assistant-mode body {
 .r-item:active { background: var(--surface-sunken); }
 .r-info { flex: 1; min-width: 0; }
 .r-name  { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.r-brand { font-size: 0.7rem; color: var(--text-2); font-weight: 600; }
-.r-kcal  { font-size: 0.8rem; color: var(--nut-g); font-weight: 700; white-space: nowrap; }
-.r-per   { font-size: 0.65rem; color: var(--text-2); font-weight: 600; }
+.r-brand { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; }
+.r-kcal  { font-size: 0.8125rem; color: var(--nut-g); font-weight: 700; white-space: nowrap; }
+.r-per   { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; }
 .empty   { text-align: center; color: var(--text-2); font-weight: 600; padding: 1.75rem 1rem; font-size: 0.87rem; }
 
 /* ── AI estimate fallback ── */
@@ -395,62 +438,62 @@ html.assistant-mode, html.assistant-mode body {
   transition: stroke-dashoffset .8s ease;
 }
 .week-box { background: var(--surface-1); border: 1px solid var(--border); border-radius: 0.875rem; padding: 0.875rem; margin-top: 0.875rem; }
-.week-title { font-size: 0.68rem; color: var(--text-2); text-transform: uppercase; letter-spacing: .07em; font-weight: 600; margin-bottom: 0.625rem; }
+.week-title { font-size: 0.8125rem; color: var(--text-2); text-transform: uppercase; letter-spacing: .07em; font-weight: 600; margin-bottom: 0.625rem; }
 .week-bars { display: flex; gap: 0.3125rem; align-items: flex-end; height: 4.5rem; }
 .w-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.1875rem; height: 100%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .w-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
 .w-bar { width: 100%; border-radius: 0.25rem 0.25rem 0 0; background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.25); min-height: 0.1875rem; transition: background .15s, box-shadow .15s; }
 .w-bar.today { background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo); }
 .w-col.active .w-bar { background: var(--nut-g); box-shadow: 0 0 8px var(--nut-g-glo); }
-.w-day  { font-size: 0.62rem; color: var(--text); font-weight: 700; }
+.w-day  { font-size: 0.8125rem; color: var(--text); font-weight: 700; }
 .w-col.active .w-day { color: var(--nut-g); font-weight: 700; }
-.w-kcal { font-size: 0.62rem; color: var(--nut-g); font-weight: 600; }
-.w-trained { font-size: 0.7rem; }
+.w-kcal { font-size: 0.8125rem; color: var(--nut-g); font-weight: 600; }
+.w-trained { font-size: 0.8125rem; }
 
 /* ── Weight ── */
 .wt-hero { background: var(--surface-1); border: 1px solid var(--border); border-radius: 0.875rem; padding: 1.125rem; margin-bottom: 0.625rem; text-align: center; }
 .wt-big  { font-size: 2.8rem; font-weight: 800; line-height: 1; font-family: var(--font); }
 .wt-unit { font-size: 1.1rem; color: var(--text-2); font-weight: 600; }
-.wt-sub  { font-size: 0.75rem; color: var(--text-2); font-weight: 600; margin-top: 0.3125rem; }
+.wt-sub  { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-top: 0.3125rem; }
 .wt-prog { margin-top: 0.8125rem; }
-.wt-prog-lbl { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-2); font-weight: 600; margin-bottom: 0.3125rem; }
+.wt-prog-lbl { display: flex; justify-content: space-between; font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-bottom: 0.3125rem; }
 .wt-prog-bar { height: 0.4375rem; background: var(--surface-sunken); border-radius: 0.25rem; overflow: hidden; box-shadow: inset 0 0 0 1px var(--border); }
 .wt-prog-fill { height: 100%; background: var(--nut-g); border-radius: 0.25rem; transition: width .8s ease; box-shadow: 0 0 8px var(--nut-g-glo); }
 .measures { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin: 0.625rem 0; }
 .m-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 0.6875rem; padding: 0.6875rem 0.5625rem; text-align: center; }
 .m-val { font-size: 1.25rem; font-weight: 700; }
-.m-lbl { font-size: 0.65rem; color: var(--text-2); font-weight: 600; margin-top: 0.125rem; }
+.m-lbl { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-top: 0.125rem; }
 .chart-box { background: var(--surface-1); border: 1px solid var(--border); border-radius: 0.875rem; padding: 0.875rem; margin-bottom: 0.625rem; overflow: hidden; }
 .wt-svg { width: 100%; height: 10rem; overflow: visible; }
 #wt-tooltip {
   position: fixed; z-index: 9999; display: none; pointer-events: none;
   background: rgba(22,26,44,.97); border: 1px solid rgba(199,211,234,.13);
   border-radius: 0.625rem; padding: 0.625rem 0.875rem; min-width: 9.25rem;
-  font-size: 0.8rem; color: var(--text);
+  font-size: 0.8125rem; color: var(--text);
   box-shadow: 0 8px 28px rgba(0,0,0,.55);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
-.wt-tt-date { font-size: 0.72rem; color: var(--text-2); font-weight: 600; margin-bottom: 0.4375rem; text-transform: capitalize; white-space: nowrap; }
+.wt-tt-date { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-bottom: 0.4375rem; text-transform: capitalize; white-space: nowrap; }
 .wt-tt-row { display: flex; justify-content: space-between; gap: 1.125rem; margin-bottom: 0.1875rem; }
 .wt-tt-row:last-child { margin-bottom: 0; }
-.wt-tt-row span { color: var(--text-2); font-size: 0.75rem; }
+.wt-tt-row span { color: var(--text-2); font-size: 0.8125rem; }
 .wt-tt-row strong { color: var(--nut-g); font-weight: 700; font-size: 0.82rem; }
 
 /* ── Profile ── */
 .p-sec { margin-bottom: 1.125rem; }
-.p-sec-title { font-size: 0.68rem; color: var(--text-2); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; margin-bottom: 0.5625rem; }
+.p-sec-title { font-size: 0.8125rem; color: var(--text-2); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; margin-bottom: 0.5625rem; }
 .body-photo-slot {
   aspect-ratio: 3/4; border: 1.5px dashed var(--border); border-radius: 0.625rem;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
-  color: var(--text-2); font-size: 0.78rem; text-align: center; overflow: hidden;
+  color: var(--text-2); font-size: 0.8125rem; text-align: center; overflow: hidden;
   background: var(--surface-1); transition: border-color .2s;
 }
 .body-photo-slot:hover { border-color: var(--nut-g); }
 .body-photo-slot img { width: 100%; height: 100%; object-fit: cover; }
 .compare-col { flex: 1; min-width: 8.75rem; text-align: center; }
 .compare-col img { width: 100%; border-radius: 0.625rem; aspect-ratio: 3/4; object-fit: cover; margin-bottom: 0.25rem; }
-.compare-col-label { font-size: 0.72rem; color: var(--text-2); margin-top: 0.375rem; }
-.f-label { font-size: 0.76rem; color: var(--text-2); font-weight: 600; margin-bottom: 0.3125rem; display: block; }
+.compare-col-label { font-size: 0.8125rem; color: var(--text-2); margin-top: 0.375rem; }
+.f-label { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-bottom: 0.3125rem; display: block; }
 .f-input {
   width: 100%; height: 2.75rem; background: var(--surface-sunken); border: 1px solid var(--border);
   border-radius: 0.6875rem; padding: 0 0.8125rem; color: var(--text); font-size: 0.93rem;
@@ -461,22 +504,27 @@ html.assistant-mode, html.assistant-mode body {
 .radio-row { display: flex; gap: 0.4375rem; }
 .radio-btn {
   flex: 1; height: 2.5rem; border-radius: 0.625rem; border: 1px solid var(--border);
-  background: var(--surface-sunken); color: var(--text-2); font-size: 0.8rem; font-weight: 600;
+  background: var(--surface-sunken); color: var(--text-2); font-size: 0.8125rem; font-weight: 600;
   cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
 }
 .radio-btn.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
 .act-btn {
   width: 100%; text-align: left; padding: 0.625rem 0.8125rem; border-radius: 0.625rem;
   border: 1px solid var(--border); background: var(--surface-sunken); color: var(--text-2);
-  font-size: 0.8rem; font-weight: 600; cursor: pointer; margin-bottom: 0.3125rem;
+  font-size: 0.8125rem; font-weight: 600; cursor: pointer; margin-bottom: 0.3125rem;
   transition: all .15s; -webkit-tap-highlight-color: transparent; font-family: var(--font);
 }
 .act-btn.active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.35); color: var(--nut-g); }
 .targets-box { background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2); border-radius: 0.8125rem; padding: 0.8125rem 0.875rem; margin: 0.875rem 0; }
-.targets-title { font-size: 0.76rem; color: var(--nut-g); font-weight: 700; margin-bottom: 0.5rem; }
+.targets-title { font-size: 0.8125rem; color: var(--nut-g); font-weight: 700; margin-bottom: 0.5rem; }
 .targets-row { display: flex; gap: 0.4375rem; }
 .t-item { flex: 1; text-align: center; }
 .t-val { font-size: 1.05rem; font-weight: 700; }
+/* КЕГЛЬ 0.62rem — тоже ниже минимума и тоже осознанно. Три цели делят
+   ряд, ячейка выходит 57px, а самая длинная подпись — «ккал/день».
+   Замерено на 390px 2026-08-06: при 0.8125rem она переносится на вторую
+   строку, и ряд из трёх ячеек становится разновысоким. Единственный узел
+   из сорока восьми, где подъём дал перенос. BACKLOG.md, задача 35. */
 .t-lbl { font-size: 0.62rem; color: var(--text-2); font-weight: 600; }
 .save-btn {
   width: 100%; height: 3rem; border-radius: 0.8125rem; border: none;
@@ -501,11 +549,11 @@ html.assistant-mode, html.assistant-mode body {
 /* ── Portion modal ── */
 .por-name { font-size: 0.97rem; font-weight: 700; margin-bottom: 0.1875rem; }
 .por-sub-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.8125rem; }
-.por-sub  { font-size: 0.76rem; color: var(--text-2); font-weight: 600; }
+.por-sub  { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; }
 .por-edit-btn {
   flex-shrink: 0; display: flex; align-items: center; gap: 0.25rem;
   padding: 0.3125rem 0.6875rem; border-radius: 1.25rem; background: var(--surface-sunken); border: 1px solid var(--border);
-  color: var(--text-2); font-size: 0.72rem; font-weight: 600; cursor: pointer;
+  color: var(--text-2); font-size: 0.8125rem; font-weight: 600; cursor: pointer;
   -webkit-tap-highlight-color: transparent; transition: all .15s; white-space: nowrap;
 }
 .por-edit-btn.active { color: var(--nut-g); border-color: rgba(34,197,94,.35); background: var(--nut-g-dim); }
@@ -522,13 +570,13 @@ html.assistant-mode, html.assistant-mode body {
 .q-grams { display: flex; gap: 0.4375rem; margin-bottom: 0.875rem; flex-wrap: wrap; }
 .q-btn {
   padding: 0.375rem 0.8125rem; border-radius: 0.5rem; background: var(--surface-sunken); border: 1px solid var(--border);
-  color: var(--text-2); font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  color: var(--text-2); font-size: 0.8125rem; font-weight: 600; cursor: pointer;
   -webkit-tap-highlight-color: transparent; transition: all .1s;
 }
 .q-btn:active { color: var(--nut-g); border-color: var(--nut-g); }
 .calc-box { background: var(--nut-g-dim); border: 1px solid rgba(34,197,94,.2); border-radius: 0.6875rem; padding: 0.6875rem 0.8125rem; margin-bottom: 0.875rem; }
 .calc-kcal   { font-size: 1.45rem; font-weight: 800; color: var(--nut-g); font-family: var(--font); }
-.calc-macros { font-size: 0.76rem; color: var(--text-2); font-weight: 600; margin-top: 0.125rem; }
+.calc-macros { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-top: 0.125rem; }
 .add-btn {
   width: 100%; height: 3rem; border-radius: 0.8125rem; border: none;
   /* тёмная надпись: белая на зелёном 2.54, --surface-0 — 7.76 */
@@ -648,7 +696,7 @@ html.assistant-mode, html.assistant-mode body {
   background: var(--surface-sunken); border: 1px solid var(--border); border-radius: 0.6875rem; flex-shrink: 0;
 }
 .chat-attach-preview img { width: 2.5rem; height: 2.5rem; border-radius: 0.5rem; object-fit: cover; }
-.chat-attach-preview span { flex: 1; font-size: 0.8rem; color: var(--text-2); }
+.chat-attach-preview span { flex: 1; font-size: 0.8125rem; color: var(--text-2); }
 .chat-attach-preview button {
   width: 1.625rem; height: 1.625rem; border-radius: 50%; background: var(--surface-1); border: none;
   color: var(--text-2); font-size: 1rem; cursor: pointer; flex-shrink: 0;
@@ -728,10 +776,10 @@ html.assistant-mode, html.assistant-mode body {
 .voice-wave-static .vw-bar { width: 0.1875rem; border-radius: 0.125rem; flex-shrink: 0; opacity: .55; }
 .chat-bubble.user .voice-wave-static .vw-bar { background: var(--nut-g); }
 .chat-bubble.ai .voice-wave-static .vw-bar { background: var(--text-2); }
-.voice-dur { font-size: 0.74rem; color: var(--text-2); font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.voice-dur { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .voice-tr-toggle {
   margin-top: 0.4375rem; background: none; border: none; padding: 0; cursor: pointer;
-  font-size: 0.74rem; font-weight: 700; color: var(--nut-g); font-family: var(--font);
+  font-size: 0.8125rem; font-weight: 700; color: var(--nut-g); font-family: var(--font);
   display: flex; align-items: center; gap: 0.1875rem; -webkit-tap-highlight-color: transparent;
 }
 .voice-tr-toggle svg { width: 0.6875rem; height: 0.6875rem; transition: transform .15s; }
@@ -741,12 +789,12 @@ html.assistant-mode, html.assistant-mode body {
   font-size: 0.85rem; line-height: 1.5;
 }
 .voice-tr-text.show { display: block; }
-.voice-transcribing { margin-top: 0.375rem; font-size: 0.78rem; color: var(--text-2); font-weight: 600; font-style: italic; }
+.voice-transcribing { margin-top: 0.375rem; font-size: 0.8125rem; color: var(--text-2); font-weight: 600; font-style: italic; }
 /* ── Кнопки выбора приёма пищи в чате ── */
 .meal-picker-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4375rem; margin-top: 0.5625rem; }
 .meal-picker-btns button {
   padding: 0.5625rem 0.375rem; border-radius: 0.5625rem; background: var(--surface-1); border: 1px solid var(--border);
-  color: var(--text); font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  color: var(--text); font-size: 0.8125rem; font-weight: 600; cursor: pointer;
   -webkit-tap-highlight-color: transparent; transition: background .1s, border-color .1s;
 }
 .meal-picker-btns button:active { background: var(--nut-g-dim); border-color: rgba(34,197,94,.25); }
@@ -755,7 +803,7 @@ html.assistant-mode, html.assistant-mode body {
 .ing-list { margin-bottom: 0.625rem; }
 .ing-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
 .ing-name { flex: 1; font-size: 0.83rem; }
-.ing-g    { font-size: 0.78rem; color: var(--nut-g); }
+.ing-g    { font-size: 0.8125rem; color: var(--nut-g); }
 .ing-del  { color: #ef4444; background: none; border: none; font-size: 1rem; cursor: pointer; padding: 0 0.25rem; }
 .ing-add-btn {
   width: 100%; height: 2.375rem; border-radius: 0.5625rem; background: var(--surface-sunken);
@@ -829,11 +877,11 @@ html.assistant-mode, html.assistant-mode body {
 .mini-ring-stack  { position: relative; display: flex; align-items: center; justify-content: center; }
 .mini-ring-center { position: absolute; text-align: center; }
 .hist-kcal-val { font-size: 1.25rem; font-weight: 800; }
-.hist-kcal-lbl { font-size: 0.6875rem; color: var(--text-2); font-weight: 600; }
+.hist-kcal-lbl { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; }
 
 /* ── Профиль: пояснения, сообщения, ряды действий ── */
 .p-note        { color: var(--text-2); font-size: 0.8125rem; line-height: 1.5; margin-bottom: 0.625rem; }
-.p-note-sm     { color: var(--text-2); font-size: 0.75rem;   line-height: 1.5; margin-bottom: 0.625rem; }
+.p-note-sm     { color: var(--text-2); font-size: 0.8125rem;   line-height: 1.5; margin-bottom: 0.625rem; }
 .p-note-inline { color: var(--text-2); font-size: 0.8125rem; }
 .p-msg         { font-size: 0.8125rem; margin-top: 0.5rem; }
 .p-actions     { display: flex; gap: 0.5rem; margin-top: 0.625rem; flex-wrap: wrap; }
@@ -852,7 +900,7 @@ html.assistant-mode, html.assistant-mode body {
 .compare-select { flex: 1; min-width: 7.5rem; }
 .compare-arrow  { color: var(--text-2); }
 .compare-view   { display: flex; gap: 0.625rem; flex-wrap: wrap; }
-.compare-empty  { font-size: 0.75rem; color: var(--text-2); }
+.compare-empty  { font-size: 0.8125rem; color: var(--text-2); }
 
 /* ── Отступы кнопок, отличные от базовых ── */
 .save-btn-flush { margin-top: 0; }
@@ -864,7 +912,7 @@ html.assistant-mode, html.assistant-mode body {
 /* ── Содержимое модалок ──
    Префикс .nut-* намеренно: в системе есть .modal-ov и производные,
    и класс .modal-hint читался бы как системный, не будучи им. */
-.nut-hint        { font-size: 0.8rem; color: var(--text-2); font-weight: 600; margin-bottom: 0.5625rem; }
+.nut-hint        { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-bottom: 0.5625rem; }
 .nut-hint-center { text-align: center; }
 .f-label-group       { font-weight: 600; margin-bottom: 0.5rem; }
 .f-label-group-tight { font-weight: 600; margin-bottom: 0.4375rem; }
@@ -877,7 +925,7 @@ html.assistant-mode, html.assistant-mode body {
 .chat-input-row-modal { padding-bottom: 0.875rem; }
 
 /* ── То, что собирает скрипт ── */
-.food-brand      { font-weight: 600; color: var(--text-2); font-size: 0.6875rem; }
+.food-brand      { font-weight: 600; color: var(--text-2); font-size: 0.8125rem; }
 .meal-card-tight { margin-bottom: 0.4375rem; }
 .meal-hdr-static { cursor: default; }
 .recipe-del {
@@ -940,7 +988,10 @@ html.assistant-mode, html.assistant-mode body {
     background: linear-gradient(90deg, var(--nut-g), var(--wat));
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   }
-  .sidebar-hd span:first-child { -webkit-text-fill-color: initial; font-size: 1.3rem; }
+  /* Значок опущен из градиентной заливки заголовка: -webkit-text-fill-color
+     красит текст, а svg рисуется stroke-ом и заливку игнорирует — без сброса
+     он унаследовал бы прозрачный текст и исчез бы вместе с ним */
+  .sidebar-hd span:first-child { -webkit-text-fill-color: initial; font-size: 1.3rem; line-height: 0; }
   .sidebar-date {
     display: flex; align-items: center; gap: 0.4375rem;
     font-size: .82rem; color: var(--text-2); font-weight: 600; text-transform: capitalize;

@@ -72,7 +72,7 @@
         <div id="meals-wrap"></div>
         <div class="water-card">
           <div class="water-hdr">
-            <span class="water-emoji">💧</span>
+            <span class="water-emoji"><i data-lucide="droplet"></i></span>
             <span class="water-name">Вода</span>
             <span class="water-val" id="water-val">0 / 2000 мл</span>
           </div>
@@ -83,7 +83,7 @@
             <button class="water-btn" onclick="addWater(300)">+300</button>
             <button class="water-btn" onclick="addWater(500)">+500</button>
           </div>
-          <button class="water-btn-manual" onclick="openWaterManual()">✏️ Ввести вручную</button>
+          <button class="water-btn-manual" onclick="openWaterManual()"><i data-lucide="pencil"></i> Ввести вручную</button>
         </div>
       </div>
     </section>
@@ -92,10 +92,10 @@
     <section class="nut-tab" id="tab-search">
       <button class="search-back" onclick="handleBack()">← Назад в дневник</button>
       <div class="s-chips" id="meal-chips">
-        <button class="s-chip active" data-meal="breakfast" onclick="setSearchMeal(this)">☀️ Завтрак</button>
-        <button class="s-chip" data-meal="lunch"     onclick="setSearchMeal(this)">🌤 Обед</button>
-        <button class="s-chip" data-meal="dinner"    onclick="setSearchMeal(this)">🌙 Ужин</button>
-        <button class="s-chip" data-meal="snack"     onclick="setSearchMeal(this)">🍎 Перекус</button>
+        <button class="s-chip active" data-meal="breakfast" onclick="setSearchMeal(this)"><i data-lucide="sunrise"></i> Завтрак</button>
+        <button class="s-chip" data-meal="lunch"     onclick="setSearchMeal(this)"><i data-lucide="sun"></i> Обед</button>
+        <button class="s-chip" data-meal="dinner"    onclick="setSearchMeal(this)"><i data-lucide="moon"></i> Ужин</button>
+        <button class="s-chip" data-meal="snack"     onclick="setSearchMeal(this)"><i data-lucide="apple"></i> Перекус</button>
       </div>
       <div class="s-bar">
         <input type="search" class="s-input" id="s-input" placeholder="Поиск еды..."
@@ -109,7 +109,7 @@
           </svg>
         </button>
       </div>
-      <button class="add-manual-btn" onclick="openCustomFoodModal()">✏️ Добавить свой продукт</button>
+      <button class="add-manual-btn" onclick="openCustomFoodModal()"><i data-lucide="pencil"></i> Добавить свой продукт</button>
       <div class="s-tabs">
         <button class="s-tab active" id="st-recent"   onclick="setSearchTab('recent')">Недавние</button>
         <button class="s-tab"        id="st-frequent" onclick="setSearchTab('frequent')">Частые</button>
@@ -168,7 +168,7 @@
           <div class="m-card"><div class="m-val" id="m-hips">—</div><div class="m-lbl">Ягодицы, см</div></div>
           <div class="m-card"><div class="m-val" id="m-chest">—</div><div class="m-lbl">Грудь, см</div></div>
         </div>
-        <button class="save-btn save-btn-flush" onclick="открыть_модалку('modal-measure')">📏 Записать замер</button>
+        <button class="save-btn save-btn-flush" onclick="открыть_модалку('modal-measure')"><i data-lucide="ruler"></i> Записать замер</button>
       </div>
       <div class="d-right">
         <div class="chart-box"><div class="week-title">График веса</div><svg class="wt-svg" id="wt-svg"></svg></div>
@@ -181,16 +181,16 @@
         <div class="p-sec">
           <div class="p-sec-title">Личные данные</div>
           <div class="f-field">
-            <label class="f-label">Пол</label>
+            <label class="field-label f-label">Пол</label>
             <div class="radio-row" id="rg-gender">
               <button class="radio-btn active" data-val="male"   onclick="setRad(this)">Мужской</button>
               <button class="radio-btn"        data-val="female" onclick="setRad(this)">Женский</button>
             </div>
           </div>
-          <div class="f-field"><label class="f-label">Возраст</label><input type="number" class="f-input" id="p-age"    placeholder="25" min="10" max="100"></div>
-          <div class="f-field"><label class="f-label">Вес, кг</label><input type="number" class="f-input" id="p-weight" placeholder="70" min="30" max="250" step="0.1"></div>
-          <div class="f-field"><label class="f-label">Рост, см</label><input type="number" class="f-input" id="p-height" placeholder="170" min="120" max="250"></div>
-          <div class="f-field"><label class="f-label">Цель по весу, кг</label><input type="number" class="f-input" id="p-target" placeholder="65" min="30" max="250" step="0.1"></div>
+          <div class="f-field"><label class="field-label f-label">Возраст</label><input type="number" class="f-input" id="p-age"    placeholder="25" min="10" max="100"></div>
+          <div class="f-field"><label class="field-label f-label">Вес, кг</label><input type="number" class="f-input" id="p-weight" placeholder="70" min="30" max="250" step="0.1"></div>
+          <div class="f-field"><label class="field-label f-label">Рост, см</label><input type="number" class="f-input" id="p-height" placeholder="170" min="120" max="250"></div>
+          <div class="f-field"><label class="field-label f-label">Цель по весу, кг</label><input type="number" class="f-input" id="p-target" placeholder="65" min="30" max="250" step="0.1"></div>
         </div>
 
         <div class="p-sec">
@@ -252,11 +252,11 @@
         </div>
         <div class="p-sec">
           <div class="p-sec-title">Активность</div>
-          <button class="act-btn" data-val="sedentary"  onclick="setAct(this)">😴 Сидячий — офис, мало движения</button>
-          <button class="act-btn" data-val="light"      onclick="setAct(this)">🚶 Лёгкий — прогулки, редкие тренировки</button>
-          <button class="act-btn active" data-val="moderate" onclick="setAct(this)">🏃 Умеренный — тренировки 3-4 раза в неделю</button>
-          <button class="act-btn" data-val="active"     onclick="setAct(this)">💪 Активный — тренировки 5-6 раз</button>
-          <button class="act-btn" data-val="very_active" onclick="setAct(this)">🔥 Очень активный — ежедневно</button>
+          <button class="act-btn" data-val="sedentary"  onclick="setAct(this)"><i data-lucide="armchair"></i> Сидячий — офис, мало движения</button>
+          <button class="act-btn" data-val="light"      onclick="setAct(this)"><i data-lucide="footprints"></i> Лёгкий — прогулки, редкие тренировки</button>
+          <button class="act-btn active" data-val="moderate" onclick="setAct(this)"><i data-lucide="activity"></i> Умеренный — тренировки 3-4 раза в неделю</button>
+          <button class="act-btn" data-val="active"     onclick="setAct(this)"><i data-lucide="dumbbell"></i> Активный — тренировки 5-6 раз</button>
+          <button class="act-btn" data-val="very_active" onclick="setAct(this)"><i data-lucide="flame"></i> Очень активный — ежедневно</button>
         </div>
         <div class="targets-box" id="targets-box" style="display:none">
           <div class="targets-title">Расчётные нормы</div>
@@ -313,7 +313,7 @@
 
   <!-- Bottom nav / Desktop sidebar -->
   <nav class="nut-nav">
-    <div class="sidebar-hd"><span>🌿</span> Дневник питания</div>
+    <div class="sidebar-hd"><span><i data-lucide="salad"></i></span> Дневник питания</div>
     <div class="sidebar-date" id="sidebar-date"></div>
     <button class="nut-nav-btn active" data-tab="diary"   onclick="switchTab(this)">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
@@ -353,20 +353,20 @@
       <div class="por-name" id="por-name"></div>
       <div class="por-sub-row">
         <div class="por-sub" id="por-sub"></div>
-        <button class="por-edit-btn" id="por-edit-btn" onclick="togglePorEdit()" type="button">✏️ Изменить</button>
+        <button class="por-edit-btn" id="por-edit-btn" onclick="togglePorEdit()" type="button"><i data-lucide="pencil"></i> Изменить</button>
       </div>
       <div class="por-edit-grid" id="por-edit-grid" style="display:none">
-        <div class="f-field f-field-wide"><label class="f-label">Бренд / заведение</label><input type="text" class="f-input" id="pe-brand" placeholder="Например, ресторан или производитель" oninput="onPorEdit()"></div>
-        <div class="f-field"><label class="f-label">Калории на 100г</label><input type="number" class="f-input" id="pe-kcal" oninput="onPorEdit()"></div>
-        <div class="f-field"><label class="f-label">Белки, г</label><input type="number" class="f-input" id="pe-prot" oninput="onPorEdit()"></div>
-        <div class="f-field"><label class="f-label">Жиры, г</label><input type="number" class="f-input" id="pe-fat" oninput="onPorEdit()"></div>
-        <div class="f-field"><label class="f-label">Углеводы, г</label><input type="number" class="f-input" id="pe-carb" oninput="onPorEdit()"></div>
+        <div class="f-field f-field-wide"><label class="field-label f-label">Бренд / заведение</label><input type="text" class="f-input" id="pe-brand" placeholder="Например, ресторан или производитель" oninput="onPorEdit()"></div>
+        <div class="f-field"><label class="field-label f-label">Калории на 100г</label><input type="number" class="f-input" id="pe-kcal" oninput="onPorEdit()"></div>
+        <div class="f-field"><label class="field-label f-label">Белки, г</label><input type="number" class="f-input" id="pe-prot" oninput="onPorEdit()"></div>
+        <div class="f-field"><label class="field-label f-label">Жиры, г</label><input type="number" class="f-input" id="pe-fat" oninput="onPorEdit()"></div>
+        <div class="f-field"><label class="field-label f-label">Углеводы, г</label><input type="number" class="f-input" id="pe-carb" oninput="onPorEdit()"></div>
       </div>
       <div class="s-chips" id="por-meal-chips">
-        <button class="s-chip" data-meal="breakfast" onclick="setPorMeal(this)">☀️ Завтрак</button>
-        <button class="s-chip" data-meal="lunch"     onclick="setPorMeal(this)">🌤 Обед</button>
-        <button class="s-chip" data-meal="dinner"    onclick="setPorMeal(this)">🌙 Ужин</button>
-        <button class="s-chip" data-meal="snack"     onclick="setPorMeal(this)">🍎 Перекус</button>
+        <button class="s-chip" data-meal="breakfast" onclick="setPorMeal(this)"><i data-lucide="sunrise"></i> Завтрак</button>
+        <button class="s-chip" data-meal="lunch"     onclick="setPorMeal(this)"><i data-lucide="sun"></i> Обед</button>
+        <button class="s-chip" data-meal="dinner"    onclick="setPorMeal(this)"><i data-lucide="moon"></i> Ужин</button>
+        <button class="s-chip" data-meal="snack"     onclick="setPorMeal(this)"><i data-lucide="apple"></i> Перекус</button>
       </div>
       <div class="g-wrap">
         <input type="number" class="g-input" id="g-input" value="100" min="1" max="5000" oninput="updateCalc()" onfocus="setTimeout(()=>this.select())">
@@ -405,15 +405,15 @@
 
 <!-- ─── MODAL: Custom food ─── -->
 {% call m.modal('modal-custom', 'Добавить вручную') %}
-      <div class="f-field"><label class="f-label">Название *</label><input type="text" class="f-input" id="cf-name" placeholder="Куриное филе"></div>
-      <div class="f-field"><label class="f-label">Бренд / заведение</label><input type="text" class="f-input" id="cf-brand" placeholder="Например, ресторан или производитель"></div>
-      <div class="f-field"><label class="f-label">Штрих-код</label><input type="text" class="f-input" id="cf-barcode"></div>
+      <div class="f-field"><label class="field-label f-label">Название *</label><input type="text" class="f-input" id="cf-name" placeholder="Куриное филе"></div>
+      <div class="f-field"><label class="field-label f-label">Бренд / заведение</label><input type="text" class="f-input" id="cf-brand" placeholder="Например, ресторан или производитель"></div>
+      <div class="f-field"><label class="field-label f-label">Штрих-код</label><input type="text" class="f-input" id="cf-barcode"></div>
       <div class="f-label f-label-group">КБЖУ на 100г</div>
       <div class="cf-grid">
-        <div class="f-field"><label class="f-label">Калории *</label><input type="number" class="f-input" id="cf-cal"  placeholder="165"></div>
-        <div class="f-field"><label class="f-label">Белок, г</label><input type="number" class="f-input" id="cf-prot" placeholder="31"></div>
-        <div class="f-field"><label class="f-label">Жиры, г</label><input type="number" class="f-input" id="cf-fat"  placeholder="3.6"></div>
-        <div class="f-field"><label class="f-label">Углеводы, г</label><input type="number" class="f-input" id="cf-carb" placeholder="0"></div>
+        <div class="f-field"><label class="field-label f-label">Калории *</label><input type="number" class="f-input" id="cf-cal"  placeholder="165"></div>
+        <div class="f-field"><label class="field-label f-label">Белок, г</label><input type="number" class="f-input" id="cf-prot" placeholder="31"></div>
+        <div class="f-field"><label class="field-label f-label">Жиры, г</label><input type="number" class="f-input" id="cf-fat"  placeholder="3.6"></div>
+        <div class="f-field"><label class="field-label f-label">Углеводы, г</label><input type="number" class="f-input" id="cf-carb" placeholder="0"></div>
       </div>
       <button class="add-btn" onclick="saveCustomFood()">Сохранить и добавить</button>
 {% endcall %}
@@ -429,7 +429,7 @@
 {% endcall %}
 
 <!-- ─── MODAL: Manual water ─── -->
-{% call m.modal('modal-water', 'Добавить воду', icon='💧') %}
+{% call m.modal('modal-water', 'Добавить воду', icon='droplet') %}
       <div class="g-wrap">
         <input type="number" class="g-input" id="water-input" placeholder="150" min="1" max="5000" onkeydown="if(event.key==='Enter')confirmWaterManual()">
         <span class="g-lbl">мл</span>
@@ -445,10 +445,10 @@
 {% endcall %}
 
 <!-- ─── MODAL: Photo analyze ─── -->
-{% call m.modal('modal-photo-analyze', 'Анализ фото', icon='📸') %}
+{% call m.modal('modal-photo-analyze', 'Анализ фото', icon='camera') %}
       <img class="pa-preview" id="pa-preview" alt="">
       <div class="f-field">
-        <label class="f-label">Опишите блюдо (необязательно)</label>
+        <label class="field-label f-label">Опишите блюдо (необязательно)</label>
         <div class="s-bar s-bar-flush">
           <input type="text" class="s-input" id="pa-desc" placeholder="Например: с майонезом, порция побольше..."
                  onkeydown="if(event.key==='Enter')runPhotoAnalyze()">
@@ -462,7 +462,7 @@
 
 <!-- ─── MODAL: Create recipe ─── -->
 {% call m.modal('modal-recipe', 'Новый рецепт') %}
-      <div class="f-field"><label class="f-label">Название</label><input type="text" class="f-input" id="rec-name" placeholder="Творожная запеканка"></div>
+      <div class="f-field"><label class="field-label f-label">Название</label><input type="text" class="f-input" id="rec-name" placeholder="Творожная запеканка"></div>
       <div class="f-label f-label-group-tight">Ингредиенты</div>
       <div class="ing-list" id="ing-list"></div>
       <button class="ing-add-btn" onclick="openSearchForRecipe()">+ Ингредиент</button>
@@ -514,7 +514,7 @@
 <!-- ─── MODAL: AI Chat ─── -->
 {# modal-ov-column вместо двух инлайновых style= на листе и теле: лента чата
    сама себе скролл-контейнер, высота листа фиксирована #}
-{% call m.modal('modal-ai', 'AI-нутрициолог', icon='🥗', variant='modal-ov-column') %}
+{% call m.modal('modal-ai', 'AI-нутрициолог', icon='salad', variant='modal-ov-column') %}
       <div class="chat-msgs" id="chat-msgs"></div>
       <div class="chat-attach-preview" style="display:none">
         <img class="chat-attach-img" alt="">
@@ -552,12 +552,12 @@
 
 <!-- ─── MODAL: Measure ─── -->
 {% call m.modal('modal-measure', 'Записать замер') %}
-      <div class="f-field"><label class="f-label">Вес, кг</label><input type="number" class="f-input" id="mw-kg"    placeholder="70.5" step="0.1"></div>
+      <div class="f-field"><label class="field-label f-label">Вес, кг</label><input type="number" class="f-input" id="mw-kg"    placeholder="70.5" step="0.1"></div>
       <div class="f-label f-label-group">Замеры тела</div>
       <div class="meas-grid">
-        <div class="f-field"><label class="f-label">Талия, см</label><input type="number" class="f-input" id="mw-waist" placeholder="80"></div>
-        <div class="f-field"><label class="f-label">Ягодицы, см</label><input type="number" class="f-input" id="mw-hips"  placeholder="95"></div>
-        <div class="f-field"><label class="f-label">Грудь, см</label><input type="number" class="f-input" id="mw-chest" placeholder="90"></div>
+        <div class="f-field"><label class="field-label f-label">Талия, см</label><input type="number" class="f-input" id="mw-waist" placeholder="80"></div>
+        <div class="f-field"><label class="field-label f-label">Ягодицы, см</label><input type="number" class="f-input" id="mw-hips"  placeholder="95"></div>
+        <div class="f-field"><label class="field-label f-label">Грудь, см</label><input type="number" class="f-input" id="mw-chest" placeholder="90"></div>
       </div>
       <button class="add-btn" onclick="saveMeasure()">Сохранить</button>
 {% endcall %}
@@ -704,10 +704,10 @@ function renderWater(ml, goal) {
 }
 
 const MEALS = [
-  {id:'breakfast',name:'Завтрак',icon:'☀️'},
-  {id:'lunch',    name:'Обед',   icon:'🌤'},
-  {id:'dinner',   name:'Ужин',   icon:'🌙'},
-  {id:'snack',    name:'Перекус',icon:'🍎'},
+  {id:'breakfast',name:'Завтрак',icon:'sunrise'},
+  {id:'lunch',    name:'Обед',   icon:'sun'},
+  {id:'dinner',   name:'Ужин',   icon:'moon'},
+  {id:'snack',    name:'Перекус',icon:'apple'},
 ];
 
 function renderMeals(meals) {
@@ -716,7 +716,7 @@ function renderMeals(meals) {
     const total = items.reduce((s,i)=>s+i.calories,0);
     return `<div class="meal-card">
       <div class="meal-hdr">
-        <span class="meal-icon">${m.icon}</span>
+        <span class="meal-icon"><i data-lucide="${m.icon}"></i></span>
         <span class="meal-name">${m.name}</span>
         <span class="meal-kcal">${total>0?Math.round(total)+' ккал':''}</span>
         <button class="meal-add" onclick="openSearchFor('${m.id}')">+</button>
@@ -783,7 +783,7 @@ async function addWater(ml) {
   const goal = S.diary?.goals?.water_ml||2000;
   renderWater(d.total_ml, goal);
   if (S.diary) S.diary.water_ml = d.total_ml;
-  toast(`+${ml} мл 💧`,true);
+  toast(`+${ml} мл`,true);
 }
 
 function openWaterManual() {
@@ -883,11 +883,11 @@ async function loadRecipesList() {
 
 function renderResults(results, query) {
   const wrap = document.getElementById('s-results');
-  const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openCustomFoodModal()">✨ Не нашли своё блюдо? Добавить</button>` : '';
+  const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openCustomFoodModal()"><i data-lucide="sparkles"></i> Не нашли своё блюдо? Добавить</button>` : '';
   if (!results.length) { wrap.innerHTML='<div class="empty">Ничего не найдено</div>'+aiBtn; return; }
   wrap.innerHTML = `<div class="r-list">`+results.map(r=>`
     <div class="r-item" onclick='openPortion(${JSON.stringify(r)})'>
-      <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${r.source==='ai' ? '✨ оценка ИИ' : esc(r.brand||'')}</div></div>
+      <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${r.source==='ai' ? '<i data-lucide="sparkles"></i> оценка ИИ' : esc(r.brand||'')}</div></div>
       <div><div class="r-kcal">${r.calories} ккал</div><div class="r-per">на 100г</div></div>
     </div>`).join('')+`</div>`+aiBtn;
 }
@@ -929,11 +929,11 @@ async function loadIngTab(tab) {
 
 function renderIngResults(results, query) {
   const wrap = document.getElementById('ring-results');
-  const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openCustomFoodModal()">✨ Не нашли своё блюдо? Добавить</button>` : '';
+  const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openCustomFoodModal()"><i data-lucide="sparkles"></i> Не нашли своё блюдо? Добавить</button>` : '';
   if (!results.length) { wrap.innerHTML='<div class="empty">Ничего не найдено</div>'+aiBtn; return; }
   wrap.innerHTML = `<div class="r-list">`+results.map(r=>`
     <div class="r-item" onclick='openPortion(${JSON.stringify(r)})'>
-      <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${r.source==='ai' ? '✨ оценка ИИ' : esc(r.brand||'')}</div></div>
+      <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${r.source==='ai' ? '<i data-lucide="sparkles"></i> оценка ИИ' : esc(r.brand||'')}</div></div>
       <div><div class="r-kcal">${r.calories} ккал</div><div class="r-per">на 100г</div></div>
     </div>`).join('')+`</div>`+aiBtn;
 }
@@ -987,14 +987,14 @@ function togglePorEdit() {
   const opening = grid.style.display === 'none';
   grid.style.display = opening ? 'grid' : 'none';
   btn.classList.toggle('active', opening);
-  btn.textContent = opening ? '✓ Готово' : '✏️ Изменить';
+  btn.innerHTML = opening ? '✓ Готово' : '<i data-lucide="pencil"></i> Изменить';
 }
 
 function resetPorEdit() {
   document.getElementById('por-edit-grid').style.display = 'none';
   const btn = document.getElementById('por-edit-btn');
   btn.classList.remove('active');
-  btn.textContent = '✏️ Изменить';
+  btn.innerHTML = '<i data-lucide="pencil"></i> Изменить';
 }
 
 function onPorEdit() {
@@ -1671,7 +1671,7 @@ async function sendChat(inputId='chat-in') {
   const attachmentPreview = S.chatAttachmentPreview;
   if (!q && !attachment) return;
   inp.value = '';
-  const userMsg = {role:'user', content: q || '📷 Фото блюда'};
+  const userMsg = {role:'user', content: q || 'Фото блюда'};
   if (attachmentPreview) userMsg.image = attachmentPreview;
   S.chatHistory.push(userMsg);
   S.chatHistory.push({role:'assistant', content:'...'});
@@ -1777,10 +1777,10 @@ function renderChat() {
           return `<div class="chat-msg ai"><div class="chat-bubble ai">
             Выберите приём пищи:
             <div class="meal-picker-btns">
-              <button onclick="logPendingFood('breakfast')">☀️ Завтрак</button>
-              <button onclick="logPendingFood('lunch')">🌤 Обед</button>
-              <button onclick="logPendingFood('dinner')">🌙 Ужин</button>
-              <button onclick="logPendingFood('snack')">🍎 Перекус</button>
+              <button onclick="logPendingFood('breakfast')"><i data-lucide="sunrise"></i> Завтрак</button>
+              <button onclick="logPendingFood('lunch')"><i data-lucide="sun"></i> Обед</button>
+              <button onclick="logPendingFood('dinner')"><i data-lucide="moon"></i> Ужин</button>
+              <button onclick="logPendingFood('snack')"><i data-lucide="apple"></i> Перекус</button>
             </div>
           </div></div>`;
         }
@@ -1879,7 +1879,7 @@ async function loadHistory(date) {
     if (!items.length) return '';
     return `<div class="meal-card meal-card-tight">
       <div class="meal-hdr meal-hdr-static">
-        <span class="meal-icon">${m.icon}</span>
+        <span class="meal-icon"><i data-lucide="${m.icon}"></i></span>
         <span class="meal-name">${m.name}</span>
         <span class="meal-kcal">${Math.round(total)} ккал</span>
       </div>
@@ -1912,7 +1912,7 @@ async function loadWeekly() {
     return `<div class="w-col${d.date===S.histDate?' active':''}" data-date="${d.date}" onclick="histGoto('${d.date}')">
       <div class="w-kcal">${d.calories>0?Math.round(d.calories):''}</div>
       <div class="w-bar-wrap"><div class="w-bar${d.date===S.today?' today':''}" style="height:${h}%"></div></div>
-      <div class="w-day">${day}${d.trained?' <span class="w-trained" title="Была тренировка">💪</span>':''}</div>
+      <div class="w-day">${day}${d.trained?' <span class="w-trained" title="Была тренировка"><i data-lucide="dumbbell"></i></span>':''}</div>
     </div>`;
   }).join('');
 }

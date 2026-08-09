@@ -50,7 +50,7 @@
                value="{{ user.display_name or '' }}"
                placeholder="{{ user.email.split('@')[0] }}"
                maxlength="30" oninput="markDirty()">
-        <p class="hint" style="margin:6px 0 0">Так сайт будет к вам обращаться. Если не указать — используется часть email.</p>
+        <p class="hint hint-under">Так сайт будет к вам обращаться. Если не указать — используется часть email.</p>
         {# Ссылка, а не кнопка в ряд: убрать фото — действие другого веса,
            чем загрузить. И появляется только когда есть что убирать #}
         <button type="button" class="avatar-remove-link" id="avatar-remove"

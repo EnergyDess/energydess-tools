@@ -15,7 +15,7 @@
 
 {% include '_header.html' %}
 
-<main class="container">
+<main class="container container-wide">
 
   <nav class="breadcrumb" aria-label="Хлебные крошки">
     <a href="/">Инструменты</a>
@@ -78,7 +78,7 @@
 
           <div class="tab-panel" id="tab-url">
             <div class="url-row">
-              <input type="text" class="input" id="url-input" placeholder="https://hh.ru/vacancy/..."/>
+              <input type="text" class="input input-compact" id="url-input" placeholder="https://hh.ru/vacancy/..."/>
               <button class="btn-secondary fetch-btn" id="fetch-btn" onclick="fetchUrl()">
                 <span id="fetch-icon">↓</span> Загрузить
               </button>
@@ -141,7 +141,7 @@
       <!-- Правая колонка: результат -->
       <div class="card card-static result-panel" id="result-panel">
         <div class="result-header">
-          <div class="panel-title" style="flex:1">Сопроводительное письмо</div>
+          <div class="panel-title panel-title-grow">Сопроводительное письмо</div>
           <div class="result-actions" id="result-actions" style="display:none">
             <button class="btn-secondary" id="copy-btn" onclick="copyLetter()">
               <i data-lucide="copy"></i><span id="copy-btn-label">Копировать</span>
@@ -162,7 +162,7 @@
         </div>
 
         <div class="loading-state" id="loading-state">
-          <div class="spinner" style="width:32px;height:32px;border-width:3px"></div>
+          <div class="spinner spinner-lg"></div>
           <div class="loading-bar"><div class="loading-bar-inner"></div></div>
           <div class="loading-text" id="loading-text">Анализирую вакансию и резюме...</div>
         </div>
@@ -245,23 +245,23 @@
           <span>1 — Основная информация</span>
           <svg class="ds-chev open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <div class="ds-body" style="max-height: 3000px">
+        <div class="ds-body open">
           <div class="ds-body-inner">
             <div class="dosie-row">
               <div class="dosie-field full">
-                <label class="dosie-label">Профессия (одной строкой)</label>
+                <label class="field-label dosie-label">Профессия (одной строкой)</label>
                 <input class="input" id="d-profession" placeholder="AI Video Creator · Fullstack Developer">
               </div>
               <div class="dosie-field">
-                <label class="dosie-label">Город / локация</label>
+                <label class="field-label dosie-label">Город / локация</label>
                 <input class="input" id="d-location" placeholder="Москва, Россия">
               </div>
               <div class="dosie-field">
-                <label class="dosie-label">Часовой пояс</label>
+                <label class="field-label dosie-label">Часовой пояс</label>
                 <input class="input" id="d-timezone" placeholder="UTC+3">
               </div>
               <div class="dosie-field">
-                <label class="dosie-label">Формат работы</label>
+                <label class="field-label dosie-label">Формат работы</label>
                 <select class="select" id="d-work-format">
                   <option value="">— не указано —</option>
                   <option value="удалёнка">Удалёнка</option>
@@ -272,7 +272,7 @@
               </div>
             </div>
             <div class="dosie-field">
-              <label class="dosie-label">Языки</label>
+              <label class="field-label dosie-label">Языки</label>
               <div class="dosie-list" id="d-languages"></div>
               <button class="dosie-add-btn" type="button" onclick="addLanguage()">+ Добавить язык</button>
             </div>
@@ -286,14 +286,14 @@
           <span>2 — Опыт (дополнительно к резюме)</span>
           <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <div class="ds-body" style="max-height: 0px">
+        <div class="ds-body">
           <div class="ds-body-inner">
             <div class="dosie-field">
-              <label class="dosie-label">Общий срок в профессии</label>
+              <label class="field-label dosie-label">Общий срок в профессии</label>
               <input class="input" id="d-years" placeholder="5 лет, из них 3 — в AI-видео">
             </div>
             <div class="dosie-field">
-              <label class="dosie-label">Опыт вне резюме</label>
+              <label class="field-label dosie-label">Опыт вне резюме</label>
               <p class="dosie-hint-sm">Дополнение к резюме: контекст, детали, связи, которые не влезли на hh.ru.</p>
               <div class="dosie-list" id="d-experience"></div>
               <button class="dosie-add-btn" type="button" onclick="addExperience()">+ Добавить место работы</button>
@@ -308,7 +308,7 @@
           <span>3 — Проекты и портфолио</span>
           <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <div class="ds-body" style="max-height: 0px">
+        <div class="ds-body">
           <div class="ds-body-inner">
             <div class="dosie-list" id="d-projects"></div>
             <button class="dosie-add-btn" type="button" onclick="addProject()">+ Добавить проект</button>
@@ -322,10 +322,10 @@
           <span>4 — Навыки и инструменты</span>
           <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <div class="ds-body" style="max-height: 0px">
+        <div class="ds-body">
           <div class="ds-body-inner">
             <div class="dosie-field">
-              <label class="dosie-label">Навыки и инструменты</label>
+              <label class="field-label dosie-label">Навыки и инструменты</label>
               <p class="dosie-hint-sm">Вводите через запятую или нажимайте Enter после каждого тега.</p>
               <div class="tag-wrap" id="d-skills-wrap" onclick="document.getElementById('d-skills-input').focus()">
                 <input class="tag-text-input" id="d-skills-input" placeholder="Python, FastAPI, Claude API..." autocomplete="off">
@@ -341,10 +341,10 @@
           <span>5 — Как я работаю</span>
           <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <div class="ds-body" style="max-height: 0px">
+        <div class="ds-body">
           <div class="ds-body-inner">
             <div class="dosie-field">
-              <label class="dosie-label">Методология и рабочий процесс</label>
+              <label class="field-label dosie-label">Методология и рабочий процесс</label>
               <p class="dosie-hint-sm">Рабочий процесс, методика, принципы. Часто это выделяет из массы кандидатов.</p>
               <textarea class="textarea" id="d-methodology" placeholder="Строю AI-продукты итерациями: прототип за день, затем шлифую по фидбэку. Пишу всё сам — без тяжёлых фреймворков, только то, что нужно задаче."></textarea>
             </div>
@@ -358,10 +358,10 @@
           <span>6 — Дополнительный контекст</span>
           <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <div class="ds-body" style="max-height: 0px">
+        <div class="ds-body">
           <div class="ds-body-inner">
             <div class="dosie-field">
-              <label class="dosie-label">Что ещё важно учесть</label>
+              <label class="field-label dosie-label">Что ещё важно учесть</label>
               <textarea class="textarea" id="d-extra" placeholder="Например: ищу частичную занятость; готов к командировкам до 2 раз в год; предпочтительны стартапы на стадии роста."></textarea>
             </div>
           </div>
@@ -374,11 +374,11 @@
           <span>7 — Тон и стиль писем</span>
           <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <div class="ds-body" style="max-height: 0px">
+        <div class="ds-body">
           <div class="ds-body-inner">
             <div class="dosie-row">
               <div class="dosie-field">
-                <label class="dosie-label">Тон</label>
+                <label class="field-label dosie-label">Тон</label>
                 <select class="select" id="d-tone">
                   <option value="">— не указано —</option>
                   <option value="живой">Живой</option>
@@ -388,12 +388,12 @@
                 </select>
               </div>
               <div class="dosie-field">
-                <label class="dosie-label">Что не упоминать в письмах</label>
+                <label class="field-label dosie-label">Что не упоминать в письмах</label>
                 <textarea class="textarea" id="d-never-mention" placeholder="Не упоминать ЗП; не писать про фриланс-опыт..."></textarea>
               </div>
             </div>
             <div class="dosie-field">
-              <label class="dosie-label">Концовка письма</label>
+              <label class="field-label dosie-label">Концовка письма</label>
               <div class="dosie-checks">
                 <label class="dosie-check">
                   <input type="checkbox" id="d-suggest-call">
@@ -728,7 +728,7 @@
     const preview   = document.getElementById('fetched-preview');
 
     fetchBtn.disabled = true;
-    fetchIcon.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span>';
+    fetchIcon.innerHTML = '<span class="spinner spinner-sm"></span>';
     status.className = 'fetch-status visible';
     status.textContent = 'Загружаю страницу...';
     preview.classList.remove('visible');
@@ -921,7 +921,7 @@
     const icon = document.getElementById('analyze-icon');
     const txt  = document.getElementById('analyze-text');
     btn.disabled = true;
-    icon.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span>';
+    icon.innerHTML = '<span class="spinner spinner-sm"></span>';
     txt.textContent = 'Анализирую...';
 
     try {
@@ -1037,7 +1037,7 @@
     const body = btn.nextElementSibling;
     const chev = btn.querySelector('.ds-chev');
     const isOpen = chev.classList.contains('open');
-    body.style.maxHeight = isOpen ? '0px' : '3000px';
+    body.classList.toggle('open', !isOpen);
     chev.classList.toggle('open', !isOpen);
   }
 
@@ -1050,12 +1050,12 @@
       <button class="dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
       <div class="dosie-g2">
         <div class="dosie-field">
-          <label class="dosie-label">Язык</label>
-          <input class="input lang-name" placeholder="Русский">
+          <label class="field-label dosie-label">Язык</label>
+          <input class="input input-nested lang-name" placeholder="Русский">
         </div>
         <div class="dosie-field">
-          <label class="dosie-label">Уровень</label>
-          <input class="input lang-level" placeholder="C2 / Родной">
+          <label class="field-label dosie-label">Уровень</label>
+          <input class="input input-nested lang-level" placeholder="C2 / Родной">
         </div>
       </div>`;
     if (lang  != null) item.querySelector('.lang-name').value  = lang;
@@ -1080,29 +1080,29 @@
       <button class="dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
       <div class="dosie-g2">
         <div class="dosie-field">
-          <label class="dosie-label">Компания</label>
-          <input class="input exp-company" placeholder="ООО Пример">
+          <label class="field-label dosie-label">Компания</label>
+          <input class="input input-nested exp-company" placeholder="ООО Пример">
         </div>
         <div class="dosie-field">
-          <label class="dosie-label">Должность</label>
-          <input class="input exp-position" placeholder="AI Engineer">
-        </div>
-      </div>
-      <div class="dosie-g1">
-        <div class="dosie-field">
-          <label class="dosie-label">Период</label>
-          <input class="input exp-period" placeholder="2022–2024">
+          <label class="field-label dosie-label">Должность</label>
+          <input class="input input-nested exp-position" placeholder="AI Engineer">
         </div>
       </div>
       <div class="dosie-g1">
         <div class="dosie-field">
-          <label class="dosie-label">Что делал</label>
-          <textarea class="textarea sm exp-desc" placeholder="Коротко об обязанностях..."></textarea>
+          <label class="field-label dosie-label">Период</label>
+          <input class="input input-nested exp-period" placeholder="2022–2024">
+        </div>
+      </div>
+      <div class="dosie-g1">
+        <div class="dosie-field">
+          <label class="field-label dosie-label">Что делал</label>
+          <textarea class="textarea textarea-nested sm exp-desc" placeholder="Коротко об обязанностях..."></textarea>
         </div>
       </div>
       <div class="dosie-field">
-        <label class="dosie-label">Достижения</label>
-        <textarea class="textarea sm exp-ach" placeholder="Конкретные результаты с цифрами..."></textarea>
+        <label class="field-label dosie-label">Достижения</label>
+        <textarea class="textarea textarea-nested sm exp-ach" placeholder="Конкретные результаты с цифрами..."></textarea>
       </div>`;
     item.querySelector('.exp-company').value  = d.company      || '';
     item.querySelector('.exp-position').value = d.position     || '';
@@ -1132,34 +1132,34 @@
       <button class="dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
       <div class="dosie-g2">
         <div class="dosie-field">
-          <label class="dosie-label">Название</label>
-          <input class="input proj-title" placeholder="EnergyDess Tools">
+          <label class="field-label dosie-label">Название</label>
+          <input class="input input-nested proj-title" placeholder="EnergyDess Tools">
         </div>
         <div class="dosie-field">
-          <label class="dosie-label">Тип</label>
-          <input class="input proj-type" placeholder="Web App / AI Tool / Video">
-        </div>
-      </div>
-      <div class="dosie-g1">
-        <div class="dosie-field">
-          <label class="dosie-label">URL</label>
-          <input class="input proj-url" placeholder="https://energydess.ru">
+          <label class="field-label dosie-label">Тип</label>
+          <input class="input input-nested proj-type" placeholder="Web App / AI Tool / Video">
         </div>
       </div>
       <div class="dosie-g1">
         <div class="dosie-field">
-          <label class="dosie-label">Описание</label>
-          <textarea class="textarea sm proj-desc" placeholder="Что за проект и какую проблему решает..."></textarea>
+          <label class="field-label dosie-label">URL</label>
+          <input class="input input-nested proj-url" placeholder="https://energydess.ru">
+        </div>
+      </div>
+      <div class="dosie-g1">
+        <div class="dosie-field">
+          <label class="field-label dosie-label">Описание</label>
+          <textarea class="textarea textarea-nested sm proj-desc" placeholder="Что за проект и какую проблему решает..."></textarea>
         </div>
       </div>
       <div class="dosie-g2">
         <div class="dosie-field">
-          <label class="dosie-label">Инструменты</label>
-          <input class="input proj-tools" placeholder="FastAPI, Claude API, SQLite">
+          <label class="field-label dosie-label">Инструменты</label>
+          <input class="input input-nested proj-tools" placeholder="FastAPI, Claude API, SQLite">
         </div>
         <div class="dosie-field">
-          <label class="dosie-label">Теги (через запятую)</label>
-          <input class="input proj-tags" placeholder="AI, backend, fullstack">
+          <label class="field-label dosie-label">Теги (через запятую)</label>
+          <input class="input input-nested proj-tags" placeholder="AI, backend, fullstack">
         </div>
       </div>`;
     item.querySelector('.proj-title').value = d.title       || '';

@@ -1,0 +1,104 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   workout_profile.css — страница /workout/profile.
+
+   Переехало из inline <style> в templates/workout_profile.html
+   (CLAUDE.md §3: стили страницы живут в своём файле рядом).
+
+   Страница подключает ТРИ файла: style.css (система) → workout.css
+   (раздел) → этот. Общие с разделом компоненты — .wk-card, .wk-action-btn,
+   .wk-eq-* — берутся из workout.css и здесь НЕ объявлены. До переезда
+   шаблон держал свои копии двадцати четырёх правил, и десять из них уже
+   разъехались с разделом: кегли 14px против --text-caption, фон картинки
+   #0c0a1a против --surface-0, отступы 8px против --space-2.
+
+   Ни один селектор компонентной базы здесь не объявлен и ни один токен
+   не переопределён — CLAUDE.md §6.0.2.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Раскладка страницы.
+   Класс отдельный от .theme-workout намеренно и по той же причине, что
+   .wk-page в workout.css: тема объявляет ровно два акцентных токена
+   и висит на <body>, а background/padding на <body> означали бы совсем
+   другое — паддинг ушёл бы под общую шапку. ── */
+.wkp-page {
+  /* без этого нативный выпадающий список <select> рендерится в светлой
+     схеме браузера по умолчанию — на тёмном фоне это чёрный прямоугольник */
+  color-scheme: dark;
+  position: relative;
+  background: var(--surface-0);
+  /* Высоты здесь нет: остаток экрана отдаёт .page-fill (style.css) */
+  padding: var(--space-7) var(--space-4) var(--space-7);
+}
+
+/* Зазор между карточками принадлежит колонке, а не карточке: раньше он был
+   записан как margin-bottom прямо в страничной копии .wk-card, то есть
+   страница дописывала раскладку системному для раздела компоненту. */
+.wkp-shell {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.wkp-head { display: flex; align-items: center; gap: var(--space-3); }
+/* font-size здесь не задаётся: внутри ссылки только <svg> с width/height 20,
+   на который кегль текста не влияет. В прежней копии стояло 1.3rem вхолостую. */
+.wkp-back { color: var(--text-2); text-decoration: none; display: flex; align-items: center; }
+.wkp-back:hover { color: var(--text); }
+.wkp-head h1 { font-family: var(--font); font-size: var(--text-h2); font-weight: 700; color: var(--text); }
+/* Значок внутри строки заголовка: базовая линия svg не совпадает с базовой
+   линией текста, отсюда подгонка. Свой класс, а не правило на системном
+   .tool-icon — компонент общий (CLAUDE.md §6.0.2) */
+.wkp-head-icon { vertical-align: -3px; }
+
+/* ── Переключатель «учитывать питание» ──────────────────────────────────── */
+.wk-settings-toggle-row { display: flex; align-items: center; gap: 10px; font-size: 0.9375rem; color: var(--text); cursor: pointer; }
+.wk-settings-toggle-row input { width: 18px; height: 18px; accent-color: var(--tool-accent); cursor: pointer; }
+.wk-settings-toggle-hint { margin-top: var(--space-2); font-size: 0.8125rem; color: var(--text-2); line-height: 1.5; }
+
+/* ── Секции профиля ─────────────────────────────────────────────────────── */
+.wk-profile-sec-title { font-family: var(--font); font-weight: 700; color: var(--text); font-size: 1.0625rem; margin-bottom: var(--space-3); }
+.wk-anketa-summary { background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
+.wk-anketa-row { display: flex; justify-content: space-between; gap: var(--space-3); padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.8125rem; }
+.wk-anketa-row:last-child { border-bottom: none; }
+.wk-anketa-label { color: var(--text-2); flex-shrink: 0; }
+.wk-anketa-value { color: var(--text); text-align: right; }
+.wk-profile-hint { font-size: 0.8125rem; color: var(--text-2); line-height: 1.5; margin-bottom: var(--space-2); }
+.wk-profile-input { width: 100%; box-sizing: border-box; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; color: var(--text); font-size: 0.875rem; margin-bottom: 8px; }
+.wk-profile-input option { background: var(--surface-2); color: var(--text); }
+/* Текст тёмный: на янтарном --tool-accent белый даёт 2.15, --surface-0 — 9.17 */
+.wk-profile-btn { background: var(--tool-accent); border: none; color: var(--surface-0); padding: 9px 16px; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+.wk-profile-btn-sm { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 7px 14px; border-radius: 99px; font-size: 0.8125rem; cursor: pointer; }
+/* Было #f87171 — подобранный на глаз красный. Семантический токен один */
+.wk-profile-btn-danger { color: var(--error); }
+.wk-profile-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: var(--space-2); }
+.wk-profile-msg { font-size: 0.8125rem; margin-top: 8px; color: var(--text-2); }
+
+/* ── Состав тела ────────────────────────────────────────────────────────── */
+.wk-bodycomp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: var(--space-2); }
+.wk-bodycomp-item { background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-3); }
+.wk-bodycomp-val { font-family: var(--font); font-weight: 700; color: var(--text); font-size: 1.0625rem; }
+.wk-bodycomp-lbl { font-size: 0.75rem; color: var(--text-2); margin-top: 2px; }
+
+/* ── Прогресс тела: слоты фото и сравнение по датам ─────────────────────── */
+.wk-photo-slots { display: flex; gap: 8px; margin-bottom: var(--space-2); }
+.wk-photo-slot { flex: 1; aspect-ratio: 3/4; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-2); cursor: pointer; overflow: hidden; }
+.wk-photo-slot:hover { border-color: var(--tool-accent); }
+.wk-photo-slot img { width: 100%; height: 100%; object-fit: cover; }
+.wk-photo-compare-title { margin-top: var(--space-4); }
+.wk-photo-compare-selects { display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-2); color: var(--text-2); }
+.wk-photo-compare-selects select { margin-bottom: 0; }
+.wk-photo-compare-view { display: flex; gap: 10px; flex-wrap: wrap; }
+.wk-compare-col { flex: 1; min-width: 120px; }
+.wk-compare-col img { width: 100%; border-radius: var(--radius-sm); margin-bottom: 4px; }
+.wk-compare-col-label { font-size: 0.75rem; color: var(--text-2); text-align: center; }
+
+/* ── Моё оборудование: плашка «программа собрана под старый список» ──────
+   Сама сетка, карточки и тулбар — из workout.css, здесь только плашка,
+   которой на странице анкеты нет. Фон был
+   linear-gradient(135deg, rgba(139,92,255,.14), rgba(0,224,213,.08)) —
+   фиолетовый с бирюзой из удалённой палитры --accent/--accent-2
+   (design-system.md §11). Тон раздела янтарный. ── */
+.wk-eq-regen-banner { display: none; background: var(--tool-accent-dim); border: 1px solid var(--tool-accent); border-radius: var(--radius-sm); padding: var(--space-4); margin-top: var(--space-3); font-size: 0.875rem; color: var(--text); }
+.wk-eq-regen-banner.show { display: block; }
+.wk-eq-regen-banner button { margin-top: var(--space-2); }

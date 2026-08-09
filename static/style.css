@@ -321,6 +321,15 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
 .btn-primary:active { transform: scale(1); }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
+/* Два независимых модификатора размера и свечения. Разделены намеренно:
+   на лендинге они нужны в разных сочетаниях — у кнопки в hero своё
+   свечение, но не свой размер (рядом стоит .btn-signature высотой 40px,
+   и увеличенная кнопка сломала бы ряд), у финального CTA — и то и другое.
+   Раньше оба свойства лежали в landing.css как .hero .btn-primary
+   и .cta .btn-primary, то есть страница переопределяла компонент. */
+.btn-lg { padding: var(--space-4) var(--space-7); font-size: var(--text-body-lg); }
+.btn-glow { box-shadow: var(--shadow-glow-brand); }
+
 .btn-secondary {
   display: inline-flex;
   align-items: center;
@@ -430,6 +439,22 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
   box-shadow: 0 0 0 3px var(--tool-accent-dim, var(--accent-brand-dim));
 }
 .input::placeholder, .textarea::placeholder { color: var(--text-faint); }
+
+/* Вариант «компактное»: однострочное поле, стоящее в ряд с кнопкой.
+   Своей высоты у .input нет — её задаёт содержимое (12+12 паддинга плюс
+   строка 1.6×16), и получается ~52px против 40px у кнопки рядом: ряд
+   выглядит съехавшим. Здесь высота задаётся явно, 44px — минимальный
+   тач-таргет из глобального CLAUDE.md. Вертикальные паддинги снимаются,
+   иначе они спорят с height и текст уезжает вниз. */
+.input-compact { height: 44px; padding-top: 0; padding-bottom: 0; }
+
+/* Вариант «на вложенном блоке»: поле лежит не на карточке (--surface-1),
+   а на вложенном блоке (--surface-2) — например, в под-карточке досье.
+   Базовый фон поля тоже --surface-2, и они сливаются, а лесенка запрещает
+   два соседних по вложенности элемента в одном тоне (design-system.md 1.1).
+   Уходим на ступень ВНИЗ, а не вверх: --surface-3 занят активным
+   состоянием, и поле в покое читалось бы как выделенное. */
+.input-nested, .textarea-nested { background: var(--surface-1); }
 
 /* ── Chips / labels ─────────────────────────────────────────────────────── */
 .chip {
@@ -961,6 +986,15 @@ img.avatar { object-fit: cover; padding: 0; }
 /* ── Container ──────────────────────────────────────────────────────────── */
 .container { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
 
+/* Вариант «широкий»: рабочая область в две колонки. 1200px делит пополам
+   на две колонки по 560px, а в них лежат textarea вакансии и готовое письмо —
+   при такой ширине текст письма ломается каждые ~55 знаков и читается хуже,
+   чем в одну колонку. Отсюда 1600px. Ставится ВМЕСТЕ с .container:
+   <main class="container container-wide">. Раньше эта же ширина лежала
+   в hh.css как main.container — то есть страница молча меняла системный
+   контейнер (CLAUDE.md §6.0.2). */
+.container-wide { max-width: 1600px; }
+
 /* ── Scroll reveal (Intersection Observer вешает .revealed) ─────────────── */
 .reveal {
   opacity: 0;
@@ -1137,7 +1171,28 @@ textarea:focus, input:focus {
 }
 textarea::placeholder, input::placeholder { color: var(--text-faint); }
 
-label {
+/* Подпись поля. Класс, а не голый тег `label` (BACKLOG.md, задача 40).
+
+   Тег означает «этот текст относится к тому контролу», а не «этот текст —
+   микрозаголовок над полем». Поэтому под правило на теге попадали и вещи,
+   которые label по смыслу, но подписью не являются: строка-переключатель,
+   кнопка выбора файла, коробка тумблера. Замер до правки: 83 элемента
+   на живом дереве, и у 6 из них моноширинный капс был прямой ошибкой —
+   «УЧИТЫВАТЬ ДАННЫЕ ПИТАНИЯ» вместо фразы.
+
+   Отказ при этом был немой в обе стороны. Автор новой строки-переключателя
+   капса не ждал и в CSS его не искал: в разметке `<label class="…">`,
+   а в своём классе — ни слова про регистр. А автор компонента-исключения
+   был вынужден гасить чужое правило пятью объявлениями подряд
+   (`.dosie-check` в hh.css именно так и жил). Оба симптома — одного корня:
+   селектор описывал тег, а правило описывало роль.
+
+   Одна и та же роль теперь и называется одинаково, и видна в разметке.
+   Живая проверка того, что это не косметика: в profile.html «Отображаемое
+   имя» — `<label class="setting-label">`, а «Часовой пояс» и «Email» рядом —
+   `<div class="setting-label">`. Один класс, один список, а выглядели
+   по-разному, потому что различал их тег. */
+.field-label {
   display: block;
   font-family: var(--font-mono);
   font-size: var(--text-caption);
@@ -1209,8 +1264,15 @@ label {
    элемент управления (design-system.md 1.1). */
 .toggle {
   position: relative;
+  /* inline-block обязателен: тумблер — это <label>, а на строчном элементе
+     ширина и высота не применяются вовсе. Пока единственным местом был
+     флекс-ряд, это не всплывало — флекс-элемент блокируется сам. В ячейке
+     таблицы админки (задача 26) блокировать некому: без этой строки коробка
+     схлопывается в ноль, а дорожка с inset:0 растягивается по нулю. */
+  display: inline-block;
   width: 40px; height: 22px;
   flex-shrink: 0;
+  vertical-align: middle;
 }
 .toggle input { opacity: 0; width: 0; height: 0; }
 .toggle .track {
@@ -1243,6 +1305,11 @@ label {
   animation: spin 0.7s linear infinite;
   flex-shrink: 0;
 }
+/* Два размера сверх базового 18px: крупный для пустой панели, где спиннер —
+   единственное содержимое, и мелкий внутрь кнопки на месте значка.
+   Толщина кольца у мелкого та же, что у базового, поэтому не объявляется. */
+.spinner-lg { width: 32px; height: 32px; border-width: 3px; }
+.spinner-sm { width: 14px; height: 14px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── Copy btn ───────────────────────────────────────────────────────────── */
@@ -1323,15 +1390,14 @@ body.auth-layout .auth-wrap {
 }
 .auth-box > p { color: var(--text-2); font-size: var(--text-body-sm); margin-bottom: 32px; }
 
-.form-group { margin-bottom: 18px; }
-.form-group label {
-  font-family: var(--font-mono);
-  font-size: var(--text-caption);
-  color: var(--text-2);
-  margin-bottom: 8px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
+/* Виджет капчи стоит в ритме формы, поэтому отступ у него общий с .form-group —
+   одним объявлением, чтобы величина не разъехалась. Раньше был инлайновым
+   style="margin-bottom:18px" на двух страницах (CLAUDE.md §6.0.2). */
+.form-group, .auth-turnstile { margin-bottom: 18px; }
+/* Здесь стояло `.form-group label` — те же шесть объявлений, что в правиле
+   на теге выше по файлу. Дубль держался потому, что оба селектора описывали
+   одно: подпись поля. Теперь она называется .field-label и стоит в разметке
+   восьми полей пути входа, а копия удалена (BACKLOG.md, задача 40). */
 .form-group input {
   width: 100%;
   background: var(--surface-2);
@@ -1379,6 +1445,37 @@ body.auth-layout .auth-wrap {
   letter-spacing: 0.02em;
 }
 .auth-btn-primary:hover { background: var(--accent-brand-hover); transform: scale(1.01); }
+
+/* ── Экран-результат пути входа ─────────────────────────────────────────────
+   «Проверьте почту», «Пароль изменён», «Аккаунт удалён» — три разных экрана
+   с одной разметкой: значок, заголовок, текст, действие, иногда сноска.
+   Шаблоны при этом свести в один нельзя: у forgot и reset разные формы
+   и разные роуты, а account_deleted к восстановлению пароля не относится
+   вовсе. Общим у них было ровно это состояние — оно и стало компонентом.
+   До этого набор жил пятнадцатью инлайновыми style= (CLAUDE.md §6.0.2). */
+.auth-result { text-align: center; }
+/* Кегль значка, а не текста: это глиф-иллюстрация. Сам значок сейчас эмодзи —
+   BACKLOG.md, задача 31 */
+.auth-result-icon { font-size: 2.25rem; line-height: 1; margin-bottom: var(--space-3); }
+.auth-result-text { color: var(--text-2); font-size: var(--text-body-sm); margin-bottom: var(--space-5); }
+/* Кнопка-ссылка во всю ширину: <a> сам по себе строчный, и .auth-btn-primary
+   без этого сжался бы по тексту */
+.auth-result-action { display: block; text-align: center; text-decoration: none; }
+.auth-result-back { color: var(--accent-brand); font-size: var(--text-caption); text-decoration: none; }
+.auth-result-back:hover { text-decoration: underline; }
+.auth-result-note { margin-top: var(--space-5); font-size: var(--text-caption); color: var(--text-faint); }
+.auth-result-note a { color: var(--accent-brand); text-decoration: none; }
+.auth-result-note a:hover { text-decoration: underline; }
+
+/* Строка «Забыли пароль?» под формой входа. Ховер был написан атрибутами
+   onmouseover/onmouseout прямо в разметке — то есть цвет менял скрипт;
+   здесь это обычный :hover, и работает он в том числе с клавиатуры. */
+.auth-forgot-row { text-align: right; margin-top: var(--space-2); }
+.auth-forgot-link {
+  font-size: var(--text-caption); color: var(--text-2); text-decoration: none;
+  transition: color var(--dur-fast) var(--ease);
+}
+.auth-forgot-link:hover, .auth-forgot-link:focus-visible { color: var(--accent-brand); }
 
 .auth-footer { text-align: center; margin-top: 24px; font-size: var(--text-caption); color: var(--text-2); }
 .auth-footer a { color: var(--accent-brand); text-decoration: none; }

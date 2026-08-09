@@ -20,6 +20,9 @@
    После перехода на компонент такого предка нет, а дублировать правило под
    .modal-body значило бы цепляться за системный класс из страничного файла. */
 .hint { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-4); line-height: 1.5; }
+/* Подсказка, идущая сразу ПОД полем, а не над блоком: прижата к полю
+   и снизу ничего не отодвигает. Была инлайновым style="margin:6px 0 0" */
+.hint-under { margin: var(--space-2) 0 0; }
 
 /* ── Секция: аватар и имя ───────────────────────────────────────────────── */
 .identity-row { display: flex; align-items: center; gap: var(--space-5); flex-wrap: wrap; }

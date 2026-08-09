@@ -9,112 +9,27 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
-  <style>
-    /* Тема раздела: per-tool identity (amber) из design-system.md,
-       токены наследуются из :root */
-    .theme-workout {
-      color-scheme: dark;
-      position: relative;
-      background: var(--surface-0);
-      /* Высоты здесь нет: остаток экрана отдаёт .page-fill на странице-колонке
-         (style.css). Раньше стояло min-height: calc(100vh - 64px). */
-      padding: var(--space-7) var(--space-4) var(--space-7);
-    }
-
-    .wkp-shell { max-width: 640px; margin: 0 auto; }
-    .wkp-head { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-6); }
-    .wkp-back { color: var(--text-2); text-decoration: none; font-size: 1.3rem; display: flex; align-items: center; }
-    .wkp-back:hover { color: var(--text); }
-    .wkp-head h1 { font-family: var(--font); font-size: clamp(1.4rem, 3vw, 1.8rem); font-weight: 700; color: var(--text); }
-
-    .wk-card { background: var(--surface-1); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-5); }
-
-    .wk-action-btn { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 9px 16px; border-radius: 99px; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
-    .wk-action-btn:hover { border-color: var(--tool-accent); }
-
-    .wk-settings-toggle-row { display: flex; align-items: center; gap: 10px; font-size: 0.9375rem; color: var(--text); cursor: pointer; }
-    .wk-settings-toggle-row input { width: 18px; height: 18px; accent-color: var(--tool-accent); cursor: pointer; }
-    .wk-settings-toggle-hint { margin-top: var(--space-2); font-size: 0.8125rem; color: var(--text-2); line-height: 1.5; }
-
-    .wk-profile-sec-title { font-family: var(--font); font-weight: 700; color: var(--text); font-size: 1.0625rem; margin-bottom: var(--space-3); }
-    .wk-anketa-summary { background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
-    .wk-anketa-row { display: flex; justify-content: space-between; gap: var(--space-3); padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.8125rem; }
-    .wk-anketa-row:last-child { border-bottom: none; }
-    .wk-anketa-label { color: var(--text-2); flex-shrink: 0; }
-    .wk-anketa-value { color: var(--text); text-align: right; }
-    .wk-profile-hint { font-size: 0.8125rem; color: var(--text-2); line-height: 1.5; margin-bottom: var(--space-2); }
-    .wk-profile-input { width: 100%; box-sizing: border-box; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; color: var(--text); font-size: 0.875rem; margin-bottom: 8px; }
-    .wk-profile-input option { background: var(--surface-2); color: var(--text); }
-    /* Текст тёмный: на янтарном --tool-accent белый даёт 2.15, --surface-0 — 9.17 */
-    .wk-profile-btn { background: var(--tool-accent); border: none; color: var(--surface-0); padding: 9px 16px; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 600; cursor: pointer; }
-    .wk-profile-btn-sm { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 7px 14px; border-radius: 99px; font-size: 0.8125rem; cursor: pointer; }
-    .wk-profile-btn-danger { color: #f87171; }
-    .wk-profile-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: var(--space-2); }
-    .wk-profile-msg { font-size: 0.8125rem; margin-top: 8px; color: var(--text-2); }
-    .wk-bodycomp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: var(--space-2); }
-    .wk-bodycomp-item { background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-3); }
-    .wk-bodycomp-val { font-family: var(--font); font-weight: 700; color: var(--text); font-size: 1.0625rem; }
-    .wk-bodycomp-lbl { font-size: 0.75rem; color: var(--text-2); margin-top: 2px; }
-    .wk-photo-slots { display: flex; gap: 8px; margin-bottom: var(--space-2); }
-    .wk-photo-slot { flex: 1; aspect-ratio: 3/4; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-2); cursor: pointer; overflow: hidden; }
-    .wk-photo-slot:hover { border-color: var(--tool-accent); }
-    .wk-photo-slot img { width: 100%; height: 100%; object-fit: cover; }
-    .wk-photo-compare-title { margin-top: var(--space-4); }
-    .wk-photo-compare-selects { display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-2); color: var(--text-2); }
-    .wk-photo-compare-selects select { margin-bottom: 0; }
-    .wk-photo-compare-view { display: flex; gap: 10px; flex-wrap: wrap; }
-    .wk-compare-col { flex: 1; min-width: 120px; }
-    .wk-compare-col img { width: 100%; border-radius: var(--radius-sm); margin-bottom: 4px; }
-    .wk-compare-col-label { font-size: 0.75rem; color: var(--text-2); text-align: center; }
-
-    /* Моё оборудование */
-    .wk-eq-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); gap: var(--space-3); flex-wrap: wrap; }
-    .wk-eq-count { color: var(--text-2); font-size: 0.875rem; font-family: var(--font-mono); }
-    .wk-home-btn { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: var(--space-3) var(--space-4); border-radius: var(--radius-sm); font-size: 0.875rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-    .wk-home-btn:hover { border-color: var(--border-strong); }
-    /* Было #06251f — тёмно-зелёный хардкод из чужой темы, 7.57. --surface-0 даёт 9.17 */
-    .wk-home-btn.active { background: var(--tool-accent); color: var(--surface-0); border-color: transparent; font-weight: 600; }
-    .wk-eq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
-    .wk-eq-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; cursor: pointer; transition: all 0.2s; position: relative; }
-    .wk-eq-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
-    .wk-eq-card.selected { border-color: var(--tool-accent); box-shadow: 0 0 0 2px var(--tool-accent); }
-    .wk-eq-card .wk-eq-img-wrap { width: 100%; aspect-ratio: 1/1; min-height: 160px; background: #0c0a1a; overflow: hidden; }
-    .wk-eq-card img { width: 100%; height: 100%; object-fit: cover; opacity: 0.88; transition: opacity 0.2s, transform 0.2s; }
-    .wk-eq-card:hover img { transform: scale(1.05); }
-    .wk-eq-card.selected img { opacity: 1; }
-    /* галочка внутри — SVG со stroke="currentColor": цвет задаётся здесь.
-       Видна она только в состоянии .selected, то есть всегда на янтарной
-       заливке, — отсюда тёмный цвет (белая давала 2.15, --surface-0 даёт 9.17) */
-    .wk-eq-check { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: rgba(10,8,20,0.7); border: 1.5px solid rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center; transition: all 0.2s; color: var(--surface-0); }
-    .wk-eq-card.selected .wk-eq-check { background: var(--tool-accent); border-color: var(--tool-accent); }
-    .wk-eq-check svg { opacity: 0; transition: opacity 0.15s; }
-    .wk-eq-card.selected .wk-eq-check svg { opacity: 1; }
-    .wk-eq-names { padding: var(--space-2) var(--space-3) var(--space-3); }
-    .wk-eq-name-ru { font-size: 0.8125rem; font-weight: 600; color: var(--text); line-height: 1.25; }
-    .wk-eq-name-en { font-size: 0.6875rem; color: var(--text-2); font-family: var(--font-mono); margin-top: 2px; }
-    .wk-eq-regen-banner { display: none; background: linear-gradient(135deg, rgba(139,92,255,0.14), rgba(0,224,213,0.08)); border: 1px solid var(--tool-accent); border-radius: var(--radius-sm); padding: var(--space-4); margin-top: var(--space-3); font-size: 0.875rem; color: var(--text); }
-    .wk-eq-regen-banner.show { display: block; }
-    .wk-eq-regen-banner button { margin-top: var(--space-2); }
-  </style>
+  <link rel="stylesheet" href="/static/workout.css">
+  <link rel="stylesheet" href="/static/workout_profile.css">
 </head>
-<body class="has-site-header page-column">
+<body class="theme-workout has-site-header page-column">
 
 {% include '_header.html' %}
 
-<main class="theme-workout page-fill">
+<main class="wkp-page page-fill">
 
   <div class="wkp-shell">
     <div class="wkp-head">
       <a href="/workout" class="wkp-back" title="К программе">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
       </a>
-      <h1><i data-lucide="settings" class="tool-icon" style="vertical-align:-3px"></i> Профиль тренировок</h1>
+      <h1><i data-lucide="settings" class="tool-icon wkp-head-icon"></i> Профиль тренировок</h1>
     </div>
 
     <div class="wk-card">
       <div class="wk-profile-sec-title">Моя анкета</div>
       <div class="wk-anketa-summary" id="wkAnketaSummary"></div>
-      <a class="wk-action-btn" href="/workout?edit_anketa=1">✏️ Изменить анкету</a>
+      <a class="wk-action-btn" href="/workout?edit_anketa=1"><i data-lucide="pencil"></i> Изменить анкету</a>
     </div>
 
     <div class="wk-card">
@@ -173,7 +88,7 @@
       <p class="wk-profile-hint">Отметьте, какое оборудование у вас есть. Не нашли нужный тренажёр — позже можно скинуть фото в чат ассистенту.</p>
       <div class="wk-eq-toolbar">
         <span class="wk-eq-count" id="wkEqCount">Отмечено: 0</span>
-        <button class="wk-home-btn" id="wkHomeBtn" type="button">🏠 Дом без инвентаря</button>
+        <button class="wk-home-btn" id="wkHomeBtn" type="button"><i data-lucide="house"></i> Дом без инвентаря</button>
       </div>
       <div class="wk-eq-grid" id="wkEqGrid">
         {% for item in equipment_options %}
@@ -191,7 +106,7 @@
       <div class="wk-profile-msg" id="wkEquipmentMsg"></div>
       <div class="wk-eq-regen-banner" id="wkEqRegenBanner">
         Оборудование изменилось — программа была собрана под старый список. Обновить её под новое оборудование?
-        <div><button type="button" class="wk-action-btn" id="wkRegenNowBtn">🔄 Обновить программу</button></div>
+        <div><button type="button" class="wk-action-btn" id="wkRegenNowBtn"><i data-lucide="refresh-cw"></i> Обновить программу</button></div>
       </div>
     </div>
   </div>
@@ -461,7 +376,7 @@
       .then(function (data) {
         if (data.error) {
           btn.disabled = false;
-          btn.textContent = '🔄 Обновить программу';
+          btn.innerHTML = '<i data-lucide="refresh-cw"></i> Обновить программу';
           alert(data.error);
           return;
         }
@@ -469,7 +384,7 @@
       })
       .catch(function () {
         btn.disabled = false;
-        btn.textContent = '🔄 Обновить программу';
+        btn.innerHTML = '<i data-lucide="refresh-cw"></i> Обновить программу';
         alert('Ошибка сети, попробуйте ещё раз.');
       });
   });
