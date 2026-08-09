@@ -19,43 +19,11 @@
 }
 .hh-page-header p { color: var(--text-2); font-size: var(--text-body-sm); }
 
-/* ── Табы разделов (sticky под шапкой) ──────────────────────────────────── */
-.hh-tabs {
-  position: sticky;
-  top: 64px; /* высота .site-header */
-  z-index: 40;
-  display: flex;
-  gap: var(--space-2);
-  background: color-mix(in srgb, var(--surface-0) 82%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border-hairline);
-  margin-bottom: var(--space-6);
-  overflow-x: auto;
-}
-.hh-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--text-2);
-  font-family: var(--font);
-  font-size: var(--text-nav);
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
-}
-.hh-tab:hover { color: var(--text); }
-.hh-tab.active {
-  color: var(--text);
-  border-bottom-color: var(--tool-accent);
-}
-.hh-tab .lucide, .hh-tab svg { width: 16px; height: 16px; stroke-width: 1.5; }
-.hh-tab.active .lucide, .hh-tab.active svg { color: var(--tool-accent); }
+/* ── Табы разделов ──────────────────────────────────────────────────────────
+   Сам компонент переехал в style.css (.tab-bar / .tab-bar-sticky / .tab-btn,
+   BACKLOG.md задача 42). Здесь осталась только отбивка ряда от содержимого:
+   это раскладка экземпляра, ею распоряжается страница. */
+.hh-tabs { margin-bottom: var(--space-6); }
 
 .hh-view { display: none; padding-bottom: var(--space-8); }
 .hh-view.active { display: block; }
@@ -89,35 +57,8 @@
 /* ── Карточка вакансии ──────────────────────────────────────────────────── */
 .vacancy-card { display: flex; flex-direction: column; gap: var(--space-4); }
 
-/* Переключатель источника (текст / ссылка) */
-.source-tabs {
-  display: flex;
-  gap: var(--space-1);
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
-  padding: var(--space-1);
-  border: 1px solid var(--border);
-}
-.source-tab {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: none;
-  border-radius: calc(var(--radius-sm) - 2px);
-  font-size: var(--text-caption);
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
-  font-family: var(--font);
-  background: transparent;
-  color: var(--text-faint);
-}
-.source-tab.active { background: var(--surface-3); color: var(--text); }
-.source-tab:hover:not(.active) { color: var(--text-2); }
-.source-tab svg { width: 14px; height: 14px; stroke-width: 1.5; }
+/* Переключатель источника (текст / ссылка) — компонент .segmented
+   в style.css. Своего у страницы здесь не осталось ничего. */
 
 .tab-panel { display: none; }
 .tab-panel.active { display: flex; flex-direction: column; gap: var(--space-3); }
@@ -713,8 +654,11 @@
 /* ── Адаптив ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .hh-page-header { padding: var(--space-5) 0 var(--space-4); }
-  .hh-tabs { top: 64px; margin-bottom: var(--space-5); }
-  .hh-tab { padding: var(--space-3) var(--space-3); font-size: var(--text-caption); }
+  /* top: 64px здесь стоял вторым экземпляром того же числа и повторял
+     десктопное значение слово в слово — уехал в .tab-bar-sticky вместе
+     с компонентом. Кегль и паддинг вкладки на узком экране — тоже
+     компонент (медиазапрос в style.css). Странице осталась отбивка. */
+  .hh-tabs { margin-bottom: var(--space-5); }
   .result-panel { min-height: 360px; }
   #job-input { min-height: 200px; }
   .result-header { flex-wrap: wrap; gap: var(--space-2); }

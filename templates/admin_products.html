@@ -52,12 +52,12 @@
         {% for f in foods %}
         <tr data-food-id="{{ f.id }}">
           <td class="date-cell food-email">{{ f.email }}</td>
-          <td><input class="food-input food-name" type="text" value="{{ f.name }}"></td>
-          <td><input class="food-input food-brand" type="text" value="{{ f.brand }}"></td>
-          <td><input class="food-input food-input-num food-cal" type="number" step="0.1" value="{{ f.calories }}"></td>
-          <td><input class="food-input food-input-num food-prot" type="number" step="0.1" value="{{ f.protein }}"></td>
-          <td><input class="food-input food-input-num food-fat" type="number" step="0.1" value="{{ f.fat }}"></td>
-          <td><input class="food-input food-input-num food-carb" type="number" step="0.1" value="{{ f.carbs }}"></td>
+          <td><input class="input input-sm food-name" type="text" value="{{ f.name }}"></td>
+          <td><input class="input input-sm food-brand" type="text" value="{{ f.brand }}"></td>
+          <td><input class="input input-sm food-input-num food-cal" type="number" step="0.1" value="{{ f.calories }}"></td>
+          <td><input class="input input-sm food-input-num food-prot" type="number" step="0.1" value="{{ f.protein }}"></td>
+          <td><input class="input input-sm food-input-num food-fat" type="number" step="0.1" value="{{ f.fat }}"></td>
+          <td><input class="input input-sm food-input-num food-carb" type="number" step="0.1" value="{{ f.carbs }}"></td>
           <td>
             <button class="food-save-btn" onclick="saveFood({{ f.id }}, this)" title="Сохранить">
               <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -88,7 +88,7 @@ function showToast(msg) {
 }
 
 // Показывать ✓ только при редактировании строки
-document.querySelectorAll('[data-food-id] .food-input').forEach(input => {
+document.querySelectorAll('[data-food-id] .input').forEach(input => {
   input.addEventListener('input', () => {
     input.closest('tr').querySelector('.food-save-btn').classList.add('dirty');
   });

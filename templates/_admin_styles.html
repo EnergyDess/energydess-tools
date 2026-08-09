@@ -141,27 +141,14 @@
   .foods-table th:nth-child(6), .foods-table td:nth-child(6) { width: 80px; }
   .foods-table th:nth-child(7), .foods-table td:nth-child(7) { width: 80px; }
 
-  /* Инпуты в таблице — .input из базы, уменьшенный под ячейку */
-  .food-input {
-    width: 100%;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: var(--space-2) var(--space-3);
-    color: var(--text);
-    font-size: var(--text-caption);
-    font-family: var(--font);
-    outline: none;
-    transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
-  }
-  .food-input:focus {
-    border-color: var(--accent-brand);
-    box-shadow: 0 0 0 3px var(--accent-brand-dim);
-  }
-  /* нативные спиннеры перекрывали число — скрываем */
-  .food-input[type="number"]::-webkit-outer-spin-button,
-  .food-input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .food-input[type="number"] { -moz-appearance: textfield; }
+  /* Инпуты в таблице — .input .input-sm из компонентной базы. Здесь
+     стояла копия компонента: комментарий над ней так и говорил, «.input
+     из базы, уменьшенный под ячейку». Уменьшенный вариант теперь есть
+     в системе (.input-sm), спиннеры type="number" гасит сам компонент,
+     а фокус берёт --tool-accent вместо жёсткого --accent-brand.
+     BACKLOG.md, задача 42. Странице остался .food-input-num выше —
+     выравнивание и ширина в числовой колонке, то есть раскладка ячейки,
+     а не оформление поля. */
 
   /* Кнопки сохранить / удалить в строке продукта */
   .food-save-btn, .food-del-btn {

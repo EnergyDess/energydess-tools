@@ -44,8 +44,8 @@
       <div class="wk-profile-sec-title">Состав тела</div>
       <div id="wkScaleDisconnected">
         <p class="wk-profile-hint">Подключи весы Mi Body Composition Scale через аккаунт Zepp Life — вес и состав тела будут подтягиваться автоматически (раз в день). Это неофициальная интеграция: если Zepp Life изменит API, синхронизация может прерваться — тогда просто продолжай вводить вес вручную, ничего не сломается.</p>
-        <input type="text" class="wk-profile-input" id="wkScaleUsername" placeholder="email или телефон Zepp Life">
-        <input type="password" class="wk-profile-input" id="wkScalePassword" placeholder="пароль">
+        <input type="text" class="input wk-field-gap" id="wkScaleUsername" placeholder="email или телефон Zepp Life">
+        <input type="password" class="input wk-field-gap" id="wkScalePassword" placeholder="пароль">
         <button type="button" class="wk-profile-btn" id="wkScaleConnectBtn">Подключить весы Xiaomi</button>
         <div class="wk-profile-msg" id="wkScaleConnectMsg"></div>
       </div>
@@ -76,9 +76,9 @@
 
       <div class="wk-profile-sec-title wk-photo-compare-title">Сравнение по датам</div>
       <div class="wk-photo-compare-selects">
-        <select class="wk-profile-input" id="wkCompareDateOld"></select>
+        <select class="select wk-field-gap" id="wkCompareDateOld"></select>
         <span>→</span>
-        <select class="wk-profile-input" id="wkCompareDateNew"></select>
+        <select class="select wk-field-gap" id="wkCompareDateNew"></select>
       </div>
       <div class="wk-photo-compare-view" id="wkCompareView"></div>
     </div>

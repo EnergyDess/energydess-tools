@@ -330,6 +330,59 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
 .btn-lg { padding: var(--space-4) var(--space-7); font-size: var(--text-body-lg); }
 .btn-glow { box-shadow: var(--shadow-glow-brand); }
 
+/* Во всю ширину родителя. Модификатор, а не свойство компонента: ширину
+   кнопки задаёт место, куда её поставили, — форма входа растягивает,
+   панель действий нет. Заведён 2026-08-09 при сведении .auth-btn-primary
+   (BACKLOG.md, задача 42): из трёх его отличий от .btn-primary ровно это
+   было законным, а padding и font-weight — дрейфом копии. */
+.btn-block { width: 100%; }
+
+/* ── Иконочная кнопка ─────────────────────────────────────────────────────
+   Кнопка, у которой всё содержимое — один значок: показать пароль,
+   закрыть, свернуть. Компонента в системе не было, поэтому её писала
+   у себя каждая страница, которой она понадобилась (.eye-btn на пути
+   входа, .icon-btn в дневнике, .modal-x в каркасе модалки) — тот же
+   случай, что был с тумблером. BACKLOG.md, задача 42.
+
+   Квадрат 40×40 — минимальная кнопка из компонентной базы (.btn-primary
+   тоже min-height: 40px), ряд с обычными кнопками не съезжает. Где нужен
+   полный тач-таргет 44px, размер задаёт место установки: у .eye-btn
+   он приходит от высоты поля.
+
+   Фона и рамки нет: значок стоит внутри чужой поверхности — поля, шапки
+   окна, — и своя подложка спорила бы с ней. Нужна подложка (кнопка стоит
+   сама по себе) — вариант .btn-icon-solid ниже. */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.btn-icon:hover { color: var(--text-2); }
+.btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-icon svg { width: 18px; height: 18px; stroke-width: 1.5; flex-shrink: 0; }
+/* Вариант «на подложке»: кнопка стоит не внутри поля, а сама по себе —
+   в шапке окна, в ряду с полем поиска. Углубление, а не --surface-2:
+   кнопка обязана читаться как отдельная от карточки, на которой лежит. */
+.btn-icon-solid {
+  background: var(--surface-sunken);
+  color: var(--text-2);
+}
+.btn-icon-solid:hover { color: var(--text); background: var(--surface-2); }
+/* Круглый вариант — для крестика закрытия: круг читается как «убрать»,
+   квадрат в шапке окна спорит с прямоугольником самого окна. */
+.btn-icon-round { border-radius: 50%; }
+
 .btn-secondary {
   display: inline-flex;
   align-items: center;
@@ -456,6 +509,25 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
    состоянием, и поле в покое читалось бы как выделенное. */
 .input-nested, .textarea-nested { background: var(--surface-1); }
 
+/* Вариант «плотное»: поле в ячейке таблицы, где строк много и каждая
+   лишняя пара пикселей множится на сотню строк. Заведён 2026-08-09
+   при сведении .food-input (BACKLOG.md, задача 42) — там в комментарии
+   прямо было написано «.input из базы, уменьшенный под ячейку», то есть
+   копию делали осознанно и только потому, что варианта не существовало. */
+.input-sm { padding: var(--space-2) var(--space-3); font-size: var(--text-caption); }
+
+/* Нативные спиннеры у type="number" наезжают на само число и обрезают его
+   в узкой колонке. Свойство компонента, а не страницы: поле системы
+   выглядит одинаково независимо от типа значения внутри. */
+.input[type="number"] { -moz-appearance: textfield; }
+.input[type="number"]::-webkit-outer-spin-button,
+.input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Выпадающий список <select> рисует ОС, и без явного фона пункты
+   приезжают белыми на белом в тёмной теме Windows. Часть компонента:
+   .select без этого правила неполон. */
+.select option { background: var(--surface-2); color: var(--text); }
+
 /* ── Chips / labels ─────────────────────────────────────────────────────── */
 .chip {
   display: inline-flex;
@@ -492,6 +564,115 @@ button.chip:hover, a.chip:hover {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-2);
+}
+
+/* ── Вкладки раздела ──────────────────────────────────────────────────────
+   Верхний уровень навигации ВНУТРИ инструмента: «Написать / История /
+   Досье / Резюме». Подчёркивание снизу, активная — в акценте раздела.
+
+   Компонента в системе не было, и это стоило пяти имён на пять разделов
+   (.hh-tab, .s-tab, .tab, .source-tab, .nut-nav-btn — BACKLOG.md,
+   задача 42). Заведён 2026-08-09 из .hh-tab: он единственный из пяти
+   читал --tool-accent, то есть уже был написан по системе, только под
+   своим именем.
+
+   Имя .tab-btn, а не .tab: .tab занят в enshrouded.html собственным
+   инлайновым <style> с шестью категорийными расцветками. Раздел вне
+   системы целиком (BACKLOG.md, задача 38), сводить его сейчас нельзя,
+   а системный .tab перекрывался бы там молча. */
+.tab-bar {
+  display: flex;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--border-hairline);
+  overflow-x: auto;
+}
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: none;
+  border: none;
+  /* прозрачная линия, а не её отсутствие: иначе активная вкладка
+     подрастает на 2px и весь ряд дёргается при переключении */
+  border-bottom: 2px solid transparent;
+  color: var(--text-2);
+  font-family: var(--font);
+  font-size: var(--text-nav);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--text); border-bottom-color: var(--tool-accent, var(--accent-brand)); }
+.tab-btn svg { width: 16px; height: 16px; stroke-width: 1.5; }
+.tab-btn.active svg { color: var(--tool-accent, var(--accent-brand)); }
+
+/* Вариант «прилипающий»: ряд вкладок остаётся под шапкой при прокрутке
+   длинного вида. 64px — высота .site-header, и это одно из четырёх мест,
+   где число участвует в расчётах осознанно (design-system.md, 4.1):
+   элемент вырван из потока, браузеру считать остаток не из чего.
+   Полупрозрачный фон с размытием — чтобы содержимое, уходящее под ряд,
+   читалось как уходящее, а не как обрезанное. */
+.tab-bar-sticky {
+  position: sticky;
+  top: 64px;
+  z-index: 40;
+  background: color-mix(in srgb, var(--surface-0) 82%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── Сегментированный переключатель ───────────────────────────────────────
+   Два-три взаимоисключающих режима ОДНОГО блока: «Текст / Ссылка»
+   у источника вакансии, «Недавние / Частые / Рецепты» в поиске еды.
+   От вкладок отличается не видом, а ролью: вкладки переключают экран
+   и живут в его верху, переключатель — содержимое одного блока и стоит
+   внутри него. Поэтому у него подложка (он читается как один контрол),
+   а у вкладок — линия.
+
+   Активный сегмент поднят на --surface-3, а не окрашен акцентом: акцент
+   в системе означает действие, а выбранный режим — это состояние. */
+.segmented {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.segmented-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: none;
+  /* минус 2px — на паддинг контейнера: иначе угол сегмента не вписывается
+     в угол подложки и между ними видна светлая скобка */
+  border-radius: calc(var(--radius-sm) - 2px);
+  color: var(--text-faint);
+  font-family: var(--font);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.segmented-btn:hover:not(.active) { color: var(--text-2); }
+.segmented-btn.active { background: var(--surface-3); color: var(--text); }
+.segmented-btn svg { width: 14px; height: 14px; stroke-width: 1.5; }
+
+/* Узкий экран: четыре вкладки в ряд не помещаются. Ряд и так прокручивается
+   по горизонтали, но при полном паддинге видно две с половиной — прокрутка
+   перестаёт читаться как прокрутка. Адаптив живёт ЗДЕСЬ, а не на странице:
+   иначе каждая страница с вкладками пишет свой медиазапрос и они разъедутся
+   ровно так же, как разъехались сами вкладки. */
+@media (max-width: 640px) {
+  .tab-btn { padding: var(--space-3); font-size: var(--text-caption); }
 }
 
 /* ── Modals ─────────────────────────────────────────────────────────────────
@@ -1149,8 +1330,36 @@ img.avatar { object-fit: cover; padding: 0; }
   border-color: var(--accent-brand);
 }
 
-/* ── Старые инпуты по тегам ─────────────────────────────────────────────── */
-textarea, input[type="text"], input[type="email"], input[type="password"] {
+/* ── Старые инпуты по тегам ───────────────────────────────────────────────
+   :not(.input):not(.textarea) добавлен 2026-08-09 и это НЕ косметика.
+   `input[type="text"]` — специфичность (0,1,1), `.input` — (0,1,0):
+   правило на теге выигрывало у компонента, и поле с `class="input"`
+   рисовалось этими объявлениями, а не компонентными. Отказ немой
+   в худшем виде: разметка правильная, класс на месте, вариант вроде
+   `.input-sm` не применяется вообще, и понять это по коду нельзя —
+   только замером вычисленного значения в браузере.
+
+   Замер на живом дереве (1280×800, /workout/profile до правки):
+   `<input class="input">` давал font-size 15px и padding 13px 16px,
+   то есть --text-body-sm и числа отсюда, тогда как компонент задаёт
+   --text-body и 12/16. Обнаружено при сведении .wk-profile-input
+   (BACKLOG.md, задача 42): страница и компонент рисовали одинаково
+   не потому, что совпали, а потому что оба проигрывали третьему.
+
+   Исключение выбрано вместо повышения специфичности компонента: правило
+   на теге обязано остаться для всего, что ещё не переведено, и просто
+   не должно спорить с тем, что уже переведено.
+
+   :where(:not(…)), А НЕ :not(…) — и это не стилистика. `:not()` считается
+   в специфичность, и правило выросло бы с (0,1,1) до (0,2,1). Страницы,
+   которые компенсировали старую специфичность селектором потомка, тут же
+   бы её проиграли: `.search-wrap .search-input-admin` — (0,2,0), и поиск
+   в админке лишился бы левого паддинга под иконку. Замерено смоуком:
+   значок наехал на плейсхолдер, поле выросло с 34px до 46px.
+   `:where()` даёт нулевой вклад, правило остаётся ровно (0,1,1) —
+   меняется только то, на что оно НЕ распространяется. ── */
+textarea:where(:not(.textarea)), input[type="text"]:where(:not(.input)),
+input[type="email"]:where(:not(.input)), input[type="password"]:where(:not(.input)) {
   width: 100%;
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -1419,32 +1628,28 @@ body.auth-layout .auth-wrap {
 
 .input-wrap { position: relative; }
 .input-wrap input { padding-right: 44px; }
+/* Показать/скрыть пароль. Сам вид — .btn-icon в компонентной базе, здесь
+   только место: кнопка вписана в правый край поля и тянется на всю его
+   высоту. height: auto обязателен — у абсолютно спозиционированного
+   элемента заданная высота выигрывает у пары top/bottom, и без сброса
+   значок сидел бы на 40px от верха вместо центра поля. */
 .eye-btn {
-  position: absolute; right: 0; top: 0; bottom: 0; width: 44px;
-  display: flex; align-items: center; justify-content: center;
-  background: none; border: none; cursor: pointer;
-  color: var(--text-faint); transition: color var(--dur-fast) var(--ease); padding: 0;
+  position: absolute; right: 0; top: 0; bottom: 0;
+  width: 44px; height: auto;
 }
-.eye-btn:hover { color: var(--text-2); }
-.eye-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
 
-.auth-btn-primary {
-  width: 100%;
-  background: var(--accent-brand);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 14px;
-  font-size: var(--text-body-sm);
-  font-weight: 700;
-  font-family: var(--font);
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease),
-              transform var(--dur-fast) var(--ease);
-  margin-top: 8px;
-  letter-spacing: 0.02em;
-}
-.auth-btn-primary:hover { background: var(--accent-brand-hover); transform: scale(1.01); }
+/* Здесь стоял .auth-btn-primary — копия .btn-primary под своим именем,
+   на пяти кнопках в четырёх шаблонах (BACKLOG.md, задача 42). Отличий
+   от системной кнопки было три, и законным оказалось одно:
+
+     width: 100%     — раскладка экземпляра, стала модификатором .btn-block
+     padding: 14px   — дрейф: система даёт 12/24 при min-height 40px
+     font-weight 700 — дрейф: у системной кнопки 600
+
+   Отбивка от последнего поля — единственное, что принадлежит месту,
+   а не кнопке, и осталась своим классом. 8px было числом, стало --space-2:
+   то же значение, но из шкалы. */
+.auth-submit { margin-top: var(--space-2); }
 
 /* ── Экран-результат пути входа ─────────────────────────────────────────────
    «Проверьте почту», «Пароль изменён», «Аккаунт удалён» — три разных экрана
@@ -1458,9 +1663,10 @@ body.auth-layout .auth-wrap {
    BACKLOG.md, задача 31 */
 .auth-result-icon { font-size: 2.25rem; line-height: 1; margin-bottom: var(--space-3); }
 .auth-result-text { color: var(--text-2); font-size: var(--text-body-sm); margin-bottom: var(--space-5); }
-/* Кнопка-ссылка во всю ширину: <a> сам по себе строчный, и .auth-btn-primary
-   без этого сжался бы по тексту */
-.auth-result-action { display: block; text-align: center; text-decoration: none; }
+/* .auth-result-action удалён вместе с .auth-btn-primary: он существовал
+   только затем, чтобы растянуть <a> по ширине, а это теперь делает
+   .btn-block. Центрирование текста и снятие подчёркивания .btn-primary
+   умеет сам (inline-flex + text-decoration: none). */
 .auth-result-back { color: var(--accent-brand); font-size: var(--text-caption); text-decoration: none; }
 .auth-result-back:hover { text-decoration: underline; }
 .auth-result-note { margin-top: var(--space-5); font-size: var(--text-caption); color: var(--text-faint); }
@@ -1512,7 +1718,11 @@ body.auth-layout .auth-wrap {
   .nav-right .nav-hide-mobile { display: none; }
   .auth-box h1 { font-size: 1.3rem; }
   .form-group input { font-size: 1rem; padding: 14px; }
-  .auth-btn-primary { padding: 16px; font-size: 1rem; }
+  /* Кнопка отправки на узком экране своего правила больше не имеет:
+     .btn-primary даёт 12/24 при min-height 40px и кегле --text-body,
+     а он и есть 1rem. Прежние 16px паддинга поднимали кнопку до 58px
+     против 52px — разница ни на что не работала, кроме расхождения
+     с остальными кнопками проекта. */
 }
 
 /* ── Prefers-reduced-motion — в самом конце, перекрывает всё ───────────── */

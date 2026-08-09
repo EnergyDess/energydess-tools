@@ -32,17 +32,17 @@
   {% set has_resume = resume and resume.resume_text %}
 
   <!-- ── Табы разделов ─────────────────────────────────────────────────── -->
-  <div class="hh-tabs" role="tablist">
-    <button class="hh-tab active" data-view="write" onclick="switchView('write')">
+  <div class="tab-bar tab-bar-sticky hh-tabs" role="tablist">
+    <button class="tab-btn active" data-view="write" onclick="switchView('write')">
       <i data-lucide="pen-line"></i> Написать письмо
     </button>
-    <button class="hh-tab" data-view="history" onclick="switchView('history')">
+    <button class="tab-btn" data-view="history" onclick="switchView('history')">
       <i data-lucide="history"></i> История писем
     </button>
-    <button class="hh-tab" data-view="dossier" onclick="switchView('dossier')">
+    <button class="tab-btn" data-view="dossier" onclick="switchView('dossier')">
       <i data-lucide="folder-open"></i> Досье
     </button>
-    <button class="hh-tab" data-view="resume" onclick="switchView('resume')">
+    <button class="tab-btn" data-view="resume" onclick="switchView('resume')">
       <i data-lucide="file-text"></i> Резюме
       <span class="resume-badge {{ 'resume-badge-ok' if has_resume else 'resume-badge-warn' }}" id="resume-badge">
         {%- if has_resume -%}✓{%- else -%}нет{%- endif -%}
@@ -59,11 +59,11 @@
         <div class="card card-static vacancy-card">
           <div class="panel-title">Вакансия</div>
 
-          <div class="source-tabs">
-            <button class="source-tab active" onclick="switchTab('text')">
+          <div class="segmented">
+            <button class="segmented-btn active" onclick="switchTab('text')">
               <i data-lucide="clipboard-list"></i> Текст
             </button>
-            <button class="source-tab" onclick="switchTab('url')">
+            <button class="segmented-btn" onclick="switchTab('url')">
               <i data-lucide="link"></i> Ссылка
             </button>
           </div>
@@ -491,7 +491,7 @@
 
   // ── Переключение вкладок раздела ─────────────────────────────────────────
   function switchView(name) {
-    document.querySelectorAll('.hh-tab').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+    document.querySelectorAll('.hh-tabs .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.view === name));
     document.querySelectorAll('.hh-view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
     if (name === 'history' && !historyLoaded) renderHistory();
     // при заходе с ?letter= история должна перерисоваться, даже если уже
@@ -711,7 +711,7 @@
 
   function switchTab(tab) {
     activeTab = tab;
-    document.querySelectorAll('.source-tab').forEach((b, i) => {
+    document.querySelectorAll('.segmented .segmented-btn').forEach((b, i) => {
       b.classList.toggle('active', (i === 0) === (tab === 'text'));
     });
     document.getElementById('tab-text').classList.toggle('active', tab === 'text');

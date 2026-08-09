@@ -40,7 +40,7 @@
         <label class="field-label">Пароль</label>
         <div class="input-wrap">
           <input type="password" id="pwd" name="password" placeholder="••••••••" required autocomplete="current-password">
-          <button type="button" class="eye-btn" onclick="toggleEye('pwd', this)" tabindex="-1">
+          <button type="button" class="btn-icon eye-btn" onclick="toggleEye('pwd', this)" tabindex="-1">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
               <circle cx="12" cy="12" r="3"/>
@@ -54,7 +54,7 @@
       {% if turnstile_site_key %}
       <div class="cf-turnstile auth-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="dark"></div>
       {% endif %}
-      <button type="submit" class="auth-btn-primary">Войти</button>
+      <button type="submit" class="btn-primary btn-block auth-submit">Войти</button>
     </form>
 
     <div class="auth-forgot-row">

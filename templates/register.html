@@ -33,7 +33,7 @@
         <label class="field-label">Пароль</label>
         <div class="input-wrap">
           <input type="password" id="pwd1" name="password" placeholder="Минимум 6 символов" required autocomplete="new-password">
-          <button type="button" class="eye-btn" onclick="toggleEye('pwd1', this)" tabindex="-1">
+          <button type="button" class="btn-icon eye-btn" onclick="toggleEye('pwd1', this)" tabindex="-1">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
               <circle cx="12" cy="12" r="3"/>
@@ -45,7 +45,7 @@
         <label class="field-label">Повторите пароль</label>
         <div class="input-wrap">
           <input type="password" id="pwd2" name="password2" placeholder="••••••••" required autocomplete="new-password">
-          <button type="button" class="eye-btn" onclick="toggleEye('pwd2', this)" tabindex="-1">
+          <button type="button" class="btn-icon eye-btn" onclick="toggleEye('pwd2', this)" tabindex="-1">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
               <circle cx="12" cy="12" r="3"/>
@@ -56,7 +56,7 @@
       {% if turnstile_site_key %}
       <div class="cf-turnstile auth-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="dark"></div>
       {% endif %}
-      <button type="submit" class="auth-btn-primary">Создать аккаунт</button>
+      <button type="submit" class="btn-primary btn-block auth-submit">Создать аккаунт</button>
     </form>
 
     <div class="auth-footer">

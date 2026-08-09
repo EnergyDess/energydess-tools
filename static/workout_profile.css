@@ -64,8 +64,14 @@
 .wk-anketa-label { color: var(--text-2); flex-shrink: 0; }
 .wk-anketa-value { color: var(--text); text-align: right; }
 .wk-profile-hint { font-size: 0.8125rem; color: var(--text-2); line-height: 1.5; margin-bottom: var(--space-2); }
-.wk-profile-input { width: 100%; box-sizing: border-box; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; color: var(--text); font-size: 0.875rem; margin-bottom: 8px; }
-.wk-profile-input option { background: var(--surface-2); color: var(--text); }
+/* Здесь стоял .wk-profile-input — копия .input под своим именем
+   (BACKLOG.md, задача 42). Из девяти его объявлений восемь повторяли
+   компонент слово в слово либо расходились с ним дрейфом (9/12 паддинга
+   против 12/16, кегль 0.875rem против --text-body). Девятое — отбивка
+   поля от следующего — принадлежит месту, и оно осталось. Правило
+   для <option> уехало в систему: без него .select неполон везде,
+   а не только здесь. */
+.wk-field-gap { margin-bottom: var(--space-2); }
 /* Текст тёмный: на янтарном --tool-accent белый даёт 2.15, --surface-0 — 9.17 */
 .wk-profile-btn { background: var(--tool-accent); border: none; color: var(--surface-0); padding: 9px 16px; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 600; cursor: pointer; }
 .wk-profile-btn-sm { background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); padding: 7px 14px; border-radius: 99px; font-size: 0.8125rem; cursor: pointer; }
