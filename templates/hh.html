@@ -83,6 +83,17 @@
               </button>
             </div>
             <div class="fetch-status" id="fetch-status"></div>
+            {# Разбор прошёл, текст есть, но на описание вакансии не похож —
+               одни служебные плашки. Раньше это выглядело как успех: счётчик
+               показывал тысячи символов, а в модель уезжал куки-баннер. #}
+            <div class="alert alert-warn" id="fetch-warn" style="display:none">
+              <i data-lucide="alert-triangle"></i>
+              <span><strong>Похоже, описание не загрузилось.</strong>
+              <span id="fetch-warn-msg"></span>
+              Откройте вакансию на сайте, скопируйте описание и вставьте
+              на вкладке «Текст» — иначе письмо будет написано по одному
+              названию должности.</span>
+            </div>
             <div class="fetched-preview" id="fetched-preview"></div>
           </div>
 
@@ -725,12 +736,14 @@
     const fetchIcon = document.getElementById('fetch-icon');
     const status    = document.getElementById('fetch-status');
     const preview   = document.getElementById('fetched-preview');
+    const warnBox   = document.getElementById('fetch-warn');
 
     fetchBtn.disabled = true;
     fetchIcon.innerHTML = '<span class="spinner spinner-sm"></span>';
     status.className = 'fetch-status visible';
     status.textContent = 'Загружаю страницу...';
     preview.classList.remove('visible');
+    warnBox.style.display = 'none';
     fetchedText = '';
 
     try {
@@ -745,8 +758,17 @@
         status.textContent = data.error;
       } else {
         fetchedText = data.text;
-        status.className = 'fetch-status visible ok';
-        status.textContent = `✓ Загружено ${data.text.length.toLocaleString('ru')} символов`;
+        const size = data.text.length.toLocaleString('ru');
+        if (data.quality_warning) {
+          status.className = 'fetch-status visible warn';
+          status.textContent = `Загружено ${size} символов, но описания в них нет`;
+          document.getElementById('fetch-warn-msg').textContent = data.quality_warning + '.';
+          warnBox.style.display = '';
+        } else {
+          status.className = 'fetch-status visible ok';
+          status.textContent = `✓ Загружено ${size} символов`
+            + (data.source === 'hh' ? ' — описание вакансии разобрано' : '');
+        }
         preview.textContent = data.text.substring(0, 600) + (data.text.length > 600 ? '\n...' : '');
         preview.classList.add('visible');
       }
@@ -798,7 +820,9 @@
     const customCtx = (document.getElementById('custom-context').value || '').trim();
 
     generateBtn.disabled = true;
-    btnIcon.innerHTML = '<span class="spinner"></span>';
+    // Спиннера на кнопке нет намеренно: справа уже крутится spinner-lg
+    // с полосой загрузки в панели письма — второй индикатор на том же экране
+    // ничего не добавляет.
     btnText.textContent = force ? 'Генерирую...' : 'Анализирую...';
     loadingText.textContent = force ? 'Пишу письмо...' : 'Анализирую вакансию и резюме...';
     setState('loading');
@@ -955,7 +979,7 @@
     matchesEl.innerHTML = '';
     (data.key_matches || []).forEach(m => {
       const s = document.createElement('span');
-      s.className = 'chip tag-match';
+      s.className = 'chip chip-wrap tag-match';
       s.textContent = m;
       matchesEl.appendChild(s);
     });
@@ -965,7 +989,7 @@
     missingEl.innerHTML = '';
     (data.missing_skills || []).forEach(m => {
       const s = document.createElement('span');
-      s.className = 'chip tag-miss';
+      s.className = 'chip chip-wrap tag-miss';
       s.textContent = m;
       missingEl.appendChild(s);
     });

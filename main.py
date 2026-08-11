@@ -1,4 +1,5 @@
 import asyncio
+import html as html_lib
 import io
 import json as _json
 import re
@@ -1986,15 +1987,28 @@ async def fetch_url(request: Request, user=Depends(get_current_user), db: Sessio
                 timeout=15.0,
             )
         if resp.status_code != 200:
-            return JSONResponse({"error": f"Сайт вернул ошибку {resp.status_code}. Скопируй текст вручную."}, status_code=400)
-        text = _extract_text(resp.text)
+            return JSONResponse({"error": f"Сайт вернул ошибку {resp.status_code}. Скопируйте текст вручную."}, status_code=400)
+
+        # Сначала точный разбор hh (JSON начального состояния), потом общий
+        text = _extract_hh_vacancy(resp.text)
+        source = "hh"
+        if not text:
+            text = _extract_text(resp.text)
+            source = "html"
         if len(text) < 100:
-            return JSONResponse({"error": "Не удалось извлечь текст. Скопируй вручную."}, status_code=400)
-        return JSONResponse({"text": text[:8000]})
+            return JSONResponse({"error": "Не удалось извлечь текст. Скопируйте вручную."}, status_code=400)
+
+        text = text[:8000]
+        return JSONResponse({"text": text, "source": source, "quality_warning": _vacancy_quality(text)})
     except httpx.TimeoutException:
-        return JSONResponse({"error": "Сайт не ответил. Скопируй текст вручную."}, status_code=504)
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Сайт не ответил. Скопируйте текст вручную."}, status_code=504)
+    except (httpx.HTTPError, ValueError, UnicodeDecodeError) as e:
+        # Голый `except Exception` с `str(e)` наружу отсюда убран: он показывал
+        # человеку текст исключения библиотеки, из которого не следует, что
+        # делать. Причина целиком уходит в лог, пользователю — действие.
+        print(f"[fetch-url] {type(e).__name__}: {str(e)[:300]} | url={url}")
+        return JSONResponse({"error": "Не удалось загрузить страницу. Скопируйте текст вакансии вручную."},
+                            status_code=502)
 
 
 # ── Хелперы: сборка досье и анализ вакансии ──────────────────────────────────
@@ -2143,6 +2157,10 @@ async def analyze_vacancy(request: Request, user=Depends(get_current_user), db: 
 relevance_score — целое от 1 до 10 (1 = полное несоответствие, 10 = идеальное совпадение).
 relevant_portfolio_links — ищи релевантные ссылки в двух источниках: в тексте резюме и в списке проектов из досье (строки вида «Название [URL]»). Возвращай именно URL (строку ссылки), а не названия или описания. Если проект из досье релевантен вакансии — включай его URL. Пустой массив если ничего не подходит.
 """
+    # Модель и потолок ответа — те же, что у анализа внутри генерации письма.
+    # Раньше здесь стояли LETTER_MODEL и захардкоженные 700 токенов: правка
+    # BACKLOG №8 подняла лимит только во втором месте, а это осталось. Отказ
+    # выглядел как «Unterminated string at line 22 column 5» — оборванный JSON.
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -2153,22 +2171,44 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
                     "X-Title": "EnergyDess HH Helper",
                 },
                 json={
-                    "model": LETTER_MODEL,
+                    "model": ANALYZE_MODEL,
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.3,
-                    "max_tokens": 700,
+                    "max_tokens": ANALYZE_MAX_TOKENS,
                 },
                 timeout=40.0,
             )
         if response.status_code != 200:
-            return JSONResponse({"error": f"Ошибка OpenRouter: {response.text}"}, status_code=500)
-        raw = response.json()["choices"][0]["message"]["content"].strip()
-        result = _extract_json(raw)
+            print(f"[analyze] http_{response.status_code}: {response.text[:300]}")
+            return JSONResponse({"error": "Сервис анализа не ответил. Попробуйте ещё раз через минуту."},
+                                status_code=502)
+
+        payload = response.json()
+        choice = (payload.get("choices") or [{}])[0]
+        # Обрыв по лимиту проверяем ДО парсинга: у оборванного JSON нет
+        # закрывающей скобки, и он неотличим от «модель вернула мусор».
+        finish = choice.get("finish_reason") or choice.get("native_finish_reason")
+        content = ((choice.get("message") or {}).get("content") or "").strip()
+        if finish == "length":
+            сгенерировано = (payload.get("usage") or {}).get("completion_tokens", "?")
+            print(f"[analyze] truncated: {сгенерировано} из {ANALYZE_MAX_TOKENS} токенов")
+            return JSONResponse({"error": "Ответ анализа не поместился в лимит. "
+                                          "Сократите текст вакансии — оставьте требования и задачи."},
+                                status_code=502)
+        if not content:
+            print(f"[analyze] empty: пустой ответ, finish_reason={finish}")
+            return JSONResponse({"error": "Анализ вернул пустой ответ. Попробуйте ещё раз."}, status_code=502)
+
+        result = _extract_json(content)
         return JSONResponse(result)
     except httpx.TimeoutException:
-        return JSONResponse({"error": "Превышено время ожидания"}, status_code=504)
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Анализ не ответил за 40 секунд. Попробуйте ещё раз."}, status_code=504)
+    except (httpx.HTTPError, ValueError, KeyError, IndexError, _json.JSONDecodeError) as e:
+        # Техническое сообщение парсера пользователю не показываем — оно ему
+        # ничего не говорит и не подсказывает, что делать. В лог пишем полностью.
+        print(f"[analyze] parse: {type(e).__name__}: {str(e)[:300]}")
+        return JSONResponse({"error": "Не удалось разобрать ответ анализа. Попробуйте ещё раз."},
+                            status_code=502)
 
 
 # ── API: генерация письма ─────────────────────────────────────────────────────
@@ -2709,17 +2749,216 @@ def _extract_docx(content: bytes) -> str:
     return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
 
 
+# ── Разбор страницы вакансии ─────────────────────────────────────────────────
+#
+# hh.ru — React-приложение: в разметке лежит только шапка со служебными
+# плашками, а САМО описание вакансии в DOM не рендерится вовсе. Оно приезжает
+# отдельным полем в JSON начального состояния — <template id="HH-Lux-InitialState">.
+# Поэтому общий обход тегов давал заголовок, куки-баннер и «Опыт работы 1–3
+# года», но ни требований, ни обязанностей. Отказ немой: текст есть, длина
+# приличная, счётчик показывает тысячи символов — только это не вакансия.
+#
+# Разбор идёт в два уровня: сначала JSON hh (точный), при неудаче — общий
+# обход тегов для любого другого сайта.
+
+# Служебные строки страниц вакансий: куки-баннер, форма отклика, подписи
+# виджетов. Совпадение по началу строки — целиком, а не по вхождению:
+# «Опыт работы» в описании встречается законно, отдельной строкой — нет.
+_JUNK_LINES = (
+    "мы используем файлы cookie",
+    "правила использования файлов cookie",
+    "понятно",
+    "откликнуться",
+    "напишите телефон, чтобы работодатель мог связаться с вами",
+    "номер телефона",
+    "продолжить",
+    "нажимая «продолжить»",
+    "сейчас эту вакансию",
+    "смотрят",
+    "показать описание вакансии",
+    "вакансия в архиве",
+    "он получит его с откликом на вакансию",
+    "принять и продолжить",
+)
+
+# Хвост страницы: всё после этих заголовков — чужие вакансии и виджеты,
+# к разбираемой вакансии отношения не имеют.
+_TAIL_LINES = (
+    "вакансии из других подборок",
+    "задайте вопрос работодателю",
+    "похожие вакансии",
+    "вакансии дня",
+    "смотрите также",
+)
+
+# Признаки того, что перед нами именно описание вакансии, а не служебная
+# обвязка. Проверяются в нижнем регистре по всему тексту.
+_DESC_MARKERS = (
+    "обязанност", "требован", "задачи", "чем предстоит", "что предстоит",
+    "что нужно", "ожидаем", "условия", "предлагаем", "будет плюсом",
+    "функционал", "мы ищем", "ты будешь", "вы будете", "о вакансии",
+    "responsibilities", "requirements", "we offer", "what you", "about the role",
+)
+
+_WORK_EXPERIENCE_RU = {
+    "noExperience": "без опыта",
+    "between1And3": "1–3 года",
+    "between3And6": "3–6 лет",
+    "moreThan6": "более 6 лет",
+}
+_EMPLOYMENT_RU = {
+    "FULL": "полная занятость",
+    "PART": "частичная занятость",
+    "PROJECT": "проектная работа",
+    "VOLUNTEER": "волонтёрство",
+    "PROBATION": "стажировка",
+    "FLY_IN_FLY_OUT": "вахта",
+}
+_WORK_FORMAT_RU = {
+    "REMOTE": "удалённо",
+    "ON_SITE": "на месте работодателя",
+    "HYBRID": "гибрид",
+    "FIELD_WORK": "разъездной",
+}
+
+
+def _html_fragment_to_text(fragment: str) -> str:
+    """HTML-кусок описания → плоский текст с сохранением абзацев и списков.
+
+    Описание в JSON hh лежит экранированным дважды: сначала как HTML-сущности
+    внутри строки JSON, потом уже как теги. Отсюда unescape перед разбором.
+    """
+    soup = BeautifulSoup(html_lib.unescape(fragment or ""), "lxml")
+    for br in soup.find_all("br"):
+        br.replace_with("\n")
+    # Пункты списка схлопываем в строку с тире. reversed — чтобы вложенный
+    # список обработался раньше внешнего: иначе внешний заменится целиком
+    # и внутренние тире пропадут.
+    for li in reversed(soup.find_all("li")):
+        li.replace_with("\n— " + li.get_text(" ", strip=True) + "\n")
+    text = soup.get_text("\n")
+    lines = [l.strip() for l in text.splitlines()]
+    out = []
+    for line in lines:
+        if not line and out and not out[-1]:
+            continue          # не больше одной пустой строки подряд
+        out.append(line)
+    return "\n".join(out).strip()
+
+
+def _format_compensation(comp: dict) -> str:
+    """Зарплата из JSON hh одной строкой. Пусто — если не указана."""
+    if not isinstance(comp, dict) or "noCompensation" in comp:
+        return ""
+    frm, to = comp.get("perModeFrom") or comp.get("from"), comp.get("perModeTo") or comp.get("to")
+    cur = {"RUR": "₽", "BYR": "Br", "KZT": "₸", "UZS": "сум", "USD": "$", "EUR": "€"}.get(
+        comp.get("currencyCode") or "", comp.get("currencyCode") or "")
+    if frm and to and frm != to:
+        money = f"{frm:,}–{to:,}".replace(",", " ")
+    elif frm or to:
+        money = f"{frm or to:,}".replace(",", " ")
+    else:
+        return ""
+    tail = " до вычета налогов" if comp.get("gross") else " на руки"
+    return f"{money} {cur}{tail}".strip()
+
+
+def _extract_hh_vacancy(page_html: str) -> str | None:
+    """Описание вакансии из JSON начального состояния hh.ru и его клонов.
+
+    None означает «разобрать не вышло» — не hh-страница, структура изменилась
+    или описания в ней нет. Вызывающий на None откатывается к общему обходу
+    тегов. Пустая строка не возвращается никогда, и это намеренно: отдать
+    одну шапку без описания хуже, чем отказаться, — общий разбор хотя бы
+    попробует достать текст из разметки.
+    """
+    soup = BeautifulSoup(page_html, "lxml")
+    tpl = soup.find("template", id="HH-Lux-InitialState")
+    if not tpl:
+        return None
+    try:
+        state = _json.loads(tpl.decode_contents())
+    except (ValueError, TypeError):
+        return None
+    view = state.get("vacancyView")
+    if not isinstance(view, dict):
+        return None
+
+    description = _html_fragment_to_text(view.get("description") or "")
+    if len(description) < 100:
+        return None
+
+    parts = []
+    if view.get("name"):
+        parts.append(f"Должность: {view['name']}")
+    company = view.get("company") or {}
+    if company.get("visibleName") or company.get("name"):
+        parts.append(f"Компания: {company.get('visibleName') or company.get('name')}")
+    area = view.get("area") or {}
+    if area.get("name"):
+        parts.append(f"Город: {area['name']}")
+
+    money = _format_compensation(view.get("compensation") or {})
+    parts.append(f"Зарплата: {money}" if money else "Зарплата: не указана")
+
+    exp = _WORK_EXPERIENCE_RU.get(view.get("workExperience") or "", view.get("workExperience") or "")
+    if exp:
+        parts.append(f"Требуемый опыт: {exp}")
+    emp = _EMPLOYMENT_RU.get(view.get("employmentForm") or "", view.get("employmentForm") or "")
+    if emp:
+        parts.append(f"Занятость: {emp}")
+    formats = [_WORK_FORMAT_RU.get(f, f) for f in (view.get("workFormats") or [])]
+    if formats:
+        parts.append(f"Формат работы: {', '.join(formats)}")
+
+    skills = (view.get("keySkills") or {}).get("keySkill") or []
+    parts.append("")
+    parts.append("Описание вакансии:")
+    parts.append(description)
+    if skills:
+        parts.append("")
+        parts.append(f"Ключевые навыки: {', '.join(str(s) for s in skills)}")
+    return "\n".join(parts).strip()
+
+
 def _extract_text(html: str) -> str:
+    """Общий обход тегов — для сайтов, кроме hh. Служебная обвязка отсекается."""
     soup = BeautifulSoup(html, "lxml")
     for tag in soup(["script", "style", "nav", "footer", "header", "aside", "meta", "noscript"]):
         tag.decompose()
     lines = [l.strip() for l in soup.get_text(separator="\n").splitlines() if l.strip()]
     seen, clean = set(), []
     for line in lines:
+        low = line.lower()
+        if any(low.startswith(t) for t in _TAIL_LINES):
+            break
+        if any(low.startswith(j) for j in _JUNK_LINES):
+            continue
         if len(line) >= 3 and line not in seen:
             seen.add(line)
             clean.append(line)
     return "\n".join(clean)
+
+
+def _vacancy_quality(text: str) -> str | None:
+    """Причина, по которой текст не похож на описание вакансии. None — похож.
+
+    Нужна затем, чтобы «вроде что-то загрузилось» было видно ДО генерации.
+    Молчаливый провал разбора выглядит как успех: счётчик показывает тысячи
+    символов, а в модель уезжает куки-баннер, и письмо пишется по названию
+    должности.
+    """
+    body = (text or "").strip()
+    if len(body) < 350:
+        return "Текст короткий — похоже, загрузилась только шапка страницы"
+    low = body.lower()
+    if any(m in low for m in _DESC_MARKERS):
+        return None
+    # Маркеров нет — но связный текст мог быть написан и без них. Признак
+    # связности: хотя бы один длинный абзац. Служебные плашки всегда короткие.
+    if max((len(l) for l in body.splitlines()), default=0) >= 200:
+        return None
+    return "В тексте нет ни требований, ни обязанностей — одни служебные плашки"
 
 
 # ── Nutrition: helpers ────────────────────────────────────────────────────────

@@ -36,8 +36,13 @@
   gap: var(--space-5);
 }
 @media (max-width: 900px) { .workspace { grid-template-columns: 1fr; } }
+/* min-width у элемента грида по умолчанию auto — колонка не может стать уже
+   своего содержимого. Длинная ссылка в письме распирала колонку шире экрана,
+   а body у нас overflow-x: clip: лишнее не прокручивалось, а обрезалось —
+   вместе с кнопками над письмом. */
+.workspace > * { min-width: 0; }
 
-.panel { display: flex; flex-direction: column; gap: var(--space-4); }
+.panel { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
 
 .panel-title {
   font-family: var(--font-mono);
@@ -93,6 +98,7 @@
   max-height: 180px;
   overflow-y: auto;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   line-height: 1.5;
   display: none;
 }
@@ -100,8 +106,10 @@
 
 .fetch-status { font-size: var(--text-caption); display: none; align-items: center; gap: var(--space-2); }
 .fetch-status.visible { display: flex; }
-.fetch-status.ok  { color: var(--success); }
-.fetch-status.err { color: var(--error); }
+.fetch-status.ok   { color: var(--success); }
+.fetch-status.err  { color: var(--error); }
+/* Страница загрузилась, но описания в ней нет — это не ошибка сети и не успех */
+.fetch-status.warn { color: var(--warning); }
 
 .char-count {
   font-size: var(--text-caption);
@@ -191,8 +199,13 @@
   gap: var(--space-4);
   min-height: 500px;
 }
-.result-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
-.result-actions { display: flex; gap: var(--space-2); align-items: center; }
+/* Ряд кнопок шире, чем остаток строки рядом с заголовком: три подписи
+   со значками — это ~620px, а колонка письма на 1280 всего 580. Без переноса
+   ряд вылезал за карточку (замер: правый край кнопок 1439 при краю панели
+   1225). min-width: 0 — чтобы ряд вообще мог сжаться: у элемента флекса
+   минимальная ширина по умолчанию равна ширине содержимого. */
+.result-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
+.result-actions { display: flex; gap: var(--space-2); align-items: center; min-width: 0; flex: 1 1 auto; }
 .result-actions button { flex: 1; min-width: 0; justify-content: center; }
 
 .letter-content {
@@ -201,6 +214,10 @@
   line-height: 1.8;
   color: var(--text);
   white-space: pre-wrap;
+  /* Ссылка в письме — одно слово без пробелов. Без переноса «где угодно»
+     она задаёт минимальную ширину блока и распирает всю колонку. */
+  overflow-wrap: anywhere;
+  min-width: 0;
   display: none;
 }
 .letter-content a { color: var(--tool-accent); text-decoration: none; }
@@ -680,8 +697,13 @@
   .hh-tabs { margin-bottom: var(--space-5); }
   .result-panel { min-height: 360px; }
   #job-input { min-height: 200px; }
-  .result-header { flex-wrap: wrap; gap: var(--space-2); }
-  .result-actions { width: 100%; gap: var(--space-2); }
+  /* `.result-header { flex-wrap: wrap; gap }` отсюда убрано 2026-08-11:
+     оба свойства с теми же значениями теперь стоят в базовом правиле,
+     то есть медиазапрос повторял его слово в слово и не делал ничего. */
+  /* Три кнопки в 390px в один ряд не помещаются — подписи обрезались.
+     Переносим: по две в ряду, третья уходит на вторую строку. */
+  .result-actions { width: 100%; gap: var(--space-2); flex-wrap: wrap; }
+  .result-actions button { flex: 1 1 calc(50% - var(--space-2)); }
   .url-row { flex-wrap: wrap; }
   .url-row .input { min-width: 0; }
   .resume-footer { flex-direction: column; align-items: stretch; }

@@ -624,6 +624,22 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
               background var(--dur-fast) var(--ease),
               color var(--dur-fast) var(--ease);
 }
+/* Вариант для подписи, длину которой мы не задаём: в карточке анализа
+   вакансии чипы наполняет модель, и там не слово, а целая фраза. Базовый
+   nowrap давал чип шириной 767px внутри карточки в 531 — он уезжал за край
+   экрана и обрезался вместе с ним (body — overflow-x: clip).
+   Радиус здесь --radius-md, а не 999px: пилюля в три строки читается как
+   ошибка вёрстки, а не как чип. Всё остальное — фон, рамка, кегль, паддинг —
+   от базового, поэтому родство видно. */
+.chip-wrap {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  align-items: flex-start;
+  text-align: left;
+  border-radius: var(--radius-md);
+  line-height: 1.45;
+}
 button.chip, a.chip { cursor: pointer; }
 button.chip:hover, a.chip:hover {
   border-color: var(--border-strong);
@@ -1607,6 +1623,10 @@ textarea::placeholder, input::placeholder { color: var(--text-faint); }
 
 /* ── Spinner ────────────────────────────────────────────────────────────── */
 .spinner {
+  /* inline-block обязателен: компонент вешают и на <div>, и на <span> внутри
+     кнопки. У строчного элемента width/height игнорируются — оставались одни
+     рамки, и вместо кольца рисовалась неподвижная вертикальная палка. */
+  display: inline-block;
   width: 18px; height: 18px;
   border: 2px solid rgba(255,255,255,0.15);
   border-top-color: var(--tool-accent, var(--accent-brand));
