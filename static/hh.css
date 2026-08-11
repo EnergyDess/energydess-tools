@@ -64,7 +64,18 @@
 .tab-panel { display: none; }
 .tab-panel.active { display: flex; flex-direction: column; gap: var(--space-3); }
 
-#job-input { min-height: 300px; font-size: var(--text-body-sm); }
+/* Только высота экземпляра: 300px — это место поля в колонке, а не свойство
+   компонента, и такие правила родитель задаёт по построению (CLAUDE.md
+   §6.0.2, таблица законных). `font-size` отсюда убран 2026-08-11: он был
+   остатком самодельного поля, которое стояло здесь до миграции со своим
+   фоном, рамкой и кеглем 0.875rem. Три таких поля имели три РАЗНЫХ кегля
+   (0.875 / 0.875 / 0.88rem) — то есть это был дрейф копий, а не решение,
+   и переносить его в компонент было не за чем.
+
+   ЗАМЕЧАНИЕ ПРО ФОРМУ: правило по id весит больше любого класса, поэтому
+   даже законная раскладка, записанная так, не переопределяется системой —
+   ни медиазапросом в style.css, ни вариантом компонента. Проверка 8. */
+#job-input { min-height: 300px; }
 
 .url-row { display: flex; gap: var(--space-2); }
 /* Только раскладка: место поля в ряду. Высоту 44px даёт .input-compact
@@ -166,7 +177,11 @@
   color: var(--text-2);
 }
 .ctx-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-#custom-context { min-height: 60px; font-size: var(--text-body-sm); }
+/* Здесь стояло `#custom-context { min-height: 60px; font-size: … }`.
+   Замер 2026-08-11: 60px не связывали — своя высота поля при rows=2
+   равна 74px, то есть больше. Единственным действием правила было снятие
+   системного минимума 96px, а это ровно `.textarea-compact`, заведённый
+   накануне задачей 45. Правило удалено, вариант стоит в разметке. */
 .ctx-hint { font-size: var(--text-caption); color: var(--text-faint); line-height: 1.5; }
 
 /* ── Панель результата ──────────────────────────────────────────────────── */
@@ -352,7 +367,9 @@
 .upload-status.ok  { color: var(--success); }
 .upload-status.err { color: var(--error); }
 
-#resume-textarea { min-height: 240px; font-size: var(--text-body-sm); }
+/* Только высота экземпляра, как у #job-input выше; `font-size` убран там же
+   и по той же причине */
+#resume-textarea { min-height: 240px; }
 .resume-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
 .resume-actions { display: flex; gap: var(--space-2); align-items: center; }
 .resume-chars { font-size: var(--text-caption); color: var(--text-faint); }

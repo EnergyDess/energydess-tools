@@ -145,16 +145,16 @@
     <div class="section-line"></div>
   </div>
 
-  {# Lucide-иконка по id инструмента — эмодзи из TOOLS в UI не используем
-     (design-system.md, раздел 8); эмодзи рендерились монохромными глифами
-     и выглядели выцветшими #}
-  {% set tool_lucide = {'hh': 'briefcase', 'nutrition': 'salad', 'workout': 'dumbbell', 'enshrouded': 'shield'} %}
+  {# Значок берётся из TOOL_ICONS — глобал Jinja, единственный источник
+     (main.py, рядом с TOOLS). Здесь стояла своя копия карты, одна из четырёх;
+     сведены 2026-08-11, BACKLOG.md задача 46. Эмодзи в UI не используем
+     вовсе — design-system.md, раздел 8 #}
   <div class="tools-grid">
     {% for tool in tools %}
 
       {% if not tool.active %}
         <div class="card tool-card stagger-in tool-{{ tool.id }} is-soon" style="--n: {{ loop.index0 }}">
-          <div class="tool-card-icon"><i data-lucide="{{ tool_lucide.get(tool.id, 'box') }}"></i></div>
+          <div class="tool-card-icon"><i data-lucide="{{ TOOL_ICONS.get(tool.id, 'box') }}"></i></div>
           <div class="tool-card-title">{{ tool.name }}</div>
           <div class="tool-card-desc">{{ tool.desc }}</div>
           <div class="tool-card-foot">
@@ -165,7 +165,7 @@
 
       {% elif tool.has_access %}
         <a href="{{ tool.url }}" class="card tool-card stagger-in tool-{{ tool.id }}" style="--n: {{ loop.index0 }}">
-          <div class="tool-card-icon"><i data-lucide="{{ tool_lucide.get(tool.id, 'box') }}"></i></div>
+          <div class="tool-card-icon"><i data-lucide="{{ TOOL_ICONS.get(tool.id, 'box') }}"></i></div>
           <div class="tool-card-title">{{ tool.name }}</div>
           <div class="tool-card-desc">{{ tool.desc }}</div>
           <div class="tool-card-foot">
@@ -176,7 +176,7 @@
 
       {% else %}
         <div class="card tool-card stagger-in tool-{{ tool.id }} is-locked" style="--n: {{ loop.index0 }}">
-          <div class="tool-card-icon"><i data-lucide="{{ tool_lucide.get(tool.id, 'box') }}"></i></div>
+          <div class="tool-card-icon"><i data-lucide="{{ TOOL_ICONS.get(tool.id, 'box') }}"></i></div>
           <div class="tool-card-title">{{ tool.name }}</div>
           <div class="tool-card-desc">{{ tool.desc }}</div>
           <div class="tool-card-foot">

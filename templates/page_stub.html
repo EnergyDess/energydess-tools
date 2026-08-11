@@ -245,13 +245,11 @@
     {# Список инструментов из TOOLS: писать руками нельзя — страница
        устареет при добавлении нового инструмента #}
     {% if page.tools %}
-    {% set doc_icons = {'hh': 'briefcase', 'nutrition': 'salad',
-                        'workout': 'dumbbell', 'enshrouded': 'shield'} %}
     <ul class="doc-tools">
       {% for tool in TOOLS %}
       <li class="tool-{{ tool.id }}">
         <a href="{{ tool.url }}">
-          <span class="doc-tools-icon"><i data-lucide="{{ doc_icons.get(tool.id, 'box') }}"></i></span>
+          <span class="doc-tools-icon"><i data-lucide="{{ TOOL_ICONS.get(tool.id, 'box') }}"></i></span>
           <span>
             <span class="doc-tools-name">{{ tool.name }}</span>
             <span class="doc-tools-desc">{{ tool.desc }}</span>

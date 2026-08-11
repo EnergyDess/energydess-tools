@@ -203,6 +203,23 @@ TOOLS = [
 # для поиска-навигации: единственный источник правды — этот TOOLS, добавление
 # инструмента сюда автоматически появляется в поиске на всех страницах.
 templates.env.globals["TOOLS"] = TOOLS
+
+# Иконка Lucide и категорийная метка по id инструмента. Живут здесь, а не
+# в TOOLS: TOOLS — источник текстов, а это оформление (design-system.md,
+# раздел 7).
+#
+# В ГЛОБАЛАХ, А НЕ ПРОСТО В МОДУЛЕ — и это не косметика. До 2026-08-11
+# карта была объявлена ниже и в глобалы не выставлялась, хотя комментарий
+# рядом утверждал «живут здесь». Шаблоны её не видели и написали себе
+# по копии: index.html, _header.html, _footer.html, page_stub.html — итого
+# пять карт одного содержания. Разошлись бы они молча: у каждой копии
+# свой запасной 'box', то есть новый инструмент дал бы пустой квадрат
+# в четырёх местах и правильный значок в пятом — без ошибки и без следа
+# в консоли (BACKLOG.md, задача 46).
+TOOL_ICONS = {"hh": "briefcase", "nutrition": "salad", "workout": "dumbbell", "enshrouded": "shield"}
+TOOL_EYEBROWS = {"hh": "Карьера", "nutrition": "Питание",
+                 "workout": "Тренировки", "enshrouded": "Игры · Enshrouded"}
+templates.env.globals["TOOL_ICONS"] = TOOL_ICONS
 # Нужен в _meta.html: og:url и og:image требуют АБСОЛЮТНЫХ адресов, с
 # относительным путём превью не собирается ни в одном мессенджере
 templates.env.globals["BASE_URL"] = BASE_URL
@@ -215,13 +232,6 @@ def user_has_access(user: User, tool_id: str, db: Session) -> bool:
         ToolAccess.user_id == user.id,
         ToolAccess.tool_id == tool_id
     ).first() is not None
-
-
-# Иконка Lucide и категорийная метка по id инструмента. Живут здесь, а не в
-# TOOLS: TOOLS — источник текстов, а это оформление (design-system.md, раздел 7)
-TOOL_ICONS = {"hh": "briefcase", "nutrition": "salad", "workout": "dumbbell", "enshrouded": "shield"}
-TOOL_EYEBROWS = {"hh": "Карьера", "nutrition": "Питание",
-                 "workout": "Тренировки", "enshrouded": "Игры · Enshrouded"}
 
 
 def _safe_next(next_url: str) -> str:
