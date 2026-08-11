@@ -504,9 +504,16 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
 }
 .btn-ghost:hover { color: var(--text); }
 
-/* ── Signature: running-border ──────────────────────────────────────────────
-   Единственная «фишка» сайта. Периметр вычисляется JS (static/ui.js) через
-   getTotalLength() и пишется в --perimeter на элементе. Не хардкодить. */
+/* ── Третичная ссылка-кнопка ────────────────────────────────────────────────
+   Стоит рядом с .btn-primary в геройском блоке лендинга и держит ряд ровным
+   (min-height 40px — та же высота, что у соседней кнопки).
+
+   Имя историческое: у кнопки была бегущая рамка — светящаяся дуга длиной
+   40px, ездившая по периметру. Удалена 2026-08-11 (BACKLOG №54): в любой
+   отдельный момент времени дуга видна не рамкой, а короткой синей чертой
+   у края кнопки. Вместе с ней ушли .signature-border, @keyframes run-border,
+   исключение в prefers-reduced-motion и initSignatureBorders() в ui.js —
+   мёртвое правило выглядит живым, и через полгода под него вернут разметку. */
 .btn-signature {
   position: relative;
   display: inline-flex;
@@ -523,29 +530,7 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
   border: none;
   cursor: pointer;
   border-radius: var(--radius-sm);
-  isolation: isolate;
   min-height: 40px;
-}
-.signature-border {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%;
-  z-index: -1;
-  overflow: visible;
-  pointer-events: none;
-}
-.signature-border rect {
-  fill: transparent;
-  stroke: var(--accent-brand);
-  stroke-width: 1;
-  stroke-opacity: 0.45;
-  /* короткая светящаяся дуга + «невидимый» хвост длиной в периметр */
-  stroke-dasharray: 40 var(--perimeter, 1000);
-  stroke-dashoffset: 0;
-  animation: run-border 4s linear infinite;
-  filter: drop-shadow(0 0 4px var(--accent-brand));
-}
-@keyframes run-border {
-  to { stroke-dashoffset: calc(-1 * (var(--perimeter, 1000) + 40)); }
 }
 
 /* ── Inputs ─────────────────────────────────────────────────────────────── */
@@ -610,10 +595,15 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
 
    overflow-y: hidden обязателен: собственная полоса поля с проставленной
    под содержимое высотой не нужна, но браузер успевает её нарисовать
-   на кадр между вводом символа и пересчётом. resize снят по той же
-   причине — ручную высоту скрипт затрёт при следующем вводе, и ручка
-   обещала бы то, чего не делает. */
-.textarea-grow { overflow-y: hidden; resize: none; }
+   на кадр между вводом символа и пересчётом.
+
+   RESIZE ВЕРНУЛСЯ 2026-08-11 (BACKLOG №57). Здесь стояло `resize: none`,
+   и довод был верный для той версии скрипта: ручную высоту затирал
+   следующий же ввод символа, то есть ручка обещала то, чего не делает.
+   Теперь autosizeTextarea считает высоту как max(содержимое, ручная) —
+   заданное мышью работает как минимум и переживает ввод. Замер: поле
+   180px растягивается до 300px и остаётся 300px после набора текста. */
+.textarea-grow { overflow-y: hidden; resize: vertical; }
 
 /* Вариант «на вложенном блоке»: поле лежит не на карточке (--surface-1),
    а на вложенном блоке (--surface-2) — например, в под-карточке досье.
@@ -1191,6 +1181,10 @@ img.avatar { object-fit: cover; padding: 0; }
   grid-template-columns: 1.6fr repeat(3, 1fr);
   gap: var(--space-7) var(--space-6);
 }
+/* Гостевой вариант: колонки «Инструменты» в нём нет (всё за авторизацией),
+   поэтому колонок три, а не четыре. Без этого правила четвёртая дорожка
+   осталась бы пустой, а ссылки сбились бы влево от середины футера. */
+.site-footer-grid-guest { grid-template-columns: 1.6fr repeat(2, 1fr); }
 
 /* ── Левый блок: логотип, описание, контакты ── */
 .footer-logo {
@@ -1305,6 +1299,10 @@ img.avatar { object-fit: cover; padding: 0; }
    потом колонки складываются в две */
 @media (max-width: 1024px) {
   .site-footer-grid { grid-template-columns: repeat(3, 1fr); }
+  /* Правило выше объявлено ПОСЛЕ .site-footer-grid-guest и при равной
+     специфичности (0,1,0) выигрывает по порядку — поэтому у гостевого
+     варианта его число колонок повторяется здесь, а не наследуется */
+  .site-footer-grid-guest { grid-template-columns: repeat(2, 1fr); }
   .footer-about { grid-column: 1 / -1; }
   .footer-desc { max-width: 52ch; }
 }
@@ -1898,7 +1896,6 @@ body.auth-layout .auth-wrap {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  .signature-border rect { animation: none; }
 }
 
 /* ── Подсказка при опечатке в домене почты ───────────────────────────────

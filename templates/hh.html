@@ -40,6 +40,9 @@
     </button>
     <button class="tab-btn" data-view="dossier" onclick="switchView('dossier')">
       <i data-lucide="folder-open"></i> Досье
+      <span class="resume-badge {{ 'resume-badge-ok' if has_dossier else 'resume-badge-warn' }}" id="dosie-badge">
+        {%- if has_dossier -%}✓{%- else -%}нет{%- endif -%}
+      </span>
     </button>
     <button class="tab-btn" data-view="resume" onclick="switchView('resume')">
       <i data-lucide="file-text"></i> Резюме
@@ -115,19 +118,6 @@
               <div class="analysis-section-title">Чего не хватает</div>
               <div class="analysis-tags" id="analysis-missing"></div>
             </div>
-          </div>
-
-          <div class="custom-context-wrap">
-            <label class="custom-context-label" for="custom-context">Разовая настройка под эту вакансию (необязательно)</label>
-            <div class="ctx-chips">
-              <button type="button" class="chip" onclick="addCtxChip('Тон неформальный, без официоза')">неформальный тон</button>
-              <button type="button" class="chip" onclick="addCtxChip('Подсвети AI-опыт сильнее — это главный акцент')">акцент на AI</button>
-              <button type="button" class="chip" onclick="addCtxChip('Не упоминай зарплатные ожидания')">без ЗП</button>
-              <button type="button" class="chip" onclick="addCtxChip('Сделай письмо короче, около 100 слов')">короче</button>
-              <button type="button" class="chip" onclick="addCtxChip('Предложи в финале тестовое задание как CTA')">предложи тестовое</button>
-            </div>
-            <textarea class="textarea textarea-compact textarea-grow" rows="2" id="custom-context" placeholder="Что упомянуть особенно или что убрать. Например: подсвети опыт с Claude Code сильнее; не упоминай зарплату; тон неформальный."></textarea>
-            <p class="ctx-hint">Настройки досье — базовые для всех писем. Здесь уточняете только под эту вакансию — эти указания имеют приоритет над досье.</p>
           </div>
 
           <button class="btn-primary generate-btn" id="generate-btn" onclick="generateLetter()">
@@ -245,7 +235,6 @@
     <div class="card card-static dosie-view-card">
       <div class="dosie-head">
         <h2>Моё досье</h2>
-        <span class="resume-badge resume-badge-warn" id="dosie-badge">Не заполнено</span>
       </div>
       <p class="dosie-hint">Расширенный контекст — используется при генерации писем: проекты, опыт вне резюме, стиль подачи.</p>
 
@@ -821,8 +810,6 @@
       text = fetchedText;
     }
 
-    const customCtx = (document.getElementById('custom-context').value || '').trim();
-
     generateBtn.disabled = true;
     // Спиннера на кнопке нет намеренно: справа уже крутится spinner-lg
     // с полосой загрузки в панели письма — второй индикатор на том же экране
@@ -835,7 +822,7 @@
       const res  = await fetch('/api/generate-letter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_text: text, custom_context: customCtx, force }),
+        body: JSON.stringify({ job_text: text, force }),
       });
       const data = await res.json();
 
@@ -1013,13 +1000,6 @@
     }
   });
 
-  // ── Шаблоны custom_context ───────────────────────────────────────────────
-  function addCtxChip(text) {
-    const ta = document.getElementById('custom-context');
-    ta.value = ta.value ? ta.value.trimEnd() + '; ' + text : text;
-    ta.focus();
-  }
-
   // ── Редактирование письма ─────────────────────────────────────────────────
   let letterEditing = false;
   let lastGeneratedLetterId = null;
@@ -1076,19 +1056,51 @@
   // Без прибавки поле выходит ровно на 2px короче содержимого — замер
   // 2026-08-11: clientHeight 611 при scrollHeight 613, и последняя строка
   // обрезана наполовину.
+  //
+  // РУЧКА РАСТЯГИВАНИЯ И АВТОВЫСОТА УЖИВАЮТСЯ ЧЕРЕЗ max(). Задача 49 сняла
+  // с .textarea-grow `resize`, и довод был верный для той версии: скрипт
+  // затирал ручную высоту при следующем нажатии клавиши, то есть ручка
+  // обещала то, чего не делала. Теперь высота, выставленная мышью, живёт
+  // как МИНИМУМ: автовысота может её только превысить, но не уменьшить.
+  // Обещание становится честным — «поле не короче того, что вы задали».
+  //
+  // Обратная сторона названа прямо: сделать поле КОРОЧЕ содержимого мышью
+  // нельзя, оно вернётся к тексту. Это и есть смысл варианта «растёт под
+  // текст», и совмещать его с «прячет текст» было бы противоречием.
   function autosizeTextarea(el) {
     if (!el) return;
     const cs = getComputedStyle(el);
     const рамка = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+    const ручная = parseFloat(el.dataset.ручнаяВысота) || 0;
     el.style.height = 'auto';
     // Пустое поле высоту не считает, а возвращает к rows из разметки.
     // Замер: у пустой textarea Chrome отдаёт scrollHeight на строку больше
     // фактического (101 при своей высоте 75), и пересчёт по нему делал бы
     // пустое поле выше, чем оно объявлено. 'auto' выше как раз и вернул
     // высоту от rows — на ней и останавливаемся.
-    if (!el.value) return;
-    el.style.height = (el.scrollHeight + рамка) + 'px';
+    const нужно = el.value ? el.scrollHeight + рамка : el.getBoundingClientRect().height;
+    const итог = Math.max(нужно, ручная);
+    // Отметка «эту высоту поставил скрипт»: без неё наблюдатель ниже принял
+    // бы собственную правку за движение мыши и защёлкнул бы её как ручную —
+    // поле после этого не смогло бы уменьшиться никогда.
+    el.dataset.своя = String(Math.round(итог));
+    if (!el.value && !ручная) { el.style.height = ''; return; }
+    el.style.height = итог + 'px';
   }
+
+  // Ручное растягивание ловится наблюдателем за размером, а не событием:
+  // события «пользователь потянул за угол» в DOM нет вообще — resize
+  // у textarea не всплывает и в Chrome не срабатывает. Отличаем от своей
+  // же правки по метке dataset.своя, поставленной строкой выше.
+  const наблюдательВысоты = ('ResizeObserver' in window) ? new ResizeObserver(записи => {
+    записи.forEach(з => {
+      const el = з.target;
+      const h = Math.round(el.getBoundingClientRect().height);
+      if (Math.abs(h - (parseFloat(el.dataset.своя) || 0)) <= 1) return;  // это мы сами
+      el.dataset.ручнаяВысота = String(h);
+      el.dataset.своя = String(h);
+    });
+  }) : null;
 
   // Одна делегированная подписка на весь документ вместо подписки на каждое
   // поле: поля досье создаются скриптом по кнопке «добавить», и подписка
@@ -1098,7 +1110,10 @@
   });
 
   function autosizeAll(корень) {
-    (корень || document).querySelectorAll('.textarea-grow').forEach(autosizeTextarea);
+    (корень || document).querySelectorAll('.textarea-grow').forEach(el => {
+      autosizeTextarea(el);
+      if (наблюдательВысоты) наблюдательВысоты.observe(el);   // повторный observe безвреден
+    });
   }
 
   // ── Досье: аккордеоны секций ─────────────────────────────────────────────
@@ -1331,13 +1346,18 @@
       if (es.just_farewell    != null) document.getElementById('d-just-farewell').checked = es.just_farewell;
       if (es.just_farewell) applyFarewellLock(true);
 
-      const hasData = !!(data.profession_one_liner || (data.skills || []).length || (data.projects || []).length);
-      if (hasData) {
-        const badge = document.getElementById('dosie-badge');
-        badge.className = 'resume-badge resume-badge-ok';
-        badge.textContent = '✓ Заполнено';
-      }
+      setDosieBadge(data.ready);
     } catch(e) { console.warn('loadDosie:', e); }
+  }
+
+  // Галочка у вкладки «Досье» — та же форма, что у «Резюме». Условие
+  // «хватает для письма» считает сервер (dossier_ready в main.py),
+  // здесь только рисование.
+  function setDosieBadge(ready) {
+    const badge = document.getElementById('dosie-badge');
+    if (!badge) return;
+    badge.className   = 'resume-badge ' + (ready ? 'resume-badge-ok' : 'resume-badge-warn');
+    badge.textContent = ready ? '✓' : 'нет';
   }
 
   // ── Сохранение досье ──
@@ -1373,9 +1393,10 @@
       });
       if (res.ok) {
         showToast('✓ Досье обновлено');
-        const badge = document.getElementById('dosie-badge');
-        badge.className  = 'resume-badge resume-badge-ok';
-        badge.textContent = '✓ Заполнено';
+        // Признак берём из ответа сервера, а не выставляем «заполнено» по
+        // факту успешного сохранения: сохранить можно и пустое досье, и
+        // галочка тогда врала бы ровно про то, ради чего заведена
+        setDosieBadge((await res.json().catch(() => ({}))).ready);
       } else {
         showToast('Не удалось сохранить досье');
       }

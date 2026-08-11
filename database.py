@@ -166,6 +166,10 @@ class CoverLetter(Base):
     # Отдельным полем, а не внутри analysis_json: то поле означает РЕЗУЛЬТАТ анализа
     # и его читают через .get(...) — подмешивать туда ошибки значит размывать смысл.
     analysis_error = Column(Text, nullable=True)
+    # Разовая настройка «что упомянуть особенно» — блок удалён из интерфейса
+    # и из промпта 2026-08-11 (BACKLOG №53). Колонка ОСТАВЛЕНА: в ней лежат
+    # значения у писем, сгенерированных до удаления, а ALTER TABLE DROP COLUMN
+    # уничтожил бы их необратимо ради нескольких байт. Новые записи пишут NULL.
     custom_context = Column(Text, nullable=True)
     edited = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)

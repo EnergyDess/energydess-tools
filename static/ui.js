@@ -1,8 +1,9 @@
 // ── ui.js — общие микро-механики дизайн-системы ─────────────────────────────
-// 1. running-border: вычисляет периметр каждой .btn-signature и пишет его
-//    в CSS-переменную --perimeter (design-system.md, раздел 3 — не хардкодим).
-// 2. scroll-reveal: элементы .reveal получают .revealed при входе в viewport.
-// 3. дорисовка иконок Lucide в разметке, собранной скриптом.
+// 1. scroll-reveal: элементы .reveal получают .revealed при входе в viewport.
+// 2. дорисовка иконок Lucide в разметке, собранной скриптом.
+//
+// Здесь был третий пункт — running-border: расчёт периметра .btn-signature
+// через getTotalLength(). Ушёл вместе с самой рамкой 2026-08-11 (BACKLOG №54).
 
 (function () {
   'use strict';
@@ -69,21 +70,6 @@
     наблюдатель.observe(document.body, { childList: true, subtree: true });
   }
 
-  // ── Running-border у .btn-signature ──
-  function initSignatureBorders() {
-    document.querySelectorAll('.btn-signature').forEach(function (btn) {
-      var rect = btn.querySelector('.signature-border rect');
-      if (!rect) return;
-      // размеры атрибутами — проценты в getTotalLength() не считаются
-      var w = btn.offsetWidth, h = btn.offsetHeight;
-      if (!w || !h) return;
-      rect.setAttribute('width', w - 1);
-      rect.setAttribute('height', h - 1);
-      var perimeter = Math.ceil(rect.getTotalLength());
-      btn.style.setProperty('--perimeter', perimeter);
-    });
-  }
-
   // ── Появление секций при скролле ──
   function initScrollReveal() {
     var els = document.querySelectorAll('.reveal');
@@ -119,7 +105,6 @@
   }
 
   function init() {
-    initSignatureBorders();
     initScrollReveal();
     initAvatarDropdown();
     initLucideAutoDraw();
@@ -130,6 +115,4 @@
   } else {
     init();
   }
-  // при ресайзе периметр меняется — пересчитываем
-  window.addEventListener('resize', initSignatureBorders);
 })();

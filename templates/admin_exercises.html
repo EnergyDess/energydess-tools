@@ -374,6 +374,13 @@ document.getElementById('ex-video-modal').addEventListener('modal:close', () => 
 renderGrid();
 </script>
 
+
+{# Общий футер. Раньше его тут не было вовсе — админка была единственным
+   разделом сайта без нижней навигации. Причина отпала: перейти из админки
+   в инструмент или в правовую страницу удобно, и особенной админка для
+   этого не настолько (BACKLOG №56). Вариант полный: сюда попадает только
+   администратор, то есть авторизованный. #}
+{% include '_footer.html' %}
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="/static/ui.js"></script>
 <script src="/static/modal.js"></script>

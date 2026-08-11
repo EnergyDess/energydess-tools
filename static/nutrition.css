@@ -1139,7 +1139,15 @@ html.assistant-mode, html.assistant-mode body {
   .meal-icon { font-size: 1.05rem; }
   .meal-name { font-size: .98rem; }
   .meal-kcal { font-size: .88rem; }
-  .meal-items { max-height: 5.625rem; overflow-y: auto; min-height: 0; }
+  /* Список съеденного потолка высоты НЕ имеет. Здесь стояло
+     `max-height: 5.625rem; overflow-y: auto` — окно 90px, в которое при
+     четырёх позициях на приём пищи не влезало 222–280px из 311–369.
+     Это текст, который читают, а не превью: критерий из design-system.md
+     §10.6, тот же, по которому разбирали поля досье (BACKLOG №49).
+     Прокрутка при этом не пропала, а поднялась на этаж выше — колонка
+     #tab-diary.active прокручивается сама, и вложенной ловушки больше нет.
+     Замер до/после — BACKLOG №52. */
+  .meal-items { min-height: 0; }
   .food-item { padding: 0.4375rem 0.875rem; }
   .food-name { font-size: .9rem; }
   .food-sub { font-size: .76rem; }
