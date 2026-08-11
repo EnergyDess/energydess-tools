@@ -128,15 +128,59 @@ MODEL               = os.getenv("MODEL",         "anthropic/claude-haiku-4-5")
 LETTER_MODEL        = os.getenv("LETTER_MODEL",  "anthropic/claude-opus-4-5")   # генерация письма
 ANALYZE_MODEL       = os.getenv("ANALYZE_MODEL", "anthropic/claude-sonnet-4-5") # анализ вакансии (JSON)
 PARSER_MODEL        = os.getenv("PARSER_MODEL",  "anthropic/claude-sonnet-4-5") # парсер резюме (JSON)
-# Потолок ответа анализа вакансии. Было 700 — и этого не хватало: разбор на русском
-# из 9 полей занимает 600-900 токенов, на длинных вакансиях больше. Ответ обрывался
-# на полуслове, JSON не парсился, сбой глушился. max_tokens — потолок, а не резерв:
-# платим за фактически сгенерированное, поэтому берём с запасом.
-ANALYZE_MAX_TOKENS  = int(os.getenv("ANALYZE_MAX_TOKENS", "2000"))
+# ── Потолки ответа модели ─────────────────────────────────────────────────────
+# Все до единого — здесь и с именем. Число на месте вызова невидимо: его нельзя
+# ни грепнуть, ни сверить с фактическим расходом, ни поднять из окружения.
+# Ровно так /api/analyze-vacancy остался с захардкоженными 700 при фактическом
+# расходе 958 — таблица в CLAUDE.md утверждала, что лимит поднят, а кнопка
+# падала «Unterminated string» примерно на трети вакансий.
+#
+# max_tokens — потолок, а не резерв: платим за фактически сгенерированное,
+# поэтому берём с запасом. Экономия здесь ничего не стоит и покупает обрыв.
+# Фактический расход по каждому — замеры в CLAUDE.md §2.1, таблица потолков;
+# в лог он пишется всегда (см. _model_output), так что запас проверяем не
+# рассуждением, а строкой `finish=… токенов=N из M`.
+ANALYZE_MAX_TOKENS  = int(os.getenv("ANALYZE_MAX_TOKENS",  "2000"))  # анализ вакансии, JSON из 9 полей
+LETTER_MAX_TOKENS   = int(os.getenv("LETTER_MAX_TOKENS",   "3000"))  # сопроводительное письмо, 200-450 слов
+PARSER_MAX_TOKENS   = int(os.getenv("PARSER_MAX_TOKENS",   "4000"))  # резюме → досье, JSON со всем опытом
+PROGRAM_MAX_TOKENS  = int(os.getenv("PROGRAM_MAX_TOKENS",  "6000"))  # программа тренировок, JSON на 3-6 дней
+CHAT_MAX_TOKENS     = int(os.getenv("CHAT_MAX_TOKENS",     "1000"))  # реплика ассистента (дневник, тренер)
+VISION_MAX_TOKENS   = int(os.getenv("VISION_MAX_TOKENS",   "800"))   # разбор фото еды
+FOOD_MAX_TOKENS     = int(os.getenv("FOOD_MAX_TOKENS",     "300"))   # КБЖУ одного продукта, JSON из 5 чисел
 RESEND_API_KEY      = os.getenv("RESEND_API_KEY", "")
 BASE_URL            = os.getenv("BASE_URL", "https://energydess.ru")
 TURNSTILE_SITE_KEY   = os.getenv("TURNSTILE_SITE_KEY", "")    # TODO: выдать ключи через dash.cloudflare.com → Turnstile → Add Site
 TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
+
+
+def _model_output(payload: dict, метка: str, лимит: int) -> tuple[str, str | None]:
+    """Текст ответа модели и причина, по которой брать его нельзя.
+
+    Обрыв по лимиту разбирается ДО парсинга: у оборванного JSON нет закрывающей
+    скобки, и он неотличим от «модель вернула мусор». Без этой проверки обрыв
+    приезжал в except как JSONDecodeError, а причина — нехватка потолка —
+    в сообщении не называлась вовсе. Для связного текста (письмо, реплика чата)
+    обрыв ещё хуже: JSON хотя бы не парсится, а письмо доходит до человека
+    целым на вид и оборванным на середине фразы.
+
+    Расход печатается ВСЕГДА, а не только при обрыве. Строка `finish=stop
+    токенов=1187 из 3000` — единственный способ узнать фактический расход
+    на проде: `usage` больше нигде не сохраняется, и запас у потолка иначе
+    проверяется рассуждением, а не замером. Ровно этой строки не хватало,
+    чтобы заметить 700 при расходе 958.
+    """
+    choice = (payload.get("choices") or [{}])[0]
+    finish = choice.get("finish_reason") or choice.get("native_finish_reason")
+    текст = ((choice.get("message") or {}).get("content") or "").strip()
+    расход = (payload.get("usage") or {}).get("completion_tokens")
+    близко = isinstance(расход, int) and лимит and расход >= лимит * 0.8
+    print(f"[{метка}] finish={finish} токенов={расход} из {лимит}"
+          + ("  ← ЗАПАС КОНЧАЕТСЯ" if близко and finish != "length" else ""))
+    if finish == "length":
+        return текст, f"truncated: ответ оборван по лимиту (сгенерировано {расход} из {лимит})"
+    if not текст:
+        return "", f"empty: модель вернула пустой ответ (finish_reason={finish})"
+    return текст, None
 
 
 # Шифрование учётных данных весов Xiaomi при хранении в БД (см.
@@ -2183,21 +2227,14 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
             return JSONResponse({"error": "Сервис анализа не ответил. Попробуйте ещё раз через минуту."},
                                 status_code=502)
 
-        payload = response.json()
-        choice = (payload.get("choices") or [{}])[0]
-        # Обрыв по лимиту проверяем ДО парсинга: у оборванного JSON нет
-        # закрывающей скобки, и он неотличим от «модель вернула мусор».
-        finish = choice.get("finish_reason") or choice.get("native_finish_reason")
-        content = ((choice.get("message") or {}).get("content") or "").strip()
-        if finish == "length":
-            сгенерировано = (payload.get("usage") or {}).get("completion_tokens", "?")
-            print(f"[analyze] truncated: {сгенерировано} из {ANALYZE_MAX_TOKENS} токенов")
+        content, сбой = _model_output(response.json(), "analyze", ANALYZE_MAX_TOKENS)
+        if сбой:
+            print(f"[analyze] {сбой}")
             return JSONResponse({"error": "Ответ анализа не поместился в лимит. "
-                                          "Сократите текст вакансии — оставьте требования и задачи."},
+                                          "Сократите текст вакансии — оставьте требования и задачи."
+                                          if сбой.startswith("truncated")
+                                          else "Анализ вернул пустой ответ. Попробуйте ещё раз."},
                                 status_code=502)
-        if not content:
-            print(f"[analyze] empty: пустой ответ, finish_reason={finish}")
-            return JSONResponse({"error": "Анализ вернул пустой ответ. Попробуйте ещё раз."}, status_code=502)
 
         result = _extract_json(content)
         return JSONResponse(result)
@@ -2283,21 +2320,9 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
             # пустым, даже не доходя до except
             analysis_error = f"http_{ar.status_code}: {ar.text[:300]}"
         else:
-            payload = ar.json()
-            choice = (payload.get("choices") or [{}])[0]
-            # Обрыв по лимиту токенов проверяем ДО парсинга: у оборванного JSON
-            # нет закрывающей скобки, и он неотличим от «модель вернула мусор».
-            # finish_reason == length — прямое доказательство, а не догадка.
-            finish = choice.get("finish_reason") or choice.get("native_finish_reason")
-            content = (choice.get("message") or {}).get("content") or ""
-            if finish == "length":
-                сгенерировано = (payload.get("usage") or {}).get("completion_tokens", "?")
-                analysis_error = (f"truncated: ответ оборван по лимиту токенов "
-                                  f"(сгенерировано {сгенерировано} из {ANALYZE_MAX_TOKENS})")
-            elif not content.strip():
-                analysis_error = f"empty: модель вернула пустой ответ (finish_reason={finish})"
-            else:
-                analysis = _extract_json(content.strip())
+            content, analysis_error = _model_output(ar.json(), "analyze", ANALYZE_MAX_TOKENS)
+            if not analysis_error:
+                analysis = _extract_json(content)
                 if not analysis.get("job_title"):
                     analysis_error = "empty: анализ разобран, но должность не извлечена"
     except httpx.TimeoutException:
@@ -2410,12 +2435,22 @@ Call to action в финале. Тип CTA определяется правил
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess HH Helper"},
                 json={"model": LETTER_MODEL, "messages": [{"role": "user", "content": prompt}],
-                      "temperature": 0.5, "max_tokens": 1500},
+                      "temperature": 0.5, "max_tokens": LETTER_MAX_TOKENS},
                 timeout=40.0,
             )
         if response.status_code != 200:
             return JSONResponse({"error": f"Ошибка OpenRouter: {response.text}"}, status_code=500)
-        letter = response.json()["choices"][0]["message"]["content"].strip()
+        # Обрыв письма опаснее обрыва JSON: разбор хотя бы падает, а письмо
+        # доходит до человека целым на вид и оборванным на середине фразы —
+        # и уезжает в историю. Поэтому оборванное письмо не отдаём вовсе.
+        letter, сбой = _model_output(response.json(), "letter", LETTER_MAX_TOKENS)
+        if сбой:
+            print(f"[letter] {сбой}")
+            return JSONResponse({"error": "Письмо не поместилось в лимит и оборвалось. "
+                                          "Попробуйте ещё раз — или сократите текст вакансии."
+                                          if сбой.startswith("truncated")
+                                          else "Модель вернула пустой ответ. Попробуйте ещё раз."},
+                                status_code=502)
 
         # ── Сохраняем в историю писем ─────────────────────────────────────────
         letter_id = None
@@ -2569,12 +2604,19 @@ async def parse_resume_to_dossier(request: Request, user=Depends(get_current_use
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess HH Helper"},
                 json={"model": PARSER_MODEL, "messages": [{"role": "user", "content": prompt}],
-                      "temperature": 0.1, "max_tokens": 2000},
+                      "temperature": 0.1, "max_tokens": PARSER_MAX_TOKENS},
                 timeout=60.0,
             )
         if response.status_code != 200:
             return JSONResponse({"error": f"Ошибка OpenRouter: {response.text}"}, status_code=500)
-        raw = response.json()["choices"][0]["message"]["content"].strip()
+        raw, сбой = _model_output(response.json(), "parser", PARSER_MAX_TOKENS)
+        if сбой:
+            print(f"[parser] {сбой}")
+            return JSONResponse({"error": "Разбор резюме не поместился в лимит. "
+                                          "Сократите резюме или заполните досье вручную."
+                                          if сбой.startswith("truncated")
+                                          else "Разбор вернул пустой ответ. Попробуйте ещё раз."},
+                                status_code=502)
         result = _extract_json(raw)
         return JSONResponse(result)
     except httpx.TimeoutException:
@@ -3101,7 +3143,7 @@ def _for_vision(content: bytes, file: UploadFile) -> tuple[str, str]:
     return base64.b64encode(готовое).decode(), "image/jpeg"
 
 
-async def _call_vision(b64: str, mime: str, prompt: str, max_tokens: int = 400) -> str:
+async def _call_vision(b64: str, mime: str, prompt: str, max_tokens: int = VISION_MAX_TOKENS) -> str:
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             "https://openrouter.ai/api/v1/chat/completions",
@@ -3118,7 +3160,14 @@ async def _call_vision(b64: str, mime: str, prompt: str, max_tokens: int = 400) 
         )
     if resp.status_code != 200:
         raise RuntimeError(f"Ошибка ИИ ({resp.status_code}): {resp.text[:200]}")
-    return resp.json()["choices"][0]["message"]["content"].strip()
+    # Разбор фото еды заканчивается блоком ###FOOD_JSON###…###END###, и обрыв
+    # по лимиту срезает именно его: текст на экране выглядит целым, а КБЖУ
+    # молча не подставляется. Поэтому обрыв — исключение, а не «пустой разбор».
+    текст, сбой = _model_output(resp.json(), "vision", max_tokens)
+    if сбой:
+        raise RuntimeError("Разбор фото оборвался — попробуйте ещё раз"
+                           if сбой.startswith("truncated") else "Модель вернула пустой ответ")
+    return текст
 
 
 _FOOD_BLOCK_RE = re.compile(r"###FOOD_JSON###\s*(\{.*?\})\s*###END_FOOD_JSON###", re.S)
@@ -3165,9 +3214,12 @@ async def _ai_food_estimate(query: str) -> list:
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
                 json={"model": MODEL, "messages": [{"role": "user", "content": prompt}],
-                      "temperature": 0.2, "max_tokens": 150},
+                      "temperature": 0.2, "max_tokens": FOOD_MAX_TOKENS},
             )
-        text = resp.json()["choices"][0]["message"]["content"].strip()
+        text, сбой = _model_output(resp.json(), "food", FOOD_MAX_TOKENS)
+        if сбой:
+            print(f"[food] {сбой}: запрос «{query[:60]}»")
+            return []
         d = _extract_json(text)
         return [{
             "name": str(d.get("name", query)).strip(),
@@ -3177,7 +3229,10 @@ async def _ai_food_estimate(query: str) -> list:
             "fat": round(float(d["fat"]), 1),
             "carbs": round(float(d["carbs"]), 1),
         }]
-    except Exception:
+    except Exception as e:
+        # Пустой список — законный ответ («ИИ ничего не подсказал»), но раньше
+        # он же означал «сломалось», и различить было нечем: ни строки в логе.
+        print(f"[food] оценка не вышла: {type(e).__name__}: {str(e)[:200]}")
         return []
 
 
@@ -4036,10 +4091,16 @@ calories/protein/fat/carbs — на 100г продукта, estimated_grams — 
                     headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                              "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
                     json={"model": LETTER_MODEL, "messages": api_messages,
-                          "temperature": 0.4, "max_tokens": 500},
+                          "temperature": 0.4, "max_tokens": CHAT_MAX_TOKENS},
                     timeout=30.0,
                 )
-            reply = resp.json()["choices"][0]["message"]["content"].strip()
+            # Реплика ассистента может нести блок ###FOOD_JSON### в конце —
+            # обрыв срезает его целиком, и продукт молча не добавляется
+            reply, сбой = _model_output(resp.json(), "nut-chat", CHAT_MAX_TOKENS)
+            if сбой:
+                print(f"[nut-chat] {сбой}")
+                return JSONResponse({"error": "Ответ ассистента оборвался. Попробуйте ещё раз."},
+                                    status_code=502)
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -4804,13 +4865,23 @@ async def workout_generate_program(user=Depends(get_current_user), db: Session =
                         {"role": "user", "content": user_message},
                     ],
                     "temperature": 0.4,
-                    "max_tokens": 4000,
+                    "max_tokens": PROGRAM_MAX_TOKENS,
                 },
                 timeout=60.0,
             )
         if response.status_code != 200:
             return JSONResponse({"error": f"Ошибка OpenRouter: {response.text[:300]}"}, status_code=500)
-        text = response.json()["choices"][0]["message"]["content"].strip()
+        # Самый длинный ответ в проекте: JSON на 3-6 дней по 5-7 упражнений.
+        # Обрыв здесь давал «ИИ вернул не JSON» — сообщение, по которому
+        # не догадаться, что не хватило потолка
+        text, сбой = _model_output(response.json(), "program", PROGRAM_MAX_TOKENS)
+        if сбой:
+            print(f"[program] {сбой}")
+            return JSONResponse({"error": "Программа не поместилась в лимит и оборвалась. "
+                                          "Попробуйте ещё раз."
+                                          if сбой.startswith("truncated")
+                                          else "Модель вернула пустой ответ. Попробуйте ещё раз."},
+                                status_code=502)
         start, end = text.find("{"), text.rfind("}")
         if start == -1 or end == -1:
             return JSONResponse({"error": "ИИ вернул не JSON"}, status_code=500)
@@ -5867,10 +5938,18 @@ async def workout_chat(request: Request, user=Depends(get_current_user), db: Ses
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Workout"},
-                json={"model": LETTER_MODEL, "messages": api_messages, "temperature": 0.4, "max_tokens": 500},
+                json={"model": LETTER_MODEL, "messages": api_messages,
+                      "temperature": 0.4, "max_tokens": CHAT_MAX_TOKENS},
                 timeout=30.0,
             )
-        reply = resp.json()["choices"][0]["message"]["content"].strip()
+        # Действие тренера (замена упражнения, зона боли) приезжает блоком
+        # в конце реплики — обрыв срезает именно его: ассистент «сказал, что
+        # сделает», а не сделал
+        reply, сбой = _model_output(resp.json(), "wk-chat", CHAT_MAX_TOKENS)
+        if сбой:
+            print(f"[wk-chat] {сбой}")
+            return JSONResponse({"error": "Ответ ассистента оборвался. Попробуйте ещё раз."},
+                                status_code=502)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -5992,7 +6071,11 @@ async def workout_chat_photo(file: UploadFile = File(...), message: str = Form("
         "Если не уверен — МЕТКА: нет."
     )
     try:
-        reply = await _call_vision(b64, mime, prompt, max_tokens=300)
+        # Потолок общий с разбором фото еды, своего числа здесь больше нет.
+        # Прежние 300 были опасны той же формой, что и везде: строка «МЕТКА:»
+        # стоит В КОНЦЕ ответа, и обрыв срезает именно её — тренажёр
+        # не опознавался, а причина выглядела как «модель не нашла метку»
+        reply = await _call_vision(b64, mime, prompt)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 

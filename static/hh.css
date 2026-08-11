@@ -97,12 +97,25 @@
   color: var(--text-2);
   max-height: 180px;
   overflow-y: auto;
+  /* Прокрутка внутри страницы, которая сама прокручивается: докатив
+     до конца окошка, палец продолжает движение и уводит страницу.
+     contain это прекращает — цепочка обрывается на границе блока. */
+  overscroll-behavior: contain;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   line-height: 1.5;
   display: none;
 }
 .fetched-preview.visible { display: block; }
+/* Потолок здесь остаётся ОСОЗНАННО, в отличие от досье и истории писем.
+   Разница не в форме, а в назначении: это не текст для чтения, а признак
+   того, что загрузка сработала и загрузилось именно описание (для второго
+   есть отдельная плашка .alert-warn выше). Раскрыть его целиком значит
+   отодвинуть кнопку «Написать письмо» на пять тысяч символов вниз —
+   замер: вакансия hh даёт 5035 символов, это около 6000px на 390px.
+   Окно при этом увеличено со 180px до 40vh (338px на 844): в окно
+   в 180px палец попадает наполовину собой. */
+@media (max-width: 640px) { .fetched-preview { max-height: 40vh; } }
 
 .fetch-status { font-size: var(--text-caption); display: none; align-items: center; gap: var(--space-2); }
 .fetch-status.visible { display: flex; }
@@ -222,11 +235,26 @@
 }
 .letter-content a { color: var(--tool-accent); text-decoration: none; }
 .letter-content a:hover { text-decoration: underline; }
+/* Режим правки не двигает ни одной буквы. Раньше рамка и отступы
+   ПОЯВЛЯЛИСЬ вместе с contenteditable, то есть текст поджимался внутрь:
+   замер 2026-08-11 — ширина текста 531 → 497, высота документа
+   2162 → 2269, сдвинулось 118 элементов из 243. На 390px к этому
+   добавлялась прокрутка к полю, и всё вместе читалось как «интерфейс
+   поехал от нажатия».
+
+   Отрицательный внешний отступ ровно на величину внутреннего ПЛЮС рамка:
+   коробка вырастает НАРУЖУ, в поле карточки (у неё --space-6 запаса,
+   нужно --space-4 и пиксель), а текст остаётся на прежнем месте.
+   Про рамку сказано отдельно, потому что на ней я и споткнулся: без
+   вычета этого пикселя высота документа менялась на 2 — мало, но
+   «ничего не двигается» и «двигается на 2px» это разные утверждения,
+   а замер показывает второе. */
 .letter-content[contenteditable="true"] {
   outline: none;
   border: 1px solid var(--tool-accent);
   border-radius: var(--radius-sm);
   padding: var(--space-3) var(--space-4);
+  margin: calc(-1 * var(--space-3) - 1px) calc(-1 * var(--space-4) - 1px);
   background: var(--surface-2);
 }
 
@@ -421,10 +449,39 @@
 .ds-chev.open { transform: rotate(180deg); }
 /* Аккордеон секции досье. Открытое состояние — класс, а не инлайновый
    max-height в разметке: раньше семь секций несли style="max-height: 0px"
-   и style="max-height: 3000px" прямо в HTML. Тот же приём уже применён
-   ниже у .history-item-body.open — держим один способ на файл. */
-.ds-body { max-height: 0; overflow: hidden; transition: max-height var(--dur-slow) var(--ease); }
-.ds-body.open { max-height: 3000px; }
+   и style="max-height: 3000px" прямо в HTML. Тот же приём применён
+   ниже у .history-item-body.open — держим один способ на файл.
+
+   ПОТОЛКА ВЫСОТЫ БОЛЬШЕ НЕТ. Анимация идёт по grid-template-rows 0fr → 1fr,
+   и это не косметика: `max-height: 3000px` с `overflow: hidden` — обрезка
+   молча. Всё, что выше потолка, не показывается и не прокручивается, ошибки
+   нет, консоль чистая. У соседа (история писем) ровно это и случилось —
+   замер 2026-08-11 на 390px: содержимое 1764px при потолке 1200, недоступно
+   564. Здесь до потолка не доставало: замер той же секции «Опыт работы»
+   с двумя местами работы — 1295px из 3000. То есть отказ был отложенный,
+   а не отсутствующий: пятое место работы его бы и включило.
+
+   0fr → 1fr анимируется (в отличие от auto), и высота при этом равна
+   содержимому — потолка, до которого можно дорасти, в правиле просто нет. */
+.ds-body {
+  display: grid;
+  /* minmax(0, …), а не голый 0fr: `0fr` разворачивается в `minmax(auto, 0fr)`,
+     и авто-минимум дорожки равен min-content элемента — то есть паддинги
+     и рамка .ds-body-inner в него ВХОДЯТ, сколько ни ставь min-height: 0
+     на сам элемент. Замер: с голым 0fr закрытая секция 33px, с minmax — 0. */
+  grid-template-rows: minmax(0, 0fr);
+  transition: grid-template-rows var(--dur-slow) var(--ease);
+  /* Обрезка и на самом контейнере, не только на элементе внутри.
+     Замер: с ней 0px в закрытом виде, без неё 33px — у .ds-body-inner
+     свои --space-4 паддинга и рамка сверху, а padding элемента сетки
+     нулевым рядом не сжимается (min-height: 0 обнуляет содержимое,
+     а не коробку). Шесть закрытых секций по 33px — это 198px пустоты. */
+  overflow: hidden;
+}
+.ds-body.open { grid-template-rows: minmax(0, 1fr); }
+/* min-height: 0 обязателен — без него элемент сетки не сжимается
+   ниже своего содержимого и закрытая секция остаётся раскрытой */
+.ds-body > * { min-height: 0; }
 .ds-body-inner {
   padding: var(--space-4);
   display: flex;
@@ -598,13 +655,23 @@
   border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
+/* Тот же аккордеон на сетке, что и .ds-body выше, и заведён он здесь
+   не «заодно», а по замеру: письмо на 390px занимает 1764px при потолке
+   1200 — 564 пикселя текста были недоступны НИКАК. overflow: hidden
+   не даёт даже прокрутить: полосы нет, жеста нет, обрыв выглядит как
+   конец письма. На десктопе то же письмо укладывалось в 898 из 1200,
+   поэтому дефект видел только владелец телефона.
+
+   Потолка в правиле больше нет — см. разбор у .ds-body. */
 .history-item-body {
-  max-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 0fr);   /* см. разбор minmax у .ds-body выше */
+  transition: grid-template-rows var(--dur-slow) var(--ease);
   overflow: hidden;
-  transition: max-height var(--dur-slow) var(--ease);
   padding: 0 var(--space-4);
 }
-.history-item-body.open { max-height: 1200px; padding: 0 var(--space-4) var(--space-4); }
+.history-item-body.open { grid-template-rows: minmax(0, 1fr); padding: 0 var(--space-4) var(--space-4); }
+.history-item-inner { min-height: 0; overflow: hidden; }
 .history-letter-text {
   white-space: pre-wrap;
   font-size: var(--text-body-sm);

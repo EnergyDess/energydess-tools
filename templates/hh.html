@@ -126,7 +126,7 @@
               <button type="button" class="chip" onclick="addCtxChip('Сделай письмо короче, около 100 слов')">короче</button>
               <button type="button" class="chip" onclick="addCtxChip('Предложи в финале тестовое задание как CTA')">предложи тестовое</button>
             </div>
-            <textarea class="textarea textarea-compact" rows="2" id="custom-context" placeholder="Что упомянуть особенно или что убрать. Например: подсвети опыт с Claude Code сильнее; не упоминай зарплату; тон неформальный."></textarea>
+            <textarea class="textarea textarea-compact textarea-grow" rows="2" id="custom-context" placeholder="Что упомянуть особенно или что убрать. Например: подсвети опыт с Claude Code сильнее; не упоминай зарплату; тон неформальный."></textarea>
             <p class="ctx-hint">Настройки досье — базовые для всех писем. Здесь уточняете только под эту вакансию — эти указания имеют приоритет над досье.</p>
           </div>
 
@@ -154,7 +154,7 @@
           <div class="panel-title panel-title-grow">Сопроводительное письмо</div>
           <div class="result-actions" id="result-actions" style="display:none">
             <button class="btn-secondary" id="copy-btn" onclick="copyLetter()">
-              <i data-lucide="copy"></i><span id="copy-btn-label">Копировать</span>
+              <i data-lucide="copy"></i>Копировать
             </button>
             <button class="btn-secondary" id="edit-btn" onclick="toggleLetterEdit()">
               <i data-lucide="edit-3"></i><span id="edit-btn-label">Редактировать</span>
@@ -507,6 +507,10 @@
     // при заходе с ?letter= история должна перерисоваться, даже если уже
     // загружалась: иначе нужное письмо не раскроется
     else if (name === 'history' && {{ 'true' if open_letter else 'false' }}) renderHistory();
+    // Высоту полей считаем ЗДЕСЬ, а не только при наполнении: у скрытой
+    // вкладки scrollHeight равен нулю, и поле, посчитанное до показа,
+    // схлопнулось бы в ноль
+    if (name === 'dossier') autosizeAll(document.getElementById('view-dossier'));
   }
 
   // ── Резюме ──
@@ -886,12 +890,15 @@
     }
   }
 
+  // Подтверждение — тостом, а не подписью на самой кнопке. Подпись меняла
+  // ширину («Копировать» → «Скопировано», +13px), кнопка держала свою
+  // ширину из-за flex: 1 в ряду, и лишнее забиралось у значка: замер
+  // 2026-08-11 — 22px → 10px на десктопе, 1px → 0 на 390px. Тост лежит
+  // в position: fixed и не двигает вообще ничего.
   function copyLetter() {
-    navigator.clipboard.writeText(letterContent.innerText).then(() => {
-      const label = document.getElementById('copy-btn-label');
-      label.textContent = 'Скопировано';
-      setTimeout(() => { label.textContent = 'Копировать'; }, 2000);
-    });
+    navigator.clipboard.writeText(letterContent.innerText)
+      .then(() => showToast('✓ Письмо скопировано'))
+      .catch(() => showToast('Не удалось скопировать — выделите текст вручную'));
   }
 
   function showToast(msg) {
@@ -1055,6 +1062,45 @@
     }
   }
 
+  // ── Поля, растущие под текст (.textarea-grow) ────────────────────────────
+  // Высота = содержимому, а не rows. Замер до правки на 390px: описание
+  // опыта показывало 75px из 613 — восемь строк из шестидесяти пяти,
+  // остальное в окошке с собственной прокруткой внутри прокручиваемой
+  // страницы. Палец в таком окне уводит страницу, а не текст.
+  //
+  // Порядок 'auto' → scrollHeight обязателен: без сброса высота только
+  // растёт, и поле, из которого текст удалили, остаётся прежним.
+  //
+  // Рамку прибавляем отдельно, и это не перестраховка: box-sizing у поля
+  // border-box, то есть height включает рамку, а scrollHeight — нет.
+  // Без прибавки поле выходит ровно на 2px короче содержимого — замер
+  // 2026-08-11: clientHeight 611 при scrollHeight 613, и последняя строка
+  // обрезана наполовину.
+  function autosizeTextarea(el) {
+    if (!el) return;
+    const cs = getComputedStyle(el);
+    const рамка = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+    el.style.height = 'auto';
+    // Пустое поле высоту не считает, а возвращает к rows из разметки.
+    // Замер: у пустой textarea Chrome отдаёт scrollHeight на строку больше
+    // фактического (101 при своей высоте 75), и пересчёт по нему делал бы
+    // пустое поле выше, чем оно объявлено. 'auto' выше как раз и вернул
+    // высоту от rows — на ней и останавливаемся.
+    if (!el.value) return;
+    el.style.height = (el.scrollHeight + рамка) + 'px';
+  }
+
+  // Одна делегированная подписка на весь документ вместо подписки на каждое
+  // поле: поля досье создаются скриптом по кнопке «добавить», и подписка
+  // на существующие пропустила бы всё, что появится дальше
+  document.addEventListener('input', e => {
+    if (e.target.classList && e.target.classList.contains('textarea-grow')) autosizeTextarea(e.target);
+  });
+
+  function autosizeAll(корень) {
+    (корень || document).querySelectorAll('.textarea-grow').forEach(autosizeTextarea);
+  }
+
   // ── Досье: аккордеоны секций ─────────────────────────────────────────────
   function toggleDs(btn) {
     const body = btn.nextElementSibling;
@@ -1120,12 +1166,12 @@
       <div class="dosie-g1">
         <div class="dosie-field">
           <label class="field-label dosie-label">Что делал</label>
-          <textarea class="textarea textarea-nested textarea-compact exp-desc" rows="2" placeholder="Коротко об обязанностях..."></textarea>
+          <textarea class="textarea textarea-nested textarea-compact textarea-grow exp-desc" rows="2" placeholder="Коротко об обязанностях..."></textarea>
         </div>
       </div>
       <div class="dosie-field">
         <label class="field-label dosie-label">Достижения</label>
-        <textarea class="textarea textarea-nested textarea-compact exp-ach" rows="2" placeholder="Конкретные результаты с цифрами..."></textarea>
+        <textarea class="textarea textarea-nested textarea-compact textarea-grow exp-ach" rows="2" placeholder="Конкретные результаты с цифрами..."></textarea>
       </div>`;
     item.querySelector('.exp-company').value  = d.company      || '';
     item.querySelector('.exp-position').value = d.position     || '';
@@ -1133,6 +1179,7 @@
     item.querySelector('.exp-desc').value     = d.description  || '';
     item.querySelector('.exp-ach').value      = d.achievements || '';
     list.appendChild(item);
+    autosizeAll(item);
   }
 
   function collectExperience() {
@@ -1172,7 +1219,7 @@
       <div class="dosie-g1">
         <div class="dosie-field">
           <label class="field-label dosie-label">Описание</label>
-          <textarea class="textarea textarea-nested textarea-compact proj-desc" rows="2" placeholder="Что за проект и какую проблему решает..."></textarea>
+          <textarea class="textarea textarea-nested textarea-compact textarea-grow proj-desc" rows="2" placeholder="Что за проект и какую проблему решает..."></textarea>
         </div>
       </div>
       <div class="dosie-g2">
@@ -1192,6 +1239,7 @@
     item.querySelector('.proj-tools').value = d.tools       || '';
     item.querySelector('.proj-tags').value  = (d.tags || []).join(', ');
     list.appendChild(item);
+    autosizeAll(item);
   }
 
   function collectProjects() {
@@ -1403,8 +1451,10 @@
             ${score != null ? `<span class="history-item-score ${cls}">${score}/10</span>` : ''}
           </button>
           <div class="history-item-body" id="hist-body-${idx}">
-            <div class="history-letter-text">${escHtml(item.letter_text).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')}</div>
-            <button class="btn-secondary history-copy-btn" onclick="copyHistoryLetter(this, ${idx})">Копировать</button>
+            <div class="history-item-inner">
+              <div class="history-letter-text">${escHtml(item.letter_text).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')}</div>
+              <button class="btn-secondary history-copy-btn" onclick="copyHistoryLetter(${idx})">Копировать</button>
+            </div>
           </div>`;
         div._letterText = item.letter_text;
         if (открыть && item.id === открыть) раскрыт = idx;
@@ -1432,12 +1482,12 @@
     body.classList.toggle('open');
   }
 
-  function copyHistoryLetter(btn, idx) {
+  // Подпись кнопки не переписываем — причина та же, что у copyLetter выше
+  function copyHistoryLetter(idx) {
     const text = (window._historyItems || [])[idx]?.letter_text || '';
-    navigator.clipboard.writeText(text).then(() => {
-      btn.textContent = '✓ Скопировано';
-      setTimeout(() => { btn.textContent = 'Копировать'; }, 2000);
-    });
+    navigator.clipboard.writeText(text)
+      .then(() => showToast('✓ Письмо скопировано'))
+      .catch(() => showToast('Не удалось скопировать — выделите текст вручную'));
   }
 
   function escHtml(str) {
