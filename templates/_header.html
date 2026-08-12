@@ -59,8 +59,15 @@
 
   <div class="header-search" id="header-search">
     <i data-lucide="search" class="search-icon"></i>
+    {# Плейсхолдер узкого экрана — атрибутом, а не строкой в скрипте: текст
+       интерфейса живёт там же, где остальная разметка. Переключение —
+       header-search.js по matchMedia(640px), замер порога в CLAUDE.md §5.
+       В атрибуте placeholder стоит ДЛИННЫЙ вариант: скрипт подменяет его
+       на узком экране, и если он почему-то не отработает, человек увидит
+       обрезанную подсказку, а не пустое поле. #}
     <input type="text" class="input" id="nav-search-input"
            placeholder="Найти инструмент, письмо, продукт…"
+           data-placeholder-narrow="Поиск"
            autocomplete="off" spellcheck="false"
            role="combobox" aria-expanded="false" aria-controls="nav-search-list"
            aria-autocomplete="list" aria-label="Поиск по инструментам">

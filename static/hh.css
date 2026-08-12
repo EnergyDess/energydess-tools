@@ -114,8 +114,37 @@
    отодвинуть кнопку «Написать письмо» на пять тысяч символов вниз —
    замер: вакансия hh даёт 5035 символов, это около 6000px на 390px.
    Окно при этом увеличено со 180px до 40vh (338px на 844): в окно
-   в 180px палец попадает наполовину собой. */
+   в 180px палец попадает наполовину собой.
+
+   ЧТО ИЗМЕНИЛОСЬ 2026-08-12: в окне лежит ВЕСЬ текст, а не первые 600
+   символов с многоточием. Потолок окна — про место на экране, а обрез
+   строки был про содержимое, и второе выглядело как первое: человек
+   докручивал до многоточия и видел «вакансия загрузилась не целиком».
+   Теперь прокрутка доходит до конца описания. */
 @media (max-width: 640px) { .fetched-preview { max-height: 40vh; } }
+
+/* ── Растягивание окна вакансии мышью — только десктоп ─────────────────────
+   На узком экране этого правила нет намеренно: там текст листается пальцем,
+   а уголок растягивания на 390px — цель размером в четверть тач-таргета.
+   Пальцем в него не попасть, и место он занимает у самого текста.
+
+   На десктопе окно перестаёт быть потолком (`max-height`) и становится
+   высотой (`height`): растянуть за угол можно только то, у чего высота
+   своя, — при `max-height` браузер поставит инлайновый `height`, а потолок
+   всё равно обрежет, и ручка будет обещать то, чего не делает. Это тот же
+   разбор, что у `.textarea-grow` (BACKLOG №57).
+
+   Плата названа прямо: короткая вакансия оставит в окне пустое место
+   до 180px. Это цена предсказуемого поля, за угол которого можно взяться;
+   прежний вариант «по содержимому» не давал взяться вообще. */
+@media (min-width: 641px) {
+  .fetched-preview {
+    max-height: none;
+    height: 180px;
+    min-height: 120px;
+    resize: vertical;
+  }
+}
 
 .fetch-status { font-size: var(--text-caption); display: none; align-items: center; gap: var(--space-2); }
 .fetch-status.visible { display: flex; }
@@ -139,6 +168,22 @@
   padding: 0; transition: color var(--dur-fast) var(--ease);
 }
 .draft-clear-btn:hover { color: var(--error); }
+
+/* ── Язык письма ────────────────────────────────────────────────────────── */
+/* Только раскладка ряда: сам переключатель — системный .segmented */
+.letter-lang { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.letter-lang-label { flex-shrink: 0; }
+.letter-lang-seg { flex: 1; min-width: 160px; }
+.lang-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--text-caption);
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.lang-reason svg { width: 14px; height: 14px; stroke-width: 1.5; flex-shrink: 0; margin-top: 2px; color: var(--tool-accent); }
+.lang-reason-quote { color: var(--text); }
 
 .generate-btn { width: 100%; }
 
@@ -612,6 +657,13 @@
 .history-note a { color: var(--tool-accent); text-decoration: none; }
 .history-note a:hover { text-decoration: underline; }
 .history-item { padding: 0; overflow: hidden; }
+/* Шапка карточки и кнопка удаления стоят в ряд. Ряд нужен потому, что
+   раскрывающая шапка — <button>, а вложить кнопку в кнопку нельзя:
+   браузер молча разрывает внешнюю, и часть шапки перестаёт раскрывать
+   карточку. Здесь только раскладка — вид обеих кнопок системный. */
+.history-item-row { display: flex; align-items: stretch; }
+.history-item-del { align-self: center; margin-right: var(--space-2); }
+.history-item-del:hover { color: var(--error); background: var(--surface-2); }
 .history-item-head {
   width: 100%;
   display: flex;
@@ -628,6 +680,9 @@
   transition: background var(--dur-fast) var(--ease);
 }
 .history-item-head:hover { background: var(--surface-2); }
+/* Шапка забирает остаток ряда — иначе кнопка удаления уехала бы к тексту,
+   а не к правому краю карточки */
+.history-item-row .history-item-head { flex: 1; min-width: 0; }
 .history-item-meta { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .history-item-title {
   font-size: var(--text-body-sm);
@@ -661,8 +716,14 @@
   overflow: hidden;
   padding: 0 var(--space-4);
 }
-.history-item-body.open { grid-template-rows: minmax(0, 1fr); padding: 0 var(--space-4) var(--space-4); }
-.history-item-inner { min-height: 0; overflow: hidden; }
+.history-item-body.open { grid-template-rows: minmax(0, 1fr); }
+/* Нижний отступ живёт ВНУТРИ анимируемого ряда, а не на самом .history-item-body.
+   Пока он стоял на теле и появлялся вместе с классом .open, он вставал
+   мгновенно, а высота ехала плавно: замер 2026-08-12 — первый кадр раскрытия
+   даёт карточке 16px рывком, при закрытии те же 16px пропадают рывком,
+   и только остальные 882 идут переходом. В списке это читается как «карточка
+   дёрнулась». Здесь отступ растёт вместе с рядом, и первый кадр даёт 0. */
+.history-item-inner { min-height: 0; overflow: hidden; padding-bottom: var(--space-4); }
 .history-letter-text {
   white-space: pre-wrap;
   font-size: var(--text-body-sm);

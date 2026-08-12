@@ -120,6 +120,28 @@
             </div>
           </div>
 
+          {# Язык письма. Стоит рядом с кнопкой генерации, потому что это
+             последнее решение перед нажатием. Компонент — системный
+             .segmented, тот же, что у переключателя «Текст / Ссылка» выше.
+             Между генерациями выбор не запоминается: каждая новая вакансия
+             начинается с русского либо с автоопределения по ней самой. #}
+          <div class="letter-lang">
+            <span class="field-label letter-lang-label">Язык письма</span>
+            <div class="segmented letter-lang-seg" role="group" aria-label="Язык письма">
+              <button class="segmented-btn active" type="button" data-lang="ru"
+                      onclick="setLetterLang('ru', true)">Русский</button>
+              <button class="segmented-btn" type="button" data-lang="en"
+                      onclick="setLetterLang('en', true)">English</button>
+            </div>
+          </div>
+          {# Причина автоопределения — цитата из самой вакансии, а не наша
+             формулировка: человек должен опознать это место глазами #}
+          <div class="lang-reason" id="lang-reason" style="display:none">
+            <i data-lucide="info"></i>
+            <span>Английский выбран автоматически: в вакансии сказано
+              «<span class="lang-reason-quote" id="lang-reason-quote"></span>». Можно переключить обратно.</span>
+          </div>
+
           <button class="btn-primary generate-btn" id="generate-btn" onclick="generateLetter()">
             <span id="btn-icon"></span>
             <span id="btn-text">Написать письмо</span>
@@ -451,6 +473,14 @@
 
 <div class="toast" id="toast"></div>
 
+{# Полоса отмены удаления — компонент .undo-bar (design-system.md, раздел 2.9).
+   Одна на страницу: несколько удалений подряд превращают подпись в счётчик,
+   а не выстраивают стопку полос. #}
+<div class="undo-bar" id="undo-bar" role="status" aria-live="polite">
+  <span class="undo-bar-text" id="undo-bar-text"></span>
+  <button class="undo-bar-btn" type="button" onclick="undoDeleteLetters()">Вернуть</button>
+</div>
+
 {# Модалка на общем компоненте (design-system.md, раздел 2.5). Раньше —
    свой оверлей .parse-modal-overlay, показ через style.display и onclick
    в разметке: Escape не закрывал, фокус после закрытия оставался внутри.
@@ -476,6 +506,26 @@
       <button class="pmbtn danger" onclick="applyParsedData('replace')">
         <span class="pmbtn-title">Заменить всё</span>
         <span class="pmbtn-desc">Мои данные будут перезаписаны данными парсера</span>
+      </button>
+    </div>
+{% endcall %}
+
+{# Подтверждение удаления письма — тот же компонент модалки, что и выше,
+   новый каркас не заводится (design-system.md, раздел 2.5). #}
+{% call m.modal('del-modal', 'Удалить письмо из истории?',
+                icon='trash-2', icon_tone='warning') %}
+    <p class="parse-modal-desc">
+      Письмо <b id="del-modal-name"></b> исчезнет из истории.
+      Пять секунд после этого его можно будет вернуть.
+    </p>
+    <div class="parse-modal-actions">
+      <button class="pmbtn safe" type="button" data-modal-close>
+        <span class="pmbtn-title">Оставить</span>
+        <span class="pmbtn-desc">Ничего не меняется</span>
+      </button>
+      <button class="pmbtn danger" type="button" onclick="confirmDeleteLetter()">
+        <span class="pmbtn-title">Удалить</span>
+        <span class="pmbtn-desc">С возможностью вернуть</span>
       </button>
     </div>
 {% endcall %}
@@ -688,6 +738,68 @@
     showToast('Досье заполнено — проверьте и сохраните');
   }
 
+  // ── Язык письма ───────────────────────────────────────────────────────────
+  //
+  // Решение принимается ДО генерации и уезжает в модель параметром. Само
+  // определение — на сервере (_letter_language в main.py), детерминированное:
+  // «сопроводительное» и «на английском» в одном предложении. Модель язык
+  // не выводит и выводить не должна — текст вакансии это данные, а не
+  // инструкция нашей системе.
+  //
+  // Ручной выбор побеждает автоопределение и держится до СМЕНЫ ВАКАНСИИ,
+  // а не до следующего нажатия клавиши: иначе человек, выбравший английский
+  // и дописавший строку в поле, получил бы русский обратно.
+  let letterLang = 'ru';
+  let langChosenByUser = false;
+  let _langTimer = null;
+
+  function setLetterLang(lang, вручную) {
+    letterLang = lang;
+    if (вручную) {
+      langChosenByUser = true;
+      // Подпись про автоопределение врала бы после ручного переключения
+      document.getElementById('lang-reason').style.display = 'none';
+    }
+    document.querySelectorAll('.letter-lang-seg .segmented-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.lang === lang);
+    });
+  }
+
+  // Сброс к состоянию «новая вакансия»: русский по умолчанию плюс право
+  // автоопределения снова сработать
+  function resetLetterLang() {
+    langChosenByUser = false;
+    setLetterLang('ru', false);
+    document.getElementById('lang-reason').style.display = 'none';
+  }
+
+  async function detectLetterLang(text) {
+    if (!text || !text.trim()) { resetLetterLang(); return; }
+    try {
+      const r = await fetch('/api/letter-language', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({job_text: text}),
+      });
+      if (!r.ok) return;                     // не смогли — остаётся русский
+      const d = await r.json();
+      if (langChosenByUser) return;          // выбор человека сильнее
+      const reason = document.getElementById('lang-reason');
+      if (d.lang === 'en') {
+        setLetterLang('en', false);
+        document.getElementById('lang-reason-quote').textContent = d.reason || '';
+        reason.style.display = d.reason ? '' : 'none';
+      } else {
+        setLetterLang('ru', false);
+        reason.style.display = 'none';
+      }
+    } catch { /* сеть отвалилась — остаётся русский, это безопасный исход */ }
+  }
+
+  function detectLetterLangSoon(text) {
+    if (_langTimer) clearTimeout(_langTimer);
+    _langTimer = setTimeout(() => detectLetterLang(text), 600);
+  }
+
   // ── Вакансия ──
   let activeTab  = 'text';
   let fetchedText = '';
@@ -710,6 +822,7 @@
     charCountEl.textContent = jobInput.value.length.toLocaleString('ru');
     localStorage.setItem('hh_draft_job_text', jobInput.value);
     document.getElementById('clear-text-btn').style.display = jobInput.value ? '' : 'none';
+    detectLetterLangSoon(jobInput.value);
   });
 
   function switchTab(tab) {
@@ -738,6 +851,9 @@
     preview.classList.remove('visible');
     warnBox.style.display = 'none';
     fetchedText = '';
+    // Загрузка новой ссылки — это новая вакансия: право автоопределения
+    // возвращается, даже если по прошлой человек переключал язык руками
+    resetLetterLang();
 
     try {
       const res  = await fetch('/api/fetch-url', {
@@ -762,8 +878,18 @@
           status.textContent = `✓ Загружено ${size} символов`
             + (data.source === 'hh' ? ' — описание вакансии разобрано' : '');
         }
-        preview.textContent = data.text.substring(0, 600) + (data.text.length > 600 ? '\n...' : '');
+        // Текст кладём ЦЕЛИКОМ. Раньше здесь стояло substring(0, 600) плюс
+        // многоточие — и это был единственный обрез во всей цепочке: сервер
+        // отдавал 2817 символов, столько же уходило в модель, а в разметку
+        // попадало 604. Прокрутка при этом работала и упиралась в многоточие,
+        // то есть выглядело так, будто вакансия загрузилась обрезанной.
+        // Высоту окна держит CSS (.fetched-preview), а не длина строки.
+        preview.textContent = data.text;
         preview.classList.add('visible');
+        // Ручная высота от прошлой вакансии не переносится на новую: окно
+        // растянутое под пять тысяч символов, для коротенькой выглядит пустым
+        preview.style.height = '';
+        detectLetterLang(data.text);
       }
     } catch {
       status.className = 'fetch-status visible err';
@@ -822,7 +948,7 @@
       const res  = await fetch('/api/generate-letter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_text: text, force }),
+        body: JSON.stringify({ job_text: text, force, lang: letterLang }),
       });
       const data = await res.json();
 
@@ -909,6 +1035,10 @@
       jobInput.value = savedText;
       charCountEl.textContent = savedText.length.toLocaleString('ru');
       document.getElementById('clear-text-btn').style.display = '';
+      // Черновик — та же вакансия, что была вчера: язык определяем и по нему,
+      // иначе восстановленный текст с требованием писать по-английски молча
+      // ушёл бы на генерацию с русским
+      detectLetterLang(savedText);
     }
     if (savedUrl) {
       document.getElementById('url-input').value = savedUrl;
@@ -920,6 +1050,7 @@
     charCountEl.textContent = '0';
     document.getElementById('clear-text-btn').style.display = 'none';
     localStorage.removeItem('hh_draft_job_text');
+    resetLetterLang();
   }
 
   // ── Анализ вакансии ───────────────────────────────────────────────────────
@@ -1440,7 +1571,7 @@
       historyLoaded = true;
 
       const badge = document.getElementById('history-count-badge');
-      badge.textContent = items.length ? `${items.length} писем` : '';
+      badge.textContent = items.length ? `${items.length} ${склонениеПисем(items.length)}` : '';
 
       if (!items.length) {
         list.innerHTML = '<div class="history-note">Ещё не написано ни одного письма. ' +
@@ -1460,7 +1591,11 @@
         const title  = [item.job_title, item.company_name].filter(Boolean).join(' — ') || 'Без названия';
         const div    = document.createElement('div');
         div.className = 'card card-static history-item';
+        // Кнопка удаления лежит РЯДОМ с раскрывающей, а не внутри неё:
+        // вложенная <button> в <button> — недопустимая разметка, браузер
+        // разрывает внешнюю кнопку, и часть шапки перестаёт раскрывать карточку
         div.innerHTML = `
+          <div class="history-item-row">
           <button class="history-item-head" onclick="toggleHistoryItem(this)">
             <div class="history-item-meta">
               <div class="history-item-title">${escHtml(title)}</div>
@@ -1471,6 +1606,12 @@
               : ''}
             ${score != null ? `<span class="history-item-score ${cls}">${score}/10</span>` : ''}
           </button>
+          <button class="btn-icon history-item-del" type="button"
+                  title="Удалить письмо" aria-label="Удалить письмо"
+                  onclick="askDeleteLetter(${item.id})">
+            <i data-lucide="trash-2"></i>
+          </button>
+          </div>
           <div class="history-item-body" id="hist-body-${idx}">
             <div class="history-item-inner">
               <div class="history-letter-text">${escHtml(item.letter_text).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')}</div>
@@ -1478,6 +1619,7 @@
             </div>
           </div>`;
         div._letterText = item.letter_text;
+        div._letterId   = item.id;    // по нему карточка находится при удалении
         if (открыть && item.id === открыть) раскрыт = idx;
         list.appendChild(div);
       });
@@ -1498,9 +1640,120 @@
     }
   }
 
+  // Тело ищем по карточке, а не через nextElementSibling: с появлением ряда
+  // с кнопкой удаления соседом кнопки-шапки стала эта кнопка, а не тело
   function toggleHistoryItem(btn) {
-    const body = btn.nextElementSibling;
-    body.classList.toggle('open');
+    btn.closest('.history-item').querySelector('.history-item-body').classList.toggle('open');
+  }
+
+  // ── Удаление письма из истории ────────────────────────────────────────────
+  //
+  // Запись помечается удалённой НА СЕРВЕРЕ сразу, а не через пять секунд:
+  // отложенный запрос на клиенте пропал бы вместе с закрытой вкладкой, и
+  // письмо осталось бы живым при полной уверенности человека, что он его
+  // удалил. Отмена снимает пометку обратным запросом.
+  //
+  // Полоса отмены одна на страницу (.undo-bar, style.css): второе удаление
+  // подряд не добавляет вторую полосу, а превращает подпись в счётчик
+  // и заводит отсчёт заново. Возврат отменяет всю накопленную пачку.
+  const ОКНО_ОТМЕНЫ_МС = 5000;
+  let _удалённые = [];        // id писем, которые ещё можно вернуть
+  let _таймерОтмены = null;
+  let _кандидатНаУдаление = null;
+
+  function askDeleteLetter(id) {
+    _кандидатНаУдаление = id;
+    const item = (window._historyItems || []).find(x => x.id === id);
+    const title = item
+      ? [item.job_title, item.company_name].filter(Boolean).join(' — ') || 'Без названия'
+      : '';
+    document.getElementById('del-modal-name').textContent = title;
+    открыть_модалку('del-modal');
+  }
+
+  // Уборка на событии компонента — по той же причине, что у модалки парсера:
+  // закрыть окно можно четырьмя способами, и ни один не должен оставить
+  // выбранное письмо «взведённым» до следующего раза
+  document.getElementById('del-modal')
+    .addEventListener('modal:close', () => { _кандидатНаУдаление = null; });
+
+  async function confirmDeleteLetter() {
+    const id = _кандидатНаУдаление;
+    закрыть_модалку('del-modal');
+    if (!id) return;
+    try {
+      const r = await fetch(`/api/cover-letters/${id}`, { method: 'DELETE' });
+      if (!r.ok) { showToast('Не удалось удалить письмо'); return; }
+    } catch { showToast('Ошибка сети — письмо не удалено'); return; }
+
+    // Из списка убираем только ПОСЛЕ успеха сервера: карточка, исчезнувшая
+    // при неудачном запросе, — то же немое «выглядит как успех»
+    const карточка = [...document.querySelectorAll('.history-item')]
+      .find(el => el._letterId === id);
+    if (карточка) карточка.remove();
+    обновитьСчётчикИстории();
+
+    _удалённые.push(id);
+    показатьПолосуОтмены();
+  }
+
+  function обновитьСчётчикИстории() {
+    const n = document.querySelectorAll('.history-list .history-item').length;
+    const badge = document.getElementById('history-count-badge');
+    badge.textContent = n ? `${n} ${склонениеПисем(n)}` : '';
+    if (!n) {
+      document.getElementById('history-list').innerHTML =
+        '<div class="history-note">Ещё не написано ни одного письма. ' +
+        '<a href="#" onclick="switchView(\'write\');return false">Начните с вакансии →</a></div>';
+    }
+  }
+
+  // «1 письмо», «2 письма», «5 писем» — иначе счётчик читается как машинный.
+  // Правило то же, что у любого русского счёта: смотрим последние две цифры
+  function склонениеПисем(n) {
+    const две = n % 100, одна = n % 10;
+    if (две >= 11 && две <= 14) return 'писем';
+    if (одна === 1) return 'письмо';
+    if (одна >= 2 && одна <= 4) return 'письма';
+    return 'писем';
+  }
+
+  function показатьПолосуОтмены() {
+    const bar  = document.getElementById('undo-bar');
+    const text = document.getElementById('undo-bar-text');
+    const n = _удалённые.length;
+    text.textContent = n === 1
+      ? 'Письмо удалено'
+      : `Удалено писем: ${n}`;
+    bar.classList.add('show');
+    // Отсчёт заводится заново от ПОСЛЕДНЕГО удаления: иначе пачка, набранная
+    // за пять секунд, пропадала бы по таймеру первого письма
+    if (_таймерОтмены) clearTimeout(_таймерОтмены);
+    _таймерОтмены = setTimeout(закрытьПолосуОтмены, ОКНО_ОТМЕНЫ_МС);
+  }
+
+  function закрытьПолосуОтмены() {
+    if (_таймерОтмены) { clearTimeout(_таймерОтмены); _таймерОтмены = null; }
+    _удалённые = [];
+    document.getElementById('undo-bar').classList.remove('show');
+  }
+
+  async function undoDeleteLetters() {
+    const пачка = _удалённые.slice();
+    закрытьПолосуОтмены();
+    if (!пачка.length) return;
+    // Ответы разбираем поимённо: молчаливый Promise.all сообщил бы об успехе,
+    // даже если часть писем вернуть не удалось
+    const итоги = await Promise.all(пачка.map(id =>
+      fetch(`/api/cover-letters/${id}/restore`, { method: 'POST' })
+        .then(r => r.ok).catch(() => false)));
+    const вернулось = итоги.filter(Boolean).length;
+    await renderHistory();
+    if (вернулось === пачка.length) {
+      showToast(вернулось === 1 ? '✓ Письмо возвращено' : `✓ Возвращено писем: ${вернулось}`);
+    } else {
+      showToast(`Возвращено ${вернулось} из ${пачка.length} — остальные вернуть не удалось`);
+    }
   }
 
   // Подпись кнопки не переписываем — причина та же, что у copyLetter выше

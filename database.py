@@ -173,6 +173,17 @@ class CoverLetter(Base):
     custom_context = Column(Text, nullable=True)
     edited = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    # Метка удаления. NULL — письмо живо; дата — помечено к удалению и ни в одну
+    # пользовательскую выдачу больше не попадает (история, счётчик, поиск,
+    # переход по ?letter=). Физически строка стирается позже, LETTER_PURGE_DAYS
+    # в main.py.
+    #
+    # Почему пометка, а не DELETE сразу: у удаления есть отмена на пять секунд.
+    # Держать эти секунды отложенный запрос на клиенте нельзя — закрытая
+    # в это окно вкладка оставила бы письмо живым, а человек был бы уверен,
+    # что удалил его. Это немой отказ ровно того класса, что описан в §6.0.1:
+    # отказ, который выглядит как успех.
+    deleted_at = Column(DateTime, nullable=True)
 
 
 class FoodLog(Base):
@@ -544,6 +555,7 @@ def migrate_db():
         "ALTER TABLE scale_connections ADD COLUMN encrypted_zepp_user_id TEXT",
         "ALTER TABLE chat_messages ADD COLUMN image_path VARCHAR",
         "ALTER TABLE body_photos ADD COLUMN image_path VARCHAR",
+        "ALTER TABLE cover_letters ADD COLUMN deleted_at DATETIME",
     ]:
         try:
             conn.execute(col)
