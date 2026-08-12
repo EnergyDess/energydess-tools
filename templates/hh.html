@@ -1730,12 +1730,24 @@
     // за пять секунд, пропадала бы по таймеру первого письма
     if (_таймерОтмены) clearTimeout(_таймерОтмены);
     _таймерОтмены = setTimeout(закрытьПолосуОтмены, ОКНО_ОТМЕНЫ_МС);
+
+    // Полоса отсчёта (.undo-bar::after в style.css) идёт ровно столько же:
+    // длительность отдаётся ей отсюда, чтобы число жило в одном месте.
+    // Класс снимается и возвращается через принудительный reflow — иначе
+    // при втором удалении подряд подпись стала бы счётчиком, а полоса
+    // продолжила бы утекать со старого места и соврала бы про остаток
+    bar.style.setProperty('--undo-window', ОКНО_ОТМЕНЫ_МС + 'ms');
+    bar.classList.remove('run');
+    void bar.offsetWidth;
+    bar.classList.add('run');
   }
 
   function закрытьПолосуОтмены() {
     if (_таймерОтмены) { clearTimeout(_таймерОтмены); _таймерОтмены = null; }
     _удалённые = [];
-    document.getElementById('undo-bar').classList.remove('show');
+    const bar = document.getElementById('undo-bar');
+    bar.classList.remove('show');
+    bar.classList.remove('run');
   }
 
   async function undoDeleteLetters() {

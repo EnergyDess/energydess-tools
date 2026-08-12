@@ -604,7 +604,9 @@ let searchReqId = 0;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  setupModalDragClose();
+  // setupModalDragClose() отсюда убран 2026-08-12: смахивание шторки —
+  // поведение компонента и живёт в static/modal.js. Пока оно вызывалось
+  // здесь, «ручка» работала только на этой странице
   setupModalCleanup();
   attachVoiceButton('assistant-chat-mic', 'chat', 'assistant-chat-in');
   attachVoiceButton('chat-in-mic', 'chat', 'chat-in');
@@ -2235,58 +2237,9 @@ function setupModalCleanup() {
   });
 }
 
-// ── Свайп вниз за "ручку" модалки — закрывает её ──────────────────────────────
-function setupModalDragClose() {
-  document.querySelectorAll('.modal-ov').forEach(overlay => {
-    const sheet = overlay.querySelector('.modal-sh');
-    const drag  = overlay.querySelector('.modal-drag');
-    const hdr   = overlay.querySelector('.modal-hdr');
-    if (!sheet || !drag) return;
-    let startY = 0, dy = 0, dragging = false;
-    const onStart = e => {
-      // Заголовок — часть зоны свайпа, кроме самой кнопки закрытия
-      if (e.target.closest('.modal-x')) return;
-      dragging = true; dy = 0;
-      startY = e.touches[0].clientY;
-      sheet.style.transition = 'none';
-    };
-    const onMove = e => {
-      if (!dragging) return;
-      dy = Math.max(0, e.touches[0].clientY - startY);
-      sheet.style.transform = `translateY(${dy}px)`;
-      sheet.style.opacity = String(Math.max(1 - dy / (sheet.offsetHeight * 0.8), 0.25));
-    };
-    const onEnd = () => {
-      if (!dragging) return;
-      dragging = false;
-      sheet.style.transition = 'transform .2s ease, opacity .2s ease';
-      if (dy > sheet.offsetHeight * 0.25) {
-        // Уезжает вниз и затухает, и только потом убираем модалку
-        sheet.style.transform = 'translateY(100%)';
-        sheet.style.opacity = '0';
-        setTimeout(() => {
-          // Без развилки по id: уборка сканера приехала на modal:close
-          закрыть_модалку(overlay.id);
-          sheet.style.transition = '';
-          sheet.style.transform = '';
-          sheet.style.opacity = '';
-        }, 200);
-      } else {
-        // Не дотянули — плавно возвращается на место
-        sheet.style.transform = '';
-        sheet.style.opacity = '';
-        setTimeout(() => { sheet.style.transition = ''; }, 200);
-      }
-    };
-    [drag, hdr].forEach(el => {
-      if (!el) return;
-      el.addEventListener('touchstart', onStart, {passive:true});
-      el.addEventListener('touchmove', onMove, {passive:true});
-      el.addEventListener('touchend', onEnd);
-      el.addEventListener('touchcancel', onEnd);
-    });
-  });
-}
+// Смахивание шторки вниз здесь больше не живёт: с 2026-08-12 это
+// поведение компонента (static/modal.js). Копия на странице работала
+// только на этой странице, а «ручку» компонент рисует на всех.
 
 // ── Fetch helper ──────────────────────────────────────────────────────────────
 async function api(url, opts={}) {
