@@ -12,8 +12,8 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="/static/style.css">
-  <link rel="stylesheet" href="/static/botamin.css">
+  <link rel="stylesheet" href="{{ st('style.css') }}">
+  <link rel="stylesheet" href="{{ st('botamin.css') }}">
 </head>
 <body class="has-site-header page-column">
 
@@ -222,7 +222,7 @@
 {% include '_footer.html' %}
 
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="/static/botamin.js"></script>
+<script src="{{ st('botamin.js') }}"></script>
 <script>lucide.createIcons();</script>
 </body>
 </html>

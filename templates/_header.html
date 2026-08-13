@@ -89,7 +89,7 @@
   </div>
   {# defer — скрипт нужен только там, где есть поиск, поэтому подключается
      здесь же, а не в каждом из 12 шаблонов со страницами #}
-  <script src="/static/header-search.js" defer></script>
+  <script src="{{ st('header-search.js') }}" defer></script>
   {% endif %}
 
   <div class="header-right">

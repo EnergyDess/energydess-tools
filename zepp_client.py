@@ -58,6 +58,20 @@ class ZeppProtocolError(ZeppLoginError):
     правкой этого файла, а не действиями пользователя."""
 
 
+class ZeppStepError(ZeppLoginError):
+    """Логин и пароль Xiaomi ПРИНЯЛ, а дальше цепочка не поехала.
+
+    Заведён 2026-08-14. Прежде такого класса не было, и это ровно та дыра,
+    через которую успех превращался в сообщение об ошибке входа: разбор
+    звали только по признаку «нет поля location», а дальше он обязан был
+    выбрать из трёх классов, каждый из которых утверждает что-то про
+    учётные данные. Успешного исхода в наборе не существовало.
+
+    Несёт имя шага, на котором оборвалось: пользователю оно бесполезно,
+    но именно оно отличает «Xiaomi просит ещё одно действие» от «наш код
+    разошёлся с флоу», а без имени шага эти два неразличимы."""
+
+
 class ZeppApiError(Exception):
     """Логин прошёл, но запрос данных не удался (истёк токен и т.п.)."""
 
@@ -72,8 +86,30 @@ XIAOMI_CODES = {
     20003: ("auth", "Xiaomi не знает такого аккаунта"),
 }
 
+# Код, которым Xiaomi отвечает НА УСПЕХ. Отдельным множеством, а не числом,
+# потому что весь смысл — в проверке «этот код успешный?», и она обязана
+# стоять раньше любого вывода про учётные данные.
+УСПЕШНЫЕ_КОДЫ = {0}
 
-def _разобрать_отказ(data: dict) -> ZeppLoginError:
+
+def _след(шаг: str, data: dict) -> None:
+    """Одна строка в лог про форму ответа: код, описание, ИМЕНА непустых полей.
+
+    Именно имена, а не значения: в ответе шага логина лежат `_sign`, `pwd`,
+    `qs` и `callback` — подписи и производные пароля. Печатать их значит
+    положить учётные данные в лог, который читают глазами и пересылают.
+    Имён достаточно, чтобы в следующий раз не гадать по чужому репозиторию,
+    какие поля вообще бывают."""
+    код = data.get("code")
+    описание = (data.get("description") or data.get("desc") or "").strip()
+    непустые = sorted(k for k, v in data.items() if v not in (None, "", [], {}))
+    статус = data.get("securityStatus")
+    print(f"[zepp] {шаг}: code={код!r} description={описание!r} "
+          f"securityStatus={статус!r} непустые поля ({len(непустые)}): "
+          f"{', '.join(непустые) or 'нет'}")
+
+
+def _разобрать_отказ(data: dict, шаг: str = "serviceLoginAuth2") -> ZeppLoginError:
     """Превращает ответ Xiaomi в исключение НУЖНОГО класса.
 
     До 2026-08-13 здесь ничего такого не было: код проверял наличие поля
@@ -83,19 +119,57 @@ def _разобрать_отказ(data: dict) -> ZeppLoginError:
     капчи с подтверждением: ключи ответа шага логина —
     ['_sign','callback','captchaUrl','child','code','desc','description',
     'location','miDemo','pwd','qs','securityStatus','sid'], code=70016,
-    description='login verification error'. Мы не читали ни одного из них."""
+    description='login verification error'. Мы не читали ни одного из них.
+
+    ПРАВКА 2026-08-14. Тот разбор чинил одно схлопывание и заводил второе.
+    Живой вход выдал «Xiaomi требует подтвердить вход (код 0, 成功)» —
+    то есть `code=0`, `description='成功'` (по-китайски «успех»), а мы
+    показали отказ входа. Ветка устанавливается по тексту однозначно:
+    фразу «требует подтвердить вход» при коде 0 давало ТОЛЬКО поле
+    `notificationUrl`, потому что код 0 в `XIAOMI_CODES` не значится,
+    а ветка `captchaUrl` пишет про капчу.
+
+    Отсюда два правила, и первое из них жёсткое:
+
+    **Успешный код не порождает сообщения об ошибке входа.** Проверка
+    `код in УСПЕШНЫЕ_КОДЫ` стоит выше всех выводов про учётные данные,
+    и ниже неё ни одна ветка не вправе сказать «проверьте пароль».
+
+    **Незнакомая форма не схлопывается в знакомую.** Ответ с успешным
+    кодом, но без `location` и без известных признаков проверки, —
+    это `ZeppStepError` с именем шага, а не «наверное, капча»."""
+    _след(шаг, data)
     код = data.get("code")
     описание = (data.get("description") or data.get("desc") or "").strip()
     хвост = f" (код {код}{', ' + описание if описание else ''})" if код is not None else ""
-    if data.get("captchaUrl"):
-        return ZeppVerificationError("Xiaomi требует ввести капчу" + хвост)
-    if data.get("notificationUrl"):
-        return ZeppVerificationError("Xiaomi требует подтвердить вход" + хвост)
+    успех = код in УСПЕШНЫЕ_КОДЫ
+
+    # Проверка личности. Оба поля несут АДРЕС, и адрес показывается: без
+    # него «подтвердите вход» — это просьба сделать неизвестно что.
+    # Прежний текст отправлял в мобильное приложение, а Xiaomi обеих этих
+    # проверок ждёт НА СТРАНИЦЕ по своему адресу — в приложении человек
+    # ничего и не находил.
+    for поле, что in (("notificationUrl", "подтвердить личность"),
+                      ("captchaUrl", "пройти капчу")):
+        адрес = data.get(поле)
+        if адрес:
+            начало = ("Логин и пароль Xiaomi принял" if успех
+                      else "Xiaomi прервал вход")
+            return ZeppVerificationError(
+                f"{начало}, но требует {что} по адресу {адрес}" + хвост)
+
     вид, текст = XIAOMI_CODES.get(код, (None, None))
-    if вид == "auth":
+    if вид == "auth" and not успех:
         return ZeppAuthError(текст + хвост)
     if вид == "verify":
         return ZeppVerificationError(текст + хвост)
+
+    if успех:
+        # Xiaomi сказал «успех», а поля, ради которого шаг делался, нет.
+        # Ни одного вывода про пароль здесь быть не может по построению
+        return ZeppStepError(
+            f"Xiaomi принял вход, но шаг {шаг} не вернул поле location" + хвост)
+
     if код is not None:
         # Код есть, но он нам незнаком — это НЕ «неверный пароль».
         # Отдаём как есть: следующий разбор начнётся с настоящего числа
@@ -111,20 +185,29 @@ def _strip_prefix(text: str) -> dict:
 
 def _get_code(client: httpx.Client, start_url: str) -> str:
     """Воспроизводит CheckRedirect-логику оригинала: 2 редиректа проходим
-    автоматически, на третьем — не идём дальше, код берём из его Location."""
+    автоматически, на третьем — не идём дальше, код берём из его Location.
+
+    Сюда попадают только после того, как Xiaomi принял пароль и отдал
+    `location`, — поэтому все отказы здесь `ZeppStepError`, а не
+    `ZeppProtocolError`: про учётные данные тут сказать уже нечего."""
     url = start_url
     for hop in range(3):
         resp = client.get(url, follow_redirects=False)
         location = resp.headers.get("location")
+        print(f"[zepp] редирект {hop + 1}/3: HTTP {resp.status_code} "
+              f"location={'есть' if location else 'НЕТ'}")
         if not location:
-            raise ZeppProtocolError("ожидался редирект от Xiaomi, не получили (изменился флоу?)")
+            raise ZeppStepError(
+                f"после успешного входа Xiaomi не отдал редирект {hop + 1} из 3 "
+                f"(HTTP {resp.status_code}) — изменился флоу")
         if hop == 2:
             _, _, code = location.partition("=")
             if not code:
-                raise ZeppProtocolError("не нашли код авторизации в финальном редиректе")
+                raise ZeppStepError(
+                    "после успешного входа в финальном редиректе нет кода авторизации")
             return code
         url = httpx.URL(url).join(location)
-    raise ZeppProtocolError("не удалось получить код авторизации")
+    raise ZeppStepError("после успешного входа не удалось получить код авторизации")
 
 
 def _xiaomi_oauth2_code(client: httpx.Client, username: str, password: str) -> str:
@@ -156,8 +239,9 @@ def _xiaomi_oauth2_code(client: httpx.Client, username: str, password: str) -> s
     res2 = _strip_prefix(r.text)
     location = res2.get("location")
     if not location:
-        raise _разобрать_отказ(res2)
+        raise _разобрать_отказ(res2, "serviceLoginAuth2")
 
+    _след("serviceLoginAuth2 — вход принят", res2)
     return _get_code(client, location)
 
 
@@ -186,7 +270,15 @@ def login(username: str, password: str) -> dict:
         token_info = data.get("token_info", {})
         app_token, zepp_user_id = token_info.get("app_token"), token_info.get("user_id")
         if not app_token or not zepp_user_id:
-            raise ZeppProtocolError(f"Zepp не вернул токен сессии: {data}")
+            # Печатаем ИМЕНА полей, а не сам ответ: в token_info лежит токен
+            # доступа к чужому аккаунту, и прежняя строка `{data}` уложила бы
+            # его в лог целиком при любом частичном ответе
+            print(f"[zepp] client/login: поля ответа "
+                  f"({', '.join(sorted(data)) or 'нет'}); "
+                  f"token_info ({', '.join(sorted(token_info)) or 'нет'})")
+            raise ZeppStepError(
+                "вход в Xiaomi прошёл, но Zepp не отдал токен сессии "
+                "на шаге client/login")
         return {"app_token": app_token, "zepp_user_id": zepp_user_id}
 
 
@@ -199,6 +291,7 @@ def fetch_weight_records(app_token: str, zepp_user_id: str, limit: int = 30) -> 
     базальный метаболизм, "возраст тела" (в API называется muscleAge)."""
     records = []
     to_time = int(time.time())
+    напечатан_состав = False       # список полей — один раз за выборку, а не за страницу
     headers = {"apptoken": app_token}
     with httpx.Client(timeout=30.0, headers=headers) as client:
         while len(records) < limit:
@@ -218,9 +311,14 @@ def fetch_weight_records(app_token: str, zepp_user_id: str, limit: int = 30) -> 
             # приходится брать из чужого репозитория и верить ему: живого
             # ответа Zepp у нас нет, аккаунт весов есть только у владельца.
             # Строка в логе закрывает это первым же успешным входом
-            if items:
+            if not напечатан_состав:
                 поля = sorted((items[0].get("summary") or {}).keys())
+                разобрано = ["weight", "bmi", "fatRate", "bodyWaterRate", "muscleRate",
+                             "boneMass", "visceralFat", "metabolism", "muscleAge"]
+                мимо = [п for п in поля if п not in разобрано]
                 print(f"[zepp] поля summary в ответе ({len(поля)}): {', '.join(поля) or 'пусто'}")
+                print(f"[zepp] из них мы НЕ разбираем ({len(мимо)}): {', '.join(мимо) or 'нет'}")
+                напечатан_состав = True
             for item in items:
                 if item.get("weightType") != 0:
                     continue  # см. оригинал: weightType != 0 — повреждённые значения

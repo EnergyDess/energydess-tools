@@ -8,8 +8,8 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="/static/style.css">
-  <link rel="stylesheet" href="/static/hh.css">
+  <link rel="stylesheet" href="{{ st('style.css') }}">
+  <link rel="stylesheet" href="{{ st('hh.css') }}">
 </head>
 <body class="theme-hh has-site-header">
 
@@ -533,8 +533,8 @@
 {% include '_footer.html' %}
 
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="/static/ui.js"></script>
-<script src="/static/modal.js"></script>
+<script src="{{ st('ui.js') }}"></script>
+<script src="{{ st('modal.js') }}"></script>
 <script>
   lucide.createIcons();
 

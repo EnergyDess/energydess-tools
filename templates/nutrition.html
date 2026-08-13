@@ -8,8 +8,8 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="/static/style.css">
-  <link rel="stylesheet" href="/static/nutrition.css">
+  <link rel="stylesheet" href="{{ st('style.css') }}">
+  <link rel="stylesheet" href="{{ st('nutrition.css') }}">
 </head>
 <body class="theme-nutrition has-site-header page-column">
 
@@ -859,8 +859,77 @@ async function runSearch(q) {
   document.getElementById('s-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
   const data = await api(`/nutrition/api/search?q=${encodeURIComponent(q)}`);
   if (myId !== searchReqId) return; // stale — ignore
-  renderResults(data.results||[], q);
+  renderResults(data.results||[], q, data.source_error||'');
 }
+
+// Оценка ИИ — по нажатию, а не вместо пустой выдачи. Пока она включалась
+// молча, человек ни разу не видел, что справочник ничего не нашёл, и не мог
+// отличить данные базы от догадки модели (BACKLOG, задача 74)
+async function оценитьЧерезИИ(q, местоId) {
+  const место = document.getElementById(местоId || 's-results');
+  const кнопка = место.querySelector('.ai-estimate-btn[data-ocenka]');
+  const подпись = кнопка ? кнопка.innerHTML : '';
+  if (кнопка) { кнопка.disabled = true; кнопка.innerHTML = '<div class="spin"></div> Оцениваю…'; }
+  try {
+    const data = await api(`/nutrition/api/estimate?q=${encodeURIComponent(q)}`);
+    const итог = место.querySelector('.ai-estimate-slot');
+    if (!итог) return;
+    if (!data.results?.length) {
+      // Модель не смогла определить — карточки нет вовсе, добавить нечего
+      итог.innerHTML = `<div class="alert alert-warn">Не удалось определить «${esc(q)}»:
+        это либо не еда, либо слишком общее название. Добавьте продукт вручную —
+        так в дневнике будут ваши числа, а не выдуманные.</div>`;
+      return;
+    }
+    итог.innerHTML = карточкиОценки(data.results);
+  } finally {
+    // Подпись возвращается ВСЕГДА, в том числе когда запрос упал: кнопка,
+    // навсегда застрявшая на «Оцениваю…», — это сообщение о работе,
+    // которая давно кончилась
+    if (кнопка) { кнопка.disabled = false; кнопка.innerHTML = подпись; }
+  }
+}
+
+// Карточка оценки ИИ отличается от записи справочника рамкой и подписью
+// источника: цифры тут придуманы моделью, и это должно быть видно ДО того,
+// как человек нажмёт «добавить»
+function карточкиОценки(results) {
+  return `<div class="r-list">` + results.map(r=>`
+    <div class="r-item r-item-ai" onclick='openPortion(${JSON.stringify(r)})'>
+      <div class="r-info"><div class="r-name">${esc(r.name)}</div>
+        <div class="r-brand r-src-ai"><i data-lucide="sparkles"></i> оценка ИИ, не из справочника</div></div>
+      <div><div class="r-kcal">${r.calories} ккал</div><div class="r-per">на 100г</div></div>
+    </div>`).join('') + `</div>`;
+}
+
+// Пустая выдача. Три разных положения, и они НЕ одно и то же:
+// справочник не ответил / ничего не нашлось / поле пустое
+function пустаяВыдача(query, сбой, местоId) {
+  // Запрос уезжает в data-атрибут, а не в onclick. JSON.stringify отдаёт
+  // строку В КАВЫЧКАХ, и внутри onclick="…" она рвёт сам атрибут: браузер
+  // закрывает его на первой же внутренней кавычке, обработчик не навешивается,
+  // ошибки в консоли при этом НЕТ. Поймано нажатием, а не чтением (§6.0.3)
+  const оценка = `<div class="ai-estimate-slot"></div>
+    <button class="ai-estimate-btn" data-ocenka="${esc(query)}" data-mesto="${esc(местоId)}">
+      <i data-lucide="sparkles"></i> Оценить через ИИ</button>`;
+  const вручную = `<button class="ai-estimate-btn" onclick="openCustomFoodModal()">
+      <i data-lucide="plus"></i> Добавить вручную</button>`;
+  if (сбой) {
+    return `<div class="alert alert-warn">Справочник продуктов сейчас не отвечает
+      (${esc(сбой)}). Это не значит, что продукта в нём нет — повторите поиск позже.</div>`
+      + оценка + вручную;
+  }
+  return `<div class="empty">По запросу «${esc(query)}» в справочнике ничего не нашлось</div>`
+    + оценка + вручную;
+}
+
+// Делегатом на документ: разметку выдачи переписывают целиком при каждом
+// поиске, и слушатель, навешенный на саму кнопку, умер бы вместе с ней
+document.addEventListener('click', function (e) {
+  const кнопка = e.target.closest('.ai-estimate-btn[data-ocenka]');
+  if (!кнопка) return;
+  оценитьЧерезИИ(кнопка.dataset.ocenka, кнопка.dataset.mesto);
+});
 
 function setSearchTab(tab) {
   S.searchTab = tab;
@@ -914,10 +983,16 @@ function подписьПродукта(r) {
   return `<span class="r-nobrand">бренд не указан</span>${приметы.length ? ' · ' + приметы.join(' · ') : ''}`;
 }
 
-function renderResults(results, query) {
+function renderResults(results, query, сбой) {
   const wrap = document.getElementById('s-results');
+  if (!results.length) {
+    // Пустое состояние — только когда запрос вообще был. На вкладках
+    // «Недавние»/«Частые» query не передаётся, и предлагать там оценку нечего
+    wrap.innerHTML = query ? пустаяВыдача(query, сбой, 's-results')
+                           : '<div class="empty">Ничего не найдено</div>';
+    return;
+  }
   const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openCustomFoodModal()"><i data-lucide="sparkles"></i> Не нашли своё блюдо? Добавить</button>` : '';
-  if (!results.length) { wrap.innerHTML='<div class="empty">Ничего не найдено</div>'+aiBtn; return; }
   wrap.innerHTML = `<div class="r-list">`+results.map(r=>`
     <div class="r-item" onclick='openPortion(${JSON.stringify(r)})'>
       <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${подписьПродукта(r)}</div></div>
@@ -939,7 +1014,7 @@ async function runSearchIng(q) {
   document.getElementById('ring-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
   const data = await api(`/nutrition/api/search?q=${encodeURIComponent(q)}`);
   if (myId !== ingSearchReqId) return; // устаревший запрос — игнорируем
-  renderIngResults(data.results||[], q);
+  renderIngResults(data.results||[], q, data.source_error||'');
 }
 
 function setIngTab(tab) {
@@ -960,13 +1035,17 @@ async function loadIngTab(tab) {
   renderIngResults(data.results||[]);
 }
 
-function renderIngResults(results, query) {
+function renderIngResults(results, query, сбой) {
   const wrap = document.getElementById('ring-results');
+  if (!results.length) {
+    wrap.innerHTML = query ? пустаяВыдача(query, сбой, 'ring-results')
+                           : '<div class="empty">Ничего не найдено</div>';
+    return;
+  }
   const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openCustomFoodModal()"><i data-lucide="sparkles"></i> Не нашли своё блюдо? Добавить</button>` : '';
-  if (!results.length) { wrap.innerHTML='<div class="empty">Ничего не найдено</div>'+aiBtn; return; }
   wrap.innerHTML = `<div class="r-list">`+results.map(r=>`
     <div class="r-item" onclick='openPortion(${JSON.stringify(r)})'>
-      <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${r.source==='ai' ? '<i data-lucide="sparkles"></i> оценка ИИ' : esc(r.brand||'')}</div></div>
+      <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${подписьПродукта(r)}</div></div>
       <div><div class="r-kcal">${r.calories} ккал</div><div class="r-per">на 100г</div></div>
     </div>`).join('')+`</div>`+aiBtn;
 }
@@ -983,6 +1062,19 @@ function openCustomFoodModal() {
 
 // ── Portion modal ─────────────────────────────────────────────────────────────
 function openPortion(food) {
+  // Вторая застава. Первая стоит на сервере (_ai_food_estimate отбрасывает
+  // оценку с нулевой калорийностью), эта — на случай, если такая карточка
+  // придёт откуда-то ещё. Запись о несуществующей еде не должна попадать
+  // в дневник ни одним путём (BACKLOG, задача 74).
+  //
+  // Условие сужено до source==='ai' НАМЕРЕННО: ноль калорий сам по себе
+  // законен — вода, чай без сахара, напитки без сахара. Запрет на любой
+  // ноль сломал бы их. Записи справочника сюда не попадают вовсе,
+  // их отсеивает `if not kcal: continue` в _off_search
+  if (food.source === 'ai' && !(Number(food.calories) > 0)) {
+    toast('Модель не смогла определить «'+(food.name||'это блюдо')+'» — добавьте продукт вручную', false);
+    return;
+  }
   S.portionFood = food;
   S.editingFoodId = null;
   S.portionEdited = false;
@@ -2503,9 +2595,9 @@ function updateSidePanels(data) {
 }
 </script>
 <div id="wt-tooltip"></div>
-<script src="/static/modal.js"></script>
+<script src="{{ st('modal.js') }}"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="/static/ui.js"></script>
+<script src="{{ st('ui.js') }}"></script>
 <script>lucide.createIcons();</script>
 </body>
 </html>

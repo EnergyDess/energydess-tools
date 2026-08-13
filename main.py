@@ -79,9 +79,16 @@ async def log_request(request: Request, call_next):
 
     `/static/` пропускаем: браузер тянет оттуда десяток файлов на страницу,
     и полезные строки утонули бы среди них.
+
+    Строку в лог не пишем, а Cache-Control — ставим: `StaticFiles` своего
+    не отдаёт, и без этого заголовка браузер берёт эвристику и на сервер
+    не ходит вовсе (задача 77, разбор у `_кеш_статики`).
     """
     if request.url.path.startswith("/static/"):
-        return await call_next(request)
+        ответ = await call_next(request)
+        ответ.headers["Cache-Control"] = _кеш_статики(
+            request.url.path, request.query_params.get("v", ""))
+        return ответ
 
     старт = time.perf_counter()
     метка = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
@@ -109,6 +116,17 @@ async def log_request(request: Request, call_next):
 
     print(строка(str(ответ.status_code), (time.perf_counter() - старт) * 1000),
           flush=True)
+
+    # Страница обязана переспрашиваться. Без этого версия в адресе статики
+    # (задача 77) дырявая: браузер отдал бы из кеша СТАРУЮ разметку, в ней
+    # стоит старый `?v=`, а тот помечен `immutable` — то есть починенный CSS
+    # не приехал бы вообще ни по какому пути. Замер 2026-08-14: HTML уходил
+    # без Cache-Control и без единого валидатора — ни etag, ни last-modified.
+    # Именно `no-cache`, а не `no-store`: страницу можно держать в кеше,
+    # нельзя брать оттуда без вопроса. `no-store` заодно выключил бы
+    # восстановление из bfcache в Firefox.
+    if ответ.headers.get("content-type", "").startswith("text/html"):
+        ответ.headers.setdefault("Cache-Control", "no-cache")
     return ответ
 
 
@@ -268,6 +286,87 @@ templates.env.globals["TOOL_ICONS"] = TOOL_ICONS
 # Нужен в _meta.html: og:url и og:image требуют АБСОЛЮТНЫХ адресов, с
 # относительным путём превью не собирается ни в одном мессенджере
 templates.env.globals["BASE_URL"] = BASE_URL
+
+
+# ── Версия статики в адресе (BACKLOG.md, задача 77) ───────────────────
+#
+# Отказ, который это лечит, немой и выглядит как успех: правка CSS
+# выкачена, файл на сервере новый, замер на сервере чистый — а браузер
+# рисует страницу старым файлом и в консоли пусто. Пользователь сообщает
+# о дефекте, которого уже нет, и проверить его нечем.
+#
+# Причина замерена 2026-08-14: `StaticFiles` отдаёт `etag`
+# и `last-modified`, но НЕ отдаёт `Cache-Control`. По RFC 9111 §4.2.2
+# браузер в этом случае берёт эвристику — примерно десятую часть возраста
+# файла — и до её истечения на сервер НЕ ХОДИТ ВОВСЕ. На проде возраст
+# считается не от правки файла, а от сборки образа: `last-modified`
+# у всех файлов одинаковый и равен времени деплоя. То есть окно показа
+# старого файла равно десятой части срока с ПРЕДЫДУЩЕГО деплоя —
+# две недели без выкаток дают почти полтора суток слепоты.
+#
+# Лечится парой: адрес с отпечатком содержимого плюс явный Cache-Control.
+# Хеш берётся от содержимого, а не от времени сборки, — иначе деплой
+# сбрасывал бы кеш всем файлам сразу, включая неизменившиеся.
+СТАТИКА_ГОД = 31536000          # секунд; потолок max-age по RFC 9111
+СТАТИКА_СУТКИ = 86400           # для того, что адрес версией не называет
+
+# путь → (mtime, размер, хеш). Пересчитывается, когда файл изменился:
+# на проде этого не случается ни разу за жизнь процесса, локально —
+# при каждой правке, и версия в адресе меняется без перезапуска.
+_версии_статики: dict[str, tuple[float, int, str]] = {}
+
+
+def версия_статики(путь: str) -> str:
+    """Восемь шестнадцатеричных знаков sha256 от содержимого файла."""
+    полный = os.path.join("static", путь)
+    try:
+        st = os.stat(полный)
+    except OSError as e:
+        # Файла нет — молча отдать адрес без версии значит получить
+        # незакешированную ссылку и ни одного следа о причине (§6.0.1).
+        print(f"[static] нет файла для версии: {путь}: {e}")
+        return ""
+    ключ = (st.st_mtime, st.st_size)
+    if путь in _версии_статики and _версии_статики[путь][:2] == ключ:
+        return _версии_статики[путь][2]
+    import hashlib
+    with open(полный, "rb") as f:
+        хеш = hashlib.sha256(f.read()).hexdigest()[:8]
+    _версии_статики[путь] = (st.st_mtime, st.st_size, хеш)
+    return хеш
+
+
+def статика(путь: str) -> str:
+    """Адрес файла статики с отпечатком содержимого: /static/style.css?v=1a2b3c4d"""
+    в = версия_статики(путь)
+    return f"/static/{путь}?v={в}" if в else f"/static/{путь}"
+
+
+templates.env.globals["st"] = статика
+
+
+def _кеш_статики(путь: str, версия: str) -> str:
+    """Заголовок Cache-Control для запроса статики. Три случая, а не два.
+
+    Правило одно: **вечно кешируется только адрес, который называет своё
+    содержимое.** Всё остальное браузер обязан переспросить.
+
+    | Запрос | Заголовок | Почему |
+    |---|---|---|
+    | `?v=` совпал с текущим хешем | `immutable`, год | содержимое по этому адресу больше не изменится по построению |
+    | `.css`/`.js` без версии или с чужой | `no-cache` | это страховка: файл, который забыли пометить версией, не должен молча замерзать на год. Тело при этом остаётся в кеше — `etag` даёт 304, а не повторную выкачку |
+    | прочее (картинки, svg) | сутки | их правят заменой файла, а не редактированием; окно в сутки дешевле, чем ревалидация 1746 картинок упражнений на каждой открытой странице |
+
+    Чужая версия в адресе отдаёт ТЕКУЩЕЕ содержимое (StaticFiles на
+    query не смотрит) и `no-cache` — то есть старый адрес не подменяет
+    новый, а сам себя обесценивает.
+    """
+    имя = путь[len("/static/"):]
+    if версия and версия == версия_статики(имя):
+        return f"max-age={СТАТИКА_ГОД}, immutable"
+    if имя.endswith((".css", ".js")):
+        return "no-cache"
+    return f"max-age={СТАТИКА_СУТКИ}"
 
 
 def user_has_access(user: User, tool_id: str, db: Session) -> bool:
@@ -3282,7 +3381,16 @@ def _calc_tdee(gender: str, age: int, weight_kg: float, height_cm: float,
 _OFF_HEADERS = {"User-Agent": "EnergyDess-Nutrition/1.0 (https://energydess.ru)"}
 
 
-async def _off_search(query: str) -> list:
+async def _off_search(query: str) -> tuple[list, str]:
+    """Возвращает ПАРУ: находки и причина сбоя (пустая строка — сбоя не было).
+
+    Раньше возвращался один список, и `except Exception: return []` делал
+    «Open Food Facts честно ничего не нашёл» неотличимым от «справочник
+    не ответил». Снаружи оба случая выглядели одинаково и оба включали
+    оценку ИИ, то есть человек получал придуманные цифры там, где ждал
+    справочник, и узнать об этом ему было неоткуда (BACKLOG, задача 74).
+
+    Пустой список с пустой причиной — это «не нашлось», и только так."""
     url = "https://search.openfoodfacts.org/search"
     params = {
         "q": query, "page_size": 25, "langs": "ru,en",
@@ -3296,9 +3404,12 @@ async def _off_search(query: str) -> list:
     try:
         async with httpx.AsyncClient(timeout=8) as client:
             r = await client.get(url, params=params, headers=_OFF_HEADERS)
+        r.raise_for_status()
         products = r.json().get("hits", [])
-    except Exception:
-        return []
+    except Exception as e:
+        # Причина и в лог, и наружу: молчащий except здесь и был задачей 74
+        print(f"[food] Open Food Facts не ответил: {type(e).__name__}: {str(e)[:200]}")
+        return [], f"{type(e).__name__}"
     results = []
     for p in products:
         name = p.get("product_name_ru") or p.get("product_name", "")
@@ -3321,7 +3432,7 @@ async def _off_search(query: str) -> list:
             "fat": round(float(n.get("fat_100g", 0)), 1),
             "carbs": round(float(n.get("carbohydrates_100g", 0)), 1),
         })
-    return results
+    return results, ""
 
 
 # ── Ранжирование выдачи поиска еды ────────────────────────────────────────────
@@ -3663,11 +3774,28 @@ def _extract_json(text: str) -> dict:
 
 
 async def _ai_food_estimate(query: str) -> list:
+    """Оценка ИИ. Пустой список означает «оценить не удалось» — И ЭТО ИСХОД.
+
+    До 2026-08-14 модель обязана была назвать числа всегда, и на запрос
+    «йцукенгшщз» отвечала карточкой «блюдо не существует» с нулями во всех
+    полях КБЖУ. Карточка была кликабельной и добавлялась в дневник как
+    обычный продукт: в дневник попадала запись о несуществующей еде,
+    а модель словами уже сказала, что её нет (BACKLOG, задача 74).
+
+    Две защиты, и вторая не зависит от послушности модели:
+      1. в промпте разрешён ответ `{"known": false}`;
+      2. любая оценка с нулевой калорийностью отбрасывается здесь.
+    Второй хватило бы одной, но первая делает отказ дешевле и честнее."""
     if not OPENROUTER_API_KEY:
         return []
     prompt = f"""Оцени пищевую ценность блюда "{query}" на 100 грамм продукта.
-Ответь ТОЛЬКО JSON без ```json и без пояснений:
-{{"name":"уточнённое название блюда","calories":150,"protein":10,"fat":5,"carbs":20}}"""
+
+Если "{query}" не является едой, или это набор случайных букв, или ты не можешь
+определить, что это за блюдо, — ответь ТОЛЬКО {{"known": false}} и ничего больше.
+Не придумывай числа и не отвечай нулями.
+
+Иначе ответь ТОЛЬКО JSON без ```json и без пояснений:
+{{"known":true,"name":"уточнённое название блюда","calories":150,"protein":10,"fat":5,"carbs":20}}"""
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(
@@ -3682,10 +3810,21 @@ async def _ai_food_estimate(query: str) -> list:
             print(f"[food] {сбой}: запрос «{query[:60]}»")
             return []
         d = _extract_json(text)
+        if d.get("known") is False:
+            print(f"[food] модель не опознала блюдо: «{query[:60]}»")
+            return []
+        калории = round(float(d["calories"]), 1)
+        if калории <= 0:
+            # Модель ответила числами, но нулями — то есть словами сказала
+            # «такого блюда нет». Нулевая карточка в дневнике это запись
+            # о еде, которой не существует
+            print(f"[food] оценка с нулевой калорийностью отброшена: «{query[:60]}» "
+                  f"(имя от модели: {str(d.get('name', ''))[:60]!r})")
+            return []
         return [{
             "name": str(d.get("name", query)).strip(),
             "brand": "", "source": "ai",
-            "calories": round(float(d["calories"]), 1),
+            "calories": калории,
             "protein": round(float(d["protein"]), 1),
             "fat": round(float(d["fat"]), 1),
             "carbs": round(float(d["carbs"]), 1),
@@ -3982,13 +4121,36 @@ async def nut_search(q: str = "", user=Depends(get_current_user), db: Session = 
         "calories": f.calories_per_100g, "protein": f.protein_per_100g,
         "fat": f.fat_per_100g, "carbs": f.carbs_per_100g,
     } for f in custom]
-    off_results = await _off_search(q)
+    off_results, сбой = await _off_search(q)
     # Ранжируем ОБЩИЙ список, а не только чужой: свой продукт, совпавший
     # с запросом одним словом из двух, не должен стоять выше найденного целиком
     results = _rank_food_results(q, custom_results + off_results[:20])
+    # Оценки ИИ здесь БОЛЬШЕ НЕТ. Раньше при пустой выдаче она включалась
+    # молча, и человек не видел пустого состояния ни разу: подмену источника
+    # (справочник → догадка модели) нечем было заметить. Теперь пусто
+    # показывается как пусто, а оценка — отдельное явное действие,
+    # /nutrition/api/estimate (BACKLOG, задача 74)
+    return JSONResponse({"results": results, "source_error": сбой})
+
+
+@app.get("/nutrition/api/estimate")
+async def nut_estimate(q: str = "", user=Depends(get_current_user)):
+    """Оценка КБЖУ моделью — ТОЛЬКО по явной просьбе человека.
+
+    Отдельным эндпоинтом, а не веткой поиска: пока это была ветка, разницы
+    между «нашли в справочнике» и «придумала модель» на экране не возникало
+    вовсе. Отдельный вызов делает подмену источника невозможной по
+    построению — источник выбирает человек, а не пустота выдачи."""
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    if not q.strip():
+        return JSONResponse({"results": []})
+    results = await _ai_food_estimate(q.strip())
     if not results:
-        results += await _ai_food_estimate(q)
-    return JSONResponse({"results": results})
+        # Отдельный признак, а не просто пустой список: интерфейсу надо
+        # сказать «модель не смогла определить», а не «ничего не найдено»
+        return JSONResponse({"results": [], "unknown": True})
+    return JSONResponse({"results": results, "unknown": False})
 
 
 @app.get("/nutrition/api/barcode/{code}")
@@ -4344,11 +4506,15 @@ async def scale_connect(request: Request, user=Depends(get_current_user), db: Se
     if not crypto.is_configured():
         return JSONResponse({"error": "Шифрование не настроено на сервере"}, status_code=500)
 
-    # Три причины отказа различаются, и различие видно пользователю. Прежде
+    # Четыре причины отказа различаются, и различие видно пользователю. Прежде
     # здесь стояла одна фраза «Не удалось войти: неверный логин или пароль
     # Xiaomi» на все случаи сразу, включая те, где данные ВЕРНЫЕ (Xiaomi
     # просит подтвердить вход) и где виноваты мы (изменился флоу). Замер
     # живого ответа — в zepp_client._разобрать_отказ
+    #
+    # Четвёртая — ZeppStepError, заведена 2026-08-14: вход ПРИНЯТ, оборвалось
+    # дальше. Без неё успешный ответ Xiaomi (code=0, 成功) выходил наружу
+    # требованием подтвердить вход в приложении, которого там нет
     try:
         tokens = zepp_client.login(username, password)
     except zepp_client.ZeppAuthError as e:
@@ -4356,11 +4522,19 @@ async def scale_connect(request: Request, user=Depends(get_current_user), db: Se
         return JSONResponse({"error": f"{e}. Проверьте логин и пароль от аккаунта Zepp Life."},
                             status_code=400)
     except zepp_client.ZeppVerificationError as e:
-        print(f"[zepp] требуется подтверждение: {e}")
-        return JSONResponse({"error": f"{e}. Логин и пароль приняты, но Xiaomi просит подтвердить "
-                                      f"вход. Войдите в приложение Zepp Life на телефоне, "
-                                      f"подтвердите вход и попробуйте здесь ещё раз."},
+        # Адрес проверки уже внутри текста — Xiaomi ждёт её на своей
+        # странице, а не в мобильном приложении. Прежний текст звал в
+        # приложение, и человек искал там подтверждение, которого нет
+        print(f"[zepp] требуется проверка личности: {e}")
+        return JSONResponse({"error": f"{e}. Откройте этот адрес в браузере, пройдите проверку "
+                                      f"и повторите подключение здесь."},
                             status_code=400)
+    except zepp_client.ZeppStepError as e:
+        print(f"[zepp] вход принят, сбой дальше: {e}")
+        return JSONResponse({"error": f"Логин и пароль Zepp Life приняты — дело не в них. "
+                                      f"Сбой произошёл после входа: {e}. "
+                                      f"Это наша поломка; вес пока вводите вручную."},
+                            status_code=502)
     except zepp_client.ZeppProtocolError as e:
         print(f"[zepp] протокол разошёлся: {e}")
         return JSONResponse({"error": f"Сервис Zepp Life ответил не так, как мы ожидаем ({e}). "

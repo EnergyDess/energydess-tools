@@ -8,9 +8,9 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="/static/style.css">
-  <link rel="stylesheet" href="/static/workout.css">
-  <link rel="stylesheet" href="/static/workout_profile.css">
+  <link rel="stylesheet" href="{{ st('style.css') }}">
+  <link rel="stylesheet" href="{{ st('workout.css') }}">
+  <link rel="stylesheet" href="{{ st('workout_profile.css') }}">
 </head>
 <body class="theme-workout has-site-header page-column">
 
@@ -282,7 +282,11 @@
     });
   });
   var wkBodyPhotosCache = {};
-  function loadBodyPhotosWk() {
+  // `сохранить` — выбор дат, который стоял до перезагрузки списка. Дата,
+  // пережившая удаление, возвращается пользователю, а не сбрасывается
+  // на умолчание: иначе сравнение прыгало бы на другие даты после
+  // удаления одного снимка
+  function loadBodyPhotosWk(сохранить) {
     fetch('/nutrition/api/body-photos')
       .then(function (r) { return r.json(); })
       .then(function (data) {
@@ -293,22 +297,73 @@
         oldSel.innerHTML = opts;
         newSel.innerHTML = opts;
         if (dates.length) { oldSel.value = dates[dates.length - 1]; newSel.value = dates[0]; }
+        if (сохранить) {
+          [[сохранить.old, oldSel], [сохранить.new, newSel]].forEach(function (пара) {
+            var было = пара[0], sel = пара[1];
+            if (было && dates.indexOf(было) !== -1) sel.value = было;
+          });
+        }
         renderCompareWk();
       })
       .catch(function () {});
   }
+  var WK_РАКУРСЫ = { front: 'спереди', side: 'сбоку', back: 'сзади' };
+
   function renderCompareWk() {
     var oldDate = $('#wkCompareDateOld').value, newDate = $('#wkCompareDateNew').value;
     var view = $('#wkCompareView');
     if (!oldDate || !newDate) { view.innerHTML = '<p class="wk-profile-hint">Загрузите фото хотя бы за одну дату.</p>'; return; }
     function col(date) {
       var angles = wkBodyPhotosCache[date] || {};
-      var imgs = ['front', 'side', 'back'].filter(function (a) { return angles[a]; })
-        .map(function (a) { return '<img src="' + angles[a] + '">'; }).join('');
+      var imgs = Object.keys(WK_РАКУРСЫ).filter(function (a) { return angles[a]; })
+        .map(function (a) {
+          var подпись = 'Удалить фото ' + WK_РАКУРСЫ[a] + ' за ' + date;
+          return '<div class="wk-compare-shot">' +
+            '<img src="' + angles[a] + '" alt="Фото ' + WK_РАКУРСЫ[a] + ' за ' + date + '">' +
+            '<button type="button" class="btn-icon wk-compare-del" ' +
+              'data-date="' + date + '" data-angle="' + a + '" ' +
+              'title="' + подпись + '" aria-label="' + подпись + '">' +
+              '<i data-lucide="trash-2"></i></button></div>';
+        }).join('');
       return '<div class="wk-compare-col">' + (imgs || '<p class="wk-profile-hint">нет фото</p>') + '<div class="wk-compare-col-label">' + date + '</div></div>';
     }
+    // createIcons здесь не зовём: значки в динамической разметке дорисовывает
+    // наблюдатель из static/ui.js
     view.innerHTML = col(oldDate) + col(newDate);
   }
+
+  // Удаление снимка. Эндпоинт и его разбор — те же, что у дневника питания
+  // (DELETE /nutrition/api/body-photo): хранилище общее, одна таблица
+  // body_photos, один путь удаления файла с тома и одна проверка владения.
+  // Второй эндпоинт означал бы второе место, где можно забыть эту проверку,
+  // — а это фотографии тела (CLAUDE.md §5.1, BACKLOG задача 75).
+  //
+  // Делегатом на контейнер, а не обработчиком на кнопку: разметку сравнения
+  // renderCompareWk переписывает целиком при каждой перерисовке, и навешенные
+  // на кнопки слушатели умирали бы вместе с ней.
+  $('#wkCompareView').addEventListener('click', function (e) {
+    var кнопка = e.target.closest('.wk-compare-del');
+    if (!кнопка) return;
+    удалитьФотоWk(кнопка.dataset.date, кнопка.dataset.angle);
+  });
+
+  function удалитьФотоWk(date, angle) {
+    if (!confirm('Удалить фото ' + WK_РАКУРСЫ[angle] + ' за ' + date + '? Восстановить не получится.')) return;
+    // Выбор дат запоминаем до перезагрузки списка: удалённый снимок мог быть
+    // последним за свою дату, и тогда дата уходит из обоих списков сравнения
+    var было = { old: $('#wkCompareDateOld').value, new: $('#wkCompareDateNew').value };
+    fetch('/nutrition/api/body-photo?date=' + encodeURIComponent(date) + '&angle=' + angle,
+          { method: 'DELETE' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var msg = $('#wkPhotoMsg');
+        if (data.error) { msg.textContent = data.error; return; }
+        loadBodyPhotosWk(было);
+        msg.textContent = 'Фото удалено';
+      })
+      .catch(function (e) { $('#wkPhotoMsg').textContent = 'Не удалось удалить фото'; });
+  }
+
   $('#wkCompareDateOld').addEventListener('change', renderCompareWk);
   $('#wkCompareDateNew').addEventListener('change', renderCompareWk);
   loadBodyPhotosWk();
@@ -401,7 +456,7 @@
 })();
 </script>
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="/static/ui.js"></script>
+<script src="{{ st('ui.js') }}"></script>
 <script>lucide.createIcons();</script>
 </body>
 </html>

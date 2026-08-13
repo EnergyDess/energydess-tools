@@ -98,6 +98,15 @@
 .wk-compare-col { flex: 1; min-width: 120px; }
 .wk-compare-col img { width: 100%; border-radius: var(--radius-sm); margin-bottom: 4px; }
 .wk-compare-col-label { font-size: 0.75rem; color: var(--text-2); text-align: center; }
+/* Кнопка удаления поверх снимка. Форма и раскладка те же, что у .compare-del
+   в дневнике: хранилище и эндпоинт общие, и выглядеть это должно одинаково.
+   Сам значок — системный .btn-icon, здесь только место и подложка */
+.wk-compare-shot { position: relative; }
+.wk-compare-del {
+  position: absolute; top: 0.375rem; right: 0.375rem;
+  background: rgba(10, 11, 13, .72); border: 1px solid var(--border-strong);
+}
+.wk-compare-del:hover { color: var(--error); border-color: var(--error); }
 
 /* ── Моё оборудование: плашка «программа собрана под старый список» ──────
    Сама сетка, карточки и тулбар — из workout.css, здесь только плашка,

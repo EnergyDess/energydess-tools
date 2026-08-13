@@ -8,7 +8,7 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="{{ st('style.css') }}">
   {% include '_admin_styles.html' %}
 </head>
 <body class="has-site-header page-column">
@@ -54,7 +54,7 @@
    администратор, то есть авторизованный. #}
 {% include '_footer.html' %}
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="/static/ui.js"></script>
+<script src="{{ st('ui.js') }}"></script>
 <script>lucide.createIcons();</script>
 </body>
 </html>
