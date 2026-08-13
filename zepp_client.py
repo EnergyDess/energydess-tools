@@ -44,12 +44,20 @@ class ZeppAuthError(ZeppLoginError):
 
 
 class ZeppVerificationError(ZeppLoginError):
-    """Xiaomi требует подтвердить вход — капча, SMS, письмо, «это точно вы?».
-    Учётные данные при этом ВЕРНЫЕ. Отдельным классом, потому что лечится
-    это не сменой пароля, а входом в мобильном приложении.
+    """Xiaomi требует подтвердить личность — капча, SMS, письмо, «это точно вы?».
+    Учётные данные при этом ВЕРНЫЕ.
 
     Почему случай не экзотический: приложение живёт на Fly.io во Франкфурте,
-    и вход из чужого датацентра — ровно то, на что у Xiaomi стоит проверка."""
+    и вход из чужого датацентра — ровно то, на что у Xiaomi стоит проверка.
+
+    Адрес проверки лежит ОТДЕЛЬНЫМ полем, а не только внутри текста:
+    интерфейсу он нужен ссылкой, а вываленный в сообщение простынёй
+    на десять строк он нечитаем и выглядит как сбой."""
+
+    def __init__(self, сообщение: str, адрес: str = "", вид: str = ""):
+        super().__init__(сообщение)
+        self.адрес = адрес      # куда идти человеку
+        self.вид = вид          # notificationUrl | captchaUrl | код
 
 
 class ZeppProtocolError(ZeppLoginError):
@@ -99,12 +107,21 @@ def _след(шаг: str, data: dict) -> None:
     `qs` и `callback` — подписи и производные пароля. Печатать их значит
     положить учётные данные в лог, который читают глазами и пересылают.
     Имён достаточно, чтобы в следующий раз не гадать по чужому репозиторию,
-    какие поля вообще бывают."""
+    какие поля вообще бывают.
+
+    Значения от Xiaomi печатаются через `ascii()`, и это не педантизм.
+    Xiaomi отвечает по-китайски (`description='成功'`), а поток вывода
+    не всегда UTF-8: на консоли cp1251 обычный `!r` роняет `print`
+    с UnicodeEncodeError — и валит им ВЕСЬ вход, потому что строка стоит
+    в его цепочке. Диагностика, способная сломать то, что диагностирует, —
+    это §6.0.1 наизнанку. `ascii()` даёт `'\\u6210\\u529f'`: читаемо машиной,
+    опознаваемо человеком и не падает никогда (§6.0 про латиницу
+    в машинном слое)."""
     код = data.get("code")
     описание = (data.get("description") or data.get("desc") or "").strip()
     непустые = sorted(k for k, v in data.items() if v not in (None, "", [], {}))
     статус = data.get("securityStatus")
-    print(f"[zepp] {шаг}: code={код!r} description={описание!r} "
+    print(f"[zepp] {шаг}: code={код!r} description={ascii(описание)} "
           f"securityStatus={статус!r} непустые поля ({len(непустые)}): "
           f"{', '.join(непустые) or 'нет'}")
 
@@ -155,14 +172,17 @@ def _разобрать_отказ(data: dict, шаг: str = "serviceLoginAuth2"
         if адрес:
             начало = ("Логин и пароль Xiaomi принял" if успех
                       else "Xiaomi прервал вход")
+            # Адрес в текст НЕ вклеивается — он уходит отдельным полем.
+            # Вклеенный, он давал простыню на десять строк, которую
+            # невозможно прочитать и от которой сообщение выглядит сбоем
             return ZeppVerificationError(
-                f"{начало}, но требует {что} по адресу {адрес}" + хвост)
+                f"{начало}, но требует {что}" + хвост, адрес=адрес, вид=поле)
 
     вид, текст = XIAOMI_CODES.get(код, (None, None))
     if вид == "auth" and not успех:
         return ZeppAuthError(текст + хвост)
     if вид == "verify":
-        return ZeppVerificationError(текст + хвост)
+        return ZeppVerificationError(текст + хвост, вид="код")
 
     if успех:
         # Xiaomi сказал «успех», а поля, ради которого шаг делался, нет.
@@ -210,7 +230,29 @@ def _get_code(client: httpx.Client, start_url: str) -> str:
     raise ZeppStepError("после успешного входа не удалось получить код авторизации")
 
 
-def _xiaomi_oauth2_code(client: httpx.Client, username: str, password: str) -> str:
+def устройство(ключ: str) -> str:
+    """Стабильный `deviceId` — один и тот же у одного человека всегда.
+
+    ЭТО НЕ КОСМЕТИКА. До 2026-08-15 здесь стоял `uuid.uuid4().hex[:16]`,
+    то есть **новое случайное устройство на каждую попытку входа**. Xiaomi
+    привязывает отметку «этому устройству доверяем» именно к нему, поэтому
+    со случайным идентификатором пройденная проверка личности не могла
+    засчитаться НИКОГДА — по построению, а не по невезению. Каждый вход
+    выглядел первым входом с неизвестного устройства.
+
+    Стабильность важна и для диагностики: пока идентификатор случайный,
+    повторное требование проверки не значит ничего (мы сами новое
+    устройство и предъявили). С постоянным — уже значит.
+
+    Считается от ключа шифрования и идентификатора пользователя: хранить
+    отдельную колонку не нужно, миграции нет, при удалении аккаунта нечего
+    подчищать. Смена CREDENTIALS_ENCRYPTION_KEY сменит и устройство —
+    это редко и не страшно."""
+    return hashlib.sha256(ключ.encode()).hexdigest()[:16]
+
+
+def _xiaomi_oauth2_code(client: httpx.Client, username: str, password: str,
+                        device_id: str) -> str:
     r = client.get(f"https://account.xiaomi.com/oauth2/authorize?{OAUTH2_PARAMS}")
     r.raise_for_status()
     data1 = _strip_prefix(r.text)
@@ -228,7 +270,10 @@ def _xiaomi_oauth2_code(client: httpx.Client, username: str, password: str) -> s
         raise ZeppProtocolError("Xiaomi не вернул sid — изменился флоу")
 
     password_hash = hashlib.md5(password.encode()).hexdigest().upper()
-    device_id = uuid.uuid4().hex[:16]
+    # Печатаем ХВОСТ идентификатора, а не сам: по логу должно быть видно,
+    # что устройство от попытки к попытке ОДНО И ТО ЖЕ, — иначе повторное
+    # требование проверки личности снова будет нечем объяснить
+    print(f"[zepp] устройство …{device_id[-6:]} (постоянное для пользователя)")
     r = client.post(
         "https://account.xiaomi.com/pass/serviceLoginAuth2",
         data={"_json": "true", "hash": password_hash, "sid": sid,
@@ -245,12 +290,17 @@ def _xiaomi_oauth2_code(client: httpx.Client, username: str, password: str) -> s
     return _get_code(client, location)
 
 
-def login(username: str, password: str) -> dict:
+def login(username: str, password: str, ключ_устройства: str = "") -> dict:
     """Полный логин по паролю — использовать только при первом подключении
     или когда кешированный токен перестал работать. Возвращает
-    {"app_token": ..., "zepp_user_id": ...}."""
+    {"app_token": ..., "zepp_user_id": ...}.
+
+    `ключ_устройства` — то, из чего считается постоянный `deviceId`
+    (см. `устройство`). Пустой означает «одноразовое устройство»: так
+    вызывать не надо, но падать из-за этого тоже незачем."""
+    device_id = устройство(ключ_устройства) if ключ_устройства else uuid.uuid4().hex[:16]
     with httpx.Client(timeout=30.0) as client:
-        code = _xiaomi_oauth2_code(client, username, password)
+        code = _xiaomi_oauth2_code(client, username, password, device_id)
         r = client.post(
             "https://account.zepp.com/v2/client/login",
             data={
@@ -258,7 +308,10 @@ def login(username: str, password: str) -> dict:
                 "app_version": "6.14.0",
                 "code": code,
                 "country_code": "CN",
-                "device_id": str(uuid.uuid4()),
+                # То же устройство, что и на шаге Xiaomi: два разных
+                # идентификатора в одной цепочке — это два разных телефона
+                # с точки зрения обеих сторон
+                "device_id": device_id,
                 "device_model": "phone",
                 "dn": "api-mifit.zepp.com",
                 "grant_type": "request_token",

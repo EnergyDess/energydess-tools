@@ -81,7 +81,9 @@
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease);
 }
-.btn-danger:hover { background: color-mix(in srgb, var(--error) 10%, transparent); }
+@media (hover: hover) {
+  .btn-danger:hover { background: color-mix(in srgb, var(--error) 10%, transparent); }
+}
 
 /* ── Содержимое модалок ──────────────────────────────────────────────────
    Сам оверлей, шапка, заголовок и кнопка закрытия — компонент
@@ -114,7 +116,9 @@
   cursor: pointer; color: var(--text-2);
   transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.avatar-upload-btn:hover { border-color: var(--accent-brand); color: var(--accent-brand); }
+@media (hover: hover) {
+  .avatar-upload-btn:hover { border-color: var(--accent-brand); color: var(--accent-brand); }
+}
 .avatar-upload-btn svg { width: 16px; height: 16px; stroke-width: 1.75; }
 
 
@@ -177,7 +181,9 @@
   color: var(--text-faint); cursor: pointer;
   text-decoration: underline; text-underline-offset: 3px;
 }
-.avatar-remove-link:hover { color: var(--error); }
+@media (hover: hover) {
+  .avatar-remove-link:hover { color: var(--error); }
+}
 .avatar-remove-link[hidden] { display: none; }
 
 /* ── Селектор: свой вид вместо нативного ─────────────────────────────────── */
@@ -196,7 +202,9 @@
   width: 16px; height: 16px;
   color: var(--text-faint); pointer-events: none;
 }
-.select-wrap:hover .select-arrow { color: var(--text-2); }
+@media (hover: hover) {
+  .select-wrap:hover .select-arrow { color: var(--text-2); }
+}
 
 /* ── Кнопки в строках настроек одной ширины ──────────────────────────────
    Текст у них разной длины («Изменить email» / «Сменить пароль»), и без

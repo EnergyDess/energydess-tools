@@ -176,7 +176,9 @@
   transition: border-color 0.2s, background 0.2s, transform 0.2s;
   text-align: center;
 }
-.wk-option:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+@media (hover: hover) {
+  .wk-option:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+}
 .wk-option.selected {
   background: var(--surface-3);
   border-color: var(--tool-accent);
@@ -195,7 +197,9 @@
   cursor: pointer; transition: all 0.2s;
   display: flex; align-items: center; justify-content: center;
 }
-.wk-day-btn:hover { border-color: var(--border-strong); }
+@media (hover: hover) {
+  .wk-day-btn:hover { border-color: var(--border-strong); }
+}
 .wk-day-btn.selected {
   background: var(--tool-accent); border-color: transparent; color: var(--surface-0);
   box-shadow: 0 4px 18px color-mix(in srgb, var(--tool-accent) 40%, transparent);
@@ -216,7 +220,9 @@
   border-radius: var(--radius-sm); padding: var(--space-4);
   cursor: pointer; transition: all 0.2s;
 }
-.wk-pain-item:hover { border-color: var(--border-strong); }
+@media (hover: hover) {
+  .wk-pain-item:hover { border-color: var(--border-strong); }
+}
 .wk-pain-item.selected { border-color: var(--tool-accent); background: var(--surface-3); }
 .wk-pain-check {
   width: 20px; height: 20px; border-radius: var(--radius-sm); flex-shrink: 0;
@@ -255,7 +261,9 @@
   font-family: var(--font-mono); font-size: var(--text-body); font-weight: 500;
   cursor: pointer; transition: all 0.2s; text-align: center;
 }
-.wk-preset-btn:hover { border-color: var(--border-strong); }
+@media (hover: hover) {
+  .wk-preset-btn:hover { border-color: var(--border-strong); }
+}
 .wk-preset-btn.selected { background: var(--tool-accent); border-color: transparent; color: var(--surface-0); }
 .wk-manual-row { display: flex; align-items: center; gap: var(--space-3); }
 /* Отбивка ряда в редакторе шага — было инлайном style="margin-bottom:8px" */
@@ -279,10 +287,14 @@
 }
 .wk-btn svg { flex-shrink: 0; }
 .wk-btn-primary { background: var(--tool-accent); color: var(--surface-0); }
-.wk-btn-primary:hover { filter: brightness(1.08); }
+@media (hover: hover) {
+  .wk-btn-primary:hover { filter: brightness(1.08); }
+}
 .wk-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 .wk-btn-ghost { background: var(--surface-2); color: var(--text); border: 1px solid var(--border-strong); }
-.wk-btn-ghost:hover { border-color: var(--tool-accent); }
+@media (hover: hover) {
+  .wk-btn-ghost:hover { border-color: var(--tool-accent); }
+}
 .wk-btn-ghost:disabled { opacity: 0.3; cursor: default; }
 
 /* Мой зал — чек-лист оборудования */
@@ -294,7 +306,9 @@
   border-radius: var(--radius-sm); font-size: var(--text-body-sm); cursor: pointer;
   transition: all 0.2s; white-space: nowrap;
 }
-.wk-home-btn:hover { border-color: var(--border-strong); }
+@media (hover: hover) {
+  .wk-home-btn:hover { border-color: var(--border-strong); }
+}
 .wk-home-btn.active { background: var(--tool-accent); color: var(--surface-0); border-color: transparent; font-weight: 600; }
 
 .wk-eq-grid {
@@ -317,13 +331,17 @@
   border-radius: var(--radius-sm); overflow: hidden; cursor: pointer;
   transition: all 0.2s; position: relative;
 }
-.wk-eq-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+@media (hover: hover) {
+  .wk-eq-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+}
 .wk-eq-card.selected { border-color: var(--tool-accent); box-shadow: 0 0 0 2px var(--tool-accent); }
 .wk-eq-card .wk-eq-img-wrap {
   width: 100%; aspect-ratio: 1/1; min-height: 160px; background: var(--surface-0); overflow: hidden;
 }
 .wk-eq-card img { width: 100%; height: 100%; object-fit: cover; opacity: 0.88; transition: opacity 0.2s, transform 0.2s; }
-.wk-eq-card:hover img { transform: scale(1.05); }
+@media (hover: hover) {
+  .wk-eq-card:hover img { transform: scale(1.05); }
+}
 .wk-eq-card.selected img { opacity: 1; }
 .wk-eq-check {
   position: absolute; top: var(--space-2); right: var(--space-2); width: 24px; height: 24px;
@@ -350,7 +368,9 @@
      в одном текстовом узле, пробел был внутри. Замер после замены:
      значок вплотную к букве. */
   gap: var(--space-2); }
-.wk-action-btn:hover { border-color: var(--tool-accent); }
+@media (hover: hover) {
+  .wk-action-btn:hover { border-color: var(--tool-accent); }
+}
 .wk-weight-chart-box { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-5); }
 .wk-weight-chart-title { font-family: var(--font); font-weight: 700; color: var(--text); font-size: var(--text-body-sm); margin-bottom: var(--space-2); }
 .wk-weight-svg { width: 100%; height: 140px; overflow: visible; }
@@ -361,13 +381,17 @@
 .wk-lightbox.show { display: flex; }
 .wk-lightbox img { max-width: 100%; max-height: 100%; border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); }
 .wk-lightbox-close { position: absolute; top: var(--space-5); right: var(--space-5); background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); width: 38px; height: 38px; border-radius: 50%; font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
-.wk-lightbox-close:hover { border-color: var(--tool-accent); }
+@media (hover: hover) {
+  .wk-lightbox-close:hover { border-color: var(--tool-accent); }
+}
 .wk-progress-chart-panel { display: none; margin-top: var(--space-3); background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-3); }
 .wk-progress-chart-panel.show { display: block; }
 .wk-progress-chart-svg { width: 100%; height: 130px; overflow: visible; }
 .wk-progress-chart-empty { font-size: var(--text-caption); color: var(--text-2); text-align: center; padding: var(--space-3) 0; }
 .wk-ex-chartbtn { background: none; border: 1px solid var(--border-strong); color: var(--text-2); border-radius: 999px; padding: var(--space-1) var(--space-3); font-size: var(--text-mono); cursor: pointer; }
-.wk-ex-chartbtn:hover { border-color: var(--tool-accent); color: var(--text); }
+@media (hover: hover) {
+  .wk-ex-chartbtn:hover { border-color: var(--tool-accent); color: var(--text); }
+}
 .wk-done-actions { display: flex; gap: var(--space-2); justify-content: center; margin-top: var(--space-4); flex-wrap: wrap; max-width: 420px; margin-left: auto; margin-right: auto; }
 .wk-nutrition-box { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-5); }
 .wk-nutrition-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); }
@@ -435,7 +459,9 @@
 .wk-return-text { color: var(--text-2); font-size: var(--text-body-sm); text-align: center; margin-bottom: var(--space-6); }
 .wk-return-options { display: flex; flex-direction: column; gap: var(--space-3); }
 .wk-return-option { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-4) var(--space-5); cursor: pointer; transition: all 0.2s; }
-.wk-return-option:hover { border-color: var(--tool-accent); transform: translateY(-1px); }
+@media (hover: hover) {
+  .wk-return-option:hover { border-color: var(--tool-accent); transform: translateY(-1px); }
+}
 .wk-return-option-title { font-weight: 700; color: var(--text); font-size: var(--text-body-sm); margin-bottom: var(--space-1); }
 .wk-return-option-desc { color: var(--text-2); font-size: var(--text-caption); }
 .wk-return-confirm { background: var(--surface-2); border: 1px solid var(--status-done); border-radius: var(--radius-lg); padding: var(--space-6); color: var(--text); font-size: var(--text-body-sm); line-height: 1.6; text-align: center; }
@@ -450,12 +476,16 @@
 .wk-calibration-banner { position: relative; background: linear-gradient(135deg, color-mix(in srgb, var(--tool-accent) 14%, transparent), color-mix(in srgb, var(--tool-accent) 5%, transparent)); border: 1px solid var(--tool-accent); border-radius: var(--radius-sm); padding: var(--space-4) var(--space-6) var(--space-4) var(--space-4); margin-bottom: var(--space-5); font-size: var(--text-caption); color: var(--text-2); line-height: 1.5; }
 .wk-calibration-banner strong { color: var(--text); }
 .wk-calibration-close { position: absolute; top: var(--space-2); right: var(--space-2); background: none; border: none; color: var(--text-2); font-size: 1.3rem; line-height: 1; cursor: pointer; padding: var(--space-1) var(--space-2); }
-.wk-calibration-close:hover { color: var(--text); }
+@media (hover: hover) {
+  .wk-calibration-close:hover { color: var(--text); }
+}
 .wk-painzones-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-5); }
 .wk-painzones-label { font-size: var(--text-caption); color: var(--text-2); }
 .wk-painzone-chip { display: inline-flex; align-items: center; gap: var(--space-2); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 999px; padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3); font-size: var(--text-caption); color: var(--text); }
 .wk-painzone-clear { background: none; border: 1px solid var(--tool-accent); color: var(--tool-accent); border-radius: 999px; padding: var(--space-1) var(--space-3); font-size: var(--text-mono); cursor: pointer; white-space: nowrap; }
-.wk-painzone-clear:hover { background: var(--tool-accent); color: var(--surface-0); }
+@media (hover: hover) {
+  .wk-painzone-clear:hover { background: var(--tool-accent); color: var(--surface-0); }
+}
 .wk-return-notice { position: relative; background: linear-gradient(135deg, color-mix(in srgb, var(--tool-accent) 14%, transparent), color-mix(in srgb, var(--tool-accent) 5%, transparent)); border: 1px solid var(--tool-accent); border-radius: var(--radius-sm); padding: var(--space-3) var(--space-6) var(--space-3) var(--space-4); margin-bottom: var(--space-3); font-size: var(--text-caption); color: var(--text-2); line-height: 1.5; }
 .wk-return-notice strong { color: var(--text); }
 .wk-return-notice-close { position: absolute; top: var(--space-1); right: var(--space-2); background: none; border: none; color: var(--text-2); font-size: 1.2rem; line-height: 1; cursor: pointer; padding: var(--space-1) var(--space-2); }
@@ -476,7 +506,9 @@
   border: 1px solid var(--border); color: var(--text-2); padding: var(--space-3) var(--space-5);
   border-radius: var(--radius-sm); font-size: var(--text-body-sm); cursor: pointer; transition: all 0.2s;
 }
-.wk-regen-btn:hover { color: var(--text); border-color: var(--border-strong); }
+@media (hover: hover) {
+  .wk-regen-btn:hover { color: var(--text); border-color: var(--border-strong); }
+}
 
 /* На широких мониторах (≥1400px), когда развёрнуто 2+ дня — раскладываем
    их по колонкам вместо длинной вертикальной ленты. Сам .wk-shell на это
@@ -521,7 +553,9 @@
   background: transparent; border: 1px solid var(--border); color: var(--text-2);
   padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-caption); cursor: pointer; transition: all 0.2s;
 }
-.wk-complete-btn:hover, .wk-skip-btn:hover { color: var(--text); border-color: var(--border-strong); }
+@media (hover: hover) {
+  .wk-complete-btn:hover, .wk-skip-btn:hover { color: var(--text); border-color: var(--border-strong); }
+}
 .wk-complete-btn.done { color: var(--status-done); border-color: var(--status-done); }
 .wk-skip-btn.done { color: var(--status-skipped); border-color: var(--status-skipped); }
 .wk-skip-panel { display: none; background: var(--surface-3); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-4); }
@@ -532,7 +566,9 @@
   background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
   padding: var(--space-2) var(--space-3); border-radius: 999px; font-size: var(--text-caption); cursor: pointer; transition: all 0.2s;
 }
-.wk-skip-reason-btn:hover { border-color: var(--tool-accent); }
+@media (hover: hover) {
+  .wk-skip-reason-btn:hover { border-color: var(--tool-accent); }
+}
 .wk-skip-note { margin-top: var(--space-3); font-size: var(--text-caption); color: var(--status-skipped); display: none; }
 .wk-skip-note.show { display: block; }
 
@@ -541,22 +577,30 @@
 .wk-ex-head { display: flex; gap: var(--space-4); align-items: flex-start; }
 .wk-ex-img { width: 120px; height: 120px; border-radius: var(--radius-sm); overflow: hidden; flex-shrink: 0; background: var(--surface-sunken); cursor: pointer; position: relative; }
 .wk-ex-img img { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.15s, transform 0.2s; }
-.wk-ex-img:hover img { opacity: 0.85; transform: scale(1.04); }
+@media (hover: hover) {
+  .wk-ex-img:hover img { opacity: 0.85; transform: scale(1.04); }
+}
 .wk-ex-headinfo { flex: 1; min-width: 0; }
 .wk-ex-name { color: var(--text); font-size: var(--text-body-lg); font-weight: 700; line-height: 1.3; }
 .wk-ex-muscles { color: var(--text-2); font-size: var(--text-caption); margin-top: var(--space-1); line-height: 1.5; }
 .wk-ex-muscles .dim { color: var(--text-faint); }
 .wk-ex-progression { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); font-size: var(--text-caption); color: var(--tool-accent); font-family: var(--font-mono); flex-wrap: wrap; }
 .wk-ex-progbtn { background: none; border: none; color: var(--text-2); text-decoration: underline; font-size: var(--text-mono); cursor: pointer; font-family: var(--font); padding: 0; }
-.wk-ex-progbtn:hover { color: var(--text); }
+@media (hover: hover) {
+  .wk-ex-progbtn:hover { color: var(--text); }
+}
 .wk-ex-alt-row { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); flex-wrap: wrap; }
 .wk-ex-altbtn { background: none; border: 1px solid var(--border-strong); color: var(--text-2); border-radius: 999px; padding: var(--space-1) var(--space-3); font-size: var(--text-mono); cursor: pointer; font-family: var(--font); font-weight: 600; }
-.wk-ex-altbtn:hover { border-color: var(--tool-accent); color: var(--text); text-decoration: underline; }
+@media (hover: hover) {
+  .wk-ex-altbtn:hover { border-color: var(--tool-accent); color: var(--text); text-decoration: underline; }
+}
 
 .wk-swap-indicator { display: none; margin-top: var(--space-3); background: color-mix(in srgb, var(--tool-accent) 10%, transparent); border: 1px solid color-mix(in srgb, var(--tool-accent) 30%, transparent); border-radius: var(--radius-sm); padding: var(--space-3); font-size: var(--text-caption); color: var(--text-2); }
 .wk-swap-indicator.show { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
 .wk-swap-revert-btn { background: transparent; border: 1px solid var(--border-strong); color: var(--text); padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-mono); cursor: pointer; white-space: nowrap; }
-.wk-swap-revert-btn:hover { border-color: var(--tool-accent); }
+@media (hover: hover) {
+  .wk-swap-revert-btn:hover { border-color: var(--tool-accent); }
+}
 
 .wk-stuck-nudge { display: none; margin-top: var(--space-3); background: color-mix(in srgb, var(--warning) 10%, transparent); border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent); border-radius: var(--radius-sm); padding: var(--space-3); font-size: var(--text-caption); color: var(--text-2); align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
 .wk-stuck-nudge.show { display: flex; }
@@ -567,7 +611,9 @@
 .wk-alt-picker-title { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-3); }
 .wk-alt-options { display: flex; gap: var(--space-3); flex-wrap: wrap; }
 .wk-alt-option { display: flex; align-items: center; gap: var(--space-3); background: var(--surface-3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-3); cursor: pointer; transition: all 0.2s; flex: 1; min-width: 200px; }
-.wk-alt-option:hover { border-color: var(--tool-accent); }
+@media (hover: hover) {
+  .wk-alt-option:hover { border-color: var(--tool-accent); }
+}
 .wk-alt-option img { width: 44px; height: 44px; border-radius: var(--radius-sm); object-fit: cover; flex-shrink: 0; }
 .wk-alt-option-name { font-size: var(--text-body-sm); font-weight: 600; color: var(--text); }
 .wk-alt-empty { color: var(--text-2); font-size: var(--text-caption); }
@@ -576,7 +622,9 @@
   background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2);
   cursor: pointer; font-size: var(--text-body); display: flex; align-items: center; justify-content: center; transition: all 0.2s;
 }
-.wk-ex-chat:hover { border-color: var(--tool-accent); color: var(--text); }
+@media (hover: hover) {
+  .wk-ex-chat:hover { border-color: var(--tool-accent); color: var(--text); }
+}
 
 .wk-ex-howto-toggle {
   background: none; border: none; color: var(--tool-accent); font-size: var(--text-caption); cursor: pointer;
@@ -601,7 +649,9 @@
 .wk-progress-suggestion-btns { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .wk-progress-up-btn { background: var(--tool-accent); border: none; color: var(--surface-0); padding: var(--space-2) var(--space-4); border-radius: var(--radius-sm); font-size: var(--text-caption); font-weight: 600; cursor: pointer; }
 .wk-progress-keep-btn { background: transparent; border: 1px solid var(--border); color: var(--text-2); padding: var(--space-2) var(--space-4); border-radius: var(--radius-sm); font-size: var(--text-caption); cursor: pointer; }
-.wk-progress-keep-btn:hover { color: var(--text); border-color: var(--border-strong); }
+@media (hover: hover) {
+  .wk-progress-keep-btn:hover { color: var(--text); border-color: var(--border-strong); }
+}
 .wk-pb-badge { color: var(--warning); }
 
 .wk-ex-log { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border); }
@@ -628,7 +678,9 @@
   padding: var(--space-3) var(--space-5); border-radius: var(--radius-sm);
   font-size: var(--text-body-sm); font-weight: 600; cursor: pointer; transition: filter 0.2s; width: 100%;
 }
-.wk-save-sets-btn:hover { filter: brightness(1.08); }
+@media (hover: hover) {
+  .wk-save-sets-btn:hover { filter: brightness(1.08); }
+}
 .wk-save-sets-btn.saved { background: var(--surface-3); color: var(--status-done); }
 
 .wk-machine-prompt { display: none; margin-top: var(--space-3); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-4); }
@@ -636,7 +688,9 @@
 .wk-machine-prompt-text { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-3); line-height: 1.5; }
 .wk-machine-prompt-btns { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .wk-machine-prompt-btn { background: var(--surface-3); border: 1px solid var(--border); color: var(--text); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-caption); cursor: pointer; transition: all 0.2s; }
-.wk-machine-prompt-btn:hover { border-color: var(--tool-accent); }
+@media (hover: hover) {
+  .wk-machine-prompt-btn:hover { border-color: var(--tool-accent); }
+}
 .wk-machine-fixed-input { margin-top: var(--space-3); display: none; }
 .wk-machine-fixed-input.show { display: block; }
 .wk-machine-fixed-input input {
@@ -655,7 +709,9 @@
   font-size: 0.6875rem; font-weight: 700; cursor: pointer; line-height: 1; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
 }
-.wk-tip-btn:hover { color: var(--text); border-color: var(--tool-accent); }
+@media (hover: hover) {
+  .wk-tip-btn:hover { color: var(--text); border-color: var(--tool-accent); }
+}
 .wk-tip-bubble {
   max-width: 260px; background: var(--surface-3); border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm); padding: var(--space-3); font-size: var(--text-caption); color: var(--text);

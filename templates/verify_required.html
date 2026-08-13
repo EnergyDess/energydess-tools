@@ -38,7 +38,9 @@
       transition: background 0.2s;
       margin-top: 8px;
     }
-    .verify-resend-btn:hover { background: rgba(124,77,255,0.2); }
+    @media (hover: hover) {
+      .verify-resend-btn:hover { background: rgba(124,77,255,0.2); }
+    }
 
     /* Утилиты страниц подтверждения. Раньше это лежало инлайном в разметке
        (CLAUDE.md §6.0.2): атрибут style= бьёт любой файловый селектор,
@@ -59,7 +61,9 @@
     .v-mt-24      { margin-top: var(--space-6); }
     .v-link       { color: var(--accent-brand); font-size: var(--text-body-sm);
                     text-decoration: none; transition: opacity var(--dur-fast) var(--ease); }
-    .v-link:hover { opacity: 0.8; }
+    @media (hover: hover) {
+      .v-link:hover { opacity: 0.8; }
+    }
   </style>
 </head>
 <body class="auth-layout has-site-header">

@@ -246,12 +246,14 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
               transform var(--dur-base) var(--ease),
               box-shadow var(--dur-base) var(--ease);
 }
-.card:hover {
-  border-color: var(--border-strong);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+@media (hover: hover) {
+  .card:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .card-static:hover { transform: none; box-shadow: none; border-color: var(--border); }
 }
-.card-static:hover { transform: none; box-shadow: none; border-color: var(--border); }
 
 /* ── Карточка инструмента ────────────────────────────────────────────────
    Единый компонент для лендинга (гость) и главной (авторизованный):
@@ -273,11 +275,13 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
 }
 /* Ховер в акценте своего инструмента: рамка, свечение тени и блик — всё
    в --tool-accent, поэтому эффект работает и на идентичность тоже */
-.tool-card:hover {
-  border-color: var(--tool-accent, var(--border-strong));
-  box-shadow: var(--shadow-lg),
-              0 0 0 1px color-mix(in srgb, var(--tool-accent, var(--accent-brand)) 20%, transparent),
-              0 0 32px color-mix(in srgb, var(--tool-accent, var(--accent-brand)) 12%, transparent);
+@media (hover: hover) {
+  .tool-card:hover {
+    border-color: var(--tool-accent, var(--border-strong));
+    box-shadow: var(--shadow-lg),
+                0 0 0 1px color-mix(in srgb, var(--tool-accent, var(--accent-brand)) 20%, transparent),
+                0 0 32px color-mix(in srgb, var(--tool-accent, var(--accent-brand)) 12%, transparent);
+  }
 }
 /* Блик, пробегающий по карточке при наведении */
 .tool-card::after {
@@ -291,13 +295,17 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
               transparent);
   pointer-events: none;
 }
-.tool-card:hover::after { animation: toolShimmer 0.85s var(--ease-out) forwards; }
+@media (hover: hover) {
+  .tool-card:hover::after { animation: toolShimmer 0.85s var(--ease-out) forwards; }
+}
 @keyframes toolShimmer { to { left: 160%; } }
 
 /* Неактивные состояния — карточка не кликается, ховер-эффектов нет */
 .tool-card.is-locked, .tool-card.is-soon { opacity: 0.45; pointer-events: none; }
-.tool-card.is-locked:hover, .tool-card.is-soon:hover {
-  transform: none; box-shadow: none; border-color: var(--border);
+@media (hover: hover) {
+  .tool-card.is-locked:hover, .tool-card.is-soon:hover {
+    transform: none; box-shadow: none; border-color: var(--border);
+  }
 }
 
 .tool-card-icon {
@@ -326,15 +334,19 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
   transition: transform var(--dur-base) var(--ease), color var(--dur-base) var(--ease);
 }
 .tool-card-arrow svg { width: 20px; height: 20px; stroke-width: 1.5; }
-.tool-card:hover .tool-card-arrow {
-  transform: translateX(6px);
-  color: var(--tool-accent, var(--accent-brand));
+@media (hover: hover) {
+  .tool-card:hover .tool-card-arrow {
+    transform: translateX(6px);
+    color: var(--tool-accent, var(--accent-brand));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   /* блик не бежит — остаётся статичная подсветка рамки из :hover */
-  .tool-card:hover::after { animation: none; }
-  .tool-card:hover .tool-card-arrow { transform: none; }
+  @media (hover: hover) {
+    .tool-card:hover::after { animation: none; }
+    .tool-card:hover .tool-card-arrow { transform: none; }
+  }
 }
 
 /* ── Buttons ──────────────────────────────────────────────────────────────
@@ -371,7 +383,9 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
               background var(--dur-fast) var(--ease),
               filter var(--dur-fast) var(--ease);
 }
-.btn-primary:hover { background: var(--tool-accent-hover, var(--accent-brand-hover)); transform: scale(1.02); }
+@media (hover: hover) {
+  .btn-primary:hover { background: var(--tool-accent-hover, var(--accent-brand-hover)); transform: scale(1.02); }
+}
 .btn-primary:active { transform: scale(1); }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
@@ -422,7 +436,9 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
   -webkit-tap-highlight-color: transparent;
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.btn-icon:hover { color: var(--text-2); }
+@media (hover: hover) {
+  .btn-icon:hover { color: var(--text-2); }
+}
 .btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-icon svg { width: 18px; height: 18px; stroke-width: 1.5; flex-shrink: 0; }
 /* Вариант «на подложке»: кнопка стоит не внутри поля, а сама по себе —
@@ -432,7 +448,9 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
   background: var(--surface-sunken);
   color: var(--text-2);
 }
-.btn-icon-solid:hover { color: var(--text); background: var(--surface-2); }
+@media (hover: hover) {
+  .btn-icon-solid:hover { color: var(--text); background: var(--surface-2); }
+}
 /* Круглый вариант — для крестика закрытия: круг читается как «убрать»,
    квадрат в шапке окна спорит с прямоугольником самого окна. */
 .btn-icon-round { border-radius: 50%; }
@@ -460,9 +478,11 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
    две главные кнопки разного цвета: primary янтарная, а стоящая рядом
    secondary синеет под курсором. Заливки у secondary нет, поэтому вопрос
    цвета надписи здесь не возникает — --tool-accent-ink ей не нужен. */
-.btn-secondary:hover {
-  border-color: var(--tool-accent, var(--accent-brand));
-  background: var(--tool-accent-dim, var(--accent-brand-dim));
+@media (hover: hover) {
+  .btn-secondary:hover {
+    border-color: var(--tool-accent, var(--accent-brand));
+    background: var(--tool-accent-dim, var(--accent-brand-dim));
+  }
 }
 .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -502,7 +522,9 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
   text-decoration: none;
   transition: color var(--dur-fast) var(--ease);
 }
-.btn-ghost:hover { color: var(--text); }
+@media (hover: hover) {
+  .btn-ghost:hover { color: var(--text); }
+}
 
 /* ── Третичная ссылка-кнопка ────────────────────────────────────────────────
    Стоит рядом с .btn-primary в геройском блоке лендинга и держит ряд ровным
@@ -670,9 +692,11 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
   line-height: 1.45;
 }
 button.chip, a.chip { cursor: pointer; }
-button.chip:hover, a.chip:hover {
-  border-color: var(--border-strong);
-  color: var(--text);
+@media (hover: hover) {
+  button.chip:hover, a.chip:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
 }
 .chip.active {
   background: var(--tool-accent-dim, var(--accent-brand-dim));
@@ -734,7 +758,9 @@ button.chip:hover, a.chip:hover {
   white-space: nowrap;
   transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
-.tab-btn:hover { color: var(--text); }
+@media (hover: hover) {
+  .tab-btn:hover { color: var(--text); }
+}
 .tab-btn.active { color: var(--text); border-bottom-color: var(--tool-accent, var(--accent-brand)); }
 .tab-btn svg { width: 16px; height: 16px; stroke-width: 1.5; }
 .tab-btn.active svg { color: var(--tool-accent, var(--accent-brand)); }
@@ -792,7 +818,9 @@ button.chip:hover, a.chip:hover {
   white-space: nowrap;
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.segmented-btn:hover:not(.active) { color: var(--text-2); }
+@media (hover: hover) {
+  .segmented-btn:hover:not(.active) { color: var(--text-2); }
+}
 .segmented-btn.active { background: var(--surface-3); color: var(--text); }
 .segmented-btn svg { width: 14px; height: 14px; stroke-width: 1.5; }
 
@@ -804,6 +832,35 @@ button.chip:hover, a.chip:hover {
 @media (max-width: 640px) {
   .tab-btn { padding: var(--space-3); font-size: var(--text-caption); }
 }
+
+/* ── Отказ подключения весов: ссылка на проверку личности ────────────────────
+   Живёт в системе, а не в страничном файле, потому что форма подключения
+   весов есть на ДВУХ страницах — /nutrition и /workout/profile, — и вторая
+   копия этих правил разошлась бы с первой молча (CLAUDE.md §6.0.2).
+
+   Адрес проверки от Xiaomi длиной в сотни знаков, поэтому в тексте он
+   заменён словом «ссылка»: вклеенный целиком, он давал десять строк
+   нечитаемого полотна и сообщение выглядело сбоем приложения. */
+.scale-verify-link {
+  color: var(--tool-accent, var(--accent-brand));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 600;
+}
+.scale-verify-link:focus-visible {
+  outline: 2px solid var(--tool-accent, var(--accent-brand));
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+/* Пояснение про 404 в конце проверки — не ошибка, а особенность потока
+   Xiaomi, поэтому обычным вторичным цветом, а не красным */
+.scale-verify-note {
+  margin-top: var(--space-2);
+  color: var(--text-2);
+  font-size: var(--text-caption);
+  line-height: 1.5;
+}
+.scale-verify-retry { margin-top: var(--space-3); }
 
 /* ── Modals ─────────────────────────────────────────────────────────────────
    .modal и .modal-backdrop УДАЛЕНЫ 2026-08-04. Это было окно-коробка
@@ -1009,7 +1066,9 @@ html.modal-open, html.modal-open body { overflow: hidden; }
      центрируется относительно вьюпорта, а не остатка пространства */
   flex: 1 1 0;
 }
-.site-header .header-logo:hover { opacity: 0.85; }
+@media (hover: hover) {
+  .site-header .header-logo:hover { opacity: 0.85; }
+}
 /* Шапка «по краям»: содержимое прижато к краям, середина пуста. Крылья
    не растягиваем — логотип слева, кнопки входа или аватар справа
    (обычный space-between).
@@ -1137,7 +1196,12 @@ html.modal-open, html.modal-open body { overflow: hidden; }
   justify-content: center;
   font-size: var(--text-body-sm);
   font-weight: 700;
-  cursor: pointer;
+  /* Курсор-указателя здесь НЕТ намеренно (BACKLOG.md, задача 71).
+     Сам кругляшок — картинка, а не действие. В шапке он лежит внутри
+     `.avatar-btn`, и указатель ему даёт кнопка; на `/profile` действия
+     за ним нет вовсе, и указатель там обещал нажатие, которого не бывает.
+     Проверено нажатием, а не чтением: клик по `.avatar-lg` не менял ни
+     разметки, ни адреса, ни фокуса и не открывал выбор файла. */
   border: 1px solid var(--border);
   flex-shrink: 0;
   user-select: none;
@@ -1146,7 +1210,12 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 /* Загруженное фото: те же размеры и круг, что у буквы-инициала.
    object-fit обязателен — без него неквадратная картинка растянется */
 img.avatar { object-fit: cover; padding: 0; }
-.avatar:hover { border-color: var(--border-strong); }
+/* Подсветка при наведении — только там, где кругляшок ДЕЙСТВИТЕЛЬНО
+   нажимается, то есть внутри кнопки в шапке. На `/profile` он ничего
+   не открывает, и подсветка обещала бы там то же, что обещал курсор */
+@media (hover: hover) {
+  .avatar-btn:hover .avatar { border-color: var(--border-strong); }
+}
 .avatar-lg { width: 96px; height: 96px; font-size: var(--text-h3); }
 
 .avatar-wrap { position: relative; }
@@ -1195,9 +1264,11 @@ img.avatar { object-fit: cover; padding: 0; }
   text-align: left;
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.avatar-dropdown a:hover, .avatar-dropdown button:hover {
-  background: var(--surface-2);
-  color: var(--text);
+@media (hover: hover) {
+  .avatar-dropdown a:hover, .avatar-dropdown button:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
 }
 
 /* ── Tool icon ──────────────────────────────────────────────────────────── */
@@ -1218,7 +1289,9 @@ img.avatar { object-fit: cover; padding: 0; }
   padding: var(--space-4) 0;
 }
 .breadcrumb a { color: var(--text-2); text-decoration: none; transition: color var(--dur-fast) var(--ease); }
-.breadcrumb a:hover { color: var(--text); }
+@media (hover: hover) {
+  .breadcrumb a:hover { color: var(--text); }
+}
 .breadcrumb .crumb-sep { color: var(--text-faint); }
 .breadcrumb .crumb-current { color: var(--text); font-weight: 500; }
 
@@ -1289,13 +1362,17 @@ img.avatar { object-fit: cover; padding: 0; }
   color: var(--text-faint); stroke-width: 1.75;
   transition: color var(--dur-fast) var(--ease);
 }
-.site-footer a:hover { color: var(--text); }
+@media (hover: hover) {
+  .site-footer a:hover { color: var(--text); }
+}
 /* Иконки инструментов сразу в своём акценте — тот же цвет, что у карточки
    на главной, поэтому раздел узнаётся по цвету, а не по чтению.
    У остальных ссылок иконка нейтральная и загорается только на ховере */
 .site-footer li[class*="tool-"] svg { color: var(--tool-accent); opacity: 0.85; }
-.site-footer li[class*="tool-"] a:hover svg { opacity: 1; }
-.site-footer li:not([class*="tool-"]) a:hover svg { color: var(--accent-brand); }
+@media (hover: hover) {
+  .site-footer li[class*="tool-"] a:hover svg { opacity: 1; }
+  .site-footer li:not([class*="tool-"]) a:hover svg { color: var(--accent-brand); }
+}
 
 /* ── Нижняя строка ── */
 .site-footer-bottom {
@@ -1468,7 +1545,9 @@ img.avatar { object-fit: cover; padding: 0; }
   gap: 7px;
   transition: opacity var(--dur-base) var(--ease);
 }
-.nav-logo:hover { opacity: 0.8; }
+@media (hover: hover) {
+  .nav-logo:hover { opacity: 0.8; }
+}
 .nav-logo-symbol { color: var(--accent-brand); }
 .logo-dess { color: var(--accent-brand); }
 
@@ -1486,10 +1565,12 @@ img.avatar { object-fit: cover; padding: 0; }
               border-color var(--dur-base) var(--ease);
   letter-spacing: 0.01em;
 }
-.nav-links a:hover, .nav-right a:hover {
-  color: var(--text);
-  border-color: var(--border-strong);
-  background: rgba(255,255,255,0.05);
+@media (hover: hover) {
+  .nav-links a:hover, .nav-right a:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+    background: rgba(255,255,255,0.05);
+  }
 }
 .nav-links a.active, .nav-right a.active {
   color: var(--accent-brand);
@@ -1497,15 +1578,27 @@ img.avatar { object-fit: cover; padding: 0; }
   border-color: var(--accent-brand);
 }
 .nav-right { display: flex; align-items: center; gap: 6px; }
-.nav-right .nav-logout:hover {
-  color: var(--error);
-  background: rgba(239,68,68,0.07);
-  border-color: rgba(239,68,68,0.15);
+@media (hover: hover) {
+  .nav-right .nav-logout:hover {
+    color: var(--error);
+    background: rgba(239,68,68,0.07);
+    border-color: rgba(239,68,68,0.15);
+  }
 }
 .admin-link { color: var(--accent-brand) !important; }
-.admin-link:hover, .admin-link.active {
+/* Раздельно, а не одной группой с :hover. Группу пришлось бы целиком
+   завернуть в @media (hover: hover), и подсветка ТЕКУЩЕГО раздела
+   (.active) исчезла бы на телефоне вместе с наведением — а она сообщает,
+   где человек находится, и к указателю отношения не имеет */
+.admin-link.active {
   background: var(--accent-brand-dim) !important;
   border-color: var(--accent-brand) !important;
+}
+@media (hover: hover) {
+  .admin-link:hover {
+    background: var(--accent-brand-dim) !important;
+    border-color: var(--accent-brand) !important;
+  }
 }
 
 /* ── Старая базовая кнопка (.btn .btn-primary / .btn-secondary в разметке) ── */
@@ -1533,10 +1626,12 @@ img.avatar { object-fit: cover; padding: 0; }
   color: var(--text-2);
   border: 1px solid var(--border-strong);
 }
-.btn.btn-secondary:hover {
-  background: var(--accent-brand-dim);
-  color: var(--text);
-  border-color: var(--accent-brand);
+@media (hover: hover) {
+  .btn.btn-secondary:hover {
+    background: var(--accent-brand-dim);
+    color: var(--text);
+    border-color: var(--accent-brand);
+  }
 }
 
 /* ── Старые инпуты по тегам ───────────────────────────────────────────────
@@ -1786,7 +1881,9 @@ textarea::placeholder, input::placeholder { color: var(--text-faint); }
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease);
 }
-.undo-bar-btn:hover { background: var(--tool-accent-dim, var(--accent-brand-dim)); }
+@media (hover: hover) {
+  .undo-bar-btn:hover { background: var(--tool-accent-dim, var(--accent-brand-dim)); }
+}
 
 /* ── Полоса обратного отсчёта по нижнему краю ──────────────────────────────
    Сколько ещё висит окно отмены — видно, а не угадывается. Цифрового
@@ -1851,7 +1948,9 @@ textarea::placeholder, input::placeholder { color: var(--text-faint); }
   font-family: inherit;
   letter-spacing: 0.02em;
 }
-.copy-btn:hover { background: var(--surface-3); color: var(--text); border-color: var(--border-strong); }
+@media (hover: hover) {
+  .copy-btn:hover { background: var(--surface-3); color: var(--text); border-color: var(--border-strong); }
+}
 .copy-btn.copied { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); color: var(--success); }
 
 /* ── Entry animations (используются старыми шаблонами) ─────────────────── */
@@ -1985,10 +2084,14 @@ body.auth-layout .auth-wrap {
    .btn-block. Центрирование текста и снятие подчёркивания .btn-primary
    умеет сам (inline-flex + text-decoration: none). */
 .auth-result-back { color: var(--accent-brand); font-size: var(--text-caption); text-decoration: none; }
-.auth-result-back:hover { text-decoration: underline; }
+@media (hover: hover) {
+  .auth-result-back:hover { text-decoration: underline; }
+}
 .auth-result-note { margin-top: var(--space-5); font-size: var(--text-caption); color: var(--text-faint); }
 .auth-result-note a { color: var(--accent-brand); text-decoration: none; }
-.auth-result-note a:hover { text-decoration: underline; }
+@media (hover: hover) {
+  .auth-result-note a:hover { text-decoration: underline; }
+}
 
 /* Строка «Забыли пароль?» под формой входа. Ховер был написан атрибутами
    onmouseover/onmouseout прямо в разметке — то есть цвет менял скрипт;
@@ -1998,11 +2101,18 @@ body.auth-layout .auth-wrap {
   font-size: var(--text-caption); color: var(--text-2); text-decoration: none;
   transition: color var(--dur-fast) var(--ease);
 }
-.auth-forgot-link:hover, .auth-forgot-link:focus-visible { color: var(--accent-brand); }
+/* Клавиатурный отклик ОТДЕЛЬНО от наведения: в одной группе он уехал бы
+   под @media (hover: hover) и пропал бы там, где указателя нет */
+.auth-forgot-link:focus-visible { color: var(--accent-brand); }
+@media (hover: hover) {
+  .auth-forgot-link:hover { color: var(--accent-brand); }
+}
 
 .auth-footer { text-align: center; margin-top: 24px; font-size: var(--text-caption); color: var(--text-2); }
 .auth-footer a { color: var(--accent-brand); text-decoration: none; }
-.auth-footer a:hover { text-decoration: underline; }
+@media (hover: hover) {
+  .auth-footer a:hover { text-decoration: underline; }
+}
 
 .error-msg {
   background: rgba(239,68,68,0.08);
@@ -2073,7 +2183,9 @@ body.auth-layout .auth-wrap {
    где направление обратное — и подсказка теряла бы контраст при наведении
    (6.29 → 4.25). Осветление до --text-strong: 6.29 → 19.30. Подчёркивание
    у кнопки постоянное, так что цвет тут не единственный признак. */
-.email-typo-fix:hover { color: var(--text-strong); }
+@media (hover: hover) {
+  .email-typo-fix:hover { color: var(--text-strong); }
+}
 
 /* ── Группы в поиске ─────────────────────────────────────────────────────
    Заголовки и «ещё N» — role="presentation": в плоский список пунктов,

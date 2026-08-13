@@ -27,7 +27,9 @@
       font-size: var(--text-body-sm); margin-bottom: var(--space-5);
       transition: color var(--dur-fast) var(--ease);
     }
-    .doc-back:hover { color: var(--accent-brand); }
+    @media (hover: hover) {
+      .doc-back:hover { color: var(--accent-brand); }
+    }
     .doc-back svg { width: 16px; height: 16px; }
     .doc-wrap h1 { font-size: var(--text-h1); font-weight: 700; margin-bottom: var(--space-3); }
     .doc-lead { font-style: italic; font-size: var(--text-body-lg); color: var(--text-2); line-height: 1.6; margin-bottom: var(--space-6); }
@@ -37,7 +39,9 @@
     .doc-body ul { margin: 0 0 var(--space-4) var(--space-5); }
     .doc-body li { margin-bottom: var(--space-2); }
     .doc-body a { color: var(--accent-brand); text-decoration: none; }
-    .doc-body a:hover { text-decoration: underline; }
+    @media (hover: hover) {
+      .doc-body a:hover { text-decoration: underline; }
+    }
     .doc-body code {
       font-family: var(--font-mono); font-size: 0.9em;
       background: var(--surface-2); padding: 2px 6px; border-radius: 4px;
@@ -187,7 +191,9 @@
       border-radius: var(--radius-md); text-decoration: none;
       transition: border-color var(--dur-base) var(--ease);
     }
-    .doc-tools a:hover { border-color: var(--tool-accent); text-decoration: none; }
+    @media (hover: hover) {
+      .doc-tools a:hover { border-color: var(--tool-accent); text-decoration: none; }
+    }
     .doc-tools-icon {
       width: 40px; height: 40px; border-radius: var(--radius-sm);
       background: var(--tool-accent-dim); color: var(--tool-accent);

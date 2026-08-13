@@ -859,7 +859,7 @@ async function runSearch(q) {
   document.getElementById('s-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
   const data = await api(`/nutrition/api/search?q=${encodeURIComponent(q)}`);
   if (myId !== searchReqId) return; // stale — ignore
-  renderResults(data.results||[], q, data.source_error||'');
+  renderResults(data.results||[], q, data.source_error||'', data.translate_error||'');
 }
 
 // Оценка ИИ — по нажатию, а не вместо пустой выдачи. Пока она включалась
@@ -983,17 +983,27 @@ function подписьПродукта(r) {
   return `<span class="r-nobrand">бренд не указан</span>${приметы.length ? ' · ' + приметы.join(' · ') : ''}`;
 }
 
-function renderResults(results, query, сбой) {
+// Плашка о том, что расширенный поиск не отработал. Показывается НАД
+// находками, а не вместо них: сбой перевода не должен превращать выдачу
+// в пустоту — первый поиск свои результаты уже дал (BACKLOG, задача 76)
+function плашкаПеревода(сбойПеревода) {
+  if (!сбойПеревода) return '';
+  return `<div class="alert alert-warn">Расширенный поиск по переводу названия
+    не отработал (${esc(сбойПеревода)}). Показаны находки обычного поиска —
+    если нужного продукта нет, попробуйте название по-английски.</div>`;
+}
+
+function renderResults(results, query, сбой, сбойПеревода) {
   const wrap = document.getElementById('s-results');
   if (!results.length) {
     // Пустое состояние — только когда запрос вообще был. На вкладках
     // «Недавние»/«Частые» query не передаётся, и предлагать там оценку нечего
-    wrap.innerHTML = query ? пустаяВыдача(query, сбой, 's-results')
+    wrap.innerHTML = query ? плашкаПеревода(сбойПеревода) + пустаяВыдача(query, сбой, 's-results')
                            : '<div class="empty">Ничего не найдено</div>';
     return;
   }
   const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openCustomFoodModal()"><i data-lucide="sparkles"></i> Не нашли своё блюдо? Добавить</button>` : '';
-  wrap.innerHTML = `<div class="r-list">`+results.map(r=>`
+  wrap.innerHTML = плашкаПеревода(сбойПеревода) + `<div class="r-list">`+results.map(r=>`
     <div class="r-item" onclick='openPortion(${JSON.stringify(r)})'>
       <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${подписьПродукта(r)}</div></div>
       <div><div class="r-kcal">${r.calories} ккал</div><div class="r-per">на 100г</div></div>
@@ -1014,7 +1024,7 @@ async function runSearchIng(q) {
   document.getElementById('ring-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
   const data = await api(`/nutrition/api/search?q=${encodeURIComponent(q)}`);
   if (myId !== ingSearchReqId) return; // устаревший запрос — игнорируем
-  renderIngResults(data.results||[], q, data.source_error||'');
+  renderIngResults(data.results||[], q, data.source_error||'', data.translate_error||'');
 }
 
 function setIngTab(tab) {
@@ -1035,10 +1045,10 @@ async function loadIngTab(tab) {
   renderIngResults(data.results||[]);
 }
 
-function renderIngResults(results, query, сбой) {
+function renderIngResults(results, query, сбой, сбойПеревода) {
   const wrap = document.getElementById('ring-results');
   if (!results.length) {
-    wrap.innerHTML = query ? пустаяВыдача(query, сбой, 'ring-results')
+    wrap.innerHTML = query ? плашкаПеревода(сбойПеревода) + пустаяВыдача(query, сбой, 'ring-results')
                            : '<div class="empty">Ничего не найдено</div>';
     return;
   }
@@ -2350,11 +2360,11 @@ async function loadScaleStatus() {
     }
   }
 }
-// Поля очищаются СРАЗУ после отправки, до ответа сервера: пароль от чужого
-// сервиса не должен пережить нажатие кнопки. Раньше он лежал в поле до
-// перезагрузки страницы и переживал переключение вкладок дневника
-function очиститьПоляВесов() {
-  document.getElementById('scale-username').value = '';
+// ПАРОЛЬ очищается сразу после отправки, до ответа сервера: он не должен
+// пережить нажатие кнопки. ПОЧТА остаётся — она не секрет, а стирать её
+// значило заставлять набирать адрес заново на каждую повторную попытку,
+// которых при проверке личности как раз несколько подряд
+function очиститьПарольВесов() {
   const поле = document.getElementById('scale-password');
   поле.value = '';
   поле.type = 'password';   // глазок мог оставить пароль открытым
@@ -2363,18 +2373,61 @@ async function connectScale() {
   const username = document.getElementById('scale-username').value.trim();
   const password = document.getElementById('scale-password').value;
   const msg = document.getElementById('scale-connect-msg');
-  if (!username || !password) { msg.textContent = 'Укажите логин и пароль'; msg.style.color = '#f87171'; return; }
+  if (!username || !password) { показатьОтказВесов(msg, 'Укажите логин и пароль'); return; }
   document.getElementById('scale-connect-btn').disabled = true;
   msg.style.color = 'var(--text-2)';
   msg.textContent = 'Подключаем…';
-  очиститьПоляВесов();
+  очиститьПарольВесов();
   const data = await api('/nutrition/api/scale/connect', { method: 'POST', body: JSON.stringify({ username, password }) });
   document.getElementById('scale-connect-btn').disabled = false;
-  if (data.error) { msg.textContent = data.error; msg.style.color = '#f87171'; return; }
+  if (data.error) { показатьОтказВесов(msg, data.error, data.verify_url); return; }
   msg.textContent = data.warning || ('Подключено, синхронизировано записей: ' + (data.synced ?? 0));
   msg.style.color = data.warning ? '#fbbf24' : '#4ade80';
   loadScaleStatus();
   loadWeightData();
+}
+
+// Отказ подключения весов. Адрес проверки личности — ССЫЛКА со словом
+// «ссылка», а не адрес простынёй: он занимает десять строк, нечитаем
+// и делает сообщение похожим на сбой приложения.
+//
+// Про 404 сказано заранее и намеренно. Проверка Xiaomi заканчивается
+// возвратом на адрес приложения Zepp, которого у нас нет, — замер
+// 2026-08-15: api-mifit-cn.huami.com отдаёт {"code":404,"message":"routes
+// not found"} на любой путь. Человек, не предупреждённый об этом, считает
+// 404 своей ошибкой и проходит проверку ещё раз
+function показатьОтказВесов(msg, текст, адрес) {
+  msg.style.color = '#f87171';
+  if (!адрес) { msg.textContent = текст; return; }
+  msg.textContent = '';
+  const строка = document.createElement('div');
+  строка.textContent = текст + '. Откройте ';
+  const a = document.createElement('a');
+  a.href = адрес;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.className = 'scale-verify-link';
+  a.textContent = 'ссылку';
+  строка.appendChild(a);
+  строка.appendChild(document.createTextNode(' и пройдите проверку.'));
+  msg.appendChild(строка);
+
+  const пояснение = document.createElement('div');
+  пояснение.className = 'scale-verify-note';
+  пояснение.textContent = 'В конце проверки Xiaomi покажет страницу с ошибкой '
+    + '404 «routes not found» — так и должно быть, она возвращает в своё '
+    + 'приложение. Закройте вкладку и нажмите кнопку ниже.';
+  msg.appendChild(пояснение);
+
+  const ещё = document.createElement('button');
+  ещё.type = 'button';
+  ещё.className = 'btn-secondary scale-verify-retry';
+  ещё.textContent = 'Подключить ещё раз';
+  ещё.addEventListener('click', () => {
+    document.getElementById('scale-password').focus();
+    msg.textContent = '';
+  });
+  msg.appendChild(ещё);
 }
 async function syncScaleNow() {
   const msg = document.getElementById('scale-sync-msg');
@@ -2388,7 +2441,10 @@ async function syncScaleNow() {
 async function disconnectScale() {
   if (!confirm('Отключить весы Xiaomi? Уже синхронизированные данные останутся.')) return;
   await api('/nutrition/api/scale/disconnect', { method: 'POST' });
-  очиститьПоляВесов();
+  // Здесь чистим ОБА поля, в отличие от неудачного входа: человек отключил
+  // весы совсем, и оставленная почта осталась бы приглашением ввести пароль
+  document.getElementById('scale-username').value = '';
+  очиститьПарольВесов();
   loadScaleStatus();
 }
 

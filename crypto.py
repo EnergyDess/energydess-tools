@@ -44,3 +44,20 @@ def encrypt_optional(text: str | None) -> str | None:
 
 def decrypt_optional(token: str | None) -> str | None:
     return decrypt(token) if token else None
+
+
+def ключ_отпечаток() -> str:
+    """Отпечаток ключа — для производных, которые должны быть постоянными,
+    но не должны раскрывать сам ключ.
+
+    Нужен `zepp_client.устройство`: постоянный `deviceId` считается от связки
+    «отпечаток ключа + id пользователя». Сам ключ туда отдавать нельзя —
+    производная уходит третьей стороне (Xiaomi) в заголовке Cookie, и брать
+    её от секрета напрямую значит выносить материал секрета наружу.
+
+    Пустой ключ даёт пустой отпечаток, а не исключение: вызывающий сам
+    решает, что делать без шифрования (эндпоинт весов отказывает раньше)."""
+    if not CREDENTIALS_ENCRYPTION_KEY:
+        return ""
+    import hashlib
+    return hashlib.sha256(CREDENTIALS_ENCRYPTION_KEY.encode()).hexdigest()

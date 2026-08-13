@@ -47,7 +47,9 @@
     .tp-actions { display: flex; gap: var(--space-3); justify-content: center; flex-wrap: wrap; }
     .tp-note { margin-top: var(--space-5); font-size: var(--text-caption); color: var(--text-faint); }
     .tp-note a { color: var(--tool-accent, var(--accent-brand)); text-decoration: none; }
-    .tp-note a:hover { text-decoration: underline; }
+    @media (hover: hover) {
+      .tp-note a:hover { text-decoration: underline; }
+    }
     @media (max-width: 480px) {
       .tp-actions { flex-direction: column; }
       .tp-actions > * { width: 100%; }

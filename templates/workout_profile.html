@@ -220,12 +220,52 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         btn.disabled = false;
-        if (data.error) { msg.textContent = data.error; return; }
+        // Пароль стираем, почту оставляем: при проверке личности попыток
+        // подряд несколько, и набирать адрес заново на каждую — лишнее
+        $('#wkScalePassword').value = '';
+        if (data.error) { показатьОтказВесовWk(msg, data.error, data.verify_url); return; }
         msg.textContent = data.warning || ('Подключено, синхронизировано записей: ' + (data.synced || 0));
         loadScaleStatusWk();
       })
       .catch(function () { btn.disabled = false; msg.textContent = 'Ошибка сети, попробуйте ещё раз.'; });
   });
+
+  // Тот же разбор отказа, что в дневнике: адрес проверки — ссылкой, а не
+  // простынёй, плюс предупреждение про 404 в конце проверки (замер
+  // 2026-08-15: api-mifit-cn.huami.com отдаёт «routes not found» на любой
+  // путь, это адрес возврата в приложение Zepp, которого у нас нет)
+  function показатьОтказВесовWk(msg, текст, адрес) {
+    if (!адрес) { msg.textContent = текст; return; }
+    msg.textContent = '';
+    var строка = document.createElement('div');
+    строка.textContent = текст + '. Откройте ';
+    var a = document.createElement('a');
+    a.href = адрес;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.className = 'scale-verify-link';
+    a.textContent = 'ссылку';
+    строка.appendChild(a);
+    строка.appendChild(document.createTextNode(' и пройдите проверку.'));
+    msg.appendChild(строка);
+
+    var пояснение = document.createElement('div');
+    пояснение.className = 'scale-verify-note';
+    пояснение.textContent = 'В конце проверки Xiaomi покажет страницу с ошибкой '
+      + '404 «routes not found» — так и должно быть, она возвращает в своё '
+      + 'приложение. Закройте вкладку и нажмите кнопку ниже.';
+    msg.appendChild(пояснение);
+
+    var ещё = document.createElement('button');
+    ещё.type = 'button';
+    ещё.className = 'btn-secondary scale-verify-retry';
+    ещё.textContent = 'Подключить ещё раз';
+    ещё.addEventListener('click', function () {
+      $('#wkScalePassword').focus();
+      msg.textContent = '';
+    });
+    msg.appendChild(ещё);
+  }
   $('#wkScaleSyncBtn').addEventListener('click', function () {
     var msg = $('#wkScaleSyncMsg');
     msg.textContent = 'Синхронизируем…';

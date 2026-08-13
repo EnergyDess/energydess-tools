@@ -167,7 +167,9 @@
   font-size: var(--text-caption); color: var(--text-faint); font-family: var(--font);
   padding: 0; transition: color var(--dur-fast) var(--ease);
 }
-.draft-clear-btn:hover { color: var(--error); }
+@media (hover: hover) {
+  .draft-clear-btn:hover { color: var(--error); }
+}
 
 /* ── Язык письма ────────────────────────────────────────────────────────── */
 /* Только раскладка ряда: сам переключатель — системный .segmented */
@@ -270,7 +272,9 @@
   display: none;
 }
 .letter-content a { color: var(--tool-accent); text-decoration: none; }
-.letter-content a:hover { text-decoration: underline; }
+@media (hover: hover) {
+  .letter-content a:hover { text-decoration: underline; }
+}
 /* Режим правки не двигает ни одной буквы. Раньше рамка и отступы
    ПОЯВЛЯЛИСЬ вместе с contenteditable, то есть текст поджимался внутрь:
    замер 2026-08-11 — ширина текста 531 → 497, высота документа
@@ -367,7 +371,9 @@
   font-family: var(--font);
   transition: background var(--dur-fast) var(--ease);
 }
-.warn-force-btn:hover { background: color-mix(in srgb, var(--warning) 22%, transparent); }
+@media (hover: hover) {
+  .warn-force-btn:hover { background: color-mix(in srgb, var(--warning) 22%, transparent); }
+}
 
 .letter-stats {
   display: none;
@@ -441,7 +447,9 @@
   transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
   white-space: nowrap;
 }
-.upload-label:hover { border-color: var(--tool-accent); color: var(--text); }
+@media (hover: hover) {
+  .upload-label:hover { border-color: var(--tool-accent); color: var(--text); }
+}
 .upload-label svg { width: 15px; height: 15px; stroke-width: 1.5; }
 .upload-sep { font-size: var(--text-caption); color: var(--text-faint); }
 .upload-status { font-size: var(--text-caption); }
@@ -480,7 +488,9 @@
   gap: var(--space-3);
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.ds-toggle:hover { background: var(--surface-3); color: var(--text); }
+@media (hover: hover) {
+  .ds-toggle:hover { background: var(--surface-3); color: var(--text); }
+}
 .ds-chev { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-faint); transition: transform var(--dur-base) var(--ease); }
 .ds-chev.open { transform: rotate(180deg); }
 /* Аккордеон секции досье. Открытое состояние — класс, а не инлайновый
@@ -560,7 +570,9 @@
   transition: color var(--dur-fast) var(--ease);
   font-size: var(--text-body);
 }
-.dosie-item-del:hover { color: var(--error); }
+@media (hover: hover) {
+  .dosie-item-del:hover { color: var(--error); }
+}
 .dosie-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-bottom: var(--space-2); }
 .dosie-g1 { margin-bottom: var(--space-2); }
 @media (max-width: 640px) { .dosie-g2 { grid-template-columns: 1fr; } }
@@ -580,7 +592,9 @@
   transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
   align-self: flex-start;
 }
-.dosie-add-btn:hover { border-color: var(--tool-accent); color: var(--tool-accent); }
+@media (hover: hover) {
+  .dosie-add-btn:hover { border-color: var(--tool-accent); color: var(--tool-accent); }
+}
 
 /* Теги навыков */
 .tag-wrap {
@@ -614,7 +628,9 @@
   font-size: var(--text-body-sm);
   transition: color var(--dur-fast) var(--ease);
 }
-.tag-chip-x:hover { color: var(--error); }
+@media (hover: hover) {
+  .tag-chip-x:hover { color: var(--error); }
+}
 .tag-text-input {
   background: none; border: none; outline: none; color: var(--text);
   font-size: var(--text-caption); font-family: var(--font); flex: 1; min-width: 120px;
@@ -655,7 +671,9 @@
 .history-note { padding: var(--space-5); color: var(--text-2); font-size: var(--text-caption); }
 .history-note.err { color: var(--error); }
 .history-note a { color: var(--tool-accent); text-decoration: none; }
-.history-note a:hover { text-decoration: underline; }
+@media (hover: hover) {
+  .history-note a:hover { text-decoration: underline; }
+}
 .history-item { padding: 0; overflow: hidden; }
 /* Шапка карточки и кнопка удаления стоят в ряд. Ряд нужен потому, что
    раскрывающая шапка — <button>, а вложить кнопку в кнопку нельзя:
@@ -663,7 +681,9 @@
    карточку. Здесь только раскладка — вид обеих кнопок системный. */
 .history-item-row { display: flex; align-items: stretch; }
 .history-item-del { align-self: center; margin-right: var(--space-2); }
-.history-item-del:hover { color: var(--error); background: var(--surface-2); }
+@media (hover: hover) {
+  .history-item-del:hover { color: var(--error); background: var(--surface-2); }
+}
 .history-item-head {
   width: 100%;
   display: flex;
@@ -808,7 +828,9 @@
 }
 .pmbtn-title { font-size: var(--text-caption); font-weight: 600; color: var(--text); line-height: 1.2; }
 .pmbtn-desc { font-size: var(--text-mono); color: var(--text-faint); line-height: 1.4; }
-.pmbtn:hover { background: var(--surface-3); }
+@media (hover: hover) {
+  .pmbtn:hover { background: var(--surface-3); }
+}
 .pmbtn.safe { border-color: color-mix(in srgb, var(--tool-accent) 30%, transparent); background: var(--tool-accent-dim); }
 .pmbtn.safe .pmbtn-title { color: var(--tool-accent); }
 .pmbtn.danger { border-color: color-mix(in srgb, var(--error) 30%, transparent); background: color-mix(in srgb, var(--error) 7%, transparent); }

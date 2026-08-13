@@ -74,7 +74,9 @@
     .v-mt-24      { margin-top: var(--space-6); }
     .v-link       { color: var(--accent-brand); font-size: var(--text-body-sm);
                     text-decoration: none; transition: opacity var(--dur-fast) var(--ease); }
-    .v-link:hover { opacity: 0.8; }
+    @media (hover: hover) {
+      .v-link:hover { opacity: 0.8; }
+    }
   </style>
 </head>
 <body class="auth-layout has-site-header">
