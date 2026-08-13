@@ -299,12 +299,19 @@ class ScaleConnection(Base):
 
     Токен раньше лежал открытым рядом с зашифрованным паролем — и это сводило
     шифрование пароля почти на нет: украв базу, чужие измерения можно было
-    читать прямо по токену, пароль для этого не нужен."""
+    читать прямо по токену, пароль для этого не нужен.
+
+    encrypted_password с 2026-08-13 ВСЕГДА NULL и колонка оставлена только
+    затем, чтобы не ронять старые базы. Пароль от чужого аккаунта Xiaomi
+    используется один раз — обменять на токен — и не сохраняется: у пароля
+    нет ни срока жизни, ни отзыва, а у токена есть и то и другое. Плата
+    за это одна: протух токен — человек вводит пароль заново, сами мы
+    перелогиниться не можем (см. main.ScaleReauthNeeded)."""
     __tablename__ = "scale_connections"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, unique=True, nullable=False, index=True)
     encrypted_username = Column(Text, nullable=False)
-    encrypted_password = Column(Text, nullable=False)
+    encrypted_password = Column(Text, nullable=True)
     encrypted_app_token = Column(Text, nullable=True)
     encrypted_zepp_user_id = Column(Text, nullable=True)
     last_sync_at = Column(DateTime, nullable=True)
@@ -588,7 +595,76 @@ def migrate_db():
     _migrate_users_autoincrement(conn)
     _migrate_zepp_token_encryption(conn)
     _migrate_drop_image_data(conn)
+    _migrate_forget_zepp_password(conn)
     conn.close()
+
+
+def _migrate_forget_zepp_password(conn) -> int:
+    """Стирает сохранённые пароли Zepp Life.
+
+    С 2026-08-13 пароль от чужого аккаунта Xiaomi не хранится: он нужен
+    ровно один раз, обменять на токен. Оставить уже лежащие в базе шифровки
+    значило бы, что правило действует только для новых подключений, —
+    а сами эти строки никуда бы не делись.
+
+    NOT NULL на колонке снимаем пересборкой таблицы: в SQLite ALTER TABLE
+    ограничение не меняет. Пересборка идёт только когда она нужна, иначе
+    каждый старт приложения переписывал бы таблицу заново."""
+    try:
+        схема = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='scale_connections'"
+        ).fetchone()
+    except Exception as e:
+        print(f"[migrate] схему scale_connections не прочитать: {type(e).__name__}: {e}")
+        return 0
+    if not схема:
+        return 0
+    надо_пересобрать = "encrypted_password" in схема[0] and "NOT NULL" in схема[0].split(
+        "encrypted_password", 1)[1].split(",", 1)[0]
+    try:
+        стёрто = conn.execute(
+            "SELECT COUNT(*) FROM scale_connections WHERE encrypted_password IS NOT NULL"
+        ).fetchone()[0]
+        if надо_пересобрать:
+            conn.executescript("""
+                PRAGMA foreign_keys=off;
+                BEGIN;
+                CREATE TABLE scale_connections_new (
+                    id INTEGER PRIMARY KEY,
+                    user_id INTEGER NOT NULL UNIQUE,
+                    encrypted_username TEXT NOT NULL,
+                    encrypted_password TEXT,
+                    encrypted_app_token TEXT,
+                    encrypted_zepp_user_id TEXT,
+                    last_sync_at DATETIME,
+                    last_sync_status VARCHAR,
+                    last_sync_error TEXT,
+                    created_at DATETIME
+                );
+                INSERT INTO scale_connections_new
+                    (id, user_id, encrypted_username, encrypted_password,
+                     encrypted_app_token, encrypted_zepp_user_id,
+                     last_sync_at, last_sync_status, last_sync_error, created_at)
+                SELECT id, user_id, encrypted_username, NULL,
+                       encrypted_app_token, encrypted_zepp_user_id,
+                       last_sync_at, last_sync_status, last_sync_error, created_at
+                FROM scale_connections;
+                DROP TABLE scale_connections;
+                ALTER TABLE scale_connections_new RENAME TO scale_connections;
+                CREATE UNIQUE INDEX IF NOT EXISTS ix_scale_connections_user_id
+                    ON scale_connections (user_id);
+                COMMIT;
+                PRAGMA foreign_keys=on;
+            """)
+        else:
+            conn.execute("UPDATE scale_connections SET encrypted_password = NULL")
+        conn.commit()
+    except Exception as e:
+        print(f"[migrate] пароли Zepp не стёрты: {type(e).__name__}: {e}")
+        return 0
+    if стёрто:
+        print(f"[migrate] стёрто сохранённых паролей Zepp: {стёрто}")
+    return стёрто
 
 
 def _migrate_drop_image_data(conn) -> int:

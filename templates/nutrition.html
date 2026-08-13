@@ -196,9 +196,18 @@
         <div class="p-sec">
           <div class="p-sec-title">Умные весы Xiaomi</div>
           <div id="scale-disconnected">
-            <p class="p-note">Подключи весы Mi Body Composition Scale через аккаунт Zepp Life — вес и состав тела будут подтягиваться автоматически. Это неофициальная интеграция: если Zepp Life изменит свой API, синхронизация может прерваться — тогда просто продолжай вводить вес вручную, ничего не сломается.</p>
-            <input type="text" class="input input-compact scale-input" id="scale-username" placeholder="email или телефон Zepp Life">
-            <input type="password" class="input input-compact scale-input" id="scale-password" placeholder="пароль">
+            <p class="p-note">Подключите весы Mi Body Composition Scale через аккаунт Zepp Life — вес и состав тела будут подтягиваться автоматически. Это неофициальная интеграция: если Zepp Life изменит свой API, синхронизация может прерваться — тогда просто продолжайте вводить вес вручную, ничего не сломается.</p>
+            <p class="p-note">Пароль нужен один раз — чтобы обменять его на ключ доступа. Мы его не сохраняем: в базе остаётся только ключ, который можно отозвать.</p>
+            <input type="text" class="input input-compact scale-input" id="scale-username" placeholder="email или телефон Zepp Life" autocomplete="username">
+            {# .input-wrap + .eye-btn — системная пара из style.css, та же,
+               что на входе и регистрации. Поведение (toggleEye) переехало
+               в ui.js: три копии одной функции в трёх шаблонах уже были #}
+            <div class="input-wrap scale-input">
+              <input type="password" class="input input-compact" id="scale-password" placeholder="пароль" autocomplete="current-password">
+              <button type="button" class="btn-icon eye-btn" onclick="toggleEye('scale-password', this)" tabindex="-1" aria-label="Показать пароль">
+                <i data-lucide="eye"></i>
+              </button>
+            </div>
             <button class="btn-primary btn-block" onclick="connectScale()" id="scale-connect-btn">Подключить весы Xiaomi</button>
             <div class="p-msg" id="scale-connect-msg"></div>
           </div>
@@ -598,7 +607,7 @@ const S = {
   photoFile: null,
   chatAttachment: null,
   chatAttachmentPreview: null,
-  pendingFoodLog: null,
+  foodDraft: null,   // набор карточек блюд из ответа ассистента
 };
 let searchReqId = 0;
 
@@ -831,13 +840,22 @@ function setSearchMeal(btn) {
 let searchTmr;
 function onSearch(q) {
   clearTimeout(searchTmr);
-  if (!q.trim()) { loadSearchTab(S.searchTab); return; }
+  if (!q.trim()) { подсветитьВкладкуПоиска(S.searchTab); loadSearchTab(S.searchTab); return; }
   searchTmr = setTimeout(()=>runSearch(q), 500);
+}
+
+// Подсветка вкладок: null — ни одна. Пока показывались результаты поиска,
+// «Недавние» оставались подсвеченными, хотя поиск идёт не по недавним, —
+// вкладка утверждала неправду о том, что на экране
+function подсветитьВкладкуПоиска(tab) {
+  document.querySelectorAll('#s-tabs .segmented-btn').forEach(b=>b.classList.remove('active'));
+  if (tab) document.getElementById('st-'+tab)?.classList.add('active');
 }
 
 async function runSearch(q) {
   const myId = ++searchReqId;
   S.lastQuery = q;
+  подсветитьВкладкуПоиска(null);
   document.getElementById('s-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
   const data = await api(`/nutrition/api/search?q=${encodeURIComponent(q)}`);
   if (myId !== searchReqId) return; // stale — ignore
@@ -846,8 +864,7 @@ async function runSearch(q) {
 
 function setSearchTab(tab) {
   S.searchTab = tab;
-  document.querySelectorAll('#s-tabs .segmented-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('st-'+tab).classList.add('active');
+  подсветитьВкладкуПоиска(tab);
   document.getElementById('s-input').value = '';
   searchReqId++;
   loadSearchTab(tab);
@@ -883,13 +900,27 @@ async function loadRecipesList() {
     </div>`).join('') + `</div>`;
 }
 
+// Вторая строка карточки продукта. Пустой бренд рисовался пустотой, и шесть
+// записей «Молоко» с калорийностью 44/52/60/64/66.2 отличались друг от друга
+// ничем — выбрать было нельзя. Замер 2026-08-13 по этим шести записям: ни
+// страны, ни магазина, ни категории у них в Open Food Facts нет, единственный
+// отличающий признак — штрих-код, у двух из шести ещё и объём упаковки.
+// Поэтому «бренд не указан» плюс то немногое, что есть
+function подписьПродукта(r) {
+  if (r.source === 'ai') return '<i data-lucide="sparkles"></i> оценка ИИ';
+  const бренд = (r.brand || '').trim();
+  if (бренд) return esc(бренд);
+  const приметы = [r.quantity, r.barcode].filter(Boolean).map(esc);
+  return `<span class="r-nobrand">бренд не указан</span>${приметы.length ? ' · ' + приметы.join(' · ') : ''}`;
+}
+
 function renderResults(results, query) {
   const wrap = document.getElementById('s-results');
   const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openCustomFoodModal()"><i data-lucide="sparkles"></i> Не нашли своё блюдо? Добавить</button>` : '';
   if (!results.length) { wrap.innerHTML='<div class="empty">Ничего не найдено</div>'+aiBtn; return; }
   wrap.innerHTML = `<div class="r-list">`+results.map(r=>`
     <div class="r-item" onclick='openPortion(${JSON.stringify(r)})'>
-      <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${r.source==='ai' ? '<i data-lucide="sparkles"></i> оценка ИИ' : esc(r.brand||'')}</div></div>
+      <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${подписьПродукта(r)}</div></div>
       <div><div class="r-kcal">${r.calories} ккал</div><div class="r-per">на 100г</div></div>
     </div>`).join('')+`</div>`+aiBtn;
 }
@@ -1533,10 +1564,11 @@ async function sendVoiceMessage(mode, targetId, blob, duration, audioUrl, bars) 
   }
   const aiReply = data.reply || data.error || 'Ошибка';
   S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content: aiReply};
-  if (data.food) {
-    S.pendingFoodLog = data.food;
-    S.chatHistory.push({role:'assistant', content:'__meal_picker__'});
-  }
+  // foods списком: на сообщение с тремя блюдами приходят три карточки.
+  // Ветки food (одно блюдо) больше нет ни здесь, ни на сервере — второй
+  // формат ответа и был тем местом, где терялись остальные два
+  const блюда = (data.foods || []).filter(Boolean);
+  if (блюда.length) startFoodDraft(блюда);
   renderChat();
 }
 
@@ -1705,10 +1737,11 @@ async function sendChat(inputId='chat-in') {
   }
   const aiReply = data.reply || data.error || 'Ошибка';
   S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content: aiReply};
-  if (data.food) {
-    S.pendingFoodLog = data.food;
-    S.chatHistory.push({role:'assistant', content:'__meal_picker__'});
-  }
+  // foods списком: на сообщение с тремя блюдами приходят три карточки.
+  // Ветки food (одно блюдо) больше нет ни здесь, ни на сервере — второй
+  // формат ответа и был тем местом, где терялись остальные два
+  const блюда = (data.foods || []).filter(Boolean);
+  if (блюда.length) startFoodDraft(блюда);
   renderChat();
 }
 
@@ -1759,33 +1792,155 @@ function openImageViewer(idx) {
 }
 
 const MEAL_NAMES = {breakfast:'завтрак', lunch:'обед', dinner:'ужин', snack:'перекус'};
+const MEAL_ORDER = ['breakfast','lunch','dinner','snack'];
 
-function logPendingFood(mealType) {
-  const f = S.pendingFoodLog; if (!f) return;
-  S.pendingFoodLog = null;
-  S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content: `${MEAL_NAMES[mealType]} — уточните порцию и сохраните`};
+// ── Набор карточек блюд из ответа ассистента ─────────────────────────────────
+//
+// Одна карточка на блюдо, листаются по одной, сохраняются одной кнопкой все
+// сразу. До 2026-08-13 здесь был выбор приёма пищи для ОДНОГО блюда: сервер
+// отдавал первое и терял остальные (см. _extract_food_blocks в main.py),
+// а ассистент дальше уверял, что записал их все.
+//
+// Правки живут в S.foodDraft, а не в разметке: перелистывание перерисовывает
+// ленту чата целиком, и введённое в поле значение исчезло бы вместе с узлом.
+function startFoodDraft(foods) {
+  S.foodDraft = {
+    items: foods.map(f => ({
+      name: (f.name || '').trim() || 'Блюдо',
+      brand: (f.brand || '').trim(),
+      meal_type: MEAL_ORDER.includes(f.meal) ? f.meal : defaultMealByTime(),
+      grams: Math.max(1, Math.round(Number(f.estimated_grams) || 100)),
+      calories: Number(f.calories) || 0,
+      protein: Number(f.protein) || 0,
+      fat: Number(f.fat) || 0,
+      carbs: Number(f.carbs) || 0,
+    })),
+    idx: 0, saving: false,
+  };
+  S.chatHistory.push({role:'assistant', content:'__food_draft__'});
+}
+
+function draftGo(шаг) {
+  const d = S.foodDraft; if (!d) return;
+  d.idx = Math.min(d.items.length - 1, Math.max(0, d.idx + шаг));
   renderChat();
-  S.searchMeal = mealType;
-  openPortion({name:f.name, brand:f.brand||'', calories:f.calories||0, protein:f.protein||0, fat:f.fat||0, carbs:f.carbs||0});
-  document.getElementById('g-input').value = f.estimated_grams || 100;
-  updateCalc();
+}
+
+function draftEdit(поле, значение) {
+  const d = S.foodDraft; if (!d) return;
+  const карточка = d.items[d.idx]; if (!карточка) return;
+  карточка[поле] = (поле === 'name' || поле === 'brand') ? значение : (Number(значение) || 0);
+  // Перерисовываем только итог: полная перерисовка увела бы фокус из поля
+  обновитьИтогКарточки();
+}
+
+function draftMeal(кнопка) {
+  const d = S.foodDraft; if (!d) return;
+  d.items[d.idx].meal_type = кнопка.dataset.meal;
+  кнопка.parentElement.querySelectorAll('.chip').forEach(b => b.classList.remove('active'));
+  кнопка.classList.add('active');
+}
+
+function draftDrop() {
+  const d = S.foodDraft; if (!d) return;
+  d.items.splice(d.idx, 1);
+  if (!d.items.length) {
+    S.foodDraft = null;
+    S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content:'Хорошо, ничего не записываю.'};
+  } else {
+    d.idx = Math.min(d.idx, d.items.length - 1);
+  }
+  renderChat();
+}
+
+function обновитьИтогКарточки() {
+  const d = S.foodDraft; if (!d) return;
+  const к = d.items[d.idx]; if (!к) return;
+  const доля = к.grams / 100;
+  const итог = document.getElementById('fd-total');
+  if (итог) itogText(итог, к, доля);
+}
+
+function itogText(el, к, доля) {
+  el.innerHTML = `<div class="calc-kcal">${Math.round(к.calories * доля)} ккал</div>`
+    + `<div class="calc-macros">Б: ${(к.protein*доля).toFixed(1)}г  Ж: ${(к.fat*доля).toFixed(1)}г  У: ${(к.carbs*доля).toFixed(1)}г</div>`;
+}
+
+// Сохранение — одним запросом на весь набор. Ответ приходит из базы:
+// сервер перечитывает записанные строки и сам составляет подтверждение
+// (main.py, /nutrition/api/ai-chat/log-foods). Здесь текст не сочиняется
+async function saveFoodDraft() {
+  const d = S.foodDraft;
+  if (!d || d.saving || !d.items.length) return;
+  d.saving = true; renderChat();
+  const data = await api('/nutrition/api/ai-chat/log-foods', {
+    method: 'POST',
+    body: JSON.stringify({date: S.today, items: d.items}),
+  });
+  if (data.error) {
+    d.saving = false; renderChat();
+    toast(data.error, false);
+    return;
+  }
+  S.foodDraft = null;
+  S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content: data.reply};
+  renderChat();
+  loadDiary(S.today);
+  toast(data.failed?.length ? 'Записано не всё — смотрите ответ' : 'Записано в дневник', !data.failed?.length);
+}
+
+function renderFoodDraft() {
+  const d = S.foodDraft;
+  if (!d || !d.items.length) return '';
+  const к = d.items[d.idx];
+  const доля = к.grams / 100;
+  const счётчик = d.items.length > 1 ? `<span class="fd-count">${d.idx+1} из ${d.items.length}</span>` : '';
+  const листалка = d.items.length > 1 ? `
+      <div class="fd-pager">
+        <button class="btn-icon" onclick="draftGo(-1)" ${d.idx === 0 ? 'disabled' : ''} aria-label="Предыдущее блюдо"><i data-lucide="chevron-left"></i></button>
+        ${счётчик}
+        <button class="btn-icon" onclick="draftGo(1)" ${d.idx === d.items.length-1 ? 'disabled' : ''} aria-label="Следующее блюдо"><i data-lucide="chevron-right"></i></button>
+      </div>` : '';
+  return `<div class="chat-msg ai"><div class="chat-bubble ai fd-bubble">
+    <div class="fd-head">
+      <span class="fd-title">Проверьте и сохраните</span>
+      ${листалка}
+    </div>
+    <div class="fd-card">
+      <div class="f-field"><label class="field-label f-label" for="fd-name">Название</label>
+        <input type="text" class="input input-compact" id="fd-name" value="${esc(к.name)}" oninput="draftEdit('name', this.value)"></div>
+      <div class="f-field"><label class="field-label f-label" for="fd-brand">Бренд / заведение</label>
+        <input type="text" class="input input-compact" id="fd-brand" value="${esc(к.brand)}" placeholder="не указан" oninput="draftEdit('brand', this.value)"></div>
+      <div class="field-label f-label">Приём пищи</div>
+      <div class="s-chips">
+        ${MEAL_ORDER.map(m => `<button class="chip${к.meal_type===m?' active':''}" data-meal="${m}" onclick="draftMeal(this)">${MEAL_NAMES[m][0].toUpperCase()+MEAL_NAMES[m].slice(1)}</button>`).join('')}
+      </div>
+      <div class="fd-grid">
+        <div class="f-field"><label class="field-label f-label" for="fd-grams">Порция, г</label>
+          <input type="number" class="input input-compact" id="fd-grams" min="1" max="5000" value="${к.grams}" oninput="draftEdit('grams', this.value)"></div>
+        <div class="f-field"><label class="field-label f-label" for="fd-kcal">Ккал/100г</label>
+          <input type="number" class="input input-compact" id="fd-kcal" value="${к.calories}" oninput="draftEdit('calories', this.value)"></div>
+        <div class="f-field"><label class="field-label f-label" for="fd-prot">Белки/100г</label>
+          <input type="number" class="input input-compact" id="fd-prot" value="${к.protein}" oninput="draftEdit('protein', this.value)"></div>
+        <div class="f-field"><label class="field-label f-label" for="fd-fat">Жиры/100г</label>
+          <input type="number" class="input input-compact" id="fd-fat" value="${к.fat}" oninput="draftEdit('fat', this.value)"></div>
+        <div class="f-field"><label class="field-label f-label" for="fd-carb">Углеводы/100г</label>
+          <input type="number" class="input input-compact" id="fd-carb" value="${к.carbs}" oninput="draftEdit('carbs', this.value)"></div>
+      </div>
+      <div class="calc-box" id="fd-total"><div class="calc-kcal">${Math.round(к.calories*доля)} ккал</div><div class="calc-macros">Б: ${(к.protein*доля).toFixed(1)}г  Ж: ${(к.fat*доля).toFixed(1)}г  У: ${(к.carbs*доля).toFixed(1)}г</div></div>
+      <button class="btn-ghost fd-drop" onclick="draftDrop()"><i data-lucide="trash-2"></i> Убрать это блюдо</button>
+    </div>
+    <button class="btn-primary btn-block" onclick="saveFoodDraft()" ${d.saving ? 'disabled' : ''}>
+      ${d.saving ? 'Сохраняем…' : (d.items.length > 1 ? `Сохранить всё (${d.items.length})` : 'Сохранить в дневник')}
+    </button>
+  </div></div>`;
 }
 
 function renderChat() {
   const html = !S.chatHistory.length
     ? '<div class="chat-empty"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>'
     : S.chatHistory.map((m,idx)=>{
-        if (m.content === '__meal_picker__') {
-          return `<div class="chat-msg ai"><div class="chat-bubble ai">
-            Выберите приём пищи:
-            <div class="meal-picker-btns">
-              <button onclick="logPendingFood('breakfast')"><i data-lucide="sunrise"></i> Завтрак</button>
-              <button onclick="logPendingFood('lunch')"><i data-lucide="sun"></i> Обед</button>
-              <button onclick="logPendingFood('dinner')"><i data-lucide="moon"></i> Ужин</button>
-              <button onclick="logPendingFood('snack')"><i data-lucide="apple"></i> Перекус</button>
-            </div>
-          </div></div>`;
-        }
+        if (m.content === '__food_draft__') return renderFoodDraft();
         if (m.voice) {
           const barsHtml = (m.bars||[]).map(b=>`<div class="vw-bar" style="height:${Math.max(3,b*20)}px"></div>`).join('');
           const trBlock = m.transcribing
@@ -2089,9 +2244,28 @@ async function loadScaleStatus() {
   if (data.connected) {
     document.getElementById('scale-last-sync').textContent = data.last_sync_at || 'пока не было';
     const msg = document.getElementById('scale-sync-msg');
-    msg.textContent = data.last_sync_status === 'error' ? ('Ошибка последней синхронизации: ' + (data.last_sync_error || '')) : '';
-    msg.style.color = '#f87171';
+    // Три состояния, не два: «нужен повторный вход» лечится действием
+    // пользователя, а не ожиданием, и сваливать его в ошибку нельзя
+    if (data.needs_reauth) {
+      msg.textContent = 'Ключ доступа Zepp Life больше не действует. Введите пароль ещё раз ниже — он снова нужен только на один вход.';
+      msg.style.color = '#fbbf24';
+      document.getElementById('scale-disconnected').style.display = 'block';
+    } else if (data.last_sync_status === 'error') {
+      msg.textContent = 'Ошибка последней синхронизации: ' + (data.last_sync_error || '');
+      msg.style.color = '#f87171';
+    } else {
+      msg.textContent = '';
+    }
   }
+}
+// Поля очищаются СРАЗУ после отправки, до ответа сервера: пароль от чужого
+// сервиса не должен пережить нажатие кнопки. Раньше он лежал в поле до
+// перезагрузки страницы и переживал переключение вкладок дневника
+function очиститьПоляВесов() {
+  document.getElementById('scale-username').value = '';
+  const поле = document.getElementById('scale-password');
+  поле.value = '';
+  поле.type = 'password';   // глазок мог оставить пароль открытым
 }
 async function connectScale() {
   const username = document.getElementById('scale-username').value.trim();
@@ -2101,6 +2275,7 @@ async function connectScale() {
   document.getElementById('scale-connect-btn').disabled = true;
   msg.style.color = 'var(--text-2)';
   msg.textContent = 'Подключаем…';
+  очиститьПоляВесов();
   const data = await api('/nutrition/api/scale/connect', { method: 'POST', body: JSON.stringify({ username, password }) });
   document.getElementById('scale-connect-btn').disabled = false;
   if (data.error) { msg.textContent = data.error; msg.style.color = '#f87171'; return; }
@@ -2121,8 +2296,7 @@ async function syncScaleNow() {
 async function disconnectScale() {
   if (!confirm('Отключить весы Xiaomi? Уже синхронизированные данные останутся.')) return;
   await api('/nutrition/api/scale/disconnect', { method: 'POST' });
-  document.getElementById('scale-username').value = '';
-  document.getElementById('scale-password').value = '';
+  очиститьПоляВесов();
   loadScaleStatus();
 }
 
@@ -2167,6 +2341,8 @@ async function loadBodyPhotos() {
   if (dates.length) { oldSel.value = dates[dates.length - 1]; newSel.value = dates[0]; }
   renderCompare();
 }
+const РАКУРСЫ = {front: 'спереди', side: 'сбоку', back: 'сзади'};
+
 function renderCompare() {
   const oldDate = document.getElementById('compare-date-old').value;
   const newDate = document.getElementById('compare-date-new').value;
@@ -2174,11 +2350,44 @@ function renderCompare() {
   if (!oldDate || !newDate) { view.innerHTML = '<p class="p-note-inline">Загрузите фото хотя бы за одну дату.</p>'; return; }
   function col(date) {
     const angles = bodyPhotosCache[date] || {};
-    const imgs = ['front', 'side', 'back'].filter(a => angles[a])
-      .map(a => `<img src="${angles[a]}">`).join('');
+    const imgs = Object.keys(РАКУРСЫ).filter(a => angles[a]).map(a => `
+      <div class="compare-shot">
+        <img src="${angles[a]}" alt="Фото ${РАКУРСЫ[a]} за ${date}">
+        <button class="btn-icon compare-del" onclick="deleteBodyPhoto('${date}','${a}')"
+                title="Удалить фото ${РАКУРСЫ[a]} за ${date}" aria-label="Удалить фото ${РАКУРСЫ[a]} за ${date}">
+          <i data-lucide="trash-2"></i>
+        </button>
+      </div>`).join('');
     return `<div class="compare-col">${imgs || '<p class="compare-empty">нет фото</p>'}<div class="compare-col-label">${date}</div></div>`;
   }
+  // createIcons здесь не зовём: значки в динамической разметке дорисовывает
+  // наблюдатель из static/ui.js, и второй вызов только перебрал бы дерево
   view.innerHTML = col(oldDate) + col(newDate);
+}
+
+// Удаление снимка. Список дат перестраивается ЦЕЛИКОМ через loadBodyPhotos:
+// удалённый снимок мог быть последним за свою дату, и тогда дата уходит
+// из обоих выпадающих списков. Если её выбирали в сравнении, оба select'а
+// получат новые значения там же — иначе сравнение осталось бы показывать
+// дату, которой больше нет
+async function deleteBodyPhoto(date, angle) {
+  if (!confirm(`Удалить фото ${РАКУРСЫ[angle]} за ${date}? Восстановить не получится.`)) return;
+  const было = {
+    old: document.getElementById('compare-date-old').value,
+    new: document.getElementById('compare-date-new').value,
+  };
+  const data = await api(`/nutrition/api/body-photo?date=${encodeURIComponent(date)}&angle=${angle}`,
+                         { method: 'DELETE' });
+  if (data.error) { toast(data.error, false); return; }
+  await loadBodyPhotos();
+  // Дата пережила удаление — возвращаем выбор пользователя, а не тот,
+  // что loadBodyPhotos ставит по умолчанию
+  for (const [ключ, id] of [['old', 'compare-date-old'], ['new', 'compare-date-new']]) {
+    const sel = document.getElementById(id);
+    if ([...sel.options].some(o => o.value === было[ключ])) sel.value = было[ключ];
+  }
+  renderCompare();
+  toast('Фото удалено');
 }
 
 function setRad(btn) {

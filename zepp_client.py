@@ -33,16 +33,79 @@ LOGIN_PREFIX = "&&&START&&&"
 
 
 class ZeppLoginError(Exception):
-    """Логин не удался — неверный пароль либо изменился флоу Xiaomi/Zepp."""
+    """База для всех отказов логина. Ловить её одну можно только там, где
+    различие между причинами действительно не нужно."""
+
+
+class ZeppAuthError(ZeppLoginError):
+    """Xiaomi назвал причину, и причина в учётных данных: не тот логин,
+    не тот пароль. Единственный случай, при котором наше прежнее сообщение
+    «неверный логин или пароль» было правдой."""
+
+
+class ZeppVerificationError(ZeppLoginError):
+    """Xiaomi требует подтвердить вход — капча, SMS, письмо, «это точно вы?».
+    Учётные данные при этом ВЕРНЫЕ. Отдельным классом, потому что лечится
+    это не сменой пароля, а входом в мобильном приложении.
+
+    Почему случай не экзотический: приложение живёт на Fly.io во Франкфурте,
+    и вход из чужого датацентра — ровно то, на что у Xiaomi стоит проверка."""
+
+
+class ZeppProtocolError(ZeppLoginError):
+    """Ответ не разобрался: нет префикса, нет sid, нет location и нет кода
+    ошибки. Реверс-инжиниринг перестал совпадать с реальностью — чинится
+    правкой этого файла, а не действиями пользователя."""
 
 
 class ZeppApiError(Exception):
     """Логин прошёл, но запрос данных не удался (истёк токен и т.п.)."""
 
 
+# Коды Xiaomi, встречающиеся на пути логина. Список заведомо неполный —
+# именно поэтому неизвестный код НЕ схлопывается в «неверный пароль»,
+# а уезжает наружу как есть, вместе с описанием от Xiaomi.
+XIAOMI_CODES = {
+    70016: ("auth", "Xiaomi не принял логин или пароль"),
+    81003: ("verify", "Xiaomi требует подтвердить вход"),
+    87001: ("verify", "Xiaomi требует ввести капчу"),
+    20003: ("auth", "Xiaomi не знает такого аккаунта"),
+}
+
+
+def _разобрать_отказ(data: dict) -> ZeppLoginError:
+    """Превращает ответ Xiaomi в исключение НУЖНОГО класса.
+
+    До 2026-08-13 здесь ничего такого не было: код проверял наличие поля
+    `location` и на его отсутствие говорил «неверный логин или пароль
+    Xiaomi» — одну фразу на все причины сразу. Замер живым вызовом показал,
+    что Xiaomi при этом присылает и `code`, и `description`, и признаки
+    капчи с подтверждением: ключи ответа шага логина —
+    ['_sign','callback','captchaUrl','child','code','desc','description',
+    'location','miDemo','pwd','qs','securityStatus','sid'], code=70016,
+    description='login verification error'. Мы не читали ни одного из них."""
+    код = data.get("code")
+    описание = (data.get("description") or data.get("desc") or "").strip()
+    хвост = f" (код {код}{', ' + описание if описание else ''})" if код is not None else ""
+    if data.get("captchaUrl"):
+        return ZeppVerificationError("Xiaomi требует ввести капчу" + хвост)
+    if data.get("notificationUrl"):
+        return ZeppVerificationError("Xiaomi требует подтвердить вход" + хвост)
+    вид, текст = XIAOMI_CODES.get(код, (None, None))
+    if вид == "auth":
+        return ZeppAuthError(текст + хвост)
+    if вид == "verify":
+        return ZeppVerificationError(текст + хвост)
+    if код is not None:
+        # Код есть, но он нам незнаком — это НЕ «неверный пароль».
+        # Отдаём как есть: следующий разбор начнётся с настоящего числа
+        return ZeppProtocolError("Xiaomi ответил отказом" + хвост)
+    return ZeppProtocolError("Xiaomi отказал без кода ошибки — изменился флоу")
+
+
 def _strip_prefix(text: str) -> dict:
     if not text.startswith(LOGIN_PREFIX):
-        raise ZeppLoginError("неожиданный формат ответа Xiaomi — возможно, изменился флоу")
+        raise ZeppProtocolError("неожиданный формат ответа Xiaomi — возможно, изменился флоу")
     return json.loads(text[len(LOGIN_PREFIX):])
 
 
@@ -54,14 +117,14 @@ def _get_code(client: httpx.Client, start_url: str) -> str:
         resp = client.get(url, follow_redirects=False)
         location = resp.headers.get("location")
         if not location:
-            raise ZeppLoginError("ожидался редирект от Xiaomi, не получили (изменился флоу?)")
+            raise ZeppProtocolError("ожидался редирект от Xiaomi, не получили (изменился флоу?)")
         if hop == 2:
             _, _, code = location.partition("=")
             if not code:
-                raise ZeppLoginError("не нашли код авторизации в финальном редиректе")
+                raise ZeppProtocolError("не нашли код авторизации в финальном редиректе")
             return code
         url = httpx.URL(url).join(location)
-    raise ZeppLoginError("не удалось получить код авторизации")
+    raise ZeppProtocolError("не удалось получить код авторизации")
 
 
 def _xiaomi_oauth2_code(client: httpx.Client, username: str, password: str) -> str:
@@ -70,14 +133,16 @@ def _xiaomi_oauth2_code(client: httpx.Client, username: str, password: str) -> s
     data1 = _strip_prefix(r.text)
     oauth_login_url = data1.get("data", {}).get("oauthLoginUrl")
     if not oauth_login_url:
-        raise ZeppLoginError("Xiaomi не вернул oauthLoginUrl")
+        raise ZeppProtocolError("Xiaomi не вернул oauthLoginUrl")
 
     r = client.get(oauth_login_url)
     r.raise_for_status()
     res1 = _strip_prefix(r.text)
     sid, callback, sign, qs = res1.get("sid"), res1.get("callback"), res1.get("_sign"), res1.get("qs")
     if not sid:
-        raise ZeppLoginError("Xiaomi не вернул sid — проверь логин")
+        # Пароль на этом шаге ещё не отправлялся — «проверь логин» здесь
+        # было неправдой по построению
+        raise ZeppProtocolError("Xiaomi не вернул sid — изменился флоу")
 
     password_hash = hashlib.md5(password.encode()).hexdigest().upper()
     device_id = uuid.uuid4().hex[:16]
@@ -91,7 +156,7 @@ def _xiaomi_oauth2_code(client: httpx.Client, username: str, password: str) -> s
     res2 = _strip_prefix(r.text)
     location = res2.get("location")
     if not location:
-        raise ZeppLoginError("неверный логин или пароль Xiaomi")
+        raise _разобрать_отказ(res2)
 
     return _get_code(client, location)
 
@@ -121,7 +186,7 @@ def login(username: str, password: str) -> dict:
         token_info = data.get("token_info", {})
         app_token, zepp_user_id = token_info.get("app_token"), token_info.get("user_id")
         if not app_token or not zepp_user_id:
-            raise ZeppLoginError(f"Zepp не вернул токен сессии: {data}")
+            raise ZeppProtocolError(f"Zepp не вернул токен сессии: {data}")
         return {"app_token": app_token, "zepp_user_id": zepp_user_id}
 
 
@@ -148,6 +213,14 @@ def fetch_weight_records(app_token: str, zepp_user_id: str, limit: int = 30) -> 
             items = data.get("items", [])
             if not items:
                 break
+            # Какие поля состава тела реально пришли — печатаем ОДИН раз
+            # за выборку. Без этого список показателей в документации
+            # приходится брать из чужого репозитория и верить ему: живого
+            # ответа Zepp у нас нет, аккаунт весов есть только у владельца.
+            # Строка в логе закрывает это первым же успешным входом
+            if items:
+                поля = sorted((items[0].get("summary") or {}).keys())
+                print(f"[zepp] поля summary в ответе ({len(поля)}): {', '.join(поля) or 'пусто'}")
             for item in items:
                 if item.get("weightType") != 0:
                     continue  # см. оригинал: weightType != 0 — повреждённые значения

@@ -3286,7 +3286,12 @@ async def _off_search(query: str) -> list:
     url = "https://search.openfoodfacts.org/search"
     params = {
         "q": query, "page_size": 25, "langs": "ru,en",
-        "fields": "product_name,product_name_ru,brands,nutriments",
+        # code — единственный отличающий признак у записей без бренда.
+        # Замер 2026-08-13 по шести таким записям «Молоко»: quantity есть
+        # у двух из шести, countries/stores/categories пусты у всех шести.
+        # То есть выбирать между ними больше не по чему, и показывать
+        # штрих-код — не украшение, а единственное различие
+        "fields": "code,product_name,product_name_ru,brands,quantity,nutriments",
     }
     try:
         async with httpx.AsyncClient(timeout=8) as client:
@@ -3309,12 +3314,96 @@ async def _off_search(query: str) -> list:
         results.append({
             "name": name.strip(),
             "brand": (brands[0] if brands else "").strip(),
+            "barcode": (p.get("code") or "").strip(),
+            "quantity": (p.get("quantity") or "").strip(),
             "calories": round(float(kcal), 1),
             "protein": round(float(n.get("proteins_100g", 0)), 1),
             "fat": round(float(n.get("fat_100g", 0)), 1),
             "carbs": round(float(n.get("carbohydrates_100g", 0)), 1),
         })
     return results
+
+
+# ── Ранжирование выдачи поиска еды ────────────────────────────────────────────
+#
+# Open Food Facts отдаёт свой порядок, и он про запрос целиком ничего не знает:
+# замер 2026-08-13 по запросу «гречка увелка» — первые шесть строк гречка
+# чужих брендов, искомая «Green buckwheat / Увелка» седьмая.
+#
+# Слово запроса засчитывается по ДВУМ сторонам сразу — название и бренд, —
+# иначе «гречка увелка» не совпадёт ни с чем: гречка живёт в названии,
+# Увелка в бренде.
+_ПОИСК_РАЗДЕЛИТЕЛЬ = re.compile(r"[^0-9а-яёa-z]+", re.I)
+
+# Русское слово ↔ английское в названии. НЕ словарь перевода и не попытка
+# его построить: это ровно те продукты, у которых в базе OFF русской строки
+# может не быть вовсе, а искать их будут по-русски. «Green buckwheat»
+# с брендом «Увелка» — живой пример: без пары гречка↔buckwheat запрос
+# «гречка увелка» совпадает с ней одним словом из двух, ровно как
+# с «Рис Басмати / Увелка», и разложить их по порядку нечем.
+#
+# Список короткий намеренно. Полное решение — второй язык у самой записи
+# (перевод названий при импорте либо запрос в OFF на двух языках с сшивкой
+# по barcode); объём назван в BACKLOG, задача 76.
+ПОИСК_СИНОНИМЫ = {
+    "гречка": ("buckwheat", "grechka"), "гречневая": ("buckwheat",),
+    "рис": ("rice",), "овсянка": ("oat", "oatmeal"), "овсяные": ("oat",),
+    "молоко": ("milk",), "кефир": ("kefir",), "творог": ("cottage", "tvorog", "quark"),
+    "йогурт": ("yogurt", "yoghurt"), "сыр": ("cheese",), "масло": ("butter", "oil"),
+    "хлеб": ("bread",), "яйцо": ("egg",), "яйца": ("egg",),
+    "курица": ("chicken",), "куриная": ("chicken",), "говядина": ("beef",),
+    "свинина": ("pork",), "индейка": ("turkey",), "рыба": ("fish",),
+    "лосось": ("salmon",), "тунец": ("tuna",), "креветки": ("shrimp", "prawn"),
+    "вода": ("water",), "сок": ("juice",), "кофе": ("coffee",), "чай": ("tea",),
+    "сахар": ("sugar",), "соль": ("salt",), "мука": ("flour",),
+    "макароны": ("pasta", "macaroni"), "паста": ("pasta",), "печенье": ("cookie", "biscuit"),
+    "шоколад": ("chocolate",), "орехи": ("nuts",), "миндаль": ("almond",),
+    "банан": ("banana",), "яблоко": ("apple",), "апельсин": ("orange",),
+    "картофель": ("potato",), "картошка": ("potato",), "томат": ("tomato",),
+    "помидор": ("tomato",), "огурец": ("cucumber",), "морковь": ("carrot",),
+    "капуста": ("cabbage",), "фасоль": ("bean",), "горох": ("pea",),
+    "чечевица": ("lentil",), "протеин": ("protein", "whey"), "хлопья": ("flakes", "cereal"),
+}
+
+
+def _слова_запроса(q: str) -> list:
+    return [w for w in _ПОИСК_РАЗДЕЛИТЕЛЬ.split(q.lower()) if len(w) >= 2]
+
+
+def _слово_нашлось(слово: str, стог: str) -> bool:
+    """Совпадение слова запроса со строкой «название + бренд».
+
+    Отсечение последней буквы у слов от пяти знаков — вся морфология, которая
+    здесь есть: «гречка» находит «гречкой», «увелка» — «Увелка». Полноценная
+    лемматизация потянула бы за собой словарь и зависимость; выигрыш на именах
+    продуктов, где падежи редки, того не стоит. Короткие слова не режем —
+    «сок» превратился бы в «со» и совпал бы с чем угодно."""
+    if слово in стог:
+        return True
+    if len(слово) >= 5 and слово[:-1] in стог:
+        return True
+    return any(син in стог for син in ПОИСК_СИНОНИМЫ.get(слово, ()))
+
+
+def _rank_food_results(query: str, results: list) -> list:
+    """Совпавшие по ВСЕМ словам запроса — выше совпавших по одному.
+
+    Порядок внутри одной ступени сохраняется исходный (sorted устойчив):
+    релевантность самой OFF мы не переоцениваем, только поднимаем то,
+    что подходит запросу целиком."""
+    слова = _слова_запроса(query)
+    if len(слова) < 2:
+        return results
+
+    def вес(r):
+        стог = f"{r.get('name', '')} {r.get('brand', '')}".lower()
+        совпало = sum(1 for w in слова if _слово_нашлось(w, стог))
+        # Второй ключ — совпадение в НАЗВАНИИ: при равном числе слов выше
+        # тот, у кого запрос попал в название, а не только в бренд
+        в_названии = sum(1 for w in слова if _слово_нашлось(w, r.get("name", "").lower()))
+        return (-совпало, -в_названии)
+
+    return sorted(results, key=вес)
 
 
 def _image_mime(file: UploadFile) -> str:
@@ -3420,19 +3509,141 @@ async def _call_vision(b64: str, mime: str, prompt: str, max_tokens: int = VISIO
     return текст
 
 
-_FOOD_BLOCK_RE = re.compile(r"###FOOD_JSON###\s*(\{.*?\})\s*###END_FOOD_JSON###", re.S)
+# (?:(?!###).)*? вместо .*? — тело блока не имеет права пересечь ЛЮБУЮ
+# метку. С обычным `.*?` блок с недописанной скобкой съедал следующий:
+# движок шёл от его открывающей `{` вперёд через `###END_FOOD_JSON###`
+# и `###FOOD_JSON###` соседа до первой попавшейся `}`. Замер на трёх
+# блоках, где средний битый: разбиралось ОДНО блюдо вместо двух, третье
+# исчезало молча — та же поломка, ради которой всё это и правится,
+# только на этаж ниже. Поймал тест test_битый_блок_не_уносит_соседей.
+_FOOD_BLOCK_RE = re.compile(
+    r"###FOOD_JSON###\s*(\{(?:(?!###).)*?\})\s*###END_FOOD_JSON###", re.S)
+# Осколки: метка без пары либо с телом, которое не разобралось
+_FOOD_MARKER_RE = re.compile(r"###(?:END_)?FOOD_JSON###[^\n]*\n?")
 
 
-def _extract_food_block(text: str):
-    """Достаёт блок ###FOOD_JSON### из ответа ИИ-чата (см. правило добавления еды в system-промпте)."""
-    m = _FOOD_BLOCK_RE.search(text)
-    if not m:
-        return text.strip(), None
-    try:
-        food = _json.loads(m.group(1))
-    except _json.JSONDecodeError:
-        food = None
-    return _FOOD_BLOCK_RE.sub("", text).strip(), food
+def _extract_food_blocks(text: str):
+    """Достаёт ВСЕ блоки ###FOOD_JSON### из ответа ИИ-чата (правило добавления
+    еды — в system-промпте). Возвращает (текст без блоков, список блюд).
+
+    Раньше здесь стоял `.search` — первый блок, — а `.sub` вырезал из текста
+    ВСЕ. То есть на сообщение с тремя блюдами модель честно присылала три
+    блока, наружу уходил один, а два оставшихся исчезали бесследно: ни
+    в дневнике, ни в реплике. Дальше модель видела в истории собственный
+    текст «яйца — 186 ккал», принимала его за сделанную работу и на вопрос
+    про второе блюдо отвечала, что уже добавила. Замер 2026-08-13 на живом
+    вызове: три блока в ответе модели, одно блюдо в JSON, ноль записей
+    в дневнике.
+
+    Блок с битым JSON пропускается молча по одной причине: остальные блюда
+    в том же ответе к нему отношения не имеют, и терять их из-за соседа
+    было бы хуже. Пропуск при этом виден — счётчик в логе ниже."""
+    блюда, битых = [], 0
+    for m in _FOOD_BLOCK_RE.finditer(text):
+        try:
+            блюда.append(_json.loads(m.group(1)))
+        except _json.JSONDecodeError:
+            битых += 1
+    текст = _FOOD_BLOCK_RE.sub("", text)
+    # Осколки меток от блока, который не разобрался целиком (обрыв ответа,
+    # недописанная скобка). Убираем ОТДЕЛЬНО и со счётчиком: оставить их
+    # значит показать человеку «###FOOD_JSON###» посреди реплики, а убрать
+    # молча — потерять единственный признак того, что блюдо не доехало
+    текст, осколков = _FOOD_MARKER_RE.subn("", текст)
+    if битых or осколков:
+        print(f"[nut-chat] блоков еды не разобрано: битых {битых}, "
+              f"осколков меток {осколков}, разобрано {len(блюда)}")
+    return текст.strip(), блюда
+
+
+MEAL_NAMES_RU = {"breakfast": "завтрак", "lunch": "обед", "dinner": "ужин", "snack": "перекус"}
+
+# Значения по умолчанию для незаполненной анкеты — те же, что отдаёт
+# /nutrition/api/diary. Второй набор чисел разошёлся бы с первым молча:
+# ассистент называл бы одну норму, кольцо на экране рисовало бы другую.
+NUT_DEFAULT_GOALS = {"calories": 2000, "protein": 100, "fat": 65, "carbs": 250, "water_ml": 2000}
+
+
+def nut_goals(profile) -> dict:
+    """Расчётные нормы пользователя. Один источник и для экрана, и для
+    контекста ассистента (§6.1 по духу: список, ведущий две стороны сразу)."""
+    if not profile:
+        return dict(NUT_DEFAULT_GOALS)
+    return {
+        "calories": profile.calorie_goal or NUT_DEFAULT_GOALS["calories"],
+        "protein": profile.protein_goal or NUT_DEFAULT_GOALS["protein"],
+        "fat": profile.fat_goal or NUT_DEFAULT_GOALS["fat"],
+        "carbs": profile.carb_goal or NUT_DEFAULT_GOALS["carbs"],
+        "water_ml": profile.water_goal_ml or NUT_DEFAULT_GOALS["water_ml"],
+    }
+
+
+def _nut_chat_system(date: str, logs: list, water: int, profile) -> str:
+    """System-промпт ассистента дневника.
+
+    Нормы подаются ЦЕЛИКОМ и числами. До 2026-08-13 в контекст уходила одна
+    калорийность, и на вопрос «какая у меня норма белка» модель считала её
+    из калорий сама: замер на живом вызове дал «130–150 г» при 150 г
+    в профиле — совпало случайно, а на возражение «у меня 95» модель тут же
+    согласилась и назвала 95. Согласилась бы точно так же, если бы ошибался
+    пользователь, — это и есть главная поломка, а не выдуманное число."""
+    цели = nut_goals(profile)
+    съедено = {
+        "calories": sum(l.calories for l in logs),
+        "protein": sum(l.protein for l in logs),
+        "fat": sum(l.fat for l in logs),
+        "carbs": sum(l.carbs for l in logs),
+    }
+    цель = {"lose": "похудение", "gain": "набор массы", "maintain": "поддержание"}.get(
+        profile.goal if profile else "maintain", "поддержание")
+    анкета = "не заполнена"
+    if profile:
+        части = [f"{profile.gender == 'female' and 'женщина' or 'мужчина'}"]
+        if profile.age:
+            части.append(f"{profile.age} лет")
+        if profile.weight_kg:
+            части.append(f"{profile.weight_kg:g} кг")
+        if profile.height_cm:
+            части.append(f"{profile.height_cm:g} см")
+        if profile.target_weight_kg:
+            части.append(f"целевой вес {profile.target_weight_kg:g} кг")
+        анкета = ", ".join(части)
+    строки = [
+        f"- {MEAL_NAMES_RU.get(l.meal_type, l.meal_type)}: {l.food_name}"
+        f"{' (' + l.brand + ')' if l.brand else ''} — {l.grams:.0f} г, {l.calories:.0f} ккал, "
+        f"Б {l.protein:.0f} Ж {l.fat:.0f} У {l.carbs:.0f}"
+        for l in logs
+    ]
+    съеденное = "\n".join(строки) or "- ничего не записано"
+    return f"""Ты AI-нутрициолог в приложении. Отвечай кратко и конкретно (2-4 предложения). Без списков — просто текст. Обращайся к пользователю на «вы».
+
+АНКЕТА: {анкета}. Цель: {цель}.
+
+РАСЧЁТНЫЕ НОРМЫ НА ДЕНЬ (это единственный верный источник, они посчитаны приложением по анкете):
+- калории: {цели['calories']} ккал
+- белок: {цели['protein']} г
+- жиры: {цели['fat']} г
+- углеводы: {цели['carbs']} г
+- вода: {цели['water_ml']} мл
+
+СЪЕДЕНО за {date}: {съедено['calories']:.0f} ккал | Б {съедено['protein']:.0f} г | Ж {съедено['fat']:.0f} г | У {съедено['carbs']:.0f} г. Вода: {water} мл.
+ОСТАЛОСЬ до нормы: {цели['calories'] - съедено['calories']:.0f} ккал | Б {цели['protein'] - съедено['protein']:.0f} г | Ж {цели['fat'] - съедено['fat']:.0f} г | У {цели['carbs'] - съедено['carbs']:.0f} г | вода {цели['water_ml'] - water} мл.
+ЗАПИСИ ДНЕВНИКА за {date}:
+{съеденное}
+
+ПРАВИЛО ПРО ЧИСЛА. Нормы и съеденное бери ТОЛЬКО из блока выше — не считай их сам и не оценивай «примерно». Если пользователь называет другое число нормы, НЕ соглашайся и НЕ спорь: назови то, что стоит в данных, и предложи проверить анкету на вкладке «Профиль». Согласиться с чужим числом — значит подтвердить и ошибку тоже. Если нужного числа в блоке выше нет — так и скажи, что данных нет.
+
+ПРАВИЛО ПРО ДОБАВЛЕНИЕ ЕДЫ. Сам ты в дневник ничего не пишешь и знать, что записалось, не можешь. Единственный способ предложить запись — приложить в конце ответа блок на КАЖДОЕ блюдо (формат ниже). Пользователь увидит карточки, поправит их и сохранит сам.
+- Пользователь перечислил в одном сообщении несколько блюд — приложи СТОЛЬКО блоков, сколько блюд, по одному на каждое. Ничего не пропускай и не объединяй.
+- НИКОГДА не пиши «добавил», «записал», «готово», «уже добавлено» — ни про новое блюдо, ни про то, о котором говорили раньше в этой переписке. Твоё прошлое сообщение с описанием блюда НЕ означает, что оно попало в дневник. Что реально записано — видно в блоке ЗАПИСИ ДНЕВНИКА выше, и только там.
+- Блюдо, которое уже стоит в ЗАПИСИ ДНЕВНИКА выше, повторно не предлагай — скажи, что оно записано, и назови вес из записи.
+- Не хватает калорийности — сначала уточни, блок не прикладывай.
+ПРО БРЕНД/ЗАВЕДЕНИЕ: если из переписки понятно название кафе, ресторана, сети или производителя — укажи его в поле brand. Если блюдо явно ресторанное/готовое (а не домашняя еда вроде «сварил суп») и бренд не упомянут — спроси одним коротким вопросом, откуда оно, и не прикладывай блок, пока не ответят (либо пользователь скажет, что не помнит — тогда brand пустой).
+Формат блока (в конце ответа, каждый отдельным фрагментом):
+###FOOD_JSON###
+{{"name":"название блюда","brand":"заведение или производитель (пустая строка, если неизвестно/не нужно)","meal":"breakfast|lunch|dinner|snack","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":100}}
+###END_FOOD_JSON###
+calories/protein/fat/carbs — на 100 г продукта, estimated_grams — вес съеденной порции. Поле meal — приём пищи, если он понятен из сообщения; если не понятен, оставь пустую строку."""
 
 
 def _extract_json(text: str) -> dict:
@@ -3627,13 +3838,10 @@ async def nut_diary(date: str = None, user=Depends(get_current_user), db: Sessio
     diary = _diary_totals(logs)
     diary["water_ml"] = water_ml
     diary["water_logs"] = [{"id": w.id, "amount_ml": w.amount_ml} for w in water_logs]
-    diary["goals"] = {
-        "calories": profile.calorie_goal if profile else 2000,
-        "protein": profile.protein_goal if profile else 100,
-        "fat": profile.fat_goal if profile else 65,
-        "carbs": profile.carb_goal if profile else 250,
-        "water_ml": profile.water_goal_ml if profile else 2000,
-    }
+    # Один источник норм на экран и на контекст ассистента: два набора
+    # чисел разошлись бы молча — кольцо рисовало бы одно, ассистент называл
+    # бы другое
+    diary["goals"] = nut_goals(profile)
     return JSONResponse(diary)
 
 
@@ -3770,11 +3978,14 @@ async def nut_search(q: str = "", user=Depends(get_current_user), db: Session = 
     custom = [f for f in all_custom if q_lower in f.name.lower()][:5]
     custom_results = [{
         "name": f.name, "brand": f.brand or "", "source": "custom",
+        "barcode": f.barcode or "",
         "calories": f.calories_per_100g, "protein": f.protein_per_100g,
         "fat": f.fat_per_100g, "carbs": f.carbs_per_100g,
     } for f in custom]
     off_results = await _off_search(q)
-    results = custom_results + off_results[:20]
+    # Ранжируем ОБЩИЙ список, а не только чужой: свой продукт, совпавший
+    # с запросом одним словом из двух, не должен стоять выше найденного целиком
+    results = _rank_food_results(q, custom_results + off_results[:20])
     if not results:
         results += await _ai_food_estimate(q)
     return JSONResponse({"results": results})
@@ -4026,7 +4237,13 @@ def _background_sync_scale(user_id: int):
             return
         try:
             _sync_scale(db, conn)
+        except ScaleReauthNeeded as e:
+            print(f"[zepp] фоновая синхронизация: нужен повторный вход ({e})")
+            conn.last_sync_status = "reauth"
+            conn.last_sync_error = str(e)[:300]
+            db.commit()
         except Exception as e:
+            print(f"[zepp] фоновая синхронизация не удалась: {type(e).__name__}: {e}")
             conn.last_sync_status = "error"
             conn.last_sync_error = str(e)[:300]
             db.commit()
@@ -4039,36 +4256,41 @@ def _scale_status(conn: ScaleConnection | None) -> dict:
         return {"connected": False}
     return {
         "connected": True,
+        # needs_reauth ведёт себя как отдельное состояние, а не как оттенок
+        # ошибки: чинится оно действием пользователя (ввести пароль), а не
+        # ожиданием. Свалить его в "error" значило бы предложить человеку
+        # ждать погоды у моря
+        "needs_reauth": conn.last_sync_status == "reauth",
         "last_sync_at": conn.last_sync_at.strftime("%Y-%m-%d %H:%M") if conn.last_sync_at else None,
         "last_sync_status": conn.last_sync_status,
         "last_sync_error": conn.last_sync_error,
     }
 
 
+class ScaleReauthNeeded(Exception):
+    """Токен Zepp больше не работает, а пароля у нас нет и быть не должно.
+    Чинится только повторным вводом пароля пользователем."""
+
+
 def _sync_scale(db: Session, conn: ScaleConnection) -> dict:
-    """Логиним по кешированному токену; если он не работает — полный логин
-    по паролю (это разлогинит пользователя в приложении Zepp Life, поэтому
-    делаем так редко, не на каждую синхронизацию)."""
-    username = _decrypt(conn.encrypted_username)
-    password = _decrypt(conn.encrypted_password)
-    # Токен тоже зашифрован: открытым он давал доступ к чужим измерениям
+    """Синхронизация идёт ТОЛЬКО по сохранённому токену.
+
+    Ветки «токен не сработал — залогинимся паролем» здесь больше нет:
+    пароль от чужого аккаунта Xiaomi не хранится (см. scale_connect).
+    Прежняя ветка вдобавок ловила `except (ZeppApiError, Exception)` —
+    то есть вообще всё, включая опечатку в нашем коде, — и отвечала
+    на это полным логином, который разлогинивает человека в мобильном
+    приложении Zepp Life. Протух токен — просим ввести пароль заново."""
+    # Токен зашифрован: открытым он давал доступ к чужим измерениям
     # в обход пароля. Расшифрованный живёт только в этих переменных
     токен = _decrypt_opt(conn.encrypted_app_token)
     zepp_id = _decrypt_opt(conn.encrypted_zepp_user_id)
-
-    def _do_fetch():
-        return zepp_client.fetch_weight_records(токен, zepp_id)
-
+    if not токен or not zepp_id:
+        raise ScaleReauthNeeded("нет сохранённого токена")
     try:
-        if not токен:
-            raise zepp_client.ZeppApiError("нет кешированного токена")
-        records = _do_fetch()
-    except (zepp_client.ZeppApiError, Exception):
-        tokens = zepp_client.login(username, password)
-        токен, zepp_id = tokens["app_token"], tokens["zepp_user_id"]
-        conn.encrypted_app_token = _encrypt_opt(токен)
-        conn.encrypted_zepp_user_id = _encrypt_opt(zepp_id)
-        records = _do_fetch()
+        records = zepp_client.fetch_weight_records(токен, zepp_id)
+    except zepp_client.ZeppApiError as e:
+        raise ScaleReauthNeeded(str(e))
 
     saved = 0
     for rec in records:
@@ -4122,21 +4344,53 @@ async def scale_connect(request: Request, user=Depends(get_current_user), db: Se
     if not crypto.is_configured():
         return JSONResponse({"error": "Шифрование не настроено на сервере"}, status_code=500)
 
+    # Три причины отказа различаются, и различие видно пользователю. Прежде
+    # здесь стояла одна фраза «Не удалось войти: неверный логин или пароль
+    # Xiaomi» на все случаи сразу, включая те, где данные ВЕРНЫЕ (Xiaomi
+    # просит подтвердить вход) и где виноваты мы (изменился флоу). Замер
+    # живого ответа — в zepp_client._разобрать_отказ
     try:
         tokens = zepp_client.login(username, password)
-    except zepp_client.ZeppLoginError as e:
-        return JSONResponse({"error": f"Не удалось войти: {e}"}, status_code=400)
+    except zepp_client.ZeppAuthError as e:
+        print(f"[zepp] отказ по учётным данным: {e}")
+        return JSONResponse({"error": f"{e}. Проверьте логин и пароль от аккаунта Zepp Life."},
+                            status_code=400)
+    except zepp_client.ZeppVerificationError as e:
+        print(f"[zepp] требуется подтверждение: {e}")
+        return JSONResponse({"error": f"{e}. Логин и пароль приняты, но Xiaomi просит подтвердить "
+                                      f"вход. Войдите в приложение Zepp Life на телефоне, "
+                                      f"подтвердите вход и попробуйте здесь ещё раз."},
+                            status_code=400)
+    except zepp_client.ZeppProtocolError as e:
+        print(f"[zepp] протокол разошёлся: {e}")
+        return JSONResponse({"error": f"Сервис Zepp Life ответил не так, как мы ожидаем ({e}). "
+                                      f"Это наша поломка, а не ваши данные — вес пока вводите вручную."},
+                            status_code=502)
+    except httpx.HTTPError as e:
+        print(f"[zepp] сеть: {type(e).__name__}: {e}")
+        return JSONResponse({"error": "Сервис Zepp Life сейчас недоступен. Попробуйте позже."},
+                            status_code=502)
     except Exception as e:
-        return JSONResponse({"error": f"Ошибка соединения с Zepp Life: {e}"}, status_code=502)
+        print(f"[zepp] неожиданный сбой: {type(e).__name__}: {e}")
+        return JSONResponse({"error": f"Не удалось подключить весы: {type(e).__name__}"},
+                            status_code=502)
 
     conn = db.query(ScaleConnection).filter(ScaleConnection.user_id == user.id).first()
     if not conn:
         conn = ScaleConnection(user_id=user.id)
         db.add(conn)
     conn.encrypted_username = _encrypt(username)
-    conn.encrypted_password = _encrypt(password)
+    # Пароль НЕ сохраняется. Он нужен ровно один раз — обменять на токен, —
+    # и дальше синхронизация идёт по токену. Хранение чужого пароля от Xiaomi
+    # ради удобства автоматического перелогина покупало ровно одно: чтобы
+    # протухший токен чинился сам. Цена — пароль от чужого аккаунта в нашей
+    # базе, у которого нет ни срока, ни отзыва; токен и то и другое имеет.
+    # Протух токен — просим ввести пароль заново (см. _sync_scale)
+    conn.encrypted_password = None
     conn.encrypted_app_token = _encrypt_opt(tokens["app_token"])
     conn.encrypted_zepp_user_id = _encrypt_opt(tokens["zepp_user_id"])
+    conn.last_sync_status = None
+    conn.last_sync_error = None
     db.commit()
 
     try:
@@ -4155,7 +4409,15 @@ async def scale_sync(user=Depends(get_current_user), db: Session = Depends(get_d
         return JSONResponse({"error": "Весы не подключены"}, status_code=400)
     try:
         result = _sync_scale(db, conn)
+    except ScaleReauthNeeded as e:
+        conn.last_sync_status = "reauth"
+        conn.last_sync_error = str(e)[:300]
+        db.commit()
+        return JSONResponse({"error": "Сессия Zepp Life истекла. Введите пароль ещё раз — "
+                                      "он снова нужен только на один вход.",
+                             "needs_reauth": True}, status_code=400)
     except Exception as e:
+        print(f"[zepp] синхронизация не удалась: {type(e).__name__}: {e}")
         conn.last_sync_status = "error"
         conn.last_sync_error = str(e)[:300]
         db.commit()
@@ -4214,6 +4476,44 @@ async def upload_body_photo(file: UploadFile = File(...), angle: str = Form(...)
         db.add(BodyPhoto(user_id=user.id, log_date=date, angle=angle, image_path=токен))
     db.commit()
     return JSONResponse({"ok": True})
+
+
+@app.delete("/nutrition/api/body-photo")
+async def delete_body_photo(date: str, angle: str, user=Depends(get_current_user),
+                            db: Session = Depends(get_db)):
+    """Удаляет снимок за дату и ракурс: и запись, и файл на томе.
+
+    Файл убирается ПОСЛЕ commit и по тому же образцу, что замена снимка
+    выше: строка без файла — просто пустая карточка, файл без строки —
+    мусор на томе, который никто уже не найдёт. Порядок выбран так, чтобы
+    в худшем случае остался второй, а не первый.
+
+    Проверка владения — сравнением user_id, без ветки «а администратору
+    можно» (§5.1). Не нашлось — 404, а не 403."""
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    if angle not in BODY_PHOTO_ANGLES:
+        return JSONResponse({"error": "Некорректный ракурс"}, status_code=400)
+    row = db.query(BodyPhoto).filter(
+        BodyPhoto.user_id == user.id, BodyPhoto.log_date == date, BodyPhoto.angle == angle,
+    ).first()
+    if not row:
+        return JSONResponse({"error": "Фото не найдено"}, status_code=404)
+    токен = row.image_path
+    db.delete(row)
+    db.commit()
+    if токен:
+        try:
+            os.remove(_media_path("body", user.id, токен))
+        except FileNotFoundError:
+            pass  # запись пережила файл — удалять больше нечего
+        except (OSError, ValueError) as e:
+            print(f"[media] фото тела {токен} не удалено с тома: {type(e).__name__}: {e}")
+    # Сколько снимков осталось на эту дату — по этому числу интерфейс решает,
+    # убирать ли дату из обоих списков сравнения
+    осталось = db.query(BodyPhoto).filter(
+        BodyPhoto.user_id == user.id, BodyPhoto.log_date == date).count()
+    return JSONResponse({"ok": True, "left_on_date": осталось})
 
 
 @app.get("/nutrition/api/body-photos")
@@ -4294,35 +4594,7 @@ async def nut_ai_chat(request: Request, user=Depends(get_current_user), db: Sess
         WaterLog.user_id == user.id, WaterLog.log_date == date).all())
     profile = db.query(NutritionProfile).filter(NutritionProfile.user_id == user.id).first()
 
-    total_cal = sum(l.calories for l in logs)
-    total_prot = sum(l.protein for l in logs)
-    total_fat = sum(l.fat for l in logs)
-    total_carbs = sum(l.carbs for l in logs)
-    goal_cal = profile.calorie_goal if profile else 2000
-    goal_name = {"lose": "похудение", "gain": "набор массы", "maintain": "поддержание"}.get(
-        profile.goal if profile else "maintain", "поддержание")
-    food_list = "\n".join(f"- {l.food_name}: {l.calories:.0f} ккал" for l in logs) or "Ничего не записано"
-
-    system = f"""Ты AI-нутрициолог в мобильном приложении. Отвечай кратко и конкретно (2-4 предложения). Без списков — просто текст.
-
-Контекст пользователя сегодня ({date}):
-- Цель: {goal_name}, норма {goal_cal} ккал/день
-- Съедено: {total_cal:.0f} ккал | Б:{total_prot:.0f}г Ж:{total_fat:.0f}г У:{total_carbs:.0f}г
-- Вода: {water} мл
-- Приёмы пищи:
-{food_list}
-
-ЖЁСТКОЕ ПРАВИЛО про добавление еды в дневник: у тебя НЕТ инструмента, который сам добавляет еду — единственный способ добавить блюдо в дневник пользователя — приложить в конце ответа специальный блок (см. формат ниже), который откроет пользователю выбор приёма пищи (завтрак/обед/ужин/перекус).
-Добавляй этот блок, когда:
-- пользователь описал блюдо (название + калорийность хотя бы) и попросил добавить/записать его, ИЛИ
-- ты сам предложил блюдо с оценкой КБЖУ, и пользователь подтвердил ("да", "верно", "добавь", "ок" и т.п.).
-НИКОГДА не пиши "добавил", "записал в дневник", "готово" и т.п. без этого блока — без него ничего не добавится, и пользователь увидит ложь. Если данных о калорийности не хватает — сначала уточни их, не добавляй блок.
-ПРО БРЕНД/ЗАВЕДЕНИЕ: если из переписки понятно название кафе, ресторана, сети или производителя — укажи его в поле brand блока. Если блюдо явно ресторанное/готовое (а не домашняя еда вроде "сварил суп") и бренд/заведение НЕ упомянуты — перед добавлением блока спроси одним коротким вопросом, из какого места это блюдо, и не добавляй блок, пока не получишь ответ (или пользователь явно скажет, что не помнит/не важно — тогда добавляй блок с пустым brand).
-Формат блока (в конце ответа, отдельным фрагментом):
-###FOOD_JSON###
-{{"name":"название блюда","brand":"заведение или производитель (пустая строка, если неизвестно/не нужно)","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":100}}
-###END_FOOD_JSON###
-calories/protein/fat/carbs — на 100г продукта, estimated_grams — вес съеденной порции."""
+    system = _nut_chat_system(date, logs, water, profile)
 
     api_messages = ([{"role": "system", "content": system}]
                      + [{"role": h.role, "content": h.content} for h in history]
@@ -4354,10 +4626,83 @@ calories/protein/fat/carbs — на 100г продукта, estimated_grams — 
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 
-    reply, food = _extract_food_block(reply)
+    reply, foods = _extract_food_blocks(reply)
     db.add(ChatMessage(user_id=user.id, role="assistant", content=reply))
     db.commit()
-    return JSONResponse({"reply": reply, "food": food} if food else {"reply": reply})
+    return JSONResponse({"reply": reply, "foods": foods} if foods else {"reply": reply})
+
+
+@app.post("/nutrition/api/ai-chat/log-foods")
+async def nut_ai_chat_log_foods(request: Request, user=Depends(get_current_user),
+                                db: Session = Depends(get_db)):
+    """Сохраняет набор карточек из чата ОДНИМ действием и подтверждает
+    записанное ПО БАЗЕ, а не по намерению.
+
+    Подтверждение собирается перечитыванием строк из базы по их id после
+    commit. Это не перестраховка: до 2026-08-13 ассистент сообщал
+    о добавлении, ничего не записав, и единственный способ такое исключить —
+    не иметь в коде пути, на котором текст подтверждения печатается раньше,
+    чем прочитана запись. Реплика уходит в ту же историю ChatMessage,
+    поэтому следующий вызов модели видит уже подтверждённый факт.
+
+    Блюдо, которое записать не удалось, называется поимённо. Молчаливое
+    «сохранено 2 из 3» — тот же немой отказ (§6.0.1), только с числом."""
+    if not user or not user_has_access(user, "nutrition", db):
+        return JSONResponse({"error": "Нет доступа"}, status_code=403)
+    data = await request.json()
+    date = data.get("date") or datetime.now().strftime("%Y-%m-%d")
+    карточки = data.get("items") or []
+    if not карточки:
+        return JSONResponse({"error": "Нечего сохранять"}, status_code=400)
+
+    новые, не_вышло = [], []
+    for карточка in карточки:
+        название = (карточка.get("name") or "").strip()
+        try:
+            граммы = float(карточка.get("grams") or 0)
+            if not название or граммы <= 0:
+                raise ValueError("нет названия или веса")
+            приём = карточка.get("meal_type")
+            if приём not in MEAL_NAMES_RU:
+                приём = "snack"
+            доля = граммы / 100
+            строка = FoodLog(
+                user_id=user.id, log_date=date, meal_type=приём,
+                food_name=название, brand=(карточка.get("brand") or "").strip() or None,
+                grams=граммы,
+                calories=float(карточка.get("calories") or 0) * доля,
+                protein=float(карточка.get("protein") or 0) * доля,
+                fat=float(карточка.get("fat") or 0) * доля,
+                carbs=float(карточка.get("carbs") or 0) * доля,
+            )
+            db.add(строка)
+            db.flush()
+            новые.append(строка.id)
+        except (TypeError, ValueError, SQLAlchemyError) as e:
+            не_вышло.append(название or "без названия")
+            print(f"[nut-chat] блюдо «{название}» не записано: {type(e).__name__}: {e}")
+    db.commit()
+
+    # Перечитываем из базы — подтверждаем то, что там ЛЕЖИТ
+    записанные = db.query(FoodLog).filter(FoodLog.id.in_(новые)).all() if новые else []
+    if записанные:
+        перечень = ", ".join(
+            f"{r.food_name} ({r.grams:.0f} г, {r.calories:.0f} ккал) — {MEAL_NAMES_RU[r.meal_type]}"
+            for r in записанные)
+        текст = f"Записал в дневник за {date}: {перечень}."
+    else:
+        текст = "В дневник ничего не записано."
+    if не_вышло:
+        текст += " Не удалось записать: " + ", ".join(не_вышло) + "."
+    db.add(ChatMessage(user_id=user.id, role="assistant", content=текст))
+    db.commit()
+
+    return JSONResponse({
+        "reply": текст,
+        "saved": [{"id": r.id, "name": r.food_name, "grams": r.grams,
+                   "calories": round(r.calories), "meal_type": r.meal_type} for r in записанные],
+        "failed": не_вышло,
+    })
 
 
 # ── Nutrition: AI photo ───────────────────────────────────────────────────────
@@ -4432,7 +4777,10 @@ async def nut_ai_chat_photo(file: UploadFile = File(...), message: str = Form(""
 
     db.add(ChatMessage(user_id=user.id, role="assistant", content=reply))
     db.commit()
-    return JSONResponse({"reply": reply, "food": food})
+    # foods списком, а не food по одному: у чата и у фото один и тот же
+    # набор карточек на клиенте, и второй формат ответа завёл бы вторую
+    # ветку разбора — ту самую, в которой потерялись два блюда из трёх
+    return JSONResponse({"reply": reply, "foods": [food]})
 
 
 # ── Nutrition: распознавание голосовых сообщений (Whisper через OpenRouter) ────

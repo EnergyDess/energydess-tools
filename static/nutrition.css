@@ -397,6 +397,10 @@ html.assistant-mode, html.assistant-mode body {
 .r-info { flex: 1; min-width: 0; }
 .r-name  { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .r-brand { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; }
+/* «бренд не указан» — это отсутствие данных, а не название. Курсив отделяет
+   его от настоящих брендов в соседних строках; цвет тот же --text-2, своего
+   серого не заводим */
+.r-nobrand { font-style: italic; }
 .r-kcal  { font-size: 0.8125rem; color: var(--tool-accent); font-weight: 700; white-space: nowrap; }
 .r-per   { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; }
 .empty   { text-align: center; color: var(--text-2); font-weight: 600; padding: 1.75rem 1rem; font-size: 0.87rem; }
@@ -497,6 +501,15 @@ html.assistant-mode, html.assistant-mode body {
 .compare-col { flex: 1; min-width: 8.75rem; text-align: center; }
 .compare-col img { width: 100%; border-radius: 0.625rem; aspect-ratio: 3/4; object-fit: cover; margin-bottom: 0.25rem; }
 .compare-col-label { font-size: 0.8125rem; color: var(--text-2); margin-top: 0.375rem; }
+/* Кнопка удаления живёт НА снимке, а не под колонкой: колонка держит
+   до трёх ракурсов за одну дату, и кнопка под ней не сказала бы, какой
+   из трёх удалит */
+.compare-shot { position: relative; }
+.compare-del {
+  position: absolute; top: 0.375rem; right: 0.375rem;
+  background: rgba(10, 11, 13, .72); border: 1px solid var(--border-strong);
+}
+.compare-del:hover { color: var(--error); border-color: var(--error); }
 .f-label { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-bottom: 0.3125rem; display: block; }
 /* .f-input здесь больше нет: это была копия системного .input (25 полей
    в шести формах). Теперь .input .input-compact, у списков .select.
@@ -796,14 +809,42 @@ html.assistant-mode, html.assistant-mode body {
 }
 .voice-tr-text.show { display: block; }
 .voice-transcribing { margin-top: 0.375rem; font-size: 0.8125rem; color: var(--text-2); font-weight: 600; font-style: italic; }
-/* ── Кнопки выбора приёма пищи в чате ── */
-.meal-picker-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4375rem; margin-top: 0.5625rem; }
-.meal-picker-btns button {
-  padding: 0.5625rem 0.375rem; border-radius: 0.5625rem; background: var(--surface-1); border: 1px solid var(--border);
-  color: var(--text); font-size: 0.8125rem; font-weight: 600; cursor: pointer;
-  -webkit-tap-highlight-color: transparent; transition: background .1s, border-color .1s;
+/* ── Набор карточек блюд в чате ────────────────────────────────────────────
+   Здесь до 2026-08-13 лежали .meal-picker-btns — четыре кнопки выбора приёма
+   пищи для ОДНОГО блюда. Правила удалены вместе с разметкой: описание
+   несуществующего класса ловит следующего, кто возьмёт имя из файла.
+
+   Ниже только РАСКЛАДКА: поля, чипы, кнопки и коробка итога — системные
+   (.input .input-compact, .chip, .btn-primary, .btn-ghost, .btn-icon,
+   .calc-box). Префикс .fd-* стоит на том, чего в системе нет и быть
+   не должно, — на устройстве конкретного экрана (§6.0.2). */
+.fd-bubble { width: 100%; }
+.fd-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem; margin-bottom: 0.625rem;
 }
-.meal-picker-btns button:active { background: var(--tool-accent-dim); border-color: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
+.fd-title { font-size: 0.8125rem; font-weight: 700; color: var(--text-2); }
+.fd-pager { display: flex; align-items: center; gap: 0.25rem; flex-shrink: 0; }
+.fd-count {
+  font-family: var(--font-mono); font-size: 0.8125rem; color: var(--text-2);
+  min-width: 3.75rem; text-align: center;
+}
+.fd-card {
+  background: var(--surface-sunken); border: 1px solid var(--border);
+  border-radius: 0.75rem; padding: 0.75rem; margin-bottom: 0.625rem;
+}
+.fd-card .f-field { margin-bottom: 0.5rem; }
+/* Чипы приёмов пищи переносятся, а не уезжают в горизонтальную прокрутку:
+   у .s-chips на экране поиска стоит overflow-x, и внутри карточки шириной
+   ~300px четвёртый чип («Перекус») оказывался за кромкой — прокрутка
+   в прокрутке, ровно то, что разбирала задача 49. Замер на 390px:
+   ширина строки чипов 302px против 348px содержимого */
+.fd-card .s-chips { flex-wrap: wrap; overflow-x: visible; margin-bottom: 0.25rem; }
+.fd-card .s-chips .chip { flex: 0 1 auto; }
+/* Пять числовых полей в две колонки: на 390px три пары читаются, один
+   столбец увёл бы кнопку сохранения за нижнюю кромку ленты */
+.fd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem; }
+.fd-drop { width: 100%; margin-top: 0.5rem; }
 
 /* ── Recipe modals ── */
 .ing-list { margin-bottom: 0.625rem; }
