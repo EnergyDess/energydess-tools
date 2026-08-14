@@ -103,6 +103,11 @@
             <span class="water-val" id="water-val">0 / 2000 мл</span>
           </div>
           <div class="water-bar"><div class="water-bar-fill" id="water-bar"></div></div>
+          {# Налитые за день порции с удалением каждой. Стоит МЕЖДУ полосой
+             и рядом кнопок, а не под ними: по нижнему краю ряда кнопок
+             выравнивается кнопка нутрициолога в левой колонке, и блок,
+             вставший после него, увёл бы выравнивание молча. #}
+          <div class="water-log" id="water-log"></div>
           {# Ручной ввод переехал ВНУТРЬ ряда кнопок 2026-08-14. На мобильной
              ширине ряд переносится, и кнопка занимает вторую строку целиком —
              то есть выглядит ровно как раньше (замер: те же 34px высоты
@@ -122,42 +127,131 @@
     </section>
 
     <!-- ── TAB: SEARCH ── -->
+    {# РАСКЛАДКА ОДНА НА ОБЕ ШИРИНЫ, а не две копии разметки. На десктопе
+       .a-cols — сетка из трёх колонок (способы ввода · поиск · панель
+       выбранного продукта), на мобильной — колонка, в которой .a-left,
+       .a-main и .a-box объявлены `display: contents`: их коробки не
+       рисуются вовсе, а дети встают в один поток и расставляются `order`.
+       Порядок на 390px остаётся прежним — дата, приёмы, поле поиска,
+       «свой продукт», области, находки.
+
+       Вторая копия разметки под мобильный была бы двумя наборами кнопок
+       с одинаковыми обработчиками: правку в один из них рано или поздно
+       забыли бы внести во второй, и отказ был бы немым — на той ширине,
+       которую в этот раз не смотрели. #}
     <section class="nut-tab" id="tab-search">
       <button class="search-back" onclick="handleBack()">← Назад в дневник</button>
-      {# Дата видна на всём пути записи. Без неё человек, отмотавший дневник
-         на вчера, записывает сегодняшний обед во вчерашний день и не узнаёт
-         об этом никогда: экран добавления выглядит одинаково для любого дня.
-         Порча данных без единого признака — §6.0.1. Стоит ВСЕГДА, а не
-         только на отмотанном дне: подпись, появляющаяся иногда, замечается
-         реже, чем подпись, которая есть всегда. #}
-      <div class="alert alert-accent add-date-note" id="add-date-note">
-        <i data-lucide="calendar-clock"></i><span id="add-date-text"></span>
+      <div class="a-cols">
+      <div class="a-left">
+        {# Дата видна на всём пути записи. Без неё человек, отмотавший дневник
+           на вчера, записывает сегодняшний обед во вчерашний день и не узнаёт
+           об этом никогда: экран добавления выглядит одинаково для любого дня.
+           Порча данных без единого признака — §6.0.1. Стоит ВСЕГДА, а не
+           только на отмотанном дне: подпись, появляющаяся иногда, замечается
+           реже, чем подпись, которая есть всегда. #}
+        <div class="alert alert-accent add-date-note" id="add-date-note">
+          <i data-lucide="calendar-clock"></i><span id="add-date-text"></span>
+        </div>
+        <div class="card card-static a-box">
+          <div class="field-label a-box-title">Приём пищи</div>
+          <div class="s-chips a-meals" id="meal-chips">
+            <button class="chip active" data-meal="breakfast" onclick="setSearchMeal(this)"><i data-lucide="sunrise"></i> Завтрак</button>
+            <button class="chip" data-meal="lunch"     onclick="setSearchMeal(this)"><i data-lucide="sun"></i> Обед</button>
+            <button class="chip" data-meal="dinner"    onclick="setSearchMeal(this)"><i data-lucide="moon"></i> Ужин</button>
+            <button class="chip" data-meal="snack"     onclick="setSearchMeal(this)"><i data-lucide="apple"></i> Перекус</button>
+          </div>
+        </div>
+        {# Способы ввода. На десктопе названы словами — там есть место, и
+           значок 18×18 у поля не говорит, что он делает. На 390px словами
+           остаётся только «свой продукт» (он и был там кнопкой), фото
+           и штрих-код живут значками в самом ряду поиска. #}
+        <div class="card card-static a-box">
+          <div class="field-label a-box-title">Способ ввода</div>
+          <button class="btn-secondary a-method a-method-wide" onclick="openPhoto()">
+            <i data-lucide="camera"></i> Сфотографировать
+          </button>
+          <button class="btn-secondary a-method a-method-wide" onclick="openScanner()">
+            <i data-lucide="scan-barcode"></i> Сканировать штрихкод
+          </button>
+          <button class="btn-secondary a-method a-method-manual" onclick="openCustomFoodModal()">
+            <i data-lucide="pencil"></i> Свой продукт
+          </button>
+        </div>
       </div>
-      <div class="s-chips" id="meal-chips">
-        <button class="chip active" data-meal="breakfast" onclick="setSearchMeal(this)"><i data-lucide="sunrise"></i> Завтрак</button>
-        <button class="chip" data-meal="lunch"     onclick="setSearchMeal(this)"><i data-lucide="sun"></i> Обед</button>
-        <button class="chip" data-meal="dinner"    onclick="setSearchMeal(this)"><i data-lucide="moon"></i> Ужин</button>
-        <button class="chip" data-meal="snack"     onclick="setSearchMeal(this)"><i data-lucide="apple"></i> Перекус</button>
+
+      <div class="a-main">
+        {# Вкладки — ОБЛАСТИ ПОИСКА, а не переключатель того, что показано.
+           Пока поиск шёл по всей базе независимо от вкладки, вкладка
+           утверждала неправду: человек стоял в «Частых», искал и получал
+           находки из справочника. Теперь запрос всегда работает внутри
+           выбранной области, а подсказка в поле называет её вслух. #}
+        <div class="segmented s-tabs" id="s-tabs">
+          <button class="segmented-btn active" id="st-all"      onclick="setSearchTab('all')">Вся база</button>
+          <button class="segmented-btn"        id="st-recent"   onclick="setSearchTab('recent')">Недавние</button>
+          <button class="segmented-btn"        id="st-frequent" onclick="setSearchTab('frequent')">Частые</button>
+          <button class="segmented-btn"        id="st-recipes"  onclick="setSearchTab('recipes')">Мои рецепты</button>
+        </div>
+        <div class="s-bar">
+          <input type="search" class="input input-compact" id="s-input" placeholder="Поиск по всей базе"
+                 oninput="onSearch(this.value)" autocomplete="off" enterkeyhint="search">
+          <button class="btn-icon btn-icon-solid a-icon-method" onclick="openPhoto()" title="Фото">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </button>
+          <button class="btn-icon btn-icon-solid a-icon-method" onclick="openScanner()" title="Штрих-код">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path d="M3 5v4M3 3h4M21 3h-4M21 5v4M3 19v-4M3 21h4M21 21h-4M21 19v-4"/><path d="M7 8h2v8H7zM11 8h2v8h-2zM15 8h2v8h-2z"/>
+            </svg>
+          </button>
+        </div>
+        <div class="a-results" id="s-results"></div>
       </div>
-      <div class="s-bar">
-        <input type="search" class="input input-compact" id="s-input" placeholder="Поиск еды..."
-               oninput="onSearch(this.value)" autocomplete="off" enterkeyhint="search">
-        <button class="btn-icon btn-icon-solid" onclick="openPhoto()" title="Фото">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        </button>
-        <button class="btn-icon btn-icon-solid" onclick="openScanner()" title="Штрих-код">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path d="M3 5v4M3 3h4M21 3h-4M21 5v4M3 19v-4M3 21h4M21 21h-4M21 19v-4"/><path d="M7 8h2v8H7zM11 8h2v8h-2zM15 8h2v8h-2z"/>
-          </svg>
-        </button>
-      </div>
-      <button class="add-manual-btn" onclick="openCustomFoodModal()"><i data-lucide="pencil"></i> Добавить свой продукт</button>
-      <div class="segmented s-tabs" id="s-tabs">
-        <button class="segmented-btn active" id="st-recent"   onclick="setSearchTab('recent')">Недавние</button>
-        <button class="segmented-btn"        id="st-frequent" onclick="setSearchTab('frequent')">Частые</button>
-        <button class="segmented-btn"        id="st-recipes"  onclick="setSearchTab('recipes')">Рецепты</button>
-      </div>
-      <div id="s-results"></div>
+
+      {# Панель выбранного продукта — замена модалки НА ДЕСКТОПЕ. Колонка
+         стоит всегда, даже пустой: появляясь только по выбору, она сдвигала
+         бы список находок под курсором ровно в момент нажатия. #}
+      <aside class="a-panel" id="a-panel">
+        <div class="card card-static a-panel-box" id="a-panel-box">
+          <div class="a-panel-empty" id="a-panel-empty">Выберите продукт слева — здесь появятся граммовка и КБЖУ</div>
+          <div class="a-panel-body" id="a-panel-body" style="display:none">
+            <div class="por-name" id="ap-name"></div>
+            <div class="por-sub por-sub-gap" id="ap-sub"></div>
+            <div class="g-wrap">
+              <input type="number" class="g-input" id="ap-grams" value="100" min="1" max="5000"
+                     oninput="updatePanelCalc()" onfocus="setTimeout(()=>this.select())">
+              <span class="g-lbl">г</span>
+            </div>
+            <div class="q-grams">
+              <button class="q-btn" onclick="setPanelG(50)">50г</button>
+              <button class="q-btn" onclick="setPanelG(100)">100г</button>
+              <button class="q-btn" onclick="setPanelG(150)">150г</button>
+              <button class="q-btn" onclick="setPanelG(200)">200г</button>
+              <button class="q-btn" onclick="setPanelG(300)">300г</button>
+            </div>
+            <div class="calc-box">
+              <div class="calc-kcal"   id="ap-kcal">0 ккал</div>
+              <div class="calc-macros" id="ap-macros">Б: 0г  Ж: 0г  У: 0г</div>
+            </div>
+            {# Выбор приёма пищи стоит и слева, и здесь — как в эскизе, — но
+               значение у них ОДНО: обе группы чипов ведут S.searchMeal.
+               Две независимые пары «где выбрано» разошлись бы молча, и
+               запись ушла бы в приём, который человек видит невыбранным. #}
+            <div class="field-label a-box-title">Приём пищи</div>
+            <div class="s-chips ap-meals" id="ap-meal-chips">
+              <button class="chip active" data-meal="breakfast" onclick="setSearchMeal(this)"><i data-lucide="sunrise"></i> Завтрак</button>
+              <button class="chip" data-meal="lunch"     onclick="setSearchMeal(this)"><i data-lucide="sun"></i> Обед</button>
+              <button class="chip" data-meal="dinner"    onclick="setSearchMeal(this)"><i data-lucide="moon"></i> Ужин</button>
+              <button class="chip" data-meal="snack"     onclick="setSearchMeal(this)"><i data-lucide="apple"></i> Перекус</button>
+            </div>
+            {# Четвёртое место, где видна дата: панель — последняя точка
+               перед записью, ровно как строка над кнопкой в модалке #}
+            <div class="alert alert-accent ap-date-note" id="ap-date-note">
+              <i data-lucide="calendar-clock"></i><span id="ap-date-text"></span>
+            </div>
+            <button class="btn-primary btn-block ap-add" onclick="confirmAdd(true)">Добавить в дневник</button>
+          </div>
+        </div>
+      </aside>
+      </div><!-- /a-cols -->
     </section>
 
     <!-- ── TAB: HISTORY ── -->
@@ -653,7 +747,11 @@ const S = {
   activeTab: 'diary',
   diary: null, profile: null,
   searchMeal: defaultMealByTime(),
-  searchTab: 'recent',
+  // Область поиска по умолчанию. «Вся база», а не «Недавние»: область теперь
+  // задаёт, ГДЕ идёт поиск, и открывать экран в узкой области значило бы
+  // по умолчанию искать в подмножестве, о котором человек не думал
+  searchTab: 'all',
+  waterLogOpen: false,   // раскрыт ли список налитых порций
   portionFood: null,
   editingFoodId: null,
   recipeIngs: [],
@@ -700,7 +798,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderDayStrip();
   updateDateNotes();
   loadDayCounts();
-  loadSearchTab('recent');
+  выделитьПриём(S.searchMeal);
+  loadSearchTab(S.searchTab);
   loadWeightData();
 });
 
@@ -871,8 +970,20 @@ function renderDayStrip() {
   строка.classList.toggle('is-away', S.date !== S.today);
 }
 
+// Выбор сегодняшнего дня ВОЗВРАЩАЕТ окно в исходное положение — сегодня
+// снова по центру. Без этого окно оставалось там, куда его увели стрелками:
+// человек догонял сегодняшний день у самого края полоски, нажимал на него,
+// день выбирался, а полоска так и стояла сдвинутой — то есть «домой»
+// вернуться было нечем, кроме обратного отсчёта стрелками.
+//
+// Ранний выход по «день уже выбран» сохранён, но теперь он пропускает
+// и возврат окна тоже: нажатие по сегодняшнему дню при сдвинутом окне
+// не меняет дату, но обязано вернуть окно, иначе на вид не делает ничего.
 function selectDay(дата) {
-  if (дата === S.date) return;
+  const вернуть_окно = (дата === S.today && S.dayOffset !== 0);
+  if (дата === S.date && !вернуть_окно) return;
+  if (дата === S.today) S.dayOffset = 0;
+  if (дата === S.date) { renderDayStrip(); return; }
   S.date = дата;
   S.expandedMeals = {};
   renderDayStrip();
@@ -886,12 +997,12 @@ function selectDay(дата) {
 // вчерашнюю дату на сегодняшнем экране
 function updateDateNotes() {
   const текст = 'Запись пойдёт в дневник за ' + подписьДаты(S.date);
-  ['add-date-text','por-date-text'].forEach(id => {
+  ['add-date-text','por-date-text','ap-date-text'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = текст;
   });
   const прочь = S.date !== S.today;
-  ['add-date-note','por-date-note'].forEach(id => {
+  ['add-date-note','por-date-note','ap-date-note'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('is-away', прочь);
   });
@@ -905,6 +1016,7 @@ async function loadDiary(date) {
   renderRing(data.totals.calories, data.goals.calories);
   renderMacros(data.totals, data.goals);
   renderWater(data.water_ml, data.goals.water_ml);
+  renderWaterLog(data.water_logs);
   renderMeals(data.meals);
   updateSidePanels(data);
 }
@@ -946,6 +1058,71 @@ function renderMacros(t, g) {
 function renderWater(ml, goal) {
   document.getElementById('water-val').textContent = `${ml} / ${goal} мл`;
   document.getElementById('water-bar').style.width = Math.min(ml/(goal||1)*100,100)+'%';
+}
+
+// ── Налитые порции: показ и удаление ──────────────────────────────────────
+// ПОЧЕМУ СПИСОК, А НЕ «ОТМЕНИТЬ ПОСЛЕДНЮЮ» И НЕ ПРАВКА ИТОГА.
+// Отмена последней чинит только опечатку, замеченную сразу: порции льются
+// по одной кнопке, за день их набирается десяток, и ошибочные 500 мл
+// обнаруживаются вечером — отменять пришлось бы всё, что налито после.
+// Правка итога числом стирает историю: 1500 вместо 2000 не говорит, какая
+// из порций была лишней, и следующая синхронизация или пересчёт вернули бы
+// прежнюю сумму.
+//
+// ВРЕМЕНИ У ПОРЦИИ НЕ ПОКАЗЫВАЕМ, и это решение, а не упущение.
+// `water_logs.created_at` пишется в UTC, а человек живёт в своём поясе:
+// «14:32» под порцией, налитой в 17:32, — тихая неправда ровно того рода,
+// от которой лечится весь остальной экран. Опознавать порцию по времени
+// и не нужно: порции взаимозаменяемы, у них нет ничего, кроме объёма,
+// и удаление любых «200 мл» из двух даёт один и тот же итог.
+function renderWaterLog(logs) {
+  const место = document.getElementById('water-log');
+  if (!место) return;
+  const список = logs || [];
+  if (!список.length) { место.innerHTML = ''; return; }
+  const раскрыт = !!S.waterLogOpen;
+  место.innerHTML = `
+    <button class="water-log-toggle" onclick="toggleWaterLog()" aria-expanded="${раскрыт}">
+      <i data-lucide="${раскрыт ? 'chevron-up' : 'chevron-down'}"></i>
+      ${раскрыт ? 'Свернуть' : 'Налито ' + порцийСловами(список.length)}
+    </button>` +
+    (раскрыт ? `<div class="water-log-list">` + список.map(w => `
+      <div class="water-log-item">
+        <span class="water-log-ml">${w.amount_ml} мл</span>
+        <button class="water-log-del" onclick="delWater(${w.id})"
+                aria-label="Удалить порцию ${w.amount_ml} мл">×</button>
+      </div>`).join('') + `</div>` : '');
+  if (window.lucide) lucide.createIcons();
+}
+
+// Склонение таблицей, как у `позицийСловами` выше и по той же причине:
+// правило вышло бы длиннее таблицы и ошибалось бы там, где его не проверят
+function порцийСловами(n) {
+  if (n % 10 === 1 && n % 100 !== 11) return n + ' порция';
+  if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return n + ' порции';
+  return n + ' порций';
+}
+
+function toggleWaterLog() {
+  S.waterLogOpen = !S.waterLogOpen;
+  renderWaterLog(S.diary?.water_logs);
+}
+
+// Удаление порции. Итог перечитывается ИЗ ОТВЕТА СЕРВЕРА, а не вычитается
+// на клиенте: вычитание показало бы новую сумму и тогда, когда запись
+// не удалилась (§5.0.3). Работает на любом дне — сервер отвечает датой той
+// записи, которую удалил, и перерисовываем мы только совпавший день.
+async function delWater(id) {
+  const d = await api(`/nutrition/api/water/${id}`, {method:'DELETE'});
+  if (!d || d.error) { toast(d?.error || 'Не удалось удалить', false); return; }
+  if (S.diary && d.date === S.date) {
+    S.diary.water_ml = d.total_ml;
+    S.diary.water_logs = (S.diary.water_logs || []).filter(w => w.id !== id);
+    renderWater(d.total_ml, S.diary.goals?.water_ml || 2000);
+    renderWaterLog(S.diary.water_logs);
+    updateSidePanels(S.diary);
+  }
+  toast('Порция удалена', true);
 }
 
 const MEALS = [
@@ -1057,9 +1234,17 @@ async function delFood(id) {
 // ── Water ─────────────────────────────────────────────────────────────────────
 async function addWater(ml) {
   const d = await api('/nutrition/api/water',{method:'POST',body:JSON.stringify({amount_ml:ml,date:S.date})});
+  if (!d || d.error) { toast(d?.error || 'Не удалось записать воду', false); return; }
   const goal = S.diary?.goals?.water_ml||2000;
   renderWater(d.total_ml, goal);
-  if (S.diary) S.diary.water_ml = d.total_ml;
+  if (S.diary) {
+    S.diary.water_ml = d.total_ml;
+    // В список уходит id, ПРИСВОЕННЫЙ БАЗОЙ, а не выдуманный на клиенте:
+    // строка, у которой id своего изобретения, удалиться не сможет
+    (S.diary.water_logs = S.diary.water_logs || []).push({id: d.id, amount_ml: ml});
+    renderWaterLog(S.diary.water_logs);
+    updateSidePanels(S.diary);
+  }
   toast(`+${ml} мл`,true);
 }
 
@@ -1077,9 +1262,35 @@ function confirmWaterManual() {
 }
 
 // ── Search ────────────────────────────────────────────────────────────────────
+// ── Области поиска ────────────────────────────────────────────────────────────
+// Вкладка задаёт не только ЧТО показано, но и ГДЕ ищется. До этого она
+// задавала первое и не задавала второго: человек стоял в «Частых», вводил
+// запрос — и получал находки из всего справочника. Вкладка утверждала
+// неправду о том, что на экране, и снять с неё подсветку на время поиска
+// (как было сделано раньше) значило вылечить признак, а не причину.
+//
+// Подсветка теперь НЕ снимается, и это осознанный откат прежнего решения:
+// область продолжает действовать, пока показаны находки, — она и должна
+// быть видна. Иначе «нашлось три штуки» не отвечает на вопрос «три штуки
+// где», а это ровно та подмена без предупреждения, от которой лечится
+// пустая выдача ниже.
+const ОБЛАСТИ = {
+  all:      {подсказка:'Поиск по всей базе',  предлог:'во всей базе'},
+  recent:   {подсказка:'Поиск по недавним',   предлог:'в недавних'},
+  frequent: {подсказка:'Поиск по частым',     предлог:'в частых'},
+  recipes:  {подсказка:'Поиск по рецептам',   предлог:'в рецептах'},
+};
+const АДРЕС_ОБЛАСТИ = {
+  all:      '/nutrition/api/search',
+  recent:   '/nutrition/api/recent-foods',
+  frequent: '/nutrition/api/frequent-foods',
+  recipes:  '/nutrition/api/recipes',
+};
+
 function openSearchFor(mealId) {
-  S.searchMeal = mealId; S.addingIng = false;
-  document.querySelectorAll('#meal-chips .chip, #por-meal-chips .chip').forEach(b=>b.classList.toggle('active',b.dataset.meal===mealId));
+  S.addingIng = false;
+  выделитьПриём(mealId);
+  закрытьПанель();
   goTab('search');
   document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector('[data-tab="search"]').classList.add('active');
@@ -1097,35 +1308,92 @@ function openSearchForRecipe() {
 // функция, то есть только крестик, и после клика вне окна флаг оставался поднятым
 function closeIngSearch() { закрыть_модалку('modal-recipe-ing'); }
 
+// Приём пищи выбирается В ДВУХ местах — слева на экране и в панели справа, —
+// но значение у них одно. Обе группы чипов красятся вместе; разъехавшись,
+// они показали бы человеку выбранным один приём, а записали бы в другой
+// Подсветка приёма пищи во ВСЕХ трёх местах сразу: чипы слева на экране,
+// чипы в панели справа и чипы в модалке порции.
+//
+// Зовётся в том числе при загрузке страницы, и это не мелочь: в разметке
+// «Завтрак» помечен активным жёстко, а S.searchMeal берётся из времени
+// суток (`defaultMealByTime`). До перестройки расхождение было невидимо —
+// подписи «добавляете сюда» не существовало, и запись молча уходила
+// в приём, который на экране активным не выглядел. Замер поймал это сразу:
+// подсвечен «Завтрак», заголовок группы «Ужин — добавляете сюда».
+function выделитьПриём(meal) {
+  document.querySelectorAll('#meal-chips .chip, #ap-meal-chips .chip, #por-meal-chips .chip')
+    .forEach(b => b.classList.toggle('active', b.dataset.meal === meal));
+  S.searchMeal = meal;
+  S.porMeal = meal;
+}
+
 function setSearchMeal(btn) {
-  document.querySelectorAll('#meal-chips .chip, #por-meal-chips .chip').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  S.searchMeal = btn.dataset.meal;
+  выделитьПриём(btn.dataset.meal);
 }
 
 let searchTmr;
 function onSearch(q) {
   clearTimeout(searchTmr);
-  if (!q.trim()) { подсветитьВкладкуПоиска(S.searchTab); loadSearchTab(S.searchTab); return; }
+  if (!q.trim()) { loadSearchTab(S.searchTab); return; }
   searchTmr = setTimeout(()=>runSearch(q), 500);
 }
 
-// Подсветка вкладок: null — ни одна. Пока показывались результаты поиска,
-// «Недавние» оставались подсвеченными, хотя поиск идёт не по недавним, —
-// вкладка утверждала неправду о том, что на экране
 function подсветитьВкладкуПоиска(tab) {
   document.querySelectorAll('#s-tabs .segmented-btn').forEach(b=>b.classList.remove('active'));
   if (tab) document.getElementById('st-'+tab)?.classList.add('active');
 }
 
+// Поиск ВСЕГДА идёт внутри выбранной области. Адрес берётся из одной
+// таблицы: развести «какая вкладка подсвечена» и «куда ушёл запрос»
+// по разным местам значило бы вернуть ровно тот дефект, который чиним
 async function runSearch(q) {
   const myId = ++searchReqId;
   S.lastQuery = q;
-  подсветитьВкладкуПоиска(null);
-  document.getElementById('s-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
-  const data = await api(`/nutrition/api/search?q=${encodeURIComponent(q)}`);
+  const область = S.searchTab;
+  const место = document.getElementById('s-results');
+  место.innerHTML = `<div class="empty"><div class="spin"></div></div>`;
+  const data = await api(`${АДРЕС_ОБЛАСТИ[область]}?q=${encodeURIComponent(q)}`);
   if (myId !== searchReqId) return; // stale — ignore
-  renderResults(data.results||[], q, data.source_error||'', data.translate_error||'');
+  if (область === 'recipes') { renderRecipes(data.recipes||[], q); return; }
+  const находки = data.results || [];
+  // Пусто в УЗКОЙ области — не то же самое, что пусто везде. Молча
+  // подставить сюда находки из базы значило бы подменить область без
+  // предупреждения: человек считал бы, что уже ел этот продукт
+  if (!находки.length && область !== 'all') { пустоВОбласти(q, область, myId); return; }
+  renderResults(находки, q, data.source_error||'', data.translate_error||'',
+                область === 'recent' ? data.by_meal : null, область);
+}
+
+function продуктовСловами(n) {
+  if (n % 10 === 1 && n % 100 !== 11) return n + ' продукт';
+  if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return n + ' продукта';
+  return n + ' продуктов';
+}
+
+// Сколько нашлось во ВСЕЙ базе — спрашивается настоящим запросом, а не
+// оценивается. Число, взятое из головы, здесь хуже отсутствия числа:
+// на него нажмут и получат пустоту
+async function пустоВОбласти(q, область, myId) {
+  const место = document.getElementById('s-results');
+  const d = await api(`/nutrition/api/search?q=${encodeURIComponent(q)}`);
+  if (myId !== searchReqId) return;
+  const n = (d.results || []).length;
+  const шапка = сЗаглавной(ОБЛАСТИ[область].предлог) + ' ничего не нашлось';
+  if (!n) {
+    // Ни в области, ни в базе. Предлагать «искать по всей базе» здесь
+    // нечего — там уже посмотрели, и посмотрели по-настоящему
+    место.innerHTML = `<div class="card card-static a-nothing">
+        <div class="a-nothing-t">${esc(шапка)}</div>
+        <div class="a-nothing-s">Во всей базе по запросу «${esc(q)}» — тоже ничего</div>
+      </div>` + пустаяВыдачаХвост(q, 's-results');
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+  место.innerHTML = `<div class="card card-static a-nothing">
+      <div class="a-nothing-t">${esc(шапка)}</div>
+      <div class="a-nothing-s">Во всей базе — ${продуктовСловами(n)}</div>
+      <button class="btn-primary a-nothing-go" onclick="setSearchTab('all')">Искать по всей базе →</button>
+    </div>`;
 }
 
 // Оценка ИИ — по нажатию, а не вместо пустой выдачи. Пока она включалась
@@ -1171,22 +1439,28 @@ function карточкиОценки(results) {
 // Пустая выдача. Три разных положения, и они НЕ одно и то же:
 // справочник не ответил / ничего не нашлось / поле пустое
 function пустаяВыдача(query, сбой, местоId) {
+  if (сбой) {
+    return `<div class="alert alert-warn">Справочник продуктов сейчас не отвечает
+      (${esc(сбой)}). Это не значит, что продукта в нём нет — повторите поиск позже.</div>`
+      + пустаяВыдачаХвост(query, местоId);
+  }
+  return `<div class="empty">По запросу «${esc(query)}» в справочнике ничего не нашлось</div>`
+    + пустаяВыдачаХвост(query, местоId);
+}
+
+// Хвост пустой выдачи — оценка ИИ и ручное добавление. Отдельной функцией,
+// потому что он нужен и пустой области поиска: там шапка своя («в недавних
+// ничего не нашлось, и в базе тоже»), а выход из положения тот же
+function пустаяВыдачаХвост(query, местоId) {
   // Запрос уезжает в data-атрибут, а не в onclick. JSON.stringify отдаёт
   // строку В КАВЫЧКАХ, и внутри onclick="…" она рвёт сам атрибут: браузер
   // закрывает его на первой же внутренней кавычке, обработчик не навешивается,
   // ошибки в консоли при этом НЕТ. Поймано нажатием, а не чтением (§6.0.3)
-  const оценка = `<div class="ai-estimate-slot"></div>
+  return `<div class="ai-estimate-slot"></div>
     <button class="ai-estimate-btn" data-ocenka="${esc(query)}" data-mesto="${esc(местоId)}">
-      <i data-lucide="sparkles"></i> Оценить через ИИ</button>`;
-  const вручную = `<button class="ai-estimate-btn" onclick="openCustomFoodModal()">
+      <i data-lucide="sparkles"></i> Оценить через ИИ</button>
+    <button class="ai-estimate-btn" onclick="openCustomFoodModal()">
       <i data-lucide="plus"></i> Добавить вручную</button>`;
-  if (сбой) {
-    return `<div class="alert alert-warn">Справочник продуктов сейчас не отвечает
-      (${esc(сбой)}). Это не значит, что продукта в нём нет — повторите поиск позже.</div>`
-      + оценка + вручную;
-  }
-  return `<div class="empty">По запросу «${esc(query)}» в справочнике ничего не нашлось</div>`
-    + оценка + вручную;
 }
 
 // Делегатом на документ: разметку выдачи переписывают целиком при каждом
@@ -1197,37 +1471,47 @@ document.addEventListener('click', function (e) {
   оценитьЧерезИИ(кнопка.dataset.ocenka, кнопка.dataset.mesto);
 });
 
+// Смена области ЗАПРОС НЕ СТИРАЕТ. Стирала — и «Искать по всей базе»
+// из пустой выдачи приводило бы на пустой экран вместо находок, то есть
+// кнопка не делала бы того, что обещает подписью
 function setSearchTab(tab) {
   S.searchTab = tab;
   подсветитьВкладкуПоиска(tab);
-  document.getElementById('s-input').value = '';
+  const поле = document.getElementById('s-input');
+  поле.placeholder = ОБЛАСТИ[tab].подсказка;
   searchReqId++;
-  loadSearchTab(tab);
+  const q = поле.value.trim();
+  if (q) runSearch(q); else loadSearchTab(tab);
 }
 
 async function loadSearchTab(tab) {
-  if (tab === 'recipes') { loadRecipesList(); return; }
-  document.getElementById('s-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
+  подсветитьВкладкуПоиска(tab);
   const myId = ++searchReqId;
-  const url = tab==='recent' ? '/nutrition/api/recent-foods' : '/nutrition/api/frequent-foods';
-  const data = await api(url);
+  document.getElementById('s-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
+  // «Вся база» без запроса показывать нечего: справочник — это то, что
+  // ищут, а не то, что перечисляют. Подсказка называет действие
+  if (tab === 'all') {
+    document.getElementById('s-results').innerHTML =
+      `<div class="empty">Начните вводить название — поиск идёт по всей базе продуктов</div>`;
+    return;
+  }
+  const data = await api(АДРЕС_ОБЛАСТИ[tab]);
   if (myId !== searchReqId) return;
-  renderResults(data.results||[]);
+  if (tab === 'recipes') { renderRecipes(data.recipes||[], ''); return; }
+  renderResults(data.results||[], '', '', '', tab === 'recent' ? data.by_meal : null, tab);
 }
 
-async function loadRecipesList() {
-  const myId = ++searchReqId;
-  document.getElementById('s-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
-  const data = await api('/nutrition/api/recipes');
-  if (myId !== searchReqId) return;
+function renderRecipes(recipes, query) {
   const wrap = document.getElementById('s-results');
-  if (!data.recipes?.length) {
-    wrap.innerHTML = `<div class="empty">Нет рецептов — создайте первый!</div>
-      <button class="btn-primary btn-block save-btn-gap" onclick="openCreateRecipe()">+ Создать рецепт</button>`;
+  if (!recipes.length) {
+    wrap.innerHTML = query
+      ? `<div class="empty">Среди рецептов по запросу «${esc(query)}» ничего не нашлось</div>`
+      : `<div class="empty">Нет рецептов — создайте первый!</div>`;
+    wrap.innerHTML += `<button class="btn-primary btn-block save-btn-gap" onclick="openCreateRecipe()">+ Создать рецепт</button>`;
     return;
   }
   wrap.innerHTML = `<button class="ai-btn ai-btn-gap" onclick="openCreateRecipe()">+ Создать рецепт</button>` +
-    `<div class="r-list">` + data.recipes.map(r=>`
+    `<div class="r-list">` + recipes.map(r=>`
     <div class="r-item" onclick='openRecipeLog(${JSON.stringify(r)})'>
       <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${r.ingredients.length} ингр. · ${r.total_grams}г</div></div>
       <div><div class="r-kcal">${Math.round(r.calories)} ккал</div><div class="r-per">на всё</div></div>
@@ -1259,7 +1543,47 @@ function плашкаПеревода(сбойПеревода) {
     если нужного продукта нет, попробуйте название по-английски.</div>`;
 }
 
-function renderResults(results, query, сбой, сбойПеревода) {
+// Карточка находки — одна на все области. Второй строкой бренд, а в «Частых»
+// ещё и число добавлений: правило, по которому строится топ, должно быть
+// видно, иначе порядок читается как случайный
+function карточкаНаходки(r, область) {
+  const счёт = (область === 'frequent' && r.count)
+    ? ` · ${разСловами(r.count)}` : '';
+  return `<div class="r-item" onclick='openPortion(${JSON.stringify(r)})'>
+      <div class="r-info"><div class="r-name">${esc(r.name)}</div>
+        <div class="r-brand">${подписьПродукта(r)}${счёт}</div></div>
+      <div><div class="r-kcal">${r.calories} ккал</div><div class="r-per">на 100г</div></div>
+    </div>`;
+}
+
+function разСловами(n) {
+  if (n % 10 === 1 && n % 100 !== 11) return n + ' раз';
+  if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return n + ' раза';
+  return n + ' раз';
+}
+
+// Недавние раскладываются ПО ПРИЁМАМ ПИЩИ, и первым идёт тот, в который
+// человек добавляет сейчас. Общий список вперемешку заставлял вспоминать,
+// на завтрак или на ужин ели этот творог, — а он и на то, и на другое.
+// Один продукт попадает в несколько блоков намеренно: схлопнуть их значило
+// бы утверждать, что едят его только в том приёме, где съели первым.
+function блокиНедавних(by_meal) {
+  const порядок = [S.searchMeal, ...MEALS.map(m=>m.id).filter(id=>id!==S.searchMeal)];
+  return порядок.map(id => {
+    const items = by_meal[id] || [];
+    // Приём, в который ни разу ничего не вносили, не показывается вовсе:
+    // пустой блок здесь ничего не сообщает — предлагать в нём нечего
+    if (!items.length) return '';
+    const m = MEALS.find(x => x.id === id);
+    const сюда = id === S.searchMeal;
+    return `<div class="a-group">
+      <div class="a-group-t${сюда ? ' is-here' : ''}">${m.name}${сюда ? ' — добавляете сюда' : ''}</div>
+      <div class="r-list">${items.map(r => карточкаНаходки(r, 'recent')).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderResults(results, query, сбой, сбойПеревода, by_meal, область) {
   const wrap = document.getElementById('s-results');
   if (!results.length) {
     // Пустое состояние — только когда запрос вообще был. На вкладках
@@ -1269,11 +1593,11 @@ function renderResults(results, query, сбой, сбойПеревода) {
     return;
   }
   const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openCustomFoodModal()"><i data-lucide="sparkles"></i> Не нашли своё блюдо? Добавить</button>` : '';
-  wrap.innerHTML = плашкаПеревода(сбойПеревода) + `<div class="r-list">`+results.map(r=>`
-    <div class="r-item" onclick='openPortion(${JSON.stringify(r)})'>
-      <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${подписьПродукта(r)}</div></div>
-      <div><div class="r-kcal">${r.calories} ккал</div><div class="r-per">на 100г</div></div>
-    </div>`).join('')+`</div>`+aiBtn;
+  const тело = by_meal && Object.keys(by_meal).length
+    ? блокиНедавних(by_meal)
+    : `<div class="r-list">` + results.map(r => карточкаНаходки(r, область)).join('') + `</div>`;
+  wrap.innerHTML = плашкаПеревода(сбойПеревода) + тело + aiBtn;
+  if (window.lucide) lucide.createIcons();
 }
 
 // ── Recipe ingredient search (отдельная модалка поверх "Создать рецепт") ──────
@@ -1354,6 +1678,14 @@ function openPortion(food) {
   S.portionFood = food;
   S.editingFoodId = null;
   S.portionEdited = false;
+  // На десктопе выбор продукта открывает ПАНЕЛЬ справа, а не модалку:
+  // места хватает, а окно поверх списка прячет ровно то, из чего человек
+  // выбирает, — сравнить две записи по калорийности с открытой модалкой
+  // нельзя. На мобильной ширине панели негде стоять, и остаётся модалка.
+  //
+  // Подбор ингредиента рецепта (S.addingIng) идёт СВОЕЙ модалкой поверх
+  // окна рецепта — панель на экране «Добавить» его бы не увидела
+  if (панельВозможна() && !S.addingIng) { открытьПанель(food); return; }
   const mealName = {breakfast:'завтрак',lunch:'обед',dinner:'ужин',snack:'перекус'}[S.searchMeal];
   document.getElementById('por-title').textContent = S.addingIng ? 'Ингредиент' : 'Добавить в '+mealName;
   document.getElementById('por-add-btn').textContent = S.addingIng ? 'Добавить ингредиент' : 'Добавить в дневник';
@@ -1369,6 +1701,52 @@ function openPortion(food) {
   setPorMealChips(S.addingIng ? null : S.searchMeal);
   updateCalc();
   открыть_модалку('modal-portion');
+}
+
+// ── Панель выбранного продукта (десктоп) ──────────────────────────────────────
+// Порог тот же, что у всей десктопной раскладки (900px). Второе число здесь
+// разошлось бы с CSS молча: панель была бы объявлена там, где колонки для неё
+// нет, — и модалка не открылась бы ни одна
+function панельВозможна() {
+  return window.matchMedia('(min-width: 900px)').matches
+      && document.getElementById('a-panel')
+      && S.activeTab === 'search';
+}
+
+function открытьПанель(food) {
+  const f = food;
+  document.getElementById('a-panel-empty').style.display = 'none';
+  document.getElementById('a-panel-body').style.display = '';
+  document.getElementById('ap-name').textContent = f.name;
+  document.getElementById('ap-sub').textContent =
+    (f.brand ? f.brand + ' · ' : '') + `${f.calories} ккал на 100 г`;
+  document.getElementById('ap-grams').value = 100;
+  // Приём подсвечивается тот же, что слева: значение одно на две группы
+  document.querySelectorAll('#ap-meal-chips .chip').forEach(
+    b => b.classList.toggle('active', b.dataset.meal === S.searchMeal));
+  S.porMeal = S.searchMeal;
+  document.getElementById('a-panel').classList.add('is-open');
+  updatePanelCalc();
+  updateDateNotes();
+  if (window.lucide) lucide.createIcons();
+}
+
+function закрытьПанель() {
+  const панель = document.getElementById('a-panel');
+  if (!панель) return;
+  панель.classList.remove('is-open');
+  document.getElementById('a-panel-empty').style.display = '';
+  document.getElementById('a-panel-body').style.display = 'none';
+}
+
+function setPanelG(g) { document.getElementById('ap-grams').value = g; updatePanelCalc(); }
+
+function updatePanelCalc() {
+  const f = S.portionFood; if (!f) return;
+  const g = parseFloat(document.getElementById('ap-grams').value) || 0, k = g/100;
+  document.getElementById('ap-kcal').textContent   = `${Math.round(f.calories*k)} ккал`;
+  document.getElementById('ap-macros').textContent =
+    `Б: ${(f.protein*k).toFixed(1)}г  Ж: ${(f.fat*k).toFixed(1)}г  У: ${(f.carbs*k).toFixed(1)}г`;
 }
 
 function updatePorName() {
@@ -1439,8 +1817,14 @@ function updateCalc() {
   document.getElementById('c-macros').textContent = `Б: ${(f.protein*k).toFixed(1)}г  Ж: ${(f.fat*k).toFixed(1)}г  У: ${(f.carbs*k).toFixed(1)}г`;
 }
 
-async function confirmAdd() {
-  const f=S.portionFood, g=parseFloat(document.getElementById('g-input').value)||100;
+// Одна функция на модалку и на панель — не две. Ветка «то же самое, только
+// поля называются иначе» разъезжается ровно так же, как разъезжаются две
+// копии текста: правку внесут в ту, что была перед глазами. Отличаются
+// панель и модалка двумя вещами — откуда взять граммовку и что закрыть
+// после записи; и то и другое здесь названо явно.
+async function confirmAdd(изПанели = false) {
+  const f=S.portionFood, g=parseFloat(document.getElementById(изПанели ? 'ap-grams' : 'g-input').value)||100;
+  const закрыть = () => изПанели ? закрытьПанель() : закрыть_модалку('modal-portion');
   if (S.addingIng) {
     S.recipeIngs.push({name:f.name,grams:g,calories:f.calories,protein:f.protein,fat:f.fat,carbs:f.carbs});
     закрыть_модалку('modal-portion');
@@ -1455,7 +1839,7 @@ async function confirmAdd() {
       meal_type:S.porMeal,
     })});
     S.editingFoodId = null;
-    закрыть_модалку('modal-portion');
+    закрыть();
     loadDiary(S.date);
     toast('Сохранено!',true);
     return;
@@ -1475,7 +1859,7 @@ async function confirmAdd() {
       calories:f.calories,protein:f.protein,fat:f.fat,carbs:f.carbs,
     })});
   }
-  закрыть_модалку('modal-portion');
+  закрыть();
   loadDiary(S.date);
   loadDayCounts();
   toast('Добавлено!',true);

@@ -397,6 +397,44 @@ html.assistant-mode, html.assistant-mode body {
 .water-val { margin-left: auto; font-size: 0.82rem; color: var(--wat); font-weight: 700; }
 .water-bar { height: 0.4375rem; background: var(--surface-sunken); border-radius: 0.25rem; overflow: hidden; margin-bottom: 0.625rem; box-shadow: inset 0 0 0 1px var(--border); }
 .water-bar-fill { height: 100%; background: var(--wat); border-radius: 0.25rem; transition: width .6s ease; box-shadow: 0 0 8px rgba(56,189,248,.35); }
+/* ── Налитые порции ────────────────────────────────────────────────────────
+   Свёрнуты по умолчанию: за день их набирается десяток, и развёрнутый
+   список вытеснил бы с экрана сам дневник. Пустого состояния у блока нет —
+   когда не налито ничего, его нет вовсе: строка «порций 0» сообщала бы
+   то же, что уже сказала полоса на нуле. */
+.water-log { margin-bottom: 0.625rem; }
+.water-log:empty { display: none; margin: 0; }
+.water-log-toggle {
+  display: flex; align-items: center; gap: 0.3125rem;
+  background: none; border: none; padding: 0.125rem 0; cursor: pointer;
+  color: var(--text-2); font-family: var(--font); font-size: 0.8125rem; font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
+}
+.water-log-toggle svg { width: 0.875rem; height: 0.875rem; }
+@media (hover: hover) {
+  .water-log-toggle:hover { color: var(--wat); }
+}
+.water-log-list { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.5rem; }
+/* Порция — чип с крестиком, а не строка списка: у неё ровно одно
+   свойство (объём), и строка во всю ширину под одно число была бы пустой
+   на три четверти */
+.water-log-item {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  background: var(--surface-sunken); border: 1px solid var(--border);
+  border-radius: 999px; padding: 0.1875rem 0.1875rem 0.1875rem 0.5625rem;
+}
+.water-log-ml { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; }
+.water-log-del {
+  width: 1.25rem; height: 1.25rem; border: none; border-radius: 50%;
+  background: none; color: var(--text-2); font-size: 0.9375rem; line-height: 1;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background .15s, color .15s;
+}
+.water-log-del:active { color: #ef4444; }
+@media (hover: hover) {
+  .water-log-del:hover { background: rgba(239,68,68,.16); color: #ef4444; }
+}
+
 .water-btns { display: flex; flex-wrap: wrap; gap: 0.4375rem; }
 .water-btn {
   flex: 1; height: 2.125rem; background: rgba(56,189,248,.1); border: 1px solid rgba(56,189,248,.2);
@@ -518,6 +556,31 @@ html.assistant-mode, html.assistant-mode body {
    Прокрутка, а не уменьшение паддингов: паддинг принадлежит компоненту,
    и правка его здесь была бы ровно тем переопределением, ради ухода
    от которого всё и делалось. */
+/* ── Раскладка экрана «Добавить»: одна разметка на обе ширины ──────────────
+   На мобильной ширине коробок у обёрток нет ВОВСЕ: `display: contents`
+   убирает сам блок, его дети становятся элементами общей колонки .a-cols,
+   и порядок им задаёт `order` — тот же, что был до перестройки (дата,
+   приёмы, поле поиска, «свой продукт», области, находки).
+
+   Вторая копия разметки под мобильный была бы двумя наборами кнопок
+   с одинаковыми обработчиками: правку в одну забыли бы внести во вторую,
+   и отказ был бы немым — на той ширине, которую в этот раз не смотрели. */
+.a-cols { display: flex; flex-direction: column; }
+.a-left, .a-main, .a-box { display: contents; }
+/* Подписи коробок и два способа ввода словами — только на десктопе:
+   фото и штрих-код живут на 390px значками в самом ряду поиска */
+.a-box-title, .a-method-wide, .a-panel { display: none; }
+.add-date-note   { order: 1; }
+.a-meals         { order: 2; }
+.s-bar           { order: 3; }
+.a-method-manual { order: 4; margin-bottom: 0.6875rem; }
+.s-tabs          { order: 5; }
+.a-results       { order: 6; }
+/* Ширина — раскладка экземпляра, а не свойство кнопки: .btn-secondary
+   остаётся системной кнопкой, здесь только сказано, что в этой колонке
+   она занимает строку целиком */
+.a-method { width: 100%; }
+
 .s-chips { display: flex; gap: 0.4375rem; margin-bottom: 0.75rem; overflow-x: auto; }
 /* flex: 1 0 auto — растут поровну, когда ряд шире содержимого (десктоп),
    и НЕ сжимаются ниже своей подписи, когда уже (мобильный): там едет
@@ -536,6 +599,15 @@ html.assistant-mode, html.assistant-mode body {
   -webkit-tap-highlight-color: transparent;
 }
 .r-item:active { background: var(--surface-sunken); }
+/* Отклик на наведение у карточки находки. До перестройки его не было
+   вовсе: на мобильной ширине это незаметно (там наведения нет), а на
+   десктопе находки стали сеткой карточек, по которой водят курсором, —
+   и элемент, который нажимается, но никак не отзывается, читается как
+   неактивный. Проверено наведением, а не чтением CSS: до правки замер
+   давал «вид не меняется» (§6.0.3) */
+@media (hover: hover) {
+  .r-item:hover { background: var(--surface-2); border-color: var(--border-strong); }
+}
 .r-info { flex: 1; min-width: 0; }
 .r-name  { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .r-brand { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; }
@@ -576,15 +648,27 @@ html.assistant-mode, html.assistant-mode body {
 .r-src-ai { color: var(--tool-accent); display: flex; align-items: center; gap: 0.25rem; }
 .r-src-ai svg { width: 0.875rem; height: 0.875rem; }
 
-/* ── Ручное добавление продукта ── */
-.add-manual-btn {
-  width: 100%; padding: 0.6875rem; margin-bottom: 0.6875rem; border-radius: 0.6875rem;
-  background: var(--surface-sunken); border: 1px dashed var(--border);
-  color: var(--text-2); font-size: 0.82rem; font-weight: 600; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 0.4375rem;
-  -webkit-tap-highlight-color: transparent; transition: border-color .15s, color .15s;
-}
-.add-manual-btn:active { border-color: var(--tool-accent); color: var(--tool-accent); }
+/* .add-manual-btn здесь больше нет: это была самодельная кнопка (пунктирная
+   рамка, свой кегль, свой паддинг) при живом системном .btn-secondary.
+   Теперь все три способа ввода — одна и та же системная кнопка, и на
+   390px её вид меняется: рамка сплошная, кегль системный. Раскладка
+   при этом та же — полная ширина, то же место в колонке. */
+
+/* ── Пусто внутри узкой области поиска ─────────────────────────────────────
+   Не `.empty`: там сообщение об отсутствии, а здесь ДВА разных факта
+   (в области нет, в базе есть N) и переход между ними. Молча подставить
+   сюда находки из базы значило бы подменить область без предупреждения */
+.a-nothing { text-align: center; }
+.a-nothing-t { font-size: 0.9375rem; font-weight: 600; }
+.a-nothing-s { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-top: 0.4375rem; }
+.a-nothing-go { margin-top: 0.875rem; }
+
+/* Заголовок блока приёма пищи в «Недавних». Тот приём, в который человек
+   добавляет сейчас, помечен акцентом и словами — иначе первое место
+   в списке ничего не означает */
+.a-group { margin-bottom: 1rem; }
+.a-group-t { font-size: 0.8125rem; font-weight: 600; color: var(--text-2); margin-bottom: 0.5rem; }
+.a-group-t.is-here { color: var(--tool-accent); }
 
 /* ── History ── */
 .h-date { text-align: center; font-size: 0.88rem; font-weight: 700; text-transform: capitalize; }
@@ -760,6 +844,11 @@ html.assistant-mode, html.assistant-mode body {
   -webkit-tap-highlight-color: transparent; transition: all .1s;
 }
 .q-btn:active { color: var(--tool-accent); border-color: var(--tool-accent); }
+/* Быстрые граммовки переехали из модалки ещё и в панель на десктопе, где
+   по ним водят курсором. Отклика не было ни у одной — только на нажатие */
+@media (hover: hover) {
+  .q-btn:hover { color: var(--text); border-color: var(--border-strong); }
+}
 .calc-box { background: var(--tool-accent-dim); border: 1px solid color-mix(in srgb, var(--tool-accent) 20%, transparent); border-radius: 0.6875rem; padding: 0.6875rem 0.8125rem; margin-bottom: 0.875rem; }
 .calc-kcal   { font-size: 1.45rem; font-weight: 800; color: var(--tool-accent); font-family: var(--font); }
 .calc-macros { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-top: 0.125rem; }
@@ -1188,6 +1277,36 @@ html.assistant-mode, html.assistant-mode body {
      центрируется по окну — так и надо. */
   body { --nut-aside: 15rem; --app-aside: var(--nut-aside); }
 
+  /* ── МАСШТАБ РАЗДЕЛА: одно число на всю раскладку ──────────────────────
+     ЗАЧЕМ. Корневой кегль уже растёт с шириной окна (style.css,
+     `clamp(16px, 13px + 0.15625vw, 19px)`), но растёт слабо: 16px на 1440
+     и 17px на 2560, шесть процентов. Содержимое при этом упиралось в потолок
+     87.5rem, то есть 1488px из 2560 — почти восемьсот пикселей пустых полей
+     по краям при мелком тексте внутри. Замер до правки: кольцо 179px, имя
+     блюда 15.3px, карточка приёма 574px.
+
+     ПОЧЕМУ ЕДИНИЦА, А НЕ ОТДЕЛЬНЫЕ ЧИСЛА НА КАЖДОЕ МЕСТО. Растянуть ширину
+     при прежнем кегле — это не «крупнее», а «реже»: строка становится
+     длиннее, текст остаётся мелким. Поднять один кегль — то же наоборот.
+     Здесь ВСЕ размеры раскладки выражены кратными одной величины, поэтому
+     ширина, кегль, кольцо, отступы и высота карточек растут вместе и в одной
+     пропорции. Проверяется это одним числом, а не сорока.
+
+     ПОЧЕМУ НЕ `html { font-size }`. Это самый короткий способ и самый
+     неверный: корневой кегль объявлен в системе, и переопределить его
+     на одной странице значило бы утащить за собой шапку, футер и всё
+     остальное — ровно то переопределение системы, которое запрещает
+     CLAUDE.md §6.0.2. Единица живёт на body этой страницы и системных
+     компонентов не касается: .chip, .input, .segmented-btn внутри
+     сохраняют свои системные размеры намеренно.
+
+     ПОЧЕМУ СТУПЕНЯМИ. Границы выбраны так, чтобы 1440, 1920 и 2560 попали
+     каждая в свою: значения по ним замерены, а не выведены. Итог замера
+     после правки — CLAUDE.md, таблица в §2.3. */
+  body { --nut-u: 1rem; }
+  @media (min-width: 1600px) { body { --nut-u: 1.1rem; } }
+  @media (min-width: 2200px) { body { --nut-u: 1.25rem; } }
+
   /* ── Sidebar (placed first, on the left) ── */
   .nut-nav {
     position: static; left: auto; bottom: auto; transform: none; max-width: none;
@@ -1268,7 +1387,7 @@ html.assistant-mode, html.assistant-mode body {
   }
   .nut-tab {
     height: 100%; min-height: 0; box-sizing: border-box;
-    padding: 1.875rem 2.25rem;
+    padding: calc(1.875 * var(--nut-u)) calc(2.25 * var(--nut-u));
   }
 
   /* ── Each column scrolls on its own — the page itself never does ── */
@@ -1297,6 +1416,12 @@ html.assistant-mode, html.assistant-mode body {
      строки. 1400px — согласованная ширина эскиза; при ней те же элементы
      получают 1120 / 214 / 350 / 260px.
 
+     ПОТОЛОК ВЫРАЖЕН В ЕДИНИЦАХ РАЗДЕЛА, а не в rem: он обязан расти вместе
+     с кеглем, иначе получается «реже», а не «крупнее». 87.5 единиц — это
+     1400px на 1440, 1540px на 1920 и 1859px на 2560 (замер). Длина строки
+     при этом остаётся в берегах: имя блюда в карточке приёма — 60 знаков
+     на 2560 против 55 на 1920, потому что кегль растёт вместе с шириной.
+
      Ограничение стоит на ВНУТРЕННЕЙ обёртке, а не на самой вкладке:
      прокрутка должна оставаться во всю ширину области, иначе полоса
      прокрутки уезжает к центру экрана. */
@@ -1305,7 +1430,10 @@ html.assistant-mode, html.assistant-mode body {
     overflow-y: auto;
     overflow-x: hidden;
   }
-  .d-daystrip, .d-cols { max-width: 87.5rem; margin-left: auto; margin-right: auto; }
+  .d-daystrip, .d-cols {
+    max-width: calc(87.5 * var(--nut-u));
+    margin-left: auto; margin-right: auto;
+  }
 
   /* Две колонки: слева сводка, справа приёмы пищи и вода.
      `align-items` НЕ ставим в start намеренно — колонки должны тянуться
@@ -1318,7 +1446,7 @@ html.assistant-mode, html.assistant-mode body {
   .d-cols {
     display: grid;
     grid-template-columns: var(--nut-summary) minmax(0, 1fr);
-    gap: 1.125rem;
+    gap: calc(1.125 * var(--nut-u));
   }
 
   /* Ширина левой колонки — одно число, отсюда же берётся размер кольца.
@@ -1328,7 +1456,7 @@ html.assistant-mode, html.assistant-mode body {
   /* Нижний отступ карточки воды. Читается ДВАЖДЫ: самой карточкой
      и кнопкой нутрициолога, которая по нему выравнивается (см. .ai-btn).
      Рамка карточки (1px) прибавляется на месте — она не отступ */
-  body { --nut-summary: 18rem; --nut-water-pad: 0.875rem; }
+  body { --nut-summary: calc(18 * var(--nut-u)); --nut-water-pad: calc(0.875 * var(--nut-u)); }
 
   /* Левая колонка: кольцо, макросы, снизу кнопка нутрициолога.
      Без !important: перебиваем `.d-left, .d-right` (0,1,0) селектором
@@ -1340,32 +1468,34 @@ html.assistant-mode, html.assistant-mode body {
     min-height: 0;
     overflow: visible;
     padding-right: 0;
-    gap: 0.875rem;
+    gap: calc(0.875 * var(--nut-u));
   }
 
   /* Кольцо в карточке — как в эскизе: сводка и есть карточка, а не
      кольцо на голом фоне */
   .ring-wrap {
-    padding: 1.25rem 0 1rem; flex-shrink: 0;
+    padding: calc(1.25 * var(--nut-u)) 0 var(--nut-u); flex-shrink: 0;
     background: var(--surface-1); border: 1px solid var(--border);
     border-radius: 0.875rem;
   }
-  .ring-svg { width: 10.5rem; height: 10.5rem; }
-  .ring-remain { font-size: 2.1rem; line-height: 1.1; }
-  .ring-lbl { font-size: 0.8125rem; margin: 0.1875rem 0; }
-  .ring-eaten { font-size: 0.8125rem; }
+  .ring-svg { width: calc(10.5 * var(--nut-u)); height: calc(10.5 * var(--nut-u)); }
+  .ring-remain { font-size: calc(2.1 * var(--nut-u)); line-height: 1.1; }
+  .ring-lbl { font-size: calc(0.8125 * var(--nut-u)); margin: 0.1875rem 0; }
+  .ring-eaten { font-size: calc(0.8125 * var(--nut-u)); }
 
   /* Макросы — ОДНА карточка с тремя строками, а не три карточки в ряд.
      Карточные рамка и фон переезжают на ряд, строки внутри их теряют:
      три коробки под три полоски в узкой колонке дают больше границ,
      чем данных. */
   .macros-row {
-    width: 100%; flex: none; display: flex; flex-direction: column; gap: 0.875rem;
+    width: 100%; flex: none; display: flex; flex-direction: column;
+    gap: calc(0.875 * var(--nut-u));
     background: var(--surface-1); border: 1px solid var(--border);
-    border-radius: 0.875rem; padding: 0.875rem 1rem; margin: 0;
+    border-radius: 0.875rem;
+    padding: calc(0.875 * var(--nut-u)) var(--nut-u); margin: 0;
   }
   .macros-cap {
-    display: block; font-size: 0.8125rem; color: var(--text-2);
+    display: block; font-size: calc(0.8125 * var(--nut-u)); color: var(--text-2);
     margin-bottom: 0.125rem;
   }
   /* Строка макроса: подпись слева, числа справа, полоса под ними на всю
@@ -1376,8 +1506,8 @@ html.assistant-mode, html.assistant-mode body {
     flex: none; padding: 0; background: none; border: none; border-radius: 0;
     display: grid; grid-template-columns: 1fr auto; gap: 0.3125rem 0.5rem;
   }
-  .macro-label { grid-column: 1; grid-row: 1; font-size: 0.8125rem; margin: 0; }
-  .macro-val   { grid-column: 2; grid-row: 1; font-size: 0.8125rem; text-align: right; }
+  .macro-label { grid-column: 1; grid-row: 1; font-size: calc(0.8125 * var(--nut-u)); margin: 0; }
+  .macro-val   { grid-column: 2; grid-row: 1; font-size: calc(0.8125 * var(--nut-u)); text-align: right; }
   .macro-bar   { grid-column: 1 / -1; grid-row: 2; margin: 0; }
 
   /* Кнопка нутрициолога прижата к низу колонки (`margin-top: auto`), а низ
@@ -1388,13 +1518,16 @@ html.assistant-mode, html.assistant-mode body {
      завести вторую копию отступа карточки: поправят её — и выравнивание
      разъедется молча, без единого признака. Замер после правки: низ
      кнопки и низ ряда воды совпадают, расхождение 0 на 1440/1920/2560. */
-  .ai-btn { flex-shrink: 0; margin-top: auto; margin-bottom: calc(var(--nut-water-pad) + 1px); }
+  .ai-btn {
+    flex-shrink: 0; margin-top: auto; margin-bottom: calc(var(--nut-water-pad) + 1px);
+    padding: calc(0.8125 * var(--nut-u)); font-size: calc(0.88 * var(--nut-u));
+  }
 
   /* Та же арифметика специфичности, что и у .d-left выше */
   #tab-diary.active .d-right {
     display: flex;
     flex-direction: column;
-    gap: 0.875rem;
+    gap: calc(0.875 * var(--nut-u));
     height: auto;
     min-height: 0;
     overflow: visible;
@@ -1407,7 +1540,7 @@ html.assistant-mode, html.assistant-mode body {
   #meals-wrap {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.875rem;
+    gap: calc(0.875 * var(--nut-u));
     align-items: start;
   }
   .meal-card {
@@ -1417,10 +1550,10 @@ html.assistant-mode, html.assistant-mode body {
   @media (hover: hover) {
     .meal-card:hover { border-color: var(--border-strong); }
   }
-  .meal-hdr { padding: 0.8125rem 1rem; flex-shrink: 0; }
-  .meal-icon { font-size: 1.05rem; }
-  .meal-name { font-size: .98rem; }
-  .meal-kcal { font-size: .88rem; }
+  .meal-hdr { padding: calc(0.8125 * var(--nut-u)) var(--nut-u); flex-shrink: 0; }
+  .meal-icon { font-size: calc(1.05 * var(--nut-u)); }
+  .meal-name { font-size: calc(0.98 * var(--nut-u)); }
+  .meal-kcal { font-size: calc(0.88 * var(--nut-u)); }
   /* Список съеденного потолка высоты НЕ имеет. Здесь стояло
      `max-height: 5.625rem; overflow-y: auto` — окно 90px, в которое при
      четырёх позициях на приём пищи не влезало 222–280px из 311–369.
@@ -1430,34 +1563,123 @@ html.assistant-mode, html.assistant-mode body {
      #tab-diary.active прокручивается сама, и вложенной ловушки больше нет.
      Замер до/после — BACKLOG №52. */
   .meal-items { min-height: 0; }
-  .food-item { padding: 0.4375rem 0.875rem; }
-  .food-name { font-size: .9rem; }
-  .food-sub { font-size: .76rem; }
-  .food-kcal { font-size: .84rem; }
-  .water-card { flex-shrink: 0; padding: var(--nut-water-pad) 1.125rem; margin-bottom: 0; }
-  .water-val { font-size: 0.8125rem; }
+  .food-item { padding: calc(0.4375 * var(--nut-u)) calc(0.875 * var(--nut-u)); }
+  .food-name { font-size: calc(0.9 * var(--nut-u)); }
+  /* 0.8125 вместо прежних 0.76: 0.76rem — это 12.16px, ниже минимума
+     0.8125rem из глобального CLAUDE.md. Строка «160г · Б:… Ж:… У:…» —
+     не подпись к значку, а данные, которые читают. Замечено при переводе
+     кегля на единицу раздела и исправлено здесь же: строку всё равно
+     переписывали, оставить в ней 12px значило бы подтвердить их */
+  .food-sub { font-size: calc(0.8125 * var(--nut-u)); }
+  .food-kcal { font-size: calc(0.84 * var(--nut-u)); }
+  .meal-empty, .meal-more, .meal-add-row { font-size: calc(0.8125 * var(--nut-u)); }
+  .water-card { flex-shrink: 0; padding: var(--nut-water-pad) calc(1.125 * var(--nut-u)); margin-bottom: 0; }
+  .water-val { font-size: calc(0.8125 * var(--nut-u)); }
+  .water-name { font-size: calc(0.875 * var(--nut-u)); }
+  .water-log-toggle, .water-log-ml { font-size: calc(0.8125 * var(--nut-u)); }
   /* Ряд кнопок воды: четыре быстрых плюс ручной ввод ОДНОЙ строкой.
      На мобильной ширине ручной ввод стоит отдельной строкой снизу —
      там пять кнопок в ряд дали бы по 68px. Здесь места хватает, и по
      нижнему краю этого ряда выравнивается кнопка нутрициолога слева */
   .water-btns { gap: 0.5rem; }
-  .water-btn { height: 2.375rem; font-size: 0.8125rem; }
+  .water-btn { height: calc(2.375 * var(--nut-u)); font-size: calc(0.8125 * var(--nut-u)); }
   .water-btn-manual {
-    width: auto; flex: 1.4; height: 2.375rem; margin-top: 0;
+    width: auto; flex: 1.4; height: calc(2.375 * var(--nut-u)); margin-top: 0;
+    font-size: calc(0.8125 * var(--nut-u));
     display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem;
   }
   .water-btn-manual svg { width: 0.875rem; height: 0.875rem; }
   /* Полоска дней на десктопе чуть просторнее — место есть */
-  .d-daystrip { padding: 0.75rem 0.875rem; margin-bottom: 1.125rem; }
-  .ds-hint { display: inline; }
-  .ds-c { width: 2.375rem; height: 2.375rem; font-size: 0.875rem; }
+  .d-daystrip { padding: calc(0.75 * var(--nut-u)) calc(0.875 * var(--nut-u)); margin-bottom: calc(1.125 * var(--nut-u)); }
+  .ds-hint { display: inline; font-size: calc(0.8125 * var(--nut-u)); }
+  .ds-date { font-size: calc(0.8125 * var(--nut-u)); }
+  .ds-c { width: calc(2.375 * var(--nut-u)); height: calc(2.375 * var(--nut-u)); font-size: calc(0.875 * var(--nut-u)); }
+  .ds-wd { font-size: calc(0.8125 * var(--nut-u)); }
   /* Места хватает — под сегодняшним днём слово, как в эскизе */
   .ds-wd-today { display: block; }
   .ds-day.is-today .ds-wd:not(.ds-wd-today) { display: none; }
-  .ds-arrow { width: 2.125rem; }
+  .ds-arrow { width: calc(2.125 * var(--nut-u)); height: calc(2 * var(--nut-u)); }
 
-  /* ── SEARCH: single column, readable width, centered ── */
-  #tab-search.active { display: block; overflow-y: auto; max-width: 50rem; margin: 0 auto; }
+  /* ── ДОБАВИТЬ: три колонки ─────────────────────────────────────────────
+     Слева способы ввода словами, посередине области поиска и находки
+     в две колонки, справа панель выбранного продукта.
+
+     Ширина та же, что у дневника, и той же единицей: экраны соседние,
+     человек ходит между ними одним нажатием, и разъехавшийся масштаб
+     виден сразу. Раньше здесь стояло `max-width: 50rem` — мобильная
+     колонка по центру пустого экрана.
+
+     Панель стоит ВСЕГДА, даже пустой. Появляясь по выбору, она сдвигала бы
+     список находок ровно в тот момент, когда по нему нажимают, — а на
+     широком экране это ещё и второй прыжок подряд, потому что список
+     из двух колонок перестроился бы под новую ширину. */
+  #tab-search.active {
+    display: block; overflow-y: auto;
+    max-width: calc(87.5 * var(--nut-u));
+    margin: 0 auto;
+  }
+  .a-cols {
+    display: grid;
+    grid-template-columns: var(--nut-summary) minmax(0, 1fr) calc(19 * var(--nut-u));
+    gap: calc(1.125 * var(--nut-u));
+    align-items: start;
+  }
+  .a-left, .a-main {
+    display: flex; flex-direction: column; gap: calc(0.875 * var(--nut-u));
+  }
+  /* Перестановка нужна ТОЛЬКО мобильной ширине, где всё лежит в одной
+     колонке; здесь порядок задаёт разметка. Не сняв `order`, получаем
+     дату под кнопками (1 больше 0) и поле поиска над областями —
+     то и другое поймано снимком, а не чтением: обе колонки на десктопе
+     тоже флексы, и `order` в них продолжает действовать */
+  .add-date-note, .a-meals, .s-bar, .a-method-manual, .s-tabs, .a-results { order: 0; }
+  .a-panel { display: block; }
+  /* Сама коробка карточки на десктопе рисуется — на мобильной её нет
+     вовсе (`display: contents` в базовой части файла) */
+  .a-box { display: flex; flex-direction: column; gap: calc(0.5 * var(--nut-u)); }
+  .a-box-title { display: block; margin: 0 0 calc(0.25 * var(--nut-u)); }
+  .a-method-wide { display: inline-flex; }
+  /* Приёмы пищи — сеткой два на два, как в эскизе: ряд из четырёх чипов
+     в колонке 288px уезжает в горизонтальную прокрутку */
+  /* `flex` у чипов из `.s-chips .chip` здесь не действует и переопределять
+     его не нужно: в контейнере-сетке flex-свойства элементов не применяются
+     вовсе. Одной строкой в проверке 1 меньше — и не потому, что её спрятали */
+  .a-meals {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: calc(0.375 * var(--nut-u)); overflow: visible; margin: 0;
+  }
+  /* Значки способов ввода у поля — только на мобильной: на десктопе те же
+     действия названы словами слева, и два одинаковых пути к одному окну
+     на одном экране означают, что один из них лишний */
+  .a-icon-method { display: none; }
+  .s-bar, .s-tabs, .a-method-manual { margin-bottom: 0; }
+  /* Находки в две колонки. Одна колонка на 1500px даёт строку в 100 знаков
+     под название из трёх слов — то есть пустоту справа от каждой карточки */
+  .a-results .r-list {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: calc(0.5 * var(--nut-u));
+  }
+  .a-group-t { font-size: calc(0.8125 * var(--nut-u)); }
+  .a-nothing-t { font-size: calc(0.9375 * var(--nut-u)); }
+  .a-nothing-s { font-size: calc(0.8125 * var(--nut-u)); }
+  /* Панель липнет к верху своей колонки: список находок прокручивается,
+     граммовка и кнопка записи должны оставаться на виду */
+  .a-panel-box { position: sticky; top: 0; }
+  .a-panel-empty {
+    font-size: calc(0.8125 * var(--nut-u)); color: var(--text-2);
+    font-weight: 600; line-height: 1.5; text-align: center;
+  }
+  .a-panel .g-wrap { margin-bottom: calc(0.625 * var(--nut-u)); }
+  .a-panel .q-grams { margin-bottom: calc(0.875 * var(--nut-u)); }
+  /* Приёмы в панели — той же сеткой два на два, что и слева: это один
+     и тот же выбор, и выглядеть он должен одинаково. Рядом четырёх чипов
+     в колонке 19 единиц не выходит — три вставали в строку, «Перекус»
+     уезжал под них один */
+  .ap-meals {
+    display: grid; grid-template-columns: 1fr 1fr; overflow: visible;
+    gap: calc(0.375 * var(--nut-u)); margin-bottom: calc(0.875 * var(--nut-u));
+  }
+  .ap-date-note { margin-bottom: calc(0.75 * var(--nut-u)); }
 
   /* ── ASSISTANT: centered chat column, fills the screen ── */
   #tab-assistant.active {
@@ -1475,15 +1697,19 @@ html.assistant-mode, html.assistant-mode body {
   @media (hover: hover) {
     .search-back:hover { color: var(--tool-accent); border-color: color-mix(in srgb, var(--tool-accent) 30%, transparent); }
   }
-  .s-chip { font-size: .88rem; padding: 0.5625rem 1.0625rem; }
-  .s-input { height: 3.125rem; font-size: 1.05rem; }
-  .icon-btn { width: 3.125rem; height: 3.125rem; }
-  .s-tab { height: 2.5rem; font-size: .88rem; }
-  .r-item { padding: 0.875rem 1rem; }
-  .r-name { font-size: 1rem; }
-  .r-brand { font-size: .82rem; }
-  .r-kcal { font-size: .94rem; }
-  .r-per { font-size: .8rem; }
+  /* Здесь стояли .s-chip, .s-input, .icon-btn и .s-tab — правила для
+     классов, которых в разметке нет с задачи 42: их свели к .chip, .input,
+     .btn-icon и .segmented-btn, а десктопные размеры остались описывать
+     пустоту. Удалены вместе с перестройкой экрана: описание несуществующего
+     класса ловит следующего, кто возьмёт имя из файла.
+     Тем же грепом рядом найдены .f-input и .save-btn в блоке профиля —
+     они из другого экрана и в этот заход не трогались. */
+  .r-item { padding: calc(0.875 * var(--nut-u)) var(--nut-u); }
+  .r-name { font-size: var(--nut-u); }
+  .r-brand { font-size: calc(0.82 * var(--nut-u)); }
+  .r-kcal { font-size: calc(0.94 * var(--nut-u)); }
+  .r-per { font-size: calc(0.8 * var(--nut-u)); }
+  .empty { font-size: calc(0.87 * var(--nut-u)); }
 
   /* ── HISTORY: left ring+meals, right chart fills column ── */
   #tab-history.active { display: grid; grid-template-columns: 18.75rem 1fr; gap: 1.75rem; overflow: hidden; }

@@ -4106,7 +4106,10 @@ async def nut_diary(date: str = None, user=Depends(get_current_user), db: Sessio
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     logs = db.query(FoodLog).filter(FoodLog.user_id == user.id, FoodLog.log_date == d).order_by(FoodLog.created_at).all()
-    water_logs = db.query(WaterLog).filter(WaterLog.user_id == user.id, WaterLog.log_date == d).all()
+    # Порядок задан явно: список порций показывается человеку и служит
+    # опорой для удаления. Порядок «как отдала база» устойчивым не является
+    water_logs = db.query(WaterLog).filter(
+        WaterLog.user_id == user.id, WaterLog.log_date == d).order_by(WaterLog.id).all()
     water_ml = sum(w.amount_ml for w in water_logs)
 
     profile = db.query(NutritionProfile).filter(NutritionProfile.user_id == user.id).first()
@@ -4255,18 +4258,33 @@ async def nut_log_water(request: Request, user=Depends(get_current_user), db: Se
     db.commit()
     total = sum(w.amount_ml for w in db.query(WaterLog).filter(
         WaterLog.user_id == user.id, WaterLog.log_date == date).all())
-    return JSONResponse({"ok": True, "total_ml": total})
+    # id налитой порции уходит наружу, чтобы список порций на экране
+    # пополнялся тем, что записано, а не тем, что клиент собирался записать:
+    # без него список пришлось бы перечитывать целиком либо рисовать
+    # строку без опоры на запись в базе, и удалить её было бы нечем
+    return JSONResponse({"ok": True, "id": entry.id, "date": date, "total_ml": total})
 
 
 @app.delete("/nutrition/api/water/{log_id}")
 async def nut_delete_water(log_id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Удаление налитой порции. Отвечает 404, когда удалять нечего.
+
+    Прежний ответ был `{"ok": true}` на любой исход — и на удаление,
+    и на чужой id, и на несуществующий. Наружу это выглядит одинаково:
+    порция «удалена», интерфейс рисует успех, а в базе всё на месте
+    (§6.0.1). Дата и новый итог дня уходят в ответе, чтобы вызывающий
+    не гадал, какой день пересчитывать."""
     if not user:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     entry = db.query(WaterLog).filter(WaterLog.id == log_id, WaterLog.user_id == user.id).first()
-    if entry:
-        db.delete(entry)
-        db.commit()
-    return JSONResponse({"ok": True})
+    if not entry:
+        return JSONResponse({"error": "Запись о воде не найдена"}, status_code=404)
+    дата = entry.log_date
+    db.delete(entry)
+    db.commit()
+    total = sum(w.amount_ml for w in db.query(WaterLog).filter(
+        WaterLog.user_id == user.id, WaterLog.log_date == дата).all())
+    return JSONResponse({"ok": True, "date": дата, "total_ml": total})
 
 
 # ── Nutrition: food search ────────────────────────────────────────────────────
@@ -4367,49 +4385,96 @@ async def nut_barcode(code: str, user=Depends(get_current_user), db: Session = D
     return JSONResponse({"found": False, "barcode": code})
 
 
+# Сколько записей истории просматривается для «недавних» и поиска внутри них.
+# Было 200 и молча ограничивало поиск: вкладка стала ОБЛАСТЬЮ поиска, и запрос
+# «творог» обязан искать по всей истории человека, а не по последним двум
+# сотням строк — иначе «в недавних ничего не нашлось» означало бы «не нашлось
+# в куске, о котором вам не сказали».
+NUT_RECENT_SCAN = 1000
+# Сколько разных блюд показывать в одном блоке приёма пищи. Без потолка блок
+# «Обед» у человека с длинной историей вытесняет с экрана все остальные.
+NUT_RECENT_PER_MEAL = 12
+
+
+def _нут_на_100(lg) -> dict:
+    """Строка истории → карточка продукта с КБЖУ на 100 г."""
+    return {
+        "name": lg.food_name, "brand": lg.brand or "",
+        "calories": round(lg.calories / lg.grams * 100, 1),
+        "protein": round(lg.protein / lg.grams * 100, 1),
+        "fat": round(lg.fat / lg.grams * 100, 1),
+        "carbs": round(lg.carbs / lg.grams * 100, 1),
+    }
+
+
+def _нут_совпало(lg, q_lower: str) -> bool:
+    """Сравнение в Python, а не в SQL: ilike в SQLite не приводит к нижнему
+    регистру кириллицу, и «Творог» не нашёлся бы по «творог» (та же причина,
+    что в /nutrition/api/search)."""
+    if not q_lower:
+        return True
+    return q_lower in lg.food_name.lower() or q_lower in (lg.brand or "").lower()
+
+
 @app.get("/nutrition/api/recent-foods")
-async def nut_recent(user=Depends(get_current_user), db: Session = Depends(get_db)):
+async def nut_recent(q: str = "", user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Недавние: плоским списком и РАЗЛОЖЕННЫЕ ПО ПРИЁМАМ ПИЩИ.
+
+    Два представления одних и тех же строк, а не два запроса: экран
+    «Добавить» показывает блоки по приёмам, а окно подбора ингредиента
+    рецепта — плоский список, и приём пищи там не значит ничего.
+
+    Приём, в который ни разу ничего не вносили, в `by_meal` не появляется
+    вовсе: пустой блок на экране бесполезен, а «показать и подписать пустым»
+    здесь неверно — в отличие от карточки дня, где пустой приём означает
+    «недоедено», тут он означал бы только «нечего предложить»."""
     if not user:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    q_lower = q.strip().lower()
     logs = db.query(FoodLog).filter(FoodLog.user_id == user.id).order_by(
-        FoodLog.created_at.desc()).limit(200).all()
+        FoodLog.created_at.desc()).limit(NUT_RECENT_SCAN).all()
     seen, results = set(), []
+    # Одно блюдо, съеденное в разных приёмах, попадает в НЕСКОЛЬКО блоков —
+    # ключ дедупликации включает приём. Схлопывать их значило бы утверждать,
+    # что творог едят только на завтрак, потому что там его съели первым
+    seen_meal, by_meal = set(), {}
     for lg in logs:
+        if not _нут_совпало(lg, q_lower):
+            continue
         key = lg.food_name.lower()
-        if key not in seen:
+        if key not in seen and len(results) < 20:
             seen.add(key)
-            results.append({
-                "name": lg.food_name, "brand": lg.brand or "",
-                "calories": round(lg.calories / lg.grams * 100, 1),
-                "protein": round(lg.protein / lg.grams * 100, 1),
-                "fat": round(lg.fat / lg.grams * 100, 1),
-                "carbs": round(lg.carbs / lg.grams * 100, 1),
-            })
-        if len(results) >= 20:
-            break
-    return JSONResponse({"results": results})
+            results.append(_нут_на_100(lg))
+        мк = (lg.meal_type, key)
+        if мк not in seen_meal:
+            seen_meal.add(мк)
+            блок = by_meal.setdefault(lg.meal_type, [])
+            if len(блок) < NUT_RECENT_PER_MEAL:
+                блок.append(_нут_на_100(lg))
+    return JSONResponse({"results": results, "by_meal": by_meal})
 
 
 @app.get("/nutrition/api/frequent-foods")
-async def nut_frequent(user=Depends(get_current_user), db: Session = Depends(get_db)):
+async def nut_frequent(q: str = "", user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Частые: единый топ по числу добавлений за всё время, самое
+    используемое сверху. По приёмам пищи НЕ раскладывается — это и есть
+    определение частого, и разложить его значило бы получить четыре разных
+    ответа на вопрос «что я ем чаще всего».
+
+    Число добавлений уходит наружу и показывается: правило сортировки,
+    которое не видно, читается как случайный порядок."""
     if not user:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     from collections import Counter
-    logs = db.query(FoodLog).filter(FoodLog.user_id == user.id).all()
+    q_lower = q.strip().lower()
+    logs = [lg for lg in db.query(FoodLog).filter(FoodLog.user_id == user.id).all()
+            if _нут_совпало(lg, q_lower)]
     counts = Counter(lg.food_name for lg in logs)
-    top_names = [name for name, _ in counts.most_common(20)]
     results = []
-    for name in top_names:
+    for name, _ in counts.most_common(20):
         lg = next((l for l in logs if l.food_name == name), None)
         if lg:
-            results.append({
-                "name": lg.food_name, "brand": lg.brand or "",
-                "calories": round(lg.calories / lg.grams * 100, 1),
-                "protein": round(lg.protein / lg.grams * 100, 1),
-                "fat": round(lg.fat / lg.grams * 100, 1),
-                "carbs": round(lg.carbs / lg.grams * 100, 1),
-                "count": counts[name],
-            })
+            results.append({**_нут_на_100(lg), "count": counts[name]})
     return JSONResponse({"results": results})
 
 
@@ -4447,11 +4512,17 @@ async def nut_create_custom_food(request: Request, user=Depends(get_current_user
 # ── Nutrition: recipes ────────────────────────────────────────────────────────
 
 @app.get("/nutrition/api/recipes")
-async def nut_recipes(user=Depends(get_current_user), db: Session = Depends(get_db)):
+async def nut_recipes(q: str = "", user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    q_lower = q.strip().lower()
     recipes = db.query(CustomRecipe).filter(CustomRecipe.user_id == user.id).order_by(
         CustomRecipe.created_at.desc()).all()
+    # Отбор здесь, а не в браузере: «Мои рецепты» — такая же область поиска,
+    # как остальные три, и правило отбора у всех четырёх должно быть одно
+    # (подстрока, регистр не важен, кириллица сравнивается в Python)
+    if q_lower:
+        recipes = [r for r in recipes if q_lower in r.name.lower()]
     result = []
     for r in recipes:
         ingredients = db.query(RecipeIngredient).filter(RecipeIngredient.recipe_id == r.id).all()
