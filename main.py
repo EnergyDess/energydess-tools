@@ -7,8 +7,9 @@ import secrets
 import ipaddress
 import socket
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date as _date
 from typing import Any, Dict, List, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pydantic import BaseModel
 from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, BackgroundTasks, Cookie
 from fastapi.templating import Jinja2Templates
@@ -3384,6 +3385,50 @@ def _calc_tdee(gender: str, age: int, weight_kg: float, height_cm: float,
 _OFF_HEADERS = {"User-Agent": "EnergyDess-Nutrition/1.0 (https://energydess.ru)"}
 
 
+def _нормкод(код: str) -> str:
+    """Штрих-код, приведённый к виду, по которому его можно СРАВНИВАТЬ.
+
+    GTIN бывает восьми-, двенадцати-, тринадцати- и четырнадцатизначным,
+    и короткий код дополняется слева нулями до длинного. Open Food Facts
+    хранит обе формы как разные записи: замер 2026-08-15 по запросу
+    «молоко простоквашино» — `0099990001920` и `99990001920` пришли двумя
+    строками, побайтово одинаковыми во всём остальном (название, 54.4 ккал,
+    «100g»). Снаружи это выглядело как два разных молока, отличить которые
+    было нечем — то есть строка, добавленная ради различения дублей,
+    их же и порождала.
+
+    Ведущие нули срезаются, всё нецифровое выбрасывается. Пустой код
+    сравнивать нельзя вовсе — он вернётся пустой строкой, и склейка
+    по нему запрещена явно там, где вызывается."""
+    цифры = "".join(з for з in (код or "") if з.isdigit())
+    return цифры.lstrip("0")
+
+
+# ── Бренд, спрятанный в названии ──────────────────────────────────────────────
+#
+# ПОЧЕМУ НЕ СЛОВАРЬ БРЕНДОВ. Замер 2026-08-15 по «молоко простоквашино»:
+# у записи «Молоко Простоквашино 2.5%» поле `brands` пустое, а у семнадцати
+# соседних записей той же выдачи там стоит «Простоквашино». То есть бренд
+# известен из самого ответа, и выдумывать его не приходится — достаточно
+# посмотреть, какие бренды пришли рядом.
+#
+# Наружу до этой правки уходило «бренд не указан», хотя бренд стоял в самом
+# названии продукта и в соседней строке выдачи. Это не косметика: подпись
+# утверждала неправду о данных, которые тут же лежали рядом.
+#
+# Порог в четыре знака отсекает мусорные однобуквенные значения `brands`,
+# которых у OFF хватает: бренд «Б», найденный внутри слова, приписал бы
+# случайное имя половине выдачи.
+_БРЕНД_МИН_ДЛИНА = 4
+
+
+def _бренд_из_названия(name: str, бренды: list) -> str:
+    """Самый длинный из известных брендов, встретившийся в названии."""
+    н = (name or "").lower()
+    подходят = [б for б in бренды if len(б) >= _БРЕНД_МИН_ДЛИНА and б.lower() in н]
+    return max(подходят, key=len) if подходят else ""
+
+
 async def _off_search(query: str) -> tuple[list, str]:
     """Возвращает ПАРУ: находки и причина сбоя (пустая строка — сбоя не было).
 
@@ -3435,7 +3480,47 @@ async def _off_search(query: str) -> tuple[list, str]:
             "fat": round(float(n.get("fat_100g", 0)), 1),
             "carbs": round(float(n.get("carbohydrates_100g", 0)), 1),
         })
-    return results, ""
+    return _склеить_дубли(_дописать_бренды(results)), ""
+
+
+def _дописать_бренды(results: list) -> list:
+    """Пустой бренд достаётся из названия по брендам той же выдачи."""
+    известные = sorted({r["brand"] for r in results if r["brand"]}, key=len, reverse=True)
+    if not известные:
+        return results
+    for r in results:
+        if not r["brand"]:
+            r["brand"] = _бренд_из_названия(r["name"], известные)
+    return results
+
+
+def _склеить_дубли(results: list) -> list:
+    """Записи с одним штрих-кодом с точностью до ведущих нулей — одна запись.
+
+    Порядок выдачи сохраняется: остаётся ПЕРВАЯ встреченная запись, потому
+    что ранжирование ниже опирается на порядок Open Food Facts как на
+    исходное приближение. Недостающие поля добираются у выброшенных
+    близнецов — у одного из них бренд или объём могут оказаться заполнены,
+    и терять их из-за того, что он пришёл вторым, незачем.
+
+    Записи без кода не склеиваются НИКОГДА: пустой нормализованный код
+    у всех них один и тот же, и склейка по нему схлопнула бы в одну строку
+    разные продукты. Это тот же класс ошибки, что и склейка по имени."""
+    итог, по_коду = [], {}
+    for r in results:
+        код = _нормкод(r.get("barcode", ""))
+        if not код:
+            итог.append(r)
+            continue
+        первая = по_коду.get(код)
+        if первая is None:
+            по_коду[код] = r
+            итог.append(r)
+            continue
+        for поле in ("brand", "quantity"):
+            if not первая.get(поле) and r.get(поле):
+                первая[поле] = r[поле]
+    return итог
 
 
 # ── Ранжирование выдачи поиска еды ────────────────────────────────────────────
@@ -3992,8 +4077,19 @@ async def nutrition_page(request: Request, food: int = None,
                 .filter(CustomFood.id == food, CustomFood.user_id == user.id)
                 .first())
         открыть = своё.id if своё else None
+    # «Сегодня» уезжает в разметку, а не считается браузером. Считать его
+    # там значило бы иметь два мнения о текущем дне: `toISOString()` отдаёт
+    # UTC, `toLocaleDateString()` — местное время устройства, и в ночные
+    # часы они расходятся на сутки прямо на одном экране (сайдбар показывал
+    # 15-е, полоска дней — 14-е). Сервер знает пояс из профиля и решает один.
+    #
+    # ИМЕННО В РАЗМЕТКУ, а не только ответом /diary-days: до первого ответа
+    # экран уже нарисован, и правка «сегодня» задним числом означала бы
+    # мигание даты на глазах у человека.
     return templates.TemplateResponse(request=request, name="nutrition.html",
-                                      context={"user": user, "open_food": открыть})
+                                      context={"user": user, "open_food": открыть,
+                                               "nut_today": _сегодня(user).strftime("%Y-%m-%d"),
+                                               "nut_hour": datetime.now(_пояс(user)).hour})
 
 
 # ── Nutrition: profile ────────────────────────────────────────────────────────
@@ -4063,7 +4159,59 @@ async def nut_save_profile(request: Request, user=Depends(get_current_user), db:
 NUT_DAY_RANGE = 7
 
 
-def _нут_дата(значение, поле: str = "date") -> str:
+# ── «Сегодня» — календарный день В ПОЯСЕ ПОЛЬЗОВАТЕЛЯ ──────────────────────────
+#
+# ПОЧЕМУ ОТДЕЛЬНАЯ ФУНКЦИЯ, А НЕ `datetime.now()` НА МЕСТЕ ВЫЗОВА.
+# `datetime.now()` берёт пояс ПРОЦЕССА, а процесс живёт на Fly, где TZ=UTC.
+# Пользователь при этом живёт в своём поясе, и с полуночи до смещения
+# (в Москве — до 03:00) сервер считал, что идут вчерашние сутки. Замер
+# 2026-08-15, 02:00 MSK: `datetime.now().date()` = 2026-08-14, календарь
+# человека показывает 15-е. Следствия все три немые:
+#
+#   · полоска дней рисовала «сегодня» на 14-м, а 15-е — будущим днём
+#     с пунктиром, то есть текущие сутки выглядели запланированными;
+#   · запись, сделанная в час ночи, уходила во ВЧЕРА, и признака этого
+#     не было никакого — экран добавления одинаков для любого дня;
+#   · сайдбар при этом показывал 15-е, потому что брал дату у браузера,
+#     то есть два места на одном экране расходились на сутки.
+#
+# Пояс лежит в `users.timezone` (профиль). Не задан — берём UTC: это
+# прежнее поведение, и оно хотя бы одинаково во всех точках. Неизвестное
+# имя зоны тоже уводится в UTC, но С СООБЩЕНИЕМ в лог: молча подменить
+# пояс значит получить ровно тот же сдвиг на сутки, только необъяснимый.
+def _пояс(user) -> ZoneInfo:
+    имя = (getattr(user, "timezone", None) or "").strip()
+    if not имя:
+        return ZoneInfo("UTC")
+    try:
+        return ZoneInfo(имя)
+    except (ZoneInfoNotFoundError, ValueError):
+        print(f"[дневник] неизвестный часовой пояс {имя!r} у пользователя "
+              f"{getattr(user, 'id', '?')} — считаем в UTC")
+        return ZoneInfo("UTC")
+
+
+def _день_в_поясе(момент: datetime, зона: ZoneInfo) -> _date:
+    """Календарный день, в котором этот момент застаёт человека в этой зоне.
+
+    Отдельно от `_сегодня` НЕ ради красоты, а чтобы граница суток
+    проверялась тестом: `datetime.now()` внутри функции сделал бы её
+    непроверяемой — прогон в 15:00 не сказал бы ничего о поведении
+    в 00:30, а именно там и жил дефект."""
+    return момент.astimezone(зона).date()
+
+
+def _сегодня(user) -> _date:
+    """Сегодняшний календарный день пользователя. Один источник на всё.
+
+    Все даты дневника — `log_date`, границы окна ±NUT_DAY_RANGE, подписи
+    «вчера/завтра», итоги — считаются ОТ ЭТОГО дня. Второй способ узнать
+    «сегодня» разошёлся бы с первым молча ровно в те часы, когда это никто
+    не проверяет."""
+    return _день_в_поясе(datetime.now(ZoneInfo("UTC")), _пояс(user))
+
+
+def _нут_дата(значение, сегодня: _date, поле: str = "date") -> str:
     """Дата дневника: строго YYYY-MM-DD и внутри разрешённого окна.
 
     ПОЧЕМУ ПРОВЕРКА, А НЕ ПОДСТАНОВКА СЕГОДНЯШНЕГО ДНЯ. `log_date` —
@@ -4075,16 +4223,22 @@ def _нут_дата(значение, поле: str = "date") -> str:
 
     Молча заменять кривую дату на сегодня — не лучше: человек, отмотавший
     дневник на вчера, получил бы запись в сегодня и зелёную галочку.
-    Поэтому 400 и внятный текст."""
+    Поэтому 400 и внятный текст.
+
+    `сегодня` — ОБЯЗАТЕЛЬНЫЙ аргумент, а не умолчание `datetime.now()`.
+    Умолчание здесь вернуло бы пояс процесса (UTC на Fly) любому, кто
+    забыл его передать, — то есть починка держалась бы на внимательности
+    каждого следующего вызова. Обязательный аргумент ломает такой вызов
+    на месте, при чтении кода, а не ночью у пользователя."""
     if значение in (None, ""):
-        return datetime.now().strftime("%Y-%m-%d")
+        return сегодня.strftime("%Y-%m-%d")
     if not isinstance(значение, str):
         raise ValueError(f"{поле}: дата должна быть строкой YYYY-MM-DD")
     try:
         д = datetime.strptime(значение, "%Y-%m-%d").date()
     except ValueError:
         raise ValueError(f"{поле}: не дата в формате YYYY-MM-DD ({значение!r})")
-    отступ = (д - datetime.now().date()).days
+    отступ = (д - сегодня).days
     if abs(отступ) > NUT_DAY_RANGE:
         raise ValueError(
             f"{поле}: дневник ведётся в пределах {NUT_DAY_RANGE} дней "
@@ -4102,7 +4256,7 @@ async def nut_diary(date: str = None, user=Depends(get_current_user), db: Sessio
     if not user:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     try:
-        d = _нут_дата(date)
+        d = _нут_дата(date, _сегодня(user))
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     logs = db.query(FoodLog).filter(FoodLog.user_id == user.id, FoodLog.log_date == d).order_by(FoodLog.created_at).all()
@@ -4137,7 +4291,7 @@ async def nut_diary_days(user=Depends(get_current_user), db: Session = Depends(g
     и обещал бы еду, которой нет."""
     if not user:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
-    сегодня = datetime.now().date()
+    сегодня = _сегодня(user)
     начало = (сегодня - timedelta(days=NUT_DAY_RANGE)).strftime("%Y-%m-%d")
     конец = (сегодня + timedelta(days=NUT_DAY_RANGE)).strftime("%Y-%m-%d")
     строки = db.query(FoodLog.log_date, func.count(FoodLog.id)).filter(
@@ -4154,7 +4308,7 @@ async def nut_log_food(request: Request, user=Depends(get_current_user), db: Ses
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     data = await request.json()
     try:
-        день = _нут_дата(data.get("date"))
+        день = _нут_дата(data.get("date"), _сегодня(user))
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     grams = float(data.get("grams", 100))
@@ -4250,7 +4404,7 @@ async def nut_log_water(request: Request, user=Depends(get_current_user), db: Se
     data = await request.json()
     amount = int(data.get("amount_ml", 200))
     try:
-        date = _нут_дата(data.get("date"))
+        date = _нут_дата(data.get("date"), _сегодня(user))
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     entry = WaterLog(user_id=user.id, log_date=date, amount_ml=amount)
@@ -4325,9 +4479,12 @@ async def nut_search(q: str = "", user=Depends(get_current_user), db: Session = 
             добор, сбой_добора = await _off_search(англ)
             print(f"[food] добор по переводу «{англ}»: {len(добор)} находок")
             сбой = сбой or сбой_добора
-            # Сшивка по штрих-коду: тот же продукт мог прийти обоими путями
-            коды = {r.get("barcode") for r in off_results if r.get("barcode")}
-            добор = [r for r in добор if r.get("barcode") not in коды]
+            # Сшивка по штрих-коду: тот же продукт мог прийти обоими путями.
+            # Код НОРМАЛИЗУЕТСЯ — иначе `0099990001920` из первого поиска
+            # и `99990001920` из второго считались бы разными товарами
+            коды = {_нормкод(r.get("barcode", "")) for r in off_results}
+            коды.discard("")
+            добор = [r for r in добор if _нормкод(r.get("barcode", "")) not in коды]
 
     # Ранжируем ОБЩИЙ список, а не только чужой: свой продукт, совпавший
     # с запросом одним словом из двух, не должен стоять выше найденного целиком
@@ -5124,7 +5281,7 @@ async def nut_ai_chat_log_foods(request: Request, user=Depends(get_current_user)
         return JSONResponse({"error": "Нет доступа"}, status_code=403)
     data = await request.json()
     try:
-        date = _нут_дата(data.get("date"))
+        date = _нут_дата(data.get("date"), _сегодня(user))
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     карточки = data.get("items") or []
