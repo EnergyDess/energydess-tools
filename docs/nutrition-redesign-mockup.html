@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Дневник питания — согласованные эскизы десктопной раскладки</title>
+<style>
+  :root{
+    --bg:#0A0B0F;
+    --s1:#12141C;
+    --s2:#1E2030;
+    --s0:#080910;
+    --bd:rgba(255,255,255,.08);
+    --bd-strong:rgba(255,255,255,.18);
+    --tx:#E8EAED;
+    --tx2:#9AA0AC;
+    --tx3:#6B7280;
+    --ok:#22C55E;
+    --ok-bd:rgba(34,197,94,.55);
+    --ok-bg:rgba(34,197,94,.10);
+    --pro:#F472B6;
+    --fat:#F59E0B;
+    --carb:#60A5FA;
+    --r:10px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--tx);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    font-size:15px; line-height:1.5;
+  }
+  .page{max-width:1400px; margin:0 auto; padding:40px 24px 80px}
+  .doc-head{border-bottom:1px solid var(--bd); padding-bottom:24px; margin-bottom:40px}
+  .doc-head h1{font-size:1.5rem; font-weight:600; margin:0 0 8px}
+  .doc-head p{color:var(--tx2); font-size:.9rem; margin:0 0 6px; max-width:70ch}
+  .warn{color:var(--fat); font-size:.85rem}
+  section{margin-bottom:56px}
+  section > h2{font-size:1.05rem; font-weight:600; margin:0 0 6px}
+  section > .note{color:var(--tx2); font-size:.85rem; margin:0 0 18px; max-width:80ch}
+  .frame{background:var(--s0); border:1px solid var(--bd); border-radius:14px; padding:20px}
+
+  .card{background:var(--s1); border-radius:var(--r); padding:16px}
+  .row{display:flex; justify-content:space-between; align-items:center}
+  .muted{color:var(--tx3)} .sec{color:var(--tx2)}
+  .xs{font-size:.72rem} .sm{font-size:.8rem} .md{font-size:.87rem}
+  button{
+    background:var(--s2); color:var(--tx); border:1px solid var(--bd);
+    border-radius:8px; padding:7px 12px; font:inherit; font-size:.82rem; cursor:pointer;
+  }
+  button.accent{border-color:var(--ok-bd); color:var(--ok); background:var(--ok-bg)}
+  input[type=text]{
+    width:100%; background:var(--s2); border:1px solid var(--bd); border-radius:8px;
+    padding:9px 12px; color:var(--tx); font:inherit; font-size:.87rem;
+  }
+  .bar{height:4px; background:var(--s0); border-radius:2px; overflow:hidden}
+  .bar > i{display:block; height:100%; border-radius:2px}
+  .ring{
+    width:120px; height:120px; margin:0 auto; border-radius:50%;
+    border:6px solid var(--ok-bd); display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+  }
+  .ring b{font-size:1.6rem; font-weight:600; line-height:1}
+  .divider{border-top:1px solid var(--bd)}
+  .item{border-top:1px solid var(--bd); padding:6px 0; display:flex; justify-content:space-between; gap:8px}
+  .grid2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; align-items:start}
+  .cols{display:grid; gap:14px; align-items:start}
+
+  .day{text-align:center}
+  .day .c{
+    width:38px; height:38px; margin:0 auto; border-radius:50%;
+    border:1px solid var(--bd); display:flex; align-items:center; justify-content:center; font-size:.85rem;
+  }
+  .day.today .c{background:var(--ok); color:#06210F; border-color:var(--ok); font-weight:600}
+  .day.sel .c{border:2px solid var(--ok-bd); color:var(--ok)}
+  .day.fut{opacity:.5}
+  .day.fut .c{border-style:dashed; border-color:var(--bd-strong)}
+  .dot{width:5px; height:5px; border-radius:50%; margin:4px auto 0}
+
+  .ann{
+    margin-top:12px; padding:10px 14px; border-left:2px solid var(--ok-bd);
+    background:var(--ok-bg); border-radius:0 8px 8px 0; font-size:.82rem; color:var(--tx2);
+  }
+  .ann b{color:var(--tx); font-weight:600}
+  .cal{display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px}
+  .cal .cell{padding:5px 3px; text-align:center; border-radius:8px}
+  .cal .cell span{font-size:.78rem}
+  svg{width:100%; height:auto}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="doc-head">
+  <h1>Дневник питания — согласованные эскизы десктопной раскладки</h1>
+  <p>Образец для реализации. Согласовано с владельцем проекта поэкранно. Показывает структуру, порядок и поведение элементов.</p>
+  <p class="warn">Цвета, шрифты, отступы и радиусы здесь приблизительные. Брать их из токенов дизайн-системы проекта, а не из этого файла.</p>
+  <p>Мобильная раскладка не меняется. Все эскизы — десктоп.</p>
+</div>
+
+<!-- 1 -->
+<section>
+  <h2>1. Дневник — основная раскладка</h2>
+  <p class="note">Слева узкая колонка сводки, справа приёмы пищи сеткой два на два и вода. Кнопка нутрициолога нижним краем выравнивается по ряду кнопок воды.</p>
+  <div class="frame">
+    <div class="cols" style="grid-template-columns:220px minmax(0,1fr)">
+
+      <div class="cols" style="grid-template-columns:1fr">
+        <div class="card" style="text-align:center">
+          <div class="ring"><b>1312</b><span class="xs muted">осталось</span></div>
+          <p class="sm sec" style="margin:12px 0 0">1013 / 2325 ккал</p>
+        </div>
+        <div class="card">
+          <div style="margin-bottom:14px">
+            <div class="row sm" style="margin-bottom:5px"><span class="sec">Белок</span><span>28 / 202 г</span></div>
+            <div class="bar"><i style="width:14%;background:var(--pro)"></i></div>
+          </div>
+          <div style="margin-bottom:14px">
+            <div class="row sm" style="margin-bottom:5px"><span class="sec">Жиры</span><span>31 / 64 г</span></div>
+            <div class="bar"><i style="width:48%;background:var(--fat)"></i></div>
+          </div>
+          <div>
+            <div class="row sm" style="margin-bottom:5px"><span class="sec">Углеводы</span><span>96 / 235 г</span></div>
+            <div class="bar"><i style="width:41%;background:var(--carb)"></i></div>
+          </div>
+        </div>
+        <button class="accent" style="width:100%; margin-top:auto">AI-нутрициолог</button>
+      </div>
+
+      <div class="cols" style="grid-template-columns:1fr">
+        <div class="grid2">
+
+          <div class="card">
+            <div class="row" style="margin-bottom:10px">
+              <span class="md" style="font-weight:600">Завтрак</span><span class="sm" style="color:var(--ok)">437 ккал</span>
+            </div>
+            <div class="item sm"><span class="sec">Киш с курицей</span><span class="muted">160 г</span></div>
+            <div class="item sm muted"><span>+ Добавить</span></div>
+          </div>
+
+          <div class="card">
+            <div class="row" style="margin-bottom:10px">
+              <span class="md" style="font-weight:600">Обед</span><span class="sm" style="color:var(--ok)">878 ккал</span>
+            </div>
+            <div class="item sm"><span class="sec">Биточек куриный</span><span class="muted">200 г</span></div>
+            <div class="item sm"><span class="sec">Салат Цезарь</span><span class="muted">180 г</span></div>
+            <div class="item sm"><span class="sec">Картофель фри</span><span class="muted">120 г</span></div>
+            <div class="item sm"><span class="sec">Соус карри</span><span class="muted">30 г</span></div>
+            <div class="item sm" style="color:var(--ok)"><span>Ещё 2 позиции</span></div>
+            <div class="item sm muted"><span>+ Добавить</span></div>
+          </div>
+
+          <div class="card">
+            <div class="row" style="margin-bottom:10px">
+              <span class="md" style="font-weight:600">Ужин</span><span class="sm muted">0 ккал</span>
+            </div>
+            <div class="item sm muted" style="justify-content:center; padding:16px 0">Пусто</div>
+            <div class="item sm muted"><span>+ Добавить</span></div>
+          </div>
+
+          <div class="card">
+            <div class="row" style="margin-bottom:10px">
+              <span class="md" style="font-weight:600">Перекус</span><span class="sm muted">0 ккал</span>
+            </div>
+            <div class="item sm muted" style="justify-content:center; padding:16px 0">Пусто</div>
+            <div class="item sm muted"><span>+ Добавить</span></div>
+          </div>
+
+        </div>
+
+        <div class="card">
+          <div class="row" style="margin-bottom:10px">
+            <span class="md" style="font-weight:600">Вода</span><span class="sm sec">500 / 3535 мл</span>
+          </div>
+          <div class="bar" style="margin-bottom:12px"><i style="width:14%;background:var(--carb)"></i></div>
+          <div style="display:flex; gap:8px">
+            <button style="flex:1">+200</button>
+            <button style="flex:1">+250</button>
+            <button style="flex:1">+300</button>
+            <button style="flex:1">+500</button>
+            <button style="flex:1">Ввести вручную</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div class="ann">
+    <b>Ограничение списка.</b> До четырёх позиций, дальше строка «Ещё N позиций». Без ограничения карточка растёт неограниченно и нижний ряд уезжает вниз.<br>
+    <b>Пустой приём</b> говорит «пусто», а не исчезает — видно, что день недоеден.<br>
+    <b>Кольцо</b> — один плавный проход заполнения при загрузке, дальше неподвижность. Постоянной пульсации нет.
+  </div>
+</section>
+
+<!-- 2 -->
+<section>
+  <h2>2. Полоска дней над дневником</h2>
+  <p class="note">Семь кружков, сегодня по центру. Диапазон — семь дней назад и семь вперёд, окно ездит стрелками.</p>
+  <div class="frame">
+    <div class="card">
+      <div style="display:flex; align-items:center; gap:8px">
+        <button style="width:34px; padding:7px 0">‹</button>
+        <div style="flex:1; display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px">
+
+          <div class="day"><div class="c">10</div><p class="xs muted" style="margin:5px 0 0">пн</p><div class="dot" style="background:var(--tx3)"></div></div>
+          <div class="day sel"><div class="c">11</div><p class="xs" style="margin:5px 0 0; color:var(--ok)">вт</p><div class="dot" style="background:var(--tx3)"></div></div>
+          <div class="day"><div class="c">12</div><p class="xs muted" style="margin:5px 0 0">ср</p><div class="dot" style="background:transparent"></div></div>
+          <div class="day today"><div class="c">13</div><p class="xs sec" style="margin:5px 0 0">сегодня</p><div class="dot" style="background:var(--tx2)"></div></div>
+          <div class="day fut"><div class="c">14</div><p class="xs muted" style="margin:5px 0 0">пт</p><div class="dot" style="background:transparent"></div></div>
+          <div class="day fut"><div class="c">15</div><p class="xs muted" style="margin:5px 0 0">сб</p><div class="dot" style="background:var(--ok)"></div></div>
+          <div class="day fut"><div class="c">16</div><p class="xs muted" style="margin:5px 0 0">вс</p><div class="dot" style="background:transparent"></div></div>
+
+        </div>
+        <button style="width:34px; padding:7px 0">›</button>
+      </div>
+      <div class="divider row" style="margin-top:12px; padding-top:10px">
+        <span class="sm" style="color:var(--ok)">вторник, 11 августа — 2 дня назад</span>
+        <span class="xs muted">точка — в дне есть записи</span>
+      </div>
+    </div>
+  </div>
+  <div class="ann">
+    <b>Состояния.</b> Сегодня залит, выбранный обведён, будущие приглушены и с пунктирной обводкой — одной прозрачности на телефоне при ярком свете мало.<br>
+    <b>Точка</b> под кружком — в дне есть записи. У будущих дней точка акцентная: это запланированное.<br>
+    <b>Строка под полоской</b> называет полную дату и расстояние в днях. На сегодняшнем дне — только дата, без «дней назад».<br>
+    <b>На будущем дне</b> кольцо и макросы говорят «запланировано X из нормы» вместо «осталось X».
+  </div>
+</section>
+
+<!-- 3 -->
+<section>
+  <h2>3. Дата видна на всём пути записи</h2>
+  <p class="note">Экран добавления и окно подтверждения обязаны показывать, в какой день пойдёт запись.</p>
+  <div class="frame">
+    <div class="card" style="background:var(--ok-bg); border:1px solid var(--ok-bd); display:flex; gap:10px; align-items:center">
+      <span style="color:var(--ok); font-size:1.1rem">◷</span>
+      <span class="md" style="color:var(--ok)">Запись пойдёт во вторник, 11 августа</span>
+    </div>
+  </div>
+  <div class="ann">
+    Если экран добавления молча унаследует дату, пользователь запишет сегодняшний обед во вчерашний день и не заметит. Немой отказ с порчей данных.
+  </div>
+</section>
+
+<!-- 4 -->
+<section>
+  <h2>4. Добавить — раскладка</h2>
+  <p class="note">Слева выбор приёма и способы ввода словами, справа поиск и результаты в две колонки.</p>
+  <div class="frame">
+    <div class="cols" style="grid-template-columns:220px minmax(0,1fr)">
+
+      <div class="cols" style="grid-template-columns:1fr">
+        <div class="card">
+          <p class="sm sec" style="margin:0 0 10px">Приём пищи</p>
+          <div class="grid2" style="gap:6px">
+            <button class="accent">Завтрак</button>
+            <button>Обед</button>
+            <button>Ужин</button>
+            <button>Перекус</button>
+          </div>
+        </div>
+        <div class="card" style="display:flex; flex-direction:column; gap:8px">
+          <button>Сфотографировать</button>
+          <button>Сканировать штрихкод</button>
+          <button>Свой продукт</button>
+        </div>
+      </div>
+
+      <div class="cols" style="grid-template-columns:1fr">
+        <div style="display:flex; gap:6px">
+          <button class="accent" style="flex:1">Вся база</button>
+          <button style="flex:1">Недавние</button>
+          <button style="flex:1">Частые</button>
+          <button style="flex:1">Мои рецепты</button>
+        </div>
+        <input type="text" value="молоко" aria-label="Поиск по всей базе">
+        <div class="row">
+          <span class="md">Найдено по запросу «молоко»</span>
+          <button>Сбросить</button>
+        </div>
+        <div class="grid2" style="gap:8px">
+          <div class="card" style="padding:11px 14px" class="row">
+            <div class="row">
+              <div><p class="md" style="margin:0">Молоко 1,5</p><p class="xs sec" style="margin:2px 0 0">Правильное молоко</p></div>
+              <div style="text-align:right"><p class="md" style="margin:0;color:var(--ok)">44 ккал</p><p class="xs muted" style="margin:2px 0 0">на 100 г</p></div>
+            </div>
+          </div>
+          <div class="card" style="padding:11px 14px">
+            <div class="row">
+              <div><p class="md" style="margin:0">Молоко цельное</p><p class="xs sec" style="margin:2px 0 0">Вкусвилл</p></div>
+              <div style="text-align:right"><p class="md" style="margin:0;color:var(--ok)">67.5 ккал</p><p class="xs muted" style="margin:2px 0 0">на 100 г</p></div>
+            </div>
+          </div>
+          <div class="card" style="padding:11px 14px">
+            <div class="row">
+              <div><p class="md" style="margin:0">Молоко</p><p class="xs muted" style="margin:2px 0 0; font-style:italic">бренд не указан · 0099990001892</p></div>
+              <div style="text-align:right"><p class="md" style="margin:0;color:var(--ok)">64 ккал</p><p class="xs muted" style="margin:2px 0 0">на 100 г</p></div>
+            </div>
+          </div>
+          <div class="card" style="padding:11px 14px">
+            <div class="row">
+              <div><p class="md" style="margin:0">Молоко</p><p class="xs muted" style="margin:2px 0 0; font-style:italic">бренд не указан · 0099990001901</p></div>
+              <div style="text-align:right"><p class="md" style="margin:0;color:var(--ok)">44 ккал</p><p class="xs muted" style="margin:2px 0 0">на 100 г</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div class="ann">
+    <b>Вкладки — это области поиска, а не просто списки.</b> Поиск работает внутри выбранной. По умолчанию «Вся база». Подсказка в поле меняется вместе с областью.<br>
+    <b>Пока показаны результаты</b>, подсветка с вкладок снимается — иначе вкладка врёт.<br>
+    <b>Способы ввода на десктопе названы словами</b>, а не крошечными иконками у поля.
+  </div>
+</section>
+
+<!-- 5 -->
+<section>
+  <h2>5. Пустой результат внутри узкой области</h2>
+  <p class="note">Молча подставлять результаты из базы запрещено — это подмена без предупреждения.</p>
+  <div class="frame">
+    <div class="cols" style="grid-template-columns:1fr; gap:12px">
+      <div style="display:flex; gap:6px">
+        <button style="flex:1">Вся база</button>
+        <button class="accent" style="flex:1">Недавние</button>
+        <button style="flex:1">Частые</button>
+        <button style="flex:1">Мои рецепты</button>
+      </div>
+      <input type="text" value="творог" aria-label="Поиск по недавним">
+      <div class="card" style="text-align:center; padding:26px 16px">
+        <p class="md" style="margin:0">В недавних ничего не нашлось</p>
+        <p class="sm sec" style="margin:7px 0 14px">Во всей базе — 47 продуктов</p>
+        <button class="accent">Искать по всей базе →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 -->
+<section>
+  <h2>6. Недавние — группировка по приёмам пищи</h2>
+  <p class="note">Приём, в который добавляем сейчас, идёт первым. Приём, куда никогда ничего не вносили, не показывается вовсе.</p>
+  <div class="frame">
+    <div class="cols" style="grid-template-columns:1fr; gap:18px">
+
+      <div>
+        <p class="sm" style="margin:0 0 9px; color:var(--ok)">Завтрак — добавляете сюда</p>
+        <div class="grid2" style="gap:8px">
+          <div class="card" style="padding:11px 14px"><div class="row"><div><p class="md" style="margin:0">Творог 5%</p><p class="xs sec" style="margin:2px 0 0">Вкусвилл · 180 г</p></div><span class="md" style="color:var(--ok)">217</span></div></div>
+          <div class="card" style="padding:11px 14px"><div class="row"><div><p class="md" style="margin:0">Киш с курицей</p><p class="xs sec" style="margin:2px 0 0">Вкусвилл · 160 г</p></div><span class="md" style="color:var(--ok)">437</span></div></div>
+        </div>
+      </div>
+
+      <div>
+        <p class="sm sec" style="margin:0 0 9px">Обед</p>
+        <div class="grid2" style="gap:8px">
+          <div class="card" style="padding:11px 14px"><div class="row"><div><p class="md" style="margin:0">Биточек куриный</p><p class="xs sec" style="margin:2px 0 0">ВкусВилл · 200 г</p></div><span class="md" style="color:var(--ok)">277</span></div></div>
+          <div class="card" style="padding:11px 14px"><div class="row"><div><p class="md" style="margin:0">Салат Цезарь</p><p class="xs sec" style="margin:2px 0 0">ВкусВилл · 180 г</p></div><span class="md" style="color:var(--ok)">299</span></div></div>
+        </div>
+      </div>
+
+      <div>
+        <p class="sm sec" style="margin:0 0 9px">Перекус</p>
+        <div class="grid2" style="gap:8px">
+          <div class="card" style="padding:11px 14px"><div class="row"><div><p class="md" style="margin:0">Sportinia BCAA 6000</p><p class="xs sec" style="margin:2px 0 0">500 мл</p></div><span class="md" style="color:var(--ok)">75</span></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div class="ann">
+    Ужина в списке нет: в него ни разу ничего не вносили. Пустой блок не показывается.<br>
+    Продукт, съеденный в разных приёмах, попадает в несколько блоков — это нормально.<br>
+    <b>«Частые» не группируются</b>: единый топ по числу добавлений за всё время, самое используемое сверху.
+  </div>
+</section>
+
+<!-- 7 -->
+<section>
+  <h2>7. Панель выбранного продукта вместо модалки (десктоп)</h2>
+  <p class="note">Выбрал слева — справа граммовка и КБЖУ. Модалка остаётся только на мобильной ширине.</p>
+  <div class="frame">
+    <div class="cols" style="grid-template-columns:minmax(0,1fr) 280px">
+      <div class="cols" style="grid-template-columns:1fr; gap:8px">
+        <div class="card" style="padding:11px 14px; border:1px solid var(--ok-bd)"><div class="row"><div><p class="md" style="margin:0">Молоко цельное</p><p class="xs sec" style="margin:2px 0 0">Вкусвилл</p></div><span class="md" style="color:var(--ok)">67.5</span></div></div>
+        <div class="card" style="padding:11px 14px"><div class="row"><div><p class="md" style="margin:0">Молоко 1,5</p><p class="xs sec" style="margin:2px 0 0">Правильное молоко</p></div><span class="md" style="color:var(--ok)">44</span></div></div>
+        <div class="card" style="padding:11px 14px"><div class="row"><div><p class="md" style="margin:0">Молоко 2,5</p><p class="xs sec" style="margin:2px 0 0">Правильное молоко</p></div><span class="md" style="color:var(--ok)">53</span></div></div>
+      </div>
+
+      <div class="card">
+        <p class="md" style="margin:0 0 2px; font-weight:600">Молоко цельное</p>
+        <p class="xs sec" style="margin:0 0 14px">Вкусвилл · 67.5 ккал на 100 г</p>
+
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px">
+          <input type="text" value="250" style="width:90px" aria-label="Граммовка">
+          <span class="sm sec">г</span>
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px">
+          <button>50</button><button>100</button><button>200</button><button>250</button>
+        </div>
+
+        <div class="card" style="background:var(--ok-bg); padding:12px; margin-bottom:14px">
+          <p style="margin:0; font-size:1.15rem; color:var(--ok); font-weight:600">169 ккал</p>
+          <p class="xs sec" style="margin:4px 0 0">Б: 8.0 г · Ж: 8.8 г · У: 11.8 г</p>
+        </div>
+
+        <p class="xs sec" style="margin:0 0 7px">Приём пищи</p>
+        <div class="grid2" style="gap:6px; margin-bottom:14px">
+          <button class="accent">Завтрак</button><button>Обед</button>
+          <button>Ужин</button><button>Перекус</button>
+        </div>
+
+        <p class="xs" style="margin:0 0 10px; color:var(--ok)">Запись пойдёт во вторник, 11 августа</p>
+        <button class="accent" style="width:100%; padding:10px">Добавить в дневник</button>
+      </div>
+    </div>
+  </div>
+  <div class="ann">
+    Этот экран обсуждался словами и отдельно эскизом не согласовывался — структура предложена, порядок элементов может уточниться.
+  </div>
+</section>
+
+<!-- 8 -->
+<section>
+  <h2>8. История — календарь месяца (следующий заход)</h2>
+  <p class="note">Слева выбранный день целиком с редактированием, справа календарь и сводка. Блок «7 дней», не следящий за выбранной датой, убирается.</p>
+  <div class="frame">
+    <div class="cols" style="grid-template-columns:minmax(0,1fr) 300px">
+
+      <div class="cols" style="grid-template-columns:1fr">
+        <div class="card" style="display:flex; gap:18px; align-items:center">
+          <div class="ring" style="width:92px;height:92px;border-width:5px;flex-shrink:0"><b style="font-size:1.25rem">2104</b><span class="xs muted">ккал</span></div>
+          <div style="flex:1">
+            <p class="sm sec" style="margin:0 0 10px">вторник, 11 августа · 90% от нормы 2325</p>
+            <div style="margin-bottom:9px"><div class="row xs" style="margin-bottom:4px"><span class="sec">Белок</span><span>164 / 202 г</span></div><div class="bar" style="height:3px"><i style="width:81%;background:var(--pro)"></i></div></div>
+            <div style="margin-bottom:9px"><div class="row xs" style="margin-bottom:4px"><span class="sec">Жиры</span><span>71 / 64 г</span></div><div class="bar" style="height:3px"><i style="width:100%;background:var(--fat)"></i></div></div>
+            <div><div class="row xs" style="margin-bottom:4px"><span class="sec">Углеводы</span><span>188 / 235 г</span></div><div class="bar" style="height:3px"><i style="width:80%;background:var(--carb)"></i></div></div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="row" style="margin-bottom:8px"><span class="sm" style="font-weight:600">Завтрак</span><span class="xs" style="color:var(--ok)">437</span></div>
+            <div class="item"><div><p class="sm" style="margin:0">Киш с курицей</p><p class="xs muted" style="margin:1px 0 0">160 г</p></div><button style="padding:4px 8px">✎</button></div>
+          </div>
+          <div class="card">
+            <div class="row" style="margin-bottom:8px"><span class="sm" style="font-weight:600">Обед</span><span class="xs" style="color:var(--ok)">1013</span></div>
+            <div class="item"><div><p class="sm" style="margin:0">Биточек куриный</p><p class="xs muted" style="margin:1px 0 0">200 г</p></div><button style="padding:4px 8px">✎</button></div>
+            <div class="item"><div><p class="sm" style="margin:0">Салат Цезарь</p><p class="xs muted" style="margin:1px 0 0">180 г</p></div><button style="padding:4px 8px">✎</button></div>
+          </div>
+          <div class="card">
+            <div class="row" style="margin-bottom:8px"><span class="sm" style="font-weight:600">Ужин</span><span class="xs" style="color:var(--ok)">579</span></div>
+            <div class="item"><div><p class="sm" style="margin:0">Куриная грудка</p><p class="xs muted" style="margin:1px 0 0">220 г</p></div><button style="padding:4px 8px">✎</button></div>
+          </div>
+          <div class="card">
+            <div class="row" style="margin-bottom:8px"><span class="sm" style="font-weight:600">Перекус</span><span class="xs muted">0</span></div>
+            <div class="item sm muted" style="justify-content:center; padding:12px 0">Пусто</div>
+            <div class="item sm muted"><span>+ Добавить</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cols" style="grid-template-columns:1fr">
+        <div class="card">
+          <div class="row" style="margin-bottom:12px">
+            <button style="padding:5px 10px">‹</button>
+            <span class="sm">Август 2026</span>
+            <button style="padding:5px 10px; opacity:.35">›</button>
+          </div>
+          <div class="cal" style="margin-bottom:5px">
+            <span class="xs muted" style="text-align:center">пн</span><span class="xs muted" style="text-align:center">вт</span>
+            <span class="xs muted" style="text-align:center">ср</span><span class="xs muted" style="text-align:center">чт</span>
+            <span class="xs muted" style="text-align:center">пт</span><span class="xs muted" style="text-align:center">сб</span>
+            <span class="xs muted" style="text-align:center">вс</span>
+          </div>
+          <div class="cal">
+            <div></div><div></div><div></div><div></div><div></div>
+            <div class="cell"><span class="sec">1</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell"><span class="sec">2</span><div style="height:3px;margin-top:4px"></div></div>
+
+            <div class="cell"><span class="sec">3</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell"><span class="sec">4</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell"><span class="sec">5</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell"><span class="sec">6</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell"><span class="sec">7</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell" style="background:var(--s1)"><span>8</span><div class="bar" style="height:3px;margin-top:4px"><i style="width:64%;background:var(--ok)"></i></div></div>
+            <div class="cell"><span class="sec">9</span><div style="height:3px;margin-top:4px"></div></div>
+
+            <div class="cell" style="background:var(--s1)"><span>10</span><div class="bar" style="height:3px;margin-top:4px"><i style="width:78%;background:var(--ok)"></i></div></div>
+            <div class="cell" style="background:var(--ok-bg); box-shadow:inset 0 0 0 2px var(--ok-bd)"><span style="color:var(--ok)">11</span><div class="bar" style="height:3px;margin-top:4px"><i style="width:90%;background:var(--ok)"></i></div></div>
+            <div class="cell"><span class="sec">12</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell" style="background:var(--s1); box-shadow:inset 0 0 0 1px var(--ok-bd)"><span>13</span><div class="bar" style="height:3px;margin-top:4px"><i style="width:56%;background:var(--ok)"></i></div></div>
+            <div class="cell" style="opacity:.45"><span class="sec">14</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell" style="background:var(--s1)"><span>15</span><div class="bar" style="height:3px;margin-top:4px"><i style="width:32%;background:var(--carb)"></i></div></div>
+            <div class="cell" style="opacity:.25"><span class="muted">16</span><div style="height:3px;margin-top:4px"></div></div>
+
+            <div class="cell" style="opacity:.25"><span class="muted">17</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell" style="opacity:.25"><span class="muted">18</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell" style="opacity:.25"><span class="muted">19</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell" style="opacity:.25"><span class="muted">20</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell" style="opacity:.25"><span class="muted">21</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell" style="opacity:.25"><span class="muted">22</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell" style="opacity:.25"><span class="muted">23</span><div style="height:3px;margin-top:4px"></div></div>
+
+            <div class="cell" style="opacity:.25"><span class="muted">24</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell" style="opacity:.25"><span class="muted">25</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell" style="opacity:.25"><span class="muted">26</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell" style="opacity:.25"><span class="muted">27</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell" style="opacity:.25"><span class="muted">28</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell" style="opacity:.25"><span class="muted">29</span><div style="height:3px;margin-top:4px"></div></div>
+            <div class="cell" style="opacity:.25"><span class="muted">30</span><div style="height:3px;margin-top:4px"></div></div>
+
+            <div class="cell" style="opacity:.25"><span class="muted">31</span><div style="height:3px;margin-top:4px"></div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <p class="md" style="margin:0 0 3px">Август</p>
+          <p class="xs muted" style="margin:0 0 12px">Считаем по 4 записанным дням</p>
+          <div class="item sm"><span class="sec">Записано дней</span><span>4 из 13</span></div>
+          <div class="item sm"><span class="sec">Среднее</span><span>1720 ккал</span></div>
+          <div class="item sm"><span class="sec">Белок</span><span>138 г</span></div>
+          <div class="item sm"><span class="sec">Жиры</span><span>58 г</span></div>
+          <div class="item sm"><span class="sec">Углеводы</span><span>176 г</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div class="ann">
+    <b>Полоска в клетке</b> — доля от дневной нормы. Синяя — запланированное на будущее. Обведён сегодняшний день, залит выбранный. Раскраски «хорошо/плохо» нет намеренно.<br>
+    <b>Четыре приёма показываются всегда</b>, пустые — пустыми, с добавлением. Редактирование карандашом у каждой позиции.<br>
+    <b>«4 из 13»</b> — от прошедших дней месяца, не от всех. Пропущенные дни и будущие запланированные в среднее не входят.<br>
+    <b>Вперёд листаем</b> ровно до последнего дня, где есть записи.
+  </div>
+</section>
+
+<!-- 9 -->
+<section>
+  <h2>9. Вес (следующий заход)</h2>
+  <p class="note">Главное — на графике появляется линия цели, и ось считается от неё. Две точки без цели бессмысленны.</p>
+  <div class="frame">
+    <div class="cols" style="grid-template-columns:236px minmax(0,1fr)">
+      <div class="cols" style="grid-template-columns:1fr">
+        <div class="card">
+          <div style="display:flex; align-items:baseline; gap:6px"><span style="font-size:1.9rem; font-weight:600">100</span><span class="sm sec">кг</span></div>
+          <p class="xs muted" style="margin:3px 0 14px">обновлено 19 июня</p>
+          <div class="row xs" style="margin-bottom:5px"><span class="sec">101</span><span style="color:var(--ok)">осталось 9 кг</span><span class="sec">91</span></div>
+          <div class="bar" style="height:5px"><i style="width:10%;background:var(--ok)"></i></div>
+        </div>
+        <div class="card">
+          <p class="sm sec" style="margin:0 0 10px">Замеры</p>
+          <div class="item sm"><span class="sec">Талия</span><span class="muted">не записан</span></div>
+          <div class="item sm"><span class="sec">Ягодицы</span><span class="muted">не записан</span></div>
+          <div class="item sm"><span class="sec">Грудь</span><span class="muted">не записан</span></div>
+        </div>
+        <button style="width:100%">Записать замер</button>
+      </div>
+
+      <div class="card">
+        <div class="row" style="margin-bottom:12px">
+          <span class="md">График веса</span>
+          <div style="display:flex; gap:6px"><button>Месяц</button><button class="accent">Всё время</button></div>
+        </div>
+        <svg viewBox="0 0 420 200" role="img" aria-label="График веса с линией цели">
+          <line x1="42" y1="24" x2="410" y2="24" stroke="rgba(255,255,255,.08)"/>
+          <line x1="42" y1="70" x2="410" y2="70" stroke="rgba(255,255,255,.08)"/>
+          <line x1="42" y1="116" x2="410" y2="116" stroke="rgba(255,255,255,.08)"/>
+          <line x1="42" y1="162" x2="410" y2="162" stroke="rgba(255,255,255,.08)"/>
+          <text x="34" y="28" text-anchor="end" font-size="10" fill="#6B7280">102</text>
+          <text x="34" y="74" text-anchor="end" font-size="10" fill="#6B7280">98</text>
+          <text x="34" y="120" text-anchor="end" font-size="10" fill="#6B7280">94</text>
+          <text x="34" y="166" text-anchor="end" font-size="10" fill="#6B7280">90</text>
+          <line x1="42" y1="150" x2="410" y2="150" stroke="#22C55E" stroke-width="1.5" stroke-dasharray="5 4"/>
+          <text x="410" y="145" text-anchor="end" font-size="10" fill="#22C55E">цель 91</text>
+          <polyline points="70,35 350,40" fill="none" stroke="#22C55E" stroke-width="2"/>
+          <circle cx="70" cy="35" r="4" fill="#22C55E"/>
+          <circle cx="350" cy="40" r="4" fill="#22C55E"/>
+          <text x="70" y="185" text-anchor="middle" font-size="10" fill="#6B7280">7 июн</text>
+          <text x="350" y="185" text-anchor="middle" font-size="10" fill="#6B7280">19 июн</text>
+        </svg>
+        <p class="xs muted divider" style="margin:10px 0 0; padding-top:10px">Две записи за всё время — линия строится, но выводы делать рано</p>
+      </div>
+    </div>
+  </div>
+  <div class="ann">
+    Замеры — строками «не записан», а не пустыми квадратами с прочерком.<br>
+    <b>При достижении цели</b> полоса заполняется целиком, «осталось 9 кг» заменяется на «цель достигнута» с предложением поставить новую. Сейчас поведение не определено.
+  </div>
+</section>
+
+<!-- 10 -->
+<section>
+  <h2>10. Ассистент (следующий заход)</h2>
+  <p class="note">Чат не растягивается на всю ширину. Справа — сегодняшние цифры, чтобы расхождение с ответами ассистента было видно сразу.</p>
+  <div class="frame">
+    <div class="cols" style="grid-template-columns:minmax(0,1fr) 240px">
+
+      <div class="cols" style="grid-template-columns:1fr; gap:10px">
+        <div class="card" style="max-width:88%; padding:12px 15px">
+          <p class="md" style="margin:0">Похоже на «Салат Цезарь»: примерно 299 ккал на 180 г (Б: 12 г, Ж: 24 г, У: 8 г). В какой приём пищи добавить?</p>
+        </div>
+        <div class="card" style="max-width:88%; margin-left:auto; background:var(--ok-bg); padding:12px 15px">
+          <p class="md" style="margin:0; color:var(--ok)">В обед. И ещё я съел биточек куриный и киш с грибами</p>
+        </div>
+        <div class="card" style="max-width:88%; padding:12px 15px">
+          <p class="md" style="margin:0 0 10px">Нашёл три блюда. Проверьте и сохраните:</p>
+          <div class="item sm"><span>Салат Цезарь · 180 г</span><span style="color:var(--ok)">299</span></div>
+          <div class="item sm"><span>Биточек куриный · 200 г</span><span style="color:var(--ok)">277</span></div>
+          <div class="item sm" style="padding-bottom:12px"><span>Киш с грибами · 160 г</span><span style="color:var(--ok)">437</span></div>
+          <button class="accent">Сохранить все три</button>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; margin-top:6px">
+          <button style="width:38px">📎</button>
+          <input type="text" placeholder="Задайте вопрос о питании" aria-label="Сообщение">
+          <button style="width:38px">🎤</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="md" style="margin:0 0 3px">Сегодня</p>
+        <p class="xs muted" style="margin:0 0 12px">чт, 13 августа</p>
+        <div class="item sm"><span class="sec">Калории</span><span>1013 / 2325</span></div>
+        <div style="border-top:1px solid var(--bd); padding:9px 0"><div class="row sm" style="margin-bottom:5px"><span class="sec">Белок</span><span>28 / 202 г</span></div><div class="bar" style="height:3px"><i style="width:14%;background:var(--pro)"></i></div></div>
+        <div style="border-top:1px solid var(--bd); padding:9px 0"><div class="row sm" style="margin-bottom:5px"><span class="sec">Жиры</span><span>31 / 64 г</span></div><div class="bar" style="height:3px"><i style="width:48%;background:var(--fat)"></i></div></div>
+        <div style="border-top:1px solid var(--bd); padding:9px 0"><div class="row sm" style="margin-bottom:5px"><span class="sec">Углеводы</span><span>96 / 235 г</span></div><div class="bar" style="height:3px"><i style="width:41%;background:var(--carb)"></i></div></div>
+        <div style="border-top:1px solid var(--bd); padding:9px 0 0"><div class="row sm" style="margin-bottom:5px"><span class="sec">Вода</span><span>0 / 3535 мл</span></div><div class="bar" style="height:3px"><i style="width:0%;background:var(--carb)"></i></div></div>
+      </div>
+
+    </div>
+  </div>
+  <div class="ann">
+    Карточки блюд перелистываются, каждую можно исправить или удалить, сохранение одной кнопкой на весь набор. Это уже реализовано — эскиз показывает только раскладку вокруг.
+  </div>
+</section>
+
+</div>
+</body>
+</html>

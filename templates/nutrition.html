@@ -32,6 +32,26 @@
 
     <!-- ── TAB: DIARY ── -->
     <section class="nut-tab active" id="tab-diary">
+      {# Полоска дней. Окно из семи кружков ездит внутри диапазона ±7 дней;
+         сам диапазон объявлен ОДИН раз на сервере (NUT_DAY_RANGE) и приезжает
+         в /nutrition/api/diary-days — второе число здесь разошлось бы с первым
+         молча, и полоска предлагала бы день, который сервер не принимает. #}
+      <div class="d-daystrip">
+        <div class="ds-row">
+          <button class="btn-icon ds-arrow" id="ds-prev" onclick="shiftDayWindow(-1)" aria-label="Предыдущие дни">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <div class="ds-days" id="ds-days" role="group" aria-label="Выбор дня"></div>
+          <button class="btn-icon ds-arrow" id="ds-next" onclick="shiftDayWindow(1)" aria-label="Следующие дни">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+        <div class="ds-foot">
+          <span class="ds-date" id="ds-date" aria-live="polite"></span>
+          <span class="ds-hint">точка — в дне есть записи</span>
+        </div>
+      </div>
+      <div class="d-cols">
       <div class="d-left">
         <div class="ring-wrap">
           <div class="ring-container">
@@ -41,12 +61,18 @@
             </svg>
             <div class="ring-center" id="ring-center">
               <div class="ring-remain" id="ring-remain">—</div>
-              <div class="ring-lbl">ккал осталось</div>
+              <div class="ring-lbl" id="ring-lbl">ккал осталось</div>
               <div class="ring-eaten" id="ring-eaten"></div>
             </div>
           </div>
         </div>
         <div class="macros-row">
+          {# Подпись ряда макросов. На сегодняшнем дне «съедено из нормы»,
+             на будущем «запланировано из нормы» — цифры в строках те же,
+             меняется только что они значат. Видна на десктопе, где макросы
+             стоят одной карточкой; на мобильной ширине спрятана, чтобы
+             не менять раскладку (три карточки в ряд) #}
+          <div class="macros-cap" id="macros-cap">съедено из нормы</div>
           <div class="macro-card">
             <div class="macro-label">Белок</div>
             <div class="macro-bar"><div class="macro-bar-fill mb-prot" id="bar-prot"></div></div>
@@ -77,20 +103,36 @@
             <span class="water-val" id="water-val">0 / 2000 мл</span>
           </div>
           <div class="water-bar"><div class="water-bar-fill" id="water-bar"></div></div>
+          {# Ручной ввод переехал ВНУТРЬ ряда кнопок 2026-08-14. На мобильной
+             ширине ряд переносится, и кнопка занимает вторую строку целиком —
+             то есть выглядит ровно как раньше (замер: те же 34px высоты
+             и полная ширина). На десктопе места хватает на все пять в одну
+             строку, как в эскизе, и именно по нижнему краю этой строки
+             выравнивается кнопка нутрициолога в левой колонке. #}
           <div class="water-btns">
             <button class="water-btn" onclick="addWater(200)">+200</button>
             <button class="water-btn" onclick="addWater(250)">+250</button>
             <button class="water-btn" onclick="addWater(300)">+300</button>
             <button class="water-btn" onclick="addWater(500)">+500</button>
+            <button class="water-btn-manual" onclick="openWaterManual()"><i data-lucide="pencil"></i> Ввести вручную</button>
           </div>
-          <button class="water-btn-manual" onclick="openWaterManual()"><i data-lucide="pencil"></i> Ввести вручную</button>
         </div>
       </div>
+      </div><!-- /d-cols -->
     </section>
 
     <!-- ── TAB: SEARCH ── -->
     <section class="nut-tab" id="tab-search">
       <button class="search-back" onclick="handleBack()">← Назад в дневник</button>
+      {# Дата видна на всём пути записи. Без неё человек, отмотавший дневник
+         на вчера, записывает сегодняшний обед во вчерашний день и не узнаёт
+         об этом никогда: экран добавления выглядит одинаково для любого дня.
+         Порча данных без единого признака — §6.0.1. Стоит ВСЕГДА, а не
+         только на отмотанном дне: подпись, появляющаяся иногда, замечается
+         реже, чем подпись, которая есть всегда. #}
+      <div class="alert alert-accent add-date-note" id="add-date-note">
+        <i data-lucide="calendar-clock"></i><span id="add-date-text"></span>
+      </div>
       <div class="s-chips" id="meal-chips">
         <button class="chip active" data-meal="breakfast" onclick="setSearchMeal(this)"><i data-lucide="sunrise"></i> Завтрак</button>
         <button class="chip" data-meal="lunch"     onclick="setSearchMeal(this)"><i data-lucide="sun"></i> Обед</button>
@@ -393,6 +435,13 @@
         <div class="calc-kcal"   id="c-kcal">0 ккал</div>
         <div class="calc-macros" id="c-macros">Б: 0г  Ж: 0г  У: 0г</div>
       </div>
+      {# Третье и последнее место, где видна дата (после полоски дней и подписи
+         на экране добавления). Стоит вплотную к кнопке намеренно: это
+         последняя точка, где ошибку ещё можно заметить, дальше запись уходит
+         в базу. #}
+      <div class="alert alert-accent por-date-note" id="por-date-note">
+        <i data-lucide="calendar-clock"></i><span id="por-date-text"></span>
+      </div>
       <button class="add-btn" id="por-add-btn" onclick="confirmAdd()">Добавить в дневник</button>
 {% endcall %}
 
@@ -590,6 +639,17 @@ function defaultMealByTime() {
 
 const S = {
   today: new Date().toISOString().slice(0,10),
+  // ВЫБРАННЫЙ день дневника. Отдельно от S.today, и это главное различие
+  // всей навигации по дням: S.today остаётся настоящим сегодня (по нему
+  // считается «сегодня залит», расстояние в днях и подпись «вчера»),
+  // а S.date — тот день, который человек сейчас видит и в который пойдёт
+  // запись. Везде, где раньше стоял S.today на пути записи, теперь S.date;
+  // там, где нужен именно текущий день (контекст ассистента), S.today остался
+  date: new Date().toISOString().slice(0,10),
+  dayOffset: 0,      // сдвиг окна из семи кружков внутри диапазона
+  dayCounts: {},     // дата → сколько записей еды (точки под кружками)
+  dayRange: 7,       // приезжает с сервера, см. NUT_DAY_RANGE
+  expandedMeals: {}, // приём пищи → раскрыт ли список целиком
   activeTab: 'diary',
   diary: null, profile: null,
   searchMeal: defaultMealByTime(),
@@ -635,8 +695,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     toast('Настройте профиль для начала работы', false);
   } else {
     S.profile = prof;
-    loadDiary(S.today);
+    loadDiary(S.date);
   }
+  renderDayStrip();
+  updateDateNotes();
+  loadDayCounts();
   loadSearchTab('recent');
   loadWeightData();
 });
@@ -661,6 +724,10 @@ function goTab(tab) {
   const titles = {diary:'Дневник питания', search:'Добавить еду', history:'История', weight:'Вес & Замеры', profile:'Профиль', assistant:'AI-нутрициолог'};
   document.getElementById('hdr-title').textContent = titles[tab] || '';
   document.getElementById('nut-content').scrollTop = 0;
+  // Возврат в дневник перечитывает ВЫБРАННЫЙ день, а не сегодняшний:
+  // человек мог уйти на экран добавления с отмотанного дня
+  if (tab === 'diary')   { updateDateNotes(); if (S.profile) loadDiary(S.date); }
+  if (tab === 'search')  updateDateNotes();
   if (tab === 'history') { loadHistory(S.histDate); loadWeekly(); }
   if (tab === 'weight')  loadWeightData();
   if (tab === 'profile') { loadProfileForm(); loadScaleStatus(); loadBodyPhotos(); }
@@ -675,9 +742,165 @@ function handleBack() {
   document.querySelector('[data-tab="diary"]').classList.add('active');
 }
 
+// ── Дни ───────────────────────────────────────────────────────────────────────
+// Всё, что связано с датой, считается ОДНОЙ функцией на каждый вопрос:
+// сколько дней между датами, как назвать это расстояние словами, будущий ли
+// день. Разложить их по местам вызова значило бы получить три немного разных
+// ответа на один вопрос — ровно так расходятся кольцо и подпись под ним.
+const ДЕНЬ_МС = 86400000;
+
+// Арифметика дат идёт В UTC, хотя даты у нас календарные («2026-08-14»).
+// Это не педантизм, а починка: первая версия делала
+// `new Date(база+'T00:00:00')` (ЛОКАЛЬНАЯ полночь) и возвращала результат
+// через `toISOString()` (UTC). В GMT+3 локальная полночь 15-го — это 21:00
+// UTC 14-го, то есть «завтра» превращалось обратно в «сегодня». Замер
+// поймал это сразу: клик по завтрашнему дню не менял ничего, точка под ним
+// была обычной вместо акцентной, а запись «на завтра» ушла в сегодняшний
+// день. Ровно тот немой отказ с порчей данных, ради которого затевалась
+// подпись с датой. Разбор двух дат в UTC и сборка обратно в UTC дают
+// чистую календарную арифметику, не зависящую от пояса и перевода часов.
+function _вUTC(строка) {
+  const [г, м, д] = строка.split('-').map(Number);
+  return Date.UTC(г, м - 1, д);
+}
+
+function датаСдвигом(база, дней) {
+  const [г, м, д] = база.split('-').map(Number);
+  return new Date(Date.UTC(г, м - 1, д + дней)).toISOString().slice(0, 10);
+}
+
+function расстояниеДней(дата) {
+  return Math.round((_вUTC(дата) - _вUTC(S.today)) / ДЕНЬ_МС);
+}
+
+// Склонение оставлено таблицей, а не правилом: «1 день / 2 дня / 5 дней»
+// покрывается тремя случаями, а диапазон у нас ±7 — правило было бы длиннее
+// самой таблицы и ошибалось бы ровно там, где его никто не проверит
+function днейСловами(n) {
+  const a = Math.abs(n);
+  if (a % 10 === 1 && a % 100 !== 11) return a + ' день';
+  if ([2,3,4].includes(a % 10) && ![12,13,14].includes(a % 100)) return a + ' дня';
+  return a + ' дней';
+}
+
+function расстояниеСловами(дата) {
+  const n = расстояниеДней(дата);
+  if (n === 0)  return '';
+  if (n === -1) return 'вчера';
+  if (n === 1)  return 'завтра';
+  if (n === -2) return 'позавчера';
+  if (n < 0)    return днейСловами(n) + ' назад';
+  return 'через ' + днейСловами(n);
+}
+
+function сЗаглавной(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
+
+function полнаяДата(дата) {
+  return new Date(дата + 'T00:00:00').toLocaleDateString('ru', {weekday:'long', day:'numeric', month:'long'});
+}
+
+function будущийДень(дата) { return расстояниеДней(дата) > 0; }
+
+// Подпись «куда пойдёт запись» — ОДНА на три места: полоска дней, экран
+// добавления и окно подтверждения. Три копии текста разъехались бы молча,
+// а именно эта подпись — единственное, что отделяет запись во вчера
+// от записи в сегодня
+function подписьДаты(дата) {
+  const хвост = расстояниеСловами(дата);
+  if (!хвост) return 'сегодня, ' + new Date(дата + 'T00:00:00').toLocaleDateString('ru', {day:'numeric', month:'long'});
+  return полнаяДата(дата) + ' — ' + хвост;
+}
+
+async function loadDayCounts() {
+  const d = await api('/nutrition/api/diary-days');
+  if (!d || !d.days) return;
+  S.dayCounts = d.days;
+  S.dayRange = d.range ?? S.dayRange;
+  // «Сегодня» берётся У СЕРВЕРА, а не считается в браузере. Считать его
+  // на клиенте значит иметь два мнения о том, какой сейчас день: у сервера
+  // своё время, у браузера своё, и между полуночью и смещением пояса они
+  // расходятся на сутки. Расходятся МОЛЧА — полоска рисует «сегодня»
+  // на одном дне, запись уходит в другой. Сервер здесь главный, потому
+  // что именно он ставит log_date по умолчанию и проверяет окно дат.
+  if (d.today && d.today !== S.today) {
+    const был_на_сегодня = S.date === S.today;
+    console.log(`[дневник] сегодня по серверу ${d.today}, в браузере ${S.today} — берём серверное`);
+    S.today = d.today;
+    if (был_на_сегодня) { S.date = d.today; loadDiary(S.date); }
+    updateDateNotes();
+  }
+  renderDayStrip();
+}
+
+function shiftDayWindow(шаг) {
+  const предел = S.dayRange - 3;   // окно из семи: центр ходит от -(R-3) до +(R-3)
+  S.dayOffset = Math.max(-предел, Math.min(предел, S.dayOffset + шаг));
+  renderDayStrip();
+}
+
+function renderDayStrip() {
+  const центр = S.dayOffset;
+  const предел = S.dayRange - 3;
+  document.getElementById('ds-prev').disabled = центр <= -предел;
+  document.getElementById('ds-next').disabled = центр >= предел;
+  let html = '';
+  for (let i = -3; i <= 3; i++) {
+    const дата = датаСдвигом(S.today, центр + i);
+    const d = new Date(дата + 'T00:00:00');
+    const сегодня = дата === S.today;
+    const выбран  = дата === S.date;
+    const будущий = будущийДень(дата);
+    const есть = (S.dayCounts[дата] || 0) > 0;
+    const классы = ['ds-day', сегодня && 'is-today', выбран && 'is-sel', будущий && 'is-fut'].filter(Boolean).join(' ');
+    // Подписи ДВЕ, и выбор между ними делает CSS, а не эта функция.
+    // Замер на 390px: слово «сегодня» занимает 51px при ячейке в 37 —
+    // вылезает на 14px и наезжает на соседние дни. Ширину ячейки здесь
+    // знает только раскладка, поэтому решение принимает она
+    const день_недели = d.toLocaleDateString('ru', {weekday:'short'});
+    html += `<button class="${классы}" data-date="${дата}" onclick="selectDay('${дата}')"
+                     aria-pressed="${выбран}" aria-label="${полнаяДата(дата)}">
+      <span class="ds-c">${d.getDate()}</span>
+      <span class="ds-wd">${день_недели}</span>
+      ${сегодня ? '<span class="ds-wd ds-wd-today">сегодня</span>' : ''}
+      <span class="ds-dot${есть ? (будущий ? ' is-plan' : ' is-on') : ''}"></span>
+    </button>`;
+  }
+  document.getElementById('ds-days').innerHTML = html;
+  const строка = document.getElementById('ds-date');
+  строка.textContent = сЗаглавной(подписьДаты(S.date));
+  строка.classList.toggle('is-away', S.date !== S.today);
+}
+
+function selectDay(дата) {
+  if (дата === S.date) return;
+  S.date = дата;
+  S.expandedMeals = {};
+  renderDayStrip();
+  updateDateNotes();
+  loadDiary(S.date);
+}
+
+// Подпись даты в двух местах пути записи. Зовётся при каждой смене дня,
+// а не при открытии экрана: экран добавления и окно порции живут в DOM
+// постоянно, и подпись, обновляемая только при открытии, показала бы
+// вчерашнюю дату на сегодняшнем экране
+function updateDateNotes() {
+  const текст = 'Запись пойдёт в дневник за ' + подписьДаты(S.date);
+  ['add-date-text','por-date-text'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = текст;
+  });
+  const прочь = S.date !== S.today;
+  ['add-date-note','por-date-note'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('is-away', прочь);
+  });
+}
+
 // ── Diary ─────────────────────────────────────────────────────────────────────
 async function loadDiary(date) {
   const data = await api(`/nutrition/api/diary?date=${date}`);
+  if (data.error) { toast(data.error, false); return; }
   S.diary = data;
   renderRing(data.totals.calories, data.goals.calories);
   renderMacros(data.totals, data.goals);
@@ -693,21 +916,31 @@ function renderRing(eaten, goal) {
   fill.style.strokeDasharray = circ;
   fill.style.strokeDashoffset = circ * (1 - Math.min(pct, 1));
   fill.classList.toggle('over', pct >= 1);
+  // На будущем дне съеденного нет — есть запланированное, и «осталось»
+  // про него неправда. Крупным числом остаются те же цифры, что и были
+  // на экране, меняется только какая из них крупная: сегодня это остаток,
+  // на будущем дне — сама запланированная сумма
+  const будущий = будущийДень(S.date);
   const rem = Math.round((goal || 0) - eaten);
-  document.getElementById('ring-remain').textContent = rem >= 0 ? rem : '−'+Math.abs(rem);
-  document.getElementById('ring-eaten').textContent = `${Math.round(eaten)} / ${goal||0} ккал`;
-  // Небольшой "пульс" по центру кольца при обновлении значений
-  const center = document.getElementById('ring-center');
-  center.classList.remove('pulse');
-  requestAnimationFrame(() => center.classList.add('pulse'));
+  document.getElementById('ring-remain').textContent =
+    будущий ? Math.round(eaten) : (rem >= 0 ? rem : '−'+Math.abs(rem));
+  document.getElementById('ring-lbl').textContent = будущий ? 'запланировано' : 'ккал осталось';
+  document.getElementById('ring-eaten').textContent = будущий
+    ? `из нормы ${goal||0} ккал`
+    : `${Math.round(eaten)} / ${goal||0} ккал`;
 }
 
 function renderMacros(t, g) {
+  const будущий = будущийДень(S.date);
   [['prot','protein'],['fat','fat'],['carb','carbs']].forEach(([id, key]) => {
     const v = t[key]||0, goal = g[key]||1;
     document.getElementById('bar-'+id).style.width = Math.min(v/goal*100,100).toFixed(0)+'%';
+    // Цифры те же, слово другое: сегодня «съедено из нормы», на будущем дне
+    // «запланировано из нормы». Отдельного числа не появляется
     document.getElementById('val-'+id).textContent = `${Math.round(v)}/${g[key]||0}г`;
   });
+  const шапка = document.getElementById('macros-cap');
+  if (шапка) шапка.textContent = будущий ? 'запланировано из нормы' : 'съедено из нормы';
 }
 
 function renderWater(ml, goal) {
@@ -722,20 +955,52 @@ const MEALS = [
   {id:'snack',    name:'Перекус',icon:'apple'},
 ];
 
+// Сколько позиций показывать до схлопывания. Без потолка карточка растёт
+// на сколько угодно, и в сетке два на два нижний ряд уезжает под экран:
+// на живых данных (17 позиций за день) «Перекус» из пяти позиций делал
+// колонку на 372px выше соседней.
+const ПОЗИЦИЙ_ДО_СХЛОПЫВАНИЯ = 4;
+
 function renderMeals(meals) {
   document.getElementById('meals-wrap').innerHTML = MEALS.map(m => {
     const items = meals[m.id]||[];
     const total = items.reduce((s,i)=>s+i.calories,0);
+    const раскрыт = !!S.expandedMeals[m.id];
+    const скрыто = Math.max(0, items.length - ПОЗИЦИЙ_ДО_СХЛОПЫВАНИЯ);
+    const видимые = раскрыт ? items : items.slice(0, ПОЗИЦИЙ_ДО_СХЛОПЫВАНИЯ);
+    // Пустой приём говорит «пусто», а не исчезает: пропавшая карточка
+    // читается как «на этот приём ничего и не планировалось», тогда как
+    // пустая — как «сюда ещё не записано». Это разные вещи
+    const тело = items.length
+      ? видимые.map(foodItemHTML).join('') +
+        (скрыто ? `<button class="meal-more" onclick="toggleMeal('${m.id}')">
+             ${раскрыт ? 'Свернуть' : 'Ещё ' + позицийСловами(скрыто)}
+           </button>` : '')
+      : `<div class="meal-empty">Пусто</div>`;
     return `<div class="meal-card">
       <div class="meal-hdr">
         <span class="meal-icon"><i data-lucide="${m.icon}"></i></span>
         <span class="meal-name">${m.name}</span>
-        <span class="meal-kcal">${total>0?Math.round(total)+' ккал':''}</span>
-        <button class="meal-add" onclick="openSearchFor('${m.id}')">+</button>
+        <span class="meal-kcal${total>0?'':' is-zero'}">${total>0?Math.round(total):0} ккал</span>
       </div>
-      ${items.length?`<div class="meal-items">${items.map(foodItemHTML).join('')}</div>`:''}
+      <div class="meal-items">${тело}</div>
+      <button class="meal-add-row" onclick="openSearchFor('${m.id}')">
+        <i data-lucide="plus"></i> Добавить
+      </button>
     </div>`;
   }).join('');
+  if (window.lucide) lucide.createIcons();
+}
+
+function позицийСловами(n) {
+  if (n % 10 === 1 && n % 100 !== 11) return n + ' позиция';
+  if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return n + ' позиции';
+  return n + ' позиций';
+}
+
+function toggleMeal(id) {
+  S.expandedMeals[id] = !S.expandedMeals[id];
+  renderMeals(S.diary.meals);
 }
 
 function foodItemHTML(item) {
@@ -786,12 +1051,12 @@ function editFoodItem(id) {
 
 async function delFood(id) {
   await api(`/nutrition/api/log-food/${id}`,{method:'DELETE'});
-  loadDiary(S.today); toast('Удалено',true);
+  loadDiary(S.date); loadDayCounts(); toast('Удалено',true);
 }
 
 // ── Water ─────────────────────────────────────────────────────────────────────
 async function addWater(ml) {
-  const d = await api('/nutrition/api/water',{method:'POST',body:JSON.stringify({amount_ml:ml,date:S.today})});
+  const d = await api('/nutrition/api/water',{method:'POST',body:JSON.stringify({amount_ml:ml,date:S.date})});
   const goal = S.diary?.goals?.water_ml||2000;
   renderWater(d.total_ml, goal);
   if (S.diary) S.diary.water_ml = d.total_ml;
@@ -1191,14 +1456,14 @@ async function confirmAdd() {
     })});
     S.editingFoodId = null;
     закрыть_модалку('modal-portion');
-    loadDiary(S.today);
+    loadDiary(S.date);
     toast('Сохранено!',true);
     return;
   }
   await api('/nutrition/api/log-food',{method:'POST',body:JSON.stringify({
     name:f.name,brand:f.brand||'',grams:g,
     calories:f.calories,protein:f.protein,fat:f.fat,carbs:f.carbs,
-    meal_type:S.porMeal||S.searchMeal,date:S.today,barcode:f.barcode||null
+    meal_type:S.porMeal||S.searchMeal,date:S.date,barcode:f.barcode||null
   })});
   // Если у продукта есть штрих-код и пользователь его не подтверждал ранее
   // (или подправил КБЖУ) — сохраняем в личную базу автоматически,
@@ -1211,7 +1476,8 @@ async function confirmAdd() {
     })});
   }
   закрыть_модалку('modal-portion');
-  loadDiary(S.today);
+  loadDiary(S.date);
+  loadDayCounts();
   toast('Добавлено!',true);
   goTab('diary');
   document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
@@ -1774,9 +2040,9 @@ async function confirmAddRecipe() {
     protein:r.protein/r.total_grams*100,
     fat:r.fat/r.total_grams*100,
     carbs:r.carbs/r.total_grams*100,
-    meal_type:S.searchMeal,date:S.today,
+    meal_type:S.searchMeal,date:S.date,
   })});
-  закрыть_модалку('modal-recipe-log'); loadDiary(S.today); toast('Рецепт добавлен!',true);
+  закрыть_модалку('modal-recipe-log'); loadDiary(S.date); loadDayCounts(); toast('Рецепт добавлен!',true);
   goTab('diary');
   document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector('[data-tab="diary"]').classList.add('active');
@@ -1988,7 +2254,8 @@ async function saveFoodDraft() {
   S.foodDraft = null;
   S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content: data.reply};
   renderChat();
-  loadDiary(S.today);
+  loadDiary(S.date);
+  loadDayCounts();
   toast(data.failed?.length ? 'Записано не всё — смотрите ответ' : 'Записано в дневник', !data.failed?.length);
 }
 
@@ -2549,7 +2816,7 @@ async function saveProfile() {
   const body={gender,goal,activity_level:act,age,weight_kg:wt,height_cm:ht};
   if (tgt) body.target_weight_kg=parseFloat(tgt);
   const data=await api('/nutrition/api/profile',{method:'POST',body:JSON.stringify(body)});
-  if (data.ok) { showTargets(data.targets); S.profile={...body,...data.targets}; loadDiary(S.today); toast('Профиль сохранён!',true); }
+  if (data.ok) { showTargets(data.targets); S.profile={...body,...data.targets}; loadDiary(S.date); toast('Профиль сохранён!',true); }
 }
 
 // ── Модалки ───────────────────────────────────────────────────────────────────

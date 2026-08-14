@@ -4056,11 +4056,55 @@ async def nut_save_profile(request: Request, user=Depends(get_current_user), db:
 
 # ── Nutrition: diary ──────────────────────────────────────────────────────────
 
+# Окно, в котором дневнику разрешено ходить по дням. Ровно то же число, что
+# в полоске дней на экране (`ДИАПАЗОН_ДНЕЙ` в nutrition.html): семь назад
+# и семь вперёд. Два места, и они правятся вместе — иначе полоска предложит
+# день, который сервер не примет, и отказ будет выглядеть поломкой.
+NUT_DAY_RANGE = 7
+
+
+def _нут_дата(значение, поле: str = "date") -> str:
+    """Дата дневника: строго YYYY-MM-DD и внутри разрешённого окна.
+
+    ПОЧЕМУ ПРОВЕРКА, А НЕ ПОДСТАНОВКА СЕГОДНЯШНЕГО ДНЯ. `log_date` —
+    текстовая колонка, и до этой функции сюда уезжало что угодно из тела
+    запроса: `data.get("date", сегодня)` подставляет умолчание только когда
+    ключа НЕТ, а `null`, пустая строка или мусор ложились в базу как есть.
+    Запись с датой `""` не попадает потом ни в один день — она не потеряна,
+    но невидима, и это ровно немой отказ с порчей данных (§6.0.1).
+
+    Молча заменять кривую дату на сегодня — не лучше: человек, отмотавший
+    дневник на вчера, получил бы запись в сегодня и зелёную галочку.
+    Поэтому 400 и внятный текст."""
+    if значение in (None, ""):
+        return datetime.now().strftime("%Y-%m-%d")
+    if not isinstance(значение, str):
+        raise ValueError(f"{поле}: дата должна быть строкой YYYY-MM-DD")
+    try:
+        д = datetime.strptime(значение, "%Y-%m-%d").date()
+    except ValueError:
+        raise ValueError(f"{поле}: не дата в формате YYYY-MM-DD ({значение!r})")
+    отступ = (д - datetime.now().date()).days
+    if abs(отступ) > NUT_DAY_RANGE:
+        raise ValueError(
+            f"{поле}: дневник ведётся в пределах {NUT_DAY_RANGE} дней "
+            f"от сегодня, а {значение} — это {отступ:+d} дней")
+    # Наружу уходит КАНОНИЧЕСКАЯ форма, а не то, что прислали. `strptime`
+    # принимает «2026-8-14» наравне с «2026-08-14», а `log_date` — колонка
+    # текстовая, и сравнение в запросах строковое: такая запись не совпала
+    # бы ни с одним днём и стала бы невидимой. Отказывать тут незачем —
+    # дата разобралась однозначно, надо просто записать её одинаково
+    return д.strftime("%Y-%m-%d")
+
+
 @app.get("/nutrition/api/diary")
 async def nut_diary(date: str = None, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
-    d = date or datetime.now().strftime("%Y-%m-%d")
+    try:
+        d = _нут_дата(date)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
     logs = db.query(FoodLog).filter(FoodLog.user_id == user.id, FoodLog.log_date == d).order_by(FoodLog.created_at).all()
     water_logs = db.query(WaterLog).filter(WaterLog.user_id == user.id, WaterLog.log_date == d).all()
     water_ml = sum(w.amount_ml for w in water_logs)
@@ -4073,7 +4117,32 @@ async def nut_diary(date: str = None, user=Depends(get_current_user), db: Sessio
     # чисел разошлись бы молча — кольцо рисовало бы одно, ассистент называл
     # бы другое
     diary["goals"] = nut_goals(profile)
+    diary["date"] = d
     return JSONResponse(diary)
+
+
+@app.get("/nutrition/api/diary-days")
+async def nut_diary_days(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Какие дни окна вообще содержат записи — для точек под кружками.
+
+    Одним запросом на всё окно, а не по запросу на день: полоска рисуется
+    сразу целиком, и пятнадцать запросов ради пятнадцати точек — это
+    пятнадцать поводов, чтобы часть точек не приехала и полоска соврала.
+
+    Считаются ЗАПИСИ ЕДЫ. Вода намеренно не считается: точка означает
+    «в этом дне что-то съедено», а стакан воды в пустом дне зажёг бы её
+    и обещал бы еду, которой нет."""
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    сегодня = datetime.now().date()
+    начало = (сегодня - timedelta(days=NUT_DAY_RANGE)).strftime("%Y-%m-%d")
+    конец = (сегодня + timedelta(days=NUT_DAY_RANGE)).strftime("%Y-%m-%d")
+    строки = db.query(FoodLog.log_date, func.count(FoodLog.id)).filter(
+        FoodLog.user_id == user.id,
+        FoodLog.log_date >= начало, FoodLog.log_date <= конец,
+    ).group_by(FoodLog.log_date).all()
+    return JSONResponse({"days": {д: н for д, н in строки},
+                         "range": NUT_DAY_RANGE, "today": сегодня.strftime("%Y-%m-%d")})
 
 
 @app.post("/nutrition/api/log-food")
@@ -4081,6 +4150,10 @@ async def nut_log_food(request: Request, user=Depends(get_current_user), db: Ses
     if not user:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     data = await request.json()
+    try:
+        день = _нут_дата(data.get("date"))
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
     grams = float(data.get("grams", 100))
     cal_per_100 = float(data.get("calories", 0))
     protein_per_100 = float(data.get("protein", 0))
@@ -4088,7 +4161,7 @@ async def nut_log_food(request: Request, user=Depends(get_current_user), db: Ses
     carbs_per_100 = float(data.get("carbs", 0))
     log = FoodLog(
         user_id=user.id,
-        log_date=data.get("date", datetime.now().strftime("%Y-%m-%d")),
+        log_date=день,
         meal_type=data.get("meal_type", "breakfast"),
         food_name=data.get("name", ""),
         brand=data.get("brand", "") or None,
@@ -4173,7 +4246,10 @@ async def nut_log_water(request: Request, user=Depends(get_current_user), db: Se
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     data = await request.json()
     amount = int(data.get("amount_ml", 200))
-    date = data.get("date", datetime.now().strftime("%Y-%m-%d"))
+    try:
+        date = _нут_дата(data.get("date"))
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
     entry = WaterLog(user_id=user.id, log_date=date, amount_ml=amount)
     db.add(entry)
     db.commit()
@@ -4976,7 +5052,10 @@ async def nut_ai_chat_log_foods(request: Request, user=Depends(get_current_user)
     if not user or not user_has_access(user, "nutrition", db):
         return JSONResponse({"error": "Нет доступа"}, status_code=403)
     data = await request.json()
-    date = data.get("date") or datetime.now().strftime("%Y-%m-%d")
+    try:
+        date = _нут_дата(data.get("date"))
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
     карточки = data.get("items") or []
     if not карточки:
         return JSONResponse({"error": "Нечего сохранять"}, status_code=400)

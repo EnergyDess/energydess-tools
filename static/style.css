@@ -1746,6 +1746,16 @@ textarea::placeholder, input::placeholder { color: var(--text-faint); }
                  border: 1px solid color-mix(in srgb, var(--warning) 22%, transparent);
                  color: var(--warning); }
 .alert-warn strong { color: var(--warning); }
+/* Сообщение, которое НЕ про исход операции: не ошибка, не успех и даже
+   не предупреждение, а состояние, о котором человек обязан знать прямо
+   сейчас («запись пойдёт в такой-то день»). Красится акцентом РАЗДЕЛА,
+   а не общим брендом: этот вариант всегда стоит внутри инструмента,
+   и второй зелёный рядом с зелёным дневника читался бы как другой смысл.
+   Откат на --accent-brand нужен для страниц без темы раздела. */
+.alert-accent  { background: color-mix(in srgb, var(--tool-accent, var(--accent-brand)) 8%, transparent);
+                 border: 1px solid color-mix(in srgb, var(--tool-accent, var(--accent-brand)) 22%, transparent);
+                 color: var(--tool-accent, var(--accent-brand)); }
+.alert-accent strong { color: var(--tool-accent, var(--accent-brand)); }
 .alert svg { width: 18px; height: 18px; stroke-width: 1.5; flex-shrink: 0; margin-top: 1px; }
 
 /* ── Toggle ─────────────────────────────────────────────────────────────── */
