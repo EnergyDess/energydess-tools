@@ -4490,7 +4490,7 @@ async def nut_log_weight(request: Request, user=Depends(get_current_user), db: S
     return JSONResponse({"ok": True})
 
 
-# ── Умные весы Xiaomi (неофициальный API Zepp Life, см. zepp_client.py) ────
+# ── Умные весы (неофициальный API Zepp Life, см. zepp_client.py) ───────────
 # Опциональная интеграция: если не подключено или API недоступен — ручной
 # ввод выше продолжает работать как обычно, ничего не блокируется.
 #
@@ -4557,7 +4557,7 @@ def _sync_scale(db: Session, conn: ScaleConnection) -> dict:
     """Синхронизация идёт ТОЛЬКО по сохранённому токену.
 
     Ветки «токен не сработал — залогинимся паролем» здесь больше нет:
-    пароль от чужого аккаунта Xiaomi не хранится (см. scale_connect).
+    пароль от чужого аккаунта не хранится (см. scale_connect).
     Прежняя ветка вдобавок ловила `except (ZeppApiError, Exception)` —
     то есть вообще всё, включая опечатку в нашем коде, — и отвечала
     на это полным логином, который разлогинивает человека в мобильном
@@ -4569,21 +4569,45 @@ def _sync_scale(db: Session, conn: ScaleConnection) -> dict:
     if not токен or not zepp_id:
         raise ScaleReauthNeeded("нет сохранённого токена")
     try:
-        records = zepp_client.fetch_weight_records(токен, zepp_id)
+        выборка = zepp_client.fetch_weight_records(токен, zepp_id,
+                                                   data_host=conn.data_host or "")
     except zepp_client.ZeppApiError as e:
         raise ScaleReauthNeeded(str(e))
+    # ZeppProtocolError сюда НЕ ловится намеренно: изменившийся формат ответа
+    # чинится нашей правкой, а не вводом пароля, и предлагать за него
+    # повторный вход значило бы гонять человека по кругу
+    records = выборка["records"]
 
-    saved = 0
-    for rec in records:
+    # ПО ВОЗРАСТАНИЮ времени, а не как пришло. Сервис отдаёт записи
+    # новейшими вперёд, и в дне с несколькими взвешиваниями последним
+    # применялось САМОЕ СТАРОЕ — то есть в дневник попадало утреннее,
+    # а не вечернее. Видно это становится ровно там, где записей на день
+    # больше одной: при первом заходе после привязки весов, когда
+    # подтягивается вся прежняя история аккаунта
+    даты = {}
+    for rec in sorted(records, key=lambda r: r.get("timestamp") or 0):
         if not rec.get("timestamp") or rec.get("weight_kg") is None:
             continue
         log_date = datetime.fromtimestamp(rec["timestamp"]).strftime("%Y-%m-%d")
-        row = db.query(WeightLog).filter(WeightLog.user_id == conn.user_id, WeightLog.log_date == log_date).first()
+        # Строку, заведённую ЭТИМ ЖЕ проходом, ищем в своём словаре, а не
+        # запросом: сессия открыта с autoflush=False, и добавленная через
+        # db.add() строка запросу не видна до commit. Два взвешивания
+        # за один день давали из-за этого ДВЕ строки в дневнике на одну дату
+        # (замер: id 13 = 81.0 и id 14 = 79.0 за 2026-08-14). Вылезает это
+        # ровно на первом заходе после привязки весов, когда подтягивается
+        # вся прежняя история аккаунта
+        row = даты.get(log_date)
+        if row is None:
+            row = db.query(WeightLog).filter(WeightLog.user_id == conn.user_id,
+                                             WeightLog.log_date == log_date).first()
         if not row:
             row = WeightLog(user_id=conn.user_id, log_date=log_date)
             db.add(row)
         elif row.source == "manual":
             continue  # ручная запись на эту дату — не перетираем данными с весов
+        # Счёт по ДАТАМ, а не по записям: в дневнике строка одна на день,
+        # и «обновлено 5» при трёх изменившихся днях — неправда
+        даты[log_date] = row
         row.weight_kg = rec["weight_kg"]
         row.bmi = rec.get("bmi")
         row.body_fat_pct = rec.get("body_fat_pct")
@@ -4594,13 +4618,19 @@ def _sync_scale(db: Session, conn: ScaleConnection) -> dict:
         row.bmr = int(rec["bmr"]) if rec.get("bmr") else None
         row.body_age = int(rec["body_age"]) if rec.get("body_age") else None
         row.source = "zepp"
-        saved += 1
 
+    saved = len(даты)
     conn.last_sync_at = datetime.utcnow()
     conn.last_sync_status = "ok"
     conn.last_sync_error = None
     db.commit()
-    return {"ok": True, "synced": saved}
+    # `empty` отдаётся ОТДЕЛЬНО от `synced`, потому что это разные вещи,
+    # а «синхронизировано: 0» отвечало сразу на оба вопроса. Ноль бывает
+    # у пустой истории (норма), у истории, где всё уже записано (тоже норма),
+    # и раньше — у сбоя, который проглотили. Сбой теперь исключение,
+    # а пустоту называем словами
+    return {"ok": True, "synced": saved, "fetched": выборка["total"],
+            "empty": выборка["total"] == 0}
 
 
 @app.get("/nutrition/api/scale/status")
@@ -4621,40 +4651,34 @@ async def scale_connect(request: Request, user=Depends(get_current_user), db: Se
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
     if not username or not password:
-        return JSONResponse({"error": "Укажите логин и пароль Zepp Life"}, status_code=400)
+        return JSONResponse({"error": "Укажите почту и пароль аккаунта Zepp Life"},
+                            status_code=400)
     if not crypto.is_configured():
         return JSONResponse({"error": "Шифрование не настроено на сервере"}, status_code=500)
 
-    # Четыре причины отказа различаются, и различие видно пользователю. Прежде
-    # здесь стояла одна фраза «Не удалось войти: неверный логин или пароль
-    # Xiaomi» на все случаи сразу, включая те, где данные ВЕРНЫЕ (Xiaomi
-    # просит подтвердить вход) и где виноваты мы (изменился флоу). Замер
-    # живого ответа — в zepp_client._разобрать_отказ
+    # Четыре причины отказа различаются, и различие видно пользователю:
+    # неверные данные / сервис недоступен / изменился протокол / сбой ПОСЛЕ
+    # принятого пароля. Пятой — «подтвердите личность» — больше нет, вместе
+    # со схемой Xiaomi, которая одна её и порождала: в родной схеме Huami
+    # проверки личности не существует (замер 2026-08-14: неверные данные
+    # дают ровно error=401 и ничего больше).
     #
-    # Четвёртая — ZeppStepError, заведена 2026-08-14: вход ПРИНЯТ, оборвалось
-    # дальше. Без неё успешный ответ Xiaomi (code=0, 成功) выходил наружу
-    # требованием подтвердить вход в приложении, которого там нет
+    # Если сервис однажды всё же пришлёт что-то похожее, это будет
+    # ZeppProtocolError с настоящим кодом, а не наша догадка про капчу
     try:
-        # Ключ устройства — постоянный для пользователя, см. zepp_client.устройство.
-        # Раньше устройство было случайным на каждую попытку, и пройденная
-        # проверка личности не могла засчитаться никогда
+        # Ключ устройства — постоянный для пользователя, см. zepp_client.устройство
         tokens = zepp_client.login(username, password,
                                    ключ_устройства=f"{crypto.ключ_отпечаток()}:{user.id}")
     except zepp_client.ZeppAuthError as e:
         print(f"[zepp] отказ по учётным данным: {ascii(str(e))}")
-        return JSONResponse({"error": f"{e}. Проверьте логин и пароль от аккаунта Zepp Life."},
-                            status_code=400)
-    except zepp_client.ZeppVerificationError as e:
-        # Адрес уходит ОТДЕЛЬНЫМ полем, а не внутри текста: интерфейсу он
-        # нужен ссылкой. Вклеенный в сообщение, он давал простыню на десять
-        # строк — нечитаемую и похожую на сбой
-        print(f"[zepp] требуется проверка личности ({e.вид}): {ascii(str(e))}")
-        return JSONResponse({"error": str(e), "verify_url": e.адрес,
-                             "verify_kind": e.вид},
+        return JSONResponse({"error": f"{e}. Нужны почта и пароль от аккаунта "
+                                      f"Zepp Life — того, в котором вы видите весы "
+                                      f"в приложении. Вход через аккаунт Xiaomi "
+                                      f"здесь не подойдёт."},
                             status_code=400)
     except zepp_client.ZeppStepError as e:
         print(f"[zepp] вход принят, сбой дальше: {ascii(str(e))}")
-        return JSONResponse({"error": f"Логин и пароль Zepp Life приняты — дело не в них. "
+        return JSONResponse({"error": f"Почта и пароль Zepp Life приняты — дело не в них. "
                                       f"Сбой произошёл после входа: {e}. "
                                       f"Это наша поломка; вес пока вводите вручную."},
                             status_code=502)
@@ -4677,8 +4701,11 @@ async def scale_connect(request: Request, user=Depends(get_current_user), db: Se
         conn = ScaleConnection(user_id=user.id)
         db.add(conn)
     conn.encrypted_username = _encrypt(username)
+    # Хост региона — из ответа входа. Не сохранив его здесь, мы потеряли бы
+    # его навсегда: второго входа не будет, пароля у нас нет
+    conn.data_host = tokens.get("data_host") or None
     # Пароль НЕ сохраняется. Он нужен ровно один раз — обменять на токен, —
-    # и дальше синхронизация идёт по токену. Хранение чужого пароля от Xiaomi
+    # и дальше синхронизация идёт по токену. Хранение чужого пароля
     # ради удобства автоматического перелогина покупало ровно одно: чтобы
     # протухший токен чинился сам. Цена — пароль от чужого аккаунта в нашей
     # базе, у которого нет ни срока, ни отзыва; токен и то и другое имеет.
@@ -4694,7 +4721,9 @@ async def scale_connect(request: Request, user=Depends(get_current_user), db: Se
         result = _sync_scale(db, conn)
     except Exception as e:
         return JSONResponse({"ok": True, "warning": f"Подключено, но первая синхронизация не удалась: {e}"})
-    return JSONResponse({"ok": True, "synced": result.get("synced", 0)})
+    return JSONResponse({"ok": True, "synced": result.get("synced", 0),
+                         "fetched": result.get("fetched", 0),
+                         "empty": result.get("empty", False)})
 
 
 @app.post("/nutrition/api/scale/sync")
@@ -7678,10 +7707,12 @@ STATIC_PAGES = {
 ли программу с дневником питания.</p>
 
 <h3>Умные весы</h3>
-<p>Если вы подключили весы Xiaomi: логин и пароль от вашего аккаунта
-Zepp Life — в зашифрованном виде — плюс время и результат последней
-синхронизации. Сами измерения относятся к данным о здоровье, о них
-следующий раздел.</p>
+<p>Если вы подключили весы: почта вашего аккаунта Zepp Life и ключ доступа,
+полученный в обмен на пароль, — оба в зашифрованном виде, — плюс адрес
+сервера, с которого забираются измерения, время и результат последней
+синхронизации. <strong>Пароль от Zepp Life мы не сохраняем:</strong> он
+используется один раз, чтобы получить ключ доступа, и дальше нам не нужен.
+Сами измерения относятся к данным о здоровье, о них следующий раздел.</p>
 
 <h3>Трекер Enshrouded</h3>
 <p>Отметки по игровому снаряжению: что у вас есть, какой редкости, какого
@@ -7777,8 +7808,8 @@ Zepp Life — в зашифрованном виде — плюс время и 
     </tr>
     <tr>
       <td data-label="Сервис"><strong>Zepp Life</strong> (умные весы)</td>
-      <td data-label="Что передаётся">ваши учётные данные и запрос измерений — только если вы подключили весы</td>
-      <td data-label="Где находится">Китай</td>
+      <td data-label="Что передаётся">почта и пароль — один раз, при подключении, в обмен на ключ доступа; дальше только ключ и запрос измерений</td>
+      <td data-label="Где находится">Китай (Huami); сервер выдачи данных зависит от региона вашего аккаунта</td>
     </tr>
     <tr>
       <td data-label="Сервис"><strong>Fly.io</strong></td>

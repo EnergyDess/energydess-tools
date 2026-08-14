@@ -833,34 +833,13 @@ button.chip, a.chip { cursor: pointer; }
   .tab-btn { padding: var(--space-3); font-size: var(--text-caption); }
 }
 
-/* ── Отказ подключения весов: ссылка на проверку личности ────────────────────
-   Живёт в системе, а не в страничном файле, потому что форма подключения
-   весов есть на ДВУХ страницах — /nutrition и /workout/profile, — и вторая
-   копия этих правил разошлась бы с первой молча (CLAUDE.md §6.0.2).
-
-   Адрес проверки от Xiaomi длиной в сотни знаков, поэтому в тексте он
-   заменён словом «ссылка»: вклеенный целиком, он давал десять строк
-   нечитаемого полотна и сообщение выглядело сбоем приложения. */
-.scale-verify-link {
-  color: var(--tool-accent, var(--accent-brand));
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  font-weight: 600;
-}
-.scale-verify-link:focus-visible {
-  outline: 2px solid var(--tool-accent, var(--accent-brand));
-  outline-offset: 2px;
-  border-radius: 2px;
-}
-/* Пояснение про 404 в конце проверки — не ошибка, а особенность потока
-   Xiaomi, поэтому обычным вторичным цветом, а не красным */
-.scale-verify-note {
-  margin-top: var(--space-2);
-  color: var(--text-2);
-  font-size: var(--text-caption);
-  line-height: 1.5;
-}
-.scale-verify-retry { margin-top: var(--space-3); }
+/* .scale-verify-link / .scale-verify-note / .scale-verify-retry УДАЛЕНЫ
+   2026-08-14 вместе со схемой входа через аккаунт Xiaomi. Это был блок
+   сообщения «пройдите проверку личности по ссылке» с предупреждением про
+   404 в её конце. В родной схеме Zepp Life (почта + пароль) проверки
+   личности не существует, показывать по этим классам нечего.
+   Имена названы здесь намеренно: увидевший их в чужом коде или в старом
+   коммите должен опознать, что это, а не искать компонент. */
 
 /* ── Modals ─────────────────────────────────────────────────────────────────
    .modal и .modal-backdrop УДАЛЕНЫ 2026-08-04. Это было окно-коробка

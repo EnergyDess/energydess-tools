@@ -20,7 +20,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ["DB_PATH"] = str(Path(tempfile.gettempdir()) / "hh_tests_нутриция.db")
 
 import main            # noqa: E402
-import zepp_client     # noqa: E402
 
 
 def блок(имя, ккал=100, граммы=100):
@@ -185,41 +184,9 @@ def test_нормы_по_умолчанию_совпадают_с_выдачей
     assert main.nut_goals(ПрофильЗаглушка())["protein"] == 150
 
 
-# ── Отказы Zepp различаются по причине ───────────────────────────────────────
-
-def test_неверный_пароль():
-    ошибка = zepp_client._разобрать_отказ({"code": 70016, "description": "login verification error"})
-    assert isinstance(ошибка, zepp_client.ZeppAuthError)
-    assert "70016" in str(ошибка)
-
-
-def test_капча_это_не_неверный_пароль():
-    """Данные ВЕРНЫЕ — лечится входом в мобильном приложении, а не сменой
-    пароля. Прежде показывалось «неверный логин или пароль»."""
-    ошибка = zepp_client._разобрать_отказ({"captchaUrl": "/captcha?x=1", "code": 87001})
-    assert isinstance(ошибка, zepp_client.ZeppVerificationError)
-
-
-def test_подтверждение_входа():
-    ошибка = zepp_client._разобрать_отказ({"notificationUrl": "https://account.xiaomi.com/n"})
-    assert isinstance(ошибка, zepp_client.ZeppVerificationError)
-
-
-def test_незнакомый_код_не_схлопывается_в_пароль():
-    """Иначе следующая причина отказа снова стала бы неотличима от опечатки."""
-    ошибка = zepp_client._разобрать_отказ({"code": 99999, "desc": "нечто новое"})
-    assert isinstance(ошибка, zepp_client.ZeppProtocolError)
-    assert not isinstance(ошибка, zepp_client.ZeppAuthError)
-    assert "99999" in str(ошибка)
-
-
-def test_отказ_без_кода_это_смена_протокола():
-    ошибка = zepp_client._разобрать_отказ({})
-    assert isinstance(ошибка, zepp_client.ZeppProtocolError)
-
-
-def test_все_классы_ловятся_базовым():
-    """Один `except ZeppLoginError` должен по-прежнему работать там, где
-    различие причин не нужно."""
-    for данные in ({"code": 70016}, {"captchaUrl": "/c"}, {}):
-        assert isinstance(zepp_client._разобрать_отказ(данные), zepp_client.ZeppLoginError)
+# ── Отказы Zepp ──────────────────────────────────────────────────────────────
+# Шесть тестов разбора отказов Xiaomi (`_разобрать_отказ`, коды 70016/87001,
+# капча, подтверждение входа) УДАЛЕНЫ 2026-08-14 вместе с самой схемой.
+# Их место заняли тесты родной схемы Huami в tests/test_zepp_errors.py —
+# отдельным файлом, где им и место: здесь тестируется ассистент дневника,
+# а весы оказались тут случайно.

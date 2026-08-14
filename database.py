@@ -288,12 +288,16 @@ class WeightLog(Base):
 
 
 class ScaleConnection(Base):
-    """Подключение умных весов Xiaomi через неофициальный API Zepp Life
-    (см. zepp_client.py). Все четыре поля с учётными данными зашифрованы
+    """Подключение умных весов через неофициальный API Zepp Life
+    (см. zepp_client.py). Поля с учётными данными зашифрованы
     (Fernet, ключ — CREDENTIALS_ENCRYPTION_KEY), см. crypto.py.
 
+    Аккаунт — РОДНОЙ аккаунт Zepp Life (почта и пароль). Вход через аккаунт
+    Xiaomi удалён 2026-08-14 целиком: он упирался в проверку личности,
+    недоступную стороннему приложению, — разбор в шапке zepp_client.py.
+
     encrypted_app_token/encrypted_zepp_user_id — кеш токена сессии, чтобы
-    не логиниться паролем при каждой синхронизации: полный логин по паролю
+    не логиниться паролем при каждой синхронизации: полный вход по паролю
     разлогинивает пользователя в мобильном приложении Zepp Life (особенность
     их серверной сессии, не наша).
 
@@ -302,7 +306,7 @@ class ScaleConnection(Base):
     читать прямо по токену, пароль для этого не нужен.
 
     encrypted_password с 2026-08-13 ВСЕГДА NULL и колонка оставлена только
-    затем, чтобы не ронять старые базы. Пароль от чужого аккаунта Xiaomi
+    затем, чтобы не ронять старые базы. Пароль от чужого аккаунта
     используется один раз — обменять на токен — и не сохраняется: у пароля
     нет ни срока жизни, ни отзыва, а у токена есть и то и другое. Плата
     за это одна: протух токен — человек вводит пароль заново, сами мы
@@ -314,8 +318,17 @@ class ScaleConnection(Base):
     encrypted_password = Column(Text, nullable=True)
     encrypted_app_token = Column(Text, nullable=True)
     encrypted_zepp_user_id = Column(Text, nullable=True)
+    # Хост, на котором лежат данные ИМЕННО ЭТОГО аккаунта. Приходит ответом
+    # шага входа (поле `domains`) и там же остаётся: снаружи регион аккаунта
+    # не определяется никак — замер 2026-08-14 показал, что все хосты
+    # api-mifit* отвечают на негодный токен побайтово одинаково.
+    #
+    # Не секрет и потому не шифруется: это имя сервера, а не ключ к нему.
+    # Пусто у подключений, заведённых до 2026-08-14, — тогда берётся
+    # значение по умолчанию из zepp_client.
+    data_host = Column(String, nullable=True)
     last_sync_at = Column(DateTime, nullable=True)
-    last_sync_status = Column(String, nullable=True)  # ok/error
+    last_sync_status = Column(String, nullable=True)  # ok/error/reauth
     last_sync_error = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -627,6 +640,7 @@ def migrate_db():
     _migrate_zepp_token_encryption(conn)
     _migrate_drop_image_data(conn)
     _migrate_forget_zepp_password(conn)
+    _migrate_scale_data_host(conn)
     _seed_food_translations(conn)
     conn.close()
 
@@ -754,6 +768,31 @@ def _migrate_forget_zepp_password(conn) -> int:
     if стёрто:
         print(f"[migrate] стёрто сохранённых паролей Zepp: {стёрто}")
     return стёрто
+
+
+def _migrate_scale_data_host(conn) -> int:
+    """Добавляет scale_connections.data_host.
+
+    Зачем колонка. Хост данных аккаунта приходит ответом шага входа
+    (`domains`), а вход бывает один раз — пароль не хранится. Не сохранив
+    хост, мы потеряли бы его сразу же и ходили бы за измерениями на хост
+    по умолчанию. Для аккаунта другого региона это 401 на ЖИВОМ токене,
+    а 401 у нас означает «токен протух» — то есть человеку показали бы
+    просьбу ввести пароль заново, и так по кругу, без единого признака,
+    что дело не в пароле (§6.0.1).
+
+    Идёт ПОСЛЕ _migrate_forget_zepp_password: та на старых базах пересобирает
+    таблицу и создаёт её без этой колонки.
+
+    ALTER TABLE ... ADD COLUMN на уже применённой миграции обязан падать —
+    это и есть признак «уже сделано» (§6.0.1, список осознанных подавлений)."""
+    try:
+        conn.execute("ALTER TABLE scale_connections ADD COLUMN data_host VARCHAR")
+        conn.commit()
+    except Exception:
+        return 0
+    print("[migrate] scale_connections.data_host добавлена")
+    return 1
 
 
 def _migrate_drop_image_data(conn) -> int:

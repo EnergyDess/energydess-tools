@@ -53,10 +53,11 @@
     <div class="wk-card">
       <div class="wk-profile-sec-title">Состав тела</div>
       <div id="wkScaleDisconnected">
-        <p class="wk-profile-hint">Подключи весы Mi Body Composition Scale через аккаунт Zepp Life — вес и состав тела будут подтягиваться автоматически (раз в день). Это неофициальная интеграция: если Zepp Life изменит API, синхронизация может прерваться — тогда просто продолжай вводить вес вручную, ничего не сломается.</p>
-        <input type="text" class="input wk-field-gap" id="wkScaleUsername" placeholder="email или телефон Zepp Life">
-        <input type="password" class="input wk-field-gap" id="wkScalePassword" placeholder="пароль">
-        <button type="button" class="wk-profile-btn" id="wkScaleConnectBtn">Подключить весы Xiaomi</button>
+        <p class="wk-profile-hint">Подключи весы Mi Body Composition Scale — вес и состав тела будут подтягиваться автоматически (раз в день). Это неофициальная интеграция: если Zepp Life изменит API, синхронизация может прерваться — тогда просто продолжай вводить вес вручную, ничего не сломается.</p>
+        <p class="wk-profile-hint"><strong>Нужен собственный аккаунт Zepp Life — почта и пароль, которыми ты входишь в приложение.</strong> Вход через аккаунт Xiaomi не подойдёт: Xiaomi требует подтвердить личность в своём приложении, и стороннему сервису этот путь закрыт.</p>
+        <input type="email" class="input wk-field-gap" id="wkScaleUsername" placeholder="почта аккаунта Zepp Life" autocomplete="username">
+        <input type="password" class="input wk-field-gap" id="wkScalePassword" placeholder="пароль" autocomplete="current-password">
+        <button type="button" class="wk-profile-btn" id="wkScaleConnectBtn">Подключить весы</button>
         <div class="wk-profile-msg" id="wkScaleConnectMsg"></div>
       </div>
       <div id="wkScaleConnected" style="display:none">
@@ -165,7 +166,7 @@
     });
   });
 
-  // ── Состав тела — умные весы Xiaomi (Zepp Life) ──
+  // ── Состав тела — умные весы (родная схема входа Zepp Life) ──
   function loadBodyCompGrid() {
     fetch('/nutrition/api/weight')
       .then(function (r) { return r.json(); })
@@ -209,7 +210,7 @@
     var username = $('#wkScaleUsername').value.trim();
     var password = $('#wkScalePassword').value;
     var msg = $('#wkScaleConnectMsg');
-    if (!username || !password) { msg.textContent = 'Укажите логин и пароль'; return; }
+    if (!username || !password) { msg.textContent = 'Укажите почту и пароль'; return; }
     var btn = this;
     btn.disabled = true;
     msg.textContent = 'Подключаем…';
@@ -220,51 +221,31 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         btn.disabled = false;
-        // Пароль стираем, почту оставляем: при проверке личности попыток
-        // подряд несколько, и набирать адрес заново на каждую — лишнее
+        // Пароль стираем, почту оставляем: почта не секрет, а набирать её
+        // заново на каждой повторной попытке — лишнее
         $('#wkScalePassword').value = '';
-        if (data.error) { показатьОтказВесовWk(msg, data.error, data.verify_url); return; }
-        msg.textContent = data.warning || ('Подключено, синхронизировано записей: ' + (data.synced || 0));
+        $('#wkScalePassword').type = 'password';
+        if (data.error) { msg.textContent = data.error; return; }
+        msg.textContent = data.warning || итогВыборкиWk(data, 'Подключено');
         loadScaleStatusWk();
       })
       .catch(function () { btn.disabled = false; msg.textContent = 'Ошибка сети, попробуйте ещё раз.'; });
   });
 
-  // Тот же разбор отказа, что в дневнике: адрес проверки — ссылкой, а не
-  // простынёй, плюс предупреждение про 404 в конце проверки (замер
-  // 2026-08-15: api-mifit-cn.huami.com отдаёт «routes not found» на любой
-  // путь, это адрес возврата в приложение Zepp, которого у нас нет)
-  function показатьОтказВесовWk(msg, текст, адрес) {
-    if (!адрес) { msg.textContent = текст; return; }
-    msg.textContent = '';
-    var строка = document.createElement('div');
-    строка.textContent = текст + '. Откройте ';
-    var a = document.createElement('a');
-    a.href = адрес;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.className = 'scale-verify-link';
-    a.textContent = 'ссылку';
-    строка.appendChild(a);
-    строка.appendChild(document.createTextNode(' и пройдите проверку.'));
-    msg.appendChild(строка);
-
-    var пояснение = document.createElement('div');
-    пояснение.className = 'scale-verify-note';
-    пояснение.textContent = 'В конце проверки Xiaomi покажет страницу с ошибкой '
-      + '404 «routes not found» — так и должно быть, она возвращает в своё '
-      + 'приложение. Закройте вкладку и нажмите кнопку ниже.';
-    msg.appendChild(пояснение);
-
-    var ещё = document.createElement('button');
-    ещё.type = 'button';
-    ещё.className = 'btn-secondary scale-verify-retry';
-    ещё.textContent = 'Подключить ещё раз';
-    ещё.addEventListener('click', function () {
-      $('#wkScalePassword').focus();
-      msg.textContent = '';
-    });
-    msg.appendChild(ещё);
+  // Тот же итог, что в дневнике: пустая история и сбой не должны выглядеть
+  // одинаково. Прежде оба печатались как «синхронизировано записей: 0».
+  // Ветка с адресом проверки личности удалена вместе со схемой Xiaomi —
+  // в родной схеме Zepp Life проверки личности не существует
+  function итогВыборкиWk(data, начало) {
+    if (data.empty) {
+      return начало + '. Измерений в аккаунте Zepp Life пока нет — встань '
+        + 'на весы с открытым приложением и нажми «Обновить сейчас».';
+    }
+    if (!data.synced) {
+      return начало + '. Новых измерений нет, всё уже записано (получено с весов: '
+        + (data.fetched || 0) + ').';
+    }
+    return начало + ', записей обновлено: ' + data.synced;
   }
   $('#wkScaleSyncBtn').addEventListener('click', function () {
     var msg = $('#wkScaleSyncMsg');
@@ -273,12 +254,12 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.error) { msg.textContent = data.error; }
-        else { msg.textContent = 'Готово, новых записей: ' + (data.synced || 0); loadBodyCompGrid(); }
+        else { msg.textContent = итогВыборкиWk(data, 'Готово'); loadBodyCompGrid(); }
         loadScaleStatusWk();
       });
   });
   $('#wkScaleDisconnectBtn').addEventListener('click', function () {
-    if (!confirm('Отключить весы Xiaomi? Уже синхронизированные данные останутся.')) return;
+    if (!confirm('Отключить весы? Уже синхронизированные данные останутся.')) return;
     fetch('/nutrition/api/scale/disconnect', { method: 'POST' }).then(function () {
       $('#wkScaleUsername').value = '';
       $('#wkScalePassword').value = '';

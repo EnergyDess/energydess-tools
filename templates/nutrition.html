@@ -194,11 +194,12 @@
         </div>
 
         <div class="p-sec">
-          <div class="p-sec-title">Умные весы Xiaomi</div>
+          <div class="p-sec-title">Умные весы</div>
           <div id="scale-disconnected">
-            <p class="p-note">Подключите весы Mi Body Composition Scale через аккаунт Zepp Life — вес и состав тела будут подтягиваться автоматически. Это неофициальная интеграция: если Zepp Life изменит свой API, синхронизация может прерваться — тогда просто продолжайте вводить вес вручную, ничего не сломается.</p>
+            <p class="p-note">Подключите весы Mi Body Composition Scale — вес и состав тела будут подтягиваться автоматически. Это неофициальная интеграция: если Zepp Life изменит свой API, синхронизация может прерваться — тогда просто продолжайте вводить вес вручную, ничего не сломается.</p>
+            <p class="p-note"><strong>Нужен собственный аккаунт Zepp Life — почта и пароль, которыми вы входите в приложение Zepp Life.</strong> Вход через аккаунт Xiaomi не подойдёт: Xiaomi требует подтвердить личность в своём приложении, и стороннему сервису этот путь закрыт. Если вы заходите в Zepp Life кнопкой «Xiaomi», заведите в приложении отдельный аккаунт по почте и привяжите весы к нему.</p>
             <p class="p-note">Пароль нужен один раз — чтобы обменять его на ключ доступа. Мы его не сохраняем: в базе остаётся только ключ, который можно отозвать.</p>
-            <input type="text" class="input input-compact scale-input" id="scale-username" placeholder="email или телефон Zepp Life" autocomplete="username">
+            <input type="email" class="input input-compact scale-input" id="scale-username" placeholder="почта аккаунта Zepp Life" autocomplete="username">
             {# .input-wrap + .eye-btn — системная пара из style.css, та же,
                что на входе и регистрации. Поведение (toggleEye) переехало
                в ui.js: три копии одной функции в трёх шаблонах уже были #}
@@ -208,7 +209,7 @@
                 <i data-lucide="eye"></i>
               </button>
             </div>
-            <button class="btn-primary btn-block" onclick="connectScale()" id="scale-connect-btn">Подключить весы Xiaomi</button>
+            <button class="btn-primary btn-block" onclick="connectScale()" id="scale-connect-btn">Подключить весы</button>
             <div class="p-msg" id="scale-connect-msg"></div>
           </div>
           <div id="scale-connected" style="display:none">
@@ -2338,7 +2339,7 @@ async function loadProfileForm() {
   if (data.calorie_goal) showTargets({calories:data.calorie_goal,protein:data.protein_goal,fat:data.fat_goal,carbs:data.carb_goal,water_ml:data.water_goal_ml});
 }
 
-// ── Умные весы Xiaomi (неофициальный API Zepp Life) ──────────────────────────
+// ── Умные весы (родная схема входа Zepp Life: почта + пароль) ────────────────
 async function loadScaleStatus() {
   const data = await api('/nutrition/api/scale/status');
   document.getElementById('scale-disconnected').style.display = data.connected ? 'none' : 'block';
@@ -2362,8 +2363,7 @@ async function loadScaleStatus() {
 }
 // ПАРОЛЬ очищается сразу после отправки, до ответа сервера: он не должен
 // пережить нажатие кнопки. ПОЧТА остаётся — она не секрет, а стирать её
-// значило заставлять набирать адрес заново на каждую повторную попытку,
-// которых при проверке личности как раз несколько подряд
+// значило заставлять набирать адрес заново на каждой повторной попытке
 function очиститьПарольВесов() {
   const поле = document.getElementById('scale-password');
   поле.value = '';
@@ -2373,61 +2373,42 @@ async function connectScale() {
   const username = document.getElementById('scale-username').value.trim();
   const password = document.getElementById('scale-password').value;
   const msg = document.getElementById('scale-connect-msg');
-  if (!username || !password) { показатьОтказВесов(msg, 'Укажите логин и пароль'); return; }
+  if (!username || !password) { показатьОтказВесов(msg, 'Укажите почту и пароль'); return; }
   document.getElementById('scale-connect-btn').disabled = true;
   msg.style.color = 'var(--text-2)';
   msg.textContent = 'Подключаем…';
   очиститьПарольВесов();
   const data = await api('/nutrition/api/scale/connect', { method: 'POST', body: JSON.stringify({ username, password }) });
   document.getElementById('scale-connect-btn').disabled = false;
-  if (data.error) { показатьОтказВесов(msg, data.error, data.verify_url); return; }
-  msg.textContent = data.warning || ('Подключено, синхронизировано записей: ' + (data.synced ?? 0));
+  if (data.error) { показатьОтказВесов(msg, data.error); return; }
+  msg.textContent = data.warning || итогВыборки(data, 'Подключено');
   msg.style.color = data.warning ? '#fbbf24' : '#4ade80';
   loadScaleStatus();
   loadWeightData();
 }
 
-// Отказ подключения весов. Адрес проверки личности — ССЫЛКА со словом
-// «ссылка», а не адрес простынёй: он занимает десять строк, нечитаем
-// и делает сообщение похожим на сбой приложения.
-//
-// Про 404 сказано заранее и намеренно. Проверка Xiaomi заканчивается
-// возвратом на адрес приложения Zepp, которого у нас нет, — замер
-// 2026-08-15: api-mifit-cn.huami.com отдаёт {"code":404,"message":"routes
-// not found"} на любой путь. Человек, не предупреждённый об этом, считает
-// 404 своей ошибкой и проходит проверку ещё раз
-function показатьОтказВесов(msg, текст, адрес) {
+// Пустая история и сбой больше не выглядят одинаково. Прежде и то и другое
+// печаталось как «синхронизировано записей: 0»: сбой при этом молчал, а
+// пустой аккаунт выглядел так, будто что-то не сработало. Сбой теперь
+// приходит полем error, а про пустоту говорится словами
+function итогВыборки(data, начало) {
+  if (data.empty) {
+    return начало + '. Измерений в аккаунте Zepp Life пока нет — встаньте '
+      + 'на весы с открытым приложением и нажмите «Синхронизировать сейчас».';
+  }
+  if (!data.synced) {
+    return начало + '. Новых измерений нет, всё уже записано (получено с весов: '
+      + (data.fetched ?? 0) + ').';
+  }
+  return начало + ', записей обновлено: ' + data.synced;
+}
+
+// Отказ подключения весов. Ветка с адресом проверки личности удалена
+// вместе со схемой Xiaomi: в родной схеме Zepp Life проверки личности
+// не существует, а отказ приходит одной строкой с кодом
+function показатьОтказВесов(msg, текст) {
   msg.style.color = '#f87171';
-  if (!адрес) { msg.textContent = текст; return; }
-  msg.textContent = '';
-  const строка = document.createElement('div');
-  строка.textContent = текст + '. Откройте ';
-  const a = document.createElement('a');
-  a.href = адрес;
-  a.target = '_blank';
-  a.rel = 'noopener noreferrer';
-  a.className = 'scale-verify-link';
-  a.textContent = 'ссылку';
-  строка.appendChild(a);
-  строка.appendChild(document.createTextNode(' и пройдите проверку.'));
-  msg.appendChild(строка);
-
-  const пояснение = document.createElement('div');
-  пояснение.className = 'scale-verify-note';
-  пояснение.textContent = 'В конце проверки Xiaomi покажет страницу с ошибкой '
-    + '404 «routes not found» — так и должно быть, она возвращает в своё '
-    + 'приложение. Закройте вкладку и нажмите кнопку ниже.';
-  msg.appendChild(пояснение);
-
-  const ещё = document.createElement('button');
-  ещё.type = 'button';
-  ещё.className = 'btn-secondary scale-verify-retry';
-  ещё.textContent = 'Подключить ещё раз';
-  ещё.addEventListener('click', () => {
-    document.getElementById('scale-password').focus();
-    msg.textContent = '';
-  });
-  msg.appendChild(ещё);
+  msg.textContent = текст;
 }
 async function syncScaleNow() {
   const msg = document.getElementById('scale-sync-msg');
@@ -2435,11 +2416,11 @@ async function syncScaleNow() {
   msg.textContent = 'Синхронизируем…';
   const data = await api('/nutrition/api/scale/sync', { method: 'POST' });
   if (data.error) { msg.textContent = data.error; msg.style.color = '#f87171'; }
-  else { msg.textContent = 'Готово, новых записей: ' + (data.synced ?? 0); msg.style.color = '#4ade80'; loadWeightData(); }
+  else { msg.textContent = итогВыборки(data, 'Готово'); msg.style.color = '#4ade80'; loadWeightData(); }
   loadScaleStatus();
 }
 async function disconnectScale() {
-  if (!confirm('Отключить весы Xiaomi? Уже синхронизированные данные останутся.')) return;
+  if (!confirm('Отключить весы? Уже синхронизированные данные останутся.')) return;
   await api('/nutrition/api/scale/disconnect', { method: 'POST' });
   // Здесь чистим ОБА поля, в отличие от неудачного входа: человек отключил
   // весы совсем, и оставленная почта осталась бы приглашением ввести пароль
