@@ -702,6 +702,46 @@ html.assistant-mode, html.assistant-mode body {
 }
 .a-group-t.is-here { color: var(--tool-accent); }
 
+/* ── Другие продукты того же бренда ────────────────────────────────────────
+   Записи, совпавшие с запросом ТОЛЬКО брендом. В общей выдаче они были
+   неотличимы от точных попаданий: замер 2026-08-16 по «молоко
+   простоквашино» — шесть молок и двенадцать карточек остального
+   ассортимента, одинаковых с виду.
+
+   Сворачивает секцию сам браузер (<details>), поэтому здесь только вид:
+   ни состояния, ни обработчика. Верхняя граница обязательна — без неё
+   заголовок читается как ещё одна карточка списка, а не как рубеж,
+   за которым лежит другое. */
+.brand-more { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.875rem; }
+/* СВЁРНУТОЕ ПРЯЧЕТСЯ ЯВНО, и это не перестраховка. <details> скрывает
+   содержимое правилом браузера, но оно проигрывает любому объявлению
+   `display` у ребёнка — а ниже стоит `.a-results .r-list { display: grid }`.
+   Замер до этой строки: 18 видимых карточек и в свёрнутом виде, и
+   в развёрнутом, то есть секция была подписана, но ничего не сворачивала.
+   Поймано нажатием, а не чтением (§6.0.3). */
+.brand-more:not([open]) > .r-list { display: none; }
+.brand-more-t {
+  display: flex; align-items: center; gap: 0.4375rem;
+  font-size: 0.8125rem; font-weight: 600; color: var(--text-2);
+  cursor: pointer; list-style: none; padding: 0.25rem 0;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Своя стрелка вместо системного треугольника: он рисуется по-разному
+   в каждом браузере и в тёмной теме почти не виден */
+.brand-more-t::-webkit-details-marker { display: none; }
+.brand-more-t svg { width: 1rem; height: 1rem; flex-shrink: 0; transition: transform .2s ease; }
+.brand-more[open] > .brand-more-t svg { transform: rotate(90deg); }
+.brand-more[open] > .brand-more-t { color: var(--text); margin-bottom: 0.625rem; }
+/* Число справа — не украшение: свёрнутая секция должна сказать, сколько
+   в ней лежит, иначе разворачивать её незачем */
+.brand-more-n { margin-left: auto; font-weight: 600; color: var(--text-2); }
+@media (hover: hover) {
+  .brand-more-t:hover { color: var(--tool-accent); }
+}
+.brand-more-t:focus-visible {
+  outline: 2px solid var(--tool-accent); outline-offset: 2px; border-radius: 0.375rem;
+}
+
 /* ── History ── */
 .h-date { text-align: center; font-size: 0.88rem; font-weight: 700; text-transform: capitalize; }
 .mini-ring-row { display: flex; align-items: center; justify-content: center; gap: 0.875rem; margin: 0.375rem 0 0.875rem; }
@@ -1428,15 +1468,17 @@ html.assistant-mode, html.assistant-mode body {
     height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden;
     padding-right: 0.375rem;
   }
-  .d-left::-webkit-scrollbar, .d-right::-webkit-scrollbar,
+  .d-left::-webkit-scrollbar, .d-right::-webkit-scrollbar, .a-left::-webkit-scrollbar,
   #tab-search.active::-webkit-scrollbar, .chat-msgs::-webkit-scrollbar,
   #tab-diary.active::-webkit-scrollbar { width: 0.3125rem; }
   .d-left::-webkit-scrollbar-thumb, .d-right::-webkit-scrollbar-thumb,
+  .a-left::-webkit-scrollbar-thumb,
   #tab-search.active::-webkit-scrollbar-thumb, .chat-msgs::-webkit-scrollbar-thumb,
   #tab-diary.active::-webkit-scrollbar-thumb {
     background: var(--border-strong); border-radius: 0.1875rem;
   }
   .d-left::-webkit-scrollbar-track, .d-right::-webkit-scrollbar-track,
+  .a-left::-webkit-scrollbar-track,
   #tab-search.active::-webkit-scrollbar-track, .chat-msgs::-webkit-scrollbar-track,
   #tab-diary.active::-webkit-scrollbar-track { background: transparent; }
 
@@ -1677,6 +1719,43 @@ html.assistant-mode, html.assistant-mode body {
   .a-left, .a-main {
     display: flex; flex-direction: column; gap: calc(0.875 * var(--nut-u));
   }
+  /* ── ЛЕВАЯ КОЛОНКА ПРИЛИПАЕТ ───────────────────────────────────────────
+     ЧТО БЫЛО. Замер 2026-08-16 на 1440×700: прокрутка находок на 570px
+     уводит колонку целиком за верхний край (её `top` = −420), и чип «Обед»
+     оказывается на 271px выше видимой области. Чтобы сменить приём пищи
+     после просмотра списка, надо было вернуться наверх — при том, что под
+     колонкой оставалось 514px пустого места до низа экрана (высота колонки
+     514.6 при области прокрутки 636).
+
+     ПОЧЕМУ sticky, А НЕ ВТОРАЯ ПРОКРУЧИВАЕМАЯ КОЛОНКА, как в дневнике
+     (.d-left/.d-right). Прокручивается тут ВСЯ вкладка целиком —
+     `#tab-search.active { overflow-y: auto }`, — и на ней же держится
+     `position: sticky` у панели продукта справа. Разложить экран на три
+     самостоятельные прокрутки значило бы переписать и панель, ради
+     поведения, которое даёт одно свойство.
+
+     НА ШАПКУ САЙТА КОЛОНКА НЕ НАЛЕЗАЕТ ПО ПОСТРОЕНИЮ, и это замер, а не
+     рассуждение: прокручивается не окно (`documentElement.scrollHeight`
+     не превышает высоту окна ни на одной из трёх высот), а `#tab-search`
+     внутри `.nut-content`. Шапка стоит НАД этим контейнером и в него
+     не входит, поэтому `top: 0` здесь — верхний край области находок,
+     а не верх страницы.
+
+     ВЫСОТА. 64px — высота .site-header; это то самое место, где число
+     участвует в расчёте осознанно (design-system.md §4.1): элемент вырван
+     из потока, и остаток браузеру считать не из чего. Вычитается ещё
+     верхний отступ прилипания и столько же снизу, чтобы низ колонки
+     не упирался в край окна. Замер: на 1440×700 доступно 596px при высоте
+     колонки 514.6 — своя прокрутка не появляется; она страховка на случай
+     окна ниже, где иначе низ колонки был бы недостижим. */
+  .a-left {
+    position: sticky; top: calc(0.5 * var(--nut-u)); align-self: start;
+    max-height: calc(100dvh - 64px - 2.5 * var(--nut-u));
+    overflow-y: auto;
+    /* Дойдя до конца своей прокрутки, колонка не начинает листать находки
+       под собой — иначе выбор приёма пищи уводил бы список (задача 49) */
+    overscroll-behavior: contain;
+  }
   /* Перестановка нужна ТОЛЬКО мобильной ширине, где всё лежит в одной
      колонке; здесь порядок задаёт разметка. Не сняв `order`, получаем
      дату под кнопками (1 больше 0) и поле поиска над областями —
@@ -1716,6 +1795,8 @@ html.assistant-mode, html.assistant-mode body {
   .a-group-t { font-size: calc(0.8125 * var(--nut-u)); }
   .a-nothing-t { font-size: calc(0.9375 * var(--nut-u)); }
   .a-nothing-s { font-size: calc(0.8125 * var(--nut-u)); }
+  .brand-more-t { font-size: calc(0.8125 * var(--nut-u)); }
+  .brand-more { margin-top: var(--nut-u); padding-top: calc(0.875 * var(--nut-u)); }
   /* Панель липнет к верху своей колонки: список находок прокручивается,
      граммовка и кнопка записи должны оставаться на виду */
   .a-panel-box { position: sticky; top: 0; }

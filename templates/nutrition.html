@@ -1444,7 +1444,8 @@ async function runSearch(q) {
   // предупреждения: человек считал бы, что уже ел этот продукт
   if (!находки.length && область !== 'all') { пустоВОбласти(q, область, myId); return; }
   renderResults(находки, q, data.source_error||'', data.translate_error||'',
-                область === 'recent' ? data.by_meal : null, область);
+                область === 'recent' ? data.by_meal : null, область,
+                data.brand_results||[], data.brand_name||'');
 }
 
 function продуктовСловами(n) {
@@ -1460,7 +1461,11 @@ async function пустоВОбласти(q, область, myId) {
   const место = document.getElementById('s-results');
   const d = await api(`/nutrition/api/search?q=${encodeURIComponent(q)}`);
   if (myId !== searchReqId) return;
-  const n = (d.results || []).length;
+  // Записи из секции бренда считаются ТОЖЕ: кнопка ниже обещает показать
+  // то, что нашлось во всей базе, и нажатие на неё их покажет. Посчитав
+  // только основную выдачу, мы обещали бы меньше, чем отдаём, — а при
+  // пустой основной сказали бы «тоже ничего» про непустую находку
+  const n = (d.results || []).length + (d.brand_results || []).length;
   const шапка = сЗаглавной(ОБЛАСТИ[область].предлог) + ' ничего не нашлось';
   if (!n) {
     // Ни в области, ни в базе. Предлагать «искать по всей базе» здесь
@@ -1711,9 +1716,45 @@ function блокиНедавних(by_meal) {
   }).join('');
 }
 
-function renderResults(results, query, сбой, сбойПеревода, by_meal, область) {
+// Секция «другие продукты бренда». Сворачиваемая, и сворачивает её сам
+// браузер: <details> не требует ни состояния в JS, ни обработчика, работает
+// с клавиатуры и не ломается, когда выдачу перерисовывают целиком.
+//
+// РАЗВЁРНУТА ОНА РОВНО В ОДНОМ СЛУЧАЕ — когда по названию не нашлось
+// ничего. Тогда она и есть вся выдача, и прятать её значило бы встретить
+// человека пустым экраном при непустых находках. Во всех остальных
+// случаях свёрнута: её содержимое — не то, что искали.
+function секцияБренда(доп, бренд, развернуть) {
+  if (!доп || !доп.length) return '';
+  const имя = бренд ? `бренда ${esc(бренд)}` : 'того же бренда';
+  return `<details class="brand-more"${развернуть ? ' open' : ''}>
+      <summary class="brand-more-t">
+        <i data-lucide="chevron-right"></i>
+        <span>Другие продукты ${имя}</span>
+        <span class="brand-more-n">${продуктовСловами(доп.length)}</span>
+      </summary>
+      <div class="r-list">${доп.map(r => карточкаНаходки(r, 'all')).join('')}</div>
+    </details>`;
+}
+
+function renderResults(results, query, сбой, сбойПеревода, by_meal, область, доп, бренд) {
   const wrap = document.getElementById('s-results');
+  доп = доп || [];
   if (!results.length) {
+    // По названию пусто, а ассортимент бренда есть. Это НЕ пустая выдача:
+    // показать «ничего не нашлось» поверх дюжины найденных карточек значило
+    // бы соврать. Секция становится основной и раскрывается сразу
+    if (доп.length) {
+      wrap.innerHTML = плашкаПеревода(сбойПеревода)
+        + `<div class="card card-static a-nothing">
+             <div class="a-nothing-t">По названию ничего не нашлось</div>
+             <div class="a-nothing-s">Показываем, что есть у ${бренд ? 'бренда ' + esc(бренд) : 'этого бренда'}</div>
+           </div>`
+        + секцияБренда(доп, бренд, true)
+        + пустаяВыдачаХвост(query, 's-results');
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
     // Пустое состояние — только когда запрос вообще был. На вкладках
     // «Недавние»/«Частые» query не передаётся, и предлагать там оценку нечего
     wrap.innerHTML = query ? плашкаПеревода(сбойПеревода) + пустаяВыдача(query, сбой, 's-results')
@@ -1724,7 +1765,7 @@ function renderResults(results, query, сбой, сбойПеревода, by_me
   const тело = by_meal && Object.keys(by_meal).length
     ? блокиНедавних(by_meal)
     : `<div class="r-list">` + results.map(r => карточкаНаходки(r, область)).join('') + `</div>`;
-  wrap.innerHTML = плашкаПеревода(сбойПеревода) + тело + aiBtn;
+  wrap.innerHTML = плашкаПеревода(сбойПеревода) + тело + секцияБренда(доп, бренд, false) + aiBtn;
   if (window.lucide) lucide.createIcons();
 }
 
@@ -1742,7 +1783,13 @@ async function runSearchIng(q) {
   document.getElementById('ring-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
   const data = await api(`/nutrition/api/search?q=${encodeURIComponent(q)}`);
   if (myId !== ingSearchReqId) return; // устаревший запрос — игнорируем
-  renderIngResults(data.results||[], q, data.source_error||'', data.translate_error||'');
+  // Окно подбора ингредиента секции бренда НЕ рисует — оно узкое, и
+  // сворачиваемый блок внутри модалки читался бы хуже, чем список. Но
+  // и потерять эти записи нельзя: до разделения выдачи они лежали здесь же.
+  // Дописываем их В КОНЕЦ — порядок стал лучше прежнего, а из окна
+  // не исчезло ничего
+  renderIngResults((data.results||[]).concat(data.brand_results||[]),
+                   q, data.source_error||'', data.translate_error||'');
 }
 
 function setIngTab(tab) {
