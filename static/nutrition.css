@@ -742,20 +742,15 @@ html.assistant-mode, html.assistant-mode body {
   outline: 2px solid var(--tool-accent); outline-offset: 2px; border-radius: 0.375rem;
 }
 
-/* ── History ── */
-.h-date { text-align: center; font-size: 0.88rem; font-weight: 700; text-transform: capitalize; }
-.mini-ring-row { display: flex; align-items: center; justify-content: center; gap: 0.875rem; margin: 0.375rem 0 0.875rem; }
-.h-arrow {
-  width: 2.125rem; height: 2.125rem; border-radius: 50%; background: var(--tool-accent-dim);
-  border: 1px solid color-mix(in srgb, var(--tool-accent) 25%, transparent); color: var(--tool-accent); font-size: 1.05rem;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
-  transition: background .15s;
-}
-.h-arrow:active { background: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
-.h-arrow:disabled { opacity: .35; cursor: default; }
-.mini-ring-wrap { display: flex; justify-content: center; }
-.mini-ring-svg { width: 6.875rem; height: 6.875rem; }
+/* ── История ──────────────────────────────────────────────────────────────
+   Здесь стояли .h-date, .h-arrow, .mini-ring-row/-wrap/-svg и весь блок
+   «7 дней» (.week-box, .week-bars, .w-col, .w-bar, .w-day, .w-kcal,
+   .w-trained). Удалены вместе с разметкой, а не оставлены «на всякий
+   случай»: правило, описывающее класс, которого нет в разметке, ловит
+   следующего, кто возьмёт это имя из файла и решит, что компонент есть.
+
+   .mini-ring-track и .mini-ring-fill остались — кольцо дня никуда
+   не делось, поменялась только его обёртка. ── */
 .mini-ring-track { fill: none; stroke: var(--surface-sunken); stroke-width: 10; }
 .mini-ring-fill {
   fill: none; stroke: var(--tool-accent); stroke-width: 10; stroke-linecap: round;
@@ -763,20 +758,96 @@ html.assistant-mode, html.assistant-mode body {
   transform-origin: center; transform: rotate(-90deg);
   transition: stroke-dashoffset .8s ease;
 }
-.week-box { background: var(--surface-1); border: 1px solid var(--border); border-radius: 0.875rem; padding: 0.875rem; margin-top: 0.875rem; }
-.week-title { font-size: 0.8125rem; color: var(--text-2); text-transform: uppercase; letter-spacing: .07em; font-weight: 600; margin-bottom: 0.625rem; }
-.week-bars { display: flex; gap: 0.3125rem; align-items: flex-end; height: 4.5rem; }
-.w-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.1875rem; height: 100%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.w-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
-.w-bar { width: 100%; border-radius: 0.25rem 0.25rem 0 0; background: var(--tool-accent-dim); border: 1px solid color-mix(in srgb, var(--tool-accent) 25%, transparent); min-height: 0.1875rem; transition: background .15s, box-shadow .15s; }
-.w-bar.today { background: var(--tool-accent); box-shadow: 0 0 8px var(--nut-glow); }
-.w-col.active .w-bar { background: var(--tool-accent); box-shadow: 0 0 8px var(--nut-glow); }
-.w-day  { font-size: 0.8125rem; color: var(--text); font-weight: 700; }
-.w-col.active .w-day { color: var(--tool-accent); font-weight: 700; }
-.w-kcal { font-size: 0.8125rem; color: var(--tool-accent); font-weight: 600; }
-.w-trained { font-size: 0.8125rem; }
+
+/* Сводка выбранного дня: кольцо слева, дата и три макроса справа.
+   Карточка — системная (.card .card-static), поэтому фон, рамка, радиус
+   и паддинг здесь не объявляются: это раскладка её содержимого */
+.hd-sum { display: flex; gap: 1.125rem; align-items: center; }
+.hd-ring { position: relative; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.hd-ring-svg { width: 5.75rem; height: 5.75rem; }
+.hd-ring-c { position: absolute; text-align: center; }
+.hd-side { flex: 1; min-width: 0; }
+.hd-date {
+  font-size: 0.8125rem; color: var(--text-2); margin: 0 0 0.75rem;
+  text-transform: none;
+}
+.hd-macro + .hd-macro { margin-top: 0.5rem; }
+.hd-macro-row { display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem; }
+.hd-macro-lbl { font-size: 0.8125rem; color: var(--text-2); }
+.hd-macro-val { font-size: 0.8125rem; font-weight: 600; }
+.hd-bar { height: 0.25rem; background: var(--surface-sunken); border-radius: 0.125rem; overflow: hidden; }
+.hd-bar-f { display: block; height: 100%; border-radius: 0.125rem; transition: width .35s ease; }
+.hd-bar-f.is-prot { background: var(--prot); }
+.hd-bar-f.is-fat  { background: var(--fat); }
+.hd-bar-f.is-carb { background: var(--carb); }
+.hd-meals { margin-top: 0.875rem; }
+
+/* ── Календарь месяца ──
+   Клетка — кнопка: по ней ходят с клавиатуры и нажимают. Полоска внизу
+   клетки показывает долю от нормы; раскраски «хорошо/плохо» нет
+   намеренно (см. комментарий в renderCalendar). */
+.cal-hd { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.875rem; }
+.cal-pick { flex: 1; display: flex; gap: 0.375rem; min-width: 0; }
+/* Только `min-width: 0` — раскладка экземпляра в сетке, без неё элемент
+   flex-колонки не сжимается ниже своего содержимого и «Сентябрь 2026»
+   выталкивает стрелки за край. Кегль и паддинги приходят из системного
+   варианта `.input-sm` на том же элементе */
+.cal-sel { min-width: 0; }
+.cal-wd, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.25rem; }
+.cal-wd { margin-bottom: 0.375rem; }
+.cal-wd span { font-size: 0.8125rem; color: var(--text-faint); text-align: center; }
+.cal-c {
+  display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+  padding: 0.375rem 0.125rem; border: 1px solid transparent; border-radius: 0.5rem;
+  background: none; color: var(--text-2); font-family: var(--font);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background .15s, border-color .15s;
+}
+.cal-c.is-pad { pointer-events: none; }
+.cal-n { font-size: 0.8125rem; line-height: 1.2; }
+/* Полоска стоит В КАЖДОЙ клетке, даже пустой, и имеет высоту всегда.
+   Иначе клетка без записей на 7px ниже соседней, и ряды календаря
+   разъезжаются по вертикали — замер: 34 против 41px */
+.cal-bar { display: block; width: 78%; height: 0.1875rem; border-radius: 0.09375rem; background: var(--surface-sunken); overflow: hidden; }
+.cal-bar-f { display: block; height: 100%; background: var(--tool-accent); border-radius: 0.09375rem; }
+/* Запланированное на будущее — другим цветом, а не тем же приглушённым:
+   намерение и съеденное это разные вещи, и одинаковая полоска обещала бы,
+   что день уже прожит */
+.cal-bar-f.is-plan { background: var(--wat); }
+.cal-c.is-today { border-color: var(--tool-accent); }
+.cal-c.is-sel { background: var(--tool-accent-dim); color: var(--tool-accent); }
+.cal-c.is-sel .cal-n { font-weight: 700; }
+.cal-c.is-fut .cal-n { color: var(--text-faint); }
+.cal-c.is-off { opacity: .35; cursor: default; }
+.cal-c:focus-visible { outline: 2px solid var(--tool-accent); outline-offset: 1px; }
+@media (hover: hover) {
+  .cal-c:not(:disabled):hover { background: var(--surface-2); }
+  .cal-c.is-sel:not(:disabled):hover { background: var(--tool-accent-dim); }
+}
+.cal-note { font-size: 0.8125rem; color: var(--text-faint); margin: 0.75rem 0 0; }
+
+/* ── Сводка за месяц ── */
+.mo { margin-top: 0.875rem; }
+.mo-title { font-size: 0.9375rem; font-weight: 600; margin: 0 0 0.25rem; }
+.mo-basis { font-size: 0.8125rem; color: var(--text-faint); margin: 0 0 0.75rem; }
+.mo-row {
+  display: flex; justify-content: space-between; gap: 0.5rem;
+  padding: 0.5rem 0; border-top: 1px solid var(--border); font-size: 0.8125rem;
+}
+.mo-lbl { color: var(--text-2); }
+.mo-val { font-weight: 600; }
 
 /* ── Weight ── */
+/* .week-title остался ЗДЕСЬ, а не уехал вместе с блоком «7 дней».
+   Имя досталось от него, но носит его сегодня ещё и заголовок графика
+   веса (`.chart-box .week-title`, разметка вкладки «Вес»). Удалив правило
+   вместе с блоком истории, я сломал соседнюю вкладку: замер показал,
+   что «График веса» стал 16px/400 обычным текстом вместо 13px/600
+   в верхнем регистре. Поймала это проверка 7 (`check_docs.py`), а не
+   чтение кода и не глаз — на вкладку «Вес» этот заход не смотрел вовсе.
+   Переименовывать не стал: имя правится вместе с самой вкладкой, а её
+   в этот заход трогать не просили. */
+.week-title { font-size: 0.8125rem; color: var(--text-2); text-transform: uppercase; letter-spacing: .07em; font-weight: 600; margin-bottom: 0.625rem; }
 .wt-hero { background: var(--surface-1); border: 1px solid var(--border); border-radius: 0.875rem; padding: 1.125rem; margin-bottom: 0.625rem; text-align: center; }
 .wt-big  { font-size: 2.8rem; font-weight: 800; line-height: 1; font-family: var(--font); }
 .wt-unit { font-size: 1.1rem; color: var(--text-2); font-weight: 600; }
@@ -1247,9 +1318,10 @@ html.assistant-mode, html.assistant-mode body {
 .water-emoji { font-size: 1.1rem; }
 .water-name  { font-size: 0.875rem; font-weight: 600; }
 
-/* ── История: значение в центре мини-кольца ── */
-.mini-ring-stack  { position: relative; display: flex; align-items: center; justify-content: center; }
-.mini-ring-center { position: absolute; text-align: center; }
+/* ── История: значение в центре кольца дня ──
+   .mini-ring-stack и .mini-ring-center удалены вместе с прежней обёрткой
+   кольца: их роль (позиционирование числа по центру) взяли .hd-ring
+   и .hd-ring-c в блоке «История» выше. */
 .hist-kcal-val { font-size: 1.25rem; font-weight: 800; }
 .hist-kcal-lbl { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; }
 
@@ -1300,8 +1372,26 @@ html.assistant-mode, html.assistant-mode body {
 
 /* ── То, что собирает скрипт ── */
 .food-brand      { font-weight: 600; color: var(--text-2); font-size: 0.8125rem; }
-.meal-card-tight { margin-bottom: 0.4375rem; }
-.meal-hdr-static { cursor: default; }
+/* .meal-card-tight и .meal-hdr-static удалены: их носила ТОЛЬКО копия
+   карточки приёма пищи для истории, а копии больше нет — обе вкладки
+   собирает один `renderMeals`. Оставить правила значило бы описывать
+   вариант компонента, которого никто не рисует. */
+/* Кнопка правки у позиции — только в истории (см. foodItemHTML).
+   Своя, а не .btn-icon: системная кнопка 40×40 в строке высотой 34px
+   растянула бы её на треть, а поджимать системный компонент под строку
+   запрещено (CLAUDE.md §6.0.2). Размер здесь принадлежит строке */
+.food-edit {
+  flex-shrink: 0; width: 1.75rem; height: 1.75rem; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; border-radius: 0.375rem;
+  color: var(--text-faint); font-size: 0.875rem; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color .15s, background .15s;
+}
+.food-edit:focus-visible { outline: 2px solid var(--tool-accent); outline-offset: 1px; }
+@media (hover: hover) {
+  .food-edit:hover { color: var(--tool-accent); background: var(--surface-2); }
+}
 .recipe-del {
   color: #ef4444; background: none; border: none;
   font-size: 1.1rem; padding: 0.25rem; cursor: pointer;
@@ -1846,22 +1936,77 @@ html.assistant-mode, html.assistant-mode body {
   .r-per { font-size: calc(0.8 * var(--nut-u)); }
   .empty { font-size: calc(0.87 * var(--nut-u)); }
 
-  /* ── HISTORY: left ring+meals, right chart fills column ── */
-  #tab-history.active { display: grid; grid-template-columns: 18.75rem 1fr; gap: 1.75rem; overflow: hidden; }
-  .h-date { font-size: 1.02rem; }
-  .h-arrow { width: 2.375rem; height: 2.375rem; font-size: 1.15rem; }
-  .mini-ring-svg { width: 10.5rem; height: 10.5rem; }
-  /* !important здесь боролся не с CSS, а с инлайном style="font-size:1.25rem"
-     в разметке: инлайн бьёт любой файловый селектор, включая по id. Инлайн
-     переехал в класс .hist-kcal-val, и подпорка стала не нужна. */
-  #hist-kcal { font-size: 1.9rem; }
-  .week-box { padding: 1.375rem; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
-  .week-title { font-size: .85rem; }
-  .week-bars { flex: 1; height: auto; min-height: 0; }
-  .w-day, .w-kcal { font-size: .82rem; }
+  /* ── ИСТОРИЯ: слева день целиком, справа календарь и сводка ────────────
+     ШИРИНА И МАСШТАБ — ТЕ ЖЕ, ЧТО У ДНЕВНИКА И «ДОБАВИТЬ», и той же
+     единицей `--nut-u`. Экраны соседние, между ними ходят одним нажатием,
+     и разъехавшийся масштаб виден сразу. Здесь стояло
+     `grid-template-columns: 18.75rem 1fr` без потолка ширины: на 2560
+     календарь получал бы 1900px, а сам он — сетка из семи клеток, которой
+     столько не нужно.
+
+     Колонки поменялись местами против прежней раскладки: день теперь
+     слева и он же широкий (`minmax(0,1fr)`), календарь справа и узкий.
+     Раньше день жил в фиксированных 18.75rem, а весь остаток отдавался
+     блоку «7 дней» — то есть большую часть экрана занимало то,
+     что не следовало за выбранной датой. */
+  #tab-history.active {
+    display: block;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .h-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) calc(21 * var(--nut-u));
+    gap: calc(1.125 * var(--nut-u));
+    max-width: calc(87.5 * var(--nut-u));
+    margin-left: auto; margin-right: auto;
+  }
+  /* Та же арифметика специфичности, что у .d-left в дневнике: колонки
+     истории не прокручиваются каждая сама — прокручивается вкладка */
+  #tab-history.active .d-left,
+  #tab-history.active .d-right {
+    display: block; height: auto; min-height: 0; overflow: visible; padding-right: 0;
+  }
+
+  .hd-sum { gap: calc(1.125 * var(--nut-u)); }
+  .hd-ring-svg { width: calc(6.5 * var(--nut-u)); height: calc(6.5 * var(--nut-u)); }
+  #hist-kcal { font-size: calc(1.6 * var(--nut-u)); }
+  .hist-kcal-lbl { font-size: calc(0.8125 * var(--nut-u)); }
+  .hd-date { font-size: calc(0.8125 * var(--nut-u)); }
+  .hd-macro-lbl, .hd-macro-val { font-size: calc(0.8125 * var(--nut-u)); }
+  .hd-meals {
+    margin-top: calc(0.875 * var(--nut-u));
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: calc(0.875 * var(--nut-u)); align-items: start;
+  }
+
+  /* Кегль списков месяца и года на десктопе НЕ переопределяется: он идёт
+     из системного `.input-sm`, и подтягивать его под единицу раздела
+     значило бы менять вид системного компонента (CLAUDE.md §6.0.2).
+     Единица растит вокруг него всё остальное — сам список остаётся
+     системного размера, как .chip и .segmented-btn на соседних экранах */
+  .cal-n { font-size: calc(0.8125 * var(--nut-u)); }
+  /* 0.8125, а не 0.75. Множитель 0.75 замерен и отвергнут: при --nut-u
+     в 1rem он даёт РОВНО 12px — ниже минимума 0.8125rem из глобального
+     CLAUDE.md. На 1920 и 2560 единица больше и порог проходился сам,
+     то есть дефект жил ровно на самой частой ширине и только на ней.
+     Поймано замером кеглей по всем четырём ширинам, а не чтением. */
+  .cal-wd span { font-size: calc(0.8125 * var(--nut-u)); }
+  .cal-c { padding: calc(0.375 * var(--nut-u)) 0.125rem; }
+  .cal-note { font-size: calc(0.8125 * var(--nut-u)); }
+  .mo { margin-top: calc(0.875 * var(--nut-u)); }
+  .mo-title { font-size: calc(0.94 * var(--nut-u)); }
+  .mo-basis { font-size: calc(0.8125 * var(--nut-u)); }
+  .mo-row { font-size: calc(0.8125 * var(--nut-u)); padding: calc(0.5 * var(--nut-u)) 0; }
 
   /* ── WEIGHT: left stats, right chart fills column ── */
   #tab-weight.active { display: grid; grid-template-columns: 18.75rem 1fr; gap: 1.75rem; overflow: hidden; }
+  /* Переехало сюда из десктопного блока истории вместе с самим
+     `.week-title` (см. комментарий у правила выше). Число прежнее —
+     .85rem, — потому что вкладку «Вес» этот заход менять не должен:
+     оставить её на базовых 0.8125rem значило бы уменьшить заголовок
+     графика на 0.6px под видом уборки */
+  .week-title { font-size: .85rem; }
   .wt-big { font-size: 4rem; }
   .wt-sub { font-size: .92rem; }
   .wt-prog-lbl { font-size: .85rem; }

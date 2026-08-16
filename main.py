@@ -1,4 +1,5 @@
 import asyncio
+import calendar
 import html as html_lib
 import io
 import json as _json
@@ -4346,6 +4347,28 @@ async def nut_save_profile(request: Request, user=Depends(get_current_user), db:
 # день, который сервер не примет, и отказ будет выглядеть поломкой.
 NUT_DAY_RANGE = 7
 
+# Насколько далеко НАЗАД разрешено править дневник. Отдельное число от
+# NUT_DAY_RANGE, и это не удвоение сущности, а разделение двух разных вопросов.
+#
+# NUT_DAY_RANGE отвечает на вопрос «какие дни ПРЕДЛАГАЕТ полоска» — семь назад
+# и семь вперёд, ровно столько кружков на экране дневника. Пока история умела
+# ходить только теми же стрелками, одного числа хватало.
+#
+# Календарь месяца задаёт второй вопрос: «какой день можно ОТКРЫТЬ и
+# исправить». Ответ «семь» на него неверен — дневник заводят, чтобы смотреть
+# назад, и запись двухмесячной давности с ошибочной граммовкой правится ровно
+# так же, как вчерашняя. Замер до правки: `/nutrition/api/diary?date=` на
+# восьмом дне назад отвечал 400, а вкладка «История» этого не проверяла —
+# кольцо и число калорий оставались от предыдущего дня, подпись менялась
+# на новую. То есть экран УТВЕРЖДАЛ, что 9 августа съедено 3266 ккал, а это
+# было число 10-го. Немой отказ с показом чужих данных.
+#
+# Чтения ограничения назад нет вовсе (см. `назад=None` в /diary): дневник,
+# который нельзя прочитать, бессмысленен. Ограничение осталось только
+# на ЗАПИСЬ, и год здесь — не «сколько разрешено», а «дальше это заведомо
+# опечатка»: дата 1999 года в теле запроса — мусор, а не намерение.
+NUT_EDIT_BACK = 365
+
 
 # ── «Сегодня» — календарный день В ПОЯСЕ ПОЛЬЗОВАТЕЛЯ ──────────────────────────
 #
@@ -4399,7 +4422,9 @@ def _сегодня(user) -> _date:
     return _день_в_поясе(datetime.now(ZoneInfo("UTC")), _пояс(user))
 
 
-def _нут_дата(значение, сегодня: _date, поле: str = "date") -> str:
+def _нут_дата(значение, сегодня: _date, поле: str = "date",
+              назад: int | None = NUT_DAY_RANGE,
+              вперёд: int = NUT_DAY_RANGE) -> str:
     """Дата дневника: строго YYYY-MM-DD и внутри разрешённого окна.
 
     ПОЧЕМУ ПРОВЕРКА, А НЕ ПОДСТАНОВКА СЕГОДНЯШНЕГО ДНЯ. `log_date` —
@@ -4417,7 +4442,13 @@ def _нут_дата(значение, сегодня: _date, поле: str = "d
     Умолчание здесь вернуло бы пояс процесса (UTC на Fly) любому, кто
     забыл его передать, — то есть починка держалась бы на внимательности
     каждого следующего вызова. Обязательный аргумент ломает такой вызов
-    на месте, при чтении кода, а не ночью у пользователя."""
+    на месте, при чтении кода, а не ночью у пользователя.
+
+    `назад` и `вперёд` — ГРАНИЦЫ ОКНА, и они разные у чтения и у записи.
+    Чтение истории смотрит назад без предела (`назад=None`), запись назад —
+    на NUT_EDIT_BACK, вперёд обе — на NUT_DAY_RANGE. Умолчания оставлены
+    прежними (±NUT_DAY_RANGE) намеренно: вызов, не назвавший границы,
+    ведёт себя ровно как до правки, а не получает молча более широкое окно."""
     if значение in (None, ""):
         return сегодня.strftime("%Y-%m-%d")
     if not isinstance(значение, str):
@@ -4427,10 +4458,14 @@ def _нут_дата(значение, сегодня: _date, поле: str = "d
     except ValueError:
         raise ValueError(f"{поле}: не дата в формате YYYY-MM-DD ({значение!r})")
     отступ = (д - сегодня).days
-    if abs(отступ) > NUT_DAY_RANGE:
+    if отступ > вперёд:
         raise ValueError(
-            f"{поле}: дневник ведётся в пределах {NUT_DAY_RANGE} дней "
-            f"от сегодня, а {значение} — это {отступ:+d} дней")
+            f"{поле}: дневник ведётся не дальше {вперёд} дней вперёд, "
+            f"а {значение} — это {отступ:+d} дней")
+    if назад is not None and отступ < -назад:
+        raise ValueError(
+            f"{поле}: дневник ведётся в пределах {назад} дней назад, "
+            f"а {значение} — это {отступ:+d} дней")
     # Наружу уходит КАНОНИЧЕСКАЯ форма, а не то, что прислали. `strptime`
     # принимает «2026-8-14» наравне с «2026-08-14», а `log_date` — колонка
     # текстовая, и сравнение в запросах строковое: такая запись не совпала
@@ -4444,7 +4479,11 @@ async def nut_diary(date: str = None, user=Depends(get_current_user), db: Sessio
     if not user:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     try:
-        d = _нут_дата(date, _сегодня(user))
+        # Назад — без предела: этот же эндпоинт питает вкладку «История»,
+        # где календарь ходит по месяцам. Вперёд предел остался: дней
+        # за пределом окна планирования не существует по построению —
+        # записать туда нечего
+        d = _нут_дата(date, _сегодня(user), назад=None)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     logs = db.query(FoodLog).filter(FoodLog.user_id == user.id, FoodLog.log_date == d).order_by(FoodLog.created_at).all()
@@ -4490,13 +4529,111 @@ async def nut_diary_days(user=Depends(get_current_user), db: Session = Depends(g
                          "range": NUT_DAY_RANGE, "today": сегодня.strftime("%Y-%m-%d")})
 
 
+@app.get("/nutrition/api/history/month")
+async def nut_history_month(month: str = None, user=Depends(get_current_user),
+                            db: Session = Depends(get_db)):
+    """Календарь месяца и сводка под ним — одним запросом.
+
+    ПОЧЕМУ СВОДКУ СЧИТАЕТ СЕРВЕР, А НЕ БРАУЗЕР. Средние и число записанных
+    дней считаются ровно по тем строкам, из которых нарисованы полоски
+    в клетках. Посчитай их на клиенте — и получится второй ответ на тот же
+    вопрос: клетка говорит, что в дне есть записи, а среднее их не учло,
+    и понять, какое из двух чисел настоящее, не по чему. Тот же довод,
+    по которому нормы приходят из `nut_goals`, а не считаются моделью.
+
+    ЧТО В СРЕДНЕЕ НЕ ВХОДИТ, и почему это не мелочь:
+
+      · дни без записей — пропущенный день это «не знаем», а не «ноль».
+        Считая его нулём, среднее занижалось бы тем сильнее, чем реже
+        человек ведёт дневник, то есть врало бы ровно тем, кому нужнее;
+      · будущие запланированные дни — это намерение, а не съеденное.
+        Одно намерение на 3000 ккал сдвинуло бы факт за месяц.
+
+    «Записано дней N из M»: M — ПРОШЕДШИЕ дни месяца, а не все. В текущем
+    месяце 4 из 13, а не 4 из 31, иначе первого числа любой месяц выглядит
+    провалом на 97%.
+
+    Норма берётся ТЕКУЩАЯ (`nut_goals`): истории норм в базе нет, хранится
+    только последнее значение анкеты. Полоска в клетке поэтому показывает
+    долю от сегодняшней нормы, и на смене цели прошлые месяцы
+    перерисуются. Названо здесь, потому что по виду это неотличимо
+    от «нормы, которая была тогда»."""
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    сегодня = _сегодня(user)
+    try:
+        год, мес = (int(ч) for ч in (month or сегодня.strftime("%Y-%m")).split("-"))
+        первое = _date(год, мес, 1)
+    except (ValueError, TypeError):
+        return JSONResponse({"error": f"month: не месяц в формате YYYY-MM ({month!r})"},
+                            status_code=400)
+    дней_в_месяце = calendar.monthrange(год, мес)[1]
+    последнее = _date(год, мес, дней_в_месяце)
+
+    строки = db.query(
+        FoodLog.log_date,
+        func.sum(FoodLog.calories), func.sum(FoodLog.protein),
+        func.sum(FoodLog.fat), func.sum(FoodLog.carbs), func.count(FoodLog.id),
+    ).filter(
+        FoodLog.user_id == user.id,
+        FoodLog.log_date >= первое.strftime("%Y-%m-%d"),
+        FoodLog.log_date <= последнее.strftime("%Y-%m-%d"),
+    ).group_by(FoodLog.log_date).all()
+
+    дни = {д: {"calories": round(к or 0), "protein": round(б or 0),
+               "fat": round(ж or 0), "carbs": round(у or 0), "items": н}
+           for д, к, б, ж, у, н in строки}
+
+    # Прошедшие дни месяца: сегодняшний считается прошедшим — он уже идёт
+    # и записывать в него можно. Для будущего месяца это ноль, и «0 из 0»
+    # честнее, чем «0 из 31»
+    if последнее < сегодня:
+        прошло = дней_в_месяце
+    elif первое > сегодня:
+        прошло = 0
+    else:
+        прошло = сегодня.day
+
+    факт = [з for д, з in дни.items() if д <= сегодня.strftime("%Y-%m-%d")]
+    n = len(факт)
+    сводка = {
+        "days": n, "elapsed": прошло,
+        "planned": len(дни) - n,
+        "calories": round(sum(з["calories"] for з in факт) / n) if n else 0,
+        "protein": round(sum(з["protein"] for з in факт) / n) if n else 0,
+        "fat": round(sum(з["fat"] for з in факт) / n) if n else 0,
+        "carbs": round(sum(з["carbs"] for з in факт) / n) if n else 0,
+    }
+
+    # Границы листания. Вперёд — «ровно до последнего дня, где есть записи»,
+    # но НЕ раньше текущего месяца: у человека без единой будущей записи
+    # предел иначе встал бы на последнем съеденном дне, и вернуться
+    # к сегодняшнему месяцу стрелкой было бы нельзя. Назад — до первой
+    # записи, и по той же причине не позже текущего месяца.
+    первая, последняя = db.query(func.min(FoodLog.log_date), func.max(FoodLog.log_date)) \
+        .filter(FoodLog.user_id == user.id).first()
+    сег = сегодня.strftime("%Y-%m-%d")
+    return JSONResponse({
+        "month": первое.strftime("%Y-%m"),
+        "today": сег,
+        "goal": nut_goals(db.query(NutritionProfile).filter(
+            NutritionProfile.user_id == user.id).first())["calories"],
+        "days": дни,
+        "first_day": min(первая or сег, сег),
+        "last_day": max(последняя or сег, сег),
+        "summary": сводка,
+    })
+
+
 @app.post("/nutrition/api/log-food")
 async def nut_log_food(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     data = await request.json()
     try:
-        день = _нут_дата(data.get("date"), _сегодня(user))
+        # Добавление из истории пишет в день, открытый календарём, — окно
+        # записи назад шире полоски дней (NUT_EDIT_BACK, см. её разбор)
+        день = _нут_дата(data.get("date"), _сегодня(user), назад=NUT_EDIT_BACK)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     grams = float(data.get("grams", 100))
@@ -4569,18 +4706,36 @@ async def nut_update_food(log_id: int, request: Request, user=Depends(get_curren
     if meal_type in ("breakfast", "lunch", "dinner", "snack"):
         log.meal_type = meal_type
     db.commit()
-    return JSONResponse({"ok": True})
+    # Дата записи уходит наружу: правка зовётся с двух экранов сразу —
+    # из дневника и из истории, — и перерисовывать надо тот день, который
+    # действительно изменился, а не тот, который открыт. Считать его
+    # на клиенте значило бы завести второе мнение о дне записи (§5.0.6)
+    return JSONResponse({"ok": True, "date": log.log_date, "meal_type": log.meal_type})
 
 
 @app.delete("/nutrition/api/log-food/{log_id}")
 async def nut_delete_food(log_id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Удаление позиции дневника.
+
+    404, КОГДА УДАЛЯТЬ НЕЧЕГО. Прежний ответ был `{"ok": True}` на любой
+    исход — и на удаление, и на чужой id, и на несуществующий, — то есть
+    снаружи все три выглядели одинаково: интерфейс рисовал успех, а в базе
+    всё оставалось на месте. Та же правка, что уже сделана для воды
+    (CLAUDE.md §5.0.5), и по той же причине; здесь она понадобилась потому,
+    что удаление появилось на втором экране — в истории, — и решение
+    «что перерисовать» принимается по ответу.
+
+    Чужая запись даёт тот же 404, а не 403: отказ по правам подтвердил бы,
+    что она существует (§5.1)."""
     if not user:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     log = db.query(FoodLog).filter(FoodLog.id == log_id, FoodLog.user_id == user.id).first()
-    if log:
-        db.delete(log)
-        db.commit()
-    return JSONResponse({"ok": True})
+    if not log:
+        return JSONResponse({"error": "Запись не найдена"}, status_code=404)
+    день = log.log_date
+    db.delete(log)
+    db.commit()
+    return JSONResponse({"ok": True, "date": день})
 
 
 # ── Nutrition: water ──────────────────────────────────────────────────────────
@@ -4592,7 +4747,16 @@ async def nut_log_water(request: Request, user=Depends(get_current_user), db: Se
     data = await request.json()
     amount = int(data.get("amount_ml", 200))
     try:
-        date = _нут_дата(data.get("date"), _сегодня(user))
+        # То же окно, что у еды. Разъехавшись, они дали бы день, в котором
+        # еду записать можно, а воду нельзя, — при том что это одна и та же
+        # запись одного и того же дня. Замер до правки: выбрав в календаре
+        # истории 4 августа (13 дней назад) и вернувшись в дневник, кнопка
+        # «+200» отвечала «дневник ведётся в пределах 7 дней назад».
+        # Отказ был честный (тост с причиной, вода осталась нулём), но
+        # несогласованность внёс этот же заход — календарь, — ему её
+        # и закрывать. Удаление порции окна не знает вовсе: оно ищет
+        # по id и работает на любом дне
+        date = _нут_дата(data.get("date"), _сегодня(user), назад=NUT_EDIT_BACK)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     entry = WaterLog(user_id=user.id, log_date=date, amount_ml=amount)
@@ -5354,36 +5518,6 @@ async def list_body_photos(user=Depends(get_current_user), db: Session = Depends
         by_date.setdefault(r.log_date, {})[r.angle] = _media_src("body", r)
     dates = sorted(by_date.keys(), reverse=True)
     return JSONResponse({"dates": dates, "photos": by_date})
-
-
-# ── Nutrition: history / weekly ───────────────────────────────────────────────
-
-@app.get("/nutrition/api/weekly")
-async def nut_weekly(user=Depends(get_current_user), db: Session = Depends(get_db)):
-    if not user:
-        return JSONResponse({"error": "Не авторизован"}, status_code=401)
-    today = datetime.now().date()
-    start = (today - timedelta(days=6)).strftime("%Y-%m-%d")
-    end = today.strftime("%Y-%m-%d")
-    # дни с тренировками за неделю — связка с программой тренировок, чтобы
-    # в дневнике питания было видно, в какие дни была нагрузка
-    trained_dates = {
-        s.log_date for s in db.query(WorkoutSession.log_date).filter(
-            WorkoutSession.user_id == user.id, WorkoutSession.log_date >= start,
-            WorkoutSession.log_date <= end, WorkoutSession.skipped == False,
-        ).all()
-    }
-    days = []
-    for i in range(6, -1, -1):
-        d = (today - timedelta(days=i)).strftime("%Y-%m-%d")
-        logs = db.query(FoodLog).filter(FoodLog.user_id == user.id, FoodLog.log_date == d).all()
-        days.append({
-            "date": d,
-            "calories": round(sum(l.calories for l in logs), 0),
-            "protein": round(sum(l.protein for l in logs), 1),
-            "trained": d in trained_dates,
-        })
-    return JSONResponse({"days": days})
 
 
 # ── Nutrition: AI chat ───────────────────────────────────────────────────────

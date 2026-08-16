@@ -267,34 +267,91 @@
       </div><!-- /a-cols -->
     </section>
 
-    <!-- ── TAB: HISTORY ── -->
+    <!-- ── TAB: HISTORY ──
+         Слева выбранный день целиком: кольцо с макросами рядом и четыре
+         приёма пищи сеткой два на два — те же карточки, что в дневнике,
+         и собирает их та же функция. Справа календарь месяца и сводка.
+
+         Блока «7 дней» здесь больше нет. Он отвечал не на тот вопрос,
+         который задан: показывал текущую неделю независимо от выбранной
+         даты. Замер до правки на 1440×900 — блок 779×762px (больше
+         половины экрана), показывает 11–17 августа при выбранном 7-м,
+         подсвеченных колонок ноль. ── -->
     <section class="nut-tab" id="tab-history">
+      {# Обёртка колонок — та же роль, что у .d-cols в дневнике: потолок
+         ширины стоит на ней, а не на вкладке, иначе полоса прокрутки
+         уезжает к центру экрана. На мобильной ширине обёртка не сетка,
+         и колонки идут друг за другом #}
+      <div class="h-cols">
       <div class="d-left">
-        <div class="h-date" id="h-date-lbl">Сегодня</div>
-        <div class="mini-ring-row">
-          <button class="h-arrow" id="h-arrow-prev" onclick="histShift(-1)">‹</button>
-          <div class="mini-ring-wrap">
-            <div class="mini-ring-stack">
-              <svg class="mini-ring-svg" viewBox="0 0 120 120">
-                <circle class="mini-ring-track" cx="60" cy="60" r="45"/>
-                <circle class="mini-ring-fill" cx="60" cy="60" r="45" id="hist-ring"/>
-              </svg>
-              <div class="mini-ring-center">
-                <div class="hist-kcal-val" id="hist-kcal">—</div>
-                <div class="hist-kcal-lbl">ккал</div>
-              </div>
+        <div class="hd-sum card card-static">
+          <div class="hd-ring">
+            <svg class="hd-ring-svg" viewBox="0 0 120 120">
+              <circle class="mini-ring-track" cx="60" cy="60" r="45"/>
+              <circle class="mini-ring-fill" cx="60" cy="60" r="45" id="hist-ring"/>
+            </svg>
+            <div class="hd-ring-c">
+              <div class="hist-kcal-val" id="hist-kcal">—</div>
+              <div class="hist-kcal-lbl">ккал</div>
             </div>
           </div>
-          <button class="h-arrow" id="h-arrow-next" onclick="histShift(1)">›</button>
+          <div class="hd-side">
+            <p class="hd-date" id="h-date-lbl">—</p>
+            <div class="hd-macro">
+              <div class="hd-macro-row"><span class="hd-macro-lbl">Белок</span><span class="hd-macro-val" id="hm-prot">—</span></div>
+              <div class="hd-bar"><i class="hd-bar-f is-prot" id="hb-prot"></i></div>
+            </div>
+            <div class="hd-macro">
+              <div class="hd-macro-row"><span class="hd-macro-lbl">Жиры</span><span class="hd-macro-val" id="hm-fat">—</span></div>
+              <div class="hd-bar"><i class="hd-bar-f is-fat" id="hb-fat"></i></div>
+            </div>
+            <div class="hd-macro">
+              <div class="hd-macro-row"><span class="hd-macro-lbl">Углеводы</span><span class="hd-macro-val" id="hm-carb">—</span></div>
+              <div class="hd-bar"><i class="hd-bar-f is-carb" id="hb-carb"></i></div>
+            </div>
+          </div>
         </div>
-        <div id="hist-meals"></div>
+        <div class="hd-meals" id="hist-meals"></div>
       </div>
+
       <div class="d-right">
-        <div class="week-box">
-          <div class="week-title">7 дней</div>
-          <div class="week-bars" id="week-bars"></div>
+        <div class="cal card card-static">
+          <div class="cal-hd">
+            <button class="btn-icon btn-icon-solid" id="cal-prev" onclick="calShift(-1)"
+                    aria-label="Предыдущий месяц"><i data-lucide="chevron-left"></i></button>
+            {# Выбор месяца и года — рядом со стрелками, а не вместо них:
+               стрелками ходят на соседний месяц, списками прыгают на дальний.
+               Одними стрелками до июня из августа — четыре нажатия #}
+            {# .input-sm — системный вариант «плотное поле»: padding
+               --space-2/--space-3 и кегль --text-caption. Первая версия
+               задавала то же самое своим классом .cal-sel, то есть меняла
+               ВИД системного компонента с соседнего класса — форма, которую
+               не видит ни одна из девяти проверок (проверка 1 смотрит
+               на субъект селектора, проверка 8 — на id). Вариант в системе
+               уже был, и заводить второй незачем #}
+            <div class="cal-pick">
+              <select class="select input-sm cal-sel" id="cal-month"
+                      onchange="calPick()" aria-label="Месяц"></select>
+              <select class="select input-sm cal-sel" id="cal-year"
+                      onchange="calPick()" aria-label="Год"></select>
+            </div>
+            <button class="btn-icon btn-icon-solid" id="cal-next" onclick="calShift(1)"
+                    aria-label="Следующий месяц"><i data-lucide="chevron-right"></i></button>
+          </div>
+          <div class="cal-wd" aria-hidden="true">
+            <span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
+          <p class="cal-note" id="cal-note">Полоска — доля от дневной нормы</p>
+        </div>
+
+        <div class="mo card card-static">
+          <p class="mo-title" id="mo-title">—</p>
+          <p class="mo-basis" id="mo-basis">—</p>
+          <div class="mo-rows" id="mo-rows"></div>
         </div>
       </div>
+      </div><!-- /h-cols -->
     </section>
 
     <!-- ── TAB: WEIGHT ── -->
@@ -584,15 +641,14 @@
       <button class="add-btn" onclick="saveCustomFood()">Сохранить и добавить</button>
 {% endcall %}
 
-<!-- ─── MODAL: Детали продукта из истории ─── -->
-{% call m.modal('modal-food-detail', 'Продукт', title_id='hfd-name') %}
-      <div class="por-sub por-sub-gap" id="hfd-sub"></div>
-      <div class="macros-row macros-row-modal">
-        <div class="macro-card"><div class="macro-label">Белки</div><div class="macro-val val-prot" id="hfd-prot">—</div></div>
-        <div class="macro-card"><div class="macro-label">Жиры</div><div class="macro-val val-fat" id="hfd-fat">—</div></div>
-        <div class="macro-card"><div class="macro-label">Углеводы</div><div class="macro-val val-carb" id="hfd-carb">—</div></div>
-      </div>
-{% endcall %}
+{# Окно «Детали продукта из истории» удалено 2026-08-17 вместе с задачей.
+   Оно умело только ПОКАЗАТЬ позицию — граммовку и КБЖУ, — а исправить
+   ничего не давало: внёс 200 г вместо 100, и сделать нельзя ничего.
+   Теперь позиция в истории открывает то же окно порции, что и в дневнике
+   (`editFoodItem`), где граммовка и приём пищи правятся, а рядом стоит
+   удаление. Показ без правки был отдельной сущностью, дублировавшей
+   половину окна порции, и держать его дальше значило иметь два разных
+   окна на одну и ту же строку дневника. #}
 
 <!-- ─── MODAL: Manual water ─── -->
 {% call m.modal('modal-water', 'Добавить воду', icon='droplet') %}
@@ -763,8 +819,18 @@ const S = {
   // считается «сегодня залит», расстояние в днях и подпись «вчера»),
   // а S.date — тот день, который человек сейчас видит и в который пойдёт
   // запись. Везде, где раньше стоял S.today на пути записи, теперь S.date;
-  // там, где нужен именно текущий день (контекст ассистента), S.today остался
+  // там, где нужен именно текущий день (контекст ассистента), S.today остался.
+  //
+  // ВКЛАДКА «ИСТОРИЯ» ЖИВЁТ НА ЭТОМ ЖЕ ПОЛЕ, а не на своём. Здесь стояло
+  // отдельное `histDate: new Date().toISOString().slice(0,10)` — то есть
+  // день ПО UTC, посчитанный браузером, третье мнение о дате на одной
+  // странице. Замер 2026-08-17, 00:34 по Москве: сайдбар и шапка говорили
+  // «Пн, 17 Авг.», вкладка истории тут же — «Вс, 16 Авг.». Одно поле
+  // означает, что выбранный день у дневника, истории и пути записи один
+  // и тот же по построению, а не потому, что их не забыли синхронизировать
   date: '{{ nut_today }}',
+  calMonth: '{{ nut_today }}'.slice(0, 7),  // месяц, открытый в календаре истории
+  calData: null,                            // ответ /history/month: дни, границы, сводка
   dayOffset: 0,      // сдвиг окна из семи кружков внутри диапазона
   dayCounts: {},     // дата → сколько записей еды (точки под кружками)
   dayRange: 7,       // приезжает с сервера, см. NUT_DAY_RANGE
@@ -781,7 +847,7 @@ const S = {
   editingFoodId: null,
   recipeIngs: [],
   selRecipe: null, recFrac: 0.5,
-  histDate: new Date().toISOString().slice(0,10),
+  addFrom: 'diary',  // с какой вкладки ушли добавлять — туда и вернёмся
   scannerInst: null,
   scanToken: 0,
   torchOn: false,
@@ -852,7 +918,9 @@ function goTab(tab) {
   // человек мог уйти на экран добавления с отмотанного дня
   if (tab === 'diary')   { updateDateNotes(); if (S.profile) loadDiary(S.date); }
   if (tab === 'search')  updateDateNotes();
-  if (tab === 'history') { loadHistory(S.histDate); loadWeekly(); }
+  // История показывает ТОТ ЖЕ выбранный день, что дневник, и берёт его
+  // из того же loadDiary. Отдельной загрузки дня здесь нет намеренно
+  if (tab === 'history') { if (S.profile) loadDiary(S.date); loadCalendar(); }
   if (tab === 'weight')  loadWeightData();
   if (tab === 'profile') { loadProfileForm(); loadScaleStatus(); loadBodyPhotos(); }
   if (tab === 'search' && !document.getElementById('s-input').value) loadSearchTab(S.searchTab);
@@ -905,6 +973,13 @@ function днейСловами(n) {
   if (a % 10 === 1 && a % 100 !== 11) return a + ' день';
   if ([2,3,4].includes(a % 10) && ![12,13,14].includes(a % 100)) return a + ' дня';
   return a + ' дней';
+}
+
+// Дательный падеж: «считаем ПО скольким дням». Отдельно от `днейСловами`,
+// потому что «Считаем по 12 дней» — не опечатка в числе, а неверная форма
+// слова, и подставить сюда родительный нельзя ни при каком n
+function днямСловами(n) {
+  return n + (n % 10 === 1 && n % 100 !== 11 ? ' дню' : ' дням');
 }
 
 function расстояниеСловами(дата) {
@@ -1070,6 +1145,10 @@ function selectDay(дата) {
   S.date = дата;
   S.expandedMeals = {};
   renderDayStrip();
+  // Подсветка выбранной клетки календаря — тем же вызовом, что и полоска
+  // дней: обе картинки показывают ОДИН выбранный день, и обновляться они
+  // обязаны вместе, иначе календарь будет держать подсветку на прежней дате
+  renderCalendar();
   updateDateNotes();
   loadDiary(S.date);
 }
@@ -1100,7 +1179,11 @@ async function loadDiary(date) {
   renderMacros(data.totals, data.goals);
   renderWater(data.water_ml, data.goals.water_ml);
   renderWaterLog(data.water_logs);
-  renderMeals(data.meals);
+  renderAllMeals();
+  // История рисуется из ЭТОГО ЖЕ ответа, а не своим запросом. Отдельный
+  // запрос был бы вторым источником тех же чисел: кольцо дневника и кольцо
+  // истории показывали бы один день, посчитанный дважды
+  renderHistDay(data);
   updateSidePanels(data);
 }
 
@@ -1221,8 +1304,18 @@ const MEALS = [
 // колонку на 372px выше соседней.
 const ПОЗИЦИЙ_ДО_СХЛОПЫВАНИЯ = 4;
 
-function renderMeals(meals) {
-  document.getElementById('meals-wrap').innerHTML = MEALS.map(m => {
+// ОДНА функция на два экрана — дневник и историю. Копия под историю уже
+// была и уже разошлась: там пустой приём НЕ рисовался вовсе, строки
+// добавления не было, а позиция открывала окно «только посмотреть».
+// То есть одна и та же строка дневника выглядела и вела себя по-разному
+// в зависимости от того, с какой вкладки на неё смотрят.
+//
+// Отличий у истории ровно два, и оба названы параметром: контейнер
+// и кнопка правки у позиции. Всё остальное обязано совпадать.
+function renderMeals(meals, куда = 'meals-wrap', опции = {}) {
+  const место = document.getElementById(куда);
+  if (!место) return;
+  место.innerHTML = MEALS.map(m => {
     const items = meals[m.id]||[];
     const total = items.reduce((s,i)=>s+i.calories,0);
     const раскрыт = !!S.expandedMeals[m.id];
@@ -1232,7 +1325,7 @@ function renderMeals(meals) {
     // читается как «на этот приём ничего и не планировалось», тогда как
     // пустая — как «сюда ещё не записано». Это разные вещи
     const тело = items.length
-      ? видимые.map(foodItemHTML).join('') +
+      ? видимые.map(i => foodItemHTML(i, опции)).join('') +
         (скрыто ? `<button class="meal-more" onclick="toggleMeal('${m.id}')">
              ${раскрыт ? 'Свернуть' : 'Ещё ' + позицийСловами(скрыто)}
            </button>` : '')
@@ -1258,19 +1351,37 @@ function позицийСловами(n) {
   return n + ' позиций';
 }
 
-function toggleMeal(id) {
-  S.expandedMeals[id] = !S.expandedMeals[id];
-  renderMeals(S.diary.meals);
+// Оба экрана перерисовываются вместе. Порознь они разъедутся ровно там,
+// где это незаметно: раскрыл «Ещё 3 позиции» в дневнике, перешёл в историю —
+// а там приём снова свёрнут, хотя S.expandedMeals один
+function renderAllMeals() {
+  if (!S.diary) return;
+  renderMeals(S.diary.meals, 'meals-wrap');
+  renderMeals(S.diary.meals, 'hist-meals', {правка: true});
 }
 
-function foodItemHTML(item) {
+function toggleMeal(id) {
+  S.expandedMeals[id] = !S.expandedMeals[id];
+  renderAllMeals();
+}
+
+// Кнопка правки — только в истории, и это не украшение. В дневнике человек
+// стоит на сегодняшнем дне и правит то, что записал минуту назад: нажатие
+// по строке там очевидно. В истории строка — запись двухмесячной давности,
+// и «а её вообще можно исправить» — вопрос, на который экран обязан
+// ответить видимым элементом, а не скрытым поведением.
+// Нажатие по самой строке работает одинаково на обоих экранах
+function foodItemHTML(item, опции = {}) {
   return `<div class="food-item" onclick="editFoodItem(${item.id})">
     <div class="food-info">
       <div class="food-name">${esc(item.name)}${item.brand?`<span class="food-brand"> · ${esc(item.brand)}</span>`:''}</div>
       <div class="food-sub">${item.grams}г · Б:${item.protein}г Ж:${item.fat}г У:${item.carbs}г</div>
     </div>
     <span class="food-kcal">${Math.round(item.calories)}</span>
-    <button class="food-del" onclick="event.stopPropagation();delFood(${item.id})">×</button>
+    ${опции.правка ? `<button class="food-edit" onclick="event.stopPropagation();editFoodItem(${item.id})"
+        aria-label="Изменить ${esc(item.name)}"><i data-lucide="pencil"></i></button>` : ''}
+    <button class="food-del" onclick="event.stopPropagation();delFood(${item.id})"
+            aria-label="Удалить ${esc(item.name)}">×</button>
   </div>`;
 }
 
@@ -1309,9 +1420,17 @@ function editFoodItem(id) {
   открыть_модалку('modal-portion');
 }
 
+// Отказ отличим от успеха: сервер отвечает 404, когда удалять нечего,
+// и возвращает дату удалённой записи. Прежний `{"ok": true}` на любой исход
+// означал, что интерфейс рисует «Удалено» и тогда, когда в базе всё осталось
+// на месте, — тот же немой отказ, что уже чинили у воды (§5.0.5)
 async function delFood(id) {
-  await api(`/nutrition/api/log-food/${id}`,{method:'DELETE'});
-  loadDiary(S.date); loadDayCounts(); toast('Удалено',true);
+  const r = await api(`/nutrition/api/log-food/${id}`,{method:'DELETE'});
+  if (!r || r.error) { toast(r?.error || 'Не удалось удалить', false); return; }
+  loadDiary(S.date);
+  loadDayCounts();
+  обновитьМесяц(r.date);
+  toast('Удалено',true);
 }
 
 // ── Water ─────────────────────────────────────────────────────────────────────
@@ -1370,7 +1489,12 @@ const АДРЕС_ОБЛАСТИ = {
   recipes:  '/nutrition/api/recipes',
 };
 
+// Откуда ушли добавлять — туда и вернёмся после записи. Возврат всегда
+// в дневник означал бы, что человек, добавлявший еду в день двухмесячной
+// давности из истории, после записи оказывается на другом экране и заново
+// ищет, куда он смотрел
 function openSearchFor(mealId) {
+  S.addFrom = S.activeTab === 'history' ? 'history' : 'diary';
   S.addingIng = false;
   выделитьПриём(mealId);
   закрытьПанель();
@@ -2010,13 +2134,17 @@ async function confirmAdd(изПанели = false) {
     return;
   }
   if (S.editingFoodId) {
-    await api(`/nutrition/api/log-food/${S.editingFoodId}`,{method:'PUT',body:JSON.stringify({
+    const r = await api(`/nutrition/api/log-food/${S.editingFoodId}`,{method:'PUT',body:JSON.stringify({
       grams:g, calories:f.calories,protein:f.protein,fat:f.fat,carbs:f.carbs,
       meal_type:S.porMeal,
     })});
+    if (!r || r.error) { toast(r?.error || 'Не удалось сохранить', false); return; }
     S.editingFoodId = null;
     закрыть();
     loadDiary(S.date);
+    // Правка меняет итог дня — значит, и полоску его клетки, и среднее
+    // за месяц. День берётся ИЗ ОТВЕТА: правят и из дневника, и из истории
+    обновитьМесяц(r.date);
     toast('Сохранено!',true);
     return;
   }
@@ -2038,10 +2166,12 @@ async function confirmAdd(изПанели = false) {
   закрыть();
   loadDiary(S.date);
   loadDayCounts();
+  обновитьМесяц(S.date);
   toast('Добавлено!',true);
-  goTab('diary');
+  const назад = S.addFrom === 'history' ? 'history' : 'diary';
+  goTab(назад);
   document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelector('[data-tab="diary"]').classList.add('active');
+  document.querySelector(`[data-tab="${назад}"]`).classList.add('active');
 }
 
 // ── Scanner ───────────────────────────────────────────────────────────────────
@@ -2933,75 +3063,190 @@ function подписатьКромкуЛенты(лента) {
   лента.addEventListener('scroll', () => обновитьКромкуЛенты(лента), { passive: true });
 }
 
-// ── History ───────────────────────────────────────────────────────────────────
-function histShift(d) {
-  const dt=new Date(S.histDate); dt.setDate(dt.getDate()+d);
-  if (dt>new Date()) return;
-  histGoto(dt.toISOString().slice(0,10));
-}
+// ── История ───────────────────────────────────────────────────────────────────
+// ОДИН ВЫБРАННЫЙ ДЕНЬ НА ВЕСЬ ИНСТРУМЕНТ. Своей даты у истории больше нет:
+// она показывает S.date — тот же день, что дневник, что подпись «запись
+// пойдёт в…», что POST в /log-food. Второе поле здесь означало бы, что
+// человек правит один день, а видит другой, и признака этого не было бы
+// никакого: оба экрана рисуют одинаково правдоподобно.
+//
+// Отсюда же следует, что «Добавить» из истории не требует отдельного пути:
+// открывается тот же экран, с той же подписью даты, и пишет в тот же S.date.
 
-function histGoto(date) {
-  if (new Date(date)>new Date()) return;
-  S.histDate=date; loadHistory(date);
-  document.querySelectorAll('#week-bars .w-col').forEach(el=>{
-    el.classList.toggle('active', el.dataset.date===date);
+const МЕС_ИМ = ['Январь','Февраль','Март','Апрель','Май','Июнь',
+                'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const МЕС_РОД = ['января','февраля','марта','апреля','мая','июня',
+                 'июля','августа','сентября','октября','ноября','декабря'];
+
+// Сводка выбранного дня: кольцо и три макроса. Числа — из того же ответа
+// /nutrition/api/diary, что питает дневник, поэтому разойтись с ним нечему
+function renderHistDay(data) {
+  const цель = data.goals || {}, итог = data.totals || {};
+  document.getElementById('hist-kcal').textContent = Math.round(итог.calories || 0);
+  const r = 45, circ = 2 * Math.PI * r;
+  const ring = document.getElementById('hist-ring');
+  ring.style.strokeDasharray = circ;
+  ring.style.strokeDashoffset = circ * (1 - Math.min((итог.calories || 0) / (цель.calories || 1), 1));
+
+  const доля = Math.round((итог.calories || 0) / (цель.calories || 1) * 100);
+  const хвост = будущийДень(S.date)
+    ? `запланировано ${доля}% от нормы ${цель.calories || 0}`
+    : `${доля}% от нормы ${цель.calories || 0}`;
+  document.getElementById('h-date-lbl').textContent = сЗаглавной(подписьДаты(S.date)) + ' · ' + хвост;
+
+  [['prot','protein'], ['fat','fat'], ['carb','carbs']].forEach(([id, ключ]) => {
+    const v = итог[ключ] || 0, g = цель[ключ] || 0;
+    document.getElementById('hm-' + id).textContent = `${Math.round(v)} / ${g} г`;
+    document.getElementById('hb-' + id).style.width = Math.min(v / (g || 1) * 100, 100).toFixed(0) + '%';
   });
 }
 
-async function loadHistory(date) {
-  const data=await api(`/nutrition/api/diary?date=${date}`);
-  const lbl=date===S.today?'Сегодня':new Date(date).toLocaleDateString('ru',{day:'numeric',month:'short',weekday:'short'});
-  document.getElementById('h-date-lbl').textContent=lbl;
-  document.getElementById('hist-kcal').textContent=Math.round(data.totals.calories);
-  document.getElementById('h-arrow-next').disabled = date>=S.today;
-  const r=45, circ=2*Math.PI*r;
-  const ring=document.getElementById('hist-ring');
-  ring.style.strokeDasharray=circ;
-  ring.style.strokeDashoffset=circ*(1-Math.min(data.totals.calories/(data.goals.calories||1),1));
-  S.histMeals=data.meals;
-  const wrap=document.getElementById('hist-meals');
-  wrap.innerHTML=MEALS.map(m=>{
-    const items=data.meals[m.id]||[];
-    const total=items.reduce((s,i)=>s+i.calories,0);
-    if (!items.length) return '';
-    return `<div class="meal-card meal-card-tight">
-      <div class="meal-hdr meal-hdr-static">
-        <span class="meal-icon"><i data-lucide="${m.icon}"></i></span>
-        <span class="meal-name">${m.name}</span>
-        <span class="meal-kcal">${Math.round(total)} ккал</span>
-      </div>
-      <div class="meal-items">${items.map(i=>`<div class="food-item" onclick="showHistFood('${m.id}',${i.id})">
-        <div class="food-info"><div class="food-name">${esc(i.name)}</div><div class="food-sub">${i.grams}г</div></div>
-        <span class="food-kcal">${Math.round(i.calories)}</span>
-      </div>`).join('')}</div>
-    </div>`;
-  }).join('');
+// ── Календарь месяца ──────────────────────────────────────────────────────────
+// ЧТО ОН ЗАМЕНИЛ. Блок «7 дней» показывал текущую неделю всегда: отмотав
+// на 22 июня, человек продолжал видеть август. Замер до правки: выбран
+// 7 августа, блок показывает 11–17 августа, подсвеченных колонок ноль.
+//
+// РАСКРАСКИ «ХОРОШО / ПЛОХО» ЗДЕСЬ НЕТ НАМЕРЕННО. Полоска говорит долю
+// от нормы, вывод делает человек. Трекер, ставящий оценку каждому дню,
+// перестают открывать через неделю.
+async function loadCalendar() {
+  const d = await api(`/nutrition/api/history/month?month=${S.calMonth}`);
+  if (!d || d.error) { toast(d?.error || 'Не удалось загрузить месяц', false); return; }
+  S.calData = d;
+  renderCalendar();
+  renderMonthSummary();
 }
 
-function showHistFood(mealId, id) {
-  const item=(S.histMeals?.[mealId]||[]).find(i=>i.id===id);
-  if (!item) return;
-  document.getElementById('hfd-name').textContent=item.name+(item.brand?` · ${item.brand}`:'');
-  document.getElementById('hfd-sub').textContent=`${item.grams} г · ${Math.round(item.calories)} ккал`;
-  document.getElementById('hfd-prot').textContent=item.protein.toFixed(1)+' г';
-  document.getElementById('hfd-fat').textContent=item.fat.toFixed(1)+' г';
-  document.getElementById('hfd-carb').textContent=item.carbs.toFixed(1)+' г';
-  открыть_модалку('modal-food-detail');
+function calShift(шаг) {
+  const [г, м] = S.calMonth.split('-').map(Number);
+  const н = new Date(Date.UTC(г, м - 1 + шаг, 1));
+  S.calMonth = н.toISOString().slice(0, 7);
+  loadCalendar();
 }
 
-async function loadWeekly() {
-  const data=await api('/nutrition/api/weekly');
-  const bars=document.getElementById('week-bars'); if (!bars||!data.days) return;
-  const maxC=Math.max(...data.days.map(d=>d.calories),1);
-  bars.innerHTML=data.days.map(d=>{
-    const h=Math.round(d.calories/maxC*100);
-    const day=new Date(d.date).toLocaleDateString('ru',{weekday:'short'});
-    return `<div class="w-col${d.date===S.histDate?' active':''}" data-date="${d.date}" onclick="histGoto('${d.date}')">
-      <div class="w-kcal">${d.calories>0?Math.round(d.calories):''}</div>
-      <div class="w-bar-wrap"><div class="w-bar${d.date===S.today?' today':''}" style="height:${h}%"></div></div>
-      <div class="w-day">${day}${d.trained?' <span class="w-trained" title="Была тренировка"><i data-lucide="dumbbell"></i></span>':''}</div>
-    </div>`;
-  }).join('');
+function calPick() {
+  S.calMonth = document.getElementById('cal-year').value + '-' +
+               document.getElementById('cal-month').value;
+  loadCalendar();
+}
+
+// Границы листания. Вперёд — до месяца последнего дня с записями, включая
+// запланированные будущие; назад — до месяца первой записи. Оба предела
+// приходят с сервера: считать их на клиенте значило бы спрашивать «а есть
+// ли записи раньше» у данных, которых на клиенте нет
+function calГраницы() {
+  return [S.calData.first_day.slice(0, 7), S.calData.last_day.slice(0, 7)];
+}
+
+function renderCalendar() {
+  if (!S.calData) return;
+  const [г, м] = S.calMonth.split('-').map(Number);
+  const [низ, верх] = calГраницы();
+  document.getElementById('cal-prev').disabled = S.calMonth <= низ;
+  document.getElementById('cal-next').disabled = S.calMonth >= верх;
+  заполнитьВыборМесяца(г, м, низ, верх);
+
+  const первый = new Date(Date.UTC(г, м - 1, 1));
+  // Неделя начинается с понедельника: getUTCDay() даёт 0 для воскресенья,
+  // поэтому сдвигаем. Без сдвига первое число вставало бы не под свой день
+  const отступ = (первый.getUTCDay() + 6) % 7;
+  const всего = new Date(Date.UTC(г, м, 0)).getUTCDate();
+  const цель = S.calData.goal || 1;
+
+  let html = '';
+  for (let i = 0; i < отступ; i++) html += '<span class="cal-c is-pad"></span>';
+  for (let д = 1; д <= всего; д++) {
+    const дата = `${г}-${String(м).padStart(2,'0')}-${String(д).padStart(2,'0')}`;
+    const запись = S.calData.days[дата];
+    const будущий = будущийДень(дата);
+    // Дальше окна планирования сервер записи не примет и день не отдаст —
+    // клетка выключается ЗДЕСЬ, а не отказом после нажатия. Иначе нажатие
+    // на 30-е число молча ничего бы не делало
+    const вне = расстояниеДней(дата) > S.dayRange;
+    const классы = ['cal-c',
+      дата === S.today && 'is-today',
+      дата === S.date && 'is-sel',
+      будущий && 'is-fut',
+      вне && 'is-off'].filter(Boolean).join(' ');
+    const доля = запись ? Math.min(запись.calories / цель * 100, 100).toFixed(0) : 0;
+    const полоска = запись
+      ? `<span class="cal-bar"><i class="cal-bar-f${будущий ? ' is-plan' : ''}" style="width:${доля}%"></i></span>`
+      : '<span class="cal-bar"></span>';
+    const титул = запись
+      ? `${полнаяДата(дата)} — ${запись.calories} ккал${будущий ? ' (запланировано)' : ''}`
+      : `${полнаяДата(дата)} — записей нет`;
+    html += `<button class="${классы}" onclick="histSelect('${дата}')" ${вне ? 'disabled' : ''}
+                     aria-pressed="${дата === S.date}" title="${титул}" aria-label="${титул}">
+      <span class="cal-n">${д}</span>${полоска}</button>`;
+  }
+  document.getElementById('cal-grid').innerHTML = html;
+}
+
+// Списки месяца и года держат ровно те значения, которые доступны: месяц
+// вне границ в списке не показывается вовсе. Показать и отвергнуть после
+// выбора — это отказ вместо запрета, а он выглядит поломкой
+function заполнитьВыборМесяца(г, м, низ, верх) {
+  const годСел = document.getElementById('cal-year');
+  const месСел = document.getElementById('cal-month');
+  const [гн, мн] = низ.split('-').map(Number);
+  const [гв, мв] = верх.split('-').map(Number);
+  let гHTML = '';
+  for (let y = гн; y <= гв; y++) гHTML += `<option value="${y}"${y === г ? ' selected' : ''}>${y}</option>`;
+  годСел.innerHTML = гHTML;
+  let мHTML = '';
+  for (let i = 1; i <= 12; i++) {
+    if (г === гн && i < мн) continue;
+    if (г === гв && i > мв) continue;
+    мHTML += `<option value="${String(i).padStart(2,'0')}"${i === м ? ' selected' : ''}>${МЕС_ИМ[i-1]}</option>`;
+  }
+  месСел.innerHTML = мHTML;
+}
+
+// Выбор дня из календаря. Месяц клетки всегда совпадает с открытым, поэтому
+// перезагружать его не надо — достаточно перерисовать подсветку, что
+// и делает selectDay
+function histSelect(дата) { selectDay(дата); }
+
+// ── Сводка за месяц ───────────────────────────────────────────────────────────
+// СЧИТАЕТ СЕРВЕР, а здесь только показ. Считать среднее в браузере значило
+// бы иметь два ответа на один вопрос — клетка календаря и строка сводки, —
+// и понять, какой из них настоящий, было бы нечем.
+//
+// БЛОК ОБЯЗАН СКАЗАТЬ, ПО СКОЛЬКИМ ДНЯМ ПОСЧИТАН. «В среднем 2600» без
+// этого звучит как факт о месяце, тогда как это факт о тринадцати днях.
+function renderMonthSummary() {
+  if (!S.calData) return;
+  const с = S.calData.summary;
+  const [г, м] = S.calMonth.split('-').map(Number);
+  document.getElementById('mo-title').textContent = `${МЕС_ИМ[м-1]} ${г}`;
+
+  const основа = document.getElementById('mo-basis');
+  const строки = document.getElementById('mo-rows');
+  if (!с.days) {
+    // Ноль записанных дней — это НЕ «в среднем 0 ккал». Показать нули
+    // значило бы соврать числом там, где данных нет вовсе
+    основа.textContent = с.elapsed
+      ? `Записей за этот месяц нет — ни одного дня из ${днейСловами(с.elapsed)}`
+      : 'Месяц ещё не начался';
+    строки.innerHTML = '';
+    return;
+  }
+  основа.textContent = `Считаем по ${днямСловами(с.days)}` +
+    (с.planned ? ` · ${днейСловами(с.planned)} запланировано, в среднее не входят` : '');
+  строки.innerHTML = [
+    ['Записано дней', `${с.days} из ${с.elapsed}`],
+    ['Среднее',       `${с.calories} ккал`],
+    ['Белок',         `${с.protein} г`],
+    ['Жиры',          `${с.fat} г`],
+    ['Углеводы',      `${с.carbs} г`],
+  ].map(([л, з]) => `<div class="mo-row"><span class="mo-lbl">${л}</span><span class="mo-val">${з}</span></div>`).join('');
+}
+
+// Календарь перечитывается, когда изменился день ИЗ ОТКРЫТОГО МЕСЯЦА:
+// правка граммовки меняет полоску клетки и среднее за месяц, а удаление
+// последней позиции дня — ещё и наличие полоски вовсе
+function обновитьМесяц(дата) {
+  if (дата && дата.slice(0, 7) === S.calMonth) loadCalendar();
 }
 
 // ── Weight ────────────────────────────────────────────────────────────────────
@@ -3271,7 +3516,13 @@ async function uploadBodyPhotos() {
   const angles = Object.keys(bodyPhotoFiles);
   const msg = document.getElementById('body-photo-msg');
   if (!angles.length) { msg.textContent = 'Выберите хотя бы одно фото'; msg.style.color = '#f87171'; return; }
-  const today = new Date().toISOString().slice(0, 10);
+  // ДЕНЬ БЕРЁТСЯ У СЕРВЕРА, а не у браузера. Здесь стояло
+  // `new Date().toISOString().slice(0,10)` — календарный день ПО UTC, —
+  // и это было второе место на странице, где дата считалась мимо пояса
+  // пользователя (первым была вкладка «История»). Следствие такое же
+  // немое: фото, снятое в час ночи по Москве, ложилось во вчерашнюю дату,
+  // и в сравнении «до/после» подписи разъезжались с дневником на сутки
+  const today = S.today;
   for (const angle of angles) {
     const fd = new FormData();
     fd.append('file', bodyPhotoFiles[angle]);
