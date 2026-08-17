@@ -169,6 +169,14 @@
       <span>Письмо уже отправлено — проверьте почту. Повторить можно через
       <strong id="cooldown-left">{{ cooldown }}</strong> с.</span>
     </div>
+    {% elif notice == 'limit' %}
+    {# Суточный запас писем на адрес. Отдельно от 'failed': это не сбой,
+       и «попробуйте через несколько минут» было бы неправдой #}
+    <div class="alert alert-warn v-block">
+      <span>За сутки на этот адрес ушло уже столько писем, сколько мы шлём
+      максимум. Ссылка из последнего письма действует 24 часа — найдите его
+      в почте, в том числе в папке «Спам».</span>
+    </div>
     {% endif %}
 
     <p class="v-note v-mb-16">
@@ -177,7 +185,7 @@
 
     <form method="post" action="/verify-pending/resend" class="v-mb-20">
       <button type="submit" class="btn-secondary" id="resend-btn"
-              {% if cooldown %}disabled{% endif %}>Отправить письмо ещё раз</button>
+              {% if cooldown or notice == 'limit' %}disabled{% endif %}>Отправить письмо ещё раз</button>
       {# Кнопка выключена по кулдауну — объясняем, почему и до каких пор.
          В ветке too_soon счётчик уже показан в рыжей плашке, второй раз не нужен #}
       {% if cooldown and notice != 'too_soon' %}

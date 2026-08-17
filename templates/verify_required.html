@@ -99,6 +99,15 @@
       <span>Проверьте почту <strong>{{ user.email }}</strong> и папку «Спам».
       Отправить ещё раз можно через <strong id="cooldown-left">{{ cooldown }}</strong> с.</span>
     </div>
+    {% elif notice == 'limit' %}
+    {# Суточный запас писем на адрес. Отдельно от 'failed': это не сбой,
+       и «попробуйте через несколько минут» было бы неправдой #}
+    <h1 class="v-mb-8">Писем на сегодня достаточно</h1>
+    <div class="alert alert-warn v-block">
+      <span>За сутки на <strong>{{ user.email }}</strong> ушло уже столько писем,
+      сколько мы шлём максимум. Ссылка из последнего действует 24 часа — найдите
+      его в почте, в том числе в папке «Спам».</span>
+    </div>
     {% else %}
     <h1 class="v-mb-8">Подтвердите email</h1>
     <p class="v-lead v-mb-4">
@@ -113,7 +122,7 @@
     <form method="post" action="/resend-verification">
       <input type="hidden" name="tool_name" value="{{ tool_name }}">
       <button type="submit" class="verify-resend-btn" id="resend-btn"
-              {% if cooldown %}disabled{% endif %}>Отправить письмо ещё раз</button>
+              {% if cooldown or notice == 'limit' %}disabled{% endif %}>Отправить письмо ещё раз</button>
       {% if cooldown and notice != 'too_soon' %}
       <div id="cooldown-hint" class="v-note v-mt-8">
         Повторить можно через <strong id="cooldown-left">{{ cooldown }}</strong> с.

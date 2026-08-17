@@ -1,5 +1,6 @@
 import asyncio
 import calendar
+import hashlib
 import html as html_lib
 import io
 import json as _json
@@ -33,7 +34,7 @@ from database import (get_db, init_db, migrate_db, DB_PATH, SessionLocal, User, 
                       WorkoutProgram, WorkoutProgramDay, WorkoutProgramExercise,
                       WorkoutSession, SetLog, ProgressionSetting, WorkoutExerciseSwap,
                       ScaleConnection, BodyPhoto, PainZonePatch, EmailLog,
-                      FoodTranslation,
+                      FoodTranslation, LoginAttempt,
                       delete_user_cascade)
 from auth import (hash_password, verify_password, create_token, get_current_user,
                   generate_token, decode_token_user_id, _pwd_stamp)
@@ -281,6 +282,14 @@ RESEND_API_KEY      = os.getenv("RESEND_API_KEY", "")
 BASE_URL            = os.getenv("BASE_URL", "https://energydess.ru")
 TURNSTILE_SITE_KEY   = os.getenv("TURNSTILE_SITE_KEY", "")    # TODO: выдать ключи через dash.cloudflare.com → Turnstile → Add Site
 TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
+# Адрес проверки — переменной, а не строкой на месте вызова. Ветка «Cloudflare
+# не ответил» иначе не проверяется вовсе: подменить адрес на неотвечающий —
+# единственный способ воспроизвести её, не дожидаясь настоящей аварии.
+# Проверка, которую нечем прогнать, на практике означает «проверено
+# рассуждением», то есть не проверено (CLAUDE.md §6.0.1)
+TURNSTILE_VERIFY_URL = os.getenv(
+    "TURNSTILE_VERIFY_URL",
+    "https://challenges.cloudflare.com/turnstile/v0/siteverify")
 
 
 def _model_output(payload: dict, метка: str, лимит: int) -> tuple[str, str | None]:
@@ -549,55 +558,111 @@ async def _verify_turnstile(token: str, remote_ip: str = None) -> bool:
             data = {"secret": TURNSTILE_SECRET_KEY, "response": token}
             if remote_ip:
                 data["remoteip"] = remote_ip
-            r = await client.post("https://challenges.cloudflare.com/turnstile/v0/siteverify", data=data)
+            r = await client.post(TURNSTILE_VERIFY_URL, data=data)
             return bool(r.json().get("success"))
     except Exception:
         return False  # ошибка проверки — блокируем, а не пропускаем молча
 
 
-async def _turnstile_check(token: str, remote_ip: str = None) -> tuple[bool, bool]:
+async def _turnstile_check(token: str, remote_ip: str = None) -> tuple[bool, bool, str]:
     """Как _verify_turnstile, но различает «проверку не прошли» и «проверить не смогли».
 
-    Возвращает (прошла, доступен_ли_cloudflare). На форме входа это различие
-    принципиально: явное «нет» от Cloudflare — повод отказать, а собственная
-    неспособность достучаться до siteverify — нет, иначе падение стороннего
-    сервиса закрывает вход владельцу.
+    Возвращает (прошла, доступен_ли_cloudflare, причина). На форме входа это
+    различие принципиально и реализовано ДВУМЯ разными ветками (задача 22):
+
+      · Cloudflare сказал «нет» — отказываем. Это ответ, и он однозначен;
+      · Cloudflare не ответил — пропускаем. Это НАША проблема, а не
+        пользователя: падение стороннего сервиса не должно закрывать вход
+        владельцу собственной админки.
+
+    Третьим значением идёт причина недоступности — она уезжает в лог. Без
+    неё «Cloudflare недоступен» неотличимо от «Cloudflare вернул 403,
+    потому что мы протухли ключом», и fail-open по недоступности тихо
+    выродится в fail-open по всему.
     """
     if not TURNSTILE_SECRET_KEY:
-        return True, True
+        return True, True, "ключ не задан"
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             data = {"secret": TURNSTILE_SECRET_KEY, "response": token}
             if remote_ip:
                 data["remoteip"] = remote_ip
-            r = await client.post("https://challenges.cloudflare.com/turnstile/v0/siteverify", data=data)
+            r = await client.post(TURNSTILE_VERIFY_URL, data=data)
         if r.status_code != 200:
-            return False, False          # siteverify отвечает ошибкой — проверить не смогли
-        return bool(r.json().get("success")), True
-    except (httpx.HTTPError, ValueError):
-        return False, False              # сеть или неразобранный ответ — тоже «не смогли»
+            return False, False, f"siteverify ответил HTTP {r.status_code}"
+        return bool(r.json().get("success")), True, ""
+    except httpx.HTTPError as e:
+        return False, False, f"{type(e).__name__}: {str(e)[:120]}"
+    except ValueError as e:
+        return False, False, f"ответ не разобрался: {type(e).__name__}: {str(e)[:120]}"
 
 
 # ── Защита формы входа от перебора ────────────────────────────────────────────
-# Аккаунт НЕ блокируется никогда: email владельца засвечен в откликах, и любой,
-# кто его знает, мог бы держать админский вход заблокированным навсегда, просто
-# вводя неверный пароль. Ограничиваем по IP — это режет объём перебора, но не
-# даёт запереть конкретного человека.
+# ПОЛНОЙ БЛОКИРОВКИ АККАУНТА НЕТ НИ В КАКОМ ВИДЕ, даже временной. Любой, кто
+# знает чужой адрес, держал бы этим чужой вход запертым — это не защита, это
+# оружие против пользователя. Адрес знают как минимум он сам и его почтовый
+# провайдер, так что «знает адрес» — не редкость.
+#
+# Ключа два, и последствия у них РАЗНЫЕ (BACKLOG.md, задача 22):
+#
+#   по адресу подключения — задержка ответа и потолок числа попыток;
+#   по введённому адресу почты — задержка ответа и письмо владельцу.
+#
+# Считать только по адресу подключения нельзя: за одним адресом сидит целый
+# NAT мобильного оператора, и порог рубит всех, кто за ним. Считать только
+# по аккаунту нельзя тем более — см. первый абзац.
 
 LOGIN_WINDOW_SEC     = 15 * 60   # скользящее окно учёта неудач
 LOGIN_CAPTCHA_AFTER  = 3         # с этой неудачи требуем Turnstile
-LOGIN_BLOCK_AFTER    = 15        # с этой неудачи отказываем совсем
-LOGIN_BLOCK_SEC      = 15 * 60   # на сколько отказываем
+LOGIN_BLOCK_AFTER    = 30        # с этой неудачи ПО АДРЕСУ ПОДКЛЮЧЕНИЯ отказываем
 RATELIMIT_OFF_FILE   = "/data/ratelimit_off"   # аварийный выход, см. BACKLOG №1
 
-# IP -> список меток времени неудачных попыток. В памяти процесса: машина одна,
-# общее состояние не нужно, а писать в БД на каждую попытку входа незачем.
-# Обнуление при рестарте для защиты от перебора допустимо.
-_login_fails: Dict[str, List[float]] = {}
-# IP, для которых уже сообщили о неотработавшей капче. Без этого строка пишется
-# на каждую попытку и превращает лог в шум — а нужен сам факт, что виджет
-# не доходит до пользователя
-_captcha_noop_seen: set = set()
+# ПОЧЕМУ ПОТОЛОК ЧИСЛА ПОПЫТОК ОСТАЛСЯ, хотя «по IP — только задержка».
+# Замер 2026-08-18 на живом приложении: 30 запросов, отправленных
+# ОДНОВРЕМЕННО с одного адреса при задержке, разогнанной до потолка 4 с,
+# заняли 6.70 с — при том, что последовательно те же запросы заняли бы
+# 146.5 с. Задержка сделана через `await asyncio.sleep`, и параллельные
+# запросы ждут её параллельно: пропускную способность перебора она
+# не ограничивает вовсе. Ограничивает её только счёт попыток.
+#
+# Порог поднят с 15 до 30 ровно потому, что рядом появился второй ключ:
+# перебор конкретного аккаунта теперь тормозится сам по себе, и потолку
+# по адресу можно быть менее резким к тем, кто сидит за общим NAT. Окно
+# скользящее — адрес освобождается сам, «разблокировать» его не нужно.
+
+# Письмо владельцу: сколько неудач по ОДНОМУ аккаунту и как часто писать.
+# Десять — заведомо больше, чем опечатки живого человека (замер по своим
+# заходам: три-четыре подряд при смене раскладки), и заведомо меньше, чем
+# перебор. Шесть часов — чтобы за сутки пришло не больше четырёх писем:
+# письмо должно приходить не чаще, чем человек успевает на него
+# отреагировать, иначе оно превращается в шум, который перестают читать.
+NOTICE_AFTER         = 10
+NOTICE_COOLDOWN_SEC  = 6 * 3600
+
+# Запросы сброса пароля с одного адреса подключения
+FORGOT_WINDOW_SEC = 15 * 60
+FORGOT_MAX_PER_IP = 5
+
+# Письма на ОДИН адрес назначения, независимо от того, каким эндпоинтом их
+# вызвали и есть ли кука. Восемь за сутки: живому человеку, у которого всё
+# идёт плохо, нужно письмо подтверждения, два повтора, сброс пароля и ещё
+# один повтор — это пять. Восемь оставляют запас; всё, что выше, — рассылка
+# в чужой ящик нашими руками.
+MAIL_WINDOW_SEC   = 24 * 3600
+MAIL_MAX_PER_ADDR = 8
+
+# Сколько держим строки журнала. Считается из окон, а не вписывается числом:
+# заведи кто-нибудь окно длиннее срока хранения — и счёт молча начал бы
+# терять попытки, которые обязан считать. Отказ был бы немой: лимит просто
+# перестал бы срабатывать.
+#
+# СРОК НАЗВАН ЕЩЁ В ОДНОМ МЕСТЕ — в политике конфиденциальности
+# (STATIC_PAGES["privacy"], таблица «Сколько мы храним данные», строка
+# «Журнал попыток входа»: сутки). Меняете окна так, что максимум перестаёт
+# быть сутками, — правьте политику тем же коммитом, иначе она молча
+# становится неправдой. Та же ловушка, что с retention снимков тома (§10).
+ПОПЫТКИ_ХРАНИТЬ_SEC = max(LOGIN_WINDOW_SEC, FORGOT_WINDOW_SEC,
+                          MAIL_WINDOW_SEC, NOTICE_COOLDOWN_SEC)
 
 
 def _ratelimit_disabled(ip: str = None, где: str = "") -> bool:
@@ -636,26 +701,9 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-# Запросы сброса пароля по IP. Отдельный счётчик от _login_fails: там
-# считаются НЕудачные попытки входа, здесь — сам факт запроса, удачного или
-# нет. Механика окна и ключа общая (см. _rate_key: для IPv6 префикс /64)
-FORGOT_WINDOW_SEC = 15 * 60
-FORGOT_MAX_PER_IP = 5
 # Минимальная длительность ответа: выравнивает тайминг между «адрес найден»
 # и «не найден», иначе разница во времени сама выдаёт, есть ли аккаунт
 FORGOT_MIN_RESPONSE_SEC = 0.7
-_forgot_requests: Dict[str, List[float]] = {}
-
-
-def _forgot_count(ключ: str) -> int:
-    """Сколько запросов сброса с этого адреса внутри окна. Чистит протухшее."""
-    порог = time.time() - FORGOT_WINDOW_SEC
-    метки = [t for t in _forgot_requests.get(ключ, []) if t > порог]
-    if метки:
-        _forgot_requests[ключ] = метки
-    else:
-        _forgot_requests.pop(ключ, None)
-    return len(метки)
 
 
 def _rate_key(ip: str) -> str:
@@ -679,34 +727,114 @@ def _rate_key(ip: str) -> str:
     return str(адрес)
 
 
-def _login_fail_count(ip: str) -> int:
-    """Сколько неудач с этого IP внутри окна. Заодно чистит протухшее."""
-    порог = time.time() - LOGIN_WINDOW_SEC
-    метки = [t for t in _login_fails.get(ip, []) if t > порог]
-    if метки:
-        _login_fails[ip] = метки
-    else:
-        _login_fails.pop(ip, None)
-    return len(метки)
+def _ключ_ip(ip: str) -> str:
+    """Ключ журнала по адресу подключения."""
+    return f"ip:{_rate_key(ip)}"
 
 
-def _login_purge_stale() -> None:
-    """Чистка словаря от IP, у которых все метки протухли: процесс живёт долго,
-    и без этого словарь растёт до бесконечности."""
-    порог = time.time() - LOGIN_WINDOW_SEC
-    for ip in [k for k, v in _login_fails.items() if not any(t > порог for t in v)]:
-        _login_fails.pop(ip, None)
-        _captcha_noop_seen.discard(ip)
+def _хеш_адреса(соль: str, адрес: str) -> str:
+    """Ключ журнала по адресу почты.
+
+    Хеш, а не сам адрес, и врать про причину не будем: адрес-кандидат
+    проверяется по такому хешу за микросекунду, необратимости здесь нет.
+    Смысл в другом — в журнал попадают ЧУЖИЕ ящики (опечатки, перебор
+    по адресам, которых у нас вовсе нет), и накапливать их читаемым
+    списком незачем. Соль разная у видов, чтобы по совпадению строк
+    нельзя было связать «на этот адрес слали письма» и «этим адресом
+    пробовали войти».
+    """
+    return hashlib.sha256(f"{соль}\x00{адрес.strip().lower()}".encode("utf-8")).hexdigest()[:32]
+
+
+def _ключ_аккаунта(email: str) -> str:
+    return f"acct:{_хеш_адреса('acct', email)}"
+
+
+def _ключ_почты(email: str) -> str:
+    return f"mail:{_хеш_адреса('mail', email)}"
+
+
+def _попытки_убрать_старое(db) -> None:
+    """Чистка журнала. ЛЕНИВАЯ — при каждой записи, не по расписанию.
+
+    Почему так, а не задачей в cron. Задача по расписанию — это ещё одна
+    внешняя штука, которую можно не завести, забыть включить или сломать
+    молча; ровно на такой подпорке держался прежний счётчик, и она
+    отвалилась. Чистка при записи не может отстать от записи по построению:
+    нет записей — нечего и убирать, а строки старше окна не влияют ни
+    на один счёт.
+
+    Запись идёт только на НЕудачном входе и на отправке письма — то есть
+    на редком пути. Индекс по created_at есть.
+    """
+    порог = datetime.utcnow() - timedelta(seconds=ПОПЫТКИ_ХРАНИТЬ_SEC)
+    db.query(LoginAttempt).filter(LoginAttempt.created_at < порог).delete(
+        synchronize_session=False)
+
+
+def _записать_попытку(db, ключ: str, вид: str, исход: str) -> None:
+    """Одна строка журнала плюс уборка старого. Коммитит сама."""
+    db.add(LoginAttempt(ключ=ключ, вид=вид, исход=исход, created_at=datetime.utcnow()))
+    _попытки_убрать_старое(db)
+    db.commit()
+
+
+def _попыток(db, ключ: str, вид: str, окно: int, исход: str = "fail") -> int:
+    """Сколько событий по этому ключу внутри окна."""
+    порог = datetime.utcnow() - timedelta(seconds=окно)
+    return (db.query(LoginAttempt)
+            .filter(LoginAttempt.ключ == ключ, LoginAttempt.вид == вид,
+                    LoginAttempt.исход == исход, LoginAttempt.created_at > порог)
+            .count())
+
+
+def _сбросить_попытки(db, *ключи: str) -> None:
+    """Удачный вход обнуляет счёт и адреса, и аккаунта: владелец доказал,
+    что он владелец. Без этого человек, вошедший с четвёртой попытки,
+    таскал бы за собой задержку ещё пятнадцать минут."""
+    db.query(LoginAttempt).filter(LoginAttempt.ключ.in_(ключи),
+                                  LoginAttempt.вид == "login").delete(
+        synchronize_session=False)
+
+
+async def _пауза(db, секунды: float) -> None:
+    """Задержка ответа С ОСВОБОЖДЁННЫМ СОЕДИНЕНИЕМ. Не asyncio.sleep напрямую.
+
+    ЗАМЕР 2026-08-18, из-за которого это отдельная функция. Пул соединений
+    у нас QueuePool на 5 + 10 оверфлоу, ожидание 30 с, а обработчики
+    объявлены `async` и работают с базой синхронно. Значит поток, ждущий
+    свободное соединение, блокирует ВЕСЬ event loop. Тридцать одновременных
+    попыток входа: пятнадцать держат соединение и спят в `await`, остальные
+    встают в очередь на пуле и стопорят цикл — спящие не просыпаются
+    и соединения не отдают. Приложение зависает целиком: /health перестал
+    отвечать вовсе, в журнале ни строки, ни исключения.
+
+    Немой отказ в чистом виде: ни ошибки, ни трейсбека, просто тишина.
+    До правки задачи 22 это спало латентно — на пути 429 и на пути капчи
+    база вообще не трогалась, соединение не бралось, и одновременных
+    держателей было единицы.
+
+    `db.close()` возвращает соединение в пул. Сессия после этого рабочая:
+    следующий запрос откроет соединение заново.
+    """
+    if секунды <= 0:
+        return
+    db.close()
+    await asyncio.sleep(секунды)
 
 
 def _login_delay_for(fails: int) -> float:
     """Прогрессивная задержка ответа. Человеку незаметна, перебору ломает
-    экономику — и, в отличие от капчи, не зависит от доступности Cloudflare."""
+    экономику — и, в отличие от капчи, не зависит от доступности Cloudflare.
+
+    Потолок обязателен и равен 4 с: без него это отказ в обслуживании самим
+    себе — соединения копятся, а воркер один.
+    """
     if fails >= 8:
         return 4.0
     if fails >= 5:
         return 2.0
-    if fails >= 3:
+    if fails >= LOGIN_CAPTCHA_AFTER:
         return 1.0
     return 0.0
 
@@ -761,16 +889,37 @@ def _email_cooldown_left(db, user_id: int) -> int:
     return max(0, int(EMAIL_COOLDOWN_SEC - прошло))
 
 
-def _last_email_failed(db, user_id: int) -> bool:
-    """Провалилась ли последняя попытка отправки. Нужно, чтобы /verify-pending
-    сразу после регистрации не утверждал «мы отправили письмо», если не отправили."""
+def _исход_письма(ошибка: str | None) -> str:
+    """Что показать на странице по результату отправки: три исхода, не два.
+
+    Третий появился вместе с суточным запасом адреса (задача 22). Свалить
+    его в `failed` значило бы говорить «проблема на нашей стороне, попробуйте
+    через несколько минут» там, где проблем нет и через несколько минут
+    ничего не изменится.
+    """
+    if not ошибка:
+        return "sent"
+    return "limit" if str(ошибка).startswith("limit:") else "failed"
+
+
+def _last_email_failed(db, user_id: int) -> str | None:
+    """Чем кончилась ПОСЛЕДНЯЯ попытка отправки: 'failed', 'limit' или None.
+
+    Нужно, чтобы /verify-pending сразу после регистрации не утверждал «мы
+    отправили письмо», если не отправили. Возвращает строку, а не флаг:
+    отказ по суточному запасу адреса — не сбой канала, и показывать на него
+    «проблема на нашей стороне, попробуйте через несколько минут» значит
+    врать. Раньше исходов было два, стало три (задача 22).
+    """
     if not user_id:
-        return False
+        return None
     последнее = (db.query(EmailLog)
                  .filter(EmailLog.user_id == user_id)
                  .order_by(EmailLog.created_at.desc())
                  .first())
-    return bool(последнее and последнее.error)
+    if not последнее or not последнее.error:
+        return None
+    return _исход_письма(последнее.error)
 
 
 def _verification_email_text(link: str) -> str:
@@ -803,7 +952,8 @@ def _reset_email_text(link: str) -> str:
 
 
 async def send_email(to: str, subject: str, html: str, text: str = None,
-                     db=None, user_id: int = None, kind: str = "verify") -> str | None:
+                     db=None, user_id: int = None, kind: str = "verify",
+                     учитывать_лимит: bool = True) -> str | None:
     """Отправляет письмо через Resend. Возвращает None при успехе, иначе строку
     «<код>: <детали>».
 
@@ -811,11 +961,35 @@ async def send_email(to: str, subject: str, html: str, text: str = None,
     ответ (не-200 не обнаруживался вообще, даже без исключения) и голый
     except Exception. Канал мог отвалиться целиком, а регистрация продолжала
     показывать «письмо отправлено».
+
+    `учитывать_лимит=False` — только для письма-предупреждения о переборе
+    (`_письмо_о_переборе`). У него свой кулдаун в шесть часов, а тратить
+    на него общий суточный запас адреса нельзя: тогда атакующий четырьмя
+    предупреждениями выжигал бы владельцу возможность сбросить пароль.
     """
     resend_id = None
     error = None
 
-    if not RESEND_API_KEY:
+    # ЗАСЛОН СТОИТ ЗДЕСЬ, А НЕ В КАЖДОМ ЭНДПОИНТЕ, и это та же причина, что
+    # у гейта подтверждённой почты (§5.3): проверку, которую надо не забыть
+    # дописать, следующий эндпоинт не получит, и никто этого не заметит.
+    # Ключ — АДРЕС НАЗНАЧЕНИЯ, а не кука и не сессия: кука выбрасывается
+    # в две секунды и защитой не является (замер: шесть повторов с одной
+    # кукой дали шесть отправок за секунду).
+    if учитывать_лимит and db is not None:
+        ключ_почты = _ключ_почты(to)
+        if _попыток(db, ключ_почты, "mail", MAIL_WINDOW_SEC, "sent") >= MAIL_MAX_PER_ADDR:
+            # Префикс `limit:` читается вызывающим: отказ по лимиту — не сбой
+            # канала, и говорить человеку «проблема на нашей стороне» здесь
+            # было бы неправдой
+            error = (f"limit: за сутки на этот адрес уже ушло "
+                     f"{MAIL_MAX_PER_ADDR} писем")
+            print(f"[email] отказ по лимиту адреса ({kind}): "
+                  f"{MAIL_MAX_PER_ADDR}+ писем за сутки")
+
+    if error:
+        pass
+    elif not RESEND_API_KEY:
         # Не норма, а ошибка конфигурации: письма не уходят вообще
         error = "no_key: RESEND_API_KEY не задан — письма не отправляются"
     else:
@@ -855,6 +1029,18 @@ async def send_email(to: str, subject: str, html: str, text: str = None,
     if error:
         print(f"[email] сбой отправки на {to} ({kind}): {error}")
 
+    # Расход адреса считается ПО ПОПЫТКЕ, а не по успеху — и это не мелочь.
+    # Прежний кулдаун (`_email_cooldown_left`) считался только по успешным
+    # отправкам, то есть при лежащем Resend не ограничивал ничего: замер
+    # на приложении с пустым ключом дал шесть отправок подряд без единой
+    # паузы. Запас адреса обязан кончаться и тогда, когда письма не уходят:
+    # каждая попытка — это запрос к Resend нашими руками
+    if учитывать_лимит and db is not None and not str(error or "").startswith("limit:"):
+        try:
+            _записать_попытку(db, _ключ_почты(to), "mail", "sent")
+        except SQLAlchemyError as e:
+            print(f"[email] не удалось записать расход адреса: {type(e).__name__}: {e}")
+
     if db is not None:
         try:
             db.add(EmailLog(user_id=user_id, to_email=to, kind=kind,
@@ -864,6 +1050,70 @@ async def send_email(to: str, subject: str, html: str, text: str = None,
             # журнал не должен ломать сам сценарий, но молчать о нём тоже нельзя
             print(f"[email] не удалось записать EmailLog: {type(e).__name__}: {e}")
     return error
+
+
+# Письмо-предупреждение владельцу. Единственное последствие счёта по аккаунту,
+# кроме задержки: аккаунт не запирается ни на секунду, и владелец с верным
+# паролем входит с первой попытки — иначе форма входа стала бы оружием против
+# пользователя, у которого кто-то знает адрес почты.
+_НАЗВАНИЕ_ПРЕДУПРЕЖДЕНИЯ = "Кто-то подбирает пароль к вашему аккаунту"
+
+
+def _письмо_о_переборе_html(сколько: int) -> str:
+    return f"""
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#07070f;border-radius:16px;border:1px solid rgba(255,255,255,0.08)">
+  <div style="font-size:1.5rem;font-weight:800;margin-bottom:8px;color:#dde2f0">⚡ EnergyDess</div>
+  <div style="color:#5a6888;font-size:0.875rem;margin-bottom:24px">Безопасность аккаунта</div>
+  <p style="color:#dde2f0;line-height:1.6;margin-bottom:16px">
+    За последние 15 минут в ваш аккаунт пробовали войти с неверным паролем
+    {сколько} раз. Возможно, это вы — тогда просто войдите заново.
+  </p>
+  <p style="color:#dde2f0;line-height:1.6;margin-bottom:24px">
+    Если это не вы — смените пароль. Аккаунт мы не блокируем: иначе любой,
+    кто знает ваш адрес, мог бы закрыть вам вход когда угодно.
+  </p>
+  <a href="{BASE_URL}/forgot-password"
+     style="display:inline-block;padding:13px 28px;background:linear-gradient(135deg,#7c4dff,#00d4ff);color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:0.95rem">
+    Сменить пароль →
+  </a>
+  <p style="color:#2a3050;font-size:0.78rem;margin-top:24px">
+    Письмо отправлено автоматически. Чаще чем раз в 6 часов мы его не шлём.
+  </p>
+</div>"""
+
+
+def _письмо_о_переборе_text(сколько: int) -> str:
+    return f"""EnergyDess — безопасность аккаунта
+
+За последние 15 минут в ваш аккаунт пробовали войти с неверным паролем
+{сколько} раз.
+
+Если это были вы — просто войдите заново. Если нет — смените пароль:
+{BASE_URL}/forgot-password
+
+Аккаунт мы не блокируем: иначе любой, кто знает ваш адрес, мог бы
+закрыть вам вход когда угодно.
+"""
+
+
+async def _письмо_о_переборе(db, user, сколько: int) -> None:
+    """Шлёт предупреждение владельцу, но не чаще NOTICE_COOLDOWN_SEC.
+
+    Кулдаун обязателен и держится на том же журнале: без него десять неудач
+    подряд дали бы десять писем, а перебор длиной в сутки — сотни. Ключ
+    у кулдауна свой (`вид='notice'`), чтобы предупреждения не тратили общий
+    суточный запас адреса.
+    """
+    ключ = _ключ_почты(user.email)
+    if _попыток(db, ключ, "notice", NOTICE_COOLDOWN_SEC, "sent"):
+        return
+    _записать_попытку(db, ключ, "notice", "sent")
+    print(f"[login] {сколько} неудач по одному аккаунту — владельцу отправлено предупреждение")
+    await send_email(to=user.email, subject=_НАЗВАНИЕ_ПРЕДУПРЕЖДЕНИЯ,
+                     html=_письмо_о_переборе_html(сколько),
+                     text=_письмо_о_переборе_text(сколько),
+                     db=db, user_id=user.id, kind="notice",
+                     учитывать_лимит=False)
 
 
 def _render_404(request: Request):
@@ -1430,7 +1680,8 @@ async def register(
 
 @app.get("/login")
 async def login_page(request: Request, user=Depends(get_current_user),
-                     verified: str = None, error: str = None, next: str = None):
+                     verified: str = None, error: str = None, next: str = None,
+                     db: Session = Depends(get_db)):
     if user:
         return RedirectResponse(_safe_next(next), status_code=302)
     # Капчу показываем уже при открытии формы, если с этого IP было
@@ -1438,7 +1689,7 @@ async def login_page(request: Request, user=Depends(get_current_user),
     # тогда узнает, что нужна ещё и проверка
     ip = _client_ip(request)
     нужна_капча = (not _ratelimit_disabled(ip, "GET /login")
-                   and _login_fail_count(_rate_key(ip)) >= LOGIN_CAPTCHA_AFTER
+                   and _попыток(db, _ключ_ip(ip), "login", LOGIN_WINDOW_SEC) >= LOGIN_CAPTCHA_AFTER
                    and bool(TURNSTILE_SITE_KEY))
     msg = None
     if verified:
@@ -1464,63 +1715,132 @@ async def login(
 ):
     email = email.strip().lower()
     ip = _client_ip(request)
-    # Счётчик ведётся по ключу: для IPv6 это префикс /64, а не отдельный адрес.
-    # В логи пишем именно ключ — иначе при разборе инцидента будет путаница,
-    # по чему на самом деле сработал лимит
-    ключ = _rate_key(ip)
+    # Ключей ДВА, и последствия у них разные. По адресу подключения (для IPv6
+    # это префикс /64, а не отдельный адрес) — задержка и потолок попыток.
+    # По введённому адресу почты — задержка и письмо владельцу, но НИКАКОЙ
+    # блокировки: иначе любой, зная чужую почту, запирал бы чужой вход.
+    # В логи пишем именно ключ адреса — иначе при разборе инцидента будет
+    # путаница, по чему на самом деле сработал лимит
+    ключ = _ключ_ip(ip)
+    ключ_акк = _ключ_аккаунта(email)
     защита = not _ratelimit_disabled(ip, "POST /login")
-    неудач = _login_fail_count(ключ) if защита else 0
+    неудач = _попыток(db, ключ, "login", LOGIN_WINDOW_SEC) if защита else 0
+    неудач_акк = _попыток(db, ключ_акк, "login", LOGIN_WINDOW_SEC) if защита else 0
+    # Задержка берётся БОЛЬШАЯ из двух, а не сумма: потолок 4 с объявлен
+    # потолком, и складывать ключи значило бы тихо сделать его восемью
+    пауза = _login_delay_for(max(неудач, неудач_акк))
+    # КАПЧА ВКЛЮЧАЕТСЯ ТОЛЬКО ПО СЧЁТУ АДРЕСА ПОДКЛЮЧЕНИЯ, и это решение,
+    # а не недосмотр. Пробовали иначе — включать её и по счёту аккаунта,
+    # чтобы ротация адресов не обходила проверку даром. Замер 2026-08-18
+    # показал, во что это выливается вместе с fail-closed из ветки ниже:
+    # десять неудачных попыток по чужому аккаунту, и ВЛАДЕЛЕЦ с верного
+    # пароля и чистого адреса получает `капча-отказ 400`. То есть посторонний
+    # человек, знающий только адрес почты, запирает чужой вход — ровно то,
+    # что в этом файле запрещено абзацем выше и запрещено не зря.
+    #
+    # Цена отказа названа: перебор с ротацией адресов капчу не встречает.
+    # Что его встречает — задержка по аккаунту (до 4 с на попытку), три
+    # попытки на адрес до его собственной капчи, потолок 30 на адрес
+    # и письмо владельцу. Это хуже, чем капча, и лучше, чем оружие против
+    # пользователя.
     нужна_капча = защита and неудач >= LOGIN_CAPTCHA_AFTER and bool(TURNSTILE_SITE_KEY)
 
-    # ── Жёсткий лимит ────────────────────────────────────────────────────────
+    # ── Потолок числа попыток С ЭТОГО АДРЕСА ─────────────────────────────────
+    # Не блокировка аккаунта: ключ здесь — адрес подключения, а не человек.
+    # Окно скользящее, освобождается само; разбор, почему потолок вообще
+    # нужен при наличии задержки, — у константы LOGIN_BLOCK_AFTER
     if защита and неудач >= LOGIN_BLOCK_AFTER:
-        осталось = int((min(_login_fails.get(ключ, [0])) + LOGIN_WINDOW_SEC - time.time()) / 60) + 1
-        print(f"[login] {ключ}: {неудач} неудач за 15 мин — отказ ещё ~{осталось} мин")
-        await asyncio.sleep(_login_delay_for(неудач))
+        print(f"[login] {ключ}: {неудач} неудач за 15 мин — отказ, пока окно не сдвинется")
+        await _пауза(db, пауза)
         return templates.TemplateResponse(
             request=request, name="login.html", status_code=429,
-            context={"error": f"Слишком много попыток входа. Попробуйте через {осталось} мин.",
+            context={"error": "Слишком много попыток входа с вашего адреса. "
+                              "Попробуйте через 15 минут.",
                      "email": email, "next": _safe_next(next),
                      "turnstile_site_key": TURNSTILE_SITE_KEY if нужна_капча else None})
 
-    # ── Капча после нескольких неудач ────────────────────────────────────────
-    # fail-open: пустой токен (виджет не загрузился ЛИБО проверку не прошли —
-    # серверно неразличимо) и недоступность siteverify пропускают вход. Цена
-    # ошибки асимметрична: запереть владельца в своей же админке из-за
-    # заблокированного Cloudflare хуже, чем пропустить попытку, которую всё
-    # равно режет лимит по IP. Отказ — только на явное «нет» от Cloudflare.
+    # ── Капча после нескольких неудач: ДВЕ РАЗНЫЕ ВЕТКИ ──────────────────────
+    # Различие принципиальное, и реализовано оно именно двумя ветками:
+    #
+    #   нет токена вовсе — ОТКАЗ. Наша форма без токена не отправляется:
+    #     виджет Turnstile сам подставляет скрытое поле. Пустое поле значит,
+    #     что запрос собран не браузером с нашей страницы. Прежний код
+    #     пропускал такой запрос, и записанное следствие — «бот, не
+    #     отправляющий поле капчи, проходит её насквозь» — было замерено
+    #     живьём: POST без поля прошёл и с верным паролем дал вход;
+    #
+    #   Cloudflare не ответил — ПРОПУСКАЕМ. Это наша проблема, а не
+    #     пользователя, и запереть владельца в собственной админке из-за
+    #     чужого сбоя хуже, чем пропустить попытку, которую режет потолок.
+    #
+    # Цена первой ветки названа: человек с заблокированным Cloudflare
+    # (расширение, корпоративный фильтр) после трёх опечаток войти не сможет,
+    # пока не сдвинется окно. Аварийный выход на этот случай — файл
+    # /data/ratelimit_off, он снимает защиту целиком (§8.1).
     if нужна_капча:
         if not turnstile_token:
-            if ключ not in _captcha_noop_seen:
-                _captcha_noop_seen.add(ключ)
-                print(f"[login] {ключ}: капча не отработала (пустой токен) — вход пропущен")
-        else:
-            прошла, доступен = await _turnstile_check(turnstile_token, ip)
-            if not доступен:
-                print(f"[login] {ключ}: Cloudflare недоступен с сервера — вход пропущен")
-            elif not прошла:
-                print(f"[login] {ключ}: капча не пройдена — отказ")
-                await asyncio.sleep(_login_delay_for(неудач))
-                return templates.TemplateResponse(
-                    request=request, name="login.html", status_code=400,
-                    context={"error": "Не удалось подтвердить, что вы не робот",
-                             "email": email, "next": _safe_next(next),
-                             "turnstile_site_key": TURNSTILE_SITE_KEY})
+            print(f"[login] {ключ}: поле капчи не прислано — отказ (fail-closed)")
+            # ОТКАЗ НЕ ЗАСЧИТЫВАЕТСЯ НИ В ОДИН СЧЁТ, и это важнее, чем
+            # кажется. Счёт отвечает на вопрос «сколько паролей отсюда
+            # перебрали»; запрос, не дошедший до проверки пароля, — не
+            # перебор. А главное, у человека, которому виджет не загрузился
+            # (блокировщик, корпоративный фильтр, страна), должен быть
+            # выход без нашего участия: окно 15 минут истекает само, если
+            # он перестанет жать. Считай мы эти отказы, каждое нажатие
+            # продлевало бы окно, и выхода не было бы вовсе.
+            #
+            # Цена: бот без токена может стучаться бесконечно, не набирая
+            # счёт. Он при этом не пробует НИ ОДНОГО пароля — до bcrypt
+            # дело не доходит, тратится только пауза
+            await _пауза(db, пауза)
+            return templates.TemplateResponse(
+                request=request, name="login.html", status_code=400,
+                context={"error": "Проверка «вы не робот» не прошла. Она "
+                                  "работает через Cloudflare — если у вас "
+                                  "включён блокировщик или VPN, отключите его "
+                                  "для этой страницы и обновите её. Если "
+                                  "проверка не появляется совсем, подождите "
+                                  "15 минут: она включается после нескольких "
+                                  "неудачных попыток и снимается сама.",
+                         "email": email, "next": _safe_next(next),
+                         "turnstile_site_key": TURNSTILE_SITE_KEY})
+        прошла, доступен, причина = await _turnstile_check(turnstile_token, ip)
+        if not доступен:
+            # ПЕЧАТАЕТСЯ КАЖДЫЙ РАЗ, повтор не глушится намеренно: длительная
+            # недоступность обязана выглядеть в логе потоком, а не одной
+            # строкой. Одна строка читается как «разовый сбой» ровно тогда,
+            # когда fail-open работает уже сутки и пропускает всё подряд
+            print(f"[login] {ключ}: КАПЧА НЕ ПРОВЕРЕНА — Cloudflare недоступен "
+                  f"({причина}); вход пропущен (fail-open)")
+        elif not прошла:
+            print(f"[login] {ключ}: капча не пройдена — отказ")
+            await _пауза(db, пауза)
+            return templates.TemplateResponse(
+                request=request, name="login.html", status_code=400,
+                context={"error": "Не удалось подтвердить, что вы не робот",
+                         "email": email, "next": _safe_next(next),
+                         "turnstile_site_key": TURNSTILE_SITE_KEY})
 
     user = db.query(User).filter(User.email == email).first()
 
     if not user or not verify_password(password, user.password_hash):
         if защита:
-            _login_fails.setdefault(ключ, []).append(time.time())
+            _записать_попытку(db, ключ, "login", "fail")
+            _записать_попытку(db, ключ_акк, "login", "fail")
             неудач += 1
-            _login_purge_stale()
+            неудач_акк += 1
             if неудач == LOGIN_CAPTCHA_AFTER:
                 print(f"[login] {ключ}: {неудач} неудачи за 15 мин — включена капча")
             elif неудач == LOGIN_BLOCK_AFTER:
-                print(f"[login] {ключ}: {неудач} неудач за 15 мин — отказ на 15 мин")
-            # Только asyncio.sleep: time.sleep остановил бы весь event loop,
-            # и на эти секунды сайт замер бы для всех пользователей сразу
-            await asyncio.sleep(_login_delay_for(неудач))
+                print(f"[login] {ключ}: {неудач} неудач за 15 мин — дальше отказ")
+            # Письмо владельцу — единственное последствие счёта ПО АККАУНТУ,
+            # кроме задержки. Аккаунт при этом остаётся рабочим: владелец
+            # с верным паролем входит с первой попытки
+            if user is not None and неудач_акк >= NOTICE_AFTER:
+                await _письмо_о_переборе(db, user, неудач_акк)
+            # Только через _пауза: time.sleep остановил бы весь event loop,
+            # а голый asyncio.sleep держал бы соединение к базе (см. _пауза)
+            await _пауза(db, _login_delay_for(max(неудач, неудач_акк)))
         показать_капчу = защита and неудач >= LOGIN_CAPTCHA_AFTER and bool(TURNSTILE_SITE_KEY)
         return templates.TemplateResponse(
             request=request, name="login.html",
@@ -1528,9 +1848,9 @@ async def login(
                      "next": _safe_next(next),
                      "turnstile_site_key": TURNSTILE_SITE_KEY if показать_капчу else None})
 
-    # Успешный вход — счётчик этого IP обнуляется: владелец доказал, что он владелец
-    _login_fails.pop(ключ, None)
-    _captcha_noop_seen.discard(ключ)
+    # Успешный вход обнуляет ОБА счёта: владелец доказал, что он владелец
+    _сбросить_попытки(db, ключ, ключ_акк)
+    _записать_попытку(db, ключ, "login", "ok")
 
     # is_verified=False НЕ блокирует вход — пользователь логинится как обычно,
     # блокировка происходит на уровне конкретного инструмента (см. _verification_gate),
@@ -1583,8 +1903,9 @@ async def verify_pending(request: Request, pending_verify: str = Cookie(default=
     u = _pending_user(pending_verify, db)
     notice = None
     if u:
-        if _last_email_failed(db, u.id):
-            notice = "failed"
+        неудача = _last_email_failed(db, u.id)
+        if неудача:
+            notice = неудача
         elif too_soon:
             notice = "too_soon"
         elif sent:
@@ -1620,10 +1941,15 @@ async def verify_pending_resend(request: Request, pending_verify: str = Cookie(d
                               db=db, user_id=u.id, kind="resend")
     # Кулдаун пересчитывается ПОСЛЕ отправки: письмо только что ушло, значит
     # кнопка должна выключиться сразу, а не оставаться активной до первого
-    # бесполезного нажатия. При сбое отправки кулдауна нет — повторить можно сразу
+    # бесполезного нажатия. При сбое отправки кулдауна нет — повторить можно сразу.
+    #
+    # `limit` отделён от `failed` намеренно: суточный запас адреса кончился —
+    # это не «проблема на нашей стороне», и обещать «попробуйте через
+    # несколько минут» было бы неправдой. Здесь личность подтверждена кукой,
+    # значит можно говорить прямо — скрывать не от кого
     return templates.TemplateResponse(request=request, name="verify_pending.html",
                                       context={**ctx,
-                                               "notice": "failed" if ошибка else "sent",
+                                               "notice": _исход_письма(ошибка),
                                                "cooldown": _email_cooldown_left(db, u.id)})
 
 
@@ -1670,7 +1996,7 @@ async def resend_verification(request: Request, tool_name: str = Form(default=""
     # Кулдаун пересчитывается после отправки — кнопка выключается сразу
     return templates.TemplateResponse(request=request, name="verify_required.html",
                                       context={**ctx,
-                                               "notice": "failed" if ошибка else "sent",
+                                               "notice": _исход_письма(ошибка),
                                                "cooldown": _email_cooldown_left(db, user.id)})
 
 
@@ -1700,7 +2026,7 @@ async def forgot_post(request: Request, email: str = Form(...), db: Session = De
     начало = time.monotonic()
     email = email.strip().lower()
     ip = _client_ip(request)
-    ключ = _rate_key(ip)
+    ключ = _ключ_ip(ip)
     защита = not _ratelimit_disabled(ip, "POST /forgot-password")
 
     # Ответ одинаковый во всех ветках — человек не должен различать,
@@ -1714,9 +2040,9 @@ async def forgot_post(request: Request, email: str = Form(...), db: Session = De
         адрес приходит заметно быстрее, и по одному этому видно, есть аккаунт."""
         прошло = time.monotonic() - начало
         if прошло < FORGOT_MIN_RESPONSE_SEC:
-            await asyncio.sleep(FORGOT_MIN_RESPONSE_SEC - прошло)
+            await _пауза(db, FORGOT_MIN_RESPONSE_SEC - прошло)
 
-    if защита and _forgot_count(ключ) >= FORGOT_MAX_PER_IP:
+    if защита and _попыток(db, ключ, "forgot", FORGOT_WINDOW_SEC, "sent") >= FORGOT_MAX_PER_IP:
         print(f"[forgot] {ключ}: {FORGOT_MAX_PER_IP}+ запросов за 15 мин — отказ")
         await выровнять_время()
         return templates.TemplateResponse(
@@ -1725,13 +2051,17 @@ async def forgot_post(request: Request, email: str = Form(...), db: Session = De
                      "error": "Слишком много запросов. Попробуйте через 15 минут."})
 
     if защита:
-        _forgot_requests.setdefault(ключ, []).append(time.time())
+        _записать_попытку(db, ключ, "forgot", "sent")
 
     user = db.query(User).filter(User.email == email).first()
 
     # Кулдаун по адресу: без него кнопку можно жать сколько угодно, а письма
     # уходят реальные — чужой ящик заваливается, а лимиты Resend тратятся.
-    # Считается по успешным отправкам (см. _email_cooldown_left)
+    # Считается по успешным отправкам (см. _email_cooldown_left).
+    #
+    # ВТОРОЙ ЗАСЛОН, суточный, стоит внутри send_email по адресу назначения —
+    # здесь его проверять не надо и НЕЛЬЗЯ: ответ обязан быть одинаковым
+    # во всех ветках, а лишняя ветка — это лишний способ различить исход
     if user and _email_cooldown_left(db, user.id):
         await выровнять_время()
         return ответ_ок()
@@ -8590,7 +8920,13 @@ OpenRouter запрещена маршрутизация к провайдера
 и не покидает защищённого хранилища.</p>
 
 <p>Формы входа и регистрации защищены от автоматического перебора:
-ограничением числа попыток и проверкой, что вы человек.</p>
+ограничением числа попыток и проверкой, что вы человек. Для этого мы ведём
+короткий служебный журнал: <strong>попытки входа</strong> — адрес
+подключения, время, удачной была попытка или нет, и свёртка введённого
+адреса почты вместо самого адреса. Аккаунт мы при этом
+не блокируем никогда: иначе любой, кто знает вашу почту, мог бы закрыть вам
+вход, просто вводя неверный пароль. Если попыток набирается подозрительно
+много, мы пишем вам письмо — и только.</p>
 
 <p>Полной гарантии безопасности не даёт никто, и мы тоже не будем: проект
 небольшой и развивается силами одного человека. Мы описываем то, что делаем,
@@ -8627,6 +8963,10 @@ OpenRouter запрещена маршрутизация к провайдера
     <tr>
       <td data-label="Что">Запись о факте отправки письма</td>
       <td data-label="Срок">бессрочно, без адреса и без связи с вами</td>
+    </tr>
+    <tr>
+      <td data-label="Что">Журнал попыток входа</td>
+      <td data-label="Срок">сутки, затем строки стираются</td>
     </tr>
     <tr>
       <td data-label="Что">Технические логи сервера</td>

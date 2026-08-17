@@ -145,6 +145,27 @@ def долг_дневника():
     return отступы, кегли
 
 
+def тесты():
+    """Сколько тестов проходит. Способ — ПРОГОН pytest, а не подсчёт
+    функций `def test_` грепом.
+
+    Разница не косметическая: параметризованный тест — одна функция
+    и десять прогонов, и два способа дают два разных числа. Опорным
+    считается то, что печатает сам pytest, потому что именно оно
+    называется в отчётах.
+    """
+    try:
+        r = subprocess.run([sys.executable, '-m', 'pytest', 'tests/', '-q',
+                            '--no-header', '-p', 'no:warnings'],
+                           capture_output=True, text=True, encoding='utf-8',
+                           errors='replace', timeout=900)
+        m = re.search(r'(\d+) passed', r.stdout or '')
+        f = re.search(r'(\d+) failed', r.stdout or '')
+        return (m.group(1) if m else '?'), (f.group(1) if f else '0'), r.returncode
+    except (OSError, subprocess.SubprocessError) as e:
+        return f'не запустился: {e}', '?', '?'
+
+
 def эндпоинты():
     """Опись — из check_endpoints, чтобы число было одно на весь проект."""
     try:
@@ -176,6 +197,13 @@ def главное():
           f'4b={гр.get("4b", "?")}  6b={гр.get("6b", "?")}')
     print('\n  ВНИМАНИЕ: первое и пятое числа — НЕ РАВНЫ ДОЛГУ. В выводе')
     print('  обоих есть законные строки; читать по таблицам в §6.0.2.')
+
+    print('\n■ PYTEST')
+    print('  способ: прогон py -m pytest tests/ -q; ОПОРНОЕ — число, которое')
+    print('          печатает сам pytest (греп по `def test_` даст меньше:')
+    print('          параметризованный тест — одна функция и много прогонов)')
+    прошло, упало, код = тесты()
+    print(f'\n  прошло: {прошло}   упало: {упало}   код возврата: {код}')
 
     if только_ряд:
         return 0
