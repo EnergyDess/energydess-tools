@@ -72,15 +72,12 @@
 {# Тонкий вариант: только правовые ссылки. Колонки «Инструменты» и «Аккаунт»
    вели бы на то, что человеку до входа недоступно #}
 {% set footer_guest = true %}
-{% include '_footer.html' %}
 
 {# toggleEye переехал в static/ui.js: копий этой функции было три в трёх шаблонах, а дневнику питания глазок понадобился четвёртым #}
 {% if turnstile_site_key %}
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 {% endif %}
 <script src="{{ st('email-typo.js') }}"></script>
-<script src="https://unpkg.com/lucide@latest"></script>
-<script src="{{ st('ui.js') }}"></script>
-<script>lucide.createIcons();</script>
+{% include '_page_end.html' %}
 </body>
 </html>

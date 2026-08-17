@@ -530,13 +530,13 @@
     </div>
 {% endcall %}
 
-{% include '_footer.html' %}
-
-<script src="https://unpkg.com/lucide@latest"></script>
-<script src="{{ st('ui.js') }}"></script>
+{# Футер и общие скрипты — партиалом (_page_end.html). Он же зовёт
+   lucide.createIcons(), поэтому из скрипта ниже вызов убран: второй
+   ничего не добавлял, а искать потом, который из двух работает,
+   пришлось бы обоим. #}
 <script src="{{ st('modal.js') }}"></script>
+{% include '_page_end.html' %}
 <script>
-  lucide.createIcons();
 
   // ── Переключение вкладок раздела ─────────────────────────────────────────
   function switchView(name) {

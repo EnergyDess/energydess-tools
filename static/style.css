@@ -965,17 +965,54 @@ button.chip, a.chip { cursor: pointer; }
 /* Вариант «просмотр»: окна нет, есть картинка. Прозрачный лист, размытый фон,
    кнопка закрытия плавает поверх содержимого. Вариант компонента, а не
    отдельная модалка: каркас, поведение и разметка те же. */
+/* ПОТОЛОК ОБЪЯВЛЕН ОДИН РАЗ И ЧИТАЕТСЯ ДВАЖДЫ. Лист и картинка обязаны
+   упираться в одну и ту же величину: разойдись они — либо картинка
+   торчит из листа, либо лист больше картинки и кнопка снова уезжает
+   от неё. Токен намеренно НЕ объявлен в :root — как --app-aside,
+   --undo-window и --meter-h: объявленный там, он стал бы ложной находкой
+   проверки 2 из CLAUDE.md §6.0.2. */
+.modal-ov-viewer { --viewer-w: 94vw; --viewer-h: 88vh; }
 .modal-ov-viewer { align-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 .modal-ov-viewer .modal-sh {
-  background: transparent; box-shadow: none; width: 94vw; max-width: 94vw; height: 88vh; max-height: 88vh;
+  background: transparent; box-shadow: none;
+  width: var(--viewer-w); max-width: var(--viewer-w);
+  height: var(--viewer-h); max-height: var(--viewer-h);
   border-radius: 0; padding-bottom: 0;
   transform: scale(.94); opacity: 0; transition: transform .2s ease, opacity .2s ease;
 }
 .modal-ov-viewer.open .modal-sh { transform: scale(1); opacity: 1; }
-.modal-ov-viewer .modal-body { padding: 0; display: flex; justify-content: center; align-items: center; position: relative; height: 100%; }
-/* width/height: 100% + object-fit:contain — фото всегда заполняет почти весь экран,
-   независимо от исходного разрешения снимка (даже маленькое растягивается под рамку) */
-.modal-ov-viewer img { width: 100%; height: 100%; border-radius: 12px; object-fit: contain; display: block; }
+/* ТЕЛО ОБЛЕГАЕТ СОДЕРЖИМОЕ, А НЕ ЗАНИМАЕТ ЛИСТ ЦЕЛИКОМ — задача 72.
+   Здесь стояло `height: 100%` при `flex: 1` из базового правила, то есть
+   тело было прямоугольником 94vw×88vh почти во весь экран. Кнопка закрытия
+   позиционируется от тела, поэтому вставала в угол ЭКРАНА, а картинка
+   внутри рисовалась по contain и была меньше. Замер 2026-08-17: на 2560
+   у книжного снимка 3:4 картинка 949×1265 при кнопке на 714px правее её
+   края; на 390 у альбомного — кнопка на 254px выше верхнего края.
+   fit-content + margin: auto даёт бокс ровно по картинке и ставит его
+   по центру листа; кнопка после этого считается от картинки по построению. */
+.modal-ov-viewer .modal-body {
+  padding: 0; position: relative;
+  display: flex; justify-content: center; align-items: center;
+  flex: 0 1 auto; width: fit-content; height: fit-content;
+  max-width: var(--viewer-w); max-height: var(--viewer-h); margin: auto;
+  /* Базовое правило даёт телу `overflow-y: auto`, и это резервировало место
+     под полосу прокрутки: тело выходило на 2px у́же картинки (замер:
+     1352 против 1354), то есть кнопка снова считалась не от неё.
+     Прокручивать тут нечего по построению — картинка вписана в потолок. */
+  overflow: visible;
+}
+/* Ограничение переехало с бокса на саму картинку: `width/height: 100%`
+   раздували бокс до листа независимо от снимка, из-за чего он и переставал
+   совпадать с изображением. `auto` + потолок в единицах окна даёт боксу
+   размер картинки, вписанной в те же 94vw×88vh, — вид не меняется,
+   а прямоугольник наконец совпадает с тем, что видно.
+   МЕЛКИЙ СНИМОК БОЛЬШЕ НЕ РАСТЯГИВАЕТСЯ: прежнее правило поднимало
+   120×90 до размеров экрана, то есть показывало кашу из пикселей. */
+.modal-ov-viewer img {
+  max-width: var(--viewer-w); max-height: var(--viewer-h);
+  width: auto; height: auto;
+  border-radius: 12px; object-fit: contain; display: block;
+}
 .modal-x-float {
   position: absolute; top: 14px; right: 14px; width: 40px; height: 40px;
   background: rgba(15,18,32,.85); border: 1px solid rgba(255,255,255,.18); color: #fff; font-size: 1.35rem;

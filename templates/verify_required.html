@@ -150,8 +150,9 @@
   })();
 </script>
 {% endif %}
-<script src="https://unpkg.com/lucide@latest"></script>
-<script src="{{ st('ui.js') }}"></script>
-<script>lucide.createIcons();</script>
+{# Футера нет ОСОЗНАННО, та же причина, что у verify_pending: человек уже
+   зарегистрирован и вошёл, условия приняты раньше. Флаг, а не пропуск. #}
+{% set footer_off = true %}
+{% include '_page_end.html' %}
 </body>
 </html>

@@ -218,8 +218,11 @@
   })();
 </script>
 {% endif %}
-<script src="https://unpkg.com/lucide@latest"></script>
-<script src="{{ st('ui.js') }}"></script>
-<script>lucide.createIcons();</script>
+{# Футера нет ОСОЗНАННО: условия и политику человек принял шагом раньше,
+   на форме регистрации, а больше внизу этой страницы ему ничего не нужно —
+   она про одно действие. Флаг, а не пропущенный include: пропуск
+   и решение снаружи выглядят одинаково (CLAUDE.md §6.0.2). #}
+{% set footer_off = true %}
+{% include '_page_end.html' %}
 </body>
 </html>

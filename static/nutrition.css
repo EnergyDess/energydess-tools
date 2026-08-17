@@ -175,11 +175,29 @@ html.assistant-mode, html.assistant-mode body {
        См. design-system.md §4.1. */
     top: var(--assistant-top, calc(64px + var(--hdr-h)));
     bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0));
-    left: 50%; transform: translateX(-50%);
+    /* ЦЕНТРИРОВАНИЕ ЧЕРЕЗ margin, А НЕ ЧЕРЕЗ transform, И ЭТО НЕ ВКУСОВЩИНА.
+       Здесь стояло `left: 50%; transform: translateX(-50%)`, и вкладка
+       на первые 200 мс уезжала за правый край экрана: `.nut-tab` играет
+       `animation: fadeIn`, а fadeIn объявляет СВОЙСТВО transform. Анимация
+       по каскаду сильнее обычного объявления, то есть на всё время
+       проигрывания translateX(-50%) подавлен — остаётся голый left: 50%,
+       и блок стоит левым краем на середине окна. Замер 2026-08-17 на 390
+       с дросселированием ×4: t=100 мс x=195 right=585 при окне 390,
+       13 кадров из 42 за краем; на 395 мс transform возвращался и блок
+       перескакивал на место.
+       margin: auto с left/right: 0 центрирует ровно так же, свойства
+       transform не касается вовсе, и подавлять анимации в нём нечего. */
+    left: 0; right: 0; margin-left: auto; margin-right: auto;
     width: 100%; max-width: 33.75rem; min-height: 0;
   }
 }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(0.3125rem); } to { opacity: 1; transform: none; } }
+/* ПОДЪЁМ ЗДЕСЬ — `translate`, А НЕ `transform`, ПО ТОЙ ЖЕ ПРИЧИНЕ.
+   Отдельное свойство `translate` компонуется с `transform`, а не заменяет
+   его: анимация, объявляющая translate, больше не может отменить чужое
+   позиционирование. Пока в keyframes стоял transform, любое правило
+   с transform на `.nut-tab` подавлялось на время анимации молча —
+   и следующий, кто такое правило напишет, наступил бы на то же самое. */
+@keyframes fadeIn { from { opacity: 0; translate: 0 0.3125rem; } to { opacity: 1; translate: none; } }
 
 /* ── Bottom nav ── */
 /* position: fixed + bottom: 0 — панель всегда прижата к низу экрана, независимо
@@ -193,6 +211,18 @@ html.assistant-mode, html.assistant-mode body {
   height: var(--nav-h); display: flex; align-items: stretch;
   background: var(--surface-1); border-top: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom, 0); flex-shrink: 0;
+}
+/* Футер пришёл на страницу 2026-08-17 (задача 70), и панель выше его накрыла:
+   она `position: fixed`, места в потоке не занимает, а отступ под неё имеет
+   только `.nut-content` — футер же лежит НИЖЕ и снаружи. Замер на 390 после
+   докрутки: в точке y=834 поверх футера оказывалась `.nut-nav-btn`, то есть
+   нижняя треть футера была под панелью и до ссылок было не дотянуться.
+   Объявлена РАСКЛАДКА ЭКЗЕМПЛЯРА (внешний отступ), вид компонента не тронут —
+   законная категория первого числа проверки, CLAUDE.md §6.0.2.
+   Только до 900px: выше панель становится боковой колонкой (`position:
+   static`, см. медиазону ниже) и низа экрана не занимает. */
+@media (max-width: 899px) {
+  .site-footer { margin-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0)); }
 }
 /* КЕГЛЬ 0.62rem (9.9px) — НИЖЕ МИНИМУМА 0.8125rem И ОСТАВЛЕН ОСОЗНАННО.
    Шесть пунктов с подписью под иконкой делят 390px, слот выходит 62.5px.
@@ -1559,9 +1589,26 @@ html.assistant-mode, html.assistant-mode body {
      тот же остаток, что раньше писали как calc(100dvh - 64px), но считает
      его браузер. Специфичность у .nut-app и .page-fill одинаковая (0,1,0),
      выигрывает этот файл, потому что грузится после style.css. */
+  /* ПЕРВЫЙ ЭКРАН ЦЕЛИКОМ — ЯВНЫМ ВЫЧИТАНИЕМ, с 2026-08-17 (задача 70).
+     Футер пришёл на страницу и встал в ту же flex-колонку, что и дневник,
+     а `flex: 1 1 0` означает «раздели остаток» — делить стало на двоих.
+     Замер на 1440 сразу после появления футера: `.nut-app` 297px вместо
+     836, то есть от приложения на весь экран осталась треть.
+
+     Тут снова вычитание 64px, которое из этого самого правила когда-то
+     убрали, и это не откат той работы, а её граница. Убирали его там, где
+     остаток УМЕЕТ посчитать браузер: пока ниже дневника не было ничего,
+     «остаток колонки» и «остаток экрана» совпадали. С футером ниже они
+     разошлись, и величины «остаток первого экрана» в раскладке больше нет
+     ни в каком виде — считать её не из чего, ровно как у `.a-left`
+     и `#tab-assistant`. Пятое место в таблице design-system.md §4.1.
+
+     min-height, а не height: дневник по-прежнему не растёт (`flex-basis: 0`
+     плюс внутренняя прокрутка колонок), а футер уезжает под первый экран,
+     где ему и место — до него листают. */
   .nut-app {
     flex-direction: row; max-width: none;
-    flex: 1 1 0; min-height: 0; overflow: hidden;
+    flex: 1 1 0; min-height: calc(100dvh - 64px); overflow: hidden;
     border: none; box-shadow: none;
   }
   .nut-hdr { display: none; }

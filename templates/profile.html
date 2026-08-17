@@ -134,7 +134,10 @@
 </div>
 </main>
 
-{% include '_footer.html' %}
+{# Футер выводит _page_end.html в конце файла — как на всех страницах.
+   Свой include стоял здесь, между разметкой и модалками; модалки
+   position: fixed и в потоке места не занимают, поэтому порядок
+   на экране от переноса не меняется. #}
 
 {# Модалки на общем компоненте (design-system.md, раздел 2.5). Раньше здесь
    был свой оверлей .profile-modal-overlay со своим onclick в разметке:
@@ -189,11 +192,11 @@
     </div>
 {% endcall %}
 
-<script src="https://unpkg.com/lucide@latest"></script>
-<script src="{{ st('ui.js') }}"></script>
+{# Футер и общие скрипты — партиалом (_page_end.html). Он же зовёт
+   lucide.createIcons(), поэтому из скрипта ниже вызов убран — см. hh.html. #}
 <script src="{{ st('modal.js') }}"></script>
+{% include '_page_end.html' %}
 <script>
-lucide.createIcons();
 
 // ── Настройки: копим изменения, применяем одной кнопкой ──
 // Раньше имя сохранялось своей кнопкой, пояс — сразу при выборе, аватар —

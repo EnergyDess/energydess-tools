@@ -1278,12 +1278,34 @@ async function loadDiary(date) {
 // кольцо. Посчитать пять чисел на клиенте было бы проще и означало бы третий
 // набор тех же величин: расхождение с ассистентом стало бы невидимым ровно
 // в том месте, ради которого колонка и заводится.
+// Видима ли колонка — СПРАШИВАЕМ У БРАУЗЕРА, а не сверяем ширину с числом.
+// Порог объявлен в CSS (`.as-today { display: none }` базово, раскладка
+// с колонкой — в `@media (min-width: 900px)`), и вторая копия числа 900
+// здесь разошлась бы с первой молча: подвинули медиазону — экран перестал
+// бы грузить видимый блок, и признака этого не было бы никакого.
+function колонкаВидна() {
+  const эл = document.getElementById('as-today');
+  return !!эл && getComputedStyle(эл).display !== 'none';
+}
+
 async function загрузитьКолонкуСегодня() {
+  // На узком экране колонки нет в раскладке — и запроса за ней тоже быть
+  // не должно. Прежде запрос уходил всегда: лишний /nutrition/api/diary
+  // на каждый вход в ассистента ради блока, которого не видно, — а вход
+  // туда с телефона и происходит по медленной сети.
+  if (!колонкаВидна()) return;
   if (S.date === S.today && S.diary) { отрисоватьКолонкуСегодня(S.diary); return; }
   const data = await api(`/nutrition/api/diary?date=${S.today}`);
   if (data.error) { toast(data.error, false); return; }
   отрисоватьКолонкуСегодня(data);
 }
+
+// Окно расширили до десктопного, стоя на вкладке ассистента: колонка
+// появилась в раскладке пустой, потому что данных за ней не ходили.
+// Догружаем по факту появления — тем же вопросом к браузеру, без числа.
+window.addEventListener('resize', () => {
+  if (S.activeTab === 'assistant' && колонкаВидна() && !S.todayDiary) загрузитьКолонкуСегодня();
+});
 
 const КОЛОНКА_СТРОКИ = [
   ['calories', 'Калории', 'ккал', 'cal'],
@@ -4030,8 +4052,6 @@ function updateSidePanels(data) {
 </script>
 <div id="wt-tooltip"></div>
 <script src="{{ st('modal.js') }}"></script>
-<script src="https://unpkg.com/lucide@latest"></script>
-<script src="{{ st('ui.js') }}"></script>
-<script>lucide.createIcons();</script>
+{% include '_page_end.html' %}
 </body>
 </html>

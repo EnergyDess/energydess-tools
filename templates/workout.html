@@ -265,9 +265,17 @@
    которым забыли. #}
 <div class="wk-chart-tooltip" id="wkChartTooltip"></div>
 
+{# Рамка облегает картинку, и кнопка закрытия считается ОТ НЕЁ, а не от окна.
+   Без рамки кнопка позиционировалась от .wk-lightbox — прямоугольника
+   inset: 0, то есть от угла экрана; картинка же рисуется по центру и меньше.
+   Та же болезнь и та же починка, что у компонента .modal-ov-viewer
+   (style.css, задача 72). Сам лайтбокс остаётся второй реализацией
+   просмотрщика — сведение к компоненту вынесено отдельной задачей. #}
 <div class="wk-lightbox" id="wkLightbox">
-  <button type="button" class="wk-lightbox-close" id="wkLightboxClose">×</button>
-  <img id="wkLightboxImg" src="" alt="">
+  <div class="wk-lightbox-frame">
+    <button type="button" class="wk-lightbox-close" id="wkLightboxClose">×</button>
+    <img id="wkLightboxImg" src="" alt="">
+  </div>
 </div>
 
 <div class="wk-chat-overlay" id="wkChatOverlay">
@@ -1864,8 +1872,6 @@
 })();
 </script>
 
-<script src="https://unpkg.com/lucide@latest"></script>
-<script src="{{ st('ui.js') }}"></script>
-<script>lucide.createIcons();</script>
+{% include '_page_end.html' %}
 </body>
 </html>
