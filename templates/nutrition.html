@@ -88,17 +88,17 @@
           <div class="macros-cap" id="macros-cap">съедено из нормы</div>
           <div class="macro-card">
             <div class="macro-label">Белок</div>
-            <div class="macro-bar"><div class="macro-bar-fill mb-prot" id="bar-prot"></div></div>
+            <div class="meter meter-edge macro-bar"><div class="meter-fill macro-bar-fill mb-prot" id="bar-prot"></div></div>
             <div class="macro-val val-prot" id="val-prot">—</div>
           </div>
           <div class="macro-card">
             <div class="macro-label">Жиры</div>
-            <div class="macro-bar"><div class="macro-bar-fill mb-fat" id="bar-fat"></div></div>
+            <div class="meter meter-edge macro-bar"><div class="meter-fill macro-bar-fill mb-fat" id="bar-fat"></div></div>
             <div class="macro-val val-fat" id="val-fat">—</div>
           </div>
           <div class="macro-card">
             <div class="macro-label">Углеводы</div>
-            <div class="macro-bar"><div class="macro-bar-fill mb-carb" id="bar-carb"></div></div>
+            <div class="meter meter-edge macro-bar"><div class="meter-fill macro-bar-fill mb-carb" id="bar-carb"></div></div>
             <div class="macro-val val-carb" id="val-carb">—</div>
           </div>
         </div>
@@ -115,7 +115,7 @@
             <span class="water-name">Вода</span>
             <span class="water-val" id="water-val">0 / 2000 мл</span>
           </div>
-          <div class="water-bar"><div class="water-bar-fill" id="water-bar"></div></div>
+          <div class="meter meter-edge water-bar"><div class="meter-fill water-bar-fill" id="water-bar"></div></div>
           {# Налитые за день порции с удалением каждой. Стоит МЕЖДУ полосой
              и рядом кнопок, а не под ними: по нижнему краю ряда кнопок
              выравнивается кнопка нутрициолога в левой колонке, и блок,
@@ -299,15 +299,15 @@
             <p class="hd-date" id="h-date-lbl">—</p>
             <div class="hd-macro">
               <div class="hd-macro-row"><span class="hd-macro-lbl">Белок</span><span class="hd-macro-val" id="hm-prot">—</span></div>
-              <div class="hd-bar"><i class="hd-bar-f is-prot" id="hb-prot"></i></div>
+              <div class="meter hd-bar"><i class="meter-fill hd-bar-f is-prot" id="hb-prot"></i></div>
             </div>
             <div class="hd-macro">
               <div class="hd-macro-row"><span class="hd-macro-lbl">Жиры</span><span class="hd-macro-val" id="hm-fat">—</span></div>
-              <div class="hd-bar"><i class="hd-bar-f is-fat" id="hb-fat"></i></div>
+              <div class="meter hd-bar"><i class="meter-fill hd-bar-f is-fat" id="hb-fat"></i></div>
             </div>
             <div class="hd-macro">
               <div class="hd-macro-row"><span class="hd-macro-lbl">Углеводы</span><span class="hd-macro-val" id="hm-carb">—</span></div>
-              <div class="hd-bar"><i class="hd-bar-f is-carb" id="hb-carb"></i></div>
+              <div class="meter hd-bar"><i class="meter-fill hd-bar-f is-carb" id="hb-carb"></i></div>
             </div>
           </div>
         </div>
@@ -358,7 +358,7 @@
     <section class="nut-tab" id="tab-weight">
       <div class="w-cols">
       <div class="d-left">
-        <div class="wt-hero">
+        <div class="card card-static wt-hero">
           <div class="wt-big"><span id="cur-wt">—</span> <span class="wt-unit">кг</span></div>
           <div class="wt-sub" id="wt-sub">Взвешивание не записано</div>
           <div class="wt-prog" id="wt-prog" style="display:none">
@@ -367,7 +367,7 @@
               <span class="val-accent" id="wt-left">—</span>
               <span id="wt-target">—</span>
             </div>
-            <div class="wt-prog-bar"><div class="wt-prog-fill" id="wt-fill"></div></div>
+            <div class="meter meter-edge wt-prog-bar"><div class="meter-fill wt-prog-fill" id="wt-fill"></div></div>
             <!-- Достижение цели: полоса заполнена целиком, «осталось N кг»
                  заменено на «цель достигнута», и отсюда же ставится новая.
                  Блок отдельный, а не переписанный текст в .wt-prog-lbl:
@@ -379,7 +379,7 @@
           </div>
         </div>
         <div class="card card-static wt-measures">
-          <div class="box-title">Замеры</div>
+          <div class="field-label">Замеры</div>
           <div class="wt-mrow"><span class="wt-mname">Талия</span><span class="wt-mval" id="m-waist">не записан</span></div>
           <div class="wt-mrow"><span class="wt-mname">Ягодицы</span><span class="wt-mval" id="m-hips">не записан</span></div>
           <div class="wt-mrow"><span class="wt-mname">Грудь</span><span class="wt-mval" id="m-chest">не записан</span></div>
@@ -387,9 +387,9 @@
         <button class="btn-primary btn-block save-btn-flush" onclick="открыть_модалку('modal-measure')"><i data-lucide="ruler"></i> Записать замер</button>
       </div>
       <div class="d-right">
-        <div class="chart-box">
+        <div class="card card-static chart-box">
           <div class="chart-hd">
-            <div class="box-title">График веса</div>
+            <div class="field-label">График веса</div>
             <div class="segmented" id="wt-period">
               <button class="segmented-btn active" data-period="month" onclick="выбратьПериодВеса(this)">Месяц</button>
               <button class="segmented-btn" data-period="all" onclick="выбратьПериодВеса(this)">Всё время</button>
@@ -544,7 +544,7 @@
         <div class="attach-wrap">
           <input type="file" id="chat-photo-in" accept="image/*" style="display:none" onchange="onChatAttach(event)">
           <input type="file" id="chat-photo-cam" accept="image/*" capture="environment" style="display:none" onchange="onChatAttach(event)">
-          <button class="chat-attach-btn" onclick="toggleAttachMenu(this)" title="Прикрепить фото">
+          <button class="btn-icon btn-icon-solid btn-icon-outline chat-attach-btn" onclick="toggleAttachMenu(this)" title="Прикрепить фото">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
           </button>
           <div class="attach-menu">
@@ -560,10 +560,10 @@
         </div>
         <input type="text" class="input input-compact" id="assistant-chat-in" placeholder="Задайте вопрос о питании..."
                onkeydown="if(event.key==='Enter')sendChat('assistant-chat-in')">
-        <button class="chat-attach-btn" id="assistant-chat-mic" title="Голосовое сообщение">
+        <button class="btn-icon btn-icon-solid btn-icon-outline chat-attach-btn" id="assistant-chat-mic" title="Голосовое сообщение">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
         </button>
-        <button class="chat-send" onclick="sendChat('assistant-chat-in')">
+        <button class="btn-icon btn-icon-accent chat-send" onclick="sendChat('assistant-chat-in')">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
         </button>
       </div>
@@ -808,7 +808,7 @@
         <div class="attach-wrap">
           <input type="file" id="modal-chat-photo-in" accept="image/*" style="display:none" onchange="onChatAttach(event)">
           <input type="file" id="modal-chat-photo-cam" accept="image/*" capture="environment" style="display:none" onchange="onChatAttach(event)">
-          <button class="chat-attach-btn" onclick="toggleAttachMenu(this)" title="Прикрепить фото">
+          <button class="btn-icon btn-icon-solid btn-icon-outline chat-attach-btn" onclick="toggleAttachMenu(this)" title="Прикрепить фото">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
           </button>
           <div class="attach-menu">
@@ -824,10 +824,10 @@
         </div>
         <input type="text" class="input input-compact" id="chat-in" placeholder="Задайте вопрос о питании..."
                onkeydown="if(event.key==='Enter')sendChat()">
-        <button class="chat-attach-btn" id="chat-in-mic" title="Голосовое сообщение">
+        <button class="btn-icon btn-icon-solid btn-icon-outline chat-attach-btn" id="chat-in-mic" title="Голосовое сообщение">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
         </button>
-        <button class="chat-send" onclick="sendChat()">
+        <button class="btn-icon btn-icon-accent chat-send" onclick="sendChat()">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
         </button>
       </div>
@@ -1322,7 +1322,7 @@ function строкаКолонки(имя, значение, доля, цвет
   const w = Math.min(Math.max(доля, 0), 1) * 100;
   return `<div class="as-row">
     <div class="as-row-hd"><span class="as-row-name">${имя}</span><span class="as-row-val">${значение}</span></div>
-    <div class="as-bar"><i class="as-bar-fill is-${цвет}" style="width:${w.toFixed(1)}%"></i></div>
+    <div class="meter as-bar"><i class="meter-fill as-bar-fill is-${цвет}" style="width:${w.toFixed(1)}%"></i></div>
   </div>`;
 }
 
@@ -3315,8 +3315,8 @@ function renderCalendar() {
       вне && 'is-off'].filter(Boolean).join(' ');
     const доля = запись ? Math.min(запись.calories / цель * 100, 100).toFixed(0) : 0;
     const полоска = запись
-      ? `<span class="cal-bar"><i class="cal-bar-f${будущий ? ' is-plan' : ''}" style="width:${доля}%"></i></span>`
-      : '<span class="cal-bar"></span>';
+      ? `<span class="meter cal-bar"><i class="meter-fill cal-bar-f${будущий ? ' is-plan' : ''}" style="width:${доля}%"></i></span>`
+      : '<span class="meter cal-bar"></span>';
     const титул = запись
       ? `${полнаяДата(дата)} — ${запись.calories} ккал${будущий ? ' (запланировано)' : ''}`
       : `${полнаяДата(дата)} — записей нет`;

@@ -141,14 +141,16 @@ html.assistant-mode, html.assistant-mode body {
 }
 
 /* ── Tabs ── */
-.nut-tab { display: none; padding: 0.875rem 0.875rem 1.5rem; min-height: 100%; animation: fadeIn .2s ease; }
+.nut-tab { display: none; padding: var(--space-4) var(--space-4) var(--space-5); min-height: 100%; animation: fadeIn .2s ease; }
 .nut-tab.active { display: block; }
 #tab-assistant.active {
   display: flex; flex-direction: column;
-  /* нижний паддинг = верхнему (14px от .nut-tab) — без него .nut-tab даёт 24px
-     снизу, и вместе с паддингом .chat-input-row получался заметный лишний зазор
-     между полем ввода и нижней навигацией */
-  padding-bottom: 0.875rem;
+  /* нижний паддинг = верхнему (--space-4 от .nut-tab) — без него .nut-tab даёт
+     --space-5 снизу, и вместе с паддингом .chat-input-row получался заметный
+     лишний зазор между полем ввода и нижней навигацией.
+     ЧИСЛО ЗДЕСЬ И ЧИСЛО ТАМ СВЯЗАНЫ, поэтому переведены вместе: перевести
+     одно из двух значило бы развязать их молча */
+  padding-bottom: var(--space-4);
 }
 /* Вкладка ассистента зафиксирована между шапкой .nut-hdr сверху и нижней
    навигацией снизу — это даёт ей определённую высоту, без которой
@@ -394,16 +396,16 @@ html.assistant-mode, html.assistant-mode body {
 .macro-label { font-size: 0.8125rem; color: var(--text); font-weight: 700; margin-bottom: 0.3125rem; }
 /* контур дорожек — углубление на карточке даёт всего 1.05:1, читаемость
    добираем контуром, а не затемнением (design-system.md 1.1) */
-.macro-bar { height: 0.3125rem; background: var(--surface-sunken); border-radius: 0.1875rem; overflow: hidden; margin-bottom: 0.3125rem; box-shadow: inset 0 0 0 1px var(--border); }
-.macro-bar-fill { height: 100%; border-radius: 0.1875rem; transition: width .8s ease; }
+.macro-bar { --meter-h: 0.3125rem; margin-bottom: 0.3125rem; }
+.macro-bar-fill { transition: width .8s ease; }
 .macro-val { font-size: 0.8125rem; font-weight: 600; }
 
 /* ── Water ── */
 .water-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 0.875rem; padding: 0.8125rem 0.875rem; margin-bottom: 0.625rem; }
 .water-hdr { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5625rem; }
 .water-val { margin-left: auto; font-size: 0.82rem; color: var(--wat); font-weight: 700; }
-.water-bar { height: 0.4375rem; background: var(--surface-sunken); border-radius: 0.25rem; overflow: hidden; margin-bottom: 0.625rem; box-shadow: inset 0 0 0 1px var(--border); }
-.water-bar-fill { height: 100%; background: var(--wat); border-radius: 0.25rem; transition: width .6s ease; box-shadow: 0 0 8px rgba(56,189,248,.35); }
+.water-bar { --meter-h: 0.4375rem; margin-bottom: 0.625rem; }
+.water-bar-fill { background: var(--wat); transition: width .6s ease; box-shadow: 0 0 8px color-mix(in srgb, var(--wat) 35%, transparent); }
 /* ── Налитые порции ────────────────────────────────────────────────────────
    Свёрнуты по умолчанию: за день их набирается десяток, и развёрнутый
    список вытеснил бы с экрана сам дневник. Пустого состояния у блока нет —
@@ -791,8 +793,8 @@ html.assistant-mode, html.assistant-mode body {
 .hd-macro-row { display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem; }
 .hd-macro-lbl { font-size: 0.8125rem; color: var(--text-2); }
 .hd-macro-val { font-size: 0.8125rem; font-weight: 600; }
-.hd-bar { height: 0.25rem; background: var(--surface-sunken); border-radius: 0.125rem; overflow: hidden; }
-.hd-bar-f { display: block; height: 100%; border-radius: 0.125rem; transition: width .35s ease; }
+.hd-bar { --meter-h: 0.25rem; }
+.hd-bar-f { transition: width .35s ease; }
 .hd-bar-f.is-prot { background: var(--prot); }
 .hd-bar-f.is-fat  { background: var(--fat); }
 .hd-bar-f.is-carb { background: var(--carb); }
@@ -824,8 +826,7 @@ html.assistant-mode, html.assistant-mode body {
 /* Полоска стоит В КАЖДОЙ клетке, даже пустой, и имеет высоту всегда.
    Иначе клетка без записей на 7px ниже соседней, и ряды календаря
    разъезжаются по вертикали — замер: 34 против 41px */
-.cal-bar { display: block; width: 78%; height: 0.1875rem; border-radius: 0.09375rem; background: var(--surface-sunken); overflow: hidden; }
-.cal-bar-f { display: block; height: 100%; background: var(--tool-accent); border-radius: 0.09375rem; }
+.cal-bar { --meter-h: 0.1875rem; width: 78%; }
 /* Запланированное на будущее — другим цветом, а не тем же приглушённым:
    намерение и съеденное это разные вещи, и одинаковая полоска обещала бы,
    что день уже прожит */
@@ -854,29 +855,34 @@ html.assistant-mode, html.assistant-mode body {
 .mo-val { font-weight: 600; }
 
 /* ── Weight ── */
-/* `.week-title` ПЕРЕИМЕНОВАН В `.box-title` — 2026-08-17, вторым заходом.
-   Имя досталось от блока «7 дней» вкладки «История», удалённого утром того же
-   дня; недели в нём не осталось, а носили его заголовки на вкладке «Вес».
-   Тогда переименовывать не стали с причиной «имя правится вместе с самой
-   вкладкой, а её в этот заход трогать не просили» — теперь вкладка правится,
-   и имя правится с ней.
+/* `.box-title` УДАЛЁН — 2026-08-17, задача 79. Класс был третьей копией
+   одного и того же: маленькая подпись в верхнем регистре над блоком.
+   В системе это `.field-label` (§2 дизайн-системы), и на соседнем экране
+   «Добавить» она уже стояла — `class="field-label a-box-title"`. Различий
+   между копией и оригиналом было три, и ни одно не задумывалось:
+   гарнитура (Manrope против моно), вес 600 против 500 и нижний отступ
+   10px против 8. Заголовки «ЗАМЕРЫ» и «ГРАФИК ВЕСА» переведены
+   на `.field-label`.
 
-   Ровно на этом классе прошлый заход и споткнулся: правило удалили вместе
-   с блоком истории, и заголовок графика на соседней вкладке стал 16px/400
-   обычным текстом вместо 13px/600 в верхнем регистре. Класс был жив,
-   разметка цела, ни греп, ни чтение этого не находили — нашла проверка 7.
-   Поэтому перед этим переименованием носители имени пересчитаны грепом
-   по всему дереву: два, оба в разметке вкладки «Вес» (заголовок графика
-   и заголовок замеров), больше ни одного файла. */
-.box-title { font-size: 0.8125rem; color: var(--text-2); text-transform: uppercase; letter-spacing: .07em; font-weight: 600; margin-bottom: 0.625rem; }
-.wt-hero { background: var(--surface-1); border: 1px solid var(--border); border-radius: 0.875rem; padding: 1.125rem; margin-bottom: 0.625rem; text-align: center; }
+   ВМЕСТЕ С НИМ УДАЛЁН И ЕГО МАСШТАБ `calc(0.85 * var(--nut-u))`. Системный
+   компонент внутри раздела сохраняет системный размер — то же решение, что
+   у `.chip`, `.input` и `.segmented-btn` (см. блок про `--nut-u` ниже).
+   Раздел растит вокруг них раскладку, а не их самих. */
+.wt-hero { margin-bottom: var(--space-3); text-align: center; }
+/* Кегль числа-витрины. Системной ступени под него нет и быть не должно:
+   `--text-h1` даёт на 390px 28px, `--text-display` — 40px, а здесь нужно
+   ровно одно крупное число во всю ширину узкой колонки. Оставлено числом
+   осознанно, десктопный размер — в единице раздела (задача 79). */
 .wt-big  { font-size: 2.8rem; font-weight: 800; line-height: 1; font-family: var(--font); }
-.wt-unit { font-size: 1.1rem; color: var(--text-2); font-weight: 600; }
-.wt-sub  { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-top: 0.3125rem; }
-.wt-prog { margin-top: 0.8125rem; }
-.wt-prog-lbl { display: flex; justify-content: space-between; font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-bottom: 0.3125rem; }
-.wt-prog-bar { height: 0.4375rem; background: var(--surface-sunken); border-radius: 0.25rem; overflow: hidden; box-shadow: inset 0 0 0 1px var(--border); }
-.wt-prog-fill { height: 100%; background: var(--tool-accent); border-radius: 0.25rem; transition: width .8s ease; box-shadow: 0 0 8px var(--nut-glow); }
+.wt-unit { font-size: var(--text-body-lg); color: var(--text-2); font-weight: 600; }
+.wt-sub  { font-size: var(--text-caption); color: var(--text-2); font-weight: 600; margin-top: var(--space-1); }
+.wt-prog { margin-top: var(--space-3); }
+.wt-prog-lbl { display: flex; justify-content: space-between; font-size: var(--text-caption); color: var(--text-2); font-weight: 600; margin-bottom: var(--space-1); }
+/* Дорожка и заливка — системные `.meter .meter-edge` и `.meter-fill`.
+   Здесь остаётся только то, что принадлежит ЭТОМУ экземпляру: толщина,
+   плавность и свечение достижения */
+.wt-prog-bar { --meter-h: 0.4375rem; }
+.wt-prog-fill { transition: width .8s ease; box-shadow: 0 0 8px var(--nut-glow); }
 
 /* Достижение цели. Полоса заполнена целиком и подписана словами: заполненная
    полоса без подписи отвечает «сколько прошли», но не отвечает «дошли ли» —
@@ -889,10 +895,10 @@ html.assistant-mode, html.assistant-mode body {
    селектора, проверка 8 — на id). Убран: колонка узкая, кнопка всё равно
    уходит на свою строку, и уменьшать её было незачем — то есть компонент
    правился бы не ради задачи, а по привычке. */
-.wt-done { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem; }
+.wt-done { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-2); }
 .wt-done-txt {
-  display: flex; align-items: center; gap: 0.375rem;
-  font-size: 0.8125rem; font-weight: 700; color: var(--tool-accent);
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--text-caption); font-weight: 700; color: var(--tool-accent);
 }
 .wt-done-txt svg { width: 1rem; height: 1rem; flex-shrink: 0; }
 
@@ -902,29 +908,43 @@ html.assistant-mode, html.assistant-mode body {
    пикселей сообщали ровно ноль сведений. Строка «Талия — не записан»
    занимает 24px и говорит то же самое словами.
    Оболочка — системная карточка, вариант `.card-static`; свои здесь только
-   строки внутри неё. */
-.wt-measures { padding: 0.875rem 1rem; margin-bottom: 0.625rem; }
+   строки внутри неё.
+
+   ПАДДИНГА ЗДЕСЬ БОЛЬШЕ НЕТ. Стояло `0.875rem 1rem` — то есть карточка
+   носила системный класс и тут же переписывала его паддинг своим числом:
+   та самая форма «свой класс рядом с системным», о которой предупреждает
+   комментарий к `.wt-done` выше. Осталась системная `--space-5`. */
+.wt-measures { margin-bottom: var(--space-3); }
 .wt-mrow {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem;
-  padding: 0.4375rem 0; border-top: 1px solid var(--border); font-size: 0.8125rem;
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-2) 0; border-top: 1px solid var(--border); font-size: var(--text-caption);
 }
 .wt-mrow:first-of-type { border-top: none; }
 .wt-mname { color: var(--text-2); font-weight: 600; }
 .wt-mval { font-weight: 700; text-align: right; }
 .wt-mval.is-empty { color: var(--text-2); font-weight: 400; font-style: italic; }
 
-.chart-box { background: var(--surface-1); border: 1px solid var(--border); border-radius: 0.875rem; padding: 0.875rem; margin-bottom: 0.625rem; overflow: hidden; }
+/* Коробка графика — системная `.card .card-static`; своё здесь только
+   `overflow` (кривая графика выходит за края холста) и нижний отступ */
+.chart-box { margin-bottom: var(--space-3); overflow: hidden; }
 /* Заголовок и переключатель периода в одной строке. `flex-wrap` не для
    красоты: на 390px «Месяц» и «Всё время» рядом с заголовком не помещаются
    (замер: 176px переключатель при 168px остатка), и без переноса
    переключатель сжался бы до нечитаемого */
-.chart-hd { display: flex; align-items: center; justify-content: space-between; gap: 0.625rem; flex-wrap: wrap; }
-.chart-hd .box-title { margin-bottom: 0; }
+.chart-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+/* Подпись стоит В РЯДУ, а не над блоком, поэтому её нижний отступ снят.
+   Субъект правила — системный `.field-label`, и это законная строка того
+   же вида, что ширина главной кнопки в панели сохранения у профиля:
+   раскладка экземпляра внутри своего родителя, вид компонента не тронут
+   (CLAUDE.md §6.0.2, разбор первого числа).
+   Скобок в этом пояснении нет намеренно — проверка 1 ищет имя системного
+   класса на строке с фигурной скобкой и берёт прозу наравне с кодом */
+.chart-hd .field-label { margin-bottom: 0; }
 .wt-svg { width: 100%; height: 10rem; overflow: visible; }
 /* Честная подпись под графиком: сколько записей и стоит ли делать выводы */
 .wt-note {
-  font-size: 0.8125rem; color: var(--text-2); line-height: 1.5;
-  margin-top: 0.75rem; padding-top: 0.625rem; border-top: 1px solid var(--border);
+  font-size: var(--text-caption); color: var(--text-2); line-height: 1.5;
+  margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border);
 }
 .wt-note:empty { display: none; }
 /* Переход к полному периоду из подписи. Кнопка, а не ссылка: она меняет
@@ -936,19 +956,25 @@ html.assistant-mode, html.assistant-mode body {
 @media (hover: hover) {
   .wt-note-link:hover { text-decoration: underline; }
 }
+/* Подсказка над точкой графика. Три хардкод-цвета отсюда убраны
+   (`rgba(22,26,44,.97)` фон, `rgba(199,211,234,.13)` рамка, своя тень):
+   первый был ЧЕТВЁРТОЙ поверхностью мимо лесенки — темнее --surface-2
+   и светлее --surface-1, то есть ступенью, которой в системе нет.
+   Размытие подложки оставлено: подсказка висит над графиком, и сквозь
+   неё видно линию. */
 #wt-tooltip {
   position: fixed; z-index: 9999; display: none; pointer-events: none;
-  background: rgba(22,26,44,.97); border: 1px solid rgba(199,211,234,.13);
-  border-radius: 0.625rem; padding: 0.625rem 0.875rem; min-width: 9.25rem;
-  font-size: 0.8125rem; color: var(--text);
-  box-shadow: 0 8px 28px rgba(0,0,0,.55);
+  background: var(--surface-2); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); min-width: 9.25rem;
+  font-size: var(--text-caption); color: var(--text);
+  box-shadow: var(--shadow-lg);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
-.wt-tt-date { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-bottom: 0.4375rem; text-transform: capitalize; white-space: nowrap; }
-.wt-tt-row { display: flex; justify-content: space-between; gap: 1.125rem; margin-bottom: 0.1875rem; }
+.wt-tt-date { font-size: var(--text-caption); color: var(--text-2); font-weight: 600; margin-bottom: var(--space-2); text-transform: capitalize; white-space: nowrap; }
+.wt-tt-row { display: flex; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-1); }
 .wt-tt-row:last-child { margin-bottom: 0; }
-.wt-tt-row span { color: var(--text-2); font-size: 0.8125rem; }
-.wt-tt-row strong { color: var(--tool-accent); font-weight: 700; font-size: 0.82rem; }
+.wt-tt-row span { color: var(--text-2); font-size: var(--text-caption); }
+.wt-tt-row strong { color: var(--tool-accent); font-weight: 700; font-size: var(--text-caption); }
 
 /* ── Profile ── */
 .p-sec { margin-bottom: 1.125rem; }
@@ -1142,7 +1168,7 @@ html.assistant-mode, html.assistant-mode body {
 .as-today { display: none; }
 
 .chat-msgs {
-  overflow-y: auto; padding: 0.625rem 0; display: flex; flex-direction: column; gap: 0.625rem;
+  overflow-y: auto; padding: var(--space-3) 0; display: flex; flex-direction: column; gap: var(--space-3);
   flex: 1; min-height: 11.25rem;
   scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
 }
@@ -1153,9 +1179,13 @@ html.assistant-mode, html.assistant-mode body {
 .chat-msg { max-width: 88%; }
 .chat-msg.ai   { align-self: flex-start; }
 .chat-msg.user { align-self: flex-end; }
+/* Кегль — `--text-body-sm`, а не `--text-caption`. Обе ступени лежат от 0.87rem
+   почти на равном расстоянии (13.92px против 13 и 15), и выбирает тут не
+   арифметика, а роль: в пузыре лежит текст сообщения, который читают
+   абзацами, а `--text-caption` — ступень подписей. */
 .chat-bubble {
-  padding: 0.625rem 0.8125rem; border-radius: 1rem;
-  font-size: 0.87rem; line-height: 1.58;
+  padding: var(--space-3); border-radius: 1rem;
+  font-size: var(--text-body-sm); line-height: 1.58;
 }
 .chat-bubble.ai {
   background: var(--surface-sunken); border: 1px solid var(--border);
@@ -1167,58 +1197,61 @@ html.assistant-mode, html.assistant-mode body {
 }
 .chat-bubble-img {
   display: block; max-width: 12.5rem; width: 100%; border-radius: 0.625rem;
-  margin-bottom: 0.375rem; cursor: zoom-in;
+  margin-bottom: var(--space-2); cursor: zoom-in;
 }
 /* Просмотр фото — вариант .modal-ov-viewer в style.css, не своя модалка */
 .chat-input-row {
-  display: flex; gap: 0.5rem; padding: 0.75rem 0 0;
-  /* по центру, а не растяжкой: поле теперь системное (44px), а кнопки рядом
-     сохранили свои 42px — при stretch они прижались бы к верху ряда */
+  display: flex; gap: var(--space-2); padding: var(--space-3) 0 0;
+  /* по центру, а не растяжкой: поле системное (44px), а кнопки рядом —
+     системные `.btn-icon` (40px); при stretch они прижались бы к верху ряда */
   align-items: center;
   border-top: 1px solid var(--border); flex-shrink: 0; position: relative;
 }
 /* поле ввода — .input .input-compact; ряду нужен только его flex-рост */
 .chat-input-row .input { flex: 1; }
-.chat-send {
-  width: 2.625rem; height: 2.625rem; background: var(--tool-accent); border: none; border-radius: 0.625rem;
-  /* иконка на зелёной заливке: белая 2.54, --surface-0 — 7.76 */
-  color: var(--surface-0); cursor: pointer; display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; -webkit-tap-highlight-color: transparent;
-}
-.chat-send:active { opacity: .85; }
-.chat-send svg { width: 1.125rem; height: 1.125rem; }
+/* ОТПРАВКА И СКРЕПКА — СИСТЕМНЫЕ КНОПКИ-ЗНАЧКИ, 2026-08-17, задача 79.
+   Здесь стояли две свои: 42×42, свой радиус, свой фон, своя рамка — при том
+   что в системе `.btn-icon` и `.btn-icon-solid` уже описывали ровно это.
+   Отправке не хватало варианта «главное действие» — он и заведён
+   в системе (`.btn-icon-accent`), а не дописан здесь.
+
+   Что осталось своим и почему: `touch-action` и запрет выделения на скрепке
+   держат ДОЛГОЕ НАЖАТИЕ (запись голосового) — это поведение экземпляра,
+   а не вид компонента, и без них длинный тап на мобильном вызывает меню
+   браузера вместо записи. Отклик на нажатие акцентом — по той же причине:
+   у скрепки два действия на одной кнопке, и подтверждать нажатие ей нужно
+   заметнее, чем системной. */
 .chat-attach-btn {
-  width: 2.625rem; height: 2.625rem; background: var(--surface-sunken); border: 1px solid var(--border);
-  border-radius: 0.625rem; color: var(--text-2); cursor: pointer; display: flex;
-  align-items: center; justify-content: center; flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent; transition: color .15s, border-color .15s;
   touch-action: none; -webkit-touch-callout: none;
   -webkit-user-select: none; user-select: none;
 }
-.chat-attach-btn:active { color: var(--tool-accent); border-color: var(--tool-accent); }
-.chat-attach-btn svg { width: 1.125rem; height: 1.125rem; }
+.chat-attach-btn:active { color: var(--tool-accent); }
 .chat-attach-preview {
-  display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem 0.625rem; margin-top: 0.625rem;
-  background: var(--surface-sunken); border: 1px solid var(--border); border-radius: 0.6875rem; flex-shrink: 0;
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); margin-top: var(--space-3);
+  background: var(--surface-sunken); border: 1px solid var(--border); border-radius: var(--radius-md); flex-shrink: 0;
 }
 .chat-attach-preview img { width: 2.5rem; height: 2.5rem; border-radius: 0.5rem; object-fit: cover; }
-.chat-attach-preview span { flex: 1; font-size: 0.8125rem; color: var(--text-2); }
+.chat-attach-preview span { flex: 1; font-size: var(--text-caption); color: var(--text-2); }
+/* Крестик снятия вложения. Системная `.btn-icon .btn-icon-round` — 40×40,
+   то есть выше самой полосы превью (она 40px вместе с паддингами): кнопка
+   стала бы главным её элементом. Оставлен свой размер, и это названо
+   вслух, а не спрятано. */
 .chat-attach-preview button {
   width: 1.625rem; height: 1.625rem; border-radius: 50%; background: var(--surface-1); border: none;
-  color: var(--text-2); font-size: 1rem; cursor: pointer; flex-shrink: 0;
+  color: var(--text-2); font-size: var(--text-body); cursor: pointer; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent;
 }
 /* ── Меню "Камера / Галерея" у кнопки-скрепки ── */
 .attach-wrap { position: relative; flex-shrink: 0; }
 .attach-menu {
-  position: absolute; bottom: calc(100% + 0.5rem); left: 0; display: none; flex-direction: column;
-  background: var(--surface-sunken); border: 1px solid var(--border); border-radius: 0.75rem;
-  box-shadow: 0 8px 24px rgba(0,0,0,.4); overflow: hidden; z-index: 60; min-width: 10.5rem;
+  position: absolute; bottom: calc(100% + var(--space-2)); left: 0; display: none; flex-direction: column;
+  background: var(--surface-sunken); border: 1px solid var(--border); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md); overflow: hidden; z-index: 60; min-width: 10.5rem;
   animation: voice-fade-in .12s ease;
 }
 .attach-menu button {
-  display: flex; align-items: center; gap: 0.625rem; width: 100%; padding: 0.6875rem 0.875rem;
-  background: none; border: none; color: var(--text); font-size: 0.85rem; text-align: left;
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3) var(--space-4);
+  background: none; border: none; color: var(--text); font-size: var(--text-caption); text-align: left;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .attach-menu button:active { background: var(--surface-1); color: var(--tool-accent); }
@@ -1227,33 +1260,35 @@ html.assistant-mode, html.assistant-mode body {
 @keyframes mic-pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
 @keyframes voice-fade-in { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: scale(1); } }
 .voice-rec-overlay {
-  position: absolute; inset: 0; display: flex; align-items: center; gap: 0.5rem;
-  padding: 0 0.375rem; background: var(--surface-1); border-radius: 0.6875rem; z-index: 2;
+  position: absolute; inset: 0; display: flex; align-items: center; gap: var(--space-2);
+  padding: 0 var(--space-2); background: var(--surface-1); border-radius: var(--radius-md); z-index: 2;
   animation: voice-fade-in .15s ease;
 }
-.voice-rec-dot { width: 0.5625rem; height: 0.5625rem; border-radius: 50%; background: #ef4444; flex-shrink: 0; animation: mic-pulse 1s infinite; }
+.voice-rec-dot { width: 0.5625rem; height: 0.5625rem; border-radius: 50%; background: var(--error); flex-shrink: 0; animation: mic-pulse 1s infinite; }
 .voice-rec-dot.paused { animation: none; background: var(--text-2); }
 .voice-rec-timer {
-  font-size: 0.85rem; font-weight: 700; color: var(--text); flex-shrink: 0;
+  font-size: var(--text-caption); font-weight: 700; color: var(--text); flex-shrink: 0;
   min-width: 2.25rem; font-variant-numeric: tabular-nums;
 }
 .voice-rec-wave { flex: 1; height: 1.75rem; min-width: 0; }
 .voice-rec-wave canvas { width: 100%; height: 100%; display: block; }
-.chat-attach-btn.voice-active, .icon-btn.voice-active {
-  visibility: hidden;
-}
+/* `.icon-btn` отсюда убран: класс переименован в системный `.btn-icon`
+   задачей 42, в разметке его ноль вхождений, и правило про него искало
+   то, чего нет, — тихий ноль, который читается как «проверено» */
+.chat-attach-btn.voice-active { visibility: hidden; }
 /* Удалить запись (слева) и отправить (справа) */
 .voice-rec-del, .voice-rec-send {
   width: 2.25rem; height: 2.25rem; border-radius: 50%; border: none; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.voice-rec-del { background: rgba(239,68,68,.12); color: #ef4444; }
+.voice-rec-del { background: color-mix(in srgb, var(--error) 12%, transparent); color: var(--error); }
 .voice-rec-del svg { width: 0.9375rem; height: 0.9375rem; }
-/* иконка на зелёной заливке: белая 2.54, --surface-0 — 7.76.
-   Соседний .voice-rec-del не трогаем: у него фон полупрозрачный красный
-   на тёмной подложке, там как раз светлый цвет и нужен */
-.voice-rec-send { background: var(--tool-accent); color: var(--surface-0); }
+/* иконка на заливке акцента — --tool-accent-ink, тот же токен, что
+   у системной `.btn-icon-accent`. Соседний .voice-rec-del не трогаем:
+   у него фон полупрозрачный красный на тёмной подложке, там как раз
+   светлый цвет и нужен */
+.voice-rec-send { background: var(--tool-accent); color: var(--tool-accent-ink); }
 .voice-rec-send svg { width: 1.0625rem; height: 1.0625rem; }
 .voice-rec-send:active { opacity: .9; }
 /* Плавающая кнопка паузы/продолжения над кнопкой отправки — без удержания пальца */
@@ -1261,15 +1296,15 @@ html.assistant-mode, html.assistant-mode body {
   position: fixed; width: 2.5rem; height: 2.5rem; border-radius: 50%;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
   background: var(--surface-sunken); color: var(--tool-accent); border: 1px solid var(--tool-accent);
-  box-shadow: 0 4px 14px rgba(0,0,0,.35); z-index: 220;
+  box-shadow: var(--shadow-md); z-index: 220;
   -webkit-tap-highlight-color: transparent; transition: color .15s, border-color .15s;
 }
 .voice-pause-float svg { width: 1.0625rem; height: 1.0625rem; flex-shrink: 0; }
-.voice-pause-float.is-paused { color: #ef4444; border-color: #ef4444; animation: mic-pulse 1.4s infinite; }
+.voice-pause-float.is-paused { color: var(--error); border-color: var(--error); animation: mic-pulse 1.4s infinite; }
 
 /* ── Голосовое сообщение в чате ── */
 .voice-bubble { min-width: 12.5rem; }
-.voice-row { display: flex; align-items: center; gap: 0.5rem; }
+.voice-row { display: flex; align-items: center; gap: var(--space-2); }
 .voice-play-btn {
   width: 2rem; height: 2rem; border-radius: 50%; border: none; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
@@ -1278,24 +1313,30 @@ html.assistant-mode, html.assistant-mode body {
 .chat-bubble.user .voice-play-btn { background: color-mix(in srgb, var(--tool-accent) 18%, transparent); color: var(--tool-accent); }
 .chat-bubble.ai .voice-play-btn   { background: var(--surface-1); color: var(--text); }
 .voice-play-btn svg { width: 0.8125rem; height: 0.8125rem; }
+/* ШАГ ШТРИХОВ — ЕДИНСТВЕННЫЙ ЗАЗОР НА ЭТИХ ДВУХ ВКЛАДКАХ, ОСТАВЛЕННЫЙ
+   ЧИСЛОМ. Это не отступ между блоками, а шаг рисунка: 27 штрихов шириной
+   0.1875rem (3px) с просветом 2px. Ближайшая ступень шкалы — `--space-1`,
+   4px, — удваивает просвет: волна 133px превращается в 185px и читается
+   пунктиром, а не звуковой дорожкой. Шкала под шаг рисунка не заводится
+   (расширять её из-за одного случая правило §6.0.2 прямо запрещает). */
 .voice-wave-static { flex: 1; display: flex; align-items: center; gap: 0.125rem; height: 1.5rem; min-width: 0; }
 .voice-wave-static .vw-bar { width: 0.1875rem; border-radius: 0.125rem; flex-shrink: 0; opacity: .55; }
 .chat-bubble.user .voice-wave-static .vw-bar { background: var(--tool-accent); }
 .chat-bubble.ai .voice-wave-static .vw-bar { background: var(--text-2); }
-.voice-dur { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.voice-dur { font-size: var(--text-caption); color: var(--text-2); font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .voice-tr-toggle {
-  margin-top: 0.4375rem; background: none; border: none; padding: 0; cursor: pointer;
-  font-size: 0.8125rem; font-weight: 700; color: var(--tool-accent); font-family: var(--font);
-  display: flex; align-items: center; gap: 0.1875rem; -webkit-tap-highlight-color: transparent;
+  margin-top: var(--space-2); background: none; border: none; padding: 0; cursor: pointer;
+  font-size: var(--text-caption); font-weight: 700; color: var(--tool-accent); font-family: var(--font);
+  display: flex; align-items: center; gap: var(--space-1); -webkit-tap-highlight-color: transparent;
 }
 .voice-tr-toggle svg { width: 0.6875rem; height: 0.6875rem; transition: transform .15s; }
 .voice-tr-toggle.open svg { transform: rotate(180deg); }
 .voice-tr-text {
-  display: none; margin-top: 0.375rem; padding-top: 0.4375rem; border-top: 1px solid rgba(255,255,255,.08);
-  font-size: 0.85rem; line-height: 1.5;
+  display: none; margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--border);
+  font-size: var(--text-caption); line-height: 1.5;
 }
 .voice-tr-text.show { display: block; }
-.voice-transcribing { margin-top: 0.375rem; font-size: 0.8125rem; color: var(--text-2); font-weight: 600; font-style: italic; }
+.voice-transcribing { margin-top: var(--space-2); font-size: var(--text-caption); color: var(--text-2); font-weight: 600; font-style: italic; }
 /* ── Набор карточек блюд в чате ────────────────────────────────────────────
    Здесь до 2026-08-13 лежали .meal-picker-btns — четыре кнопки выбора приёма
    пищи для ОДНОГО блюда. Правила удалены вместе с разметкой: описание
@@ -1308,30 +1349,30 @@ html.assistant-mode, html.assistant-mode body {
 .fd-bubble { width: 100%; }
 .fd-head {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 0.5rem; margin-bottom: 0.625rem;
+  gap: var(--space-2); margin-bottom: var(--space-3);
 }
-.fd-title { font-size: 0.8125rem; font-weight: 700; color: var(--text-2); }
-.fd-pager { display: flex; align-items: center; gap: 0.25rem; flex-shrink: 0; }
+.fd-title { font-size: var(--text-caption); font-weight: 700; color: var(--text-2); }
+.fd-pager { display: flex; align-items: center; gap: var(--space-1); flex-shrink: 0; }
 .fd-count {
-  font-family: var(--font-mono); font-size: 0.8125rem; color: var(--text-2);
+  font-family: var(--font-mono); font-size: var(--text-caption); color: var(--text-2);
   min-width: 3.75rem; text-align: center;
 }
 .fd-card {
   background: var(--surface-sunken); border: 1px solid var(--border);
-  border-radius: 0.75rem; padding: 0.75rem; margin-bottom: 0.625rem;
+  border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-3);
 }
-.fd-card .f-field { margin-bottom: 0.5rem; }
+.fd-card .f-field { margin-bottom: var(--space-2); }
 /* Чипы приёмов пищи переносятся, а не уезжают в горизонтальную прокрутку:
    у .s-chips на экране поиска стоит overflow-x, и внутри карточки шириной
    ~300px четвёртый чип («Перекус») оказывался за кромкой — прокрутка
    в прокрутке, ровно то, что разбирала задача 49. Замер на 390px:
    ширина строки чипов 302px против 348px содержимого */
-.fd-card .s-chips { flex-wrap: wrap; overflow-x: visible; margin-bottom: 0.25rem; }
+.fd-card .s-chips { flex-wrap: wrap; overflow-x: visible; margin-bottom: var(--space-1); }
 .fd-card .s-chips .chip { flex: 0 1 auto; }
 /* Пять числовых полей в две колонки: на 390px три пары читаются, один
    столбец увёл бы кнопку сохранения за нижнюю кромку ленты */
-.fd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem; }
-.fd-drop { width: 100%; margin-top: 0.5rem; }
+.fd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-2); }
+.fd-drop { width: 100%; margin-top: var(--space-2); }
 
 /* ── Recipe modals ── */
 .ing-list { margin-bottom: 0.625rem; }
@@ -1353,7 +1394,7 @@ html.assistant-mode, html.assistant-mode body {
 .frac-btn.active { background: var(--tool-accent-dim); border-color: color-mix(in srgb, var(--tool-accent) 35%, transparent); color: var(--tool-accent); }
 
 /* ── Measure modal ── */
-.meas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5625rem; }
+.meas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
 
 /* ── Toast ── */
 .toast {
@@ -1462,7 +1503,7 @@ html.assistant-mode, html.assistant-mode body {
 .s-bar-flush  { margin-bottom: 0; }
 .calc-box-gap { margin-top: 0.6875rem; }
 .g-wrap-gap   { margin-bottom: 0.8125rem; }
-.chat-input-row-modal { padding-bottom: 0.875rem; }
+.chat-input-row-modal { padding-bottom: var(--space-4); }
 
 /* ── То, что собирает скрипт ── */
 .food-brand      { font-weight: 600; color: var(--text-2); font-size: 0.8125rem; }
@@ -1490,7 +1531,7 @@ html.assistant-mode, html.assistant-mode body {
   color: #ef4444; background: none; border: none;
   font-size: 1.1rem; padding: 0.25rem; cursor: pointer;
 }
-.chat-empty { text-align: center; padding: 1.5rem 0; }
+.chat-empty { text-align: center; padding: var(--space-5) 0; }
 .wt-dot { cursor: pointer; transition: r .1s; }
 .wt-hit { cursor: pointer; }
 
@@ -2014,7 +2055,7 @@ html.assistant-mode, html.assistant-mode body {
   #tab-assistant.active {
     height: 100%; width: 100%;
     max-width: calc(63 * var(--nut-u)); margin: 0 auto;
-    padding-bottom: 1.875rem;
+    padding-bottom: var(--space-6);
   }
   .as-cols {
     display: grid;
@@ -2041,7 +2082,7 @@ html.assistant-mode, html.assistant-mode body {
      одну букву */
   .as-today-date {
     font-size: calc(0.8125 * var(--nut-u)); color: var(--text-2);
-    margin-top: 0.125rem;
+    margin-top: var(--space-1);
   }
   .as-today-date::first-letter { text-transform: uppercase; }
   .as-today-note {
@@ -2052,15 +2093,17 @@ html.assistant-mode, html.assistant-mode body {
   .as-row { padding: calc(0.5 * var(--nut-u)) 0; border-top: 1px solid var(--border); }
   .as-row:first-child { border-top: none; padding-top: 0; }
   .as-row-hd {
-    display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem;
-    font-size: calc(0.8125 * var(--nut-u)); margin-bottom: 0.3125rem;
+    display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2);
+    font-size: calc(0.8125 * var(--nut-u)); margin-bottom: var(--space-1);
   }
   .as-row-name { color: var(--text-2); font-weight: 600; }
   .as-row-val { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .as-bar { height: 0.25rem; border-radius: 0.125rem; background: var(--surface-sunken); overflow: hidden; }
+  /* Дорожка — системная `.meter`; здесь только её толщина. Кромки
+     (`.meter-edge`) у неё нет намеренно: на 4px внутренняя рамка съедает
+     треть высоты */
+  .as-bar { --meter-h: 0.25rem; }
   /* Цвета те же, что у дорожек макросов в дневнике: один показатель обязан
      выглядеть одинаково на обоих экранах, иначе его опознают заново */
-  .as-bar-fill { display: block; height: 100%; border-radius: 0.125rem; }
   .as-bar-fill.is-cal  { background: var(--tool-accent); }
   .as-bar-fill.is-pro  { background: var(--prot); }
   .as-bar-fill.is-fat  { background: var(--fat); }
@@ -2180,22 +2223,17 @@ html.assistant-mode, html.assistant-mode body {
   #tab-weight.active .d-right {
     display: block; height: auto; min-height: 0; overflow: visible; padding-right: 0;
   }
-  /* Кегль .85rem достался вкладке от блока «7 дней» и был сохранён прошлым
-     заходом с причиной «вкладку „Вес“ этот заход менять не должен».
-     Заход, который её меняет, — этот, и число переведено в единицу раздела:
-     0.85 единицы — те же 13.6px на 1440, но 15px на 1600 и 17px на 2200,
-     тогда как прежние .85rem давали 14.5 и 16.2 (корневой кегль растёт
-     слабее единицы). Порог 0.8125rem проходится на всех четырёх ширинах. */
-  .box-title { font-size: calc(0.85 * var(--nut-u)); }
-  .wt-hero { padding: calc(1.125 * var(--nut-u)); }
+  /* Кеглей `.box-title` здесь больше нет: заголовки перешли на системный
+     `.field-label`, а системный компонент внутри раздела сохраняет системный
+     размер — то же решение, что у `.chip`, `.input` и `.segmented-btn`.
+     Паддингов `.wt-hero`, `.wt-measures` и `.chart-box` здесь нет по той же
+     причине: все три — системная `.card`, её паддинг задаёт система. */
   .wt-big { font-size: calc(3.4 * var(--nut-u)); }
   .wt-unit { font-size: calc(1.1 * var(--nut-u)); }
   .wt-sub { font-size: calc(0.85 * var(--nut-u)); }
   .wt-prog-lbl { font-size: calc(0.85 * var(--nut-u)); }
   .wt-done-txt { font-size: calc(0.8125 * var(--nut-u)); }
-  .wt-measures { padding: calc(0.875 * var(--nut-u)) var(--nut-u); }
   .wt-mrow { font-size: calc(0.85 * var(--nut-u)); padding: calc(0.375 * var(--nut-u)) 0; }
-  .chart-box { padding: calc(1.25 * var(--nut-u)); }
   /* Высота графика — тоже в единицах раздела, а не «весь остаток колонки».
      Замер до правки на 1440: холст 729×684px под размах в 5.6 кг —
      то есть 122 пикселя на килограмм. 20 единиц дают 320px на 1440
