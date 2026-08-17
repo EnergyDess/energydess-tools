@@ -29,6 +29,17 @@ from datetime import datetime, timedelta
 EMAIL = "screenshot@local.dev"
 PASSWORD = "Screenshot-Local-2026"   # тот же, что записан в CLAUDE.md §8.2
 
+# ВТОРОЙ АККАУНТ — НЕПОДТВЕРЖДЁННЫЙ (BACKLOG №24, гейт is_verified).
+# Заводится тем же скриптом, а не руками, по той же причине, по которой
+# заведён первый: состояние, созданное однажды вручную, невоспроизводимо.
+# Проверять гейт без него нечем — а «нечем проверить» на практике означает
+# «проверено рассуждением», то есть не проверено (CLAUDE.md §6.0.1).
+#
+# У аккаунта is_verified=False и НЕТ прав администратора: гейт с ролью
+# не связан, и админ здесь только запутал бы картину.
+EMAIL_НЕПОДТВЕРЖДЁННЫЙ = "unverified@local.dev"
+PASSWORD_НЕПОДТВЕРЖДЁННЫЙ = "Unverified-Local-2026"
+
 
 def _проверить_базу() -> str:
     """Отдаёт путь к базе или останавливает скрипт, если база не локальная.
@@ -156,13 +167,38 @@ def main() -> int:
     try:
         u = db.query(User).filter(User.email == EMAIL).first()
 
+        # Непроверенный аккаунт заводится ВСЕГДА, вместе с основным: гейт
+        # проверяют оба захода — и тот, что его чинит, и тот, что случайно
+        # заденет. Аккаунт, который надо не забыть создать, — это аккаунт,
+        # которого не будет.
+        нп = db.query(User).filter(User.email == EMAIL_НЕПОДТВЕРЖДЁННЫЙ).first()
+
         if удалить:
+            if нп:
+                delete_user_cascade(нп.id)
+                print(f"Удалён {EMAIL_НЕПОДТВЕРЖДЁННЫЙ}")
             if not u:
                 print("Аккаунта нет — удалять нечего.")
                 return 0
             отчёт = delete_user_cascade(u.id)
             print(f"Удалён {EMAIL}: {отчёт}")
             return 0
+
+        if нп:
+            нп.password_hash = hash_password(PASSWORD_НЕПОДТВЕРЖДЁННЫЙ)
+            нп.is_verified = False
+            нп.is_admin = False
+            print(f"Пароль сброшен: {EMAIL_НЕПОДТВЕРЖДЁННЫЙ} (is_verified=False)")
+        else:
+            нп = User(email=EMAIL_НЕПОДТВЕРЖДЁННЫЙ,
+                      password_hash=hash_password(PASSWORD_НЕПОДТВЕРЖДЁННЫЙ),
+                      is_admin=False, is_verified=False,
+                      display_name="Почта не подтверждена",
+                      created_at=datetime.utcnow())
+            db.add(нп)
+            db.flush()
+            print(f"Заведён {EMAIL_НЕПОДТВЕРЖДЁННЫЙ} (id={нп.id}, is_verified=False)")
+        db.commit()
 
         if u:
             u.password_hash = hash_password(PASSWORD)
@@ -180,6 +216,8 @@ def main() -> int:
 
         if not сеять:
             print(f"Пароль: {PASSWORD}")
+            print(f"Непроверенный: {EMAIL_НЕПОДТВЕРЖДЁННЫЙ} / "
+                  f"{PASSWORD_НЕПОДТВЕРЖДЁННЫЙ}")
             return 0
 
         # ── Данные для съёмки ────────────────────────────────────────────────
