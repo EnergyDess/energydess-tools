@@ -356,6 +356,7 @@
 
     <!-- ── TAB: WEIGHT ── -->
     <section class="nut-tab" id="tab-weight">
+      <div class="w-cols">
       <div class="d-left">
         <div class="wt-hero">
           <div class="wt-big"><span id="cur-wt">—</span> <span class="wt-unit">кг</span></div>
@@ -367,17 +368,40 @@
               <span id="wt-target">—</span>
             </div>
             <div class="wt-prog-bar"><div class="wt-prog-fill" id="wt-fill"></div></div>
+            <!-- Достижение цели: полоса заполнена целиком, «осталось N кг»
+                 заменено на «цель достигнута», и отсюда же ставится новая.
+                 Блок отдельный, а не переписанный текст в .wt-prog-lbl:
+                 туда нужна кнопка, а не только слово -->
+            <div class="wt-done" id="wt-done" style="display:none">
+              <div class="wt-done-txt"><i data-lucide="check-circle-2"></i> <span id="wt-done-lbl">Цель достигнута</span></div>
+              <button class="btn-secondary btn-block" onclick="поставитьНовуюЦель()">Поставить новую цель</button>
+            </div>
           </div>
         </div>
-        <div class="measures">
-          <div class="m-card"><div class="m-val" id="m-waist">—</div><div class="m-lbl">Талия, см</div></div>
-          <div class="m-card"><div class="m-val" id="m-hips">—</div><div class="m-lbl">Ягодицы, см</div></div>
-          <div class="m-card"><div class="m-val" id="m-chest">—</div><div class="m-lbl">Грудь, см</div></div>
+        <div class="card card-static wt-measures">
+          <div class="box-title">Замеры</div>
+          <div class="wt-mrow"><span class="wt-mname">Талия</span><span class="wt-mval" id="m-waist">не записан</span></div>
+          <div class="wt-mrow"><span class="wt-mname">Ягодицы</span><span class="wt-mval" id="m-hips">не записан</span></div>
+          <div class="wt-mrow"><span class="wt-mname">Грудь</span><span class="wt-mval" id="m-chest">не записан</span></div>
         </div>
         <button class="btn-primary btn-block save-btn-flush" onclick="открыть_модалку('modal-measure')"><i data-lucide="ruler"></i> Записать замер</button>
       </div>
       <div class="d-right">
-        <div class="chart-box"><div class="week-title">График веса</div><svg class="wt-svg" id="wt-svg"></svg></div>
+        <div class="chart-box">
+          <div class="chart-hd">
+            <div class="box-title">График веса</div>
+            <div class="segmented" id="wt-period">
+              <button class="segmented-btn active" data-period="month" onclick="выбратьПериодВеса(this)">Месяц</button>
+              <button class="segmented-btn" data-period="all" onclick="выбратьПериодВеса(this)">Всё время</button>
+            </div>
+          </div>
+          <svg class="wt-svg" id="wt-svg"></svg>
+          <!-- Честная подпись под графиком. Две точки на 12 килограммах шкалы
+               выглядят так же уверенно, как двадцать, — и это единственное
+               место, где можно сказать, что выводы делать рано -->
+          <div class="wt-note" id="wt-note"></div>
+        </div>
+      </div>
       </div>
     </section>
 
@@ -484,12 +508,32 @@
             <div class="t-item"><div class="t-val val-wat" id="t-wat">—</div><div class="t-lbl">Вода, мл</div></div>
           </div>
         </div>
+        <!-- ИСТОРИИ НОРМ В БАЗЕ НЕТ, и это надо сказать вслух ДО сохранения.
+             Полоски долей от нормы в календаре истории и сводка за месяц
+             считаются по ТЕКУЩЕЙ норме — то есть смена цели перерисовывает
+             прошлые месяцы задним числом, молча и без единого признака.
+             Предупреждение показывается только когда пересчёт правда
+             случится: поле, не влияющее на норму, его не включает
+             (BACKLOG.md, задача 94 — история норм с привязкой к дате). -->
+        <div class="alert alert-accent p-warn" id="p-norm-warn" style="display:none">
+          <strong>Нормы пересчитаются.</strong> Истории норм пока нет: доли от нормы
+          в календаре и средние за прошлые месяцы считаются по текущей норме — после
+          сохранения показатели уже прожитых дней изменятся задним числом.
+        </div>
         <button class="btn-primary btn-block" onclick="saveProfile()">Сохранить</button>
       </div>
     </section>
 
-    <!-- ── TAB: ASSISTANT ── -->
+    <!-- ── TAB: ASSISTANT ──
+         Две обёртки, .as-cols и .as-chat, на узком экране объявлены
+         `display: contents` — то есть боксов у них нет, и лента, превью
+         и ряд ввода остаются прямыми flex-детьми вкладки ровно как раньше.
+         Это не осторожность: вокруг min-height этой вкладки собран набор
+         прошлых багов (см. комментарии к #tab-assistant.active в CSS),
+         и любая лишняя коробка в цепочке flex ломает высоту ленты. -->
     <section class="nut-tab" id="tab-assistant">
+      <div class="as-cols">
+      <div class="as-chat">
       <div class="chat-msgs" id="assistant-chat-msgs"></div>
       <div class="chat-attach-preview" style="display:none">
         <img class="chat-attach-img" alt="">
@@ -523,6 +567,23 @@
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
         </button>
       </div>
+      </div><!-- /as-chat -->
+
+      <!-- Сегодняшние цифры рядом с перепиской. Это не украшение: ассистент
+           называет нормы и съеденное словами, и разойтись с дневником ему
+           нечем, только если числа видны на том же экране. Берутся тем же
+           запросом /nutrition/api/diary, что питает кольцо, — второй
+           источник разошёлся бы молча (CLAUDE.md §5.0.3). -->
+      <aside class="card card-static as-today" id="as-today">
+        <div class="as-today-hd">Сегодня</div>
+        <div class="as-today-date" id="as-today-date"></div>
+        <!-- Дневник открыт на другом дне: ассистент всё равно работает
+             с сегодняшним, и об этом надо сказать вслух — иначе колонка
+             читается как расхождение с дневником -->
+        <div class="alert alert-accent as-today-note" id="as-today-note" style="display:none"></div>
+        <div class="as-rows" id="as-today-rows"></div>
+      </aside>
+      </div><!-- /as-cols -->
     </section>
 
   </div><!-- /nut-content -->
@@ -858,6 +919,13 @@ const S = {
   chatAttachment: null,
   chatAttachmentPreview: null,
   foodDraft: null,   // набор карточек блюд из ответа ассистента
+  weight: null,      // ответ /nutrition/api/weight целиком: логи, старт, цель
+  // Период графика веса. «Месяц» по умолчанию: экран открывают, чтобы
+  // посмотреть, что происходит сейчас, а не за весь год
+  wtPeriod: 'month',
+  // Сегодняшние цифры для колонки ассистента. Тот же эндпоинт, что питает
+  // дневник, — второй источник разошёлся бы с кольцом молча
+  todayDiary: null,
 };
 let searchReqId = 0;
 
@@ -892,6 +960,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   выделитьПриём(S.searchMeal);
   loadSearchTab(S.searchTab);
   loadWeightData();
+  // Числовые поля анкеты — подписка здесь, а не тремя `oninput` в разметке:
+  // список полей уже объявлен один раз (ПОЛЯ_НОРМЫ), и второй его копией
+  // в атрибутах он разошёлся бы с первым молча
+  ['p-age', 'p-weight', 'p-height'].forEach(id =>
+    document.getElementById(id)?.addEventListener('input', проверитьСменуНормы));
 });
 
 // ── Navigation ────────────────────────────────────────────────────────────────
@@ -924,14 +997,21 @@ function goTab(tab) {
   if (tab === 'weight')  loadWeightData();
   if (tab === 'profile') { loadProfileForm(); loadScaleStatus(); loadBodyPhotos(); }
   if (tab === 'search' && !document.getElementById('s-input').value) loadSearchTab(S.searchTab);
-  if (tab === 'assistant') loadChatHistory();
+  if (tab === 'assistant') { loadChatHistory(); загрузитьКолонкуСегодня(); }
+}
+
+// Переход на вкладку ИЗ КОДА: и содержимое, и подсветка в навигации.
+// Один goTab оставил бы подсветку на прежней кнопке — экран показывал бы
+// один раздел, а панель называла бы другой
+function перейтиНаВкладку(tab) {
+  goTab(tab);
+  document.querySelectorAll('.nut-nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');
 }
 
 function handleBack() {
   if (S.activeTab === 'diary') { window.location.href = '/'; return; }
-  goTab('diary');
-  document.querySelectorAll('.nut-nav-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('[data-tab="diary"]').classList.add('active');
+  перейтиНаВкладку('diary');
 }
 
 // ── Дни ───────────────────────────────────────────────────────────────────────
@@ -1185,6 +1265,65 @@ async function loadDiary(date) {
   // истории показывали бы один день, посчитанный дважды
   renderHistDay(data);
   updateSidePanels(data);
+  // Колонка ассистента показывает СЕГОДНЯ. Когда открытый день и есть
+  // сегодняшний, берём тот же самый ответ — тогда два места на экране
+  // не могут разойтись даже теоретически
+  if (date === S.today) отрисоватьКолонкуСегодня(data);
+}
+
+// ── Колонка сегодняшних цифр рядом с ассистентом ─────────────────────────────
+// ОДИН ИСТОЧНИК С ДНЕВНИКОМ, и это главное требование к блоку. Ассистент
+// уже получает нормы и съеденное из `nut_goals` на сервере (CLAUDE.md §5.0.3),
+// а колонка читает `/nutrition/api/diary` — тот же эндпоинт, что питает
+// кольцо. Посчитать пять чисел на клиенте было бы проще и означало бы третий
+// набор тех же величин: расхождение с ассистентом стало бы невидимым ровно
+// в том месте, ради которого колонка и заводится.
+async function загрузитьКолонкуСегодня() {
+  if (S.date === S.today && S.diary) { отрисоватьКолонкуСегодня(S.diary); return; }
+  const data = await api(`/nutrition/api/diary?date=${S.today}`);
+  if (data.error) { toast(data.error, false); return; }
+  отрисоватьКолонкуСегодня(data);
+}
+
+const КОЛОНКА_СТРОКИ = [
+  ['calories', 'Калории', 'ккал', 'cal'],
+  ['protein',  'Белок',   'г',    'pro'],
+  ['fat',      'Жиры',    'г',    'fat'],
+  ['carbs',    'Углеводы','г',    'carb'],
+];
+
+function отрисоватьКолонкуСегодня(data) {
+  S.todayDiary = data;
+  const цели = data.goals, съедено = data.totals;
+  // Только дата, без слова «сегодня»: оно уже стоит заголовком выше,
+  // и `подписьДаты` дала бы «Сегодня / Сегодня, 17 августа»
+  document.getElementById('as-today-date').textContent =
+    new Date(S.today + 'T00:00:00').toLocaleDateString('ru', {weekday:'short', day:'numeric', month:'long'});
+  // Дневник отмотан на другой день — говорим это вслух. Граница «ассистент
+  // работает с сегодняшним днём» названа в прошлых заходах и не меняется;
+  // без подписи колонка выглядела бы расхождением с дневником рядом
+  const note = document.getElementById('as-today-note');
+  if (S.date !== S.today) {
+    note.textContent = `Дневник открыт на ${подписьДаты(S.date)}. Ассистент и эти цифры — про сегодня.`;
+    note.style.display = '';
+  } else {
+    note.style.display = 'none';
+  }
+  const строки = КОЛОНКА_СТРОКИ.map(([ключ, имя, ед, цвет]) => {
+    const было = Math.round(съедено[ключ] || 0), норма = Math.round(цели[ключ] || 0);
+    return строкаКолонки(имя, `${было} / ${норма} ${ед}`, норма ? было / норма : 0, цвет);
+  });
+  строки.push(строкаКолонки('Вода', `${data.water_ml} / ${цели.water_ml} мл`,
+                            цели.water_ml ? data.water_ml / цели.water_ml : 0, 'wat'));
+  document.getElementById('as-today-rows').innerHTML = строки.join('');
+}
+
+function строкаКолонки(имя, значение, доля, цвет) {
+  const w = Math.min(Math.max(доля, 0), 1) * 100;
+  return `<div class="as-row">
+    <div class="as-row-hd"><span class="as-row-name">${имя}</span><span class="as-row-val">${значение}</span></div>
+    <div class="as-bar"><i class="as-bar-fill is-${цвет}" style="width:${w.toFixed(1)}%"></i></div>
+  </div>`;
 }
 
 function renderRing(eaten, goal) {
@@ -2946,6 +3085,12 @@ async function saveFoodDraft() {
   renderChat();
   loadDiary(S.date);
   loadDayCounts();
+  // Запись из чата всегда идёт в СЕГОДНЯШНИЙ день (см. date: S.today выше),
+  // а loadDiary перечитывает открытый. Если дневник отмотан, колонка рядом
+  // осталась бы с числами до записи — то есть экран показывал бы, что
+  // блюдо сохранено, и тут же цифры, в которых его нет
+  if (S.date !== S.today) загрузитьКолонкуСегодня();
+  обновитьМесяц(S.today);
   toast(data.failed?.length ? 'Записано не всё — смотрите ответ' : 'Записано в дневник', !data.failed?.length);
 }
 
@@ -3250,29 +3395,148 @@ function обновитьМесяц(дата) {
 }
 
 // ── Weight ────────────────────────────────────────────────────────────────────
+// Всё, что относится к весу, читает ОДИН ответ `/nutrition/api/weight`
+// и кладёт его в S.weight. Второго запроса при переключении периода нет:
+// сервер отдаёт последние 60 записей разом, и «Месяц» — это отбор внутри
+// уже полученного. Два запроса означали бы, что два вида одного экрана
+// могут разъехаться между собой.
+const ПЕРИОД_МЕСЯЦ_ДНЕЙ = 31;
+// Порядок строк замеров задан здесь один раз: он же читается при отрисовке
+const ЗАМЕРЫ = [['waist_cm', 'm-waist'], ['hips_cm', 'm-hips'], ['chest_cm', 'm-chest']];
+
 async function loadWeightData() {
-  const data=await api('/nutrition/api/weight');
-  const logs=data.logs||[], latest=logs[0];
-  if (latest) {
-    document.getElementById('cur-wt').textContent=latest.weight_kg||'—';
-    document.getElementById('wt-sub').textContent='Обновлено: '+new Date(latest.date).toLocaleDateString('ru',{day:'numeric',month:'long'});
-    document.getElementById('m-waist').textContent=latest.waist_cm||'—';
-    document.getElementById('m-hips').textContent =latest.hips_cm||'—';
-    document.getElementById('m-chest').textContent=latest.chest_cm||'—';
-  }
-  if (data.start_weight&&data.target_weight&&latest?.weight_kg) {
-    const sw=data.start_weight,tw=data.target_weight,cw=latest.weight_kg;
-    const pct=Math.min(Math.abs(sw-cw)/Math.abs(sw-tw)*100,100);
-    document.getElementById('wt-start').textContent=sw+'кг';
-    document.getElementById('wt-target').textContent=tw+'кг';
-    document.getElementById('wt-left').textContent='Осталось: '+Math.abs(cw-tw).toFixed(1)+'кг';
-    document.getElementById('wt-fill').style.width=pct+'%';
-    document.getElementById('wt-prog').style.display='';
-  }
-  drawWeightChart(logs.slice(0,14).reverse());
+  const data = await api('/nutrition/api/weight');
+  S.weight = data;
+  const logs = data.logs || [], latest = logs[0];
+  document.getElementById('cur-wt').textContent = latest?.weight_kg ?? '—';
+  document.getElementById('wt-sub').textContent = latest
+    ? 'Обновлено: ' + new Date(latest.date).toLocaleDateString('ru', {day:'numeric', month:'long'})
+    : 'Взвешивание не записано';
+  отрисоватьЗамеры(logs);
+  отрисоватьПрогрессВеса(data.start_weight, data.target_weight, latest?.weight_kg);
+  отрисоватьГрафикВеса();
 }
 
-function drawWeightChart(logs) {
+// Замер берётся из ПОСЛЕДНЕЙ записи, где он вообще заполнен, а не из последнего
+// взвешивания. Замер до правки: талия записана 10 августа, последнее
+// взвешивание 16-го без талии — экран показывал прочерк, то есть «замера нет»
+// там, где он есть. Если запись не совпадает с последним взвешиванием, рядом
+// стоит её дата: число без даты выдавало бы старый обхват за сегодняшний.
+function отрисоватьЗамеры(logs) {
+  const свежая = logs[0]?.date;
+  for (const [поле, id] of ЗАМЕРЫ) {
+    const строка = logs.find(l => l[поле] != null);
+    const el = document.getElementById(id);
+    if (!строка) { el.textContent = 'не записан'; el.classList.add('is-empty'); continue; }
+    el.classList.remove('is-empty');
+    const дата = строка.date === свежая ? ''
+      : ' · ' + new Date(строка.date).toLocaleDateString('ru', {day:'numeric', month:'short'});
+    el.textContent = `${строка[поле]} см${дата}`;
+  }
+}
+
+// Направление цели задаёт ПАРА «старт → цель», а не текущий вес: иначе
+// человек, перебравший цель на набор, выглядел бы худеющим.
+// До правки прогресс считался через Math.abs с обеих сторон, и это давало
+// не молчание, а ЛОЖЬ (замер 2026-08-17): вес 74.2 при цели 76 — «Осталось:
+// 1.8кг», хотя цель пройдена насквозь; вес 72.6 при цели 72 на наборе —
+// «Осталось: 0.6кг». Отличить «ещё 1.8 кг» от «на 1.8 кг дальше цели»
+// abs не может по построению.
+function отрисоватьПрогрессВеса(старт, цель, текущий) {
+  const блок = document.getElementById('wt-prog');
+  const готово = document.getElementById('wt-done');
+  const строка = document.querySelector('.wt-prog-lbl');
+  // Старт равен цели — направления нет, и считать долю не от чего:
+  // знаменатель ноль. Полосу не показываем вовсе, а не рисуем 0 или 100%
+  if (!(старт && цель && текущий) || старт === цель) { блок.style.display = 'none'; return; }
+  блок.style.display = '';
+  const вниз = цель < старт;
+  const достигнута = вниз ? текущий <= цель : текущий >= цель;
+  const доля = Math.max(0, Math.min(100, (старт - текущий) / (старт - цель) * 100));
+  document.getElementById('wt-start').textContent  = `${старт} кг`;
+  document.getElementById('wt-target').textContent = `${цель} кг`;
+  document.getElementById('wt-fill').style.width = (достигнута ? 100 : доля) + '%';
+  document.getElementById('wt-fill').classList.toggle('is-done', достигнута);
+  строка.style.display = достигнута ? 'none' : '';
+  готово.style.display = достигнута ? '' : 'none';
+  if (достигнута) {
+    const сверх = Math.abs(текущий - цель);
+    document.getElementById('wt-done-lbl').textContent = сверх >= 0.05
+      ? `Цель достигнута — и пройдена на ${сверх.toFixed(1)} кг`
+      : 'Цель достигнута';
+    if (window.lucide) lucide.createIcons();
+  } else {
+    document.getElementById('wt-left').textContent = `осталось ${Math.abs(текущий - цель).toFixed(1)} кг`;
+  }
+}
+
+// Новая цель ставится там же, где старая, — на вкладке «Профиль».
+// Второго поля целевого веса заводить нельзя: два места для одного числа
+// разъедутся молча
+function поставитьНовуюЦель() {
+  перейтиНаВкладку('profile');
+  const поле = document.getElementById('p-target');
+  поле.scrollIntoView({block: 'center', behavior: 'smooth'});
+  поле.focus();
+}
+
+function выбратьПериодВеса(btn) {
+  document.querySelectorAll('#wt-period .segmented-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  S.wtPeriod = btn.dataset.period;
+  отрисоватьГрафикВеса();
+}
+
+function отрисоватьГрафикВеса() {
+  const данные = S.weight || {};
+  const все = (данные.logs || []).filter(l => l.weight_kg).slice().reverse();  // по возрастанию даты
+  let ряд = все;
+  if (S.wtPeriod === 'month') {
+    const край = Date.now() - ПЕРИОД_МЕСЯЦ_ДНЕЙ * ДЕНЬ_МС;
+    ряд = все.filter(l => Date.parse(l.date + 'T00:00:00Z') >= край);
+  }
+  drawWeightChart(ряд, данные.target_weight);
+  подписатьГрафикВеса(ряд.length, все.length);
+}
+
+// Подпись под графиком. Три разных «пусто» и «мало» названы разными словами:
+// ни одной записи вообще, ни одной в выбранном месяце при непустой истории
+// (тот же случай, что пустая область поиска — CLAUDE.md §5.0.4: подставлять
+// одно вместо другого запрещено), и одна-две записи, по которым линия
+// строится, но направления не видно.
+function подписатьГрафикВеса(вПериоде, всего) {
+  const el = document.getElementById('wt-note');
+  const месяц = S.wtPeriod === 'month';
+  if (!всего)      { el.innerHTML = 'Взвешиваний пока нет — запишите первый замер'; return; }
+  if (!вПериоде)   {
+    el.innerHTML = `За последний месяц взвешиваний нет. За всё время — ${всего} ` +
+      `${склонитьЗаписи(всего)}. <button class="wt-note-link" onclick="выбратьПериодВеса(document.querySelector('#wt-period [data-period=all]'))">Показать всё время →</button>`;
+    return;
+  }
+  if (вПериоде === 1) { el.textContent = 'Одна запись — направления по ней не видно'; return; }
+  if (вПериоде < 4)   {
+    el.textContent = `${вПериоде} ${склонитьЗаписи(вПериоде)} ${месяц ? 'за месяц' : 'за всё время'} — ` +
+      'линия строится, но выводы делать рано';
+    return;
+  }
+  el.textContent = `${вПериоде} ${склонитьЗаписи(вПериоде)} ${месяц ? 'за месяц' : 'за всё время'}`;
+}
+
+function склонитьЗаписи(n) {
+  const с = n % 100, е = n % 10;
+  if (с >= 11 && с <= 14) return 'записей';
+  if (е === 1) return 'запись';
+  if (е >= 2 && е <= 4) return 'записи';
+  return 'записей';
+}
+
+// ЦЕЛЬ УЧАСТВУЕТ В РАСЧЁТЕ ОСИ, а не рисуется поверх готовой.
+// До правки ось считалась только по данным, и замер 2026-08-17 показал,
+// во что это выливается: две записи 82.9 и 82.4 при цели 76 давали шкалу
+// 80.9…84.4 на все 684 пикселя холста — падение на полкило выглядело
+// обвалом, а до чего идёт человек, не было видно вообще, потому что цель
+// лежала на 5 килограммов ниже нижнего края.
+function drawWeightChart(logs, цель) {
   const svg = document.getElementById('wt-svg');
   const wts = logs.filter(l => l.weight_kg);
   if (wts.length < 1) { svg.innerHTML = ''; return; }
@@ -3283,9 +3547,13 @@ function drawWeightChart(logs) {
   const cW = W - pL - pR, cH = H - pT - pB;
 
   const vals = wts.map(l => l.weight_kg);
-  const rawMin = Math.min(...vals), rawMax = Math.max(...vals);
+  let rawMin = Math.min(...vals), rawMax = Math.max(...vals);
+  const естьЦель = typeof цель === 'number' && цель > 0;
+  if (естьЦель) { rawMin = Math.min(rawMin, цель); rawMax = Math.max(rawMax, цель); }
   const span = rawMax - rawMin;
-  const pad = span < 1 ? 1.5 : span * 0.18;
+  // Запас: доля от размаха, но не меньше килограмма. Без нижней границы
+  // единственная запись (размах 0) прижималась бы к обеим линиям сетки сразу
+  const pad = Math.max(span * 0.12, 1);
   const yMin = rawMin - pad, yMax = rawMax + pad;
 
   const xPos = i => pL + (wts.length > 1 ? i * cW / (wts.length - 1) : cW / 2);
@@ -3325,13 +3593,27 @@ function drawWeightChart(logs) {
     `<circle class="wt-hit" cx="${xPos(i).toFixed(1)}" cy="${yPos(l.weight_kg).toFixed(1)}" r="22" fill="transparent" data-i="${i}"/>`
   ).join('');
 
+  /* линия цели — пунктиром и с подписью. Подпись НАД линией, если цель
+     в нижней половине холста, и под ней, если в верхней: иначе на цели
+     у самого края текст уезжал бы за пределы области рисования */
+  let целевая = '';
+  if (естьЦель) {
+    const y = yPos(цель);
+    const сверху = y > pT + cH / 2;
+    целевая =
+      `<line data-goal="1" x1="${pL}" y1="${y.toFixed(1)}" x2="${(W - pR).toFixed(1)}" y2="${y.toFixed(1)}"
+             stroke="var(--tool-accent)" stroke-width="1.5" stroke-dasharray="5 4" opacity=".75" vector-effect="non-scaling-stroke"/>
+       <text x="${(W - pR).toFixed(1)}" y="${(y + (сверху ? -6 : 13)).toFixed(1)}" text-anchor="end"
+             fill="var(--tool-accent)" font-size="10.5" font-family="inherit">цель ${цель} кг</text>`;
+  }
+
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.removeAttribute('preserveAspectRatio');
   svg.innerHTML = `<defs><linearGradient id="wtGrad" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0%" stop-color="var(--tool-accent)" stop-opacity=".22"/>
     <stop offset="100%" stop-color="var(--tool-accent)" stop-opacity="0"/>
   </linearGradient></defs>
-  ${grid}${yLbls}${xLbls}
+  ${grid}${yLbls}${xLbls}${целевая}
   <polygon points="${areaPts}" fill="url(#wtGrad)" stroke="none"/>
   <polyline points="${pts}" fill="none" stroke="var(--tool-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
   ${dots}${hits}`;
@@ -3600,10 +3882,12 @@ async function deleteBodyPhoto(date, angle) {
 function setRad(btn) {
   btn.closest('.radio-row').querySelectorAll('.radio-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  проверитьСменуНормы();
 }
 function setAct(btn) {
   document.querySelectorAll('.act-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  проверитьСменуНормы();
 }
 
 function showTargets(t) {
@@ -3616,18 +3900,53 @@ function showTargets(t) {
   document.getElementById('t-wat').textContent =t.water_ml;
 }
 
+// Что именно входит в расчёт нормы — взято из `_calc_tdee` в main.py, а не
+// «на глаз по форме». Целевого веса в этом списке НЕТ, и это не пропуск:
+// `_calc_tdee(gender, age, weight_kg, height_cm, activity_level, goal)`
+// его не принимает, норма от него не зависит. Предупреждать при смене
+// одной только цели по весу значило бы обещать пересчёт, которого не будет, —
+// а предупреждение, срабатывающее вхолостую, перестают читать на третий раз.
+const ПОЛЯ_НОРМЫ = ['gender', 'goal', 'activity_level', 'age', 'weight_kg', 'height_cm'];
+
+function анкетаСФормы() {
+  return {
+    gender: document.querySelector('#rg-gender .radio-btn.active')?.dataset?.val || 'male',
+    goal:   document.querySelector('#rg-goal .radio-btn.active')?.dataset?.val || 'maintain',
+    activity_level: document.querySelector('.act-btn.active')?.dataset?.val || 'moderate',
+    age:       parseInt(document.getElementById('p-age').value) || 25,
+    weight_kg: parseFloat(document.getElementById('p-weight').value) || 70,
+    height_cm: parseFloat(document.getElementById('p-height').value) || 170,
+  };
+}
+
+// Предупреждение показывается ДО сохранения, а не после: после сохранения
+// сообщать о необратимом пересчёте поздно. Сравнивается форма с тем, что
+// уже сохранено; вернули значение обратно — предупреждение уходит.
+function проверитьСменуНормы() {
+  const блок = document.getElementById('p-norm-warn');
+  if (!блок) return;
+  const было = S.profile, стало = анкетаСФормы();
+  // Анкеты ещё нет — пересчитывать нечего, прошлых дней тоже нет
+  const менялось = !!было && ПОЛЯ_НОРМЫ.some(п => String(было[п] ?? '') !== String(стало[п]));
+  блок.style.display = менялось ? '' : 'none';
+}
+
 async function saveProfile() {
-  const gender=document.querySelector('#rg-gender .radio-btn.active')?.dataset?.val||'male';
-  const goal  =document.querySelector('#rg-goal .radio-btn.active')?.dataset?.val||'maintain';
-  const act   =document.querySelector('.act-btn.active')?.dataset?.val||'moderate';
-  const age=parseInt(document.getElementById('p-age').value)||25;
-  const wt =parseFloat(document.getElementById('p-weight').value)||70;
-  const ht =parseFloat(document.getElementById('p-height').value)||170;
-  const tgt=document.getElementById('p-target').value;
-  const body={gender,goal,activity_level:act,age,weight_kg:wt,height_cm:ht};
-  if (tgt) body.target_weight_kg=parseFloat(tgt);
-  const data=await api('/nutrition/api/profile',{method:'POST',body:JSON.stringify(body)});
-  if (data.ok) { showTargets(data.targets); S.profile={...body,...data.targets}; loadDiary(S.date); toast('Профиль сохранён!',true); }
+  const body = анкетаСФормы();
+  const tgt = document.getElementById('p-target').value;
+  if (tgt) body.target_weight_kg = parseFloat(tgt);
+  const data = await api('/nutrition/api/profile', {method: 'POST', body: JSON.stringify(body)});
+  if (!data.ok) return;
+  showTargets(data.targets);
+  S.profile = {...body, ...data.targets};
+  проверитьСменуНормы();      // сохранённое стало текущим — предупреждение снимается
+  loadDiary(S.date);
+  // Календарь истории рисует доли от нормы, и норма только что изменилась.
+  // Без перечитывания он держал бы прежние полоски до перезагрузки страницы —
+  // то есть показывал бы доли от нормы, которой уже нет
+  if (S.calData) loadCalendar();
+  loadWeightData();           // цель по весу могла измениться — полоса прогресса тоже
+  toast('Профиль сохранён!', true);
 }
 
 // ── Модалки ───────────────────────────────────────────────────────────────────

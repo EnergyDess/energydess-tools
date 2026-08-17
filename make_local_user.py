@@ -148,7 +148,7 @@ def main() -> int:
     print(f"База: {os.path.abspath(путь)}")
 
     from database import (SessionLocal, User, Resume, HHProfile, CoverLetter,
-                          CustomFood, FoodLog, NutritionProfile,
+                          CustomFood, FoodLog, NutritionProfile, WeightLog,
                           delete_user_cascade)
     from auth import hash_password
 
@@ -351,13 +351,37 @@ def main() -> int:
                         meal_type=приём, food_name=имя, brand=бренд,
                         grams=граммы, calories=ккал, protein=б, fat=ж, carbs=у,
                         created_at=datetime.utcnow()))
+        # Взвешивания. Без них вкладка «Вес» снимается ПУСТОЙ — ровно то же
+        # упущение, из-за которого сюда добавляли `food_logs` (CLAUDE.md §8.0):
+        # экран, которого seed не наполняет, не проверяется. Замер 2026-08-17
+        # до правки: `weight_logs` у аккаунта съёмки — 0 строк, то есть график,
+        # полоса прогресса и замеры не проверялись ни разу ни одним заходом.
+        #
+        # Шаг 7 дней, а не ежедневно: взвешиваются раз в неделю, и график
+        # с ежедневными точками не показал бы, как выглядит разреженный ряд.
+        # Талия записана НЕ всегда, ягодицы и грудь — ни разу: строка
+        # «не записан» обязана быть видна на экране, а не выведена рассуждением.
+        db.query(WeightLog).filter(WeightLog.user_id == u.id).delete()
+        взвешиваний = 0
+        for н, (сдвиг, вес) in enumerate([
+            (91, 88.0), (84, 87.4), (77, 87.0), (70, 86.1), (63, 85.8),
+            (56, 85.0), (49, 84.6), (42, 84.9), (35, 84.1), (28, 83.5),
+            (21, 83.2), (14, 82.9), (7, 82.6), (1, 82.4),
+        ]):
+            день = база - timedelta(days=сдвиг)
+            db.add(WeightLog(
+                user_id=u.id, log_date=день.strftime("%Y-%m-%d"), weight_kg=вес,
+                waist_cm=round(96.0 - н * 0.7, 1) if н % 3 == 0 else None,
+                source="manual",
+                created_at=datetime.utcnow() - timedelta(days=сдвиг)))
+            взвешиваний += 1
         db.commit()
         съедено_всего = sum(len(v) for v in СЪЕДЕНО.values())
         print(f"Данные для съёмки: резюме, досье с двумя местами работы, "
               f"3 письма, {len(ПРОДУКТЫ)} продуктов, "
               f"{съедено_всего} позиций съеденного за сегодня, "
               f"{дней_назад} записанных дней за 95 прошлых ({пропущено} пропущено), "
-              f"2 запланированных дня вперёд.")
+              f"2 запланированных дня вперёд, {взвешиваний} взвешиваний за 91 день.")
         print(f"Пароль: {PASSWORD}")
         return 0
     finally:
