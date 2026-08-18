@@ -4946,6 +4946,45 @@ def _сегодня(user) -> _date:
     return _день_в_поясе(datetime.now(ZoneInfo("UTC")), _пояс(user))
 
 
+МЕСЯЦЫ_РОД = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля",
+              "августа", "сентября", "октября", "ноября", "декабря"]
+
+
+def _момент_в_поясе(момент: datetime | None, user) -> str | None:
+    """Момент времени словами, В ПОЯСЕ ПОЛЬЗОВАТЕЛЯ. None — если момента нет.
+
+    ЗАЧЕМ ОТДЕЛЬНАЯ ФУНКЦИЯ, А НЕ strftime НА МЕСТЕ. Здесь стояло
+    `conn.last_sync_at.strftime("%Y-%m-%d %H:%M")`, а `last_sync_at`
+    пишется через `datetime.utcnow()` — то есть наружу уходило время UTC,
+    подписанное как местное. Живой замер 2026-08-18: экран показывал
+    «16:26», когда у владельца было 19:33. Ровно три часа, ровно пояс
+    Москвы, и отличить это от «синхронизация была три часа назад»
+    нельзя ничем — цифра выглядит настоящей.
+    
+    Это тот же дефект, что шесть закрытых в дневнике, и лечится он тем же
+    `_пояс(user)`, а не седьмым способом узнать время. Наружу уходит уже
+    готовая строка: собери её клиент — он взял бы часы устройства,
+    и это был бы восьмой способ.
+
+    Момент без пояса считается UTC: `utcnow()` возвращает наивный
+    datetime, и приписать ему местную зону значило бы сдвинуть время
+    ещё раз, теперь уже в другую сторону."""
+    if not момент:
+        return None
+    if момент.tzinfo is None:
+        момент = момент.replace(tzinfo=ZoneInfo("UTC"))
+    зона = _пояс(user)
+    местное = момент.astimezone(зона)
+    сегодня = _день_в_поясе(datetime.now(ZoneInfo("UTC")), зона)
+    разница = (сегодня - местное.date()).days
+    часы = местное.strftime("%H:%M")
+    if разница == 0:
+        return f"сегодня в {часы}"
+    if разница == 1:
+        return f"вчера в {часы}"
+    return f"{местное.day} {МЕСЯЦЫ_РОД[местное.month - 1]}, {часы}"
+
+
 def _нут_дата(значение, сегодня: _date, поле: str = "date",
               назад: int | None = NUT_DAY_RANGE,
               вперёд: int = NUT_DAY_RANGE) -> str:
@@ -5638,10 +5677,14 @@ async def nut_weight(user=Depends(get_current_user), db: Session = Depends(get_d
         "logs": [{
             "date": l.log_date, "weight_kg": l.weight_kg,
             "waist_cm": l.waist_cm, "hips_cm": l.hips_cm, "chest_cm": l.chest_cm,
-            "body_fat_pct": l.body_fat_pct, "muscle_rate_pct": l.muscle_rate_pct,
-            "water_pct": l.water_pct, "visceral_fat": l.visceral_fat,
-            "bmi": l.bmi, "bmr": l.bmr, "body_age": l.body_age, "bone_mass_kg": l.bone_mass_kg,
             "source": l.source,
+            # Состав тела — по ОДНОМУ списку `СОСТАВ_ПОЛЯ`, а не россыпью
+            # имён. Россыпь и была причиной, по которой четыре показателя
+            # из двенадцати не доезжали до экрана: колонка есть, в модели
+            # есть, а здесь про неё забыли — и ни одна проверка этого
+            # не видит. Значение None уезжает как null и означает
+            # «не измерено», а не ноль
+            **{поле: getattr(l, поле) for поле in СОСТАВ_ПОЛЯ},
         } for l in logs],
         "start_weight": profile.start_weight_kg if profile else None,
         "target_weight": profile.target_weight_kg if profile else None,
@@ -5649,8 +5692,10 @@ async def nut_weight(user=Depends(get_current_user), db: Session = Depends(get_d
 
 
 _WEIGHT_LOG_FLOAT_FIELDS = ["weight_kg", "waist_cm", "hips_cm", "chest_cm",
-                            "body_fat_pct", "muscle_rate_pct", "water_pct", "visceral_fat", "bmi", "bone_mass_kg"]
-_WEIGHT_LOG_INT_FIELDS = ["bmr", "body_age"]
+                            "body_fat_pct", "muscle_mass_kg", "water_pct",
+                            "visceral_fat", "bmi", "bone_mass_kg",
+                            "protein_pct", "ideal_weight_kg"]
+_WEIGHT_LOG_INT_FIELDS = ["bmr", "body_age", "body_score"]
 
 
 @app.post("/nutrition/api/weight")
@@ -5658,7 +5703,10 @@ async def nut_log_weight(request: Request, user=Depends(get_current_user), db: S
     if not user:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     data = await request.json()
-    date = data.get("date", datetime.now().strftime("%Y-%m-%d"))
+    # `datetime.now()` здесь брал пояс ПРОЦЕССА (на Fly это UTC): замер
+    # в час ночи по Москве уходил вчерашним числом. Тот же `_сегодня`,
+    # что у всего дневника (§5.0.6)
+    date = data.get("date") or _сегодня(user).strftime("%Y-%m-%d")
     existing = db.query(WeightLog).filter(WeightLog.user_id == user.id,
                                            WeightLog.log_date == date).first()
     if not existing:
@@ -5722,20 +5770,91 @@ def _background_sync_scale(user_id: int):
         db.close()
 
 
-def _scale_status(conn: ScaleConnection | None) -> dict:
+# СОСТОЯНИЯ ПРИВЯЗКИ — ПЯТЬ, И ОНИ ВЗАИМОИСКЛЮЧАЮЩИЕ.
+#
+# Это не расширение списка «подключено / не подключено», а его настоящая
+# длина: `last_sync_status` в базе принимает четыре значения (NULL, "ok",
+# "reauth", "error"), и вместе с «записи нет вовсе» их пять. Раньше наружу
+# уходили три независимых флага — `connected`, `needs_reauth`,
+# `last_sync_status`, — и экран складывал из них картинку сам. Сложил он
+# её так, что на одном экране одновременно висели форма подключения,
+# зелёное «Подключено, записей обновлено: 2», строка «Подключено.
+# Последняя синхронизация: 16:26» и красное «Ключ доступа больше
+# не действует».
+#
+# Четыре утверждения о состоянии, два из них исключают друг друга.
+# Причина ровно в том, что состояние НЕ БЫЛО ОДНИМ ЗНАЧЕНИЕМ: пока их
+# три флага, всегда найдётся сочетание, которого никто не предусмотрел.
+СОСТОЯНИЯ_ВЕСОВ = {
+    "нет":      "весы не подключены",
+    "новое":    "подключены, синхронизации ещё не было",
+    "ok":       "подключены, ключ доступа работает",
+    "reauth":   "подключены, но ключ доступа отозван — нужен пароль",
+    "ошибка":   "подключены, последняя синхронизация не удалась",
+}
+
+
+def _scale_status(conn: ScaleConnection | None, user=None) -> dict:
+    """Состояние привязки ОДНИМ значением плюс данные для его показа."""
     if not conn:
-        return {"connected": False}
+        return {"состояние": "нет", "connected": False}
+    if conn.last_sync_status == "reauth":
+        состояние = "reauth"
+    elif conn.last_sync_status == "error":
+        состояние = "ошибка"
+    elif conn.last_sync_at:
+        состояние = "ok"
+    else:
+        # Подключено, но синхронизации ещё не было. Отдельно от "ok"
+        # потому, что «Последняя синхронизация: —» и «Последняя
+        # синхронизация: сегодня в 19:26» — разные экраны
+        состояние = "новое"
     return {
+        "состояние": состояние,
+        # `connected` оставлен: его читает страница профиля тренировок.
+        # Это не второй источник правды — он ВЫВОДИТСЯ из состояния
         "connected": True,
-        # needs_reauth ведёт себя как отдельное состояние, а не как оттенок
-        # ошибки: чинится оно действием пользователя (ввести пароль), а не
-        # ожиданием. Свалить его в "error" значило бы предложить человеку
-        # ждать погоды у моря
-        "needs_reauth": conn.last_sync_status == "reauth",
-        "last_sync_at": conn.last_sync_at.strftime("%Y-%m-%d %H:%M") if conn.last_sync_at else None,
-        "last_sync_status": conn.last_sync_status,
+        "последняя_синхронизация": _момент_в_поясе(conn.last_sync_at, user),
         "last_sync_error": conn.last_sync_error,
     }
+
+
+# Показатели состава: наше имя -> нужно ли округлять до целого.
+# ОДИН список на запись, чтение и показ. Россыпь присваиваний по коду уже
+# один раз дала расхождение — колонка `protein_pct` появилась бы в модели
+# и не появилась бы в записи, и это не увидела бы ни одна проверка
+СОСТАВ_ПОЛЯ = {
+    "bmi": False, "body_fat_pct": False, "water_pct": False,
+    "muscle_mass_kg": False, "bone_mass_kg": False, "visceral_fat": False,
+    "protein_pct": False, "ideal_weight_kg": False,
+    "bmr": True, "body_age": True, "body_score": True,
+}
+
+
+def _записать_состав(row: WeightLog, rec: dict) -> int:
+    """Кладёт в строку дневника те показатели, которые ПРИШЛИ. Возвращает
+    их число.
+
+    Два правила, и оба про разницу между нулём и молчанием:
+
+      · поля нет в записи (`None`) — не трогаем колонку вовсе. Прежний код
+        присваивал `None` напрямую, и запись без состава стирала состав,
+        записанный другой записью того же дня;
+
+      · поле пришло НУЛЁМ — записываем ноль. Здесь стояло
+        `int(rec["bmr"]) if rec.get("bmr") else None`, то есть ноль
+        превращался в «нет данных» — та же подмена, только в обратную
+        сторону. Ноль основного обмена бессмыслен физически, но решать
+        это должен разбор, а не молчаливое условие: неправдоподобное
+        значение видно на экране, а подменённое — нет."""
+    записано = 0
+    for поле, целое in СОСТАВ_ПОЛЯ.items():
+        значение = rec.get(поле)
+        if значение is None:
+            continue
+        setattr(row, поле, int(значение) if целое else float(значение))
+        записано += 1
+    return записано
 
 
 class ScaleReauthNeeded(Exception):
@@ -5795,11 +5914,30 @@ def _sync_scale(db: Session, conn: ScaleConnection) -> dict:
     # а не вечернее. Видно это становится ровно там, где записей на день
     # больше одной: при первом заходе после привязки весов, когда
     # подтягивается вся прежняя история аккаунта
+    # Пояс пользователя нужен для КАЛЕНДАРНОГО дня записи — см. ниже.
+    # Берётся тем же `_пояс`, что и весь дневник: второй способ узнать,
+    # какие сейчас сутки, разошёлся бы с первым молча (§5.0.6)
+    владелец = db.query(User).filter(User.id == conn.user_id).first()
+
     даты = {}
+    пропущено_ручных = 0
+    показателей = 0     # сколько величин состава реально легло в базу
     for rec in sorted(records, key=lambda r: r.get("timestamp") or 0):
         if not rec.get("timestamp") or rec.get("weight_kg") is None:
             continue
-        log_date = datetime.fromtimestamp(rec["timestamp"]).strftime("%Y-%m-%d")
+        # СЕДЬМОЙ ИСТОЧНИК НЕВЕРНОЙ ДАТЫ, и единственный, который портил
+        # данные, а не подпись. `datetime.fromtimestamp(ts)` берёт пояс
+        # ПРОЦЕССА, а процесс живёт на Fly, где TZ=UTC: взвешивание,
+        # сделанное в Москве в 01:30, получало log_date предыдущего дня
+        # и ложилось в дневник вчерашним числом. Отказ немой целиком —
+        # запись есть, вес верный, день чужой.
+        #
+        # Тот же `_день_в_поясе`, что у дневника, а не восьмой способ:
+        # момент отделён от зоны именно затем, чтобы граница суток
+        # проверялась тестом
+        log_date = _день_в_поясе(
+            datetime.fromtimestamp(rec["timestamp"], ZoneInfo("UTC")),
+            _пояс(владелец)).strftime("%Y-%m-%d")
         # Строку, заведённую ЭТИМ ЖЕ проходом, ищем в своём словаре, а не
         # запросом: сессия открыта с autoflush=False, и добавленная через
         # db.add() строка запросу не видна до commit. Два взвешивания
@@ -5815,33 +5953,66 @@ def _sync_scale(db: Session, conn: ScaleConnection) -> dict:
             row = WeightLog(user_id=conn.user_id, log_date=log_date)
             db.add(row)
         elif row.source == "manual":
-            continue  # ручная запись на эту дату — не перетираем данными с весов
+            # Ручная запись на эту дату — не перетираем данными с весов.
+            # СЧИТАЕМ такие: это самая частая причина «получено 2,
+            # записано 0», и без числа человек читает ноль как отказ
+            пропущено_ручных += 1
+            continue
         # Счёт по ДАТАМ, а не по записям: в дневнике строка одна на день,
         # и «обновлено 5» при трёх изменившихся днях — неправда
         даты[log_date] = row
         row.weight_kg = rec["weight_kg"]
-        row.bmi = rec.get("bmi")
-        row.body_fat_pct = rec.get("body_fat_pct")
-        row.water_pct = rec.get("water_pct")
-        row.muscle_rate_pct = rec.get("muscle_rate_pct")
-        row.bone_mass_kg = rec.get("bone_mass_kg")
-        row.visceral_fat = rec.get("visceral_fat")
-        row.bmr = int(rec["bmr"]) if rec.get("bmr") else None
-        row.body_age = int(rec["body_age"]) if rec.get("body_age") else None
+        # ПОКАЗАТЕЛЬ, КОТОРОГО В ЗАПИСИ НЕТ, НЕ СТИРАЕТ УЖЕ ЗАПИСАННЫЙ.
+        #
+        # Здесь стояло прямое присваивание `row.bmi = rec.get("bmi")`, и оно
+        # неверно ровно там, где за день два взвешивания: полное с весов
+        # утром и без состава (телефон, Health Connect) вечером. Записи
+        # применяются по возрастанию времени, вечерняя шла последней —
+        # и обнуляла весь утренний состав в None. Ни ошибки, ни следа:
+        # экран просто переставал показывать то, что вчера показывал.
+        #
+        # `_записать_состав` пишет только то, что пришло. Отличать «пришёл
+        # ноль» от «не пришло ничего» обязана и она: ноль процентов жира —
+        # утверждение, отсутствие поля — молчание, и в базе это NULL
+        показателей += _записать_состав(row, rec)
         row.source = "zepp"
 
     saved = len(даты)
+    # РАСХОЖДЕНИЕ НАЗЫВАЕТСЯ ВСЛУХ. Клиент насчитал записи с составом,
+    # а записать не удалось ни одного показателя — значит имена полей
+    # разошлись с нашей картой (их API переименовал поле, пришёл другой
+    # формат). Без этой строки отказ немой: в базе NULL, в дневнике
+    # прочерки, в журнале тишина — и выглядит это как «весы не мерят».
+    if выборка.get("with_body") and показателей == 0:
+        print(f"[zepp] в выборке {выборка['with_body']} записей с составом, "
+              f"а записать не удалось НИ ОДНОГО показателя — имена полей "
+              f"разошлись с картой РАЗБИРАЕМ; ждём {sorted(СОСТАВ_ПОЛЯ)}")
     conn.last_sync_at = datetime.utcnow()
     conn.last_sync_status = "ok"
     conn.last_sync_error = None
     db.commit()
-    # `empty` отдаётся ОТДЕЛЬНО от `synced`, потому что это разные вещи,
-    # а «синхронизировано: 0» отвечало сразу на оба вопроса. Ноль бывает
-    # у пустой истории (норма), у истории, где всё уже записано (тоже норма),
-    # и раньше — у сбоя, который проглотили. Сбой теперь исключение,
-    # а пустоту называем словами
+    # ИТОГ НАЗЫВАЕТ ПРИЧИНУ, А НЕ ТОЛЬКО ЧИСЛО. Раньше наружу уходило
+    # «synced» плюс «empty», и живой случай 2026-08-18 показал, чего этого
+    # не хватает: получено 2, записано 0, потому что на ту дату уже стояла
+    # РУЧНАЯ запись 82.5 кг, а ручную мы не перетираем. Человек прочитал
+    # ноль как отказ — и был прав, потому что отличить «ничего не вышло»
+    # от «всё уже на месте» было нечем.
+    #
+    # Поэтому теперь: сколько получено, сколько записано, сколько
+    # пропущено и ПОЧЕМУ. `skipped_manual` — не диагностика, а ответ
+    # на вопрос, который человек задаёт вслух.
     return {"ok": True, "synced": saved, "fetched": выборка["total"],
-            "empty": выборка["total"] == 0}
+            "empty": выборка["total"] == 0,
+            "skipped_manual": пропущено_ручных,
+            # Отброшенное клиентом: битые записи и записи без веса.
+            # Сумма, а не разбивка: разбивка есть в журнале, а на экране
+            # три числа вместо одного не помогают
+            "dropped": sum(выборка.get("dropped", {}).values()),
+            # Состав тела по выборке: сколько записей его несут. Ноль
+            # при непустой выборке — законный случай (простые весы,
+            # ручной ввод), и экран обязан сказать это словами,
+            # а не показать пустой блок показателей
+            "with_body": выборка.get("with_body", 0)}
 
 
 @app.get("/nutrition/api/scale/status")
@@ -5851,7 +6022,7 @@ async def scale_status(background_tasks: BackgroundTasks, user=Depends(get_curre
     conn = db.query(ScaleConnection).filter(ScaleConnection.user_id == user.id).first()
     if conn and _scale_needs_sync(conn):
         background_tasks.add_task(_background_sync_scale, user.id)
-    return JSONResponse(_scale_status(conn))
+    return JSONResponse(_scale_status(conn, user))
 
 
 @app.post("/nutrition/api/scale/connect")
@@ -7808,8 +7979,12 @@ def _workout_chat_context(db: Session, user: User, focus_program_exercise_id=Non
         parts = [f"{last_weight.weight_kg} кг"]
         if last_weight.body_fat_pct:
             parts.append(f"жир {last_weight.body_fat_pct}%")
-        if last_weight.muscle_rate_pct:
-            parts.append(f"мышцы {last_weight.muscle_rate_pct}%")
+        # КИЛОГРАММЫ, а не проценты: поле muscleRate их API — это масса
+        # (разбор в zepp_client.РАЗБИРАЕМ). Здесь стоял знак «%», то есть
+        # модель получала «мышцы 50.96%» при 50.96 кг и рассуждала
+        # о человеке по неверному числу
+        if last_weight.muscle_mass_kg:
+            parts.append(f"мышцы {last_weight.muscle_mass_kg} кг")
         lines.append(f"\nПоследнее измерение с умных весов ({last_weight.log_date}): {', '.join(parts)}")
 
     nutrition_summary = _workout_nutrition_summary(db, user, profile)
@@ -9030,9 +9205,10 @@ STATIC_PAGES = {
 Закон относит их к особой категории, и мы называем их отдельно, чтобы вы
 понимали, о чём речь:</p>
 <ul>
-  <li><strong>Измерения тела</strong> — вес, обхваты, процент жира, мышц
-      и воды, висцеральный жир, ИМТ, базальный метаболизм, костная масса,
-      «возраст тела»</li>
+  <li><strong>Измерения тела</strong> — вес, обхваты, процент жира, воды
+      и белка, масса мышц и костная масса, висцеральный жир, ИМТ,
+      базальный метаболизм, «возраст тела», оценка тела баллом
+      и «идеальный вес», рассчитанный весами</li>
   <li><strong>Фотографии тела</strong> — если вы загружали снимки
       для отслеживания прогресса</li>
   <li><strong>Травмы и ограничения</strong> — зоны боли, которые вы указали

@@ -177,7 +177,9 @@
         var items = [
           ['Вес', latest.weight_kg != null ? latest.weight_kg + ' кг' : '—'],
           ['Жир', latest.body_fat_pct != null ? latest.body_fat_pct + ' %' : '—'],
-          ['Мышцы', latest.muscle_rate_pct != null ? latest.muscle_rate_pct + ' %' : '—'],
+          {# КИЛОГРАММЫ. Поле muscleRate их API — масса, а не доля;
+             разбор с арифметическим доказательством — zepp_client.РАЗБИРАЕМ #}
+          ['Мышцы', latest.muscle_mass_kg != null ? latest.muscle_mass_kg + ' кг' : '—'],
           ['Вода', latest.water_pct != null ? latest.water_pct + ' %' : '—'],
           ['Висцеральный жир', latest.visceral_fat != null ? latest.visceral_fat : '—'],
           ['Метаболизм', latest.bmr != null ? latest.bmr + ' ккал' : '—'],
@@ -197,8 +199,16 @@
         $('#wkScaleDisconnected').style.display = data.connected ? 'none' : '';
         $('#wkScaleConnected').style.display = data.connected ? '' : 'none';
         if (data.connected) {
+          // Состояние приходит ОДНИМ полем (main.СОСТОЯНИЯ_ВЕСОВ). Здесь
+          // читался `last_sync_status`, которого больше нет: три флага
+          // и породили экран с четырьмя утверждениями о состоянии сразу
           var msg = $('#wkScaleSyncMsg');
-          msg.textContent = data.last_sync_status === 'error' ? ('Ошибка последней синхронизации: ' + (data.last_sync_error || '')) : '';
+          var с = data['состояние'];
+          msg.textContent = с === 'ошибка'
+            ? 'Последняя синхронизация не удалась: ' + (data.last_sync_error || 'причина в журнале сервера')
+            : (с === 'reauth'
+                ? 'Ключ доступа Zepp Life перестал действовать — введите пароль заново в дневнике питания.'
+                : '');
           loadBodyCompGrid();
         }
       })

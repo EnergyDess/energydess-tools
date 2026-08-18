@@ -320,14 +320,28 @@ class WeightLog(Base):
     chest_cm = Column(Float, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     # ── состав тела — вручную или с весов Xiaomi (см. ScaleConnection) ──
+    #
+    # NULL здесь значит «нет данных», а не ноль, и это различие несут все
+    # колонки ниже: ноль процентов жира — утверждение о человеке, отсутствие
+    # измерения — молчание. Ни одна из них не имеет значения по умолчанию
+    # именно поэтому.
     body_fat_pct = Column(Float, nullable=True)
+    # ЛЕГАСИ: имя врало. Хранились килограммы (поле muscleRate их API),
+    # а суффикс обещал проценты — и два экрана рисовали «50.96 %» там, где
+    # 50.96 кг. Живой писатель теперь один — muscle_mass_kg; колонка
+    # оставлена, чтобы не ронять старые базы, значения перенесены
+    # миграцией _migrate_muscle_mass
     muscle_rate_pct = Column(Float, nullable=True)
+    muscle_mass_kg = Column(Float, nullable=True)
     water_pct = Column(Float, nullable=True)
     visceral_fat = Column(Float, nullable=True)
     bmi = Column(Float, nullable=True)
     bmr = Column(Integer, nullable=True)
     body_age = Column(Integer, nullable=True)
     bone_mass_kg = Column(Float, nullable=True)
+    protein_pct = Column(Float, nullable=True)
+    body_score = Column(Integer, nullable=True)
+    ideal_weight_kg = Column(Float, nullable=True)
     source = Column(String, nullable=False, default="manual")  # manual/zepp
 
 
@@ -651,6 +665,17 @@ def migrate_db():
         "ALTER TABLE chat_messages ADD COLUMN image_path VARCHAR",
         "ALTER TABLE body_photos ADD COLUMN image_path VARCHAR",
         "ALTER TABLE cover_letters ADD COLUMN deleted_at DATETIME",
+        # Состав тела, вторая очередь (2026-08-19). Эти четыре показателя
+        # видны в приложении Zepp Life и приходят в том же `summary`,
+        # что и прежние восемь, — просто их никто не разбирал.
+        # `muscle_mass_kg` — не новый показатель, а ПЕРЕИМЕНОВАНИЕ
+        # `muscle_rate_pct`: поле всегда содержало килограммы (разбор
+        # и арифметическое доказательство — в zepp_client.РАЗБИРАЕМ),
+        # а имя и подпись на экране обещали проценты
+        "ALTER TABLE weight_logs ADD COLUMN muscle_mass_kg FLOAT",
+        "ALTER TABLE weight_logs ADD COLUMN protein_pct FLOAT",
+        "ALTER TABLE weight_logs ADD COLUMN body_score INTEGER",
+        "ALTER TABLE weight_logs ADD COLUMN ideal_weight_kg FLOAT",
     ]:
         try:
             conn.execute(col)
@@ -685,6 +710,7 @@ def migrate_db():
     _migrate_drop_image_data(conn)
     _migrate_forget_zepp_password(conn)
     _migrate_scale_data_host(conn)
+    _migrate_muscle_mass(conn)
     _seed_food_translations(conn)
     conn.close()
 
@@ -812,6 +838,40 @@ def _migrate_forget_zepp_password(conn) -> int:
     if стёрто:
         print(f"[migrate] стёрто сохранённых паролей Zepp: {стёрто}")
     return стёрто
+
+
+def _migrate_muscle_mass(conn) -> int:
+    """Переносит muscle_rate_pct -> muscle_mass_kg. Значения НЕ пересчитывает.
+
+    Колонка `muscle_rate_pct` всегда хранила КИЛОГРАММЫ: её заполнял
+    единственный писатель — синхронизация с весов — из поля `muscleRate`,
+    а `muscleRate` это масса (доказательство тождеством — в zepp_client).
+    Ручной ввод в неё не пишет вовсе: модалка замера принимает только вес
+    и три обхвата. То есть портить нечего, и пересчитывать нечего —
+    неверным было ИМЯ и подпись на экране, а не число.
+
+    Перенос идёт ОДИН раз и только там, где новая колонка пуста: иначе
+    каждый старт приложения затирал бы правку, сделанную после переноса.
+    Старая колонка остаётся — как `encrypted_password` рядом: удаление
+    колонки в SQLite это пересборка таблицы, а выигрыш нулевой."""
+    try:
+        есть = {r[1] for r in conn.execute("PRAGMA table_info(weight_logs)")}
+        if "muscle_rate_pct" not in есть or "muscle_mass_kg" not in есть:
+            return 0
+        курсор = conn.execute(
+            "UPDATE weight_logs SET muscle_mass_kg = muscle_rate_pct "
+            "WHERE muscle_rate_pct IS NOT NULL AND muscle_mass_kg IS NULL")
+        перенесено = курсор.rowcount or 0
+        conn.commit()
+    except Exception as e:
+        # Не глушим: непрошедший перенос означает пустой показатель мышц
+        # на экране, и молчание сделало бы его неотличимым от «весы
+        # не измеряли» (§6.0.1)
+        print(f"[migrate] масса мышц не перенесена: {type(e).__name__}: {e}")
+        return 0
+    if перенесено:
+        print(f"[migrate] масса мышц перенесена в muscle_mass_kg: {перенесено}")
+    return перенесено
 
 
 def _migrate_scale_data_host(conn) -> int:

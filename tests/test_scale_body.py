@@ -1,0 +1,314 @@
+# -*- coding: utf-8 -*-
+"""Состав тела, часовой пояс записи и состояния привязки весов.
+
+BACKLOG.md, задача 106.
+
+ТРИ ГРУППЫ, И КАЖДАЯ ПРО ОТКАЗ, КОТОРЫЙ МОЛЧИТ.
+
+1. СОСТАВ. «Нет данных» и «ноль» — разные вещи, а в коде они были одним:
+   `row.bmr = int(rec["bmr"]) if rec.get("bmr") else None` превращал ноль
+   в молчание, а прямое присваивание `row.bmi = rec.get("bmi")` — молчание
+   в стирание уже записанного. Оба направления невидимы: ни ошибки,
+   ни следа, экран просто показывает не то.
+
+2. ПОЯС. `datetime.fromtimestamp(ts)` брал пояс ПРОЦЕССА (на Fly это UTC),
+   и взвешивание в 01:30 по Москве ложилось в дневник вчерашним числом.
+   Седьмой источник неверной даты в проекте и единственный, который портил
+   ДАННЫЕ, а не подпись.
+
+3. СОСТОЯНИЯ. Их пять, они взаимоисключающие, и до правки наружу уходили
+   три независимых флага — из-за чего экран показывал форму подключения,
+   «Подключено», «записей обновлено: 2» и «ключ больше не действует»
+   ОДНОВРЕМЕННО.
+
+База не поднимается: DB_PATH уводится в tmp ДО импорта main.
+"""
+
+import os
+import sys
+import tempfile
+from datetime import datetime
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+os.environ["DB_PATH"] = str(Path(tempfile.gettempdir()) / "hh_tests_sostav.db")
+
+import main            # noqa: E402
+import zepp_client     # noqa: E402
+from database import (ScaleConnection, SessionLocal, WeightLog,   # noqa: E402
+                      init_db)
+
+init_db()
+
+ЮЗЕР = 999101
+
+
+class Ктото:
+    """Пользователь только с поясом: `_пояс` и `_момент_в_поясе` больше
+    ничего не читают, а поднимать ради этого запись в базе значило бы
+    проверять заодно и ORM."""
+
+    def __init__(с, зона=None):
+        с.timezone = зона
+        с.id = ЮЗЕР
+
+
+class _ЧасыStub:
+    """Подменяет `datetime.now`, оставляя всё остальное настоящим.
+
+    Момент времени в тесте обязан быть задан ЯВНО: прогон в три часа дня
+    ничего не говорит о поведении в 00:30, а именно там и живут все
+    дефекты этого класса (§5.0.6)."""
+
+    def __init__(с, сейчас):
+        с._сейчас = сейчас
+
+    def now(с, tz=None):
+        return с._сейчас.astimezone(tz) if tz else с._сейчас
+
+    def __getattr__(с, имя):
+        return getattr(datetime, имя)
+
+
+# ── 1. Состав: ноль, отсутствие и частичная запись ──────────────────────────
+
+def test_отсутствующий_показатель_не_становится_нулём():
+    """Поля нет в ответе — колонка остаётся NULL, а не 0."""
+    row = WeightLog(user_id=ЮЗЕР, log_date="2026-08-14")
+    записано = main._записать_состав(row, {"weight_kg": 80.0})
+    assert записано == 0
+    for поле in main.СОСТАВ_ПОЛЯ:
+        assert getattr(row, поле) is None, f"{поле} стало {getattr(row, поле)!r}"
+
+
+def test_ноль_записывается_нулём_а_не_молчанием():
+    """Обратная сторона: пришедший ноль — это измерение, и он обязан
+    доехать. Здесь стояло `if rec.get("bmr")`, то есть ноль тихо
+    превращался в «не измерено»."""
+    row = WeightLog(user_id=ЮЗЕР, log_date="2026-08-14")
+    main._записать_состав(row, {"bmr": 0, "body_fat_pct": 0.0, "body_score": 0})
+    assert row.bmr == 0
+    assert row.body_fat_pct == 0.0
+    assert row.body_score == 0
+
+
+def test_частичная_запись_не_стирает_уже_записанное():
+    """ГЛАВНЫЙ тест группы. За день два взвешивания: утреннее с весов
+    (полный состав) и вечернее с телефона (только вес). Вечернее идёт
+    последним — и прежний код обнулял им весь утренний состав."""
+    row = WeightLog(user_id=ЮЗЕР, log_date="2026-08-14")
+    main._записать_состав(row, {"body_fat_pct": 22.4, "bmr": 1802, "bmi": 25.1})
+    main._записать_состав(row, {"weight_kg": 80.0})       # вечернее, без состава
+    assert row.body_fat_pct == 22.4, "состав стёрт записью без состава"
+    assert row.bmr == 1802
+    assert row.bmi == 25.1
+
+
+def test_известные_поля_доезжают_все_до_одного():
+    """Список показателей один (`СОСТАВ_ПОЛЯ`), и каждый из них обязан
+    записываться. Россыпь присваиваний по коду уже дала расхождение:
+    колонка есть, в модели есть, а в записи про неё забыли."""
+    row = WeightLog(user_id=ЮЗЕР, log_date="2026-08-14")
+    записано = main._записать_состав(row, {п: 1 for п in main.СОСТАВ_ПОЛЯ})
+    assert записано == len(main.СОСТАВ_ПОЛЯ)
+    for поле in main.СОСТАВ_ПОЛЯ:
+        assert getattr(row, поле) == 1
+
+
+def test_карта_клиента_и_список_сервера_не_разошлись():
+    """`zepp_client.РАЗБИРАЕМ` даёт имена, `main.СОСТАВ_ПОЛЯ` их пишет.
+    Разойдись они — показатель молча перестал бы доезжать до базы,
+    и увидеть это было бы нечем."""
+    из_клиента = set(zepp_client.РАЗБИРАЕМ) - {"weight_kg"}
+    assert из_клиента == set(main.СОСТАВ_ПОЛЯ), (
+        f"только в клиенте: {из_клиента - set(main.СОСТАВ_ПОЛЯ)}; "
+        f"только на сервере: {set(main.СОСТАВ_ПОЛЯ) - из_клиента}")
+
+
+def test_чужие_имена_полей_не_записываются_молча():
+    """Ответ с незнакомыми именами не должен выглядеть как удачный разбор:
+    записано ноль показателей, и это видно вызывающему числом."""
+    row = WeightLog(user_id=ЮЗЕР, log_date="2026-08-14")
+    записано = main._записать_состав(row, {"fatRatio": 22.4, "waterPct": 53.1,
+                                           "idealWeight": 76.0})
+    assert записано == 0
+    assert row.body_fat_pct is None and row.water_pct is None
+
+
+# ── 2. Пояс: момент и календарный день ──────────────────────────────────────
+
+@pytest.mark.parametrize("зона,ожидание", [
+    ("Europe/Moscow", "сегодня в 19:26"),        # UTC+3
+    ("Asia/Yekaterinburg", "сегодня в 21:26"),   # UTC+5
+    ("UTC", "сегодня в 16:26"),
+])
+def test_момент_печатается_в_поясе_пользователя(зона, ожидание, monkeypatch):
+    """Живой дефект 2026-08-18: экран показывал «16:26», когда у владельца
+    было 19:33. Ровно три часа — пояс Москвы, время UTC."""
+    момент = datetime(2026, 8, 18, 16, 26)          # наивный, как utcnow()
+    сейчас = datetime(2026, 8, 18, 17, 0, tzinfo=ZoneInfo("UTC"))
+    monkeypatch.setattr(main, "datetime", _ЧасыStub(сейчас))
+    assert main._момент_в_поясе(момент, Ктото(зона)) == ожидание
+
+
+def test_момента_нет_значит_нет():
+    """Синхронизации ещё не было — это отдельное состояние, а не «давно»."""
+    assert main._момент_в_поясе(None, Ктото("Europe/Moscow")) is None
+
+
+def test_вчерашняя_синхронизация_названа_вчерашней(monkeypatch):
+    момент = datetime(2026, 8, 17, 20, 0)
+    сейчас = datetime(2026, 8, 18, 17, 0, tzinfo=ZoneInfo("UTC"))
+    monkeypatch.setattr(main, "datetime", _ЧасыStub(сейчас))
+    assert main._момент_в_поясе(момент, Ктото("Europe/Moscow")) == "вчера в 23:00"
+
+
+def test_позавчерашняя_названа_датой(monkeypatch):
+    момент = datetime(2026, 8, 10, 6, 5)
+    сейчас = datetime(2026, 8, 18, 17, 0, tzinfo=ZoneInfo("UTC"))
+    monkeypatch.setattr(main, "datetime", _ЧасыStub(сейчас))
+    assert main._момент_в_поясе(момент, Ктото("Europe/Moscow")) == "10 августа, 09:05"
+
+
+@pytest.mark.parametrize("зона,час_utc,ожидаемый_день", [
+    # 01:30 по Москве 15-го — это 22:30 UTC 14-го. Прежний код писал 14-е
+    ("Europe/Moscow", 22.5, "2026-08-15"),
+    # тот же момент для человека в UTC — действительно 14-е
+    ("UTC", 22.5, "2026-08-14"),
+    # 23:00 UTC 14-го в Лос-Анджелесе (UTC-7) — ещё 14-е, день не меняется
+    ("America/Los_Angeles", 23.0, "2026-08-14"),
+    # 02:00 UTC 15-го там же — всё ещё вечер 14-го
+    ("America/Los_Angeles", 26.0, "2026-08-14"),
+])
+def test_день_взвешивания_считается_в_поясе_владельца(зона, час_utc, ожидаемый_день):
+    """Тот же расчёт, что делает `_sync_scale` для `log_date`.
+
+    Проверяются ОБЕ стороны полуночи, а не одна: сдвиг, который виден
+    только ночью, прогон днём не поймает."""
+    полночь_utc = datetime(2026, 8, 14, 0, 0, tzinfo=ZoneInfo("UTC"))
+    момент = datetime.fromtimestamp(
+        полночь_utc.timestamp() + час_utc * 3600, ZoneInfo("UTC"))
+    день = main._день_в_поясе(момент, main._пояс(Ктото(зона)))
+    assert день.strftime("%Y-%m-%d") == ожидаемый_день
+
+
+# ── 3. Состояния привязки ───────────────────────────────────────────────────
+
+@pytest.fixture
+def привязка():
+    db = SessionLocal()
+    db.query(ScaleConnection).filter(ScaleConnection.user_id == ЮЗЕР).delete()
+    conn = ScaleConnection(user_id=ЮЗЕР, encrypted_username="x")
+    db.add(conn)
+    db.commit()
+    yield db, conn
+    db.query(ScaleConnection).filter(ScaleConnection.user_id == ЮЗЕР).delete()
+    db.commit()
+    db.close()
+
+
+def test_нет_привязки_это_состояние_нет():
+    assert main._scale_status(None)["состояние"] == "нет"
+
+
+def test_привязка_без_синхронизации_это_новое(привязка):
+    _db, conn = привязка
+    assert main._scale_status(conn, Ктото("UTC"))["состояние"] == "новое"
+
+
+def test_успешная_синхронизация_это_ok(привязка):
+    db, conn = привязка
+    conn.last_sync_at = datetime(2026, 8, 18, 16, 26)
+    conn.last_sync_status = "ok"
+    db.commit()
+    assert main._scale_status(conn, Ктото("UTC"))["состояние"] == "ok"
+
+
+def test_отозванный_ключ_это_reauth_а_не_ошибка(привязка):
+    """Ключ отозван — чинится действием пользователя, а не ожиданием.
+    Свалить его в «ошибка» значило бы предложить человеку ждать погоды
+    у моря."""
+    db, conn = привязка
+    conn.last_sync_at = datetime(2026, 8, 18, 16, 26)
+    conn.last_sync_status = "reauth"
+    db.commit()
+    assert main._scale_status(conn, Ктото("UTC"))["состояние"] == "reauth"
+
+
+def test_сбой_синхронизации_это_ошибка(привязка):
+    db, conn = привязка
+    conn.last_sync_at = datetime(2026, 8, 18, 16, 26)
+    conn.last_sync_status = "error"
+    conn.last_sync_error = "ReadTimeout"
+    db.commit()
+    итог = main._scale_status(conn, Ктото("UTC"))
+    assert итог["состояние"] == "ошибка"
+    assert итог["last_sync_error"] == "ReadTimeout"
+
+
+def test_отозванный_ключ_сильнее_прошлого_успеха(привязка):
+    """Была удачная синхронизация, потом ключ отозвали. Экран обязан
+    показать отзыв, а не «подключено, последняя синхронизация вчера»:
+    именно это сочетание и рисовало два взаимоисключающих утверждения."""
+    db, conn = привязка
+    conn.last_sync_at = datetime(2026, 8, 17, 10, 0)
+    conn.last_sync_status = "reauth"
+    db.commit()
+    итог = main._scale_status(conn, Ктото("Europe/Moscow"))
+    assert итог["состояние"] == "reauth"
+    # Момент прошлой синхронизации отдаётся, но состояние — одно
+    assert итог["последняя_синхронизация"] is not None
+
+
+def test_состояние_всегда_одно_из_объявленных(привязка):
+    """Полнота: любое значение `last_sync_status` из базы обязано
+    разрешаться в объявленное состояние, а не в пустоту."""
+    db, conn = привязка
+    for статус in (None, "", "ok", "reauth", "error", "неведомое"):
+        conn.last_sync_status = статус
+        conn.last_sync_at = datetime(2026, 8, 18, 16, 26)
+        db.commit()
+        сост = main._scale_status(conn, Ктото("UTC"))["состояние"]
+        assert сост in main.СОСТОЯНИЯ_ВЕСОВ, f"{статус!r} -> {сост!r}"
+
+
+def test_расхождение_имён_полей_называется_вслух(привязка, capsys, monkeypatch):
+    """Клиент насчитал записи с составом, а записать не удалось ни одного
+    показателя — значит имена полей разошлись с нашей картой.
+
+    Без этой строки отказ немой: в базе NULL, на экране блока нет,
+    в журнале тишина — и выглядит это как «весы состав не мерят»,
+    то есть как НОРМА."""
+    import zepp_client as z
+    db, conn = привязка
+    db.add(WeightLog(user_id=ЮЗЕР, log_date="1999-01-01"))   # чтобы был пользователь
+    monkeypatch.setattr(main, "_decrypt_opt", lambda x: x)
+    conn.encrypted_app_token, conn.encrypted_zepp_user_id = "Т", "1"
+    db.commit()
+    monkeypatch.setattr(z, "fetch_weight_records", lambda *a, **k: {
+        "records": [{"timestamp": 1_787_000_000, "weight_kg": 81.7,
+                     "fatRatio": 22.9, "waterPct": 52.0}],
+        "total": 1, "pages": 1, "dropped": {}, "host": "x",
+        "with_body": 1, "with_summary": 1, "fields": []})
+    main._sync_scale(db, conn)
+    assert "имена полей разошлись" in capsys.readouterr().out
+
+
+def test_свои_имена_расхождением_не_объявляются(привязка, capsys, monkeypatch):
+    """Положительный контроль к предыдущему: не срабатывай строка НИКОГДА,
+    тест выше проходил бы и на сломанном коде."""
+    import zepp_client as z
+    db, conn = привязка
+    monkeypatch.setattr(main, "_decrypt_opt", lambda x: x)
+    conn.encrypted_app_token, conn.encrypted_zepp_user_id = "Т", "1"
+    db.commit()
+    monkeypatch.setattr(z, "fetch_weight_records", lambda *a, **k: {
+        "records": [{"timestamp": 1_787_100_000, "weight_kg": 81.5,
+                     "body_fat_pct": 22.9, "water_pct": 52.0}],
+        "total": 1, "pages": 1, "dropped": {}, "host": "x",
+        "with_body": 1, "with_summary": 1, "fields": []})
+    main._sync_scale(db, conn)
+    assert "имена полей разошлись" not in capsys.readouterr().out

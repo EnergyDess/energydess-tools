@@ -401,6 +401,28 @@
                место, где можно сказать, что выводы делать рано -->
           <div class="wt-note" id="wt-note"></div>
         </div>
+        {# СОСТАВ ТЕЛА. Блока не было вовсе: показатели приезжали с весов,
+           ложились в базу и не показывались нигде — двенадцать колонок,
+           видимых только на /workout/profile тремя строками.
+
+           Скрыт ЦЕЛИКОМ, пока ни в одной записи состава нет. Пустой блок
+           с одиннадцатью прочерками читался бы как «весы сломались»,
+           хотя простые весы состав не мерят и это норма.
+
+           Показываются ТОЛЬКО пришедшие показатели: строки «нет данных»
+           тут не рисуются — в отличие от замеров тела выше, где строка
+           постоянная и пустота означает «вы не записали». Здесь пустота
+           означает «весы не измеряли», и это не задача пользователя.
+
+           Оценок вида «высокий/низкий» нет и не будет: это суждение
+           о здоровье, а мы его не выносим. Только число и единица. #}
+        <div class="card card-static wt-body" id="wt-body" style="display:none">
+          <div class="chart-hd">
+            <div class="field-label">Состав тела</div>
+            <div class="p-note-inline" id="wt-body-date"></div>
+          </div>
+          <div class="wt-body-grid" id="wt-body-grid"></div>
+        </div>
       </div>
       </div>
     </section>
@@ -425,7 +447,35 @@
 
         <div class="p-sec">
           <div class="p-sec-title">Умные весы</div>
-          <div id="scale-disconnected">
+          {# ЭКРАН ПОКАЗЫВАЕТ РОВНО ОДНО СОСТОЯНИЕ.
+
+             Живой снимок 2026-08-18 показывал ЧЕТЫРЕ утверждения разом:
+             форму «Подключить весы» с полем пароля, зелёное «Подключено,
+             записей обновлено: 2», строку «Подключено. Последняя
+             синхронизация: 16:26» и красное «Ключ доступа больше
+             не действует» — плюс кнопки «Синхронизировать» и «Отключить»
+             при мёртвом ключе.
+
+             Причина была не в порядке строк, а в том, что состояния
+             как ОДНОГО значения не существовало: сервер отдавал три
+             независимых флага, скрипт по ним показывал и прятал блоки
+             по отдельности, и ветка «нужен повторный вход» открывала
+             форму, НЕ закрыв блок «подключено». Пока флагов несколько,
+             всегда найдётся сочетание, которого никто не предусмотрел.
+
+             Теперь состояние приходит одним полем (`СОСТОЯНИЯ_ВЕСОВ`
+             в main.py, пять значений), и `показатьСостояниеВесов`
+             гасит всё, кроме одного блока. Кнопки принадлежат блоку,
+             а не висят рядом: при отозванном ключе «Синхронизировать»
+             не показывается, потому что синхронизировать нечем. #}
+          <div id="scale-disconnected" style="display:none">
+            {# Плашка отзыва ключа стоит НАД формой и внутри того же
+               блока: человеку надо объяснить, почему у него снова
+               спрашивают пароль, ровно там, где спрашивают #}
+            <div class="alert alert-warn scale-reauth" id="scale-reauth" style="display:none">
+              <i data-lucide="key-round"></i>
+              <span>Ключ доступа Zepp Life перестал действовать, и синхронизация остановилась. Это не поломка сайта: ключом распоряжается Zepp, и он может быть отозван на их стороне. Уже загруженные измерения на месте. Введите пароль ещё раз — он снова нужен только на один вход.</span>
+            </div>
             <p class="p-note">Подключите весы Mi Body Composition Scale — вес и состав тела будут подтягиваться автоматически. Это неофициальная интеграция: если Zepp Life изменит свой API, синхронизация может прерваться — тогда просто продолжайте вводить вес вручную, ничего не сломается.</p>
             <p class="p-note"><strong>Нужен собственный аккаунт Zepp Life — почта и пароль, которыми вы входите в приложение Zepp Life.</strong> Вход через аккаунт Xiaomi не подойдёт: Xiaomi требует подтвердить личность в своём приложении, и стороннему сервису этот путь закрыт. Если вы заходите в Zepp Life кнопкой «Xiaomi», заведите в приложении отдельный аккаунт по почте и привяжите весы к нему.</p>
             <p class="p-note">Пароль нужен один раз — чтобы обменять его на ключ доступа. Мы его не сохраняем: в базе остаётся только ключ, который можно отозвать.</p>
@@ -440,15 +490,50 @@
               </button>
             </div>
             <button class="btn-primary btn-block" onclick="connectScale()" id="scale-connect-btn">Подключить весы</button>
+            {# Кнопка отключения ПРИ ОТОЗВАННОМ КЛЮЧЕ. Она нужна и здесь:
+               человек может не захотеть вводить пароль заново, и тогда
+               единственный выход — убрать привязку. Прежде на этом экране
+               её не было бы вовсе, потому что блок «подключено» скрыт #}
+            <button class="btn-ghost btn-block scale-drop" id="scale-drop-reauth" style="display:none" onclick="disconnectScale()">Отключить весы</button>
             <div class="p-msg" id="scale-connect-msg"></div>
           </div>
-          <div id="scale-connected" style="display:none">
-            <p class="p-note-inline">Подключено. Последняя синхронизация: <span id="scale-last-sync">—</span></p>
-            <div class="p-actions">
-              <button class="act-btn act-btn-auto" onclick="syncScaleNow()">↻ Синхронизировать сейчас</button>
-              <button class="act-btn act-btn-auto act-btn-danger" onclick="disconnectScale()">Отключить</button>
+          <div class="card card-static scale-live" id="scale-connected" style="display:none">
+            <div class="scale-live-hd">
+              <div class="field-label">Весы подключены</div>
+              <div class="p-note-inline" id="scale-last-sync">—</div>
             </div>
-            <div class="p-msg" id="scale-sync-msg"></div>
+            {# Ошибка последней синхронизации — системным вариантом
+               сообщения, а не перекрашенным div с хардкодом #f87171.
+               Имя класса стоит в разметке ниже: назвать его ещё и здесь
+               значило бы дать ложную находку проверке 1 (§6.0.2) #}
+            <div class="alert alert-error scale-err" id="scale-err" style="display:none"></div>
+            <div class="scale-acts">
+              <button class="btn-secondary" id="scale-sync-btn" onclick="syncScaleNow()"><i data-lucide="refresh-cw"></i> Синхронизировать сейчас</button>
+              {# РАЗРУШАЮЩЕЕ ДЕЙСТВИЕ. Было `.act-btn.act-btn-danger` —
+                 обычная кнопка, у которой отличается только цвет текста
+                 (и тот хардкодом). Теперь отдельный вид: приглушённая,
+                 в красном, с подтверждением, и стоит НЕ рядом с главной
+                 кнопкой, а отбита от неё #}
+              <button class="btn-ghost scale-drop" onclick="disconnectScale()"><i data-lucide="unlink"></i> Отключить</button>
+            </div>
+          </div>
+          {# ИТОГ СИНХРОНИЗАЦИИ ЖИВЁТ ДО ЗАКРЫТИЯ.
+
+             Прежде он стирался мгновенно и не своей рукой: `syncScaleNow`
+             писал текст, а следующей строкой звал `loadScaleStatus`,
+             который в ветке «всё хорошо» ставил тому же элементу
+             `textContent = ''`. Прочитать «получено 2, записано 0»
+             человек физически не успевал — сообщение исчезало в тот же
+             кадр, в котором появлялось.
+
+             Поэтому блок отдельный: статус его не трогает, гаснет он
+             только по крестику или при уходе со страницы. #}
+          <div class="scale-result" id="scale-result" style="display:none">
+            <div class="alert" id="scale-result-alert">
+              <i data-lucide="info" id="scale-result-icon"></i>
+              <span id="scale-result-text"></span>
+              <button class="btn-icon scale-result-x" onclick="закрытьИтогВесов()" aria-label="Закрыть сообщение"><i data-lucide="x"></i></button>
+            </div>
           </div>
         </div>
 
@@ -1076,6 +1161,24 @@ function сЗаглавной(s) { return s ? s[0].toUpperCase() + s.slice(1) : 
 
 function полнаяДата(дата) {
   return new Date(дата + 'T00:00:00').toLocaleDateString('ru', {weekday:'long', day:'numeric', month:'long'});
+}
+
+// «14 августа» / «14 авг.» из календарной строки «2026-08-14».
+//
+// СУФФИКС 'T00:00:00' ОБЯЗАТЕЛЕН, и это не украшение. `new Date('2026-08-14')`
+// разбирается как UTC-полночь, а печатается в поясе устройства: западнее
+// Гринвича та же строка выводится как 13 августа. Вкладка «Вес» звала
+// `new Date(l.date)` без суффикса в ЧЕТЫРЁХ местах — подпись под весом,
+// дата замера, подписи графика и список записей, — то есть весь экран
+// съезжал на сутки у половины часовых поясов.
+//
+// С суффиксом дата разбирается как ЛОКАЛЬНАЯ полночь и печатается тем же
+// числом, каким записана, в любом поясе. Это то же решение, что у дневника
+// (`полнаяДата` выше и ещё пять мест), а не восьмой способ: календарная
+// дата не является моментом времени, и переводить её между поясами нечего.
+function датаДняМесяца(дата, месяц) {
+  return new Date(дата + 'T00:00:00')
+    .toLocaleDateString('ru', {day: 'numeric', month: месяц || 'long'});
 }
 
 function будущийДень(дата) { return расстояниеДней(дата) > 0; }
@@ -3426,17 +3529,71 @@ const ПЕРИОД_МЕСЯЦ_ДНЕЙ = 31;
 // Порядок строк замеров задан здесь один раз: он же читается при отрисовке
 const ЗАМЕРЫ = [['waist_cm', 'm-waist'], ['hips_cm', 'm-hips'], ['chest_cm', 'm-chest']];
 
+// ПОКАЗАТЕЛИ СОСТАВА ТЕЛА — один список на порядок, подпись и единицу.
+// Порядок осмысленный, а не алфавитный: сначала то, из чего состоит вес
+// (жир, вода, мышцы, кости, белок), потом производные числа.
+//
+// Единица у каждого своя и подписана явно. «Мышцы, кг» — не педантизм:
+// поле приходило из API под именем muscleRate, лежало у нас
+// в `muscle_rate_pct` и рисовалось на /workout/profile со знаком «%»,
+// хотя это килограммы (доказательство — zepp_client.РАЗБИРАЕМ).
+//
+// У ИМТ, висцерального жира и оценки тела единицы НЕТ, и пустая строка
+// здесь — решение, а не пропуск: это безразмерные индексы, и подписать
+// их чем-нибудь значило бы соврать.
+const СОСТАВ_ТЕЛА = [
+  ['body_fat_pct',    'Жир',              '%'],
+  ['water_pct',       'Вода',             '%'],
+  ['muscle_mass_kg',  'Мышцы',            'кг'],
+  ['bone_mass_kg',    'Костная масса',    'кг'],
+  ['protein_pct',     'Белок',            '%'],
+  ['visceral_fat',    'Висцеральный жир', ''],
+  ['bmi',             'ИМТ',              ''],
+  ['bmr',             'Основной обмен',   'ккал'],
+  ['body_age',        'Возраст тела',     'лет'],
+  ['body_score',      'Оценка тела',      'баллов'],
+  ['ideal_weight_kg', 'Идеальный вес',    'кг'],
+];
+
 async function loadWeightData() {
   const data = await api('/nutrition/api/weight');
   S.weight = data;
   const logs = data.logs || [], latest = logs[0];
   document.getElementById('cur-wt').textContent = latest?.weight_kg ?? '—';
   document.getElementById('wt-sub').textContent = latest
-    ? 'Обновлено: ' + new Date(latest.date).toLocaleDateString('ru', {day:'numeric', month:'long'})
+    ? 'Обновлено: ' + датаДняМесяца(latest.date, 'long')
     : 'Взвешивание не записано';
   отрисоватьЗамеры(logs);
   отрисоватьПрогрессВеса(data.start_weight, data.target_weight, latest?.weight_kg);
   отрисоватьГрафикВеса();
+  отрисоватьСоставТела(logs);
+}
+
+// Состав берётся из ПОСЛЕДНЕЙ записи, где он вообще есть, — тем же
+// правилом, что и замеры тела выше. Взвешивание без состава (телефон,
+// ручной ввод) не должно прятать вчерашний состав с весов: «нет данных»
+// и «сегодня встали на другие весы» — разные вещи.
+//
+// Блок целиком скрыт, если состава нет ни в одной записи.
+function отрисоватьСоставТела(logs) {
+  const блок = document.getElementById('wt-body');
+  const сетка = document.getElementById('wt-body-grid');
+  const строка = logs.find(l => СОСТАВ_ТЕЛА.some(([поле]) => l[поле] != null));
+  if (!строка) { блок.style.display = 'none'; return; }
+  блок.style.display = '';
+  // Только пришедшие. `!= null` ловит и null, и undefined, но НЕ ноль:
+  // ноль — это измеренное значение, и прятать его значило бы выдавать
+  // утверждение за отсутствие данных
+  сетка.innerHTML = СОСТАВ_ТЕЛА
+    .filter(([поле]) => строка[поле] != null)
+    .map(([поле, подпись, единица]) => `
+      <div class="wt-bcell">
+        <div class="wt-bval">${строка[поле]}${единица ? ' <span class="wt-bunit">' + единица + '</span>' : ''}</div>
+        <div class="wt-bname">${подпись}</div>
+      </div>`).join('');
+  const свежая = logs[0]?.date;
+  document.getElementById('wt-body-date').textContent =
+    строка.date === свежая ? '' : 'замер от ' + датаДняМесяца(строка.date, 'short');
 }
 
 // Замер берётся из ПОСЛЕДНЕЙ записи, где он вообще заполнен, а не из последнего
@@ -3452,7 +3609,7 @@ function отрисоватьЗамеры(logs) {
     if (!строка) { el.textContent = 'не записан'; el.classList.add('is-empty'); continue; }
     el.classList.remove('is-empty');
     const дата = строка.date === свежая ? ''
-      : ' · ' + new Date(строка.date).toLocaleDateString('ru', {day:'numeric', month:'short'});
+      : ' · ' + датаДняМесяца(строка.date, 'short');
     el.textContent = `${строка[поле]} см${дата}`;
   }
 }
@@ -3597,7 +3754,7 @@ function drawWeightChart(logs, цель) {
   let xLbls = '';
   wts.forEach((l, i) => {
     if (i % xStep === 0 || i === wts.length - 1) {
-      const lbl = new Date(l.date).toLocaleDateString('ru', { day: 'numeric', month: 'short' });
+      const lbl = датаДняМесяца(l.date, 'short');
       xLbls += `<text x="${xPos(i).toFixed(1)}" y="${H - pB + 17}" text-anchor="middle" fill="rgba(129,137,155,.75)" font-size="10.5" font-family="inherit">${lbl}</text>`;
     }
   });
@@ -3647,7 +3804,8 @@ function drawWeightChart(logs, цель) {
     const l = wts[i];
     const dot = document.getElementById('wtd-' + i);
     if (dot) { dot.setAttribute('r', '6.5'); dot.style.filter = 'drop-shadow(0 0 6px var(--tool-accent))'; }
-    const dateStr = new Date(l.date).toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' });
+    const dateStr = new Date(l.date + 'T00:00:00')
+      .toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' });
     let html = `<div class="wt-tt-date">${dateStr}</div>
       <div class="wt-tt-row"><span>Вес</span><strong>${l.weight_kg} кг</strong></div>`;
     if (l.waist_cm)  html += `<div class="wt-tt-row"><span>Талия</span><strong>${l.waist_cm} см</strong></div>`;
@@ -3716,26 +3874,60 @@ async function loadProfileForm() {
 }
 
 // ── Умные весы (родная схема входа Zepp Life: почта + пароль) ────────────────
+// ОДНО СОСТОЯНИЕ НА ЭКРАНЕ. Таблица «состояние -> что видно» лежит здесь
+// целиком и читается сверху вниз: пока это были три независимых флага,
+// проверить полноту было нечем, и сочетание «форма + подключено + отзыв
+// ключа» никто не заметил, потому что его нельзя было увидеть в коде.
+//
+// Ключевое свойство: КАЖДЫЙ блок получает значение на КАЖДОМ проходе.
+// Прежний код только включал нужное и полагался на то, что лишнее уже
+// выключено, — а оно не было.
+const ВИД_ВЕСОВ = {
+  //               форма  плашка-отзыв  «подключено»  кнопка-синхр.  отключить-в-форме
+  'нет':      { форма:1, отзыв:0, живо:0, синхр:0, сброс:0 },
+  'новое':    { форма:0, отзыв:0, живо:1, синхр:1, сброс:0 },
+  'ok':       { форма:0, отзыв:0, живо:1, синхр:1, сброс:0 },
+  // Ключ отозван: показываем ФОРМУ (пароль вводить всё равно тут)
+  // с объяснением, а «Синхронизировать» не предлагаем вовсе — синхронизировать
+  // нечем. Отключить при этом можно: человек вправе не возвращаться
+  'reauth':   { форма:1, отзыв:1, живо:0, синхр:0, сброс:1 },
+  // Сбой не по ключу — привязка жива, повтор осмыслен
+  'ошибка':   { форма:0, отзыв:0, живо:1, синхр:1, сброс:0 },
+};
+
+function показатьСостояниеВесов(состояние) {
+  const вид = ВИД_ВЕСОВ[состояние] || ВИД_ВЕСОВ['нет'];
+  const пок = (id, да) => { document.getElementById(id).style.display = да ? '' : 'none'; };
+  пок('scale-disconnected', вид.форма);
+  пок('scale-reauth',       вид.отзыв);
+  пок('scale-connected',    вид.живо);
+  пок('scale-sync-btn',     вид.синхр);
+  пок('scale-drop-reauth',  вид.сброс);
+  return вид;
+}
+
 async function loadScaleStatus() {
   const data = await api('/nutrition/api/scale/status');
-  document.getElementById('scale-disconnected').style.display = data.connected ? 'none' : 'block';
-  document.getElementById('scale-connected').style.display = data.connected ? 'block' : 'none';
-  if (data.connected) {
-    document.getElementById('scale-last-sync').textContent = data.last_sync_at || 'пока не было';
-    const msg = document.getElementById('scale-sync-msg');
-    // Три состояния, не два: «нужен повторный вход» лечится действием
-    // пользователя, а не ожиданием, и сваливать его в ошибку нельзя
-    if (data.needs_reauth) {
-      msg.textContent = 'Ключ доступа Zepp Life больше не действует. Введите пароль ещё раз ниже — он снова нужен только на один вход.';
-      msg.style.color = '#fbbf24';
-      document.getElementById('scale-disconnected').style.display = 'block';
-    } else if (data.last_sync_status === 'error') {
-      msg.textContent = 'Ошибка последней синхронизации: ' + (data.last_sync_error || '');
-      msg.style.color = '#f87171';
-    } else {
-      msg.textContent = '';
-    }
+  // Незнакомое состояние НЕ схлопываем в «подключено»: пусть лучше экран
+  // покажет форму, чем предложит синхронизацию по неизвестно чему
+  const состояние = data['состояние'] || 'нет';
+  показатьСостояниеВесов(состояние);
+  document.getElementById('scale-last-sync').textContent =
+    data['последняя_синхронизация']
+      ? 'Синхронизация: ' + data['последняя_синхронизация']
+      : 'Синхронизации ещё не было';
+  const ош = document.getElementById('scale-err');
+  if (состояние === 'ошибка') {
+    ош.style.display = '';
+    ош.textContent = 'Последняя синхронизация не удалась. ' +
+      (data.last_sync_error || 'Причина в журнале сервера.') +
+      ' Нажмите «Синхронизировать сейчас», чтобы повторить.';
+  } else {
+    ош.style.display = 'none';
   }
+  // Итог синхронизации СПЕЦИАЛЬНО НЕ ТРОГАЕМ. Здесь стояло
+  // `msg.textContent = ''`, и именно оно стирало сообщение через кадр
+  // после того, как его показали
 }
 // ПАРОЛЬ очищается сразу после отправки, до ответа сервера: он не должен
 // пережить нажатие кнопки. ПОЧТА остаётся — она не секрет, а стирать её
@@ -3757,46 +3949,93 @@ async function connectScale() {
   const data = await api('/nutrition/api/scale/connect', { method: 'POST', body: JSON.stringify({ username, password }) });
   document.getElementById('scale-connect-btn').disabled = false;
   if (data.error) { показатьОтказВесов(msg, data.error); return; }
-  msg.textContent = data.warning || итогВыборки(data, 'Подключено');
-  msg.style.color = data.warning ? '#fbbf24' : '#4ade80';
+  msg.textContent = '';
+  показатьИтогВесов(data.warning
+    ? { вид: 'alert-warn', текст: data.warning }
+    : итогВыборки(data, 'Подключено'));
   loadScaleStatus();
   loadWeightData();
 }
 
-// Пустая история и сбой больше не выглядят одинаково. Прежде и то и другое
-// печаталось как «синхронизировано записей: 0»: сбой при этом молчал, а
-// пустой аккаунт выглядел так, будто что-то не сработало. Сбой теперь
-// приходит полем error, а про пустоту говорится словами
+// ИТОГ НАЗЫВАЕТ ЧИСЛА И ПРИЧИНУ. «Записей обновлено: 2» отвечало только
+// на один вопрос из трёх, а живой случай 2026-08-18 показал, что нужны
+// все три: получено 2, записано 0, потому что на ту дату уже стояла
+// РУЧНАЯ запись — и ноль выглядел отказом, хотя всё было в порядке.
+//
+// Возвращает текст и вид. Вид — имя системного варианта сообщения, потому
+// что «всё записалось» и «ничего не изменилось» — разные новости, и
+// красить их одинаковым зелёным значило бы снова свести всё к одному числу.
 function итогВыборки(data, начало) {
+  const получено = data.fetched ?? 0, записано = data.synced ?? 0;
+  const ручных = data.skipped_manual ?? 0, битых = data.dropped ?? 0;
   if (data.empty) {
-    return начало + '. Измерений в аккаунте Zepp Life пока нет — встаньте '
-      + 'на весы с открытым приложением и нажмите «Синхронизировать сейчас».';
+    return { вид: 'alert-accent', текст: начало + '. Измерений в аккаунте Zepp Life '
+      + 'пока нет — встаньте на весы с открытым приложением и нажмите '
+      + '«Синхронизировать сейчас».' };
   }
-  if (!data.synced) {
-    return начало + '. Новых измерений нет, всё уже записано (получено с весов: '
-      + (data.fetched ?? 0) + ').';
+  // Почему ничего не записалось — по пунктам, а не общим «всё уже есть».
+  // Причин ровно три, и человек должен видеть, какая сработала у него
+  const причины = [];
+  if (ручных) причины.push(`${ручных} — на эти даты у вас уже стоит запись, сделанная вручную (её мы не перетираем)`);
+  if (битых)  причины.push(`${битых} — без веса или помечены сервисом как повреждённые`);
+  if (!записано) {
+    const хвост = причины.length
+      ? ' Из них: ' + причины.join('; ') + '.'
+      : ' Все они уже были записаны раньше.';
+    return { вид: 'alert-warn', текст: `${начало}. Получено измерений: ${получено}, `
+      + `новых записей в дневнике не появилось.${хвост} Это не сбой — данные на месте.` };
   }
-  return начало + ', записей обновлено: ' + data.synced;
+  let текст = `${начало}. Получено измерений: ${получено}, записано дней: ${записано}.`;
+  if (причины.length) текст += ' Пропущено: ' + причины.join('; ') + '.';
+  // Про состав тела говорим ТОЛЬКО когда его нет ни в одной записи: иначе
+  // человек ждёт блок «Состав тела» на вкладке «Вес» и не находит его,
+  // а причина (простые весы, ручной ввод, Health Connect) не наша
+  if (data.with_body === 0) {
+    текст += ' Состава тела в измерениях нет — пришёл только вес.';
+  }
+  return { вид: 'alert-success', текст };
+}
+
+// Итог держится до крестика или до ухода со страницы. Отдельный блок,
+// отдельная функция: статус привязки его не касается вовсе
+function показатьИтогВесов(итог) {
+  const блок = document.getElementById('scale-result');
+  const плашка = document.getElementById('scale-result-alert');
+  плашка.className = 'alert ' + итог.вид;
+  document.getElementById('scale-result-text').textContent = итог.текст;
+  блок.style.display = '';
+}
+
+function закрытьИтогВесов() {
+  document.getElementById('scale-result').style.display = 'none';
 }
 
 // Отказ подключения весов. Ветка с адресом проверки личности удалена
 // вместе со схемой Xiaomi: в родной схеме Zepp Life проверки личности
-// не существует, а отказ приходит одной строкой с кодом
+// не существует, а отказ приходит одной строкой с кодом.
+// Цвет — системным классом, а не хардкодом #f87171 в стиле элемента
 function показатьОтказВесов(msg, текст) {
-  msg.style.color = '#f87171';
+  msg.className = 'p-msg alert alert-error';
   msg.textContent = текст;
 }
 async function syncScaleNow() {
-  const msg = document.getElementById('scale-sync-msg');
-  msg.style.color = 'var(--text-2)';
-  msg.textContent = 'Синхронизируем…';
+  const кнопка = document.getElementById('scale-sync-btn');
+  // Состояние «идёт синхронизация» видно НА КНОПКЕ, а не строкой,
+  // которая тут же исчезнет: запрос идёт к чужому сервису и занимает
+  // секунды, и всё это время экран обязан говорить, что он занят
+  кнопка.disabled = true;
+  const прежний = кнопка.innerHTML;
+  кнопка.innerHTML = '<span class="spinner"></span> Синхронизируем…';
   const data = await api('/nutrition/api/scale/sync', { method: 'POST' });
-  if (data.error) { msg.textContent = data.error; msg.style.color = '#f87171'; }
-  else { msg.textContent = итогВыборки(data, 'Готово'); msg.style.color = '#4ade80'; loadWeightData(); }
+  кнопка.disabled = false;
+  кнопка.innerHTML = прежний;
+  if (window.lucide) lucide.createIcons();
+  if (data.error) показатьИтогВесов({ вид: 'alert-error', текст: data.error });
+  else { показатьИтогВесов(итогВыборки(data, 'Готово')); loadWeightData(); }
   loadScaleStatus();
 }
 async function disconnectScale() {
-  if (!confirm('Отключить весы? Уже синхронизированные данные останутся.')) return;
+  if (!confirm('Отключить весы?\n\nПривязка будет удалена, автоматическая синхронизация прекратится. Уже загруженные измерения останутся в дневнике.\n\nЧтобы подключить снова, понадобится пароль от Zepp Life.')) return;
   await api('/nutrition/api/scale/disconnect', { method: 'POST' });
   // Здесь чистим ОБА поля, в отличие от неудачного входа: человек отключил
   // весы совсем, и оставленная почта осталась бы приглашением ввести пароль

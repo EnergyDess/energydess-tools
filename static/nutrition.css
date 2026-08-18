@@ -1495,14 +1495,59 @@ html.assistant-mode, html.assistant-mode body {
    (design-system.md §2.15): пересчёт ещё не случился, сообщать об успехе
    или отказе нечего. Здесь только место в колонке */
 .p-warn        { margin-bottom: 0.625rem; line-height: 1.5; }
-.p-actions     { display: flex; gap: 0.5rem; margin-top: 0.625rem; flex-wrap: wrap; }
 /* Ровно то, что стояло инлайном: flex:none и ничего сверх. Ширину и нижний
    отступ .act-btn не трогаем — иначе это была бы не замена инлайна классом,
    а тихая правка раскладки под видом уборки. */
 .act-btn-auto   { flex: none; }
-.act-btn-danger { color: #f87171; }
+/* `.p-actions` и `.act-btn-danger` УДАЛЕНЫ 2026-08-19 вместе с разметкой,
+   а не оставлены пустыми правилами. Ими был собран ряд кнопок блока весов;
+   ряд теперь свой (`.scale-acts`), а разрушающее действие — системная
+   `.btn-ghost` с `.scale-drop`, а не обычная кнопка с хардкодом #f87171
+   в цвете текста. Правило, описывающее несуществующий класс, ловит
+   следующего, кто возьмёт имя из файла. */
 .p-sec-title-gap { margin-top: 1.125rem; }
 .scale-input     { margin-bottom: 0.5rem; }
+
+/* ── Умные весы: одно состояние на экране ──────────────────────────────
+   Собрано из компонентной базы: карточка — `.card .card-static`,
+   кнопки — `.btn-secondary` / `.btn-ghost` / `.btn-icon`, сообщения —
+   `.alert` со своими вариантами. Здесь только РАСКЛАДКА экземпляров
+   и один вид, которого в системе нет (приглушённое разрушающее действие). */
+.scale-live      { display: flex; flex-direction: column; gap: var(--space-3); }
+.scale-live-hd   { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.scale-acts      { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+/* Разрушающее действие отбито от главной кнопки, а не стоит с ней плечом
+   к плечу: промах по «Отключить» стоит повторного ввода пароля */
+.scale-acts .scale-drop { margin-left: auto; }
+/* Приглушённое разрушающее действие. В системе есть `.btn-ghost`, но нет
+   его красного вида, и заводить его в `style.css` ради одной кнопки
+   не стали — это раскладка и цвет ЭКЗЕМПЛЯРА, а не новый компонент.
+   Цвет из токена `--error`, а не из хардкода. */
+.scale-drop      { color: var(--error); }
+@media (hover: hover) {
+  .scale-drop:hover { color: var(--error); background: color-mix(in srgb, var(--error) 10%, transparent); border-color: color-mix(in srgb, var(--error) 30%, transparent); }
+}
+.scale-reauth    { margin-bottom: var(--space-3); }
+.scale-err       { margin: 0; }
+.scale-result    { margin-top: var(--space-3); }
+/* Крестик итога прижат вправо и не растягивается: `.alert` — флекс-строка,
+   и без этого кнопка съезжала к тексту */
+.scale-result-x  { margin-left: auto; flex-shrink: 0; }
+
+/* ── Состав тела на вкладке «Вес» ──────────────────────────────────────
+   Сетка `auto-fill`, а не фиксированные колонки: показателей приходит
+   от одного до одиннадцати (зависит от весов), и раскладка обязана
+   выглядеть одинаково осмысленно в обоих концах диапазона. */
+.wt-body-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: var(--space-3); margin-top: var(--space-3); }
+.wt-bcell     { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-3); }
+/* Кегли ТОКЕНАМИ, а не числами. Первая версия ставила 1.125rem / 0.8125rem
+   числом — и тест `test_кегли_только_через_токен` поймал все три строки.
+   Это ровно та проверка, ради которой она написана: свой кегль на своей
+   странице и есть первый шаг к параллельной системе (задача 96). */
+.wt-bval      { font-size: var(--text-body-lg); font-weight: 600; color: var(--text); line-height: 1.2; }
+/* Единица мельче числа, но не мельче минимума: --text-caption это 0.8125rem */
+.wt-bunit     { font-size: var(--text-caption); font-weight: 400; color: var(--text-2); }
+.wt-bname     { font-size: var(--text-caption); color: var(--text-2); margin-top: var(--space-1); line-height: 1.35; }
 
 /* ── Профиль: фото прогресса и сравнение по датам ── */
 .body-photo-row { display: flex; gap: 0.5rem; margin-bottom: 0.625rem; }
