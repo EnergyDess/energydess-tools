@@ -823,6 +823,73 @@ async def _пауза(db, секунды: float) -> None:
     await asyncio.sleep(секунды)
 
 
+async def _в_потоке(db, функция, *аргументы):
+    """Блокирующий вызов в потоке С ОСВОБОЖДЁННЫМ СОЕДИНЕНИЕМ к базе.
+
+    Родная сестра `_пауза`, и понадобилась ровно по той же причине —
+    но обнаружилась она только ПОСЛЕ починки bcrypt, и это стоит записать.
+
+    ЗАМЕР 2026-08-18. Один `asyncio.to_thread` без освобождения соединения
+    убрал блокировку цикла на десяти входах (медиана `/health` 967 → 156 мс),
+    а на тридцати сделал ХУЖЕ, чем было: 6.6 с превратились в 180 с.
+
+    Механика. Пока bcrypt считал в цикле, запросы шли гуськом и держателей
+    соединения было один-два. Перенос в поток сделал их по-настоящему
+    одновременными — тридцать обработчиков разом держат соединение через
+    `await`, а в пуле их 5+10. Шестнадцатый встаёт ждать пул, и ждёт он
+    СИНХРОННО, то есть снова стоит весь цикл (`CLAUDE.md` §8.1). Проверено
+    подстановкой: с пулом 60+20 те же тридцать входов проходят за 1.97 с.
+
+    Пул при этом не лечение, а перенос стены: соединение, занятое на время
+    счёта, не нужно там никому.
+
+    `db.close()` возвращает соединение в пул. Сессия остаётся рабочей —
+    следующий запрос откроет соединение заново, — но объекты ORM
+    ОТЦЕПЛЯЮТСЯ: уже прочитанные поля читаются по-прежнему, а запись
+    в них до базы не доедет. Поэтому на вызывающей стороне действует
+    правило: значение, нужное после, взять в переменную ДО; объект,
+    который будут менять, взять из базы заново.
+    """
+    db.close()
+    return await asyncio.to_thread(функция, *аргументы)
+
+
+# ── Блокирующее в async-обработчике: только через asyncio.to_thread ──────────
+#
+# ПРАВИЛО: синхронный вызов, считающий дольше десятка миллисекунд, внутри
+# `async def` обработчика запрещён. Уносится в поток —
+# `await asyncio.to_thread(функция, аргументы)`.
+#
+# Причина ровно та же, что у `_пауза` выше, и это ТРЕТИЙ случай одного
+# класса подряд (пул соединений — задача 22, bcrypt и остальное —
+# задача 103). Пока синхронный вызов считает, event loop не исполняет
+# НИЧЕГО: ни другие запросы, ни таймеры, ни отправку уже готовых ответов.
+# Отказ немой — ни ошибки, ни строки в журнале, приложение просто
+# перестаёт отвечать целиком, включая `/health`, по которому Fly решает,
+# жива ли машина.
+#
+# Замер 2026-08-18 на этой машине, стоимость ОДНОГО вызова:
+#
+#   verify_password (bcrypt cost 12)   148.7 мс
+#   hash_password                      153.2 мс
+#   _upright_jpeg (JPEG 4000×3000)      87.1 мс
+#   _process_avatar (3000×3000)         80.1 мс
+#   httpx.Client синхронный        до таймаута: у zepp_client он 30 000 мс
+#   subprocess.run git rev-parse        10.9 мс
+#   запрос к SQLite через SQLAlchemy     0.1 мс  ← в поток НЕ уносится
+#
+# Последняя строка — граница правила: сотые доли миллисекунды в поток
+# уносить незачем, а вот тридцать секунд синхронного httpx кладут сайт
+# целиком, и это хуже bcrypt на два порядка.
+#
+# Соблюдение проверяется машиной: `py check_blocking.py` (проверка 11)
+# обходит граф вызовов от каждого async-обработчика и печатает те, что
+# достают до блокирующего примитива НЕ через поток. Правило, которое надо
+# не забыть соблюсти, — это гарантия, что следующий обработчик его
+# не получит (та же причина, по которой гейт подтверждения почты сделан
+# одним middleware, §5.3).
+
+
 def _login_delay_for(fails: int) -> float:
     """Прогрессивная задержка ответа. Человеку незаметна, перебору ломает
     экономику — и, в отличие от капчи, не зависит от доступности Cloudflare.
@@ -1148,10 +1215,14 @@ async def version():
     import subprocess
     repo_dir = os.path.dirname(os.path.abspath(__file__))
     try:
-        commit = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"], cwd=repo_dir,
-            capture_output=True, text=True, check=True,
-        ).stdout.strip()
+        # В поток: запуск процесса стоит ~11 мс, и платит за него чужой
+        # запрос, которому до нашего git дела нет
+        готово = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=repo_dir, capture_output=True, text=True, check=True,
+        )
+        commit = готово.stdout.strip()
     except Exception:
         commit = "unknown"
     return JSONResponse({"commit": commit})
@@ -1640,9 +1711,12 @@ async def register(
         return ответ
 
     is_first = db.query(User).count() == 0
+    # bcrypt считает ~153 мс и держит event loop — в поток (см. правило
+    # «Блокирующее в async-обработчике» рядом с _пауза)
+    хеш = await _в_потоке(db, hash_password, password)
     user = User(
         email=email,
-        password_hash=hash_password(password),
+        password_hash=хеш,
         is_admin=is_first,
         is_verified=True if is_first else False,
     )
@@ -1823,7 +1897,11 @@ async def login(
 
     user = db.query(User).filter(User.email == email).first()
 
-    if not user or not verify_password(password, user.password_hash):
+    # Хеш читается ДО `_в_потоке`: после освобождения соединения объект
+    # отцеплен от сессии, и обращение к неподгруженному полю полезло бы
+    # в базу заново
+    хеш = user.password_hash if user else None
+    if not user or not await _в_потоке(db, verify_password, password, хеш):
         if защита:
             _записать_попытку(db, ключ, "login", "fail")
             _записать_попытку(db, ключ_акк, "login", "fail")
@@ -2123,7 +2201,17 @@ async def reset_post(
     if len(password) < 6:
         return templates.TemplateResponse(request=request, name="reset_password.html",
                                           context={"token": token, "error": "Минимум 6 символов", "done": False})
-    user.password_hash = hash_password(password)
+    # Соединение отдаётся на время счёта, поэтому пользователь берётся
+    # из базы заново: после `_в_потоке` прежний объект отцеплен, и запись
+    # в него до базы не доехала бы — молча, без единой ошибки
+    uid = user.id
+    хеш = await _в_потоке(db, hash_password, password)
+    user = db.get(User, uid)
+    if not user:
+        return templates.TemplateResponse(
+            request=request, name="reset_password.html",
+            context={"token": token, "error": "Ссылка недействительна", "done": False})
+    user.password_hash = хеш
     user.reset_token = None
     user.reset_token_expires = None
     # Момент смены отзывает все выданные ранее токены: в них зашит прежний
@@ -5655,6 +5743,27 @@ class ScaleReauthNeeded(Exception):
     Чинится только повторным вводом пароля пользователем."""
 
 
+async def _sync_scale_в_потоке(db: Session, conn: ScaleConnection) -> dict:
+    """`_sync_scale` из async-обработчика — только так.
+
+    Внутри синхронный httpx с timeout=30.0: прямой вызов останавливает
+    event loop до самого таймаута, то есть молчащий сервис Zepp кладёт
+    сайт целиком на полминуты (см. правило рядом с `_пауза`).
+
+    Сессия базы уходит в поток вместе с вызовом, и это безопасно ровно
+    по одной причине: обработчик стоит на `await` и к `db` в это время
+    не прикасается — то есть работают с ней по-прежнему в один поток
+    единовременно. Ровно так же с ней обращается `_background_sync_scale`,
+    который гоняет `_sync_scale` в отдельном потоке с самого начала.
+
+    Чего это НЕ чинит и что стоит назвать вслух: соединение к базе всё
+    те же тридцать секунд остаётся занятым. Пул 5+10, синхронизация весов
+    редкая (раз в час на пользователя) — до исчерпания далеко, но при
+    массовой привязке весов упрётся именно сюда.
+    """
+    return await asyncio.to_thread(_sync_scale, db, conn)
+
+
 def _sync_scale(db: Session, conn: ScaleConnection) -> dict:
     """Синхронизация идёт ТОЛЬКО по сохранённому токену.
 
@@ -5769,8 +5878,22 @@ async def scale_connect(request: Request, user=Depends(get_current_user), db: Se
     # ZeppProtocolError с настоящим кодом, а не наша догадка про капчу
     try:
         # Ключ устройства — постоянный для пользователя, см. zepp_client.устройство
-        tokens = zepp_client.login(username, password,
-                                   ключ_устройства=f"{crypto.ключ_отпечаток()}:{user.id}")
+        # В ПОТОК: zepp_client ходит синхронным httpx с timeout=30.0,
+        # то есть молчащий сервис Zepp останавливает ВЕСЬ сайт на
+        # полминуты. Замер: синхронный httpx блокирует loop ровно
+        # на свой таймаут (2131 мс при timeout=2). Это на два порядка
+        # хуже bcrypt, из-за которого задача 103 и заводилась.
+        #
+        # ЗДЕСЬ ГОЛЫЙ to_thread, А НЕ `_в_потоке`, И ЭТО ВЫБОР.
+        # `_в_потоке` отдаёт соединение через db.close(), а тот
+        # отцепляет объекты ORM — ниже же `conn` МЕНЯЮТ и коммитят
+        # (токен, хост данных, статус). Запись в отцепленный объект
+        # не доехала бы до базы молча, без единой ошибки. Цена
+        # названа: соединение занято на время сетевого обмена;
+        # привязка весов редкая, до исчерпания пула 5+10 далеко.
+        tokens = await asyncio.to_thread(
+            zepp_client.login, username, password,
+            f"{crypto.ключ_отпечаток()}:{user.id}")
     except zepp_client.ZeppAuthError as e:
         print(f"[zepp] отказ по учётным данным: {ascii(str(e))}")
         return JSONResponse({"error": f"{e}. Нужны почта и пароль от аккаунта "
@@ -5820,7 +5943,7 @@ async def scale_connect(request: Request, user=Depends(get_current_user), db: Se
     db.commit()
 
     try:
-        result = _sync_scale(db, conn)
+        result = await _sync_scale_в_потоке(db, conn)
     except Exception as e:
         return JSONResponse({"ok": True, "warning": f"Подключено, но первая синхронизация не удалась: {e}"})
     return JSONResponse({"ok": True, "synced": result.get("synced", 0),
@@ -5836,7 +5959,7 @@ async def scale_sync(user=Depends(get_current_user), db: Session = Depends(get_d
     if not conn:
         return JSONResponse({"error": "Весы не подключены"}, status_code=400)
     try:
-        result = _sync_scale(db, conn)
+        result = await _sync_scale_в_потоке(db, conn)
     except ScaleReauthNeeded as e:
         conn.last_sync_status = "reauth"
         conn.last_sync_error = str(e)[:300]
@@ -5880,7 +6003,7 @@ async def upload_body_photo(file: UploadFile = File(...), angle: str = Form(...)
     # Качество общее (JPEG_QUALITY), отдельное число здесь было бы третьим
     # источником правды. Меньший max_dim оставлен: фото тела снимаются
     # для сравнения силуэта по неделям, разрешение Full HD тут избыточно
-    готовое = _upright_jpeg(content, max_dim=1600)
+    готовое = await _в_потоке(db, _upright_jpeg, content, 1600)
     if not готовое:
         return JSONResponse({"error": "Не удалось обработать фото"}, status_code=400)
     токен = _save_media("body", user.id, готовое)
@@ -6116,7 +6239,7 @@ async def nut_ai_photo(file: UploadFile = File(...), description: str = Form("")
     content = await file.read()
     if not content:
         return JSONResponse({"error": "Пустой файл"}, status_code=400)
-    b64, mime = _for_vision(content, file)
+    b64, mime = await _в_потоке(db, _for_vision, content, file)
 
     extra = f"\nДополнительное описание от пользователя: {description.strip()}" if description.strip() else ""
     prompt = f"""На фото еда. Определи что изображено и оцени калорийность на 100г.{extra}
@@ -6140,12 +6263,12 @@ async def nut_ai_chat_photo(file: UploadFile = File(...), message: str = Form(""
     content = await file.read()
     if not content:
         return JSONResponse({"error": "Пустой файл"}, status_code=400)
-    b64, mime = _for_vision(content, file)
+    b64, mime = await _в_потоке(db, _for_vision, content, file)
     user_text = message.strip()
     # Файл на том, в базу — только токен. Не удалось сохранить (нет места,
     # права) — запись всё равно создаётся, но без картинки: потерять текст
     # переписки из-за файла было бы хуже
-    готовое = _upright_jpeg(content)
+    готовое = await _в_потоке(db, _upright_jpeg, content)
     токен = _save_media("chat", user.id, готовое) if готовое else None
 
     comment = f"\nКомментарий пользователя: {user_text}" if user_text else ""
@@ -7453,6 +7576,11 @@ async def workout_refresh_program(user=Depends(get_current_user), db: Session = 
 
 _WORKOUT_ACTION_RE = re.compile(r"###WORKOUT_ACTION###\s*(\{.*?\})\s*###END_WORKOUT_ACTION###", re.S)
 
+# Подпись тренажёра приезжает ОТДЕЛЬНОЙ СТРОКОЙ — ровно так её просит промпт
+# разбора фото. Якоря начала и конца строки не украшение: без них «МЕТКА:»
+# посреди фразы съедает хвост предложения (разбор в workout_chat_photo).
+_МЕТКА_RE = re.compile(r"^[ \t]*МЕТКА:[ \t]*(.*)$", re.M)
+
 EQUIPMENT_LABELS_RU = {
     "barbell": "штанга", "e-z curl bar": "EZ-гриф", "dumbbell": "гантели", "kettlebells": "гири",
     "machine": "тренажёр", "cable": "тренажёр", "body only": "без инвентаря",
@@ -7464,15 +7592,59 @@ DOCTOR_DISCLAIMER = ("Это фитнес-помощник, не медицин�
                       "несколько дней или появилась резко после травмы — обратись к врачу, не жди улучшения от тренировок.")
 
 
-def _extract_workout_action(text: str):
-    m = _WORKOUT_ACTION_RE.search(text)
-    if not m:
-        return text.strip(), None
-    try:
-        action = _json.loads(m.group(1))
-    except Exception:
-        action = None
-    return _WORKOUT_ACTION_RE.sub("", text).strip(), action
+# Текст, который дописывается к реплике, когда блок действия пришёл,
+# но разобрать его не удалось. Молчать здесь нельзя: модель уже написала
+# пользователю, что действие выполнено, — и без этой строки он узнает
+# обратное только на следующей тренировке.
+_WK_БИТЫЙ_БЛОК = ("(Одно из действий ассистента не удалось разобрать, "
+                  "и оно НЕ выполнено. Если вы просили что-то изменить в "
+                  "программе — повторите просьбу отдельным сообщением.)")
+
+
+def _extract_workout_actions(text: str):
+    """ВСЕ блоки действий, а не первый. Возвращает (текст, действия, битых).
+
+    ЗАМЕР 2026-08-18, живой вызов модели. Прежняя версия брала `search()` —
+    первое вхождение, — а `sub()` вырезала из текста ВСЕ. На просьбу
+    «отметь боль в колене и сделай упор на руки» модель прислала два блока:
+
+        ###WORKOUT_ACTION### {"action": "set_pain_zone", "zone": "knee"} …
+        ###WORKOUT_ACTION### {"action": "set_focus_zones", "zones": ["arms"]} …
+
+    применилось ПЕРВОЕ, второе исчезло бесследно, а в тексте, который видит
+    человек, стояло «И ставлю упор на руки». Проверено состоянием базы:
+    `pain_zones` стало `['knee']`, `focus_zones` осталось пустым.
+
+    Это буквально та же пара `search()` + `sub()`, что уронила ассистента
+    дневника (`CLAUDE.md` §5.0.3), и найти её можно было только живым
+    прогоном: на подставленной строке с одним блоком всё работает.
+
+    Битый блок считается ОТДЕЛЬНО от «блока не было»: раньше и то и другое
+    давало `action = None`, то есть отказ разбора был неотличим от штатного
+    разговора без действия.
+    """
+    блоки = _WORKOUT_ACTION_RE.findall(text)
+    действия, битых = [], 0
+    for сырое in блоки:
+        try:
+            разобрано = _json.loads(сырое)
+        except ValueError as e:
+            битых += 1
+            print(f"[wk-chat] блок действия НЕ РАЗОБРАН: {type(e).__name__}: {e}; "
+                  f"блок={ascii(сырое[:200])}")
+            continue
+        if isinstance(разобрано, dict):
+            действия.append(разобрано)
+        else:
+            битых += 1
+            print(f"[wk-chat] блок действия не объект: {ascii(str(разобрано)[:200])}")
+    # Схлопывание пустых строк: вырезанный блок из СЕРЕДИНЫ ответа
+    # оставляет за собой четыре перевода строки подряд — замер
+    # 2026-08-18 на живом ответе, где модель поставила блок в середину
+    # и продолжила текст после него
+    очищено = _WORKOUT_ACTION_RE.sub("", text)
+    очищено = re.sub(r"\n{3,}", chr(10) * 2, очищено).strip()
+    return очищено, действия, битых
 
 
 # ── Workout × Дневник питания (Этап 8) ──────────────────────────────────────
@@ -7952,11 +8124,14 @@ async def workout_chat(request: Request, user=Depends(get_current_user), db: Ses
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
-    reply, action = _extract_workout_action(reply)
-    result = None
+    reply, действия, битых = _extract_workout_actions(reply)
     profile = db.query(WorkoutProfile).filter(WorkoutProfile.user_id == user.id).first()
+    результаты = []
 
-    if action and profile:
+    # ЦИКЛ, а не первое действие: модель на просьбу о двух вещах присылает
+    # два блока, и раньше второе пропадало молча (см. _extract_workout_actions)
+    for action in (действия if profile else []):
+        result = None
         act = action.get("action")
         try:
             if act == "swap_exercise":
@@ -8036,10 +8211,23 @@ async def workout_chat(request: Request, user=Depends(get_current_user), db: Ses
                 result = {"type": "shorten_today", "guidance": _shorten_today_guidance(db, user)}
         except Exception as e:
             result = {"type": "error", "error": str(e)}
+        if result is None:
+            # Действие пришло и НЕ выполнилось: неизвестное имя, чужой id,
+            # зона не из списка. Прежде это был молчаливый None — человек
+            # читал «отметил колено» и не получал ничего
+            print(f"[wk-chat] действие не применено: {ascii(str(action)[:200])}")
+            result = {"type": "not_applied", "action": str(act)}
+        результаты.append(result)
+
+    if битых:
+        reply = (reply + chr(10) * 2 + _WK_БИТЫЙ_БЛОК).strip()
 
     db.add(ChatMessage(user_id=user.id, role="assistant", content=reply, tool="workout"))
     db.commit()
-    return JSONResponse({"reply": reply, "result": result})
+    # `results` — список: действий бывает несколько. `result` оставлен первым
+    # ради совместимости со старым клиентом, который читает только его
+    return JSONResponse({"reply": reply, "results": результаты,
+                         "result": результаты[0] if результаты else None})
 
 
 @app.post("/workout/api/chat-photo")
@@ -8052,8 +8240,8 @@ async def workout_chat_photo(file: UploadFile = File(...), message: str = Form("
     content = await file.read()
     if not content:
         return JSONResponse({"error": "Пустой файл"}, status_code=400)
-    b64, mime = _for_vision(content, file)
-    готовое = _upright_jpeg(content)
+    b64, mime = await _в_потоке(db, _for_vision, content, file)
+    готовое = await _в_потоке(db, _upright_jpeg, content)
     токен = _save_media("chat", user.id, готовое) if готовое else None
 
     db.add(ChatMessage(user_id=user.id, role="user", content=message or "[фото тренажёра]", image_path=токен, tool="workout"))
@@ -8078,13 +8266,28 @@ async def workout_chat_photo(file: UploadFile = File(...), message: str = Form("
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
-    label_match = re.search(r"МЕТКА:\s*(.+)", reply)
+    # МЕТКА разбирается ТОЛЬКО как отдельная строка — так её и просит промпт.
+    # Прежняя регулярка искала «МЕТКА:» где угодно и забирала `.+` до конца
+    # строки. Замер 2026-08-18 на строке «Ответ. МЕТКА: Жим ногами. И ещё вот
+    # что важно.»: кандидатом становилось «Жим ногами. И ещё вот что важно.» —
+    # в списке такого нет, значит тренажёр НЕ опознан, — а из текста при этом
+    # вырезался весь хвост предложения. Две потери разом, и обе молчащие.
+    метки = _МЕТКА_RE.findall(reply)
     cluster_label = None
-    if label_match:
-        candidate = label_match.group(1).strip()
+    if len(метки) > 1:
+        # Две метки — это не «возьмём первую»: модель сама не выбрала.
+        # Прежний код брал первую молча, и о второй никто не узнавал
+        print(f"[wk-photo] меток в ответе {len(метки)}, ни одна не принята: "
+              f"{ascii(str(метки)[:200])}")
+    elif метки:
+        candidate = метки[0].strip().rstrip(".")
         if candidate in cluster_labels:
             cluster_label = candidate
-    reply_text = re.sub(r"МЕТКА:\s*.+", "", reply).strip()
+        elif candidate.lower() != "нет":
+            # «нет» — штатный ответ по промпту. Всё остальное мимо списка
+            # значит, что модель назвала то, чего у нас нет
+            print(f"[wk-photo] метка не из списка: {ascii(candidate[:120])}")
+    reply_text = _МЕТКА_RE.sub("", reply).strip()
 
     db.add(ChatMessage(user_id=user.id, role="assistant", content=reply_text, tool="workout"))
     db.commit()
@@ -8254,7 +8457,8 @@ async def upload_avatar(file: UploadFile = File(...),
     raw = await file.read()
     if not raw:
         return JSONResponse({"error": "Файл пустой"}, status_code=400)
-    ошибка = _process_avatar(raw, user.id)
+    ид = user.id
+    ошибка = await _в_потоке(db, _process_avatar, raw, ид)
     if ошибка:
         return JSONResponse({"error": ошибка}, status_code=400)
     user.avatar_updated_at = datetime.utcnow()
@@ -8469,7 +8673,8 @@ async def delete_account(request: Request, password: str = Form(...),
 
     # Подтверждение паролем, а не кнопкой «да»: действие необратимо, а чужой
     # незакрытый ноутбук — самый обычный сценарий
-    if not verify_password(password, user.password_hash):
+    хеш = user.password_hash
+    if not await _в_потоке(db, verify_password, password, хеш):
         return JSONResponse({"error": "Неверный пароль"}, status_code=400)
 
     # Последний админ не должен удалять себя: сайт остался бы без управления

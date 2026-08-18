@@ -1470,6 +1470,8 @@
       reloadProgramAfterPatch();
     } else if (result.type === 'shorten_today') {
       el.innerHTML = result.guidance;
+    } else if (result.type === 'not_applied') {
+      el.innerHTML = '<i data-lucide="triangle-alert"></i> Ассистент назвал действие, но применить его не вышло. Проверьте, что просьба относится к упражнению из вашей программы, и повторите её отдельным сообщением.';
     } else if (result.type === 'error') {
       el.innerHTML = '<i data-lucide="triangle-alert"></i> Не получилось применить действие: ' + result.error;
     } else {
@@ -1520,7 +1522,9 @@
         loading.remove();
         if (data.error) { box.appendChild(chatMsgEl('assistant', 'Ошибка: ' + data.error)); return; }
         box.appendChild(chatMsgEl('assistant', (data.reply || '').replace(/\n/g, '<br>')));
-        if (data.result) renderChatResult(data.result);
+        // ВСЕ результаты, а не первый: на просьбу о двух вещах модель
+        // присылает два блока действий, и раньше второй пропадал молча
+        (data.results || (data.result ? [data.result] : [])).forEach(renderChatResult);
         box.scrollTop = box.scrollHeight;
       })
       .catch(function () {
