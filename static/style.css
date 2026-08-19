@@ -94,6 +94,14 @@
 
   /* Semantic */
   --success: #10B981;
+  /* Второй уровень успеха: «лучше нормы» там, где хороших зон две подряд
+     (вода, мышцы, белок, кость — см. body_scales.ПОКАЗАТЕЛИ). НЕ новое
+     состояние: смысл тот же «здесь хорошо», отличается только оттенок,
+     иначе две зелёные зоны на полосе сливались бы в одну.
+     emerald-400 к emerald-500 у --success — соседняя ступень той же
+     шкалы, а не другой цвет: семейство обязано остаться узнаваемым.
+     Замер контраста — у .scale-zone-great ниже. */
+  --success-strong: #34D399;
   --warning: #F59E0B;
   --error: #EF4444;
 
@@ -1953,10 +1961,37 @@ textarea::placeholder, input::placeholder { color: var(--text-faint); }
 .scale-zone { flex: 1 1 0; min-width: 0; }
 .scale-zone + .scale-zone { box-shadow: inset 1px 0 0 var(--surface-0); }
 /* Цвет зоны — из токенов состояний, приглушённый: полоса это фон, а не
-   надпись, и в полную силу три цвета рядом кричат громче метки на них */
-.scale-zone-ok   { background: color-mix(in srgb, var(--success) 55%, transparent); }
-.scale-zone-warn { background: color-mix(in srgb, var(--warning) 55%, transparent); }
-.scale-zone-bad  { background: color-mix(in srgb, var(--error)   55%, transparent); }
+   надпись, и в полную силу три цвета рядом кричат громче метки на них.
+
+   ДОЛЯ У `great` ДРУГАЯ — 85 % против 55 %, — и это не небрежность,
+   а следствие замера. Задача второго зелёного одна: чтобы граница между
+   «нормой» и «лучше нормы» была видна глазом. Разделяет их только
+   светлота (тон-то у обеих зелёный), а при доле 55 % нужной светлоты
+   не получить никаким цветом: итоговый пиксель считается как
+   0.55·цвет + 0.45·фон, и чтобы выйти на светлоту #56B18F, зелёная
+   составляющая исходного цвета должна быть 309 из 255 — то есть
+   физически невозможна.
+
+   ЗАМЕР 2026-08-19, фактический пиксель на дорожке #0e0f16, контраст
+   по яркости WCAG:
+
+     ok    #0F6D51   к дорожке 3.01
+     warn  #8D5E10   к дорожке 3.39   к ok 1.13  <- так различают зелёный
+     bad   #8A2C2F   к дорожке 2.26                  и жёлтый, уверенно
+     great #2EB685   к дорожке 7.39   к ok 2.46  к warn 2.18
+
+   Опорное число — 1.13: пара «ok/warn» читается человеком без усилия,
+   и 2.46 у пары «ok/great» даёт вдвое больший запас там, где тон один
+   и работает только светлота. До правки эта пара давала 1.00, то есть
+   границы не было вовсе.
+
+   Почему не полная сила (#10B981 100 % дал бы 2.50, чуть больше): полоса
+   остаётся фоном под меткой. 85 % от более светлого emerald-400 даёт
+   тот же выигрыш, не выводя ни одну зону на полную яркость. */
+.scale-zone-ok    { background: color-mix(in srgb, var(--success) 55%, transparent); }
+.scale-zone-great { background: color-mix(in srgb, var(--success-strong) 85%, transparent); }
+.scale-zone-warn  { background: color-mix(in srgb, var(--warning) 55%, transparent); }
+.scale-zone-bad   { background: color-mix(in srgb, var(--error)   55%, transparent); }
 /* Метка. Обводка цветом поверхности, а не полосы: на границе двух зон
    метка иначе сливается с той, что темнее */
 .scale-mark {
@@ -1988,9 +2023,15 @@ textarea::placeholder, input::placeholder { color: var(--text-faint); }
   white-space: nowrap;
 }
 .scale-cat { margin-top: var(--space-1); font-size: var(--text-caption); font-weight: 600; }
-.scale-cat-ok   { color: var(--success); }
-.scale-cat-warn { color: var(--warning); }
-.scale-cat-bad  { color: var(--error); }
+/* Слово красится тем же токеном, что зона под ним, — включая `great`:
+   разъедься они, «хорошая» на полосе была бы одного зелёного, а словом
+   под ней другого, и человек решил бы, что это разные вещи.
+   Контраст на карточке (--surface-2 #1E2030): --success 6.35,
+   --success-strong 8.37 — оба выше порога AA 4.5 */
+.scale-cat-ok    { color: var(--success); }
+.scale-cat-great { color: var(--success-strong); }
+.scale-cat-warn  { color: var(--warning); }
+.scale-cat-bad   { color: var(--error); }
 
 /* ── Названия зон ─────────────────────────────────────────────────────────
    Заведены 2026-08-19, вторым заходом. С этого дня цвет отклонения ОДИН
@@ -2052,9 +2093,10 @@ textarea::placeholder, input::placeholder { color: var(--text-faint); }
    у полосы под ней, поэтому отдельной строки `.scale-cat` в широком
    виде не нужно: она повторяла бы одно из этих слов */
 .scale-name-now { font-weight: 600; }
-.scale-name-now.scale-cat-ok   { color: var(--success); }
-.scale-name-now.scale-cat-warn { color: var(--warning); }
-.scale-name-now.scale-cat-bad  { color: var(--error); }
+.scale-name-now.scale-cat-ok    { color: var(--success); }
+.scale-name-now.scale-cat-great { color: var(--success-strong); }
+.scale-name-now.scale-cat-warn  { color: var(--warning); }
+.scale-name-now.scale-cat-bad   { color: var(--error); }
 
 @container scalebox (min-width: 20rem) {
   .scale-names { display: flex; margin-top: var(--space-1); }
