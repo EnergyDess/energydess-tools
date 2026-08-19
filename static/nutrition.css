@@ -2284,8 +2284,13 @@ html.assistant-mode, html.assistant-mode body {
      .btn-icon и .segmented-btn, а десктопные размеры остались описывать
      пустоту. Удалены вместе с перестройкой экрана: описание несуществующего
      класса ловит следующего, кто возьмёт имя из файла.
-     Тем же грепом рядом найдены .f-input и .save-btn в блоке профиля —
-     они из другого экрана и в этот заход не трогались. */
+     Тем же грепом рядом были найдены .f-input и .save-btn в блоке
+     профиля — их оставили «до другого захода», и заход настал только
+     2026-08-19: обе строки описывали классы, которых в разметке нет
+     с задачи 42, а design-system.md §11 прямо называл их сведёнными
+     к системным. То есть документ был неправдой в обратную сторону,
+     и молчали про это все девять проверок: имя описано как удалённое,
+     а в коде живёт (BACKLOG №109, проверка 12). Удалены. */
   .r-item { padding: calc(0.875 * var(--nut-u)) var(--nut-u); }
   .r-name { font-size: var(--nut-u); }
   .r-brand { font-size: calc(0.82 * var(--nut-u)); }
@@ -2405,13 +2410,11 @@ html.assistant-mode, html.assistant-mode body {
   #tab-profile.active { display: grid; grid-template-columns: 1fr 1fr; gap: 1.75rem; overflow: hidden; }
   .p-sec-title { font-size: .82rem; }
   .f-label { font-size: .88rem; }
-  .f-input { height: 3rem; font-size: 1.02rem; }
   .radio-btn { height: 2.875rem; font-size: .92rem; }
   .act-btn { padding: 0.8125rem 1rem; font-size: .92rem; }
   .targets-title { font-size: .9rem; }
   .t-val { font-size: 1.3rem; }
   .t-lbl { font-size: .8rem; }
-  .save-btn { height: 3.375rem; font-size: 1.05rem; }
 
   /* Раньше здесь карточки перекрывались хардкодами rgba(22,26,44,.88) и
      rgba(26,30,50,.92) с backdrop-filter — блок подгонял десктоп под

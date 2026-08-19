@@ -27,7 +27,7 @@
      старого пароля), поэтому они вынесены в отдельную карточку ниже. #}
   <div class="card card-static profile-card">
     <h2>Настройки</h2>
-    <p class="hint">Изменения применяются кнопкой внизу</p>
+    <p class="profile-hint">Изменения применяются кнопкой внизу</p>
 
     <div class="identity-row">
       {# Фолбэк на букву-инициал: если аватара нет, показывается он #}
@@ -50,7 +50,7 @@
                value="{{ user.display_name or '' }}"
                placeholder="{{ user.email.split('@')[0] }}"
                maxlength="30" oninput="markDirty()">
-        <p class="hint hint-under">Так сайт будет к вам обращаться. Если не указать — используется часть email.</p>
+        <p class="profile-hint profile-hint-under">Так сайт будет к вам обращаться. Если не указать — используется часть email.</p>
         {# Ссылка, а не кнопка в ряд: убрать фото — действие другого веса,
            чем загрузить. И появляется только когда есть что убирать #}
         <button type="button" class="avatar-remove-link" id="avatar-remove"
@@ -82,7 +82,7 @@
         <i data-lucide="chevron-down" class="select-arrow"></i>
       </div>
     </div>
-    <p class="hint tz-warning">
+    <p class="profile-hint tz-warning">
       После смены пояса записи прошлых дней могут показываться в соседних сутках.
       Данные не теряются — меняется только граница дня.
     </p>
@@ -98,7 +98,7 @@
   <!-- ── Вход и безопасность ── -->
   <div class="card card-static profile-card">
     <h2>Вход и безопасность</h2>
-    <p class="hint">Email и пароль меняются отдельно — каждое действие подтверждается</p>
+    <p class="profile-hint">Email и пароль меняются отдельно — каждое действие подтверждается</p>
 
     <div class="setting-row">
       <div>
@@ -128,7 +128,7 @@
   <!-- ── Опасная зона ── -->
   <div class="card card-static profile-card danger-card">
     <h2>Удаление аккаунта</h2>
-    <p class="hint">Все данные — резюме, досье, письма, программы тренировок — будут удалены безвозвратно.</p>
+    <p class="profile-hint">Все данные — резюме, досье, письма, программы тренировок — будут удалены безвозвратно.</p>
     <button class="btn-danger" onclick="openDeleteModal()">Удалить аккаунт</button>
   </div>
 </div>
@@ -146,7 +146,7 @@
 {% import '_modal.html' as m %}
 
 {% call m.modal('modal-email', 'Изменить email') %}
-    <p class="hint">Функция в разработке — эндпоинт /api/change-email ещё не реализован.</p>
+    <p class="profile-hint">Функция в разработке — эндпоинт /api/change-email ещё не реализован.</p>
     <div class="form-col">
       <input type="email" class="input" placeholder="Новый email" disabled>
       <input type="password" class="input" placeholder="Текущий пароль" disabled>
@@ -158,7 +158,7 @@
 {% endcall %}
 
 {% call m.modal('modal-password', 'Сменить пароль') %}
-    <p class="hint">Функция в разработке — эндпоинт /api/change-password ещё не реализован.</p>
+    <p class="profile-hint">Функция в разработке — эндпоинт /api/change-password ещё не реализован.</p>
     <div class="form-col">
       <input type="password" class="input" placeholder="Текущий пароль" disabled>
       <input type="password" class="input" placeholder="Новый пароль" disabled>
@@ -171,12 +171,12 @@
 {% endcall %}
 
 {% call m.modal('modal-delete', 'Удалить аккаунт') %}
-    <p class="hint">Действие необратимо. Восстановить данные будет нельзя.</p>
+    <p class="profile-hint">Действие необратимо. Восстановить данные будет нельзя.</p>
 
     {# Человек должен видеть цену действия до того, как его подтвердит #}
     <div class="delete-preview" id="delete-preview">
       <div class="delete-preview-title">Будет удалено:</div>
-      <ul id="delete-list"><li class="hint">Считаю…</li></ul>
+      <ul id="delete-list"><li class="profile-hint">Считаю…</li></ul>
     </div>
 
     <div class="form-col">
@@ -374,18 +374,18 @@ async function openDeleteModal() {
   document.getElementById('delete-password').value = '';
   document.getElementById('delete-error').textContent = '';
   const список = document.getElementById('delete-list');
-  список.innerHTML = '<li class="hint">Считаю…</li>';
+  список.innerHTML = '<li class="profile-hint">Считаю…</li>';
   try {
     const r = await fetch('/api/delete-account/preview');
     const данные = await r.json();
     if (!данные.items || !данные.items.length) {
-      список.innerHTML = '<li class="hint">Кроме самого аккаунта — ничего, данных пока нет.</li>';
+      список.innerHTML = '<li class="profile-hint">Кроме самого аккаунта — ничего, данных пока нет.</li>';
       return;
     }
     список.innerHTML = данные.items
       .map(п => `<li><span>${п['название']}</span><b>${п['сколько']}</b></li>`).join('');
   } catch {
-    список.innerHTML = '<li class="hint">Не удалось посчитать — данные всё равно будут удалены.</li>';
+    список.innerHTML = '<li class="profile-hint">Не удалось посчитать — данные всё равно будут удалены.</li>';
   }
 }
 

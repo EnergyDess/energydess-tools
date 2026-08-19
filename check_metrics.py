@@ -11,12 +11,22 @@
 без указания способа не значит ничего, поэтому здесь у каждой метрики
 способ назван строкой рядом и записан в самой команде.
 
+ТРЕТЬЯ ПОЛОВИНА БОЛЕЗНИ — КОПИЯ ИСТОЧНИКА. До 2026-08-19 этот файл
+держал свои `names`, `pages` и текст всех шести грепов, а в шапке стояло,
+что команды «те же, что записаны в CLAUDE.md». Они и были теми же —
+в день написания. Список отстал на 23 имени, ряд печатал 18 там, где
+настоящий список даёт 19, и молчал он ровно про то, что заведено
+последним. Теперь ни списка, ни команд здесь нет: их разбирает
+`project_lists` из блока ```bash в §6.0.2, оттуда же берёт компонентную
+базу `check_ids.py`.
+
     py check_metrics.py          — все метрики
-    py check_metrics.py --ряд    — только ряд девяти проверок §6.0.2
+    py check_metrics.py --ряд    — только ряд проверок §6.0.2
 
 Код возврата: 0 всегда. Это СРЕЗ, а не проверка: у него нет понятия
 «правильно». Проверки, у которых оно есть, — check_docs, check_ids,
-check_backlog, check_endpoints, и их код читается отдельно.
+check_backlog, check_revived, check_debts, check_endpoints, и их код
+читается отдельно.
 """
 import io
 import re
@@ -26,17 +36,7 @@ import sys
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-СТРАНИЧНЫЕ_CSS = [
-    'static/hh.css', 'static/profile.css', 'static/landing.css',
-    'static/workout.css', 'static/workout_profile.css',
-    'static/nutrition.css', 'static/botamin.css',
-]
-
-
-def _шаблоны_и_страничный_css():
-    файлы = sorted(glob.glob('templates/*.html'))
-    файлы += [п for п in СТРАНИЧНЫЕ_CSS if glob.glob(п)]
-    return файлы
+import project_lists as списки
 
 
 def _прочитать(путь):
@@ -46,50 +46,67 @@ def _прочитать(путь):
         return ''
 
 
-# ── Ряд девяти проверок §6.0.2 ──────────────────────────────────────────────
-# Первые шесть — грепы, и здесь они вызываются ТЕМИ ЖЕ командами, что
-# записаны в CLAUDE.md. Вторая реализация на Python разошлась бы с первой,
-# а это ровно та болезнь, которую весь §6.0.2 и лечит.
+# ── Ряд проверок §6.0.2 ─────────────────────────────────────────────────────
+#
+# КОПИИ ЗДЕСЬ БОЛЬШЕ НЕТ, И ЭТО ГЛАВНОЕ В ЭТОМ ФАЙЛЕ.
+#
+# До 2026-08-19 тут лежала строка `КОМАНДЫ_РЯДА` — те же грепы, тот же
+# `pages`, тот же `names`, переписанные руками. В шапке при этом стояло,
+# что команды «те же, что записаны в CLAUDE.md»: они и были теми же
+# в день написания. Список `names` отстал на 23 имени (все `scale-*`
+# и `hint-*` от 2026-08-19), и ряд начал печатать 18 там, где настоящий
+# список даёт 19. Девятнадцатая строка — настоящий долг: `.hint`
+# в `profile.css` переопределяет системный компонент.
+#
+# Отказ немой и худшего сорта: молчал сам инструмент приёмки, и молчал
+# он ровно про то, что заведено последним. Ряд при этом печатался,
+# выглядел опорным, и по нему принимали работу.
+#
+# Теперь ни списка, ни команд здесь нет вовсе: `project_lists` разбирает
+# блок ```bash из §6.0.2, и оттуда же берёт компонентную базу
+# `check_ids.py`. Добавили проверку в §6.0.2 — она появилась в ряду,
+# править этот файл для этого не нужно.
 
-КОМАНДЫ_РЯДА = r'''
-pages="templates/ static/hh.css static/profile.css static/landing.css static/workout.css static/workout_profile.css static/nutrition.css static/botamin.css"
-names='card|btn-primary|btn-secondary|btn-ghost|btn-icon|btn-icon-solid|btn-icon-round|btn-icon-accent|btn-lg|btn-glow|btn-block|input|input-compact|input-nested|input-sm|textarea|textarea-nested|textarea-compact|textarea-grow|select|badge|alert|alert-accent|avatar|chip|chip-wrap|eyebrow|toggle|modal|container|tool-card|page-column|page-fill|tab-bar|tab-btn|segmented|segmented-btn|spinner|breadcrumb|field-label|undo-bar|meter|meter-fill|meter-edge|btn-icon-outline|site-header|site-header-edges|site-footer|site-footer-thin|site-footer-grid|site-footer-grid-guest|site-footer-bottom'
-echo "1|$(grep -rnE "\.($names)(:[a-z-]+(\([^)]*\))?|\.[a-zA-Z0-9_-]+|\[[^]]*\])*\s*[,{]" $pages | grep '{' | wc -l)"
-tokens=$(grep -oE '^\s*--[a-z0-9-]+\s*:' static/style.css | tr -d ' \t:' | sort -u | paste -sd'|')
-echo "2|$(grep -rnE "(^|[;{\"'])\s*($tokens)\s*:" $pages | wc -l)"
-echo "2b|$(grep -rnE "setProperty\(\s*['\"]($tokens)['\"]" templates/ static/*.js | wc -l)"
-echo "3a|$(grep -rnoE "style='[^']*'" templates/ static/*.js | wc -l)"
-echo "3b|$(grep -rnoE 'style="[^"]*"' templates/ static/*.js | grep -vE 'style="\s*(--[a-z0-9_-]+\s*:[^;"]*;?\s*)+"' | grep -vE 'style="\s*display\s*:\s*(none|block|flex|grid|inline-flex)\s*;?\s*"' | grep -vE 'style="\s*[a-z-]+\s*:\s*\{\{[^"]*\}\}[a-z%]*\s*;?\s*"' | grep -vE 'style="\s*[a-z-]+\s*:\s*\$\{[^"]*\}[a-z%]*\s*;?\s*"' | wc -l)"
-echo "4|$(grep -LE "_header\.html|_admin_nav\.html" templates/*.html | grep -v '/_' | wc -l)"
-echo "4b|$(grep -nE 'class="(nav|site-header)"' templates/*.html | grep -v '/_' | wc -l)"
-echo "5|$(grep -L "_page_end\.html" templates/*.html | grep -v '/_' | wc -l)"
-echo "6|$(grep -Pni '<[a-z][^>]*\s([a-z][a-z0-9-]*)=("[^"]*"|\x27[^\x27]*\x27)[^>]*\s\1=' templates/*.html | wc -l)"
-echo "6b|$(grep -Pzoi '<[a-z][^>]*\s([a-z][a-z0-9-]*)=("[^"]*"|\x27[^\x27]*\x27)[^>]*\s\1=' templates/*.html | tr '\0' '\n' | wc -l)"
-'''
+СКРИПТ = re.compile(r'^py\s+(\S+\.py)$')
 
 
 def ряд_проверок():
-    """Первые шесть — теми же грепами, что в CLAUDE.md. Скрипты — по коду."""
-    из_грепов = {}
+    """Числа ряда — прогоном команд ИЗ CLAUDE.md, а не своей копией.
+
+    Грепы считаются `| wc -l`, скрипты — кодом возврата. Что из них что,
+    видно по самой команде: `py check_docs.py` — скрипт, всё остальное —
+    конвейер оболочки.
+    """
+    присваивания, команды = списки.разобрать()
+    значения, порядок = {}, []
+
+    строки_bash = list(присваивания)
+    for номер, команда in команды:
+        порядок.append(номер)
+        if not СКРИПТ.match(команда):
+            строки_bash.append('echo "%s|$(%s | wc -l)"' % (номер, команда))
+
     try:
-        вывод = subprocess.run(['bash', '-c', КОМАНДЫ_РЯДА],
-                               capture_output=True, text=True, timeout=180)
+        вывод = subprocess.run(['bash', '-c', '\n'.join(строки_bash)],
+                               capture_output=True, text=True, timeout=300)
         for строка in вывод.stdout.splitlines():
             if '|' in строка:
                 имя, число = строка.split('|', 1)
-                из_грепов[имя.strip()] = число.strip()
+                значения[имя.strip()] = число.strip()
     except (OSError, subprocess.SubprocessError) as e:
-        print(f'  !! грепы не отработали: {e}')
+        print('  !! грепы не отработали: %s' % e)
 
-    коды = {}
-    for имя, скрипт in [('7', 'check_docs.py'), ('8', 'check_ids.py'),
-                        ('9', 'check_backlog.py')]:
+    for номер, команда in команды:
+        m = СКРИПТ.match(команда)
+        if not m:
+            continue
         try:
-            коды[имя] = subprocess.run([sys.executable, скрипт],
-                                       capture_output=True, timeout=180).returncode
+            значения[номер] = str(subprocess.run(
+                [sys.executable, m.group(1)],
+                capture_output=True, timeout=300).returncode)
         except (OSError, subprocess.SubprocessError) as e:
-            коды[имя] = f'не запустился: {e}'
-    return из_грепов, коды
+            значения[номер] = 'не запустился: %s' % e
+    return значения, порядок
 
 
 # ── Прочие метрики ──────────────────────────────────────────────────────────
@@ -186,15 +203,20 @@ def главное():
     print('КОНТРОЛЬНЫЕ ЧИСЛА ПРОЕКТА — срез на сейчас')
     print('═' * 74)
 
-    print('\n■ РЯД ДЕВЯТИ ПРОВЕРОК (CLAUDE.md §6.0.2)')
-    print('  способ: проверки 1-6 — те же грепы, что записаны в §6.0.2;')
-    print('          проверки 7-9 — КОД ВОЗВРАТА скриптов, не число строк')
-    гр, коды = ряд_проверок()
-    ряд = [гр.get(и, '?') for и in ('1', '2', '3b', '4', '5', '6')]
-    ряд += [str(коды.get(и, '?')) for и in ('7', '8', '9')]
-    print(f'\n  РЯД: {" / ".join(ряд)}')
-    print(f'  подпроходы: 2b={гр.get("2b", "?")}  3a={гр.get("3a", "?")}  '
-          f'4b={гр.get("4b", "?")}  6b={гр.get("6b", "?")}')
+    значения, порядок = ряд_проверок()
+    в_ряду = [н for н in порядок if н not in списки.ПОДПРОХОДЫ]
+    подпроходы = [н for н in порядок if н in списки.ПОДПРОХОДЫ]
+
+    print('\n■ РЯД ПРОВЕРОК §6.0.2 — %d ЧИСЕЛ (%s)'
+          % (len(в_ряду), ', '.join(в_ряду)))
+    print('  способ: КОМАНДЫ БЕРУТСЯ ИЗ CLAUDE.md §6.0.2 и запускаются как есть.')
+    print('          Грепы считаются `| wc -l`, скрипты — КОДОМ ВОЗВРАТА.')
+    print('          Своей копии списков и команд здесь нет — см. project_lists.py')
+    print('\n  РЯД: ' + ' / '.join(значения.get(н, '?') for н in в_ряду))
+    print('  подпроходы: '
+          + '  '.join('%s=%s' % (н, значения.get(н, '?')) for н in подпроходы))
+    print('  списки из документа: имён компонентов %d, страничных целей %d'
+          % (len(списки.имена_компонентов()), len(списки.страничные_файлы())))
     print('\n  ВНИМАНИЕ: первое и пятое числа — НЕ РАВНЫ ДОЛГУ. В выводе')
     print('  обоих есть законные строки; читать по таблицам в §6.0.2.')
 
