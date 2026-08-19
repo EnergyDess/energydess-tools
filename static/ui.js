@@ -132,9 +132,141 @@
     btn.setAttribute('aria-label', показать ? 'Скрыть пароль' : 'Показать пароль');
   };
 
+  // ── Подсказка `.hint`: наведение И нажатие ──────────────────────────────
+  //
+  // ДВА СПОСОБА ОТКРЫТЬ, И ВТОРОЙ ОБЯЗАТЕЛЕН. Наведения на сенсорном
+  // экране не существует: `:hover` там залипает на последнем тронутом
+  // элементе и не уходит сам (CLAUDE.md §6.0.3). Подсказка,
+  // открывающаяся только по наведению, на телефоне либо не открывается,
+  // либо не закрывается — оба исхода немые.
+  //
+  // ОБА СПОСОБА ЖИВУТ ЗДЕСЬ, А НЕ ПОЛОВИНА В CSS. Причина — замер
+  // 2026-08-19: подсказка высотой 380px, поставленная `absolute`,
+  // обрезалась ПЯТЬЮ предками сразу (`.d-left` с `overflow-y: auto`
+  // и четыре блока раскладки дневника), и невидимым оказывался
+  // последний абзац. Лечится `position: fixed` с посчитанными
+  // координатами — а посчитать их может только скрипт. Оставь мы
+  // наведение в CSS, оно показывало бы неразмещённую, то есть
+  // обрезанную подсказку.
+  //
+  // Сенсорную ширину это не задевает: `matchMedia('(hover: hover)')` —
+  // тот же признак, что и `@media (hover: hover)`, и на сенсоре
+  // наведение не подписывается вовсе.
+  var ОТСТУП = 8;
+
+  function естьНаведение() {
+    return window.matchMedia && window.matchMedia('(hover: hover)').matches;
+  }
+
+  // Координаты считаются от кнопки, а не от края экрана, и упираются
+  // в границы окна с обеих сторон: подсказка у правого края уезжала бы
+  // за него, у нижнего — под него
+  function разместить(hint) {
+    var поп = hint.querySelector('.hint-pop');
+    if (!поп) return;
+    var к = hint.getBoundingClientRect();
+    поп.style.position = 'fixed';
+    поп.style.left = '0px';
+    поп.style.top = '0px';
+    var ш = поп.offsetWidth, в = поп.offsetHeight;
+    var x = Math.min(к.left, window.innerWidth - ш - ОТСТУП);
+    поп.style.left = Math.max(ОТСТУП, x) + 'px';
+    var y = к.bottom + ОТСТУП;
+    // Снизу не помещается — ставим НАД кнопкой. Не помещается и там
+    // (подсказка выше окна) — прижимаем к верхнему краю: обрезанный
+    // низ лучше обрезанного верха, потому что читают сверху вниз
+    if (y + в > window.innerHeight - ОТСТУП) {
+      y = к.top - в - ОТСТУП;
+      if (y < ОТСТУП) y = ОТСТУП;
+    }
+    поп.style.top = y + 'px';
+  }
+
+  function открыть(hint, закрепить) {
+    hint.classList.add('is-open');
+    if (закрепить) hint.dataset.pin = '1';
+    var b = hint.querySelector('.hint-btn');
+    if (b) b.setAttribute('aria-expanded', 'true');
+    разместить(hint);
+  }
+
+  function закрыть(hint) {
+    hint.classList.remove('is-open');
+    delete hint.dataset.pin;
+    var b = hint.querySelector('.hint-btn');
+    if (b) b.setAttribute('aria-expanded', 'false');
+  }
+
+  function закрытьВсе(кроме) {
+    document.querySelectorAll('.hint.is-open').forEach(function (el) {
+      if (el !== кроме) закрыть(el);
+    });
+  }
+
+  function initHints() {
+    // Делегаты на document, а не обработчики на каждой кнопке:
+    // подсказки появляются в разметке, собранной скриптом, и навешивание
+    // при инициализации до них не доехало бы. Тот же довод, что
+    // у дорисовки иконок Lucide выше
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('.hint-btn') : null;
+      var hint = btn ? btn.closest('.hint') : null;
+      закрытьВсе(hint);
+      if (!hint) return;
+      // Переключаем по ЗАКРЕПЛЕНИЮ, а не по видимости, и это не мелочь.
+      // К моменту `click` подсказка уже открыта — её открыл `focusin`
+      // (нажатие даёт фокус) или `mouseover` на десктопе. Проверяй мы
+      // видимость, первое же нажатие ЗАКРЫВАЛО бы её: замер 2026-08-19
+      // дал «после нажатия: hidden» на обеих ширинах, то есть кнопка
+      // справки на телефоне не работала вовсе
+      if (hint.dataset.pin) закрыть(hint);
+      else открыть(hint, true);
+    });
+    // Наведение НЕ закрепляет: подсказка уходит вместе с курсором.
+    // Открытую нажатием курсор не гасит — её закрывает второе нажатие
+    document.addEventListener('mouseover', function (e) {
+      if (!естьНаведение() || !e.target.closest) return;
+      var hint = e.target.closest('.hint');
+      if (hint && !hint.classList.contains('is-open')) открыть(hint, false);
+    });
+    document.addEventListener('mouseout', function (e) {
+      if (!естьНаведение() || !e.target.closest) return;
+      var hint = e.target.closest('.hint');
+      if (!hint || hint.dataset.pin) return;
+      // Уход ВНУТРЬ той же подсказки уходом не считается
+      if (e.relatedTarget && hint.contains(e.relatedTarget)) return;
+      закрыть(hint);
+    });
+    // Клавиатура: фокус открывает, уход фокуса закрывает
+    document.addEventListener('focusin', function (e) {
+      if (!e.target.closest) return;
+      var hint = e.target.closest('.hint');
+      if (hint) открыть(hint, false);
+    });
+    document.addEventListener('focusout', function (e) {
+      if (!e.target.closest) return;
+      var hint = e.target.closest('.hint');
+      if (hint && !hint.dataset.pin) закрыть(hint);
+    });
+    // Escape закрывает — иначе на клавиатуре подсказку нечем убрать,
+    // не уводя фокус
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') закрытьВсе(null);
+    });
+    // Прокрутка и смена размера окна уводят кнопку, а подсказка стоит
+    // `fixed` — то есть осталась бы висеть на прежнем месте. Пересчёт,
+    // а не закрытие: закрытие на скролле выглядит как сбой
+    var пересчитать = function () {
+      document.querySelectorAll('.hint.is-open').forEach(разместить);
+    };
+    window.addEventListener('scroll', пересчитать, true);
+    window.addEventListener('resize', пересчитать);
+  }
+
   function init() {
     initScrollReveal();
     initAvatarDropdown();
+    initHints();
     initLucideAutoDraw();
   }
 

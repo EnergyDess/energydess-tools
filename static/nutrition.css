@@ -1507,6 +1507,13 @@ html.assistant-mode, html.assistant-mode body {
    следующего, кто возьмёт имя из файла. */
 .p-sec-title-gap { margin-top: 1.125rem; }
 .scale-input     { margin-bottom: 0.5rem; }
+/* Заголовок раздела со знаком вопроса рядом. Заголовок набран капителью
+   с разрядкой, кнопка — кружок 1.375rem: без выравнивания по средней
+   линии знак вопроса висел бы выше строки */
+.p-sec-title-hint { display: flex; align-items: center; gap: var(--space-2); }
+/* Выход из тупика при отозванном ключе: пояснение и кнопка одним блоком.
+   Порознь кнопка читалась бы как «отключить работающее» */
+.scale-give-up   { margin-top: var(--space-3); }
 
 /* ── Умные весы: одно состояние на экране ──────────────────────────────
    Собрано из компонентной базы: карточка — `.card .card-static`,
@@ -1538,7 +1545,10 @@ html.assistant-mode, html.assistant-mode body {
    Сетка `auto-fill`, а не фиксированные колонки: показателей приходит
    от одного до одиннадцати (зависит от весов), и раскладка обязана
    выглядеть одинаково осмысленно в обоих концах диапазона. */
-.wt-body-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: var(--space-3); margin-top: var(--space-3); }
+/* 13rem, а не прежние 7.5rem: с 2026-08-19 в карточке живёт шкала
+   с числами границ, и на 7.5rem числа наезжали друг на друга. На 390px
+   это по-прежнему одна колонка — auto-fill сам считает */
+.wt-body-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: var(--space-3); margin-top: var(--space-3); }
 .wt-bcell     { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-3); }
 /* Кегли ТОКЕНАМИ, а не числами. Первая версия ставила 1.125rem / 0.8125rem
    числом — и тест `test_кегли_только_через_токен` поймал все три строки.
@@ -1547,7 +1557,25 @@ html.assistant-mode, html.assistant-mode body {
 .wt-bval      { font-size: var(--text-body-lg); font-weight: 600; color: var(--text); line-height: 1.2; }
 /* Единица мельче числа, но не мельче минимума: --text-caption это 0.8125rem */
 .wt-bunit     { font-size: var(--text-caption); font-weight: 400; color: var(--text-2); }
-.wt-bname     { font-size: var(--text-caption); color: var(--text-2); margin-top: var(--space-1); line-height: 1.35; }
+/* Подпись стоит НАД значением, а не под ним: под значением теперь шкала,
+   и название показателя, зажатое между числом и полосой, читалось бы
+   как подпись к полосе */
+.wt-bname     { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-1); line-height: 1.35; }
+/* Телосложение — слово, а не число: тем же кеглем, но без хвоста единицы */
+.wt-bword     { font-size: var(--text-body); }
+/* Вторая строка под значением: «в анкете — 28», «шкала по текущему весу».
+   Без неё «Возраст тела: 40 лет» не отвечает ни на один вопрос, а полоса
+   идеального веса читалась бы как шкала самого идеального веса */
+.wt-bcmp      { font-size: var(--text-caption); color: var(--text-2); margin-top: var(--space-1); line-height: 1.35; }
+/* Отбивка шкалы от значения — СВОИМ классом на обёртке, а не правилом
+   `.wt-bcell .scale-bar`. Второе взяло бы системный класс субъектом
+   селектора, то есть стало бы находкой проверки 1 (CLAUDE.md §6.0.2) —
+   пусть и законной, «раскладка экземпляра». Обёртка стоит одной строки
+   разметки и не трогает компонент вовсе */
+.wt-bscale    { margin-top: var(--space-3); }
+/* Строка про неполную анкету и дисклеймер — оба в колонке блока */
+.wt-body-gap  { margin-top: var(--space-3); }
+.wt-body-note { font-size: var(--text-caption); color: var(--text-2); line-height: 1.5; margin-top: var(--space-3); }
 
 /* ── Профиль: фото прогресса и сравнение по датам ── */
 .body-photo-row { display: flex; gap: 0.5rem; margin-bottom: 0.625rem; }

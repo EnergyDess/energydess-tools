@@ -1921,6 +1921,165 @@ textarea::placeholder, input::placeholder { color: var(--text-faint); }
   background: var(--tool-accent, var(--accent-brand));
 }
 
+/* ── Шкала с зонами (`.scale-bar`) ────────────────────────────────────────
+   Заведена 2026-08-19. Это НЕ вариант `.meter`, и разница не в оформлении,
+   а в вопросе, на который отвечает картинка:
+
+     .meter     — «сколько от нормы»: одна дорожка, одна заливка от края.
+     .scale-bar — «в какую полосу вы попали»: несколько зон разного смысла
+                  и МЕТКА в одной точке. Заливки от края тут нет вовсе.
+
+   Зоны РАВНОЙ ширины, а не пропорционально значениям. Крайние зоны шкал
+   состава тела не ограничены (жир бывает и 60 %), и пропорция сжала бы
+   середину — единственную часть, где что-то происходит. Арифметика
+   положения метки — на сервере (`body_scales.положение`), сюда приходит
+   готовая доля.
+
+   Разделитель зон — ВНУТРЕННЯЯ ТЕНЬ, а не gap и не border. И то и другое
+   отнимает пиксели у ширины зоны, а метка ставится процентом от полосы:
+   зоны разъехались бы с меткой на пару пикселей, и починить это было бы
+   нечем, кроме второй арифметики в CSS. Тень не занимает места вовсе. */
+.scale-bar {
+  position: relative;
+  display: block;
+}
+.scale-track {
+  display: flex;
+  height: var(--scale-h, 8px);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-sunken);
+}
+.scale-zone { flex: 1 1 0; min-width: 0; }
+.scale-zone + .scale-zone { box-shadow: inset 1px 0 0 var(--surface-0); }
+/* Цвет зоны — из токенов состояний, приглушённый: полоса это фон, а не
+   надпись, и в полную силу три цвета рядом кричат громче метки на них */
+.scale-zone-ok   { background: color-mix(in srgb, var(--success) 55%, transparent); }
+.scale-zone-warn { background: color-mix(in srgb, var(--warning) 55%, transparent); }
+.scale-zone-bad  { background: color-mix(in srgb, var(--error)   55%, transparent); }
+/* Метка. Обводка цветом поверхности, а не полосы: на границе двух зон
+   метка иначе сливается с той, что темнее */
+.scale-mark {
+  position: absolute;
+  top: -2px; bottom: -2px;
+  left: var(--scale-pos, 50%);
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 999px;
+  background: var(--text);
+  box-shadow: 0 0 0 2px var(--surface-2);
+}
+/* Числа границ. Стоят ПОД границами зон, а не под серединами: подпись
+   отвечает на вопрос «где проходит черта», а не «как называется полоса».
+   Названия всех зон разом на 390px не помещаются ни при каком кегле,
+   и вместо них рядом со значением стоит ОДНА подпись — та категория,
+   в которой человек находится сейчас (см. `.scale-cat`). */
+.scale-marks {
+  position: relative;
+  height: 1.125rem;
+  margin-top: var(--space-1);
+}
+.scale-marks span {
+  position: absolute;
+  left: var(--scale-at);
+  transform: translateX(-50%);
+  font-size: var(--text-caption);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.scale-cat { margin-top: var(--space-1); font-size: var(--text-caption); font-weight: 600; }
+.scale-cat-ok   { color: var(--success); }
+.scale-cat-warn { color: var(--warning); }
+.scale-cat-bad  { color: var(--error); }
+
+/* ── Подсказка по наведению и по нажатию (`.hint`) ────────────────────────
+   Заведена 2026-08-19. Круглая кнопка со знаком вопроса и всплывающий
+   текст рядом.
+
+   ДВА СПОСОБА ОТКРЫТЬ, И ВТОРОЙ ОБЯЗАТЕЛЕН. Наведения на сенсорном экране
+   не существует: `:hover` там залипает на последнем тронутом элементе
+   и не уходит сам (CLAUDE.md §6.0.3). Подсказка, открывающаяся ТОЛЬКО
+   по наведению, на телефоне либо не открывается, либо не закрывается —
+   оба исхода немые. Поэтому нажатие переключает класс `.is-open`
+   (обработчик — делегат в ui.js), а наведение живёт внутри
+   `@media (hover: hover)` и на сенсорных ширинах не объявляется вовсе.
+
+   `visibility`, а не только `opacity`: прозрачный, но существующий блок
+   перехватывает нажатия по тому, что под ним.
+
+   ПОЛОЖЕНИЕ СТАВИТ СКРИПТ, И ЭТО НЕ УКРАШЕНИЕ. Замер 2026-08-19,
+   1440×900: подсказка высотой 380px, поставленная `absolute` рядом
+   с заголовком «Умные весы», обрезалась на 111-м пикселе снизу —
+   ПЯТЬЮ предками сразу (`.d-left` с `overflow-y: auto`, `.nut-tab`,
+   `.nut-content`, `.nut-app`, `body`). Невидимым при этом оказывался
+   последний абзац — тот самый, где сказано про единственный активный
+   вход. Отказ немой: блок открылся, текст «есть», прочитать нельзя.
+
+   `position: fixed` из вылезания за край не спасает сам по себе — его
+   надо посчитать, и считает `ui.js` (`разместить`). Правила ниже —
+   запасной путь на случай, если скрипт не отработал: подсказка тогда
+   встанет `absolute` рядом с кнопкой и будет обрезана, но не исчезнет.
+
+   ПО ЭТОЙ ЖЕ ПРИЧИНЕ НАВЕДЕНИЕ ТОЖЕ УШЛО В СКРИПТ. Правило
+   `.hint:hover > .hint-pop` показало бы неразмещённую подсказку —
+   то есть ровно обрезанную. Сенсорную ширину это не задевает:
+   скрипт спрашивает `matchMedia('(hover: hover)')`, то есть тот же
+   признак, что и `@media`. */
+.hint { position: relative; display: inline-flex; vertical-align: middle; }
+.hint-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.375rem; height: 1.375rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.hint-btn i, .hint-btn svg { width: 0.875rem; height: 0.875rem; }
+.hint-btn:focus-visible { outline: 2px solid var(--tool-accent, var(--accent-brand)); outline-offset: 2px; }
+.hint-pop {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: 40;
+  width: min(24rem, 78vw);
+  padding: var(--space-4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-2);
+  /* Подсказку вешают в том числе рядом с заголовком раздела, а тот
+     набран капителью с разрядкой. Без сброса текст подсказки уехал бы
+     в верхний регистр вместе с ним */
+  font-size: var(--text-caption);
+  font-weight: 400;
+  line-height: 1.55;
+  text-transform: none;
+  letter-spacing: normal;
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-0.25rem);
+  transition: opacity var(--dur-base) var(--ease),
+              transform var(--dur-base) var(--ease),
+              visibility var(--dur-base) var(--ease);
+}
+.hint.is-open > .hint-pop { opacity: 1; visibility: visible; transform: none; }
+@media (hover: hover) {
+  .hint-btn:hover { color: var(--text); border-color: var(--tool-accent, var(--accent-brand)); }
+}
+/* Заголовок и шаги внутри подсказки — часть компонента, а не страницы:
+   подсказка почти всегда объясняет порядок действий, и без этих двух
+   правил каждый следующий потребитель писал бы их себе заново */
+.hint-h { display: block; margin-bottom: var(--space-2); color: var(--text); font-weight: 600; }
+.hint-steps { display: block; margin: var(--space-2) 0; color: var(--text); }
+/* Всплывающий блок у правого края экрана. Вариант, а не автоматика:
+   считать место в CSS нечем, а JS ради одного случая — лишний слой */
+.hint-pop-right { left: auto; right: 0; }
+
 /* ── Spinner ────────────────────────────────────────────────────────────── */
 .spinner {
   /* inline-block обязателен: компонент вешают и на <div>, и на <span> внутри

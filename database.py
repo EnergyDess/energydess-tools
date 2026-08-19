@@ -342,6 +342,11 @@ class WeightLog(Base):
     protein_pct = Column(Float, nullable=True)
     body_score = Column(Integer, nullable=True)
     ideal_weight_kg = Column(Float, nullable=True)
+    # Телосложение одним числом («плотное», «мускулистое»). Хранится
+    # с 2026-08-19; ПОКАЗЫВАЕТСЯ словом только там, где соответствие числа
+    # категории подтверждается расчётом по этой же записи — нумерацию
+    # категорий открытые источники не устанавливают (body_scales.телосложение)
+    body_style = Column(Integer, nullable=True)
     source = Column(String, nullable=False, default="manual")  # manual/zepp
 
 
@@ -676,6 +681,9 @@ def migrate_db():
         "ALTER TABLE weight_logs ADD COLUMN protein_pct FLOAT",
         "ALTER TABLE weight_logs ADD COLUMN body_score INTEGER",
         "ALTER TABLE weight_logs ADD COLUMN ideal_weight_kg FLOAT",
+        # Телосложение (2026-08-19). Прежде поле `bodyStyle` приходило
+        # в том же `summary` и намеренно выбрасывалось
+        "ALTER TABLE weight_logs ADD COLUMN body_style INTEGER",
     ]:
         try:
             conn.execute(col)

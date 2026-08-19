@@ -221,6 +221,15 @@ import pathlib
     'pkg/zepp/README.md': 'файл ЧУЖОГО репозитория AlexxIT/SmartScaleConnect — '
                           'эталонный дамп summary весов, CLAUDE.md §5.2',
     'pkg/zepp/client.go': 'там же: структура RecordSummary с json-тегами полей',
+    # Не файлы, а ПУТИ ЭНДПОИНТОВ Huami API. Форма у них файловая
+    # (имя с расширением .json), и проход D обязан о них спотыкаться —
+    # различить «путь на диске» и «путь в чужом HTTP API» по виду нельзя.
+    # Названы поимённо, а не отключены по признаку «.json»: такое
+    # послабление увело бы из-под проверки exercises_seed.json и все
+    # наши снимки справочника
+    'huami.health.getUserInfo.json': 'эндпоинт Huami API, не файл — CLAUDE.md §5.2',
+    'huami.health.scale.familymember.get.json': 'эндпоинт Huami API, не файл — '
+                                                'CLAUDE.md §5.2',
 }
 
 # Размеры больше этого числа — не геометрия компонента, а окно просмотра
