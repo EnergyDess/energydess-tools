@@ -34,7 +34,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ["DB_PATH"] = str(Path(tempfile.gettempdir()) / f"hh_hist_{uuid.uuid4().hex}.db")
 
 import main                                          # noqa: E402
-from database import SessionLocal, User, FoodLog, NutritionProfile   # noqa: E402
+from database import (SessionLocal, User, FoodLog, NutritionProfile,   # noqa: E402
+                      NutritionGoalPeriod)
 from fastapi.testclient import TestClient            # noqa: E402
 from auth import hash_password, create_token         # noqa: E402
 
@@ -177,8 +178,23 @@ def test_соседние_месяцы_в_выдачу_не_попадают(к�
 def test_норма_приезжает_для_полоски(клиент):
     """Долю от нормы считает клетка, и норма обязана приехать с теми же
     данными: второй запрос за нормой означал бы, что полоска нарисована
-    от одного числа, а кольцо дня — от другого."""
-    assert месяц(клиент)["goal"] == 2000
+    от одного числа, а кольцо дня — от другого.
+
+    С задачи 95 норма приезжает У КАЖДОЙ КЛЕТКИ СВОЯ, а не одна на месяц:
+    месяц может содержать смену анкеты, и одна цифра нарисовала бы половину
+    дней от чужого знаменателя. Поле верхнего уровня `goal` поэтому убрано —
+    оно и было тем самым «одним числом на всех». Вопрос теста не изменился:
+    норма обязана приехать с теми же данными, что и калории клетки."""
+    db = SessionLocal()
+    db.add(NutritionGoalPeriod(user_id=клиент.uid, effective_from="2026-08-01",
+                               calories=2000, protein=100, fat=70, carbs=250,
+                               water_ml=2000, origin="анкета"))
+    db.commit(); db.close()
+    записать(клиент.uid, "2026-08-10", 1500)
+    м = месяц(клиент)
+    клетка = м["days"]["2026-08-10"]
+    assert клетка["goal"] == 2000, "у клетки нет своего знаменателя"
+    assert "goal" not in м, "одна норма на весь месяц вернулась"
 
 
 # ── Границы листания ─────────────────────────────────────────────────────────

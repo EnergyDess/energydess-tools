@@ -258,7 +258,8 @@ def main() -> int:
     print(f"База: {os.path.abspath(путь)}")
 
     from database import (SessionLocal, User, Resume, HHProfile, CoverLetter,
-                          CustomFood, FoodLog, NutritionProfile, WeightLog,
+                          CustomFood, FoodLog, NutritionProfile,
+                          NutritionGoalPeriod, WeightLog,
                           delete_user_cascade)
     from auth import hash_password
 
@@ -440,6 +441,35 @@ def main() -> int:
         np_.calorie_goal, np_.protein_goal, np_.fat_goal, np_.carb_goal = 2200, 150, 70, 230
         np_.water_goal_ml, np_.target_weight_kg, np_.start_weight_kg = 2500, 76.0, 88.0
 
+        # ЖУРНАЛ НОРМ — три строки, и три штуки их не для полноты.
+        # У дневника с задачи 95 три РАЗНЫХ состояния знаменателя, и на
+        # одной строке журнала различимо ровно одно:
+        #
+        #   · день до журнала           → нормы нет, кольцо пустое,
+        #                                 строка «норма не записана»;
+        #   · день со СВОЕЙ, старой     → «Норма этого дня — 2100 ккал,
+        #                                 действует с …»;
+        #   · день с действующей        → строки нет вовсе, и её отсутствие
+        #                                 тоже надо было увидеть.
+        #
+        # Тот же рефрен, что про food_logs выше и про неровный ряд весов:
+        # экран, которого seed не наполняет, не проверяется вовсе, — только
+        # здесь ось четвёртая, СОСТОЯНИЕ ЗНАМЕНАТЕЛЯ. Даты выбраны так, чтобы
+        # внутри 95 засеянных дней еды нашлись все три случая.
+        db.query(NutritionGoalPeriod).filter(
+            NutritionGoalPeriod.user_id == u.id).delete()
+        сег_д = datetime.now().date()
+        for сдвиг, ккал, белок, жир, угл, вода in (
+                (60, 2100, 140, 65, 220, 2400),
+                (25, 2350, 150, 72, 250, 2500),
+                (0,  np_.calorie_goal, np_.protein_goal, np_.fat_goal,
+                     np_.carb_goal, np_.water_goal_ml)):
+            db.add(NutritionGoalPeriod(
+                user_id=u.id,
+                effective_from=(сег_д - timedelta(days=сдвиг)).strftime("%Y-%m-%d"),
+                calories=ккал, protein=белок, fat=жир, carbs=угл, water_ml=вода,
+                origin="анкета"))
+
         # Съеденное за сегодня. Продукты в справочнике экран дневника
         # не наполняют вообще — карточки приёмов пищи читают food_logs,
         # и без этих строк дневник снимался ПУСТЫМ. Ровно поэтому окно
@@ -602,7 +632,8 @@ def main() -> int:
               f"3 письма, {len(ПРОДУКТЫ)} продуктов, "
               f"{съедено_всего} позиций съеденного за сегодня, "
               f"{дней_назад} записанных дней за 95 прошлых ({пропущено} пропущено), "
-              f"2 запланированных дня вперёд, {взвешиваний} взвешиваний за 106 дней.")
+              f"2 запланированных дня вперёд, {взвешиваний} взвешиваний за 106 дней, "
+              f"3 нормы в журнале (все три состояния знаменателя).")
         print(f"Пароль: {PASSWORD}")
         return 0
     finally:

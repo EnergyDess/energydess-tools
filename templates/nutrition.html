@@ -77,11 +77,19 @@
           <div class="ring-cap">
             <div class="ring-lbl" id="ring-lbl">ккал осталось</div>
             <div class="ring-eaten" id="ring-eaten"></div>
+            {# Одна строка про то, ЧЬЕЙ нормой посчитан этот день. Молчит,
+               когда норма дня и есть сегодняшняя, — говорить об этом нечего.
+               Появляется в двух случаях: у дня своя, более старая норма,
+               либо своей нет вовсе и подставлена сегодняшняя. Без строки
+               оба случая выглядят как «нормальный день» (задача 95). #}
+            <div class="ring-goal-note" id="goal-note" hidden></div>
           </div>
         </div>
         <div class="macros-row">
           {# Подпись ряда макросов. На сегодняшнем дне «съедено из нормы»,
-             на будущем «запланировано из нормы» — цифры в строках те же,
+             на будущем «запланировано из нормы», а у дня без записанной
+             нормы — просто «съедено»: слова «из нормы» там не про что
+             сказать (задача 95). Цифры в строках те же,
              меняется только что они значат. Видна на десктопе, где макросы
              стоят одной карточкой; на мобильной ширине спрятана, чтобы
              не менять раскладку (три карточки в ряд) #}
@@ -297,6 +305,7 @@
           </div>
           <div class="hd-side">
             <p class="hd-date" id="h-date-lbl">—</p>
+            <p class="ring-goal-note" id="h-goal-note" hidden></p>
             <div class="hd-macro">
               <div class="hd-macro-row"><span class="hd-macro-lbl">Белок</span><span class="hd-macro-val" id="hm-prot">—</span></div>
               <div class="meter hd-bar"><i class="meter-fill hd-bar-f is-prot" id="hb-prot"></i></div>
@@ -1414,10 +1423,11 @@ async function loadDiary(date) {
   const data = await api(`/nutrition/api/diary?date=${date}`);
   if (data.error) { toast(data.error, false); return; }
   S.diary = data;
-  renderRing(data.totals.calories, data.goals.calories);
+  renderRing(data.totals.calories, data.goals ? data.goals.calories : null);
   renderMacros(data.totals, data.goals);
-  renderWater(data.water_ml, data.goals.water_ml);
+  renderWater(data.water_ml, data.goals ? data.goals.water_ml : null);
   renderWaterLog(data.water_logs);
+  показатьНормуДня('goal-note', data);
   renderAllMeals();
   // История рисуется из ЭТОГО ЖЕ ответа, а не своим запросом. Отдельный
   // запрос был бы вторым источником тех же чисел: кольцо дневника и кольцо
@@ -1475,7 +1485,17 @@ const КОЛОНКА_СТРОКИ = [
 
 function отрисоватьКолонкуСегодня(data) {
   S.todayDiary = data;
+  // Колонка про СЕГОДНЯ, а у сегодняшнего дня норма есть всегда: журнал
+  // покрывает его по построению, а у того, кто анкету не сохранял, сервер
+  // отдаёт текущую (`норма_на_день`, исключение для сегодня и позже).
+  // Проверка оставлена не «на всякий случай», а чтобы отказ был громким:
+  // молча нарисовать колонку без знаменателей — это снова две правды
+  // на одном экране
   const цели = data.goals, съедено = data.totals;
+  if (!цели) {
+    console.warn('[nut] у сегодняшнего дня нет нормы — этого быть не должно');
+    return;
+  }
   // Только дата, без слова «сегодня»: оно уже стоит заголовком выше,
   // и `подписьДаты` дала бы «Сегодня / Сегодня, 17 августа»
   document.getElementById('as-today-date').textContent =
@@ -1509,9 +1529,20 @@ function строкаКолонки(имя, значение, доля, цвет
 
 function renderRing(eaten, goal) {
   const r = 70, circ = 2 * Math.PI * r;
-  const pct = Math.min(eaten / (goal || 1), 1.05);
   const fill = document.getElementById('ring-fill');
   fill.style.strokeDasharray = circ;
+  // НОРМЫ ЗА ЭТОТ ДЕНЬ НЕТ (goal === null) — кольцо пустое, крупным числом
+  // съеденное. Дуга без знаменателя означала бы долю неизвестно от чего,
+  // а нарисованная от сегодняшней нормы — что она действовала тогда
+  if (goal == null) {
+    fill.style.strokeDashoffset = circ;
+    fill.classList.remove('over');
+    document.getElementById('ring-remain').textContent = Math.round(eaten);
+    document.getElementById('ring-lbl').textContent = 'ккал съедено';
+    document.getElementById('ring-eaten').textContent = '';
+    return;
+  }
+  const pct = Math.min(eaten / (goal || 1), 1.05);
   fill.style.strokeDashoffset = circ * (1 - Math.min(pct, 1));
   fill.classList.toggle('over', pct >= 1);
   // На будущем дне съеденного нет — есть запланированное, и «осталось»
@@ -1528,22 +1559,68 @@ function renderRing(eaten, goal) {
     : `${Math.round(eaten)} / ${goal||0} ккал`;
 }
 
+// ── Чьей нормой посчитан этот день ────────────────────────────────────────────
+// МОЛЧАНИЕ ЗДЕСЬ — ТОЖЕ ОТВЕТ, и оно означает ровно одно: норма дня и есть
+// сегодняшняя. Во всех остальных случаях строка обязана быть, потому что
+// без неё «163% от нормы» и «112% от нормы» на одних и тех же 3586 ккал
+// выглядят одинаково правдоподобно и различить их нечем (задача 95).
+//
+// Двух случаев два, и они РАЗНЫЕ:
+//   · известна, но не сегодняшняя — говорим число и с какого дня;
+//   · неизвестна — говорим, что своей нет и показана сегодняшняя.
+//     Выдуманного числа тут нет: показана та, которая действительно
+//     действует, просто названа своим именем.
+function нормаДняПодписью(мета, нормы) {
+  if (!мета || (мета.known && мета.is_current)) return '';
+  if (!мета.known)
+    return 'Норма за этот день не записана — доли от нормы здесь нет. '
+         + 'Съеденное показано полностью.';
+  const с = new Date(мета.from + 'T00:00:00')
+    .toLocaleDateString('ru', {day: 'numeric', month: 'long'});
+  return `Норма этого дня — ${нормы.calories} ккал, действует с ${с}`;
+}
+
+function показатьНормуДня(idЭлемента, data) {
+  const el = document.getElementById(idЭлемента);
+  if (!el) return;
+  const текст = нормаДняПодписью(data.goals_meta, data.goals || {});
+  el.textContent = текст;
+  el.hidden = !текст;
+  el.classList.toggle('is-unknown', !!текст && !data.goals_meta.known);
+}
+
 function renderMacros(t, g) {
   const будущий = будущийДень(S.date);
   [['prot','protein'],['fat','fat'],['carb','carbs']].forEach(([id, key]) => {
-    const v = t[key]||0, goal = g[key]||1;
+    const v = t[key]||0;
+    // Без нормы дня — только съеденное, без знаменателя и без полоски
+    if (!g) {
+      document.getElementById('bar-'+id).style.width = '0%';
+      document.getElementById('val-'+id).textContent = `${Math.round(v)}г`;
+      return;
+    }
+    const goal = g[key]||1;
     document.getElementById('bar-'+id).style.width = Math.min(v/goal*100,100).toFixed(0)+'%';
     // Цифры те же, слово другое: сегодня «съедено из нормы», на будущем дне
     // «запланировано из нормы». Отдельного числа не появляется
     document.getElementById('val-'+id).textContent = `${Math.round(v)}/${g[key]||0}г`;
   });
   const шапка = document.getElementById('macros-cap');
-  if (шапка) шапка.textContent = будущий ? 'запланировано из нормы' : 'съедено из нормы';
+  // «из нормы» — утверждение, и без нормы оно неправда. Слово убирается
+  // вместе со знаменателем: снимок 2026-08-20 показал ряд «151г 68г 292г»
+  // под заголовком «съедено из нормы» — числа честные, заголовок врёт
+  if (шапка) шапка.textContent = !g ? (будущий ? 'запланировано' : 'съедено')
+    : (будущий ? 'запланировано из нормы' : 'съедено из нормы');
 }
 
 function renderWater(ml, goal) {
-  document.getElementById('water-val').textContent = `${ml} / ${goal} мл`;
-  document.getElementById('water-bar').style.width = Math.min(ml/(goal||1)*100,100)+'%';
+  // goal == null — норма воды за этот день не записана. Показываем налитое
+  // и не показываем долю: подставить сегодняшнюю значило бы сказать, что она
+  // действовала тогда
+  document.getElementById('water-val').textContent =
+    goal == null ? `${ml} мл` : `${ml} / ${goal} мл`;
+  document.getElementById('water-bar').style.width =
+    goal == null ? '0%' : Math.min(ml/(goal||1)*100,100)+'%';
 }
 
 // ── Налитые порции: показ и удаление ──────────────────────────────────────
@@ -1604,7 +1681,7 @@ async function delWater(id) {
   if (S.diary && d.date === S.date) {
     S.diary.water_ml = d.total_ml;
     S.diary.water_logs = (S.diary.water_logs || []).filter(w => w.id !== id);
-    renderWater(d.total_ml, S.diary.goals?.water_ml || 2000);
+    renderWater(d.total_ml, S.diary.goals ? S.diary.goals.water_ml : null);
     renderWaterLog(S.diary.water_logs);
     updateSidePanels(S.diary);
   }
@@ -1757,8 +1834,7 @@ async function delFood(id) {
 async function addWater(ml) {
   const d = await api('/nutrition/api/water',{method:'POST',body:JSON.stringify({amount_ml:ml,date:S.date})});
   if (!d || d.error) { toast(d?.error || 'Не удалось записать воду', false); return; }
-  const goal = S.diary?.goals?.water_ml||2000;
-  renderWater(d.total_ml, goal);
+  renderWater(d.total_ml, S.diary?.goals ? S.diary.goals.water_ml : null);
   if (S.diary) {
     S.diary.water_ml = d.total_ml;
     // В список уходит id, ПРИСВОЕННЫЙ БАЗОЙ, а не выдуманный на клиенте:
@@ -3407,23 +3483,33 @@ const МЕС_РОД = ['января','февраля','марта','апрел�
 // Сводка выбранного дня: кольцо и три макроса. Числа — из того же ответа
 // /nutrition/api/diary, что питает дневник, поэтому разойтись с ним нечему
 function renderHistDay(data) {
-  const цель = data.goals || {}, итог = data.totals || {};
+  const цель = data.goals, итог = data.totals || {};
   document.getElementById('hist-kcal').textContent = Math.round(итог.calories || 0);
   const r = 45, circ = 2 * Math.PI * r;
   const ring = document.getElementById('hist-ring');
   ring.style.strokeDasharray = circ;
-  ring.style.strokeDashoffset = circ * (1 - Math.min((итог.calories || 0) / (цель.calories || 1), 1));
+  // Нормы за день нет — кольцо пустое, и в подписи вместо доли просто
+  // съеденное. Доля от сегодняшней нормы была бы утверждением о прошлом,
+  // которого никто не проверял (задача 95)
+  ring.style.strokeDashoffset = цель
+    ? circ * (1 - Math.min((итог.calories || 0) / (цель.calories || 1), 1))
+    : circ;
 
-  const доля = Math.round((итог.calories || 0) / (цель.calories || 1) * 100);
-  const хвост = будущийДень(S.date)
-    ? `запланировано ${доля}% от нормы ${цель.calories || 0}`
-    : `${доля}% от нормы ${цель.calories || 0}`;
+  const доля = цель ? Math.round((итог.calories || 0) / (цель.calories || 1) * 100) : null;
+  const хвост = !цель
+    ? `${Math.round(итог.calories || 0)} ккал`
+    : (будущийДень(S.date)
+        ? `запланировано ${доля}% от нормы ${цель.calories || 0}`
+        : `${доля}% от нормы ${цель.calories || 0}`);
   document.getElementById('h-date-lbl').textContent = сЗаглавной(подписьДаты(S.date)) + ' · ' + хвост;
+  показатьНормуДня('h-goal-note', data);
 
   [['prot','protein'], ['fat','fat'], ['carb','carbs']].forEach(([id, ключ]) => {
-    const v = итог[ключ] || 0, g = цель[ключ] || 0;
-    document.getElementById('hm-' + id).textContent = `${Math.round(v)} / ${g} г`;
-    document.getElementById('hb-' + id).style.width = Math.min(v / (g || 1) * 100, 100).toFixed(0) + '%';
+    const v = итог[ключ] || 0, g = цель ? (цель[ключ] || 0) : null;
+    document.getElementById('hm-' + id).textContent =
+      g === null ? `${Math.round(v)} г` : `${Math.round(v)} / ${g} г`;
+    document.getElementById('hb-' + id).style.width =
+      g === null ? '0%' : Math.min(v / (g || 1) * 100, 100).toFixed(0) + '%';
   });
 }
 
@@ -3477,7 +3563,6 @@ function renderCalendar() {
   // поэтому сдвигаем. Без сдвига первое число вставало бы не под свой день
   const отступ = (первый.getUTCDay() + 6) % 7;
   const всего = new Date(Date.UTC(г, м, 0)).getUTCDate();
-  const цель = S.calData.goal || 1;
 
   let html = '';
   for (let i = 0; i < отступ; i++) html += '<span class="cal-c is-pad"></span>';
@@ -3494,13 +3579,24 @@ function renderCalendar() {
       дата === S.date && 'is-sel',
       будущий && 'is-fut',
       вне && 'is-off'].filter(Boolean).join(' ');
-    const доля = запись ? Math.min(запись.calories / цель * 100, 100).toFixed(0) : 0;
-    const полоска = запись
+    // Знаменатель у клетки СВОЙ и приезжает в самой клетке. null означает,
+    // что нормы за тот день не записано: полоски у клетки нет вовсе.
+    // Нарисовать её от сегодняшней значило бы утверждать, что та
+    // действовала в июне, а этого никто не проверял
+    const цель = запись ? запись.goal : null;
+    const доля = (запись && цель) ? Math.min(запись.calories / цель * 100, 100).toFixed(0) : 0;
+    const полоска = (запись && цель)
       ? `<span class="meter cal-bar"><i class="meter-fill cal-bar-f${будущий ? ' is-plan' : ''}" style="width:${доля}%"></i></span>`
-      : '<span class="meter cal-bar"></span>';
-    const титул = запись
-      ? `${полнаяДата(дата)} — ${запись.calories} ккал${будущий ? ' (запланировано)' : ''}`
-      : `${полнаяДата(дата)} — записей нет`;
+      : (запись
+          ? '<span class="meter cal-bar is-nogoal"></span>'
+          : '<span class="meter cal-bar"></span>');
+    // Подсказка называет знаменатель. Полоска без числа, по которому она
+    // построена, — это доля неизвестно от чего
+    const титул = !запись
+      ? `${полнаяДата(дата)} — записей нет`
+      : `${полнаяДата(дата)} — ${запись.calories} ккал`
+        + (цель ? ` из ${цель}` : ' · нормы за этот день не записано')
+        + (будущий ? ' · запланировано' : '');
     html += `<button class="${классы}" onclick="histSelect('${дата}')" ${вне ? 'disabled' : ''}
                      aria-pressed="${дата === S.date}" title="${титул}" aria-label="${титул}">
       <span class="cal-n">${д}</span>${полоска}</button>`;
@@ -3558,7 +3654,12 @@ function renderMonthSummary() {
     return;
   }
   основа.textContent = `Считаем по ${днямСловами(с.days)}` +
-    (с.planned ? ` · ${днейСловами(с.planned)} запланировано, в среднее не входят` : '');
+    (с.planned ? ` · ${днейСловами(с.planned)} запланировано, в среднее не входят` : '') +
+    // Сколько клеток месяца нарисовано по сегодняшней норме за неимением
+    // своей. Ноль — молчим: говорить не о чем
+    (S.calData.goals_unknown_days
+      ? ` · у ${днейСловами(S.calData.goals_unknown_days)} норма не записана, полоски нет`
+      : '');
   строки.innerHTML = [
     ['Записано дней', `${с.days} из ${с.elapsed}`],
     ['Среднее',       `${с.calories} ккал`],
@@ -4440,22 +4541,31 @@ const SIDE_TIPS = [
 ];
 
 function updateSidePanels(data) {
-  if (!data || !data.totals || !data.goals) return;
+  if (!data || !data.totals) return;
   const t = data.totals, g = data.goals;
 
+  // ВЫЙТИ ЗДЕСЬ НЕЛЬЗЯ, и раньше выходили: `if (!data.goals) return` оставлял
+  // на панели цифры ПРЕДЫДУЩЕГО дня, и они выглядели как цифры открытого.
+  // Немой отказ в чистом виде — панель не пустеет, она врёт (§6.0.1).
+  // Нормы за день нет — показываем съеденное без знаменателя и без полоски
   function setRow(fillId, valId, val, goal, unit) {
-    const pct = Math.min((val || 0) / (goal || 1) * 100, 100);
     const f = document.getElementById(fillId);
     const v = document.getElementById(valId);
+    if (goal == null) {
+      if (f) f.style.width = '0%';
+      if (v) v.textContent = `${Math.round(val||0)}${unit}`;
+      return;
+    }
+    const pct = Math.min((val || 0) / (goal || 1) * 100, 100);
     if (f) f.style.width = pct.toFixed(0) + '%';
     if (v) v.textContent = `${Math.round(val||0)}/${goal||0}${unit}`;
   }
 
-  setRow('af-cal',   'av-cal',   t.calories||0, g.calories||2000, '');
-  setRow('af-prot',  'av-prot',  t.protein||0,  g.protein||80,   'г');
-  setRow('af-fat',   'av-fat',   t.fat||0,      g.fat||60,       'г');
-  setRow('af-carb',  'av-carb',  t.carbs||0,    g.carbs||250,    'г');
-  setRow('af-water', 'av-water', data.water_ml||0, g.water_ml||2000, 'мл');
+  setRow('af-cal',   'av-cal',   t.calories||0, g && (g.calories||2000), '');
+  setRow('af-prot',  'av-prot',  t.protein||0,  g && (g.protein||80),   'г');
+  setRow('af-fat',   'av-fat',   t.fat||0,      g && (g.fat||60),       'г');
+  setRow('af-carb',  'av-carb',  t.carbs||0,    g && (g.carbs||250),    'г');
+  setRow('af-water', 'av-water', data.water_ml||0, g && (g.water_ml||2000), 'мл');
 
   const tipEl = document.getElementById('aside-tip-txt');
   if (tipEl) tipEl.textContent = SIDE_TIPS[new Date().getDay() % SIDE_TIPS.length];
