@@ -342,6 +342,14 @@ RESEND_API_KEY      = os.getenv("RESEND_API_KEY", "")
 # не отправилось», и успешная ветка оставалась непроверенной вживую.
 RESEND_API_URL      = os.getenv("RESEND_API_URL", "https://api.resend.com/emails")
 BASE_URL            = os.getenv("BASE_URL", "https://energydess.ru")
+
+# МИНИМАЛЬНАЯ ДЛИНА ПАРОЛЯ — ИМЕНЕМ, А НЕ ЧИСЛОМ НА МЕСТЕ. Правило то же,
+# что у потолков ответа модели (§2.1): число на месте невидимо — его нельзя
+# грепнуть и нельзя сверить с тем, что написано человеку на экране. Здесь
+# это не теория: до 2026-08-20 шестёрка стояла в ДВУХ местах (регистрация
+# и сброс пароля), а смена пароля в профиле была заглушкой — то есть
+# третье место сейчас появилось бы и разъехалось бы молча.
+MIN_PASSWORD_LEN = int(os.getenv("MIN_PASSWORD_LEN", "6"))
 TURNSTILE_SITE_KEY   = os.getenv("TURNSTILE_SITE_KEY", "")    # TODO: выдать ключи через dash.cloudflare.com → Turnstile → Add Site
 TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
 # Адрес проверки — переменной, а не строкой на месте вызова. Ветка «Cloudflare
@@ -1756,9 +1764,10 @@ async def register(
     if password != password2:
         return templates.TemplateResponse(request=request, name="register.html",
                                           context={**ctx, "error": "Пароли не совпадают"})
-    if len(password) < 6:
-        return templates.TemplateResponse(request=request, name="register.html",
-                                          context={**ctx, "error": "Пароль минимум 6 символов"})
+    if len(password) < MIN_PASSWORD_LEN:
+        return templates.TemplateResponse(
+            request=request, name="register.html",
+            context={**ctx, "error": f"Пароль минимум {MIN_PASSWORD_LEN} символов"})
     существующий = db.query(User).filter(User.email == email).first()
     if существующий:
         # Подтверждённый адрес — отказ, это нормально
@@ -2423,6 +2432,191 @@ async def change_email_confirm(token: str, db: Session = Depends(get_db)):
     return RedirectResponse("/profile?email_changed=1", status_code=302)
 
 
+# ── Смена пароля в профиле ───────────────────────────────────────────────────
+#
+# BACKLOG №122, выделена из задачи 3, когда там закрылась смена адреса.
+# До 2026-08-20 в профиле стояла модалка с тремя ЗАБЛОКИРОВАННЫМИ полями
+# и надписью «эндпоинт ещё не реализован» — то есть кнопка была, окно
+# открывалось, а функции не было.
+#
+# МЕХАНИКА ТОКЕНОВ ЗДЕСЬ НЕ ЗАВОДИТСЯ ВТОРОЙ РАЗ, и это не экономия.
+# Смена пароля от смены адреса отличается принципиально: адрес нужно
+# ПОДТВЕРДИТЬ у второй стороны, потому что до подтверждения мы не знаем,
+# существует ли новый ящик и владеет ли им заявитель. У пароля второй
+# стороны нет — доказательством владения служит текущий пароль, и оно
+# предъявлено прямо в запросе. Ссылка тут не добавила бы ни одной
+# проверки, зато завела бы второй вид одноразовых токенов.
+#
+# ЧТО ПЕРЕИСПОЛЬЗОВАНО ЦЕЛИКОМ: `_ключ_почты` + `_попыток`/`_записать_попытку`
+# под свой кулдаун, `учитывать_лимит=False` у уведомления, порядок «всё,
+# что может отказать, отказывает ДО письма», правило §6.0.5 про отцепленный
+# объект после `_в_потоке`, и отпечаток пароля в токене (`auth._pwd_stamp`),
+# заведённый ещё сбросом по ссылке.
+
+# Кулдаун письма-уведомления. Свой, и `учитывать_лимит=False` — ровно
+# по той же причине, что у смены адреса (§5.4): суточный запас в 8 писем
+# на адрес это ресурс ВЛАДЕЛЬЦА, из которого он берёт письмо сброса
+# пароля. Сжечь его уведомлениями значило бы отнять единственный способ
+# вернуть аккаунт.
+PASSWORD_CHANGE_NOTICE_COOLDOWN_SEC = int(
+    os.getenv("PASSWORD_CHANGE_NOTICE_COOLDOWN_SEC", str(30 * 60)))
+
+
+def _письмо_о_пароле_html(когда: str) -> str:
+    return f"""
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#07070f;border-radius:16px;border:1px solid rgba(255,255,255,0.08)">
+  <div style="font-size:1.5rem;font-weight:800;margin-bottom:8px;color:#dde2f0">⚡ EnergyDess</div>
+  <div style="color:#5a6888;font-size:0.875rem;margin-bottom:24px">Пароль изменён</div>
+  <p style="color:#dde2f0;line-height:1.6;margin-bottom:16px">
+    Пароль от вашего аккаунта изменён {когда}. Все остальные сеансы
+    завершены — на других устройствах придётся войти заново.
+  </p>
+  <p style="color:#dde2f0;line-height:1.6;margin-bottom:16px">
+    <b>Если это были не вы</b> — восстановите доступ по ссылке ниже:
+    письмо придёт на этот же адрес.
+  </p>
+  <a href="{BASE_URL}/forgot-password"
+     style="display:inline-block;padding:13px 28px;background:linear-gradient(135deg,#7c4dff,#00d4ff);color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:0.95rem">
+    Восстановить доступ →
+  </a>
+</div>"""
+
+
+def _письмо_о_пароле_text(когда: str) -> str:
+    return f"""EnergyDess — пароль изменён
+
+Пароль от вашего аккаунта изменён {когда}. Все остальные сеансы
+завершены — на других устройствах придётся войти заново.
+
+Если это были не вы — восстановите доступ:
+
+{BASE_URL}/forgot-password
+"""
+
+
+@app.post("/api/change-password")
+async def change_password(request: Request, user=Depends(get_current_user),
+                          db: Session = Depends(get_db)):
+    """Смена пароля. Требует текущий пароль, отзывает все прочие сессии.
+
+    ПОРЯДОК ПРОВЕРОК — ЧАСТЬ ПОВЕДЕНИЯ. Всё, что может отказать, отказывает
+    ДО записи и ДО письма: иначе владелец получает уведомление «пароль
+    изменён» о смене, которой не было, и вдобавок тратится его суточный
+    запас писем.
+
+    ГЕЙТ ПОДТВЕРЖДЁННОЙ ПОЧТЫ (§5.3) применяется САМ, потому что метод
+    POST. Исключения ему тут быть не должно, и причина та же, что
+    у смены адреса: единственный смысл уведомления — чтобы владелец ящика
+    узнал о смене, а у неподтверждённого ящика владелец нам неизвестен.
+    """
+    if not user:
+        return JSONResponse({"error": "Нужно войти"}, status_code=401)
+
+    данные = await request.json()
+    текущий = данные.get("current") or ""
+    новый = данные.get("new") or ""
+    повтор = данные.get("new2")
+
+    if not текущий:
+        return JSONResponse({"error": "Введите текущий пароль"}, status_code=400)
+
+    # Форма нового пароля проверяется ДО bcrypt: заведомо негодный ответ
+    # незачем оплачивать полутора сотнями миллисекунд счёта.
+    if len(новый) < MIN_PASSWORD_LEN:
+        return JSONResponse(
+            {"error": f"Новый пароль короче {MIN_PASSWORD_LEN} символов"},
+            status_code=400)
+    if повтор is not None and повтор != новый:
+        return JSONResponse({"error": "Новые пароли не совпадают"},
+                            status_code=400)
+    if новый == текущий:
+        # Сравнение открытых строк, а не второй bcrypt: `текущий` ниже
+        # будет проверен по хешу, и если он верен — равенство строк
+        # и означает «пароль тот же». Второй `verify_password` стоил бы
+        # ещё 150 мс ради ответа, который уже известен.
+        return JSONResponse({"error": "Новый пароль совпадает с текущим"},
+                            status_code=400)
+
+    # ВСЁ, ЧТО ПОНАДОБИТСЯ ПОСЛЕ, — В ПЕРЕМЕННЫЕ ДО (§6.0.5): `_в_потоке`
+    # отдаёт соединение и отцепляет объект ORM, запись в него пропала бы
+    # молча. На этом уже споткнулась смена адреса — правило было записано
+    # и всё равно нарушено, поэтому здесь оно соблюдается с самого начала.
+    uid, адрес, хеш = user.id, user.email, user.password_hash
+
+    if not await _в_потоке(db, verify_password, текущий, хеш):
+        return JSONResponse({"error": "Неверный текущий пароль"}, status_code=403)
+
+    новый_хеш = await _в_потоке(db, hash_password, новый)
+
+    # Объект, который будем МЕНЯТЬ, берём заново — по той же причине
+    user = db.get(User, uid)
+    if not user:
+        return JSONResponse({"error": "Аккаунт не найден"}, status_code=401)
+    user.password_hash = новый_хеш
+    # ОТПЕЧАТОК СМЕНЫ ОТЗЫВАЕТ ВСЕ ВЫДАННЫЕ ТОКЕНЫ — в них зашит прежний
+    # (`auth._pwd_stamp`). Без этого смена пароля не делала бы того
+    # единственного, ради чего её делают: тот, кто увёл сессию, сидел бы
+    # в ней ещё месяц.
+    user.password_changed_at = datetime.utcnow()
+
+    # НЕЗАВЕРШЁННАЯ ЗАЯВКА НА СМЕНУ АДРЕСА ГАСИТСЯ ЗДЕСЬ ЖЕ, И ЭТО
+    # НЕ ЛЮБЕЗНОСТЬ, А ЛЕЧЕНИЕ ЗАМЕРЕННОГО ЗАХВАТА АККАУНТА.
+    #
+    # Письмо `_письмо_о_смене_html` говорит владельцу: «Смените пароль,
+    # и заявка станет недействительной». CLAUDE.md §5.4 утверждал то же.
+    # ЖИВОЙ ЗАМЕР 2026-08-20 показал, что это неправда:
+    #
+    #   1. посторонний из угнанной сессии просит сменить адрес на свой;
+    #   2. владелец делает ровно то, что сказано в письме, — меняет пароль;
+    #      сессия постороннего действительно отбирается (302 на /profile);
+    #   3. посторонний открывает ссылку из СВОЕГО ящика — а ей сессия
+    #      не нужна вовсе, она проверяется по токену: 302 email_changed=1,
+    #      адрес входа стал чужим.
+    #
+    # То есть владелец терял аккаунт, ВЫПОЛНИВ НАШУ ЖЕ ИНСТРУКЦИЮ, и дальше
+    # посторонний забирал его насовсем через восстановление пароля. Отказ
+    # немой в чистом виде: и письмо, и документ выглядели правдой.
+    #
+    # Цена гашения названа и мала: владелец, который сам подал заявку
+    # и следом сменил пароль, подаёт её заново. Ошибка в другую сторону
+    # стоит аккаунта.
+    user.pending_email = None
+    user.pending_email_token = None
+    user.pending_email_expires = None
+    # Заодно живая ссылка сброса пароля: она тоже равна доступу к аккаунту
+    # и тоже не смотрит на сессию.
+    user.reset_token = None
+    user.reset_token_expires = None
+    db.commit()
+
+    когда = _момент_в_поясе(user.password_changed_at, user)
+
+    ответ = JSONResponse({"ok": True, "changed_at": когда})
+    # ТЕКУЩАЯ СЕССИЯ ПЕРЕВЫДАЁТСЯ ТУТ ЖЕ. Отпечаток только что сменился,
+    # то есть кука в браузере заявителя стала недействительной вместе
+    # со всеми прочими — и без этой строки человек, сменивший пароль,
+    # выбрасывался бы на страницу входа собственным действием.
+    ответ.set_cookie("access_token", create_token(uid, _pwd_stamp(user)),
+                     httponly=True, max_age=60 * 60 * 24 * 30, samesite="lax")
+
+    # УВЕДОМЛЕНИЕ ВЛАДЕЛЬЦУ — после записи, а не до: письмо о смене,
+    # которая не состоялась, хуже отсутствующего письма.
+    ключ = _ключ_почты(адрес)
+    if not _попыток(db, ключ, "chgpwd", PASSWORD_CHANGE_NOTICE_COOLDOWN_SEC, "sent"):
+        _записать_попытку(db, ключ, "chgpwd", "sent")
+        ошибка = await send_email(to=адрес, subject="Пароль изменён",
+                                  html=_письмо_о_пароле_html(когда),
+                                  text=_письмо_о_пароле_text(когда),
+                                  db=db, user_id=uid, kind="password_changed",
+                                  учитывать_лимит=False)
+        if ошибка:
+            # Пароль УЖЕ сменён, откатывать нечего — но молчать нельзя:
+            # уведомление и есть вторая половина защиты (§6.0.1).
+            print(f"[change-password] уведомление не ушло (id={uid}): {ошибка}")
+
+    return ответ
+
+
 # ── Forgot / Reset password ───────────────────────────────────────────────────
 
 @app.get("/forgot-password")
@@ -2543,9 +2737,11 @@ async def reset_post(
     if password != password2:
         return templates.TemplateResponse(request=request, name="reset_password.html",
                                           context={"token": token, "error": "Пароли не совпадают", "done": False})
-    if len(password) < 6:
-        return templates.TemplateResponse(request=request, name="reset_password.html",
-                                          context={"token": token, "error": "Минимум 6 символов", "done": False})
+    if len(password) < MIN_PASSWORD_LEN:
+        return templates.TemplateResponse(
+            request=request, name="reset_password.html",
+            context={"token": token,
+                     "error": f"Минимум {MIN_PASSWORD_LEN} символов", "done": False})
     # Соединение отдаётся на время счёта, поэтому пользователь берётся
     # из базы заново: после `_в_потоке` прежний объект отцеплен, и запись
     # в него до базы не доехала бы — молча, без единой ошибки
@@ -2575,8 +2771,15 @@ async def profile_page(request: Request, user=Depends(get_current_user), db: Ses
     if not user:
         return RedirectResponse("/login", status_code=302)
     resume = db.query(Resume).filter(Resume.user_id == user.id).first()
+    # Дата последней смены пароля — В ПОЯСЕ ПОЛЬЗОВАТЕЛЯ и с сервера.
+    # Под кнопкой стояло «Последнее изменение неизвестно» ВСЕГДА, при том
+    # что `password_changed_at` пишется сбросом по ссылке с самого начала:
+    # строка утверждала незнание о том, что в базе лежит.
     return templates.TemplateResponse(request=request, name="profile.html",
                                       context={"user": user, "resume": resume, "saved": False,
+                                               "pwd_changed": _момент_в_поясе(
+                                                   user.password_changed_at, user),
+                                               "min_password": MIN_PASSWORD_LEN,
                                                "timezones": TIMEZONES})
 
 
@@ -9445,7 +9648,13 @@ def _process_avatar(raw: bytes, user_id: int) -> str | None:
         return None
     except UnidentifiedImageError:
         return "Это не изображение"
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, SyntaxError) as e:
+        # SyntaxError здесь не опечатка и не лишняя строка: PIL бросает
+        # именно его на битой ВНУТРЕННОСТИ файла — «broken PNG file
+        # (bad header checksum in b'IDAT')». Заголовок при этом целый,
+        # `verify()` проходит, и до 2026-08-20 такой файл давал НЕОБЪЯСНЁННЫЙ
+        # HTTP 500 с трассировкой в журнале вместо строчки «не удалось
+        # обработать». Найдено живым замером на файле, собранном руками.
         print(f"[avatar] не удалось обработать файл пользователя {user_id}: "
               f"{type(e).__name__}: {e}")
         return "Не удалось обработать изображение"
@@ -9463,6 +9672,19 @@ async def upload_avatar(file: UploadFile = File(...),
     ошибка = await _в_потоке(db, _process_avatar, raw, ид)
     if ошибка:
         return JSONResponse({"error": ошибка}, status_code=400)
+    # ОБЪЕКТ БЕРЁТСЯ ЗАНОВО (§6.0.5). До 2026-08-20 здесь писали в прежний,
+    # отцепленный `_в_потоке`, — и запись НЕ ДОЕЗЖАЛА до базы. Замер: файл
+    # ложится на диск, ответ `{"ok":true,"v":…}`, а `avatar_updated_at`
+    # остаётся NULL, то есть страница профиля рисует букву-инициал вместо
+    # фотографии, кнопка «Убрать фото» не появляется, и в шапке аватара
+    # тоже нет. Человек загрузил фото, увидел локальный предпросмотр,
+    # обновил страницу — фото исчезло. Ни ошибки, ни строки в логе.
+    #
+    # Третий случай этого класса за три дня; поэтому заведена проверка 15
+    # (`check_detached.py`), которая его и нашла.
+    user = db.get(User, ид)
+    if not user:
+        return JSONResponse({"error": "Аккаунт не найден"}, status_code=401)
     user.avatar_updated_at = datetime.utcnow()
     db.commit()
     return JSONResponse({"ok": True, "v": int(user.avatar_updated_at.timestamp())})

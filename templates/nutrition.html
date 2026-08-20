@@ -94,17 +94,17 @@
              стоят одной карточкой; на мобильной ширине спрятана, чтобы
              не менять раскладку (три карточки в ряд) #}
           <div class="macros-cap" id="macros-cap">съедено из нормы</div>
-          <div class="macro-card">
+          <div class="card card-static card-compact macro-card">
             <div class="macro-label">Белок</div>
             <div class="meter meter-edge macro-bar"><div class="meter-fill macro-bar-fill mb-prot" id="bar-prot"></div></div>
             <div class="macro-val val-prot" id="val-prot">—</div>
           </div>
-          <div class="macro-card">
+          <div class="card card-static card-compact macro-card">
             <div class="macro-label">Жиры</div>
             <div class="meter meter-edge macro-bar"><div class="meter-fill macro-bar-fill mb-fat" id="bar-fat"></div></div>
             <div class="macro-val val-fat" id="val-fat">—</div>
           </div>
-          <div class="macro-card">
+          <div class="card card-static card-compact macro-card">
             <div class="macro-label">Углеводы</div>
             <div class="meter meter-edge macro-bar"><div class="meter-fill macro-bar-fill mb-carb" id="bar-carb"></div></div>
             <div class="macro-val val-carb" id="val-carb">—</div>
@@ -117,7 +117,7 @@
       </div>
       <div class="d-right">
         <div id="meals-wrap"></div>
-        <div class="water-card">
+        <div class="card card-static card-compact water-card">
           <div class="water-hdr">
             <span class="water-emoji"><i data-lucide="droplet"></i></span>
             <span class="water-name">Вода</span>
@@ -242,13 +242,13 @@
               <span class="g-lbl">г</span>
             </div>
             <div class="q-grams">
-              <button class="q-btn" onclick="setPanelG(50)">50г</button>
-              <button class="q-btn" onclick="setPanelG(100)">100г</button>
-              <button class="q-btn" onclick="setPanelG(150)">150г</button>
-              <button class="q-btn" onclick="setPanelG(200)">200г</button>
-              <button class="q-btn" onclick="setPanelG(300)">300г</button>
+              <button class="chip" onclick="setPanelG(50)">50г</button>
+              <button class="chip" onclick="setPanelG(100)">100г</button>
+              <button class="chip" onclick="setPanelG(150)">150г</button>
+              <button class="chip" onclick="setPanelG(200)">200г</button>
+              <button class="chip" onclick="setPanelG(300)">300г</button>
             </div>
-            <div class="calc-box">
+            <div class="accent-box accent-box-calc">
               <div class="calc-kcal"   id="ap-kcal">0 ккал</div>
               <div class="calc-macros" id="ap-macros">Б: 0г  Ж: 0г  У: 0г</div>
             </div>
@@ -460,9 +460,9 @@
           <div class="p-sec-title">Личные данные</div>
           <div class="f-field">
             <label class="field-label f-label">Пол</label>
-            <div class="radio-row" id="rg-gender">
-              <button class="radio-btn active" data-val="male"   onclick="setRad(this)">Мужской</button>
-              <button class="radio-btn"        data-val="female" onclick="setRad(this)">Женский</button>
+            <div class="segmented" id="rg-gender">
+              <button class="segmented-btn active" data-val="male"   onclick="setRad(this)">Мужской</button>
+              <button class="segmented-btn"       data-val="female" onclick="setRad(this)">Женский</button>
             </div>
           </div>
           <div class="f-field"><label class="field-label f-label">Возраст</label><input type="number" class="input input-compact" id="p-age"    placeholder="25" min="10" max="100"></div>
@@ -634,21 +634,27 @@
       <div class="d-right">
         <div class="p-sec">
           <div class="p-sec-title">Цель</div>
-          <div class="radio-row" id="rg-goal">
-            <button class="radio-btn"        data-val="lose"     onclick="setRad(this)">Похудение</button>
-            <button class="radio-btn active" data-val="maintain" onclick="setRad(this)">Поддержание</button>
-            <button class="radio-btn"        data-val="gain"     onclick="setRad(this)">Набор</button>
+          <div class="segmented" id="rg-goal">
+            <button class="segmented-btn"       data-val="lose"     onclick="setRad(this)">Похудение</button>
+            <button class="segmented-btn active" data-val="maintain" onclick="setRad(this)">Поддержание</button>
+            <button class="segmented-btn"       data-val="gain"     onclick="setRad(this)">Набор</button>
           </div>
         </div>
         <div class="p-sec">
           <div class="p-sec-title">Активность</div>
-          <button class="act-btn" data-val="sedentary"  onclick="setAct(this)"><i data-lucide="armchair"></i> Сидячий — офис, мало движения</button>
-          <button class="act-btn" data-val="light"      onclick="setAct(this)"><i data-lucide="footprints"></i> Лёгкий — прогулки, редкие тренировки</button>
-          <button class="act-btn active" data-val="moderate" onclick="setAct(this)"><i data-lucide="activity"></i> Умеренный — тренировки 3-4 раза в неделю</button>
-          <button class="act-btn" data-val="active"     onclick="setAct(this)"><i data-lucide="dumbbell"></i> Активный — тренировки 5-6 раз</button>
-          <button class="act-btn" data-val="very_active" onclick="setAct(this)"><i data-lucide="flame"></i> Очень активный — ежедневно</button>
+          {# BACKLOG №114: пять взаимоисключающих вариантов с длинными
+             подписями. Системный `.segmented` вариантом `.segmented-stack`,
+             а не свой `.act-btn`: роль та же, что у ряда, отличается
+             только направлением. #}
+          <div class="segmented segmented-stack" id="rg-act">
+          <button class="segmented-btn" data-val="sedentary"  onclick="setAct(this)"><i data-lucide="armchair"></i> Сидячий — офис, мало движения</button>
+          <button class="segmented-btn" data-val="light"      onclick="setAct(this)"><i data-lucide="footprints"></i> Лёгкий — прогулки, редкие тренировки</button>
+          <button class="segmented-btn active" data-val="moderate" onclick="setAct(this)"><i data-lucide="activity"></i> Умеренный — тренировки 3-4 раза в неделю</button>
+          <button class="segmented-btn" data-val="active"     onclick="setAct(this)"><i data-lucide="dumbbell"></i> Активный — тренировки 5-6 раз</button>
+          <button class="segmented-btn" data-val="very_active" onclick="setAct(this)"><i data-lucide="flame"></i> Очень активный — ежедневно</button>
+          </div>
         </div>
-        <div class="targets-box" id="targets-box" style="display:none">
+        <div class="accent-box accent-box-targets" id="targets-box" style="display:none">
           <div class="targets-title">Расчётные нормы</div>
           <div class="targets-row">
             <div class="t-item"><div class="t-val" id="t-cal">—</div><div class="t-lbl">ккал/день</div></div>
@@ -780,7 +786,7 @@
       <div class="por-name" id="por-name"></div>
       <div class="por-sub-row">
         <div class="por-sub" id="por-sub"></div>
-        <button class="por-edit-btn" id="por-edit-btn" onclick="togglePorEdit()" type="button"><i data-lucide="pencil"></i> Изменить</button>
+        <button class="chip por-edit-btn" id="por-edit-btn" onclick="togglePorEdit()" type="button"><i data-lucide="pencil"></i> Изменить</button>
       </div>
       <div class="por-edit-grid" id="por-edit-grid" style="display:none">
         <div class="f-field f-field-wide"><label class="field-label f-label">Бренд / заведение</label><input type="text" class="input input-compact" id="pe-brand" placeholder="Например, ресторан или производитель" oninput="onPorEdit()"></div>
@@ -800,13 +806,13 @@
         <span class="g-lbl">г</span>
       </div>
       <div class="q-grams">
-        <button class="q-btn" onclick="setG(50)">50г</button>
-        <button class="q-btn" onclick="setG(100)">100г</button>
-        <button class="q-btn" onclick="setG(150)">150г</button>
-        <button class="q-btn" onclick="setG(200)">200г</button>
-        <button class="q-btn" onclick="setG(300)">300г</button>
+        <button class="chip" onclick="setG(50)">50г</button>
+        <button class="chip" onclick="setG(100)">100г</button>
+        <button class="chip" onclick="setG(150)">150г</button>
+        <button class="chip" onclick="setG(200)">200г</button>
+        <button class="chip" onclick="setG(300)">300г</button>
       </div>
-      <div class="calc-box">
+      <div class="accent-box accent-box-calc">
         <div class="calc-kcal"   id="c-kcal">0 ккал</div>
         <div class="calc-macros" id="c-macros">Б: 0г  Ж: 0г  У: 0г</div>
       </div>
@@ -899,7 +905,7 @@
       <div class="f-label f-label-group-tight">Ингредиенты</div>
       <div class="ing-list" id="ing-list"></div>
       <button class="ing-add-btn" onclick="openSearchForRecipe()">+ Ингредиент</button>
-      <div class="calc-box calc-box-gap">
+      <div class="accent-box accent-box-calc accent-box-gap">
         <div class="calc-kcal"   id="rec-kcal">0 ккал</div>
         <div class="calc-macros" id="rec-macros">Б: 0г  Ж: 0г  У: 0г  — 0г</div>
       </div>
@@ -925,19 +931,19 @@
 <!-- ─── MODAL: Log recipe ─── -->
 {% call m.modal('modal-recipe-log', 'Рецепт', title_id='rl-title') %}
       <div class="nut-hint">Сколько съели от общего объёма?</div>
-      <div class="frac-btns" id="frac-btns">
-        <button class="frac-btn" onclick="setFrac(.25,this)">¼</button>
-        <button class="frac-btn" onclick="setFrac(.33,this)">⅓</button>
-        <button class="frac-btn active" onclick="setFrac(.5,this)">½</button>
-        <button class="frac-btn" onclick="setFrac(.67,this)">⅔</button>
-        <button class="frac-btn" onclick="setFrac(.75,this)">¾</button>
-        <button class="frac-btn" onclick="setFrac(1,this)">Всё</button>
+      <div class="segmented frac-btns" id="frac-btns">
+        <button class="segmented-btn" onclick="setFrac(.25,this)">¼</button>
+        <button class="segmented-btn" onclick="setFrac(.33,this)">⅓</button>
+        <button class="segmented-btn active" onclick="setFrac(.5,this)">½</button>
+        <button class="segmented-btn" onclick="setFrac(.67,this)">⅔</button>
+        <button class="segmented-btn" onclick="setFrac(.75,this)">¾</button>
+        <button class="segmented-btn" onclick="setFrac(1,this)">Всё</button>
       </div>
       <div class="g-wrap g-wrap-gap">
         <input type="number" class="g-input" id="frac-pct" value="50" min="1" max="100" oninput="updateRecCalc()">
         <span class="g-lbl">%</span>
       </div>
-      <div class="calc-box">
+      <div class="accent-box accent-box-calc">
         <div class="calc-kcal"   id="rl-kcal">0 ккал</div>
         <div class="calc-macros" id="rl-macros"></div>
       </div>
@@ -1652,7 +1658,7 @@ function renderWaterLog(logs) {
     (раскрыт ? `<div class="water-log-list">` + список.map(w => `
       <div class="water-log-item">
         <span class="water-log-ml">${w.amount_ml} мл</span>
-        <button class="water-log-del" onclick="delWater(${w.id})"
+        <button class="btn-icon btn-icon-round btn-icon-sm btn-icon-danger water-log-del" onclick="delWater(${w.id})"
                 aria-label="Удалить порцию ${w.amount_ml} мл">×</button>
       </div>`).join('') + `</div>` : '');
   if (window.lucide) lucide.createIcons();
@@ -1726,8 +1732,8 @@ function renderMeals(meals, куда = 'meals-wrap', опции = {}) {
         (скрыто ? `<button class="meal-more" onclick="toggleMeal('${m.id}')">
              ${раскрыт ? 'Свернуть' : 'Ещё ' + позицийСловами(скрыто)}
            </button>` : '')
-      : `<div class="meal-empty">Пусто</div>`;
-    return `<div class="meal-card">
+      : `<div class="empty-state empty-state-inline meal-empty">Пусто</div>`;
+    return `<div class="card card-static card-flush meal-card">
       <div class="meal-hdr">
         <span class="meal-icon"><i data-lucide="${m.icon}"></i></span>
         <span class="meal-name">${m.name}</span>
@@ -1777,7 +1783,7 @@ function foodItemHTML(item, опции = {}) {
     <span class="food-kcal">${Math.round(item.calories)}</span>
     ${опции.правка ? `<button class="food-edit" onclick="event.stopPropagation();editFoodItem(${item.id})"
         aria-label="Изменить ${esc(item.name)}"><i data-lucide="pencil"></i></button>` : ''}
-    <button class="food-del" onclick="event.stopPropagation();delFood(${item.id})"
+    <button class="btn-icon btn-icon-sm btn-icon-danger food-del" onclick="event.stopPropagation();delFood(${item.id})"
             aria-label="Удалить ${esc(item.name)}">×</button>
   </div>`;
 }
@@ -1954,7 +1960,7 @@ async function runSearch(q) {
   S.lastQuery = q;
   const область = S.searchTab;
   const место = document.getElementById('s-results');
-  место.innerHTML = `<div class="empty"><div class="spin"></div></div>`;
+  место.innerHTML = `<div class="empty-state nut-empty"><div class="spin"></div></div>`;
   const data = await api(`${АДРЕС_ОБЛАСТИ[область]}?q=${encodeURIComponent(q)}`);
   if (myId !== searchReqId) return; // stale — ignore
   if (область === 'recipes') { renderRecipes(data.recipes||[], q); return; }
@@ -1990,16 +1996,16 @@ async function пустоВОбласти(q, область, myId) {
   if (!n) {
     // Ни в области, ни в базе. Предлагать «искать по всей базе» здесь
     // нечего — там уже посмотрели, и посмотрели по-настоящему
-    место.innerHTML = `<div class="card card-static a-nothing">
-        <div class="a-nothing-t">${esc(шапка)}</div>
-        <div class="a-nothing-s">Во всей базе по запросу «${esc(q)}» — тоже ничего</div>
+    место.innerHTML = `<div class="card card-static empty-state">
+        <div class="empty-state-title a-nothing-t">${esc(шапка)}</div>
+        <div class="empty-state-sub a-nothing-s">Во всей базе по запросу «${esc(q)}» — тоже ничего</div>
       </div>` + пустаяВыдачаХвост(q, 's-results');
     if (window.lucide) lucide.createIcons();
     return;
   }
-  место.innerHTML = `<div class="card card-static a-nothing">
-      <div class="a-nothing-t">${esc(шапка)}</div>
-      <div class="a-nothing-s">Во всей базе — ${продуктовСловами(n)}</div>
+  место.innerHTML = `<div class="card card-static empty-state">
+      <div class="empty-state-title a-nothing-t">${esc(шапка)}</div>
+      <div class="empty-state-sub a-nothing-s">Во всей базе — ${продуктовСловами(n)}</div>
       <button class="btn-primary a-nothing-go" onclick="setSearchTab('all')">Искать по всей базе →</button>
     </div>`;
 }
@@ -2052,7 +2058,7 @@ function пустаяВыдача(query, сбой, местоId) {
       (${esc(сбой)}). Это не значит, что продукта в нём нет — повторите поиск позже.</div>`
       + пустаяВыдачаХвост(query, местоId);
   }
-  return `<div class="empty">По запросу «${esc(query)}» в справочнике ничего не нашлось</div>`
+  return `<div class="empty-state nut-empty">По запросу «${esc(query)}» в справочнике ничего не нашлось</div>`
     + пустаяВыдачаХвост(query, местоId);
 }
 
@@ -2095,7 +2101,7 @@ function setSearchTab(tab) {
 async function loadSearchTab(tab) {
   подсветитьВкладкуПоиска(tab);
   const myId = ++searchReqId;
-  document.getElementById('s-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
+  document.getElementById('s-results').innerHTML = `<div class="empty-state nut-empty"><div class="spin"></div></div>`;
   // «Вся база» без запроса перечислять нечем — справочник ищут, а не
   // листают. Но и приглашение вводить тут стояло зря: рядом с ним пустовала
   // панель продукта, и экран встречал двумя заглушками и полутора экранами
@@ -2129,7 +2135,7 @@ async function показатьНедавниеБезЗапроса(myId) {
   // Недавних нет вовсе — только тогда приглашение. Это НЕ то же самое,
   // что «поиск ничего не нашёл»: искать ещё нечего
   if (!есть) {
-    место.innerHTML = `<div class="empty">Вы ещё ничего не записывали.
+    место.innerHTML = `<div class="empty-state nut-empty">Вы ещё ничего не записывали.
       Начните вводить название — поиск идёт по всей базе продуктов</div>`;
     return;
   }
@@ -2142,8 +2148,8 @@ function renderRecipes(recipes, query) {
   const wrap = document.getElementById('s-results');
   if (!recipes.length) {
     wrap.innerHTML = query
-      ? `<div class="empty">Среди рецептов по запросу «${esc(query)}» ничего не нашлось</div>`
-      : `<div class="empty">Нет рецептов — создайте первый!</div>`;
+      ? `<div class="empty-state nut-empty">Среди рецептов по запросу «${esc(query)}» ничего не нашлось</div>`
+      : `<div class="empty-state nut-empty">Нет рецептов — создайте первый!</div>`;
     wrap.innerHTML += `<button class="btn-primary btn-block save-btn-gap" onclick="openCreateRecipe()">+ Создать рецепт</button>`;
     return;
   }
@@ -2152,7 +2158,7 @@ function renderRecipes(recipes, query) {
     <div class="r-item" onclick='openRecipeLog(${JSON.stringify(r)})'>
       <div class="r-info"><div class="r-name">${esc(r.name)}</div><div class="r-brand">${r.ingredients.length} ингр. · ${r.total_grams}г</div></div>
       <div><div class="r-kcal">${Math.round(r.calories)} ккал</div><div class="r-per">на всё</div></div>
-      <button class="recipe-del" onclick="event.stopPropagation();delRecipe(${r.id})">×</button>
+      <button class="btn-icon btn-icon-sm btn-icon-danger recipe-del" onclick="event.stopPropagation();delRecipe(${r.id})">×</button>
     </div>`).join('') + `</div>`;
 }
 
@@ -2266,9 +2272,9 @@ function renderResults(results, query, сбой, сбойПеревода, by_me
     // бы соврать. Секция становится основной и раскрывается сразу
     if (доп.length) {
       wrap.innerHTML = плашкаПеревода(сбойПеревода)
-        + `<div class="card card-static a-nothing">
-             <div class="a-nothing-t">По названию ничего не нашлось</div>
-             <div class="a-nothing-s">Показываем, что есть у ${бренд ? 'бренда ' + esc(бренд) : 'этого бренда'}</div>
+        + `<div class="card card-static empty-state">
+             <div class="empty-state-title a-nothing-t">По названию ничего не нашлось</div>
+             <div class="empty-state-sub a-nothing-s">Показываем, что есть у ${бренд ? 'бренда ' + esc(бренд) : 'этого бренда'}</div>
            </div>`
         + секцияБренда(доп, бренд, true)
         + пустаяВыдачаХвост(query, 's-results');
@@ -2278,7 +2284,7 @@ function renderResults(results, query, сбой, сбойПеревода, by_me
     // Пустое состояние — только когда запрос вообще был. На вкладках
     // «Недавние»/«Частые» query не передаётся, и предлагать там оценку нечего
     wrap.innerHTML = query ? плашкаПеревода(сбойПеревода) + пустаяВыдача(query, сбой, 's-results')
-                           : '<div class="empty">Ничего не найдено</div>';
+                           : '<div class="empty-state nut-empty">Ничего не найдено</div>';
     return;
   }
   const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openCustomFoodModal()"><i data-lucide="sparkles"></i> Не нашли своё блюдо? Добавить</button>` : '';
@@ -2300,7 +2306,7 @@ function onSearchIng(q) {
 async function runSearchIng(q) {
   const myId = ++ingSearchReqId;
   S.lastQuery = q;
-  document.getElementById('ring-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
+  document.getElementById('ring-results').innerHTML = `<div class="empty-state nut-empty"><div class="spin"></div></div>`;
   const data = await api(`/nutrition/api/search?q=${encodeURIComponent(q)}`);
   if (myId !== ingSearchReqId) return; // устаревший запрос — игнорируем
   // Окно подбора ингредиента секции бренда НЕ рисует — оно узкое, и
@@ -2322,7 +2328,7 @@ function setIngTab(tab) {
 }
 
 async function loadIngTab(tab) {
-  document.getElementById('ring-results').innerHTML = `<div class="empty"><div class="spin"></div></div>`;
+  document.getElementById('ring-results').innerHTML = `<div class="empty-state nut-empty"><div class="spin"></div></div>`;
   const myId = ++ingSearchReqId;
   const url = tab==='recent' ? '/nutrition/api/recent-foods' : '/nutrition/api/frequent-foods';
   const data = await api(url);
@@ -2334,7 +2340,7 @@ function renderIngResults(results, query, сбой, сбойПеревода) {
   const wrap = document.getElementById('ring-results');
   if (!results.length) {
     wrap.innerHTML = query ? плашкаПеревода(сбойПеревода) + пустаяВыдача(query, сбой, 'ring-results')
-                           : '<div class="empty">Ничего не найдено</div>';
+                           : '<div class="empty-state nut-empty">Ничего не найдено</div>';
     return;
   }
   const aiBtn = query ? `<button class="ai-estimate-btn" onclick="openCustomFoodModal()"><i data-lucide="sparkles"></i> Не нашли своё блюдо? Добавить</button>` : '';
@@ -2801,13 +2807,13 @@ async function voiceStart(btn, mode, targetId) {
   const overlay = document.createElement('div');
   overlay.className = 'voice-rec-overlay';
   overlay.innerHTML = `
-    <button class="voice-rec-del" title="Удалить">
+    <button class="btn-icon btn-icon-round voice-rec-del" title="Удалить">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H6a1 1 0 01-1-1V6h14z"/></svg>
     </button>
     <div class="voice-rec-dot"></div>
     <span class="voice-rec-timer">0:00</span>
     <div class="voice-rec-wave"><canvas></canvas></div>
-    <button class="voice-rec-send" title="Отправить">
+    <button class="btn-icon btn-icon-round voice-rec-send" title="Отправить">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
     </button>`;
   container.appendChild(overlay);
@@ -3076,7 +3082,7 @@ function updateRecipeModal() {
     <div class="ing-item">
       <span class="ing-name">${esc(ing.name)}</span>
       <span class="ing-g">${ing.grams}г</span>
-      <button class="ing-del" onclick="S.recipeIngs.splice(${i},1);updateRecipeModal()">×</button>
+      <button class="btn-icon btn-icon-sm btn-icon-danger ing-del" onclick="S.recipeIngs.splice(${i},1);updateRecipeModal()">×</button>
     </div>`).join('');
   const totCal=S.recipeIngs.reduce((s,i)=>s+i.calories*i.grams/100,0);
   const totP  =S.recipeIngs.reduce((s,i)=>s+i.protein*i.grams/100,0);
@@ -3098,15 +3104,15 @@ function openRecipeLog(recipe) {
   S.selRecipe=recipe; S.recFrac=0.5;
   document.getElementById('rl-title').textContent=recipe.name;
   document.getElementById('frac-pct').value=50;
-  document.querySelectorAll('.frac-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.frac-btn')[2].classList.add('active');
+  document.querySelectorAll('#frac-btns .segmented-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#frac-btns .segmented-btn')[2].classList.add('active');
   updateRecCalc(); открыть_модалку('modal-recipe-log');
 }
 
 function setFrac(f,btn) {
   S.recFrac=f;
   document.getElementById('frac-pct').value=Math.round(f*100);
-  document.querySelectorAll('.frac-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#frac-btns .segmented-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active'); updateRecCalc();
 }
 
@@ -3368,7 +3374,7 @@ function renderFoodDraft() {
       <span class="fd-title">Проверьте и сохраните</span>
       ${листалка}
     </div>
-    <div class="fd-card">
+    <div class="card card-static card-compact card-nested fd-card">
       <div class="f-field"><label class="field-label f-label" for="fd-name">Название</label>
         <input type="text" class="input input-compact" id="fd-name" value="${esc(к.name)}" oninput="draftEdit('name', this.value)"></div>
       <div class="f-field"><label class="field-label f-label" for="fd-brand">Бренд / заведение</label>
@@ -3389,7 +3395,7 @@ function renderFoodDraft() {
         <div class="f-field"><label class="field-label f-label" for="fd-carb">Углеводы/100г</label>
           <input type="number" class="input input-compact" id="fd-carb" value="${к.carbs}" oninput="draftEdit('carbs', this.value)"></div>
       </div>
-      <div class="calc-box" id="fd-total"><div class="calc-kcal">${Math.round(к.calories*доля)} ккал</div><div class="calc-macros">Б: ${(к.protein*доля).toFixed(1)}г  Ж: ${(к.fat*доля).toFixed(1)}г  У: ${(к.carbs*доля).toFixed(1)}г</div></div>
+      <div class="accent-box accent-box-calc" id="fd-total"><div class="calc-kcal">${Math.round(к.calories*доля)} ккал</div><div class="calc-macros">Б: ${(к.protein*доля).toFixed(1)}г  Ж: ${(к.fat*доля).toFixed(1)}г  У: ${(к.carbs*доля).toFixed(1)}г</div></div>
       <button class="btn-ghost fd-drop" onclick="draftDrop()"><i data-lucide="trash-2"></i> Убрать это блюдо</button>
     </div>
     <button class="btn-primary btn-block" onclick="saveFoodDraft()" ${d.saving ? 'disabled' : ''}>
@@ -3400,7 +3406,7 @@ function renderFoodDraft() {
 
 function renderChat() {
   const html = !S.chatHistory.length
-    ? '<div class="chat-empty"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>'
+    ? '<div class="empty-state chat-empty"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>'
     : S.chatHistory.map((m,idx)=>{
         if (m.content === '__food_draft__') return renderFoodDraft();
         if (m.voice) {
@@ -4088,9 +4094,9 @@ async function loadProfileForm() {
   document.getElementById('p-weight').value =data.weight_kg||'';
   document.getElementById('p-height').value =data.height_cm||'';
   document.getElementById('p-target').value =data.target_weight_kg||'';
-  document.querySelectorAll('#rg-gender .radio-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.gender));
-  document.querySelectorAll('#rg-goal .radio-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.goal));
-  document.querySelectorAll('.act-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.activity_level));
+  document.querySelectorAll('#rg-gender .segmented-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.gender));
+  document.querySelectorAll('#rg-goal .segmented-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.goal));
+  document.querySelectorAll('#rg-act .segmented-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.activity_level));
   if (data.calorie_goal) showTargets({calories:data.calorie_goal,protein:data.protein_goal,fat:data.fat_goal,carbs:data.carb_goal,water_ml:data.water_goal_ml});
 }
 
@@ -4376,12 +4382,12 @@ function renderCompare() {
     const imgs = Object.keys(РАКУРСЫ).filter(a => angles[a]).map(a => `
       <div class="compare-shot">
         <img src="${angles[a]}" alt="Фото ${РАКУРСЫ[a]} за ${date}">
-        <button class="btn-icon compare-del" onclick="deleteBodyPhoto('${date}','${a}')"
+        <button class="btn-icon btn-icon-overlay compare-del" onclick="deleteBodyPhoto('${date}','${a}')"
                 title="Удалить фото ${РАКУРСЫ[a]} за ${date}" aria-label="Удалить фото ${РАКУРСЫ[a]} за ${date}">
           <i data-lucide="trash-2"></i>
         </button>
       </div>`).join('');
-    return `<div class="compare-col">${imgs || '<p class="compare-empty">нет фото</p>'}<div class="compare-col-label">${date}</div></div>`;
+    return `<div class="compare-col">${imgs || '<p class="empty-state empty-state-inline">нет фото</p>'}<div class="compare-col-label">${date}</div></div>`;
   }
   // createIcons здесь не зовём: значки в динамической разметке дорисовывает
   // наблюдатель из static/ui.js, и второй вызов только перебрал бы дерево
@@ -4414,12 +4420,12 @@ async function deleteBodyPhoto(date, angle) {
 }
 
 function setRad(btn) {
-  btn.closest('.radio-row').querySelectorAll('.radio-btn').forEach(b=>b.classList.remove('active'));
+  btn.closest('.segmented').querySelectorAll('.segmented-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   проверитьСменуНормы();
 }
 function setAct(btn) {
-  document.querySelectorAll('.act-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#rg-act .segmented-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   проверитьСменуНормы();
 }
@@ -4444,9 +4450,9 @@ const ПОЛЯ_НОРМЫ = ['gender', 'goal', 'activity_level', 'age', 'weight_
 
 function анкетаСФормы() {
   return {
-    gender: document.querySelector('#rg-gender .radio-btn.active')?.dataset?.val || 'male',
-    goal:   document.querySelector('#rg-goal .radio-btn.active')?.dataset?.val || 'maintain',
-    activity_level: document.querySelector('.act-btn.active')?.dataset?.val || 'moderate',
+    gender: document.querySelector('#rg-gender .segmented-btn.active')?.dataset?.val || 'male',
+    goal:   document.querySelector('#rg-goal .segmented-btn.active')?.dataset?.val || 'maintain',
+    activity_level: document.querySelector('#rg-act .segmented-btn.active')?.dataset?.val || 'moderate',
     age:       parseInt(document.getElementById('p-age').value) || 25,
     weight_kg: parseFloat(document.getElementById('p-weight').value) || 70,
     height_cm: parseFloat(document.getElementById('p-height').value) || 170,

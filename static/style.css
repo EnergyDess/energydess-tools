@@ -284,6 +284,32 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
   .card-static:hover { transform: none; box-shadow: none; border-color: var(--border); }
 }
 
+/* ── ТРИ ВАРИАНТА КАРТОЧКИ. Заведены 2026-08-20, BACKLOG №116 ────────────
+   Повод тот же, что у четырёх вариантов поля (§2.3): дневник питания
+   держал ЧЕТЫРЕ свои карточки рядом с системной — `.macro-card`,
+   `.water-card`, `.meal-card`, `.fd-card`. Фон и рамка у них те же, что
+   у `.card`; расходились радиус (12 против 14 между собой) и плотность.
+   То есть страница дописывала систему сама, потому что вариантов
+   не хватало (CLAUDE.md §6.0.2). */
+
+/* Плотная. Карточка-ячейка: их три-четыре в ряд, и системные 24px
+   паддинга съедают строку целиком. Радиус на ступень меньше, потому
+   что мелкая карточка с крупным скруглением читается как пилюля. */
+.card-compact { border-radius: var(--radius-md); padding: var(--space-3); }
+
+/* Без полей. Содержимое красится от края до края — шапка приёма пищи,
+   список позиций, кнопка-строка внизу. Своего паддинга у такой карточки
+   быть не может по построению: его держат части внутри, а `overflow`
+   обрезает их углы по скруглению. */
+.card-flush { border-radius: var(--radius-md); padding: 0; overflow: hidden; }
+
+/* На вложенной поверхности. Тот же довод, что у `.input-nested`: карточка
+   лежит не на фоне страницы, а внутри другого блока (пузырь переписки),
+   и `--surface-1` там сливается с подложкой. Уходим на ступень ВНИЗ —
+   `--surface-3` занят активным состоянием, и карточка в покое читалась
+   бы как выделенная. */
+.card-nested { background: var(--surface-sunken); }
+
 /* ── Карточка инструмента ────────────────────────────────────────────────
    Единый компонент для лендинга (гость) и главной (авторизованный):
    .card + .tool-card + класс акцента (.tool-hh / .tool-nutrition / …).
@@ -518,6 +544,62 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
   }
 }
 .btn-icon-accent:active { opacity: 0.85; }
+
+/* ── КРЕСТИК УДАЛЕНИЯ. Три варианта, заведены 2026-08-20 ────────────────
+   BACKLOG №113 + №119 — ОДНА работа, разрезанная по месту. Замер нашёл
+   ДЕСЯТЬ реализаций, а не девять: к шести в дневнике и трём вне его
+   добавилась `.wk-compare-del` в `workout_profile.css` — побайтовый
+   близнец `.compare-del` из дневника, и её собственный комментарий это
+   признаёт («форма и раскладка те же, что у .compare-del»).
+
+   ПОЧЕМУ РАЗМЕР 26, А НЕ 20, 36 ИЛИ 40. Замер живых страниц дал ряд
+   20 / 26 / 32 / 36 / 40. Взято 26, и вот основание:
+
+     · 26 — размер самого частого крестика (`.food-del`): он стоит
+       у КАЖДОЙ позиции дневника, то есть его человек видит чаще всех
+       остальных вместе взятых;
+     · 26 — медиана ряда;
+     · самый тесный хозяин — чип порции воды (высота 26px при крестике
+       20px): подъём до 26 растит чип до 32, и это список с переносом,
+       ему всё равно;
+     · вниз, к 20, идти некуда: 20px — уже меньше строчного значка 18px
+       у системной `.btn-icon`.
+
+   40 не годится ровно потому, что 40 — это `.btn-icon` без вариантов,
+   и в чипе высотой 26 она не помещается по построению.
+
+   ТАЧ-ТАРГЕТ ДОБИРАЕТСЯ НЕВИДИМОЙ ОБЛАСТЬЮ, а не размером кнопки:
+   глобальный CLAUDE.md требует 44×44 на сенсорном, и ни одна из десяти
+   реализаций этого не давала — ни 20, ни 26, ни 36. `inset: -9px`
+   растит область нажатия ровно до 44 при видимых 26. */
+.btn-icon-sm { width: 26px; height: 26px; position: relative; }
+.btn-icon-sm svg { width: 14px; height: 14px; }
+@media (pointer: coarse) {
+  .btn-icon-sm::after { content: ''; position: absolute; inset: -9px; }
+}
+
+/* Тон разрушающего действия. Цвет — ТОКЕН: в пяти из десяти прежних
+   реализаций стоял хардкод `#ef4444`, шестая брала `var(--error)`,
+   и они не совпадали. */
+.btn-icon-danger:active { color: var(--error); }
+@media (hover: hover) {
+  .btn-icon-danger:hover {
+    color: var(--error);
+    background: color-mix(in srgb, var(--error) 16%, transparent);
+  }
+}
+
+/* Кнопка ПОВЕРХ изображения. Подложка обязательна: на фотографии значок
+   без неё не читается ни на светлом кадре, ни на тёмном. Была написана
+   дважды — в дневнике и в анкете тренировок, — при том что хранилище
+   и эндпоинт у обоих экранов общие. */
+.btn-icon-overlay {
+  background: rgba(10, 11, 13, .72);
+  border: 1px solid var(--border-strong);
+}
+@media (hover: hover) {
+  .btn-icon-overlay:hover { color: var(--error); border-color: var(--error); }
+}
 
 .btn-secondary {
   display: inline-flex;
@@ -886,6 +968,17 @@ button.chip, a.chip { cursor: pointer; }
   .segmented-btn:hover:not(.active) { color: var(--text-2); }
 }
 .segmented-btn.active { background: var(--surface-3); color: var(--text); }
+/* ВАРИАНТ «СТОПКОЙ». Заведён 2026-08-20, BACKLOG №114.
+   Взаимоисключающий выбор, у которого вариантов больше трёх, а подписи
+   длиннее слова: уровень активности в анкете питания — пять строк
+   со значком и пояснением. В ряд такое не встаёт ни на какой ширине,
+   и до этого варианта страница держала свою `.act-btn` — с тем же
+   набором свойств и своим радиусом.
+   Роль та же, что у ряда, поэтому вариант, а не второй компонент:
+   переключается ОДИН блок, состояние взаимоисключающее. Отличается
+   только направлением и выключкой подписи. */
+.segmented-stack { flex-direction: column; }
+.segmented-stack .segmented-btn { justify-content: flex-start; text-align: left; }
 .segmented-btn svg { width: 14px; height: 14px; stroke-width: 1.5; }
 
 /* Узкий экран: четыре вкладки в ряд не помещаются. Ряд и так прокручивается
@@ -976,6 +1069,16 @@ button.chip, a.chip { cursor: pointer; }
   border: none; color: var(--text-2); font-size: 1.1rem; cursor: pointer;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+/* BACKLOG №120. Замер до правки: у .modal-x и .modal-x-float не было
+   НИ ОДНОГО правила :hover — на десктопе крестик закрытия не отвечал
+   на наведение вовсе, при рабочем фокусе и рабочем нажатии. Кнопка,
+   которая не откликается, читается как неактивная.
+   Отклик тот же, что у системной .btn-icon-solid, — это тот же жест
+   и та же подложка. */
+@media (hover: hover) {
+  .modal-x:hover { color: var(--text); background: var(--surface-2); }
 }
 .modal-body { padding: 14px 16px 0; overflow-y: auto; flex: 1; }
 /* Заголовок для screen reader'а там, где шапку не рисуют (chrome=false) */
@@ -1046,6 +1149,15 @@ button.chip, a.chip { cursor: pointer; }
   position: absolute; top: 14px; right: 14px; width: 40px; height: 40px;
   background: rgba(15,18,32,.85); border: 1px solid rgba(255,255,255,.18); color: #fff; font-size: 1.35rem;
   box-shadow: 0 4px 16px rgba(0,0,0,.4); z-index: 2;
+}
+/* Свой отклик, а не унаследованный от .modal-x: этот крестик лежит
+   ПОВЕРХ фотографии, и подложка --surface-2 на ней не читается. Работу
+   делает граница и плотность подложки. */
+@media (hover: hover) {
+  .modal-x-float:hover {
+    background: rgba(15,18,32,.95);
+    border-color: rgba(255,255,255,.42);
+  }
 }
 
 /* ── Десктоп: не шторка, а окно по центру ──────────────────────────────────
@@ -1245,12 +1357,11 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 .search-item-icon.tool-workout    { color: var(--accent-workout); }
 .search-item-icon.tool-enshrouded { color: var(--accent-enshrouded); }
 .search-item-icon.tool-admin      { color: var(--text-2); }
-.search-empty {
-  padding: var(--space-3);
-  font-size: var(--text-caption);
-  color: var(--text-faint);
-  text-align: center;
-}
+/* BACKLOG №115: было своё правило, повторявшее `.empty-state-inline`
+   (паддинг 12 против 12/16, тот же кегль, то же выравнивание).
+   Осталось единственное настоящее отличие — приглушённый тон: выпадашка
+   лежит ПОВЕРХ страницы, и обычный --text-2 там спорит с находками. */
+.search-empty { color: var(--text-faint); }
 /* На узких экранах поле сжимается до ~145px и названия обрезались до «НН Пом…».
    Выпадашка отвязывается от ширины поля и прижимается к правому краю, чтобы
    не уехать за левую границу вьюпорта. */

@@ -105,7 +105,7 @@
    замерено — фон сообщения пользователя rgba(0,0,0,0) вместо amber,
    подпись и рамка тултипа цветом обычного текста. Ошибки в консоли нет,
    недействительное свойство просто откатывается к унаследованному. */
-.wk-chat-overlay, .wk-lightbox, .wk-chart-tooltip { color-scheme: dark; }
+.wk-chat-overlay, .wk-chart-tooltip { color-scheme: dark; }
 
 /* ── Wizard shell ── */
 .wk-shell { max-width: 900px; margin: 0 auto; }
@@ -377,27 +377,17 @@
 .wk-chart-tooltip { position: fixed; z-index: 3000; background: var(--surface-3); border: 1px solid var(--tool-accent); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); font-size: var(--text-mono); color: var(--text); pointer-events: none; display: none; white-space: nowrap; }
 /* Точки графика кликабельны — было инлайном style="cursor:pointer" на каждой */
 .wk-chart-dot, .wk-chart-hit { cursor: pointer; }
-.wk-lightbox { display: none; position: fixed; inset: 0; z-index: 3500; background: color-mix(in srgb, var(--surface-0) 94%, transparent); align-items: center; justify-content: center; padding: var(--space-6); cursor: zoom-out; }
-.wk-lightbox.show { display: flex; }
-/* Рамка облегает картинку: кнопка закрытия — absolute, и без этого блока
-   её отсчитывал .wk-lightbox, растянутый на всё окно (inset: 0). Крестик
-   вставал в угол ЭКРАНА, а снимок рисовался по центру и меньше — замер
-   2026-08-17 на 1440 с книжным 3:4: картинка 620×827 при кнопке на 386px
-   правее её края. Задача 72; тот же приём, что у .modal-ov-viewer. */
-.wk-lightbox-frame {
-  position: relative; display: flex; max-width: 100%; max-height: 100%;
-  /* курсор наследуется от .wk-lightbox (zoom-out) — по самой картинке
-     закрытие остаётся, и обещание курсора этому не противоречит */
-}
-.wk-lightbox img { display: block; max-width: 100%; max-height: 100%; border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); }
-.wk-lightbox-close { position: absolute; top: var(--space-3); right: var(--space-3); background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); width: 38px; height: 38px; border-radius: 50%; font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; z-index: 2; }
-@media (hover: hover) {
-  .wk-lightbox-close:hover { border-color: var(--tool-accent); }
-}
+/* BACKLOG №100: правила просмотрщика удалены отсюда целиком — их место
+   занял системный вариант `.modal-ov-viewer`. Починка позиционирования
+   крестика (задача 72), сделанная здесь рамкой `.wk-lightbox-frame`,
+   в компоненте уже есть и сделана тем же приёмом. */
 .wk-progress-chart-panel { display: none; margin-top: var(--space-3); background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-3); }
 .wk-progress-chart-panel.show { display: block; }
 .wk-progress-chart-svg { width: 100%; height: 130px; overflow: visible; }
-.wk-progress-chart-empty { font-size: var(--text-caption); color: var(--text-2); text-align: center; padding: var(--space-3) 0; }
+/* BACKLOG №115: вид — системное `.empty-state .empty-state-inline`
+   (тот же кегль, тот же цвет, то же выравнивание). Осталось поле:
+   панель под графиком своих боковых отступов не имеет. */
+.wk-progress-chart-empty { padding: var(--space-3) 0; }
 .wk-ex-chartbtn { background: none; border: 1px solid var(--border-strong); color: var(--text-2); border-radius: 999px; padding: var(--space-1) var(--space-3); font-size: var(--text-mono); cursor: pointer; }
 @media (hover: hover) {
   .wk-ex-chartbtn:hover { border-color: var(--tool-accent); color: var(--text); }
@@ -626,7 +616,8 @@
 }
 .wk-alt-option img { width: 44px; height: 44px; border-radius: var(--radius-sm); object-fit: cover; flex-shrink: 0; }
 .wk-alt-option-name { font-size: var(--text-body-sm); font-weight: 600; color: var(--text); }
-.wk-alt-empty { color: var(--text-2); font-size: var(--text-caption); }
+/* BACKLOG №115: правило совпадало с `.empty-state-inline` дословно,
+   расхождение ноль. Класс удалён вместе с правилом. */
 .wk-ex-chat {
   width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
   background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2);

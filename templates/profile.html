@@ -152,9 +152,13 @@
     <div class="setting-row">
       <div>
         <div class="setting-label">Пароль</div>
-        <div class="setting-sub">Последнее изменение неизвестно</div>
+        {# Дата приходит с сервера и в поясе пользователя. Считать её здесь
+           через new Date() значило бы завести десятый источник неверной
+           даты — ровно тот, что чинили в дневнике (§5.0.6). #}
+        <div class="setting-sub" id="pwd-changed">
+          {% if pwd_changed %}Последнее изменение: {{ pwd_changed }}{% else %}Пароль ни разу не менялся{% endif %}
+        </div>
       </div>
-      <!-- TODO: реализовать эндпоинт /api/change-password (модалка ниже — UI-заглушка) -->
       <button class="btn-secondary setting-btn" onclick="открыть_модалку('modal-password')">Сменить пароль</button>
     </div>
   </div>
@@ -211,15 +215,29 @@
 {% endcall %}
 
 {% call m.modal('modal-password', 'Сменить пароль') %}
-    <p class="profile-hint">Функция в разработке — эндпоинт /api/change-password ещё не реализован.</p>
+    <p class="profile-hint">
+      Минимум {{ min_password }} символов. После смены остальные устройства
+      выйдут из аккаунта — на этом вы останетесь.
+    </p>
     <div class="form-col">
-      <input type="password" class="input" placeholder="Текущий пароль" disabled>
-      <input type="password" class="input" placeholder="Новый пароль" disabled>
-      <input type="password" class="input" placeholder="Новый пароль ещё раз" disabled>
+      <input type="password" class="input" id="pwd-current" placeholder="Текущий пароль"
+             autocomplete="current-password" oninput="сброситьОшибкуПароля()">
+      <input type="password" class="input" id="pwd-new" placeholder="Новый пароль"
+             autocomplete="new-password" oninput="сброситьОшибкуПароля()">
+      <input type="password" class="input" id="pwd-new2" placeholder="Новый пароль ещё раз"
+             autocomplete="new-password" oninput="сброситьОшибкуПароля()"
+             onkeydown="if(event.key==='Enter')отправитьСменуПароля()">
+    </div>
+    <div class="alert alert-error" id="pwd-error" hidden>
+      <i data-lucide="alert-circle"></i><span id="pwd-error-text"></span>
+    </div>
+    <div class="alert alert-success" id="pwd-done" hidden>
+      <i data-lucide="check-circle"></i><span id="pwd-done-text"></span>
     </div>
     <div class="form-actions">
       <button class="btn-ghost" type="button" data-modal-close>Закрыть</button>
-      <button class="btn-primary" disabled>Сменить</button>
+      <button class="btn-primary" type="button" id="pwd-send"
+              onclick="отправитьСменуПароля()">Сменить</button>
     </div>
 {% endcall %}
 
@@ -294,6 +312,68 @@ async function отправитьСменуПочты() {
     // Пароль стираем сразу, как в форме весов: открытый глазком пароль
     // не должен пережить закрытие окна.
     пароль.value = '';
+  } catch (e) {
+    показатьОшибку('Сеть не ответила. Попробуйте ещё раз.');
+  } finally {
+    кнопка.disabled = false;
+    кнопка.textContent = прежняя;
+  }
+}
+
+// ── Смена пароля ─────────────────────────────────────────────────────────
+// В отличие от адреса, пароль меняется ПРЯМО ЗДЕСЬ: подтверждать нечего
+// и не у кого — доказательством владения служит текущий пароль, и он
+// в этом же запросе. Поэтому и кнопка называется «Сменить», а не
+// «Отправить подтверждение».
+function сброситьОшибкуПароля() {
+  document.getElementById('pwd-error').hidden = true;
+}
+
+async function отправитьСменуПароля() {
+  const текущий = document.getElementById('pwd-current');
+  const новый = document.getElementById('pwd-new');
+  const новый2 = document.getElementById('pwd-new2');
+  const кнопка = document.getElementById('pwd-send');
+  const ошибка = document.getElementById('pwd-error');
+  const готово = document.getElementById('pwd-done');
+
+  const показатьОшибку = (текст) => {
+    document.getElementById('pwd-error-text').textContent = текст;
+    ошибка.hidden = false;
+  };
+
+  готово.hidden = true;
+  ошибка.hidden = true;
+  // Повтор сверяется и здесь, и на сервере. Здесь — чтобы не гонять запрос
+  // ради опечатки; на сервере — потому что проверка, которая живёт только
+  // в браузере, не проверка вовсе.
+  if (новый.value !== новый2.value) { показатьОшибку('Новые пароли не совпадают'); return; }
+
+  кнопка.disabled = true;
+  const прежняя = кнопка.textContent;
+  кнопка.textContent = 'Меняем…';
+  try {
+    const r = await fetch('/api/change-password', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({current: текущий.value, new: новый.value, new2: новый2.value}),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      показатьОшибку(d.error || ('Не получилось (код ' + r.status + ')'));
+      return;
+    }
+    document.getElementById('pwd-done-text').textContent =
+      'Пароль изменён. Остальные устройства вышли из аккаунта.';
+    готово.hidden = false;
+    // Пароли стираем сразу, до закрытия окна: открытый глазком пароль
+    // не должен пережить ни одного из четырёх способов закрыть модалку.
+    текущий.value = новый.value = новый2.value = '';
+    // Строка под кнопкой — с сервера, в поясе пользователя
+    if (d.changed_at) {
+      document.getElementById('pwd-changed').textContent =
+        'Последнее изменение: ' + d.changed_at;
+    }
   } catch (e) {
     показатьОшибку('Сеть не ответила. Попробуйте ещё раз.');
   } finally {
@@ -470,6 +550,20 @@ async function saveSettings() {
 document.getElementById('modal-delete').addEventListener('modal:close', () => {
   document.getElementById('delete-password').value = '';
   document.getElementById('delete-error').textContent = '';
+});
+
+// То же и у двух других окон с полем пароля. Стирание «после успешной
+// отправки» закрывает один путь из пяти: закрыть окно можно крестиком,
+// кнопкой, Escape и кликом вне — и после любого из них введённый пароль
+// оставался в DOM до следующего открытия.
+document.getElementById('modal-password').addEventListener('modal:close', () => {
+  ['pwd-current', 'pwd-new', 'pwd-new2'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('pwd-error').hidden = true;
+  document.getElementById('pwd-done').hidden = true;
+});
+document.getElementById('modal-email').addEventListener('modal:close', () => {
+  document.getElementById('email-pass').value = '';
+  document.getElementById('email-error').hidden = true;
 });
 
 // ── Удаление аккаунта ──

@@ -265,18 +265,18 @@
    которым забыли. #}
 <div class="wk-chart-tooltip" id="wkChartTooltip"></div>
 
-{# Рамка облегает картинку, и кнопка закрытия считается ОТ НЕЁ, а не от окна.
-   Без рамки кнопка позиционировалась от .wk-lightbox — прямоугольника
-   inset: 0, то есть от угла экрана; картинка же рисуется по центру и меньше.
-   Та же болезнь и та же починка, что у компонента .modal-ov-viewer
-   (style.css, задача 72). Сам лайтбокс остаётся второй реализацией
-   просмотрщика — сведение к компоненту вынесено отдельной задачей. #}
-<div class="wk-lightbox" id="wkLightbox">
-  <div class="wk-lightbox-frame">
-    <button type="button" class="wk-lightbox-close" id="wkLightboxClose">×</button>
-    <img id="wkLightboxImg" src="" alt="">
-  </div>
-</div>
+{# ПРОСМОТР ФОТО — ОБЩИЙ КОМПОНЕНТ. BACKLOG №100, закрыта 2026-08-20.
+   Здесь стоял `.wk-lightbox` — ВТОРАЯ реализация просмотрщика: свой
+   оверлей, своя кнопка закрытия, свои три обработчика в шаблоне. Дефект
+   позиционирования крестика чинили в обеих по очереди (задача 72), и это
+   было бы так же в следующий раз.
+   Поведение теперь из `modal.js`: стек окон, Escape, клик вне, возврат
+   фокуса на элемент-источник, `inert` на закрытых. Ничего из этого
+   у прежней реализации не было. #}
+{% import '_modal.html' as m %}
+{% call m.modal('wkLightbox', 'Фото упражнения', variant='modal-ov-viewer', chrome=false) %}
+      <img id="wkLightboxImg" src="" alt="Фото упражнения">
+{% endcall %}
 
 <div class="wk-chat-overlay" id="wkChatOverlay">
   <div class="wk-chat-panel">
@@ -1243,7 +1243,7 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data.alternatives || !data.alternatives.length) {
-          picker.innerHTML = '<div class="wk-alt-empty">Подходящих альтернатив не нашлось среди доступного оборудования.</div>';
+          picker.innerHTML = '<div class="empty-state empty-state-inline">Подходящих альтернатив не нашлось среди доступного оборудования.</div>';
           return;
         }
         picker.innerHTML = '<div class="wk-alt-picker-title">Те же мышцы, доступное оборудование — выберите замену на сегодня:</div>' +
@@ -1430,11 +1430,10 @@
     var img = e.target.closest('.wk-ex-img');
     if (!img || !img.dataset.lightboxSrc) return;
     $('#wkLightboxImg').src = img.dataset.lightboxSrc;
-    $('#wkLightbox').classList.add('show');
-  });
-  $('#wkLightboxClose').addEventListener('click', function () { $('#wkLightbox').classList.remove('show'); });
-  $('#wkLightbox').addEventListener('click', function (e) {
-    if (e.target === $('#wkLightbox')) $('#wkLightbox').classList.remove('show');
+    // BACKLOG №100: открытие и закрытие — компонент (static/modal.js).
+    // Здесь стояли ещё два обработчика — на крестик и на клик вне окна;
+    // Escape не закрывал, фокус после закрытия не возвращался.
+    открыть_модалку('wkLightbox');
   });
 
   function chatMsgEl(role, html) {
@@ -1788,12 +1787,12 @@
     panel.classList.add('show');
     if (panel.dataset.loaded === card.dataset.exerciseId) return;
     panel.dataset.loaded = card.dataset.exerciseId;
-    panel.innerHTML = '<div class="wk-progress-chart-empty">Загружаем…</div>';
+    panel.innerHTML = '<div class="empty-state empty-state-inline wk-progress-chart-empty">Загружаем…</div>';
     fetch('/workout/api/exercise-progress?exercise_id=' + encodeURIComponent(card.dataset.exerciseId))
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data.points || data.points.length < 2) {
-          panel.innerHTML = '<div class="wk-progress-chart-empty">Пока недостаточно данных — нужно хотя бы 2 тренировки с весом этого упражнения.</div>';
+          panel.innerHTML = '<div class="empty-state empty-state-inline wk-progress-chart-empty">Пока недостаточно данных — нужно хотя бы 2 тренировки с весом этого упражнения.</div>';
           return;
         }
         panel.innerHTML = '<svg class="wk-progress-chart-svg"></svg>';
@@ -1805,7 +1804,7 @@
           tooltipFormat: function (p) { return p.y + ' кг'; },
         });
       })
-      .catch(function () { panel.innerHTML = '<div class="wk-progress-chart-empty">Ошибка загрузки.</div>'; });
+      .catch(function () { panel.innerHTML = '<div class="empty-state empty-state-inline wk-progress-chart-empty">Ошибка загрузки.</div>'; });
   }
 
   function reloadProgramAfterPatch() {
@@ -1905,6 +1904,7 @@
 })();
 </script>
 
+<script src="{{ st('modal.js') }}"></script>
 {% include '_page_end.html' %}
 </body>
 </html>

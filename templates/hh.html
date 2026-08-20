@@ -177,8 +177,8 @@
           </div>
         </div>
 
-        <div class="empty-state" id="empty-state">
-          <div class="empty-icon"><i data-lucide="sparkles"></i></div>
+        <div class="empty-state empty-state-hero" id="empty-state">
+          <div class="empty-state-icon"><i data-lucide="sparkles"></i></div>
           <h3>Здесь появится письмо</h3>
           <p>Вставьте текст или ссылку на вакансию и нажмите «Написать письмо»</p>
         </div>
@@ -1262,7 +1262,7 @@
     const item = document.createElement('div');
     item.className = 'dosie-item';
     item.innerHTML = `
-      <button class="dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
+      <button class="btn-icon btn-icon-sm btn-icon-danger dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
       <div class="dosie-g2">
         <div class="dosie-field">
           <label class="field-label dosie-label">Язык</label>
@@ -1292,7 +1292,7 @@
     const item = document.createElement('div');
     item.className = 'dosie-item';
     item.innerHTML = `
-      <button class="dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
+      <button class="btn-icon btn-icon-sm btn-icon-danger dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
       <div class="dosie-g2">
         <div class="dosie-field">
           <label class="field-label dosie-label">Компания</label>
@@ -1345,7 +1345,7 @@
     const item = document.createElement('div');
     item.className = 'dosie-item';
     item.innerHTML = `
-      <button class="dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
+      <button class="btn-icon btn-icon-sm btn-icon-danger dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
       <div class="dosie-g2">
         <div class="dosie-field">
           <label class="field-label dosie-label">Название</label>
@@ -1411,7 +1411,7 @@
       chip.className = 'tag-chip';
       const x = document.createElement('button');
       x.type = 'button';
-      x.className = 'tag-chip-x';
+      x.className = 'btn-icon btn-icon-sm btn-icon-danger tag-chip-x';
       x.textContent = '×';
       x.onclick = () => { skillTags.splice(i, 1); renderSkillTags(); };
       chip.appendChild(document.createTextNode(tag));

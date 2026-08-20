@@ -436,7 +436,11 @@ html.assistant-mode, html.assistant-mode body {
    с общей шапкой, — на десктопе. На мобильной ширине это три отдельные
    карточки в ряд, и подпись над ними висела бы ничьей */
 .macros-cap { display: none; }
-.macro-card { flex: 1; background: var(--surface-1); border: 1px solid var(--border); border-radius: 0.75rem; padding: 0.625rem 0.6875rem; }
+/* BACKLOG №116. Было: своя карточка с фоном, рамкой, радиусом 12px
+   и паддингом 10/11px. Стало: системная `.card .card-static .card-compact`,
+   здесь только МЕСТО в ряду. Расхождение: паддинг 10/11 → 12/12,
+   радиус 12 → 12 (не менялся). */
+.macro-card { flex: 1; }
 .macro-label { font-size: 0.8125rem; color: var(--text); font-weight: 700; margin-bottom: 0.3125rem; }
 /* контур дорожек — углубление на карточке даёт всего 1.05:1, читаемость
    добираем контуром, а не затемнением (design-system.md 1.1) */
@@ -445,7 +449,8 @@ html.assistant-mode, html.assistant-mode body {
 .macro-val { font-size: 0.8125rem; font-weight: 600; }
 
 /* ── Water ── */
-.water-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 0.875rem; padding: 0.8125rem 0.875rem; margin-bottom: 0.625rem; }
+/* BACKLOG №116, то же. Расхождение: радиус 14 → 12, паддинг 13/14 → 12/12. */
+.water-card { margin-bottom: 0.625rem; }
 .water-hdr { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5625rem; }
 .water-val { margin-left: auto; font-size: 0.82rem; color: var(--wat); font-weight: 700; }
 .water-bar { --meter-h: 0.4375rem; margin-bottom: 0.625rem; }
@@ -477,16 +482,11 @@ html.assistant-mode, html.assistant-mode body {
   border-radius: 999px; padding: 0.1875rem 0.1875rem 0.1875rem 0.5625rem;
 }
 .water-log-ml { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; }
-.water-log-del {
-  width: 1.25rem; height: 1.25rem; border: none; border-radius: 50%;
-  background: none; color: var(--text-2); font-size: 0.9375rem; line-height: 1;
-  cursor: pointer; -webkit-tap-highlight-color: transparent;
-  transition: background .15s, color .15s;
-}
-.water-log-del:active { color: #ef4444; }
-@media (hover: hover) {
-  .water-log-del:hover { background: rgba(239,68,68,.16); color: #ef4444; }
-}
+/* BACKLOG №113. Было: свой крестик 20×20 с хардкодом #ef4444 в трёх
+   местах. Стало: `.btn-icon .btn-icon-round .btn-icon-sm .btn-icon-danger`.
+   Расхождение вида: размер 20 → 26, цвет покоя --text-2 → --text-faint
+   (у системной кнопки), красный из хардкода в токен --error.
+   Своих правил у класса не осталось. */
 
 .water-btns { display: flex; flex-wrap: wrap; gap: 0.4375rem; }
 .water-btn {
@@ -507,7 +507,10 @@ html.assistant-mode, html.assistant-mode body {
 .water-btn-manual:active { color: var(--wat); border-color: rgba(56,189,248,.3); }
 
 /* ── Meals ── */
-.meal-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 0.875rem; margin-bottom: 0.5625rem; overflow: hidden; }
+/* BACKLOG №116. `overflow: hidden` и отсутствие паддинга переехали
+   в системный вариант `.card-flush` — здесь остался внешний отступ.
+   Расхождение: радиус 14 → 12. */
+.meal-card { margin-bottom: 0.5625rem; }
 .meal-hdr {
   display: flex; align-items: center; gap: 0.5625rem; padding: 0.6875rem 0.8125rem;
   cursor: default; -webkit-tap-highlight-color: transparent;
@@ -527,10 +530,11 @@ html.assistant-mode, html.assistant-mode body {
 .meal-items { border-top: 1px solid var(--border); }
 /* Пустой приём: карточка остаётся и говорит «пусто». Исчезнувшая читалась бы
    как «на этот приём ничего и не планировалось» — а это другое утверждение */
-.meal-empty {
-  padding: 1rem 0.8125rem; text-align: center;
-  font-size: 0.8125rem; color: var(--text-2);
-}
+/* BACKLOG №115: вид переехал в системное `.empty-state .empty-state-inline`.
+   Расхождение: паддинг 16/13 → 12/16, кегль 13 → 13 (не менялся).
+   Здесь осталось только масштабирование по --nut-u на десктопе (§2.3),
+   и стоит оно на СВОЁМ классе, а не на системном: правило с системным
+   классом-субъектом — находка проверки 1, и правильно. */
 /* «Ещё N позиций» / «Свернуть». Раскрывает список внутри карточки, а не
    уводит на другой экран: приём пищи целиком — это то, что человек читает
    на месте (design-system.md §10.6) */
@@ -587,12 +591,13 @@ html.assistant-mode, html.assistant-mode body {
 .food-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .food-sub  { font-size: 0.8125rem; color: var(--text); font-weight: 700; margin-top: 0.0625rem; }
 .food-kcal { font-size: 0.8125rem; color: var(--tool-accent); font-weight: 600; white-space: nowrap; }
-.food-del  {
-  width: 1.625rem; height: 1.625rem; border-radius: 0.4375rem; background: rgba(239,68,68,.1);
-  border: 1px solid rgba(239,68,68,.2); color: #ef4444;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; flex-shrink: 0; font-size: .95rem; -webkit-tap-highlight-color: transparent;
-}
+/* BACKLOG №113. Было: свой крестик 26×26 с розовой заливкой и рамкой
+   на хардкодах rgba(239,68,68,…). Стало: системный набор. Размер тот же
+   (26 и был опорным при выборе), пропали заливка и рамка покоя —
+   они появляются на наведении, из `.btn-icon-danger`. */
+.food-del { background: color-mix(in srgb, var(--error) 10%, transparent);
+            border: 1px solid color-mix(in srgb, var(--error) 20%, transparent);
+            color: var(--error); }
 
 /* ── AI chat button ── */
 .ai-btn {
@@ -699,7 +704,9 @@ html.assistant-mode, html.assistant-mode body {
 .r-nobrand { font-style: italic; }
 .r-kcal  { font-size: 0.8125rem; color: var(--tool-accent); font-weight: 700; white-space: nowrap; }
 .r-per   { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; }
-.empty   { text-align: center; color: var(--text-2); font-weight: 600; padding: 1.75rem 1rem; font-size: 0.87rem; }
+/* BACKLOG №115: то же, базовая форма. Расхождение: кегль 13.9 → 15px,
+   жирность 600 → 400, паддинг 28/16 → 32/16. Имя `.nut-empty` осталось
+   только под масштаб --nut-u. */
 
 /* ── AI estimate fallback ── */
 .ai-estimate-btn {
@@ -740,9 +747,10 @@ html.assistant-mode, html.assistant-mode body {
    Не `.empty`: там сообщение об отсутствии, а здесь ДВА разных факта
    (в области нет, в базе есть N) и переход между ними. Молча подставить
    сюда находки из базы значило бы подменить область без предупреждения */
-.a-nothing { text-align: center; }
-.a-nothing-t { font-size: 0.9375rem; font-weight: 600; }
-.a-nothing-s { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-top: 0.4375rem; }
+/* BACKLOG №115: `.a-nothing` → `.empty-state`, `-t` → `.empty-state-title`,
+   `-s` → `.empty-state-sub`. Расхождение: у подписи снята жирность 600
+   (у системной её нет), кегли те же — 15 и 13. */
+.a-nothing-s { margin-top: 0.4375rem; }
 .a-nothing-go { margin-top: 0.875rem; }
 
 /* Заголовок блока приёма пищи в «Недавних». Тот приём, в который человек
@@ -1044,33 +1052,44 @@ html.assistant-mode, html.assistant-mode body {
    до трёх ракурсов за одну дату, и кнопка под ней не сказала бы, какой
    из трёх удалит */
 .compare-shot { position: relative; }
-.compare-del {
-  position: absolute; top: 0.375rem; right: 0.375rem;
-  background: rgba(10, 11, 13, .72); border: 1px solid var(--border-strong);
-}
-@media (hover: hover) {
-  .compare-del:hover { color: var(--error); border-color: var(--error); }
-}
+/* BACKLOG №119. Подложка и отклик переехали в системный
+   `.btn-icon-overlay`: это правило существовало ДВАЖДЫ — здесь
+   и в `workout_profile.css` под именем `.wk-compare-del`, побайтово
+   одинаково. Здесь осталось только МЕСТО на снимке. */
+.compare-del { position: absolute; top: 0.375rem; right: 0.375rem; }
 .f-label { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-bottom: 0.3125rem; display: block; }
 /* .f-input здесь больше нет: это была копия системного .input (25 полей
    в шести формах). Теперь .input .input-compact, у списков .select.
    BACKLOG.md, задача 42. */
 .f-field { margin-bottom: 0.6875rem; }
-.radio-row { display: flex; gap: 0.4375rem; }
-.radio-btn {
-  flex: 1; height: 2.5rem; border-radius: 0.625rem; border: 1px solid var(--border);
-  background: var(--surface-sunken); color: var(--text-2); font-size: 0.8125rem; font-weight: 600;
-  cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
+/* BACKLOG №114. Было: свой ряд + своя кнопка `.radio-btn` (радиус 10px,
+   активная в акценте). Стало: системные `.segmented` / `.segmented-btn`.
+   Расхождение вида названо: у ряда появилась подложка --surface-2,
+   у кнопок пропала своя рамка, активная перешла с акцента на --surface-3.
+   Последнее — не вкус: design-system.md §2.12 прямо говорит, что акцент
+   означает ДЕЙСТВИЕ, а выбранный режим это СОСТОЯНИЕ. */
+/* АКЦЕНТНАЯ ВРЕЗКА — ОДНО ИМЯ НА ОБЕ ВКЛАДКИ. BACKLOG №117.
+   Было два класса, `.targets-box` («Профиль») и `.calc-box` («Добавить»),
+   с ДОСЛОВНО совпадающими фоном и рамкой и разошедшимися на 2px радиусом
+   и отступом (13/14 против 11/13). Одна роль на двух вкладках; человек,
+   глядя на них по очереди, разницы не назовёт — значит, различие
+   не задумано, а накоплено.
+   Взяты токены системы: --radius-md (12px) — ровно между 11 и 13,
+   --space-3 (12px) — так же между 11 и 13/14. То есть ни одна из двух
+   не «победила»: обе сведены на ближайшую ступень шкалы.
+   В системе такого компонента нет; это врезка КОНКРЕТНОГО экрана,
+   и системный `.alert-accent` — про сообщение, а не про контейнер
+   с полями внутри (design-system.md §2.15). */
+.accent-box {
+  background: var(--tool-accent-dim);
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 20%, transparent);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
 }
-.radio-btn.active { background: var(--tool-accent-dim); border-color: color-mix(in srgb, var(--tool-accent) 35%, transparent); color: var(--tool-accent); }
-.act-btn {
-  width: 100%; text-align: left; padding: 0.625rem 0.8125rem; border-radius: 0.625rem;
-  border: 1px solid var(--border); background: var(--surface-sunken); color: var(--text-2);
-  font-size: 0.8125rem; font-weight: 600; cursor: pointer; margin-bottom: 0.3125rem;
-  transition: all .15s; -webkit-tap-highlight-color: transparent; font-family: var(--font);
-}
-.act-btn.active { background: var(--tool-accent-dim); border-color: color-mix(in srgb, var(--tool-accent) 35%, transparent); color: var(--tool-accent); }
-.targets-box { background: var(--tool-accent-dim); border: 1px solid color-mix(in srgb, var(--tool-accent) 20%, transparent); border-radius: 0.8125rem; padding: 0.8125rem 0.875rem; margin: 0.875rem 0; }
+/* Внешние отступы — у экземпляра, а не у врезки: на «Профиле» она стоит
+   между блоками, на «Добавить» — последней в колонке. */
+.accent-box-targets { margin: 0.875rem 0; }
+.accent-box-calc { margin-bottom: 0.875rem; }
 .targets-title { font-size: 0.8125rem; color: var(--tool-accent); font-weight: 700; margin-bottom: 0.5rem; }
 .targets-row { display: flex; gap: 0.4375rem; }
 .t-item { flex: 1; text-align: center; }
@@ -1104,13 +1123,12 @@ html.assistant-mode, html.assistant-mode body {
 .por-name { font-size: 0.97rem; font-weight: 700; margin-bottom: 0.1875rem; }
 .por-sub-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.8125rem; }
 .por-sub  { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; }
-.por-edit-btn {
-  flex-shrink: 0; display: flex; align-items: center; gap: 0.25rem;
-  padding: 0.3125rem 0.6875rem; border-radius: 1.25rem; background: var(--surface-sunken); border: 1px solid var(--border);
-  color: var(--text-2); font-size: 0.8125rem; font-weight: 600; cursor: pointer;
-  -webkit-tap-highlight-color: transparent; transition: all .15s; white-space: nowrap;
-}
-.por-edit-btn.active { color: var(--tool-accent); border-color: color-mix(in srgb, var(--tool-accent) 35%, transparent); background: var(--tool-accent-dim); }
+/* BACKLOG №114. Было: своя пилюля `.por-edit-btn` с активным состоянием
+   в акценте. Стало: системный `.chip` — он и есть пилюля, и его `.active`
+   уже красится акцентом (design-system.md §2.х). Расхождение вида:
+   подложка --surface-sunken → --surface-2, вес 600 → 500, паддинг
+   5/11 → 4/12. Здесь остался только запрет сжиматься в ряду. */
+.por-edit-btn { flex-shrink: 0; }
 .por-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5625rem; margin: 0 0 0.875rem; }
 .por-edit-grid .f-field { margin-bottom: 0; }
 .g-wrap   { display: flex; align-items: center; gap: 0.5625rem; margin-bottom: 0.625rem; }
@@ -1129,18 +1147,11 @@ html.assistant-mode, html.assistant-mode body {
 .g-input:focus { border-color: var(--tool-accent); }
 .g-lbl { color: var(--text-2); font-size: 0.88rem; font-weight: 600; }
 .q-grams { display: flex; gap: 0.4375rem; margin-bottom: 0.875rem; flex-wrap: wrap; }
-.q-btn {
-  padding: 0.375rem 0.8125rem; border-radius: 0.5rem; background: var(--surface-sunken); border: 1px solid var(--border);
-  color: var(--text-2); font-size: 0.8125rem; font-weight: 600; cursor: pointer;
-  -webkit-tap-highlight-color: transparent; transition: all .1s;
-}
-.q-btn:active { color: var(--tool-accent); border-color: var(--tool-accent); }
-/* Быстрые граммовки переехали из модалки ещё и в панель на десктопе, где
-   по ним водят курсором. Отклика не было ни у одной — только на нажатие */
-@media (hover: hover) {
-  .q-btn:hover { color: var(--text); border-color: var(--border-strong); }
-}
-.calc-box { background: var(--tool-accent-dim); border: 1px solid color-mix(in srgb, var(--tool-accent) 20%, transparent); border-radius: 0.6875rem; padding: 0.6875rem 0.8125rem; margin-bottom: 0.875rem; }
+/* BACKLOG №114. Быстрые граммовки — не переключатель: состояния `.active`
+   у них нет и не было, это разовые действия. Значит не `.segmented`,
+   а системный `.chip`: отклик на наведение и нажатие у него свой.
+   Расхождение вида: радиус 8 → 999 (пилюля), подложка --surface-sunken →
+   --surface-2, вес 600 → 500. Своих правил у класса не осталось. */
 .calc-kcal   { font-size: 1.45rem; font-weight: 800; color: var(--tool-accent); font-family: var(--font); }
 .calc-macros { font-size: 0.8125rem; color: var(--text-2); font-weight: 600; margin-top: 0.125rem; }
 .add-btn {
@@ -1325,13 +1336,12 @@ html.assistant-mode, html.assistant-mode body {
    то, чего нет, — тихий ноль, который читается как «проверено» */
 .chat-attach-btn.voice-active { visibility: hidden; }
 /* Удалить запись (слева) и отправить (справа) */
-.voice-rec-del, .voice-rec-send {
-  width: 2.25rem; height: 2.25rem; border-radius: 50%; border: none; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center; cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
+/* BACKLOG №113. Обе кнопки диктофона — системные `.btn-icon .btn-icon-round`.
+   Переводятся ПАРОЙ: «удалить» здесь не инлайновый крестик, а орган
+   управления записью, и его размер задан соседкой «отправить». Сведи
+   одну — и пара разъедется. Расхождение вида: 36 → 40px у обеих.
+   Здесь остались только заливки. */
 .voice-rec-del { background: color-mix(in srgb, var(--error) 12%, transparent); color: var(--error); }
-.voice-rec-del svg { width: 0.9375rem; height: 0.9375rem; }
 /* иконка на заливке акцента — --tool-accent-ink, тот же токен, что
    у системной `.btn-icon-accent`. Соседний .voice-rec-del не трогаем:
    у него фон полупрозрачный красный на тёмной подложке, там как раз
@@ -1392,7 +1402,7 @@ html.assistant-mode, html.assistant-mode body {
 
    Ниже только РАСКЛАДКА: поля, чипы, кнопки и коробка итога — системные
    (.input .input-compact, .chip, .btn-primary, .btn-ghost, .btn-icon,
-   .calc-box). Префикс .fd-* стоит на том, чего в системе нет и быть
+   .accent-box). Префикс .fd-* стоит на том, чего в системе нет и быть
    не должно, — на устройстве конкретного экрана (§6.0.2). */
 .fd-bubble { width: 100%; }
 .fd-head {
@@ -1405,10 +1415,10 @@ html.assistant-mode, html.assistant-mode body {
   font-family: var(--font-mono); font-size: var(--text-caption); color: var(--text-2);
   min-width: 3.75rem; text-align: center;
 }
-.fd-card {
-  background: var(--surface-sunken); border: 1px solid var(--border);
-  border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-3);
-}
+/* BACKLOG №116. Геометрия совпадала с `.card-compact` ДОСЛОВНО, фон —
+   с `.card-nested`. Расхождение ноль: карточка была сведена наполовину
+   ещё задачей 79, здесь досведена до конца. */
+.fd-card { margin-bottom: var(--space-3); }
 .fd-card .f-field { margin-bottom: var(--space-2); }
 /* Чипы приёмов пищи переносятся, а не уезжают в горизонтальную прокрутку:
    у .s-chips на экране поиска стоит overflow-x, и внутри карточки шириной
@@ -1427,19 +1437,18 @@ html.assistant-mode, html.assistant-mode body {
 .ing-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
 .ing-name { flex: 1; font-size: 0.83rem; }
 .ing-g    { font-size: 0.8125rem; color: var(--tool-accent); }
-.ing-del  { color: #ef4444; background: none; border: none; font-size: 1rem; cursor: pointer; padding: 0 0.25rem; }
+/* BACKLOG №113. Было: без размера вовсе, кегль 16px, хардкод цвета.
+   Стало: системный набор, размер 26. */
 .ing-add-btn {
   width: 100%; height: 2.375rem; border-radius: 0.5625rem; background: var(--surface-sunken);
   border: 1px solid var(--border); color: var(--text-2); font-size: 0.83rem;
   cursor: pointer; -webkit-tap-highlight-color: transparent; font-family: var(--font);
 }
-.frac-btns { display: flex; gap: 0.4375rem; flex-wrap: wrap; margin-bottom: 0.875rem; }
-.frac-btn {
-  padding: 0.4375rem 0.8125rem; border-radius: 0.5rem; background: var(--surface-sunken); border: 1px solid var(--border);
-  color: var(--text-2); font-size: 0.82rem; cursor: pointer;
-  -webkit-tap-highlight-color: transparent; transition: all .1s;
-}
-.frac-btn.active { background: var(--tool-accent-dim); border-color: color-mix(in srgb, var(--tool-accent) 35%, transparent); color: var(--tool-accent); }
+.frac-btns { margin-bottom: 0.875rem; }
+/* BACKLOG №114. Пять взаимоисключающих долей порции — ровно роль
+   `.segmented` (design-system.md §2.12). Расхождение вида: у ряда
+   появилась подложка --surface-2, у кнопок пропала своя рамка,
+   активная перешла с акцента на --surface-3. */
 
 /* ── Measure modal ── */
 .meas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
@@ -1513,10 +1522,10 @@ html.assistant-mode, html.assistant-mode body {
    (design-system.md §2.15): пересчёт ещё не случился, сообщать об успехе
    или отказе нечего. Здесь только место в колонке */
 .p-warn        { margin-bottom: 0.625rem; line-height: 1.5; }
-/* Ровно то, что стояло инлайном: flex:none и ничего сверх. Ширину и нижний
-   отступ .act-btn не трогаем — иначе это была бы не замена инлайна классом,
-   а тихая правка раскладки под видом уборки. */
-.act-btn-auto   { flex: none; }
+/* `.act-btn-auto` УДАЛЁН 2026-08-20: правило описывало класс, которого
+   в разметке нет НИ РАЗУ (греп по templates/ и static/ — ноль). Найдено
+   попутно при сведении задачи 114. Правило, описывающее несуществующий
+   класс, ловит следующего, кто возьмёт имя из файла. */
 /* `.p-actions` и `.act-btn-danger` УДАЛЕНЫ 2026-08-19 вместе с разметкой,
    а не оставлены пустыми правилами. Ими был собран ряд кнопок блока весов;
    ряд теперь свой (`.scale-acts`), а разрушающее действие — системная
@@ -1642,7 +1651,8 @@ html.assistant-mode, html.assistant-mode body {
 .compare-select { flex: 1; min-width: 7.5rem; }
 .compare-arrow  { color: var(--text-2); }
 .compare-view   { display: flex; gap: 0.625rem; flex-wrap: wrap; }
-.compare-empty  { font-size: 0.8125rem; color: var(--text-2); }
+/* BACKLOG №115: правило совпадало с `.empty-state-inline` дословно
+   по кеглю и цвету, расхождение ноль. Класс удалён вместе с правилом. */
 
 /* ── Отступы кнопок, отличные от базовых ── */
 .save-btn-flush { margin-top: 0; }
@@ -1662,7 +1672,7 @@ html.assistant-mode, html.assistant-mode body {
 .por-sub-gap  { margin-bottom: 0.875rem; }
 .macros-row-modal { margin-bottom: 1rem; }
 .s-bar-flush  { margin-bottom: 0; }
-.calc-box-gap { margin-top: 0.6875rem; }
+.accent-box-gap { margin-top: 0.6875rem; }
 .g-wrap-gap   { margin-bottom: 0.8125rem; }
 .chat-input-row-modal { padding-bottom: var(--space-4); }
 
@@ -1688,11 +1698,11 @@ html.assistant-mode, html.assistant-mode body {
 @media (hover: hover) {
   .food-edit:hover { color: var(--tool-accent); background: var(--surface-2); }
 }
-.recipe-del {
-  color: #ef4444; background: none; border: none;
-  font-size: 1.1rem; padding: 0.25rem; cursor: pointer;
-}
-.chat-empty { text-align: center; padding: var(--space-5) 0; }
+/* BACKLOG №113. Было: без размера, кегль 17.6px, хардкод цвета.
+   Стало: системный набор, размер 26. */
+/* BACKLOG №115: центрирование и цвет — из `.empty-state`, здесь остался
+   только отступ экземпляра (лента переписки, поля по бокам свои). */
+.chat-empty { padding: var(--space-5) 0; }
 .wt-dot { cursor: pointer; transition: r .1s; }
 .wt-hit { cursor: pointer; }
 
@@ -2314,7 +2324,7 @@ html.assistant-mode, html.assistant-mode body {
   .r-brand { font-size: calc(0.82 * var(--nut-u)); }
   .r-kcal { font-size: calc(0.94 * var(--nut-u)); }
   .r-per { font-size: calc(0.8 * var(--nut-u)); }
-  .empty { font-size: calc(0.87 * var(--nut-u)); }
+  .nut-empty { font-size: calc(0.9375 * var(--nut-u)); }
 
   /* ── ИСТОРИЯ: слева день целиком, справа календарь и сводка ────────────
      ШИРИНА И МАСШТАБ — ТЕ ЖЕ, ЧТО У ДНЕВНИКА И «ДОБАВИТЬ», и той же
@@ -2428,8 +2438,6 @@ html.assistant-mode, html.assistant-mode body {
   #tab-profile.active { display: grid; grid-template-columns: 1fr 1fr; gap: 1.75rem; overflow: hidden; }
   .p-sec-title { font-size: .82rem; }
   .f-label { font-size: .88rem; }
-  .radio-btn { height: 2.875rem; font-size: .92rem; }
-  .act-btn { padding: 0.8125rem 1rem; font-size: .92rem; }
   .targets-title { font-size: .9rem; }
   .t-val { font-size: 1.3rem; }
   .t-lbl { font-size: .8rem; }
