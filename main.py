@@ -17,7 +17,8 @@ from pydantic import BaseModel
 from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, BackgroundTasks, Cookie
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, PlainTextResponse
+from fastapi.responses import (JSONResponse, RedirectResponse, FileResponse,
+                               PlainTextResponse, Response)
 from fastapi.exceptions import HTTPException
 from bs4 import BeautifulSoup
 import httpx
@@ -8927,6 +8928,140 @@ def _media_src(kind: str, запись) -> str | None:
     тихо росла бы обратно. Теперь единственный источник — файл.
     """
     return _media_url(kind, getattr(запись, "image_path", None))
+
+
+# ── Превью видео упражнения: ФАСАД вместо плеера (BACKLOG №73) ─────────────
+#
+# ЗАЧЕМ. Встроенный плеер тянет обвязку YouTube — заголовок, канал,
+# логотип, «другие видео» в конце, — и всё это ссылки, уводящие с сайта
+# посреди тренировки. Смена домена на `youtube-nocookie.com` этого
+# не лечит: она убирает часть кук, а обвязку и запросы оставляет.
+#
+# Фасад: страница показывает СВОЮ картинку и кнопку, а `<iframe>`
+# подставляется только по нажатию. До нажатия к youtube.com не уходит
+# ни одного запроса — ни за кадром, ни за скриптом.
+#
+# ПОЧЕМУ КАРТИНКА НЕ СО СТОРОНЫ. `i.ytimg.com` и `img.youtube.com` —
+# тот же YouTube: ссылка на них оставляет ровно те запросы, ради снятия
+# которых всё и делается. Поэтому кадр забирает СЕРВЕР, один раз,
+# и кладёт на том рядом с аватарами.
+#
+# ПОЧЕМУ НЕ В РЕПОЗИТОРИЙ. Кадров 852 (по числу упражнений с видео),
+# это чужие изображения, и репозиторий публичный. На томе они переживают
+# деплой и не попадают ни в образ, ни в ежедневный архив базы.
+#
+# ПОЧЕМУ ТОЛЬКО СВОИ id. Эндпоинт ходит наружу, то есть без ограничения
+# это открытый прокси за картинками YouTube по любому id. Кадр берётся
+# только для видео, которое есть в НАШЕМ справочнике: сверка по таблице
+# `exercises` перед запросом. Чужой id даёт 404, ничего не скачивая.
+PREVIEW_DIR = os.path.join(os.path.dirname(DB_PATH) if os.path.dirname(DB_PATH) else ".", "previews")
+PREVIEW_ID_RE = re.compile(r"[A-Za-z0-9_-]{11}")
+PREVIEW_TIMEOUT = 8.0
+PREVIEW_MAX_BYTES = 2 * 1024 * 1024
+
+# Неудачную попытку помним 10 минут, чтобы не долбить YouTube на каждой
+# перерисовке списка. Именно ПАМЯТЬ процесса, а не файл: отрицательный
+# результат обязан protухать сам, и переживать перезапуск ему незачем —
+# в отличие от счёта попыток входа (§8.1), где ровно наоборот.
+_превью_не_вышло: Dict[str, float] = {}
+PREVIEW_RETRY_SEC = 600
+
+# Кадры YouTube отдаёт не всем роликам одинаково: у части нет maxres.
+# Порядок — от лучшего к худшему, берём первый ответивший.
+PREVIEW_ИСТОЧНИКИ = ("maxresdefault", "hqdefault", "mqdefault")
+
+
+def _preview_path(youtube_id: str) -> str:
+    if not PREVIEW_ID_RE.fullmatch(youtube_id or ""):
+        raise ValueError("недопустимый id видео")
+    return os.path.join(PREVIEW_DIR, youtube_id + ".jpg")
+
+
+# Заглушка на случай «кадра нет»: СВОЙ файл, а не ссылка наружу.
+# Отдаётся с `no-store`, чтобы следующая попытка могла удаться — иначе
+# разовый сбой сети замораживал бы серую плашку у пользователя навсегда.
+PREVIEW_ЗАГЛУШКА = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180">'
+    '<rect width="320" height="180" fill="#16181f"/>'
+    '<circle cx="160" cy="90" r="30" fill="none" stroke="#3a3f4d" stroke-width="3"/>'
+    '<path d="M152 76l24 14-24 14z" fill="#3a3f4d"/>'
+    '</svg>'
+).encode("utf-8")
+
+
+async def _скачать_превью(youtube_id: str) -> Optional[bytes]:
+    """Забирает кадр у YouTube. None — не вышло, причина в лог.
+
+    Асинхронный клиент, а не синхронный: синхронный httpx внутри
+    async-обработчика останавливает цикл событий целиком (§6.0.5,
+    проверка 11), и там это уже стоило сайту полминуты простоя.
+    """
+    async with httpx.AsyncClient(timeout=PREVIEW_TIMEOUT) as кл:
+        for имя in PREVIEW_ИСТОЧНИКИ:
+            адрес = f"https://i.ytimg.com/vi/{youtube_id}/{имя}.jpg"
+            try:
+                о = await кл.get(адрес)
+            except httpx.HTTPError as e:
+                print(f"[превью] {youtube_id} {имя}: сеть — {e}")
+                continue
+            if о.status_code != 200:
+                continue
+            # YouTube отдаёт заглушку 120×90 «нет кадра» с кодом 200,
+            # и она весит около килобайта. Отличаем по размеру: принять
+            # её значило бы закешировать серый прямоугольник навсегда.
+            if len(о.content) < 2000:
+                continue
+            if len(о.content) > PREVIEW_MAX_BYTES:
+                print(f"[превью] {youtube_id} {имя}: {len(о.content)} байт — велик")
+                continue
+            return о.content
+    return None
+
+
+@app.get("/exercise-preview/{youtube_id}.jpg")
+async def exercise_preview(youtube_id: str, db: Session = Depends(get_db)):
+    """Кадр видео упражнения — со своего домена, а не с YouTube."""
+    try:
+        путь = _preview_path(youtube_id)
+    except ValueError:
+        return JSONResponse({"error": "нет превью"}, status_code=404)
+
+    if os.path.exists(путь):
+        return FileResponse(путь, media_type="image/jpeg", headers={
+            # Адрес несёт id видео, а кадр у видео не меняется, поэтому
+            # год и immutable — как у статики с отпечатком (§2.2).
+            "Cache-Control": "public, max-age=31536000, immutable"})
+
+    # Сверка со справочником — до всякого обращения наружу. Запрос
+    # по индексу, 0.1 мс: в поток НЕ уносится (§6.0.5, там же граница).
+    свой = db.query(Exercise.id).filter(
+        Exercise.youtube_id == youtube_id).first()
+    if not свой:
+        return JSONResponse({"error": "нет превью"}, status_code=404)
+
+    когда = _превью_не_вышло.get(youtube_id)
+    if когда and time.time() - когда < PREVIEW_RETRY_SEC:
+        данные = None
+    else:
+        данные = await _скачать_превью(youtube_id)
+
+    if данные is None:
+        _превью_не_вышло[youtube_id] = time.time()
+        return Response(content=PREVIEW_ЗАГЛУШКА, media_type="image/svg+xml",
+                        headers={"Cache-Control": "no-store"})
+
+    _превью_не_вышло.pop(youtube_id, None)
+    try:
+        os.makedirs(PREVIEW_DIR, exist_ok=True)
+        временный = путь + ".part"
+        with open(временный, "wb") as ф:
+            ф.write(данные)
+        os.replace(временный, путь)
+    except OSError as e:
+        # Кадр отдаём всё равно: не записали — не повод не показать.
+        print(f"[превью] {youtube_id}: не записался на том — {e}")
+    return Response(content=данные, media_type="image/jpeg", headers={
+        "Cache-Control": "public, max-age=31536000, immutable"})
 
 
 AVATAR_DIR = os.path.join(os.path.dirname(DB_PATH) if os.path.dirname(DB_PATH) else ".", "avatars")

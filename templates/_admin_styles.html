@@ -147,7 +147,28 @@
     white-space: nowrap; width: 112px;
     text-align: right;   /* прижать кнопки к правому краю — иначе они «плавали» посередине колонки */
   }
-  .foods-table th:nth-child(1), .foods-table td:nth-child(1) { width: 148px; }
+  /* Колонка «Пользователь» — 240px и ПЕРЕНОС ПО СИМВОЛУ (BACKLOG №59).
+     Было 148px без переноса, и адрес НЕ обрезался, вопреки заголовку
+     задачи: `overflow` там `visible`, `text-overflow` — `clip`, то есть
+     ни многоточия, ни обрезки нет вовсе. Он ВЫЛЕЗАЛ за колонку и налезал
+     на соседнюю. Замер 2026-08-20 на 1440: адрес в 65 знаков давал
+     scrollWidth 188 при clientWidth 148 (+40px наружу) и раздувал строку
+     до 108px против обычных 64. Переполнялся и обычный
+     `screenshot@local.dev` — 158 против 148, то есть +10px.
+
+     `overflow-wrap: anywhere`, а не `word-break: break-all`: первый рвёт
+     слово ТОЛЬКО когда иначе не помещается, второй рвёт всегда и режет
+     короткие адреса без нужды. Многоточия не появилось и не должно:
+     обрезанный адрес не отличает одного пользователя от другого — ровно
+     то, ради чего колонка существует.
+
+     240px взяты у колонок 2 и 3, у которых явной ширины нет и которые
+     делят остаток: замер до правки давал им по 382px на 1440 и по 409px
+     на 1920+, то есть запас есть. Сумма ширин ниже не участвует
+     в мобильном min-width: там колонка скрыта целиком (см. ниже). */
+  .foods-table th:nth-child(1), .foods-table td:nth-child(1) {
+    width: 240px; overflow-wrap: anywhere;
+  }
   /* col 2 (Название) и col 3 (Бренд) без явной ширины — делят остаток */
   .foods-table th:nth-child(4), .foods-table td:nth-child(4) { width: 96px; }
   .foods-table th:nth-child(5), .foods-table td:nth-child(5) { width: 80px; }
@@ -396,12 +417,26 @@
   @media (max-width: 640px) { .ex-grid { grid-template-columns: 1fr; } }
 
   .ex-card { padding: 0; overflow: hidden; }
+  /* Превью с видео — НАСТОЯЩАЯ <button>, а не div с onclick (BACKLOG №73).
+     Раньше до него нельзя было дойти табом и нечем было запустить видео
+     с клавиатуры: обработчик висел на div, а div в порядок обхода
+     не входит. Сброс ниже нужен затем, чтобы кнопка выглядела ровно как
+     прежний div — своих полей, рамки и фона у неё быть не должно. */
   .ex-card-thumb {
     position: relative; width: 100%;
     aspect-ratio: 16/9;
     background: var(--surface-2);
     overflow: hidden;
+    display: block; padding: 0; border: 0; margin: 0;
+    font: inherit; color: inherit; text-align: inherit;
   }
+  .ex-card-thumb:focus-visible {
+    outline: 2px solid var(--tool-accent, var(--accent-brand));
+    outline-offset: -2px;
+  }
+  /* Кадр показывает, что он кликабелен, и в фокусе тоже — иначе идущий
+     табом не видит, на чём стоит. */
+  .ex-card-thumb:focus-visible .ex-card-play { opacity: 1; }
   /* Указатель — только у превью, которое открывается. `onclick` разметка
      ставит лишь при наличии youtube_id, и селектор по атрибуту повторяет
      то же условие: одно место решает, а не два (BACKLOG.md, задача 71).

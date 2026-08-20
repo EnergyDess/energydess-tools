@@ -157,8 +157,12 @@ function cardHtml(e) {
   const badge = e.video_status !== 'unchecked'
     ? `<span class="ex-card-badge ex-badge-${e.video_status}">${STATUS_LABELS[e.video_status]}</span>`
     : '';
+  // Кадр берётся со СВОЕГО домена, а не с img.youtube.com: ссылка на
+  // YouTube оставляет ровно те запросы, ради снятия которых заведён фасад
+  // (BACKLOG №73). Замер до правки на этой странице: 5 запросов
+  // к img.youtube.com при загрузке, и это только видимые карточки.
   const thumb = e.youtube_id
-    ? `<img src="https://img.youtube.com/vi/${e.youtube_id}/mqdefault.jpg" alt="" loading="lazy">
+    ? `<img src="/exercise-preview/${escHtml(e.youtube_id)}.jpg" alt="" loading="lazy">
        <div class="ex-card-play"><svg viewBox="0 0 68 48" width="48" height="34"><path d="M66.5 7.7c-.8-2.9-2.5-5.2-5.4-6C55.8.2 34 0 34 0S12.2.2 6.9 1.7c-2.9.8-4.6 3.1-5.4 6C0 13 0 24 0 24s0 11 1.5 16.3c.8 2.9 2.5 5.1 5.4 5.9C12.2 47.7 34 48 34 48s21.8-.3 27.1-1.8c2.9-.8 4.6-3 5.4-5.9C68 35 68 24 68 24s0-11-1.5-16.3z" fill="#f00"/><path d="M45 24 27 14v20" fill="#fff"/></svg></div>`
     : `<div class="ex-card-thumb-empty">Без видео</div>`;
   const equipLabel = EQUIPMENT_LABELS[e.equipment] || e.equipment || '—';
@@ -188,10 +192,13 @@ function cardHtml(e) {
 
   return `
     <div class="card ex-card" data-id="${escHtml(e.id)}">
-      <div class="ex-card-thumb" ${e.youtube_id ? `onclick="openVideoModal('${escHtml(e.youtube_id)}')"` : ''}>
-        ${thumb}
-        ${badge}
-      </div>
+      ${e.youtube_id
+        ? `<button type="button" class="ex-card-thumb"
+             onclick="openVideoModal('${escHtml(e.youtube_id)}')"
+             aria-label="Смотреть видео: ${escHtml(e.name_ru)}">
+             ${thumb}${badge}
+           </button>`
+        : `<div class="ex-card-thumb">${thumb}${badge}</div>`}
       <div class="ex-card-body">
         <div class="ex-card-name">${escHtml(e.name_ru)}</div>
         ${nameEn}

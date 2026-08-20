@@ -647,6 +647,35 @@
 .wk-ex-video { aspect-ratio: 16 / 9; border-radius: var(--radius-sm); overflow: hidden; margin-bottom: var(--space-3); background: var(--surface-sunken); }
 .wk-ex-video iframe { width: 100%; height: 100%; border: 0; display: block; }
 
+/* ── Фасад видео: свой кадр и кнопка вместо плеера (BACKLOG №73) ─────────
+   Плеер тянет обвязку YouTube — заголовок, канал, логотип, «другие видео»
+   в конце, — и всё это ссылки, уводящие с сайта посреди тренировки.
+   Кадр отдаёт свой /exercise-preview/{id}.jpg, <iframe> появляется только
+   по нажатию. НАСТОЯЩАЯ <button>, поэтому сброс полей и рамки. */
+.wk-ex-video-facade {
+  position: relative; display: block; width: 100%; height: 100%;
+  padding: 0; border: 0; margin: 0; background: none;
+  cursor: pointer; font: inherit; color: inherit;
+}
+.wk-ex-video-facade img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.wk-ex-video-play {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--surface-0) 25%, transparent);
+  transition: background var(--dur-fast) var(--ease);
+}
+.wk-ex-video-play svg { width: 68px; height: 48px; filter: drop-shadow(var(--shadow-md)); }
+/* Знак остаётся виден ВСЕГДА: он и говорит, что это видео, а не картинка.
+   Наведение и фокус только снимают затемнение с кадра. */
+@media (hover: hover) {
+  .wk-ex-video-facade:hover .wk-ex-video-play { background: transparent; }
+}
+.wk-ex-video-facade:focus-visible {
+  outline: 2px solid var(--tool-accent, var(--accent-brand));
+  outline-offset: -2px;
+}
+.wk-ex-video-facade:focus-visible .wk-ex-video-play { background: transparent; }
+
 .wk-ex-history { font-size: var(--text-caption); color: var(--text-2); background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-3); margin-top: var(--space-3); display: none; }
 .wk-ex-history.show { display: block; }
 .wk-ex-history-title { font-weight: 600; color: var(--text); margin-bottom: var(--space-1); }

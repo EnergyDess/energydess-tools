@@ -696,8 +696,27 @@
       progLine = 'Прогрессия: +' + p.step_kg + ' кг (' + eqLabel + ')';
     }
     var howtoSteps = (d.instructions_ru || []).map(function (s) { return '<li>' + s + '</li>'; }).join('');
+    // ФАСАД, а не плеер (BACKLOG №73): свой кадр и настоящая кнопка,
+    // <iframe> подставляется только по нажатию. До нажатия к YouTube
+    // не уходит ни одного запроса — ни за кадром, ни за скриптом плеера.
+    // Кадр берёт наш /exercise-preview/{id}.jpg; i.ytimg.com — тот же
+    // YouTube, ссылка на него задачу бы не решила.
     var videoEmbed = d.youtube_id
-      ? '<div class="wk-ex-video" data-youtube-id="' + d.youtube_id + '"></div>'
+      ? '<div class="wk-ex-video" data-youtube-id="' + d.youtube_id + '">' +
+          // Подпись без имени упражнения НАМЕРЕННО: в этом файле нет
+          // экранирования атрибутов (соседние строки вставляют name_ru
+          // как есть), а кавычка в названии порвала бы разметку. Имя
+          // стоит рядом в карточке — .wk-ex-name, — и читалка его
+          // объявит; заводить помощника ради одной подписи незачем.
+          '<button type="button" class="wk-ex-video-facade" ' +
+            'aria-label="Смотреть видео техники выполнения">' +
+            '<img src="/exercise-preview/' + encodeURIComponent(d.youtube_id) +
+              '.jpg" alt="" loading="lazy">' +
+            '<span class="wk-ex-video-play"><svg viewBox="0 0 68 48" aria-hidden="true">' +
+              '<path d="M66.5 7.7c-.8-2.9-2.5-5.2-5.4-6C55.8.2 34 0 34 0S12.2.2 6.9 1.7c-2.9.8-4.6 3.1-5.4 6C0 13 0 24 0 24s0 11 1.5 16.3c.8 2.9 2.5 5.1 5.4 5.9C12.2 47.7 34 48 34 48s21.8-.3 27.1-1.8c2.9-.8 4.6-3 5.4-5.9C68 35 68 24 68 24s0-11-1.5-16.3z" fill="#f00"/>' +
+              '<path d="M45 24 27 14v20" fill="#fff"/></svg></span>' +
+          '</button>' +
+        '</div>'
       : '';
     var reminderBanner = p.status === 'pending_at_gym'
       ? '<div class="wk-machine-reminder"><i data-lucide="map-pin"></i> Напоминание: вы собирались уточнить шкалу этого тренажёра, когда будете в зале — нажмите «изменить» рядом с прогрессией, если сейчас удобно.</div>'
@@ -1028,17 +1047,27 @@
         var howto = howtoToggle.nextElementSibling;
         howto.classList.toggle('show');
         howtoToggle.textContent = howto.classList.contains('show') ? 'Как выполнять ▴' : 'Как выполнять ▾';
-        // плеер встраивается только при первом открытии — не грузим видео для
-        // упражнений, которые пользователь не разворачивал
-        var videoBox = $('.wk-ex-video', howto);
-        if (videoBox && videoBox.dataset.youtubeId && !videoBox.firstChild) {
-          var iframe = document.createElement('iframe');
-          iframe.src = 'https://www.youtube-nocookie.com/embed/' + videoBox.dataset.youtubeId;
-          iframe.title = 'Видео техники выполнения';
-          iframe.allow = 'accelerometer; encrypted-media; gyroscope; picture-in-picture';
-          iframe.allowFullscreen = true;
-          videoBox.appendChild(iframe);
-        }
+      });
+    }
+    // ПЛЕЕР ПОДСТАВЛЯЕТСЯ ПО НАЖАТИЮ НА ФАСАД, А НЕ ПРИ РАСКРЫТИИ БЛОКА.
+    // Раньше <iframe> создавался, как только человек открывал «Как
+    // выполнять», — то есть обвязка YouTube грузилась у всякого, кто
+    // просто хотел прочитать текст техники (BACKLOG №73).
+    var фасад = $('.wk-ex-video-facade', card);
+    if (фасад) {
+      фасад.addEventListener('click', function () {
+        var videoBox = фасад.parentNode;
+        var id = videoBox && videoBox.dataset.youtubeId;
+        if (!id) return;
+        var iframe = document.createElement('iframe');
+        // autoplay: нажатие УЖЕ было — оно и есть просьба смотреть.
+        // Без него человеку пришлось бы нажимать дважды.
+        iframe.src = 'https://www.youtube-nocookie.com/embed/' + id +
+                     '?autoplay=1';
+        iframe.title = 'Видео техники выполнения';
+        iframe.allow = 'autoplay; accelerometer; encrypted-media; gyroscope; picture-in-picture';
+        iframe.allowFullscreen = true;
+        videoBox.replaceChildren(iframe);
       });
     }
     var progBtn = $('.wk-ex-progbtn', card);
