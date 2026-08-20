@@ -20,6 +20,39 @@
   <h1>Профиль</h1>
   <p class="subtitle">Аккаунт и настройки</p>
 
+  {# Итог смены адреса приезжает параметром — сюда возвращает ссылка
+     из письма (GET /change-email/{token}). Причина отказа названа
+     СВОИМ текстом у каждой: просроченную ссылку чинит повторная заявка,
+     занятый адрес не чинится вовсе, и человек должен понимать, что
+     именно ему делать. Одна фраза на все случаи заставляла бы искать
+     не там. #}
+  {% set em_ok = request.query_params.get('email_changed') %}
+  {% set em_err = request.query_params.get('email_error') %}
+  {% if em_ok %}
+  <div class="alert alert-success">
+    <i data-lucide="check-circle"></i>
+    <span><strong>Адрес входа изменён.</strong> Дальше входите с {{ user.email }}.</span>
+  </div>
+  {% elif em_err == 'expired' %}
+  <div class="alert alert-warn">
+    <i data-lucide="clock"></i>
+    <span><strong>Срок ссылки истёк.</strong> Заявка отменена, адрес остался прежним.
+      Начните смену заново — придёт новая ссылка.</span>
+  </div>
+  {% elif em_err == 'taken' %}
+  <div class="alert alert-error">
+    <i data-lucide="alert-circle"></i>
+    <span><strong>Адрес уже занят.</strong> Пока письмо шло, этот адрес занял другой
+      аккаунт. Ваш адрес остался прежним.</span>
+  </div>
+  {% elif em_err %}
+  <div class="alert alert-warn">
+    <i data-lucide="alert-circle"></i>
+    <span><strong>Ссылка не подошла.</strong> Она срабатывает один раз — возможно,
+      по ней уже переходили. Адрес остался прежним.</span>
+  </div>
+  {% endif %}
+
   {# Настройки копятся и применяются одной кнопкой внизу: раньше имя
      сохранялось своей кнопкой, пояс — сам при выборе, аватар — сам при
      загрузке, и случайный клик применялся сразу. Email и пароль сюда
@@ -104,8 +137,15 @@
       <div>
         <div class="setting-label">Email</div>
         <div class="setting-value">{{ user.email }}</div>
+        {% if user.pending_email %}
+        {# Незавершённая заявка видна, и это половина защиты: смену, начатую
+           из угнанной сессии, владелец увидит здесь так же, как в письме. #}
+        <div class="profile-hint profile-hint-under">
+          Ждёт подтверждения на <b>{{ user.pending_email }}</b> — до перехода
+          по ссылке из письма адрес входа остаётся прежним.
+        </div>
+        {% endif %}
       </div>
-      <!-- TODO: реализовать эндпоинт /api/change-email (модалка ниже — UI-заглушка) -->
       <button class="btn-secondary setting-btn" onclick="открыть_модалку('modal-email')">Изменить email</button>
     </div>
 
@@ -146,14 +186,27 @@
 {% import '_modal.html' as m %}
 
 {% call m.modal('modal-email', 'Изменить email') %}
-    <p class="profile-hint">Функция в разработке — эндпоинт /api/change-email ещё не реализован.</p>
+    <p class="profile-hint">
+      Подтверждение придёт <b>на новый адрес</b>. Пока вы не перейдёте
+      по ссылке, вход остаётся на {{ user.email }}.
+    </p>
     <div class="form-col">
-      <input type="email" class="input" placeholder="Новый email" disabled>
-      <input type="password" class="input" placeholder="Текущий пароль" disabled>
+      <input type="email" class="input" id="email-new" placeholder="Новый email"
+             autocomplete="email" oninput="сброситьОшибкуПочты()">
+      <input type="password" class="input" id="email-pass" placeholder="Текущий пароль"
+             autocomplete="current-password" oninput="сброситьОшибкуПочты()"
+             onkeydown="if(event.key==='Enter')отправитьСменуПочты()">
+    </div>
+    <div class="alert alert-error" id="email-error" hidden>
+      <i data-lucide="alert-circle"></i><span id="email-error-text"></span>
+    </div>
+    <div class="alert alert-success" id="email-done" hidden>
+      <i data-lucide="mail-check"></i><span id="email-done-text"></span>
     </div>
     <div class="form-actions">
       <button class="btn-ghost" type="button" data-modal-close>Закрыть</button>
-      <button class="btn-primary" disabled>Сохранить</button>
+      <button class="btn-primary" type="button" id="email-send"
+              onclick="отправитьСменуПочты()">Отправить подтверждение</button>
     </div>
 {% endcall %}
 
@@ -197,6 +250,57 @@
 <script src="{{ st('modal.js') }}"></script>
 {% include '_page_end.html' %}
 <script>
+
+// ── Смена email ──────────────────────────────────────────────────────────
+// Адрес меняется НЕ здесь: сервер только записывает заявку и шлёт письмо
+// на новый адрес. Поэтому и кнопка называется «Отправить подтверждение»,
+// а не «Сохранить»: подпись, обещающая сделанное дело, была бы неправдой
+// ровно до перехода по ссылке.
+function сброситьОшибкуПочты() {
+  document.getElementById('email-error').hidden = true;
+}
+
+async function отправитьСменуПочты() {
+  const поле = document.getElementById('email-new');
+  const пароль = document.getElementById('email-pass');
+  const кнопка = document.getElementById('email-send');
+  const ошибка = document.getElementById('email-error');
+  const готово = document.getElementById('email-done');
+
+  const показатьОшибку = (текст) => {
+    document.getElementById('email-error-text').textContent = текст;
+    ошибка.hidden = false;
+  };
+
+  готово.hidden = true;
+  ошибка.hidden = true;
+  кнопка.disabled = true;
+  const прежняя = кнопка.textContent;
+  кнопка.textContent = 'Отправляем…';
+  try {
+    const r = await fetch('/api/change-email', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email: поле.value.trim(), password: пароль.value}),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      показатьОшибку(d.error || ('Не получилось (код ' + r.status + ')'));
+      return;
+    }
+    document.getElementById('email-done-text').textContent =
+      'Письмо ушло на ' + d.pending + '. Ссылка действует ' + d.hours + ' ч.';
+    готово.hidden = false;
+    // Пароль стираем сразу, как в форме весов: открытый глазком пароль
+    // не должен пережить закрытие окна.
+    пароль.value = '';
+  } catch (e) {
+    показатьОшибку('Сеть не ответила. Попробуйте ещё раз.');
+  } finally {
+    кнопка.disabled = false;
+    кнопка.textContent = прежняя;
+  }
+}
 
 // ── Настройки: копим изменения, применяем одной кнопкой ──
 // Раньше имя сохранялось своей кнопкой, пояс — сразу при выборе, аватар —

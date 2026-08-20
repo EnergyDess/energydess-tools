@@ -260,8 +260,17 @@ def main() -> int:
     from database import (SessionLocal, User, Resume, HHProfile, CoverLetter,
                           CustomFood, FoodLog, NutritionProfile,
                           NutritionGoalPeriod, WeightLog,
-                          delete_user_cascade)
+                          init_db, migrate_db, delete_user_cascade)
     from auth import hash_password
+
+    # СХЕМА ДОГОНЯЕТСЯ ЗДЕСЬ, а не предполагается готовой. Скрипт ходил
+    # прямо в SessionLocal, и после любой новой колонки первый же запрос
+    # падал `no such column` — трассой на тридцать строк, из которой
+    # не видно, что чинится одной командой. Приложение мигрирует базу
+    # на старте, а этот скрипт запускают ДО приложения: он и заводит
+    # аккаунт, под которым потом снимают экраны.
+    init_db()
+    migrate_db()
 
     db = SessionLocal()
     try:

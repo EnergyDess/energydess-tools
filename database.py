@@ -147,6 +147,20 @@ class User(Base):
     # запросе: токен, выданный до смены, перестаёт действовать. Без этого
     # сброс пароля не отбирал доступ у того, кто увёл аккаунт
     password_changed_at = Column(DateTime, nullable=True)
+    # ── ОТЛОЖЕННАЯ СМЕНА ПОЧТЫ (BACKLOG №3) ──────────────────────────────
+    # Новый адрес живёт ЗДЕСЬ, а не в `email`, до тех пор пока по ссылке
+    # из письма не перейдут. Пока он тут, вход, восстановление пароля
+    # и все письма идут на СТАРЫЙ адрес — то есть смена, начатая
+    # посторонним из угнанной сессии, не отнимает у владельца ничего.
+    #
+    # Колонками на `users`, а не отдельной таблицей: строка одна на
+    # пользователя по построению (вторая заявка перетирает первую),
+    # у таблицы не было бы ни своей жизни, ни своих запросов, зато
+    # появились бы три обязательных шага §6.1 и ещё одна сирота
+    # в каскаде удаления.
+    pending_email = Column(String, nullable=True)
+    pending_email_token = Column(String, nullable=True)
+    pending_email_expires = Column(DateTime, nullable=True)
 
 
 class Resume(Base):
@@ -861,6 +875,11 @@ def migrate_db():
         # Телосложение (2026-08-19). Прежде поле `bodyStyle` приходило
         # в том же `summary` и намеренно выбрасывалось
         "ALTER TABLE weight_logs ADD COLUMN body_style INTEGER",
+        # Отложенная смена почты (2026-08-20, BACKLOG №3). Новый адрес
+        # не подменяет `email` до перехода по ссылке из письма
+        "ALTER TABLE users ADD COLUMN pending_email VARCHAR",
+        "ALTER TABLE users ADD COLUMN pending_email_token VARCHAR",
+        "ALTER TABLE users ADD COLUMN pending_email_expires DATETIME",
     ]:
         try:
             conn.execute(col)

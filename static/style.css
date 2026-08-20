@@ -7,6 +7,27 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* АТРИБУТ hidden ОБЯЗАН ПРЯТАТЬ. Он прячет через UA-стиль `display: none`,
+   а тот проигрывает ЛЮБОМУ авторскому `display` — то есть каждый компонент,
+   которому мы задали `display: flex` или `grid`, атрибут молча игнорирует.
+   Отказ немой и видно его только глазами: элемент помечен спрятанным,
+   стоит на экране и обычно ПУСТОЙ, потому что скрипт его ещё не наполнил.
+
+   Поймано 2026-08-20 съёмкой окна смены адреса: два пустых `.alert`
+   висели в модалке под полями (`.alert` объявляет `display: flex`).
+
+   ЗАКРЫВАЕТСЯ КЛАСС, А НЕ ЭКЗЕМПЛЯР (§6.0.7). До этой строки в файле
+   лежали ТРИ починки по одной штуке — `.search-dropdown[hidden]`,
+   `.search-empty[hidden]`, `.email-typo-hint[hidden]`, — и четвёртый
+   компонент повторил бы дефект ровно так же. Их больше нет: одно
+   правило накрывает всё, включая то, что заведут завтра.
+
+   `!important` здесь законный и единственно рабочий: без него правило
+   с большей специфичностью (`.alert` — 0,1,0 против 0,0,1 у `[hidden]`)
+   снова выиграет. Это тот случай, когда правило обязано быть сильнее
+   всех, а не встать в общий каскад. */
+[hidden] { display: none !important; }
+
 /* ── Токены ─────────────────────────────────────────────────────────────── */
 :root {
   /* Fonts */
@@ -1190,7 +1211,6 @@ html.modal-open, html.modal-open body { overflow: hidden; }
   overflow-y: auto;
   overscroll-behavior: contain;   /* скролл списка не прокручивает страницу под ним */
 }
-.search-dropdown[hidden] { display: none; }
 .search-list { list-style: none; margin: 0; padding: 0; }
 .search-item {
   display: flex;
@@ -1231,7 +1251,6 @@ html.modal-open, html.modal-open body { overflow: hidden; }
   color: var(--text-faint);
   text-align: center;
 }
-.search-empty[hidden] { display: none; }
 /* На узких экранах поле сжимается до ~145px и названия обрезались до «НН Пом…».
    Выпадашка отвязывается от ширины поля и прижимается к правому краю, чтобы
    не уехать за левую границу вьюпорта. */
@@ -2560,7 +2579,6 @@ body.auth-layout .auth-wrap {
   color: var(--text-2);
   line-height: 1.5;
 }
-.email-typo-hint[hidden] { display: none; }
 .email-typo-fix {
   background: none; border: none; padding: 0;
   font-family: var(--font); font-size: inherit; font-weight: 600;

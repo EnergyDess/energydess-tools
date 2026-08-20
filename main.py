@@ -281,7 +281,66 @@ VISION_MAX_TOKENS   = int(os.getenv("VISION_MAX_TOKENS",   "800"))   # разб�
 FOOD_MAX_TOKENS     = int(os.getenv("FOOD_MAX_TOKENS",     "300"))   # КБЖУ одного продукта, JSON из 5 чисел
 TRANSLATE_MAX_TOKENS = int(os.getenv("TRANSLATE_MAX_TOKENS", "200"))  # перевод слов запроса, JSON из пар
 
+# ── ПОЛИТИКА ДАННЫХ OPENROUTER — ОДНО МЕСТО НА ВСЕ ВЫЗОВЫ ────────────────────
+#
+# BACKLOG №19. Промпты этого приложения — резюме, вакансии, дневник питания,
+# переписка с ассистентом и тренером. Это персональные данные и данные
+# о здоровье, и политика конфиденциальности обещает, что мы их не раздаём.
+# По умолчанию OpenRouter волен маршрутизировать запрос к провайдеру,
+# который вправе сохранять содержимое и обучаться на нём.
+#
+# ЧТО ЗДЕСЬ ОБЪЯВЛЕНО (имена полей сверены с живой документацией
+# openrouter.ai/docs/features/provider-routing, а не по памяти):
+#
+#   data_collection: "deny" — не маршрутизировать к провайдеру, который
+#                             вправе хранить содержимое запроса
+#   zdr: true               — только эндпоинты с политикой нулевого
+#                             удержания данных
+#
+# ПОЧЕМУ ОДНОЙ КОНСТАНТОЙ, А НЕ СЛОВАРЁМ НА МЕСТЕ ВЫЗОВА. Точек вызова
+# chat/completions в этом файле ДЕСЯТЬ, и общей обёртки у запроса нет:
+# `_model_output` разбирает ОТВЕТ, а тело каждый раз собирается заново.
+# Настройка, вписанная в одно тело, не доезжает до остальных девяти —
+# и не доехала бы молча, ровно как `max_tokens: 700` не доехал до второго
+# места анализа вакансии (§2.1). Поэтому политика объявлена один раз,
+# подставляется распаковкой `**ПОЛИТИКА_ЗАПРОСА`, а полноту охвата
+# сторожит тест `tests/test_openrouter_policy.py`: он находит все вызовы
+# chat/completions обходом файла и требует распаковку у каждого.
+#
+# ЗАМЕР 2026-08-20, живыми вызовами по всем десяти местам: ответили все
+# десять и до, и после. Маршрут при этом РЕАЛЬНО меняется — opus-4-8 без
+# запрета уходил на «Claude Platform on AWS», с запретом на «Google».
+# Отрицательный контроль: `dots-studio/dots-3-note-preview:free` без
+# запрета отвечает (AtlasCloud), с запретом даёт HTTP 404 «No endpoints
+# found matching your data policy (Zero data retention)». То есть запрет —
+# факт, а не слово.
+#
+# ЧЕГО ЭТО НЕ ЗАКРЫВАЕТ — РАСПОЗНАВАНИЕ РЕЧИ. Эндпоинт
+# /api/v1/audio/transcriptions поле `provider` ИГНОРИРУЕТ: замер показал
+# HTTP 200 и с `zdr: true`, и с заведомо несуществующим именем провайдера
+# (`only: ["несуществующий-провайдер"]`). Тело при этом читается —
+# подложенное имя модели даёт HTTP 400. Значит, подставить туда политику
+# нельзя: поле молча не действует, а поле, которое выглядит защитой
+# и ею не является, хуже отсутствующего. Голосовой ввод дневника закрыть
+# можно только настройкой АККАУНТА (openrouter.ai/settings/privacy,
+# группа «Non-frontier» / guardrails), и это вне кода — BACKLOG №19.
+#
+# Переменными окружения, а не литералами: ветку «политика снята» иначе
+# нечем прогнать, а проверка, которую нечем прогнать, означает
+# «проверено рассуждением» (§6.0.1).
+OR_DATA_COLLECTION = os.getenv("OR_DATA_COLLECTION", "deny")   # deny | allow
+OR_ZDR = os.getenv("OR_ZDR", "1").strip().lower() not in ("0", "false", "no", "")
+ПОЛИТИКА_ЗАПРОСА = {"provider": {"data_collection": OR_DATA_COLLECTION,
+                                 "zdr": OR_ZDR}}
+
 RESEND_API_KEY      = os.getenv("RESEND_API_KEY", "")
+# Адрес отправки — переменной, по той же причине, что TURNSTILE_VERIFY_URL
+# ниже: без неё путь «письмо ушло» не прогнать иначе как настоящей
+# отправкой в чужой ящик, а путь «канал ответил ошибкой» — только ожиданием
+# настоящей аварии. Замер 2026-08-20: живая проверка смены адреса упиралась
+# ровно в это — локально приложение без ключа отвечало 502 «письмо
+# не отправилось», и успешная ветка оставалась непроверенной вживую.
+RESEND_API_URL      = os.getenv("RESEND_API_URL", "https://api.resend.com/emails")
 BASE_URL            = os.getenv("BASE_URL", "https://energydess.ru")
 TURNSTILE_SITE_KEY   = os.getenv("TURNSTILE_SITE_KEY", "")    # TODO: выдать ключи через dash.cloudflare.com → Turnstile → Add Site
 TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
@@ -1092,7 +1151,7 @@ async def send_email(to: str, subject: str, html: str, text: str = None,
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 r = await client.post(
-                    "https://api.resend.com/emails",
+                    RESEND_API_URL,
                     headers={
                         "Authorization": f"Bearer {RESEND_API_KEY}",
                         "Content-Type": "application/json",
@@ -2099,6 +2158,271 @@ async def resend_verification(request: Request, tool_name: str = Form(default=""
                                                "cooldown": _email_cooldown_left(db, user.id)})
 
 
+# ── Смена email: подтверждение НА НОВОМ адресе ────────────────────────────────
+#
+# BACKLOG №3. До 2026-08-20 в профиле стояла модалка-заглушка с надписью
+# «эндпоинт ещё не реализован» — то есть кнопка была, а функции не было.
+#
+# ГЛАВНОЕ ПРАВИЛО: `users.email` меняется ТОЛЬКО после перехода по ссылке,
+# пришедшей НА НОВЫЙ адрес. До этого новый адрес лежит в `pending_email`
+# и не участвует ни в чём: вход, восстановление пароля и все письма идут
+# на старый. Смена, начатая посторонним из угнанной сессии, не отнимает
+# у владельца ни входа, ни возможности сбросить пароль.
+#
+# Обратная сторона того же правила — письмо НА СТАРЫЙ адрес о том, что
+# смена начата. Оно и есть защита от угона: владелец ящика узнаёт о попытке
+# в ту же минуту, даже если сессию увели.
+#
+# СРОК ССЫЛКИ — ДВА ЧАСА, И ЭТО ВЫБОР МЕЖДУ ДВУМЯ СОСЕДЯМИ. У письма
+# регистрации срок 24 часа: там человек может подтвердить почту вечером
+# и это нормально. У сброса пароля — 1 час: там ссылка равна доступу
+# к аккаунту. Смена адреса ближе ко второму: живая ссылка — это
+# незавершённый перенос аккаунта в чужой ящик. Но в отличие от сброса
+# её открывают в ДРУГОМ почтовом ящике, куда ещё надо войти, и час
+# на это местами мало. Два часа — верхняя граница «человек сидит
+# за этим же компьютером».
+EMAIL_CHANGE_TTL_HOURS = int(os.getenv("EMAIL_CHANGE_TTL_HOURS", "2"))
+
+# Кулдаун письма-уведомления на СТАРЫЙ адрес. Свой, а не общий суточный
+# запас адреса, и причина ровно та же, что у `_письмо_о_переборе`: запас
+# в 8 писем на адрес — это ресурс ВЛАДЕЛЬЦА, из которого он берёт письмо
+# сброса пароля. Сжечь его уведомлениями значило бы отнять у него
+# единственный способ вернуть аккаунт.
+EMAIL_CHANGE_NOTICE_COOLDOWN_SEC = int(
+    os.getenv("EMAIL_CHANGE_NOTICE_COOLDOWN_SEC", str(30 * 60)))
+
+# Простая проверка формы. Не RFC 5322 и не претендует: единственная
+# настоящая проверка адреса — это письмо, которое по нему дошло,
+# а здесь отсекается явный мусор до отправки.
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s.]+\.[^@\s]{2,}$")
+
+
+def _почта_годна(адрес: str) -> bool:
+    return bool(адрес) and len(адрес) <= 254 and bool(_EMAIL_RE.match(адрес))
+
+
+def _письмо_смены_html(ссылка: str, новый: str) -> str:
+    return f"""
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#07070f;border-radius:16px;border:1px solid rgba(255,255,255,0.08)">
+  <div style="font-size:1.5rem;font-weight:800;margin-bottom:8px;color:#dde2f0">⚡ EnergyDess</div>
+  <div style="color:#5a6888;font-size:0.875rem;margin-bottom:24px">Подтверждение нового адреса</div>
+  <p style="color:#dde2f0;line-height:1.6;margin-bottom:24px">
+    Вы просили сменить адрес входа на <b>{новый}</b>. Пока вы не перейдёте
+    по ссылке ниже, адрес останется прежним. Ссылка действует
+    {EMAIL_CHANGE_TTL_HOURS} ч. и срабатывает один раз.
+  </p>
+  <a href="{ссылка}"
+     style="display:inline-block;padding:13px 28px;background:linear-gradient(135deg,#7c4dff,#00d4ff);color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:0.95rem">
+    Подтвердить новый адрес →
+  </a>
+  <p style="color:#5a6888;font-size:0.8125rem;line-height:1.6;margin-top:24px">
+    Если вы этого не просили — просто не переходите по ссылке. Ничего
+    не изменится, а через {EMAIL_CHANGE_TTL_HOURS} ч. заявка пропадёт сама.
+  </p>
+</div>"""
+
+
+def _письмо_смены_text(ссылка: str, новый: str) -> str:
+    return f"""EnergyDess — подтверждение нового адреса
+
+Вы просили сменить адрес входа на {новый}. Пока вы не перейдёте
+по ссылке ниже, адрес останется прежним.
+
+{ссылка}
+
+Ссылка действует {EMAIL_CHANGE_TTL_HOURS} ч. и срабатывает один раз.
+Если вы этого не просили — просто не переходите по ней.
+"""
+
+
+def _письмо_о_смене_html(новый: str) -> str:
+    return f"""
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#07070f;border-radius:16px;border:1px solid rgba(255,255,255,0.08)">
+  <div style="font-size:1.5rem;font-weight:800;margin-bottom:8px;color:#dde2f0">⚡ EnergyDess</div>
+  <div style="color:#5a6888;font-size:0.875rem;margin-bottom:24px">Запрошена смена адреса входа</div>
+  <p style="color:#dde2f0;line-height:1.6;margin-bottom:16px">
+    С вашего аккаунта запрошена смена адреса входа на <b>{новый}</b>.
+    Подтверждение отправлено туда.
+  </p>
+  <p style="color:#dde2f0;line-height:1.6;margin-bottom:16px">
+    <b>Если это были не вы</b> — ничего делать по этому письму не нужно:
+    пока по ссылке не перешли, ваш адрес остаётся рабочим. Смените пароль,
+    и заявка станет недействительной:
+  </p>
+  <a href="{BASE_URL}/forgot-password"
+     style="display:inline-block;padding:13px 28px;background:linear-gradient(135deg,#7c4dff,#00d4ff);color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:0.95rem">
+    Сменить пароль →
+  </a>
+</div>"""
+
+
+def _письмо_о_смене_text(новый: str) -> str:
+    return f"""EnergyDess — запрошена смена адреса входа
+
+С вашего аккаунта запрошена смена адреса входа на {новый}.
+Подтверждение отправлено туда.
+
+Если это были не вы — по этому письму делать ничего не нужно: пока
+по ссылке не перешли, ваш адрес остаётся рабочим. Смените пароль,
+и заявка станет недействительной:
+
+{BASE_URL}/forgot-password
+"""
+
+
+@app.post("/api/change-email")
+async def change_email(request: Request, user=Depends(get_current_user),
+                       db: Session = Depends(get_db)):
+    """Заявка на смену адреса. Сам адрес НЕ меняется — меняется после ссылки.
+
+    ПОРЯДОК ПРОВЕРОК ЗДЕСЬ — ЧАСТЬ ПОВЕДЕНИЯ, А НЕ ВКУС. Всё, что может
+    отказать, отказывает ДО отправки письма: иначе человек получает письмо
+    на адрес, на который переехать всё равно не сможет, а мы тратим чужой
+    суточный запас на заведомо бесполезное сообщение.
+
+    Гейт подтверждённой почты (§5.3) сюда применяется САМ, потому что метод
+    POST. Исключения ему здесь нет и быть не должно: неподтверждённому
+    менять адрес нечем — он ещё не доказал, что владеет и текущим.
+    """
+    if not user:
+        return JSONResponse({"error": "Нужно войти"}, status_code=401)
+
+    данные = await request.json()
+    новый = (данные.get("email") or "").strip().lower()
+    пароль = данные.get("password") or ""
+
+    if not пароль:
+        return JSONResponse({"error": "Введите текущий пароль"}, status_code=400)
+
+    # ВСЁ, ЧТО ПОНАДОБИТСЯ ПОСЛЕ, БЕРЁТСЯ В ПЕРЕМЕННЫЕ ДО. `_в_потоке`
+    # отдаёт соединение (`db.close()`), а это ОТЦЕПЛЯЕТ объект ORM:
+    # читать его поля после ещё можно, а записать в них — уже нет,
+    # и запись пропадает МОЛЧА, коммит при этом проходит (§6.0.5).
+    #
+    # Здесь это не рассуждение: первая версия писала `user.pending_email`
+    # прямо после проверки пароля, эндпоинт отвечал 200, письмо уходило,
+    # а в базе не было ничего. Поймал тест `test_заявка_НЕ_меняет_адрес_сразу`.
+    uid, старый, хеш = user.id, (user.email or "").lower(), user.password_hash
+
+    # bcrypt считает ~150 мс и держит event loop — в поток, с отдачей
+    # соединения (§6.0.5)
+    if not await _в_потоке(db, verify_password, пароль, хеш):
+        return JSONResponse({"error": "Неверный текущий пароль"}, status_code=403)
+    # Объект, который будем МЕНЯТЬ, берём из базы заново — по той же причине
+    user = db.query(User).filter(User.id == uid).first()
+    if not user:
+        return JSONResponse({"error": "Аккаунт не найден"}, status_code=401)
+    if not _почта_годна(новый):
+        return JSONResponse({"error": "Адрес выглядит неправильно"}, status_code=400)
+    if новый == старый:
+        return JSONResponse({"error": "Это ваш текущий адрес"}, status_code=400)
+
+    # ЗАНЯТОСТЬ ПРОВЕРЯЕТСЯ ДВАЖДЫ, И ЭТО НЕ ДУБЛИРОВАНИЕ. Здесь — чтобы
+    # не отправлять письмо в заведомо тупиковую заявку; второй раз при
+    # переходе по ссылке — потому что за два часа адрес могли занять,
+    # и без второй проверки смена уронила бы UNIQUE-ограничение
+    # необъяснимой пятисоткой.
+    занят = (db.query(User)
+             .filter(User.email == новый, User.id != uid).first())
+    if занят:
+        return JSONResponse({"error": "Этот адрес уже занят другим аккаунтом"},
+                            status_code=409)
+
+    токен = generate_token()
+    user.pending_email = новый
+    user.pending_email_token = токен
+    user.pending_email_expires = (datetime.utcnow()
+                                  + timedelta(hours=EMAIL_CHANGE_TTL_HOURS))
+    db.commit()
+
+    ссылка = f"{BASE_URL}/change-email/{токен}"
+    ошибка = await send_email(to=новый, subject="Подтвердите новый адрес на EnergyDess",
+                              html=_письмо_смены_html(ссылка, новый),
+                              text=_письмо_смены_text(ссылка, новый),
+                              db=db, user_id=user.id, kind="change_email")
+
+    # УВЕДОМЛЕНИЕ ВЛАДЕЛЬЦУ — ВТОРАЯ ПОЛОВИНА ЗАЩИТЫ, а не вежливость.
+    # Свой кулдаун и `учитывать_лимит=False`: сжечь суточный запас старого
+    # адреса значило бы отнять у владельца письмо сброса пароля — ровно
+    # та ошибка, которую §8.1 уже разбирал на письме о переборе.
+    ключ = _ключ_почты(старый)
+    if not _попыток(db, ключ, "chgmail", EMAIL_CHANGE_NOTICE_COOLDOWN_SEC, "sent"):
+        _записать_попытку(db, ключ, "chgmail", "sent")
+        await send_email(to=старый, subject="Запрошена смена адреса входа",
+                         html=_письмо_о_смене_html(новый),
+                         text=_письмо_о_смене_text(новый),
+                         db=db, user_id=user.id, kind="change_email_notice",
+                         учитывать_лимит=False)
+
+    if ошибка:
+        # Заявка при этом ОСТАЁТСЯ: письмо могло не уйти по нашей вине,
+        # и стирать из-за этого уже записанное намерение незачем.
+        # Но говорить «письмо отправлено» нельзя — это ровно тот немой
+        # отказ, ради которого send_email вообще возвращает причину.
+        print(f"[change-email] письмо не ушло: {ошибка}")
+        текст = ("За сутки на этот адрес уже ушло слишком много писем. "
+                 "Попробуйте завтра."
+                 if str(ошибка).startswith("limit:")
+                 else "Письмо не отправилось. Попробуйте ещё раз через минуту.")
+        return JSONResponse({"error": текст}, status_code=502)
+
+    return JSONResponse({"ok": True, "pending": новый,
+                         "hours": EMAIL_CHANGE_TTL_HOURS})
+
+
+@app.get("/change-email/{token}")
+async def change_email_confirm(token: str, db: Session = Depends(get_db)):
+    """Применение смены. Одноразово: токен стирается тем же коммитом.
+
+    Метод GET и запись — как у `/verify/{token}`. Гейт подтверждённой почты
+    GET не трогает (§5.3), поэтому в список исключений этот путь вносить
+    не надо и НЕ НАДО ВНОСИТЬ: лишняя строка в списке исключений — это
+    дыра, которую никто не заметит.
+
+    Причина отказа называется РАЗНЫМИ кодами, а не одним «ссылка не
+    подошла»: просроченная ссылка чинится повторной заявкой, а занятый
+    адрес — не чинится вовсе, и человек должен понимать, что именно
+    ему делать.
+    """
+    user = db.query(User).filter(User.pending_email_token == token).first()
+    if not user or not user.pending_email:
+        # Сюда же попадает ПОВТОРНЫЙ переход: токен стёрт при первом.
+        # Отдельного «уже использована» не бывает по построению — иначе
+        # пришлось бы хранить использованные токены, то есть держать
+        # вечный список ссылок на аккаунты.
+        return RedirectResponse("/profile?email_error=bad_token", status_code=302)
+    if (user.pending_email_expires
+            and user.pending_email_expires < datetime.utcnow()):
+        user.pending_email = None
+        user.pending_email_token = None
+        user.pending_email_expires = None
+        db.commit()
+        return RedirectResponse("/profile?email_error=expired", status_code=302)
+
+    новый = user.pending_email
+    занят = db.query(User).filter(User.email == новый, User.id != user.id).first()
+    if занят:
+        user.pending_email = None
+        user.pending_email_token = None
+        user.pending_email_expires = None
+        db.commit()
+        return RedirectResponse("/profile?email_error=taken", status_code=302)
+
+    старый = user.email
+    user.email = новый
+    user.pending_email = None
+    user.pending_email_token = None
+    user.pending_email_expires = None
+    # Адрес подтверждён переходом по ссылке — это ровно то, что означает
+    # `is_verified`. Оставить флаг снятым значило бы запереть человека
+    # в аккаунте, который он только что подтвердил.
+    user.is_verified = True
+    db.commit()
+    print(f"[change-email] адрес сменён (id={user.id}), прежний домен "
+          f"{(старый or '').split('@')[-1]}")
+    return RedirectResponse("/profile?email_changed=1", status_code=302)
+
+
 # ── Forgot / Reset password ───────────────────────────────────────────────────
 
 @app.get("/forgot-password")
@@ -2916,7 +3240,7 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
                     "HTTP-Referer": "https://energydess.ru",
                     "X-Title": "EnergyDess HH Helper",
                 },
-                json={
+                json={**ПОЛИТИКА_ЗАПРОСА, 
                     "model": ANALYZE_MODEL,
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.3,
@@ -3020,7 +3344,7 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess HH Helper"},
-                json={"model": ANALYZE_MODEL, "messages": [{"role": "user", "content": analysis_prompt}],
+                json={**ПОЛИТИКА_ЗАПРОСА, "model": ANALYZE_MODEL, "messages": [{"role": "user", "content": analysis_prompt}],
                       "temperature": 0.3, "max_tokens": ANALYZE_MAX_TOKENS},
                 timeout=40.0,
             )
@@ -3157,7 +3481,7 @@ Call to action в финале. Тип CTA определяется правил
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess HH Helper"},
-                json={"model": LETTER_MODEL, "messages": [{"role": "user", "content": prompt}],
+                json={**ПОЛИТИКА_ЗАПРОСА, "model": LETTER_MODEL, "messages": [{"role": "user", "content": prompt}],
                       "temperature": 0.5, "max_tokens": LETTER_MAX_TOKENS},
                 timeout=40.0,
             )
@@ -3405,7 +3729,7 @@ async def parse_resume_to_dossier(request: Request, user=Depends(get_current_use
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess HH Helper"},
-                json={"model": PARSER_MODEL, "messages": [{"role": "user", "content": prompt}],
+                json={**ПОЛИТИКА_ЗАПРОСА, "model": PARSER_MODEL, "messages": [{"role": "user", "content": prompt}],
                       "temperature": 0.1, "max_tokens": PARSER_MAX_TOKENS},
                 timeout=60.0,
             )
@@ -4394,7 +4718,7 @@ async def _переводы_слов(слова: list, db: Session) -> tuple[dic
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru",
                          "X-Title": "EnergyDess Nutrition"},
-                json={"model": MODEL, "messages": [{"role": "user", "content": prompt}],
+                json={**ПОЛИТИКА_ЗАПРОСА, "model": MODEL, "messages": [{"role": "user", "content": prompt}],
                       "temperature": 0, "max_tokens": TRANSLATE_MAX_TOKENS},
             )
         текст, сбой = _model_output(resp.json(), "translate", TRANSLATE_MAX_TOKENS)
@@ -4510,7 +4834,7 @@ async def _call_vision(b64: str, mime: str, prompt: str, max_tokens: int = VISIO
             "https://openrouter.ai/api/v1/chat/completions",
             headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                      "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
-            json={"model": LETTER_MODEL,
+            json={**ПОЛИТИКА_ЗАПРОСА, "model": LETTER_MODEL,
                   "messages": [{"role": "user", "content": [
                       {"type": "image_url",
                        "image_url": {"url": f"data:{mime};base64,{b64}"}},
@@ -4848,7 +5172,7 @@ async def _ai_food_estimate(query: str) -> list:
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
-                json={"model": MODEL, "messages": [{"role": "user", "content": prompt}],
+                json={**ПОЛИТИКА_ЗАПРОСА, "model": MODEL, "messages": [{"role": "user", "content": prompt}],
                       "temperature": 0.2, "max_tokens": FOOD_MAX_TOKENS},
             )
         text, сбой = _model_output(resp.json(), "food", FOOD_MAX_TOKENS)
@@ -6664,7 +6988,7 @@ async def nut_ai_chat(request: Request, user=Depends(get_current_user), db: Sess
                     "https://openrouter.ai/api/v1/chat/completions",
                     headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                              "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
-                    json={"model": LETTER_MODEL, "messages": api_messages,
+                    json={**ПОЛИТИКА_ЗАПРОСА, "model": LETTER_MODEL, "messages": api_messages,
                           "temperature": 0.4, "max_tokens": CHAT_MAX_TOKENS},
                     timeout=30.0,
                 )
@@ -6870,6 +7194,15 @@ async def nut_transcribe(file: UploadFile = File(...),
     for attempt in range(2):
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
+                # ПОЛИТИКИ ДАННЫХ ЗДЕСЬ НЕТ, И ЭТО РЕШЕНИЕ, А НЕ ПРОПУСК.
+                # Замер 2026-08-20: этот эндпоинт поле `provider` ИГНОРИРУЕТ —
+                # HTTP 200 и с `zdr: true`, и с заведомо несуществующим именем
+                # провайдера. Тело при этом читается: подложенная модель даёт
+                # HTTP 400. Значит, `**ПОЛИТИКА_ЗАПРОСА` тут был бы полем,
+                # которое выглядит защитой и ею не является, — а это хуже
+                # отсутствующего. Голос закрывается только настройкой аккаунта
+                # (openrouter.ai/settings/privacy), см. BACKLOG №19.
+                # Сторожит тест test_у_распознавания_речи_политики_НЕТ_и_это_решение.
                 resp = await client.post(
                     "https://openrouter.ai/api/v1/audio/transcriptions",
                     headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
@@ -7511,7 +7844,7 @@ async def workout_generate_program(user=Depends(get_current_user), db: Session =
                     "HTTP-Referer": "https://energydess.ru",
                     "X-Title": "EnergyDess Workout",
                 },
-                json={
+                json={**ПОЛИТИКА_ЗАПРОСА, 
                     "model": LETTER_MODEL,
                     "messages": [
                         {"role": "system", "content": TRAINER_SYSTEM_PROMPT},
@@ -8644,7 +8977,7 @@ async def workout_chat(request: Request, user=Depends(get_current_user), db: Ses
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Workout"},
-                json={"model": LETTER_MODEL, "messages": api_messages,
+                json={**ПОЛИТИКА_ЗАПРОСА, "model": LETTER_MODEL, "messages": api_messages,
                       "temperature": 0.4, "max_tokens": CHAT_MAX_TOKENS},
                 timeout=30.0,
             )
@@ -9626,6 +9959,11 @@ STATIC_PAGES = {
 даты регистрации и последней смены пароля, а также признаки: подтверждена
 ли почта, какие инструменты вам открыты, есть ли права администратора.</p>
 
+<p>Если вы начали смену адреса входа, до подтверждения хранится <strong>новый
+адрес</strong> и одноразовый токен перехода. Пока по ссылке из письма
+не перешли, адресом входа остаётся прежний; заявка стирается сразу
+после перехода либо по истечении срока ссылки.</p>
+
 <h3>HH-ассистент</h3>
 <p>Текст резюме, который вы загрузили. Профессиональное досье: должность,
 город, формат работы, языки, сколько лет в профессии, опыт по компаниям
@@ -9846,6 +10184,10 @@ OpenRouter запрещена маршрутизация к провайдера
     <tr>
       <td data-label="Что">Журнал попыток входа</td>
       <td data-label="Срок">сутки, затем строки стираются</td>
+    </tr>
+    <tr>
+      <td data-label="Что">Заявка на смену адреса входа</td>
+      <td data-label="Срок">2 часа либо до перехода по ссылке</td>
     </tr>
     <tr>
       <td data-label="Что">Технические логи сервера</td>
