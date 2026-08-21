@@ -66,7 +66,7 @@
     {# Кнопка одна на все ветки: выключена ровно тогда, когда сервер откажет #}
     <form method="post" action="/resend-verification">
       <input type="hidden" name="tool_name" value="{{ tool_name }}">
-      <button type="submit" class="verify-resend-btn" id="resend-btn"
+      <button type="submit" class="btn-secondary btn-block verify-resend-btn" id="resend-btn"
               {% if cooldown or notice == 'limit' %}disabled{% endif %}>Отправить письмо ещё раз</button>
       {% if cooldown and notice != 'too_soon' %}
       <div id="cooldown-hint" class="v-note v-mt-8">

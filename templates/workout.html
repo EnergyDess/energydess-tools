@@ -25,7 +25,7 @@
     </div>
 
     <div class="wk-progress">
-      <div class="wk-progress-track"><div class="wk-progress-bar" id="wkProgressBar"></div></div>
+      <div class="meter meter-edge wk-progress-track"><div class="meter-fill wk-progress-bar" id="wkProgressBar"></div></div>
       <div class="wk-progress-label" id="wkProgressLabel">Шаг 1 из 6</div>
     </div>
 
@@ -223,7 +223,7 @@
             <span class="wk-nutrition-label">Белок сегодня</span>
             <span class="wk-nutrition-value"><strong id="wkProteinEaten">0</strong> г из <strong id="wkProteinTarget">0</strong> г нужных</span>
           </div>
-          <div class="wk-nutrition-bar"><div class="wk-nutrition-bar-fill" id="wkProteinBarFill"></div></div>
+          <div class="meter meter-edge wk-nutrition-bar"><div class="meter-fill wk-nutrition-bar-fill" id="wkProteinBarFill"></div></div>
           <div class="wk-nutrition-hint" id="wkNutritionHint"></div>
           <div class="wk-nutrition-warning" id="wkNutritionWarning" style="display:none"></div>
         </div>
@@ -722,7 +722,23 @@
       ? '<div class="wk-machine-reminder"><i data-lucide="map-pin"></i> Напоминание: вы собирались уточнить шкалу этого тренажёра, когда будете в зале — нажмите «изменить» рядом с прогрессией, если сейчас удобно.</div>'
       : '';
     return '<div class="wk-ex-head">' +
-        '<div class="wk-ex-img"' + (img ? ' data-lightbox-src="' + img + '"' : '') + '>' + (img ? '<img src="' + img + '" loading="lazy">' : '') + '</div>' +
+        // НАСТОЯЩАЯ КНОПКА, А НЕ DIV (BACKLOG №127). Делегированный
+        // обработчик работал и на div, но с клавиатуры фотографию было
+        // не открыть ВОВСЕ: до нефокусируемого элемента Tab не доходит,
+        // Enter по нему ничего не делает, а компонент модалки после
+        // Escape возвращал фокус на <body> — потому что источник им
+        // никогда и не владел. Тот же класс, что задача 73.
+        //
+        // Без картинки остаётся DIV: открывать нечего, и кнопка, которая
+        // ничего не делает, — это декоративное обещание действия
+        // (задача 71). Курсор-указатель по той же причине привязан
+        // к наличию data-lightbox-src, а не к классу.
+        (img
+          ? '<button type="button" class="wk-ex-img" data-lightbox-src="' + img + '" ' +
+              'aria-label="Открыть фото упражнения крупно">' +
+              '<img src="' + img + '" loading="lazy">' +
+            '</button>'
+          : '<div class="wk-ex-img"></div>') +
         '<div class="wk-ex-headinfo">' +
           '<div class="wk-ex-name">' + d.name_ru + warmupBadge + '</div>' +
           '<div class="wk-ex-muscles">' + muscleLine + '</div>' +
@@ -1669,7 +1685,7 @@
     for (var i = 0; i <= yTicks; i++) {
       var v = yMin + (yMax - yMin) * i / yTicks;
       var y = yPos(v).toFixed(1);
-      grid += '<line x1="' + pL + '" y1="' + y + '" x2="' + (W - pR) + '" y2="' + y + '" stroke="rgba(255,255,255,.07)" stroke-width="1"/>';
+      grid += '<line x1="' + pL + '" y1="' + y + '" x2="' + (W - pR) + '" y2="' + y + '" stroke="var(--border)" stroke-width="1"/>';
       yLbls += '<text x="' + (pL - 6) + '" y="' + y + '" text-anchor="end" dominant-baseline="middle" fill="var(--text-2)" font-size="10" font-family="inherit">' + v.toFixed(1) + '</text>';
     }
 

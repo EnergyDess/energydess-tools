@@ -294,6 +294,518 @@ def _сид_фото_тела(db, user_id: int, база) -> int:
     return сделано
 
 
+# ── Тренировочный журнал: связка «программа → день → упражнение → подход» ────
+#
+# ДО 2026-08-22 SEED НЕ ЗАВОДИЛ ИЗ РАЗДЕЛА ТРЕНИРОВОК НИ ОДНОЙ СТРОКИ —
+# ни анкеты, ни программы, ни сессий. Постановка захода называла четыре
+# пустых таблицы (сессии, подходы, прогрессия, замены); замер на ЧИСТОЙ
+# базе (`--drop` плюс `--seed`) показал, что пустых семь: без строки
+# в `workout_profiles` страница /workout открывается МАСТЕРОМ АНКЕТЫ,
+# и ни программа, ни карточка упражнения, ни график, ни замена, ни
+# настройка прогрессии не снимались ни одним заходом за всё время.
+#
+# То, что на рабочей машине они были, — ровно тот случай, что с водой
+# и фото прогресса (CLAUDE.md §8.0): данные однажды завели руками через
+# интерфейс, а `--drop` стирал их без следа.
+#
+# ФОРМА СВЕРЕНА С ЖИВЫМ ПРИЛОЖЕНИЕМ, а не придумана: подписи дней берутся
+# у `main._program_structure` (второй реализации подписи нет), альтернатива
+# для замены — у `main._find_alternatives`, а путь записи подходов сверен
+# прогоном настоящих HTTP-запросов к /workout/api/log-set — см. отчёт.
+
+# Программа: фулл-боди на 3 дня, ЗАЛ (не home_only) — иначе тренажёров
+# в программе не будет вовсе, а без них не снимается ни настройка
+# прогрессии (её спрашивают только для machine/cable с кластером),
+# ни шкала с фиксированными значениями.
+ПРОГРАММА_ДНИ = [
+    # (exercise_id, подходов, низ, верх, бонус?)
+    [("Barbell_Squat", 3, 8, 12, False),
+     ("Barbell_Bench_Press_-_Medium_Grip", 3, 8, 12, False),
+     ("Seated_Cable_Rows", 3, 10, 12, False),
+     ("Seated_Dumbbell_Press", 3, 8, 12, False),
+     ("Plank", 3, 45, 45, False),
+     ("Dumbbell_Bicep_Curl", 2, 10, 15, True)],
+    [("Romanian_Deadlift", 3, 8, 12, False),
+     ("Incline_Dumbbell_Press", 3, 8, 12, False),
+     ("Wide-Grip_Lat_Pulldown", 3, 8, 12, False),
+     ("Leg_Press", 3, 10, 15, False),
+     ("Side_Lateral_Raise", 3, 12, 15, False),
+     ("Hammer_Curls", 2, 10, 15, True)],
+    [("Leg_Extensions", 3, 12, 15, False),
+     ("Lying_Leg_Curls", 3, 12, 15, False),
+     ("Pullups", 3, 6, 10, False),
+     ("Cable_Chest_Press", 3, 10, 12, False),
+     ("Air_Bike", 3, 15, 20, False),
+     ("Triceps_Pushdown", 2, 12, 15, True)],
+]
+
+# Стартовый рабочий вес и шаг за круг. None — упражнение без веса
+# (bodyweight или статика): у него пишутся только повторы, и карточка
+# рисуется в ОДНУ колонку вместо двух (setRowHTML в шаблоне). Обе формы
+# обязаны быть на экране, иначе снимается одна из них.
+ВЕСА = {
+    "Barbell_Squat": (60.0, 2.5), "Barbell_Bench_Press_-_Medium_Grip": (45.0, 2.5),
+    "Seated_Cable_Rows": (40.0, 5.0), "Seated_Dumbbell_Press": (22.5, 0.0),
+    "Plank": None, "Dumbbell_Bicep_Curl": (10.0, 1.0),
+    "Romanian_Deadlift": (50.0, 2.5), "Incline_Dumbbell_Press": (20.0, 1.0),
+    "Wide-Grip_Lat_Pulldown": (45.0, 5.0), "Leg_Press": (80.0, 20.0),
+    "Side_Lateral_Raise": (7.5, 0.5), "Hammer_Curls": (12.0, 1.0),
+    "Leg_Extensions": (35.0, 5.0), "Lying_Leg_Curls": (30.0, 5.0),
+    "Pullups": None, "Cable_Chest_Press": (35.0, 5.0),
+    "Air_Bike": None, "Triceps_Pushdown": (25.0, 5.0),
+}
+
+# Упражнение, у которого прогрессия ЗАСТРЯЛА: три последних завершённых
+# тренировки подряд с верхом диапазона повторов и без роста веса
+# (main._is_stuck: STUCK_MIN_SESSIONS=3, STUCK_MIN_SPAN_DAYS=14). Нулевой
+# шаг в ВЕСА выше — это оно и есть; без такой строки значок «застряло»
+# не показывается ни на одной карточке и не снимается.
+ЗАСТРЯЛО = "Seated_Dumbbell_Press"
+
+# Упражнение, которое ДОЖАЛО верх диапазона в ПОСЛЕДНЮЮ тренировку и
+# только в неё: тогда `main._progression_suggestion` предлагает поднять вес,
+# а `_is_stuck` молчит — вес-то рос. Без этой строки подсказка «поднимите
+# до X кг» не показывается ни на одной карточке и не снимается; а если
+# дожать в трёх подряд, вместо подсказки покажется «застряло», то есть
+# одно состояние закрыло бы собой другое.
+ДОЖАЛ = "Barbell_Bench_Press_-_Medium_Grip"
+ПОСЛЕДНИЙ_ЦИКЛ = 5
+
+СДВИГИ_ТРЕНИРОВОК = [7 * н - с for н in range(6, 0, -1) for с in (0, 2, 4)]
+СДВИГ_ПРОПУСКА = 26   # «не смог сегодня», причина sick
+СДВИГ_ЛЁГКОГО = 12    # лёгкий день — прогрессия его игнорирует
+
+
+def _сид_тренировок(db, user_id: int, база) -> dict:
+    """Анкета, программа, шесть недель журнала, прогрессия, замена, возврат.
+
+    Возвращает числа ДЛЯ ОТЧЁТА, посчитанные ПО БАЗЕ. Считать по словарю
+    намерений здесь нельзя по той же причине, что и у позиций съеденного:
+    намерение сказало бы «есть» и тогда, когда строки не доехали.
+    """
+    from database import (Exercise, WorkoutProfile, WorkoutProgram,
+                          WorkoutProgramDay, WorkoutProgramExercise,
+                          WorkoutSession, SetLog, ProgressionSetting,
+                          WorkoutExerciseSwap, PainZonePatch)
+    import main as _прил
+
+    # Чистим СВОЁ, а не всё подряд: прогон seed поверх seed не должен
+    # удваивать программу — иначе активных программ станет две, и какая
+    # из них откроется, решит порядок строк.
+    старые = [p.id for p in db.query(WorkoutProgram).filter(
+        WorkoutProgram.user_id == user_id).all()]
+    if старые:
+        дни_старые = [d.id for d in db.query(WorkoutProgramDay).filter(
+            WorkoutProgramDay.program_id.in_(старые)).all()]
+        if дни_старые:
+            db.query(WorkoutProgramExercise).filter(
+                WorkoutProgramExercise.day_id.in_(дни_старые)).delete(synchronize_session=False)
+        db.query(WorkoutProgramDay).filter(
+            WorkoutProgramDay.program_id.in_(старые)).delete(synchronize_session=False)
+    for модель in (WorkoutProgram, WorkoutSession, SetLog, ProgressionSetting,
+                   WorkoutExerciseSwap, PainZonePatch, WorkoutProfile):
+        db.query(модель).filter(модель.user_id == user_id).delete(synchronize_session=False)
+    db.flush()
+
+    все_id = [e[0] for д in ПРОГРАММА_ДНИ for e in д]
+    упр = {e.id: e for e in db.query(Exercise).filter(Exercise.id.in_(все_id)).all()}
+    нет = [i for i in все_id if i not in упр]
+    if нет:
+        # Справочник наполняется отдельно (exercises_seed.json). Молча
+        # положить программу с несуществующим id значит получить экран,
+        # где упражнения просто не рисуются, — это выглядело бы дефектом
+        # вёрстки, а не пустым справочником.
+        raise SystemExit("В справочнике нет упражнений: " + ", ".join(нет))
+
+    # «Мой зал» — ровно те кластеры, что нужны программе. Собирается ИЗ
+    # программы, а не выписывается руками: разойдясь, список дал бы анкету,
+    # которая обещает не то оборудование, на котором составлена программа.
+    кластеры = sorted({e.equipment_cluster for e in упр.values() if e.equipment_cluster})
+
+    анкета = WorkoutProfile(
+        user_id=user_id, goal="mass", days_per_week=3, level="intermediate",
+        focus_zones=["back"], pain_zones=[], equipment=кластеры, home_only=False,
+        onboarded=True, use_nutrition_data=True,
+        mesocycle_started_date=(база - timedelta(days=42)).strftime("%Y-%m-%d"),
+        mesocycle_length_weeks=10,
+        created_at=datetime.utcnow() - timedelta(days=45))
+    db.add(анкета)
+
+    структура, дни_описание = _прил._program_structure(3)
+    программа = WorkoutProgram(
+        user_id=user_id, structure=структура, days_per_week=3, active=True,
+        created_at=datetime.utcnow() - timedelta(days=44))
+    db.add(программа)
+    db.flush()
+
+    дни, слоты = [], {}   # слоты: (индекс дня, порядок) -> WorkoutProgramExercise
+    for описание, состав in zip(дни_описание, ПРОГРАММА_ДНИ):
+        день = WorkoutProgramDay(program_id=программа.id, day_index=описание["index"],
+                                 day_type=описание["type"], label=описание["label"])
+        db.add(день)
+        db.flush()
+        дни.append(день)
+        for порядок, (eid, подходов, низ, верх, бонус) in enumerate(состав):
+            слот = WorkoutProgramExercise(
+                day_id=день.id, exercise_id=eid, order=порядок, target_sets=подходов,
+                rep_low=низ, rep_high=верх, is_bonus=бонус)
+            db.add(слот)
+            db.flush()
+            слоты[(описание["index"], порядок)] = слот
+
+    # ── Журнал: шесть недель по три тренировки ──────────────────────────────
+    # День программы чередуется по кругу, как его и выдаёт
+    # _determine_today_day_id. Ровный ряд был бы тем же дефектом приёмки,
+    # что ровный ряд взвешиваний (§8.0), — поэтому один пропуск и один
+    # лёгкий день стоят в середине НАМЕРЕННО.
+    for н, сдвиг in enumerate(СДВИГИ_ТРЕНИРОВОК):
+        день = дни[н % 3]
+        дата = (база - timedelta(days=сдвиг)).strftime("%Y-%m-%d")
+        пропуск = сдвиг == СДВИГ_ПРОПУСКА
+        лёгкий = сдвиг == СДВИГ_ЛЁГКОГО
+        сессия = WorkoutSession(
+            user_id=user_id, program_day_id=день.id, log_date=дата,
+            skipped=пропуск, skip_reason="sick" if пропуск else None,
+            completed=not пропуск, is_light_day=лёгкий,
+            created_at=datetime.utcnow() - timedelta(days=сдвиг))
+        db.add(сессия)
+        db.flush()
+        if пропуск:
+            continue
+        цикл = н // 3          # номер прохода по кругу дней: 0..5
+        for (eid, подходов, низ, верх, _) in ПРОГРАММА_ДНИ[н % 3]:
+            вес0 = ВЕСА[eid]
+            for i in range(подходов):
+                if вес0 is None:
+                    вес = None
+                    повторы = низ + min(цикл, верх - низ)
+                else:
+                    старт, шаг = вес0
+                    вес = round(старт + шаг * цикл, 1)
+                    # ЗАСТРЯЛО — верх диапазона каждый раз при неизменном весе;
+                    # у остальных повторы гуляют внутри диапазона, иначе
+                    # «застряло» показалось бы у всей программы разом.
+                    дожал = eid == ДОЖАЛ and цикл == ПОСЛЕДНИЙ_ЦИКЛ
+                    повторы = (верх if (eid == ЗАСТРЯЛО or дожал)
+                               else max(низ, верх - (i % 3)))
+                    if лёгкий:
+                        вес = round(вес * 0.8, 1)
+                        повторы = низ
+                db.add(SetLog(user_id=user_id, session_id=сессия.id, exercise_id=eid,
+                              set_index=i, reps=повторы, weight_kg=вес,
+                              created_at=datetime.utcnow() - timedelta(days=сдвиг)))
+
+    # ── Сегодняшняя тренировка: ОТКРЫТА и заполнена наполовину ─────────────
+    # Состояние «частично» у значка статуса иначе не снимается вовсе:
+    # у завершённой тренировки заполнены все поля, у будущей — ни одного.
+    индекс_сегодня = len(СДВИГИ_ТРЕНИРОВОК) % 3
+    сегодня_день = дни[индекс_сегодня]
+    сегодня = база.strftime("%Y-%m-%d")
+    открытая = WorkoutSession(user_id=user_id, program_day_id=сегодня_день.id,
+                              log_date=сегодня, completed=False,
+                              created_at=datetime.utcnow())
+    db.add(открытая)
+    db.flush()
+    состав_сегодня = ПРОГРАММА_ДНИ[индекс_сегодня]
+    for н_упр, (eid, подходов, низ, верх, _) in enumerate(состав_сегодня[:2]):
+        вес0 = ВЕСА[eid]
+        # у второго упражнения заполнен НЕ ВЕСЬ набор — это и есть «частично»
+        сколько = подходов if н_упр == 0 else max(1, подходов - 1)
+        for i in range(сколько):
+            старт, шаг = вес0 if вес0 else (None, None)
+            db.add(SetLog(user_id=user_id, session_id=открытая.id, exercise_id=eid,
+                          set_index=i, reps=верх if вес0 else низ,
+                          weight_kg=round(старт + шаг * 6, 1) if вес0 else None))
+
+    # ── Прогрессия: три состояния строки из трёх ───────────────────────────
+    # Четвёртое состояние — «unset», то есть ОТСУТСТВИЕ строки, и оно тоже
+    # нужно: только у него фронт показывает вопрос «это тренажёр
+    # с фиксированными блоками?». Поэтому строки заводятся НЕ на все
+    # кластеры программы, и это не пропуск.
+    жим_ногами = упр["Leg_Press"].equipment_cluster
+    трос = упр["Seated_Cable_Rows"].equipment_cluster
+    db.add(ProgressionSetting(user_id=user_id, scope="cluster:%s" % жим_ногами,
+                              status="custom_fixed",
+                              fixed_values=[40.0, 60.0, 80.0, 100.0, 120.0, 140.0],
+                              created_at=datetime.utcnow() - timedelta(days=30)))
+    db.add(ProgressionSetting(user_id=user_id, scope="cluster:%s" % трос,
+                              status="pending_at_gym",
+                              created_at=datetime.utcnow() - timedelta(days=28)))
+    db.add(ProgressionSetting(user_id=user_id, scope="equipment:barbell",
+                              status="custom_step", step_kg=1.25,
+                              created_at=datetime.utcnow() - timedelta(days=20)))
+
+    # ── Замена упражнения НА СЕГОДНЯ ───────────────────────────────────────
+    # Альтернатива берётся у самого приложения (_find_alternatives), а не
+    # выбирается здесь: выбранное руками упражнение может не оказаться
+    # в списке, который покажет кнопка «заменить», — и «вернуть» вело бы
+    # к варианту, которого в подборе нет.
+    # Слот 2, а не 3: на третьем стоит ЗАСТРЯЛО, а day-state спрашивает
+    # признак у АКТИВНОГО упражнения — замена спрятала бы значок застоя,
+    # то есть одно снимаемое состояние закрыло бы собой другое (замерено).
+    заменяемый = слоты[(индекс_сегодня, 2)]
+    исходное = упр[заменяемый.exercise_id]
+    в_дне = {e[0] for e in состав_сегодня}
+    альтернативы = _прил._find_alternatives(db, исходное, анкета, в_дне)
+    if альтернативы:
+        db.add(WorkoutExerciseSwap(
+            user_id=user_id, program_exercise_id=заменяемый.id, log_date=сегодня,
+            swapped_to_exercise_id=альтернативы[0].id, created_at=datetime.utcnow()))
+
+    # ── Возврат после снятия зоны боли ─────────────────────────────────────
+    # Снятая зона оставляет подсказку «входи через сниженный вес» на 21 день
+    # (PAIN_ZONE_RETURN_NOTICE_DAYS). Без строки в журнале замен этот экран
+    # не снимается ни разу.
+    вернувшийся = слоты[(2, 0)]
+    db.add(PainZonePatch(
+        user_id=user_id, zone="knee", program_id=программа.id, day_id=дни[2].id,
+        order_in_day=0, original_exercise_id="Barbell_Squat",
+        original_target_sets=3, original_rep_low=8, original_rep_high=12,
+        original_is_bonus=False, program_exercise_id=вернувшийся.id,
+        applied_exercise_id="Leg_Extensions", active=False,
+        suggested_return_weight=45.0,
+        created_at=datetime.utcnow() - timedelta(days=40),
+        reverted_at=datetime.utcnow() - timedelta(days=4)))
+
+    db.flush()
+    дни_id = [d.id for d in дни]
+    сессии = db.query(WorkoutSession).filter(WorkoutSession.user_id == user_id)
+    return {
+        "дней": db.query(WorkoutProgramDay).filter(
+            WorkoutProgramDay.program_id == программа.id).count(),
+        "упражнений": db.query(WorkoutProgramExercise).filter(
+            WorkoutProgramExercise.day_id.in_(дни_id)).count(),
+        "сессий": сессии.count(),
+        "завершено": сессии.filter(WorkoutSession.completed.is_(True)).count(),
+        "пропущено": сессии.filter(WorkoutSession.skipped.is_(True)).count(),
+        "лёгких": сессии.filter(WorkoutSession.is_light_day.is_(True)).count(),
+        "открыта": сессии.filter(WorkoutSession.completed.is_(False),
+                                 WorkoutSession.skipped.is_(False)).count(),
+        "подходов": db.query(SetLog).filter(SetLog.user_id == user_id).count(),
+        "прогрессий": db.query(ProgressionSetting).filter(
+            ProgressionSetting.user_id == user_id).count(),
+        "замен": db.query(WorkoutExerciseSwap).filter(
+            WorkoutExerciseSwap.user_id == user_id).count(),
+        "патчей": db.query(PainZonePatch).filter(
+            PainZonePatch.user_id == user_id).count(),
+    }
+
+
+# ── Переписка с ассистентами: ОБА чата, и один пузырь С ВЛОЖЕНИЕМ ───────────
+#
+# `chat_messages` seed не заводил вовсе — то есть вкладка «Ассистент»
+# дневника и чат тренера снимались ПУСТЫМИ, а состояние «в переписке есть
+# история» не снималось ни разу. На рабочей машине реплики были: их
+# наговорили руками, и `--drop` стирал их без следа.
+#
+# Вложение кладётся ЗАПИСЬЮ И ФАЙЛОМ сразу, как фото прогресса: запись без
+# файла даёт битую картинку — состояние, которого у живого пользователя
+# не бывает.
+ПЕРЕПИСКА_ПИТАНИЕ = [
+    ("user", "Привет! Съел на завтрак овсянку на молоке и два варёных яйца. "
+             "Посчитаешь?", None),
+    ("assistant", "Посчитал. Овсяные хлопья 60 г на молоке 2,5% 200 мл — 386 ккал, "
+                  "Б 15,3 · Ж 11,2 · У 55,6. Два варёных яйца — 157 ккал, "
+                  "Б 12,7 · Ж 11,5 · У 0,7. Итого 543 ккал за завтрак.\n\n"
+                  "Записать в дневник?", None),
+    ("user", "Да, запиши в завтрак", None),
+    ("assistant", "Готово, записал в завтрак две позиции: «Овсяные хлопья длительной "
+                  "варки» 60 г и «Яйцо куриное столовое отборное С0» 100 г.\n\n"
+                  "До нормы 2350 ккал остаётся 1807.", None),
+    ("user", "А это сколько? Взял в столовой", "фото"),
+    ("assistant", "На фото вижу гречку с куриной грудкой и салат из огурцов "
+                  "с помидорами. Прикидываю по объёму порции:\n\n"
+                  "— гречка отварная, ~180 г — 176 ккал\n"
+                  "— грудка запечённая, ~130 г — 147 ккал\n"
+                  "— салат с маслом, ~120 г — 84 ккал\n\n"
+                  "Итого около 407 ккал. Это оценка по фото, вес я не вижу — "
+                  "если знаете граммовку, поправьте, пересчитаю точно.", None),
+    ("user", "Норм, запиши в обед", None),
+    ("assistant", "Записал в обед три позиции. За день набралось 950 ккал, "
+                  "до нормы ещё 1400 — на ужин места достаточно.", None),
+]
+
+ПЕРЕПИСКА_ТРЕНЕР = [
+    ("user", "Жим гантелей сидя третью неделю стоит на 22,5 — что делать?", None),
+    ("assistant", "Вижу по журналу: три тренировки подряд по 12 повторов в трёх "
+                  "подходах на 22,5 кг, верх диапазона выбран полностью, вес "
+                  "не рос. Это и есть застой, а не плохая неделя.\n\n"
+                  "Два рабочих хода:\n"
+                  "1. Поднять до 25 кг и уйти вниз диапазона — 8 повторов. "
+                  "Дальше отрабатывать обратно до 12.\n"
+                  "2. Оставить 22,5, но добавить четвёртый подход на две недели.\n\n"
+                  "Для набора массы я бы взял первый.", None),
+    ("user", "Давай первый. И ещё: колено больше не болит, можно вернуть присед?",
+     None),
+    ("assistant", "По колену ограничение я уже снял четыре дня назад — в программе "
+                  "вместо разгибаний вернулся присед со штангой. На карточке "
+                  "стоит подсказка входить через 45 кг, а не через прежний "
+                  "рабочий: после перерыва первые две тренировки берём легче.\n\n"
+                  "Это фитнес-помощник, не медицинский сервис. Если боль "
+                  "вернётся — не дожимайте через неё.", None),
+]
+
+
+def _сид_переписки(db, user_id: int, база) -> dict:
+    """Реплики обоих чатов; у одной — настоящее вложение на томе."""
+    import secrets
+    from PIL import Image, ImageDraw
+    from database import ChatMessage
+    import main as _прил
+
+    db.query(ChatMessage).filter(ChatMessage.user_id == user_id).delete(
+        synchronize_session=False)
+    прежние = _прил._media_user_dir("chat", user_id)
+    if os.path.isdir(прежние):
+        shutil.rmtree(прежние, ignore_errors=True)
+
+    вложений = 0
+    for tool, реплики, сдвиг_часов in (("nutrition", ПЕРЕПИСКА_ПИТАНИЕ, 6),
+                                       ("workout", ПЕРЕПИСКА_ТРЕНЕР, 30)):
+        for н, (роль, текст, вложение) in enumerate(реплики):
+            токен = None
+            if вложение:
+                кадр = Image.new("RGB", (720, 540), (96, 92, 74))
+                рис = ImageDraw.Draw(кадр)
+                рис.ellipse((90, 120, 430, 430), fill=(122, 104, 68))
+                рис.rectangle((450, 150, 640, 400), fill=(104, 122, 84))
+                рис.text((24, 24), "обед из столовой", fill=(244, 246, 252))
+                токен = secrets.token_urlsafe(16)
+                путь = _прил._media_path("chat", user_id, токен)
+                os.makedirs(os.path.dirname(путь), exist_ok=True)
+                кадр.save(путь, "JPEG", quality=82)
+                вложений += 1
+            db.add(ChatMessage(
+                user_id=user_id, role=роль, content=текст, image_path=токен, tool=tool,
+                created_at=datetime.utcnow() - timedelta(
+                    hours=сдвиг_часов, minutes=(len(реплики) - н) * 3)))
+    db.flush()
+    from database import ChatMessage as _ЧМ
+    return {
+        "реплик": db.query(_ЧМ).filter(_ЧМ.user_id == user_id).count(),
+        "питание": db.query(_ЧМ).filter(_ЧМ.user_id == user_id,
+                                        _ЧМ.tool == "nutrition").count(),
+        "тренер": db.query(_ЧМ).filter(_ЧМ.user_id == user_id,
+                                       _ЧМ.tool == "workout").count(),
+        "вложений": вложений,
+        "файлов": sum(1 for м in db.query(_ЧМ).filter(
+            _ЧМ.user_id == user_id, _ЧМ.image_path.isnot(None)).all()
+            if os.path.exists(_прил._media_path("chat", user_id, м.image_path))),
+    }
+
+
+def _сид_аватара(db, u) -> bool:
+    """Файл аватара на диске плюс отметка времени в `users`.
+
+    Без файла шапка рисует букву-инициал, и состояние «аватар загружен»
+    не снимается — вместе с ним не снимается и кнопка «Убрать фото»
+    в профиле. Отметка времени пишется ЗДЕСЬ ЖЕ: файл без неё страница
+    не покажет (адрес аватара несёт версию), и это ровно тот дефект,
+    который ловит проверка 15.
+    """
+    from PIL import Image, ImageDraw
+    import main as _прил
+
+    путь = _прил._avatar_path(u.id)
+    os.makedirs(os.path.dirname(путь), exist_ok=True)
+    кадр = Image.new("RGB", (256, 256), (60, 74, 112))
+    рис = ImageDraw.Draw(кадр)
+    рис.ellipse((36, 30, 220, 214), fill=(122, 140, 196))
+    рис.ellipse((92, 74, 164, 146), fill=(238, 242, 252))
+    рис.rectangle((70, 158, 186, 214), fill=(238, 242, 252))
+    кадр.save(путь, "PNG")
+    u.avatar_updated_at = datetime.utcnow()
+    return os.path.exists(путь)
+
+
+def _сид_доступа(db, user_id: int) -> int:
+    """Открытые инструменты в `tool_access`.
+
+    Аккаунт съёмки — администратор, и `user_has_access` пускает его
+    и без строк. Но таблица `/admin/users` рисует галочку ПО СТРОКАМ,
+    и при пустой таблице состояние «инструмент открыт» не снимается
+    ни у одного пользователя.
+    """
+    from database import ToolAccess
+    import main as _прил
+
+    db.query(ToolAccess).filter(ToolAccess.user_id == user_id).delete(
+        synchronize_session=False)
+    # Не все — иначе не снимается и вторая половина: строка, где часть
+    # галочек стоит, а часть нет
+    открыты = [t["id"] for t in _прил.TOOLS][:-1]
+    for tid in открыты:
+        db.add(ToolAccess(user_id=user_id, tool_id=tid))
+    db.flush()
+    return len(открыты)
+
+
+
+# Таблицы, пустота которых у аккаунта съёмки — НЕ пробел приёмки.
+# Список поимённый и с причиной у каждой строки: множество здесь
+# закрытое, новый член в нём появляется только решением (§6.0.7).
+# Всё остальное выводится ИЗ СХЕМЫ каскадом удаления, а не перечнем.
+ПУСТО_ЗАКОННО = {
+    "email_logs (обезличено)":
+        "журнал отправок; заводится настоящей отправкой письма, "
+        "подделывать его значит врать про доставку",
+    "enshrouded_slots":
+        "раздел Enshrouded живёт мимо дизайн-системы и мимо приёмки "
+        "(BACKLOG №2, №38, №45); данные ему заведут вместе со сносом",
+}
+
+
+def опись(db, u) -> int:
+    """Что seed НЕ заводит вовсе — по СХЕМЕ, а не по чтению кода.
+
+    Перечня таблиц здесь нет: он выводится из каскада удаления
+    (`delete_user_cascade(dry_run=True)`), то есть из того же места,
+    что уже сверено с моделями SQLAlchemy (`check_user_tables_complete`).
+    Таблица, добавленная завтра, попадёт в опись сама.
+
+    Код возврата: 0 — незаполненных сверх законных нет, 1 — есть
+    и названы. Читать надо именно его (§6.0.1).
+    """
+    from database import delete_user_cascade
+    # СУТКИ, В КОТОРЫЕ СЕЯЛИ. «Сегодня» у данных заморожено на дате
+    # сидирования: посеяли в 23:50, сняли приёмку в 00:10 — и открытая
+    # тренировка, позиции съеденного за сегодня и залитая клетка полоски
+    # дней стали ВЧЕРАШНИМИ. Экран при этом исправен, и отличить
+    # «состояние не снимается» от «оно уехало на сутки» по кадру нельзя.
+    #
+    # Спрашивается ЗДЕСЬ, а не при сидировании: опись запускают ПЕРЕД
+    # приёмкой, а строка в отчёте посева к тому времени уже уехала вверх
+    # по журналу или вовсе принадлежит другому дню.
+    from database import FoodLog, WorkoutSession
+    сегодня = datetime.now().date().isoformat()
+    свежесть = []
+    for модель, что in ((FoodLog, "позиций съеденного"),
+                        (WorkoutSession, "тренировок")):
+        последняя = (db.query(модель.log_date)
+                     .filter(модель.user_id == u.id, модель.log_date <= сегодня)
+                     .order_by(модель.log_date.desc()).first())
+        if последняя and последняя[0] != сегодня:
+            свежесть.append(f"{что}: последняя дата {последняя[0]}")
+    if свежесть:
+        print(f"ДАННЫЕ ОТСТАЛИ ОТ СУТОК (сегодня {сегодня}): "
+              + "; ".join(свежесть))
+        print("   Случаи «сегодня» снимутся вчерашними — пересейте "
+              "(py make_local_user.py --seed).")
+
+    отчёт = delete_user_cascade(u.id, dry_run=True)
+    пусто = sorted(т for т, n in отчёт.items() if not n)
+    пробелы = [т for т in пусто if т not in ПУСТО_ЗАКОННО]
+    print(f"ОПИСЬ ПО СХЕМЕ: строк каскада {len(отчёт)}, пустых {len(пусто)}, "
+          f"из них законных {len(пусто) - len(пробелы)}")
+    for т in пусто:
+        причина = ПУСТО_ЗАКОННО.get(т)
+        print(f"   0   {т}" + (f"  — законно: {причина}" if причина else "  — ПРОБЕЛ"))
+    if пробелы:
+        print("Экран, которого seed не наполняет, не проверяется вовсе "
+              "(CLAUDE.md §8.0).")
+    return 1 if пробелы else 0
+
+
 def main() -> int:
     удалить = "--drop" in sys.argv
     сеять = "--seed" in sys.argv
@@ -306,6 +818,8 @@ def main() -> int:
         if весы not in СОСТОЯНИЯ_ВЕСОВ:
             print(f"--scale: нужно одно из {', '.join(СОСТОЯНИЯ_ВЕСОВ)}, а не {весы!r}")
             return 2
+
+    опись_только = "--опись" in sys.argv
 
     путь = _проверить_базу()
     print(f"База: {os.path.abspath(путь)}")
@@ -329,6 +843,12 @@ def main() -> int:
     db = SessionLocal()
     try:
         u = db.query(User).filter(User.email == EMAIL).first()
+
+        if опись_только:
+            if not u:
+                print(f"Аккаунта {EMAIL} нет — сначала py make_local_user.py --seed")
+                return 1
+            return опись(db, u)
 
         # Непроверенный аккаунт заводится ВСЕГДА, вместе с основным: гейт
         # проверяют оба захода — и тот, что его чинит, и тот, что случайно
@@ -822,6 +1342,15 @@ def main() -> int:
         # у живого пользователя не бывает.
         снимков = _сид_фото_тела(db, u.id, база)
 
+        # РАЗДЕЛ ТРЕНИРОВОК, ПЕРЕПИСКА, АВАТАР И ДОСТУП К ИНСТРУМЕНТАМ.
+        # Ни одной строки по ним seed не заводил, то есть /workout
+        # снимался мастером анкеты, оба чата — пустыми, шапка — буквой
+        # вместо аватара, а таблица админки — со всеми галочками снятыми.
+        тренировки = _сид_тренировок(db, u.id, база)
+        переписка = _сид_переписки(db, u.id, база)
+        аватар = _сид_аватара(db, u)
+        инструментов = _сид_доступа(db, u.id)
+
         db.commit()
         # Привязка весов — вместе с остальными данными: экран, состояние
         # которого нечем поставить, не снимается (см. СОСТОЯНИЯ_ВЕСОВ).
@@ -892,6 +1421,34 @@ def main() -> int:
               f"; полных из них: "
               f"{sum(1 for м in без_нормы if len(по_месяцам[м]) >= 20) or 'НЕТ'}")
         print(f"Дни точной доли от нормы {норма_точных} ккал: {точные}")
+        # ЧИСЛА ПО БАЗЕ. Отчёт, собранный из намерений, сказал бы «есть»
+        # и тогда, когда строки не доехали, — а именно этим шесть недель
+        # журнала и отличаются от пустого раздела
+        print(f"Тренировки: программа на {тренировки['дней']} дня, "
+              f"{тренировки['упражнений']} слотов упражнений · "
+              f"сессий {тренировки['сессий']} "
+              f"(завершено {тренировки['завершено']}, пропущено "
+              f"{тренировки['пропущено']}, лёгких {тренировки['лёгких']}, "
+              f"открыта сегодня {тренировки['открыта']}) · "
+              f"подходов {тренировки['подходов']} · настроек прогрессии "
+              f"{тренировки['прогрессий']} · замен на сегодня "
+              f"{тренировки['замен']} · возвратов после зоны боли "
+              f"{тренировки['патчей']}")
+        print(f"Переписка: реплик {переписка['реплик']} "
+              f"(дневник {переписка['питание']}, тренер {переписка['тренер']}) · "
+              f"вложений {переписка['вложений']}, файлов на томе "
+              f"{переписка['файлов']}"
+              f"{' — РАСХОЖДЕНИЕ' if переписка['файлов'] != переписка['вложений'] else ''}"
+              f" · аватар {'файл на диске' if аватар else 'НЕ ПОЛОЖЕН'} · "
+              f"инструментов открыто {инструментов} из {len(_прил.TOOLS)}")
+        # ДЕНЬ, ОТ КОТОРОГО ОТСЧИТАНО ВСЁ. Печатается, потому что «сегодня»
+        # у данных ЗАМОРОЖЕНО на момент сидирования: посеяли в 23:50,
+        # сняли приёмку в 00:10 — и открытая тренировка, 12 позиций
+        # съеденного и «сегодня» полоски дней стали ВЧЕРАШНИМИ. Экран
+        # при этом исправен, и отличить «состояние не снимается» от «оно
+        # уехало на сутки» по кадру нельзя.
+        print(f"Всё отсчитано от {база.isoformat()} — «сегодня» у данных "
+              f"заморожено на этой дате.")
         print(f"Пароль: {PASSWORD}")
         return 0
     finally:

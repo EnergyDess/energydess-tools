@@ -313,18 +313,14 @@
   justify-content: center;
   gap: var(--space-4);
 }
-.loading-bar { width: 200px; height: 3px; background: var(--surface-sunken); border-radius: 3px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--border); }
-.loading-bar-inner {
-  height: 100%;
-  background: var(--tool-accent);
-  border-radius: 3px;
-  animation: progress 2s ease-in-out infinite;
-}
-@keyframes progress {
-  0%   { width: 0%;  margin-left: 0; }
-  50%  { width: 70%; margin-left: 0; }
-  100% { width: 0%;  margin-left: 100%; }
-}
+/* Дорожка — СИСТЕМНАЯ (задача 118), а заливка — её вариант
+   `.meter-fill-loop`: неопределённая загрузка. Своего у экземпляра
+   осталось два свойства: ширина 200px и высота 3px через ручку
+   компонента. Кромка (`.meter-edge`) сохранена намеренно, хотя система
+   советует её от 5px: снять её значило бы изменить облик, а вопрос
+   этого сведения — убрать копию, а не перерисовать полосу. */
+.loading-bar { width: 200px; --meter-h: 3px; }
+
 .loading-text { font-size: var(--text-caption); color: var(--text-2); }
 
 .error-state { display: none; }
@@ -816,6 +812,30 @@
 .pmbtn.safe .pmbtn-title { color: var(--tool-accent); }
 .pmbtn.danger { border-color: color-mix(in srgb, var(--error) 30%, transparent); background: color-mix(in srgb, var(--error) 7%, transparent); }
 .pmbtn.danger .pmbtn-title { color: var(--error); }
+/* ОТКЛИК У КАЖДОГО ВАРИАНТА СВОЙ (BACKLOG №133).
+   Здесь его не было вовсе: базовое `.pmbtn:hover` сужено до
+   `:not(.safe):not(.danger)`, а вариантам взамен не дали ничего —
+   две кнопки из трёх в окне разбора резюме были мертвы на ощупь,
+   то есть читались как неактивные (тот же довод, что у задачи 120
+   про крестик закрытия).
+   Общим `.pmbtn:hover { background: var(--surface-3) }` это не лечится:
+   серая подложка стёрла бы цветовую метку варианта — «оставить моё»
+   и «заменить всё» стали бы под курсором одинаковыми. Поэтому усиление
+   СВОЕГО тона: та же краска гуще плюс заметнее рамка. */
+@media (hover: hover) {
+  .pmbtn.safe:hover {
+    /* 26%, а не 18: в покое `.safe` берёт `--tool-accent-dim`, а это уже
+       15% — замер показал, что 18 даёт прибавку в три процента, то есть
+       отклик, которого не видно. У `.danger` покой 7%, и там 14 — ровно
+       вдвое; здесь та же пропорция. */
+    background: color-mix(in srgb, var(--tool-accent) 26%, transparent);
+    border-color: color-mix(in srgb, var(--tool-accent) 55%, transparent);
+  }
+  .pmbtn.danger:hover {
+    background: color-mix(in srgb, var(--error) 14%, transparent);
+    border-color: color-mix(in srgb, var(--error) 55%, transparent);
+  }
+}
 @media (max-width: 560px) { .parse-modal-actions { flex-direction: column; } }
 
 /* ── Toast ──────────────────────────────────────────────────────────────── */
