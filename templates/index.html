@@ -22,7 +22,10 @@
       align-items: center;
       gap: 8px;
       background: var(--accent-brand-dim);
-      border: 1px solid rgba(0,212,255,0.2);
+      /* Было rgba(0,212,255,0.2) — бирюзовый из УДАЛЁННОЙ палитры
+         (design-system.md §11), BACKLOG №18. Тот же процент, но
+         от брендового токена. */
+      border: 1px solid color-mix(in srgb, var(--accent-brand) 20%, transparent);
       border-radius: 99px;
       padding: 6px 18px;
       font-family: var(--font-mono);

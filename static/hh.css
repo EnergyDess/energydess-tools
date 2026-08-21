@@ -804,7 +804,13 @@
 .pmbtn-title { font-size: var(--text-caption); font-weight: 600; color: var(--text); line-height: 1.2; }
 .pmbtn-desc { font-size: var(--text-mono); color: var(--text-faint); line-height: 1.4; }
 @media (hover: hover) {
-  .pmbtn:hover { background: var(--surface-3); }
+  /* СУЖЕНИЕ ОБЪЯВЛЯЕТ ТО, ЧТО И ТАК ПРОИСХОДИЛО, а не меняет вид.
+     `.safe` и `.danger` — постоянные варианты кнопки, они стоят НИЖЕ
+     и при равной специфичности (0,2,0) перебивали этот фон: две
+     кнопки из трёх на наведение не отвечали. Правило записано явно;
+     то, что у вариантов отклика НЕТ, — отдельный вопрос и отдельная
+     цена (задача 120: кнопка без отклика читается как неактивная). */
+  .pmbtn:hover:not(.safe):not(.danger) { background: var(--surface-3); }
 }
 .pmbtn.safe { border-color: color-mix(in srgb, var(--tool-accent) 30%, transparent); background: var(--tool-accent-dim); }
 .pmbtn.safe .pmbtn-title { color: var(--tool-accent); }

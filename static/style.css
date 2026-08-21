@@ -957,7 +957,10 @@ button.chip, a.chip { cursor: pointer; }
   transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 @media (hover: hover) {
-  .tab-btn:hover { color: var(--text); }
+  /* Сужение объявлено, а не выведено из порядка строк: у выбранной
+     вкладки цвет уже `--text`, и наведение обязано не спорить
+     с выделением (design-system.md §2.12, проверка 21). */
+  .tab-btn:hover:not(.active) { color: var(--text); }
 }
 .tab-btn.active { color: var(--text); border-bottom-color: var(--tool-accent, var(--accent-brand)); }
 .tab-btn svg { width: 16px; height: 16px; stroke-width: 1.5; }
@@ -1807,7 +1810,9 @@ img.avatar { object-fit: cover; padding: 0; }
   letter-spacing: 0.01em;
 }
 @media (hover: hover) {
-  .nav-links a:hover, .nav-right a:hover {
+  /* :not(.active) — по той же причине, что у .tab-btn выше: у текущей
+     ссылки состояние уже объявлено, и наведение его не перекрашивает. */
+  .nav-links a:hover:not(.active), .nav-right a:hover:not(.active) {
     color: var(--text);
     border-color: var(--border-strong);
     background: rgba(255,255,255,0.05);
@@ -2632,7 +2637,9 @@ textarea::placeholder, input::placeholder { color: var(--text-faint); }
   letter-spacing: 0.02em;
 }
 @media (hover: hover) {
-  .copy-btn:hover { background: var(--surface-3); color: var(--text); border-color: var(--border-strong); }
+  /* `.copied` — состояние «скопировано», живёт секунды и обязано быть
+     видно всё это время; наведение его не перебивает (проверка 21). */
+  .copy-btn:hover:not(.copied) { background: var(--surface-3); color: var(--text); border-color: var(--border-strong); }
 }
 .copy-btn.copied { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); color: var(--success); }
 

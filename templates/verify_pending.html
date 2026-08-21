@@ -9,75 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="{{ st('style.css') }}">
-  <style>
-    .verify-icon {
-      width: 72px; height: 72px;
-      border-radius: 20px;
-      background: linear-gradient(135deg, rgba(124,77,255,0.18), rgba(0,212,255,0.12));
-      border: 1px solid rgba(124,77,255,0.25);
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 24px;
-      box-shadow: 0 0 40px rgba(124,77,255,0.12);
-    }
-    /* Размер значка задаётся здесь, а не кеглем: у Lucide width/height
-       стоят атрибутами на самом svg, наследования от font-size нет.
-       32px — прежние 2rem, которыми размерился эмодзи (design-system.md §8) */
-    .verify-icon svg { width: 32px; height: 32px; stroke-width: 1.5; }
-    .verify-steps {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      text-align: left;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 16px 20px;
-      margin: 20px 0;
-    }
-    .verify-step {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      font-size: 0.85rem;
-      color: var(--text-2);
-      line-height: 1.5;
-    }
-    .verify-step-num {
-      width: 20px; height: 20px;
-      border-radius: 50%;
-      background: rgba(124,77,255,0.15);
-      border: 1px solid rgba(124,77,255,0.25);
-      color: #a78bfa;
-      font-size: 0.7rem;
-      font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-
-    /* Утилиты страниц подтверждения. Раньше это лежало инлайном в разметке
-       (CLAUDE.md §6.0.2): атрибут style= бьёт любой файловый селектор,
-       и никакая правка в style.css до него не дошла бы. */
-    .v-center     { text-align: center; }
-    .v-lead       { color: var(--text-2); font-size: var(--text-body-sm); margin-bottom: var(--space-5); }
-    .v-lead-plain { color: var(--text-2); font-size: var(--text-body-sm); }
-    .v-strong     { color: var(--text); }
-    .v-sm         { font-size: var(--text-body-sm); }
-    .v-mb-4       { margin-bottom: var(--space-1); }
-    .v-mb-8       { margin-bottom: var(--space-2); }
-    .v-mb-20      { margin-bottom: var(--space-5); }
-    .v-mt-8       { margin-top: var(--space-2); }
-    .v-mt-20      { margin-top: var(--space-5); }
-    .v-block      { margin-bottom: var(--space-5); text-align: left; }
-    .v-note       { font-size: var(--text-caption); color: var(--text-faint); }
-    .v-mb-16      { margin-bottom: var(--space-4); }
-    .v-mt-24      { margin-top: var(--space-6); }
-    .v-link       { color: var(--accent-brand); font-size: var(--text-body-sm);
-                    text-decoration: none; transition: opacity var(--dur-fast) var(--ease); }
-    @media (hover: hover) {
-      .v-link:hover { opacity: 0.8; }
-    }
-  </style>
+  <link rel="stylesheet" href="{{ st('verify.css') }}">
 </head>
 <body class="auth-layout has-site-header">
 

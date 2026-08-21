@@ -357,7 +357,8 @@
                 border-color var(--dur-fast) var(--ease);
   }
   @media (hover: hover) {
-    .admin-subnav a:hover {
+    /* :not(.active) — текущий раздел уже выделен (проверка 21). */
+    .admin-subnav a:hover:not(.active) {
       color: var(--text);
       border-color: var(--border-strong);
       background: var(--surface-2);
@@ -378,7 +379,7 @@
   }
   .ex-stat { padding: var(--space-4); cursor: pointer; }
   @media (hover: hover) {
-    .ex-stat:hover { border-color: var(--accent-brand); }
+    .ex-stat:hover:not(.active) { border-color: var(--accent-brand); }
   }
   .ex-stat.active {
     border-color: var(--accent-brand);
@@ -497,7 +498,7 @@
     color: var(--success);
   }
   @media (hover: hover) {
-    .ex-btn-approve:hover { background: color-mix(in srgb, var(--success) 20%, transparent); }
+    .ex-btn-approve:hover:not(.active) { background: color-mix(in srgb, var(--success) 20%, transparent); }
   }
   .ex-btn-approve.active { background: color-mix(in srgb, var(--success) 28%, transparent); }
   .ex-btn-wrong {
@@ -506,7 +507,7 @@
     color: var(--error);
   }
   @media (hover: hover) {
-    .ex-btn-wrong:hover { background: color-mix(in srgb, var(--error) 20%, transparent); }
+    .ex-btn-wrong:hover:not(.active) { background: color-mix(in srgb, var(--error) 20%, transparent); }
   }
   .ex-btn-wrong.active { background: color-mix(in srgb, var(--error) 28%, transparent); }
   .ex-btn-replace { background: var(--surface-2); border-color: var(--border); color: var(--text); }
