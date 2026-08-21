@@ -581,12 +581,30 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
 /* Тон разрушающего действия. Цвет — ТОКЕН: в пяти из десяти прежних
    реализаций стоял хардкод `#ef4444`, шестая брала `var(--error)`,
    и они не совпадали. */
-.btn-icon-danger:active { color: var(--error); }
+/* ЦВЕТ — В ПОКОЕ, А НЕ В НАВЕДЕНИИ. Правка 2026-08-21, и это откат
+   собственного решения от 2026-08-20.
+
+   Было: в покое кнопка брала цвет базовой `.btn-icon` — `--text-faint`,
+   приглушённый серый, — а красной становилась только на `:hover`
+   и `:active`. НА СЕНСОРНОМ ЭКРАНЕ НАВЕДЕНИЯ НЕТ: там человек видит
+   ровно одно состояние — покой, — и в нём разрушающее действие ничем
+   не отличалось от любого другого значка.
+
+   Замер по четырём местам, покой на 390px с has_touch, до сведения
+   и после него: `.recipe-del` #ef4444 → #7A83A0, `.ing-del` #ef4444 →
+   #7A83A0, `.tag-chip-x` акцент 55 % → #7A83A0, `.water-log-del`
+   --text-2 → --text-faint. То есть три красных крестика из десяти
+   стали серыми, и увидеть это можно было только на телефоне.
+
+   Усиление на наведении осталось усилением — заливкой, — а не условием
+   видимости: ровно то разделение, которого требует CLAUDE.md §6.0.3
+   про сенсорные состояния. */
+.btn-icon-danger { color: var(--error); }
+/* Нажатие даёт отклик и на сенсорном: цветом уже не отличиться,
+   работу делает заливка. */
+.btn-icon-danger:active { background: color-mix(in srgb, var(--error) 16%, transparent); }
 @media (hover: hover) {
-  .btn-icon-danger:hover {
-    color: var(--error);
-    background: color-mix(in srgb, var(--error) 16%, transparent);
-  }
+  .btn-icon-danger:hover { background: color-mix(in srgb, var(--error) 16%, transparent); }
 }
 
 /* Кнопка ПОВЕРХ изображения. Подложка обязательна: на фотографии значок
@@ -1967,6 +1985,77 @@ textarea::placeholder, input::placeholder { color: var(--text-faint); }
                  color: var(--tool-accent, var(--accent-brand)); }
 .alert-accent strong { color: var(--tool-accent, var(--accent-brand)); }
 .alert svg { width: 18px; height: 18px; stroke-width: 1.5; flex-shrink: 0; margin-top: 1px; }
+
+/* ── ПУСТОЕ СОСТОЯНИЕ (`.empty-state`) ───────────────────────────────────
+   BACKLOG №115, заведено 2026-08-20, НАПИСАНО 2026-08-21.
+
+   Между этими двумя датами компонента НЕ СУЩЕСТВОВАЛО, и это главное,
+   что про него надо знать. Заход 115 удалил девять страничных правил,
+   расставил `class="empty-state …"` по девяти местам, описал компонент
+   в `design-system.md` §2.20 — и НЕ ДОБАВИЛ НИ ОДНОГО ПРАВИЛА СЮДА.
+
+   Отказ немой по построению: класс есть в разметке, значит проверка 7
+   (`check_docs.py`) считает имя существующим и молчит; проверка 1 ищет
+   переопределение системы страницей, а тут не переопределение, а ПУСТОТА;
+   пиксельный диф видит расхождение, но сказать «стало хуже» не умеет.
+   Замер того, во что превратилось пустое состояние приёма пищи на 390px:
+
+     выравнивание  center → start
+     высота        53 → 26 px  (−51 %)
+     паддинг       16/13 → 0
+     кегль         13 → 16 px  (наследованный от body)
+     цвет          --text-2 → --text
+
+   То есть от компонента остался голый текст в углу. Отсюда же взялась
+   проверка 16 (`check_regress.py`): она называет вид изменения словом,
+   а не площадью расхождения в пикселях.
+
+   Формы три, потому что ролей три (разбор — design-system.md §2.20).
+   Отбивка и внешние отступы компоненту НЕ принадлежат: их задаёт
+   страница своим классом рядом (`.meal-empty`, `.chat-empty`). */
+.empty-state {
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--text-2);
+  font-size: var(--text-body-sm);
+}
+/* Пусто в ОДНОЙ строке внутри карточки: приём пищи, выпадашка поиска.
+   32px сверху разорвали бы список. */
+.empty-state-inline { padding: var(--space-3) var(--space-4); font-size: var(--text-caption); }
+/* Пусто на весь экран инструмента: значку и заголовку нужно место. */
+.empty-state-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-7) var(--space-5);
+}
+/* Плитка под значок. Правила перенесены из `.empty-icon` в `hh.css`
+   ДОСЛОВНО — там была единственная приличная реализация из девяти,
+   её и подняли в базу. Заход 115 это написал в комментарии, но самих
+   правил не перенёс, и плитка полтора дня была прозрачным квадратом
+   без размера. */
+.empty-state-icon {
+  width: 64px; height: 64px;
+  border-radius: var(--radius-lg);
+  background: var(--tool-accent-dim);
+  border: 1px solid color-mix(in srgb, var(--tool-accent) 30%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--tool-accent);
+}
+.empty-state-icon svg { width: 28px; height: 28px; stroke-width: 1.5; }
+/* Заголовок и подпись — двумя способами, и это не дубль. `-title`/`-sub`
+   там, где разметку собирает скрипт и лишний тег не нужен; `h3`/`p` там,
+   где блок написан в шаблоне и заголовок обязан быть заголовком для
+   программы чтения с экрана. */
+.empty-state-title, .empty-state h3 {
+  font-size: var(--text-body); font-weight: 600; color: var(--text);
+}
+.empty-state-sub, .empty-state p {
+  font-size: var(--text-caption); color: var(--text-2); max-width: 280px;
+}
 
 /* ── Toggle ─────────────────────────────────────────────────────────────── */
 /* Переехал из profile.css. Компонента в системе не было вовсе, поэтому
