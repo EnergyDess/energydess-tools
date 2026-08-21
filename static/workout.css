@@ -177,7 +177,7 @@
   text-align: center;
 }
 @media (hover: hover) {
-  .wk-option:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+  .wk-option:hover:not(.selected) { border-color: var(--border-strong); transform: translateY(-2px); }
 }
 .wk-option.selected {
   background: var(--surface-3);
@@ -198,7 +198,7 @@
   display: flex; align-items: center; justify-content: center;
 }
 @media (hover: hover) {
-  .wk-day-btn:hover { border-color: var(--border-strong); }
+  .wk-day-btn:hover:not(.selected) { border-color: var(--border-strong); }
 }
 .wk-day-btn.selected {
   background: var(--tool-accent); border-color: transparent; color: var(--surface-0);
@@ -221,7 +221,7 @@
   cursor: pointer; transition: all 0.2s;
 }
 @media (hover: hover) {
-  .wk-pain-item:hover { border-color: var(--border-strong); }
+  .wk-pain-item:hover:not(.selected) { border-color: var(--border-strong); }
 }
 .wk-pain-item.selected { border-color: var(--tool-accent); background: var(--surface-3); }
 .wk-pain-check {
@@ -262,7 +262,7 @@
   cursor: pointer; transition: all 0.2s; text-align: center;
 }
 @media (hover: hover) {
-  .wk-preset-btn:hover { border-color: var(--border-strong); }
+  .wk-preset-btn:hover:not(.selected) { border-color: var(--border-strong); }
 }
 .wk-preset-btn.selected { background: var(--tool-accent); border-color: transparent; color: var(--surface-0); }
 .wk-manual-row { display: flex; align-items: center; gap: var(--space-3); }
@@ -297,6 +297,22 @@
 }
 .wk-btn-ghost:disabled { opacity: 0.3; cursor: default; }
 
+/* ВЫБРАННОЕ СОСТОЯНИЕ ОТМЕНЯЕТ НАВЕДЕНИЕ — И ЭТО НАПИСАНО, А НЕ ВЫХОДИТ
+   САМО. До 2026-08-21 правила наведения в этом файле стояли выше правил
+   `.selected`/`.active`/`.done` при РАВНОЙ специфичности ((0,2,0) у обоих:
+   класс плюс псевдокласс против двух классов), и у выбранного элемента
+   наведение не меняло ничего. Отказ немой: правило написано, синтаксис
+   верен, консоль чиста, а на экране ничего.
+
+   Замысел при этом верный, и он же записан в системе — `.segmented-btn`
+   объявляет `:hover:not(.active)` прямым текстом (design-system.md §2.12):
+   выбранный элемент уже выделен, и подсветка наведением спорила бы
+   с выделением. Поэтому правила не оживлены, а СУЖЕНЫ до того, где они
+   работали и раньше. Ни один пиксель от этого не изменился — проверено
+   пиксельным дифом; изменилось то, что теперь это видно в тексте.
+
+   Сторожит `py check_shadowed.py` (проверка 21). */
+
 /* Мой зал — чек-лист оборудования */
 .wk-eq-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-5); gap: var(--space-3); flex-wrap: wrap; }
 .wk-eq-count { color: var(--text-2); font-size: var(--text-caption); font-family: var(--font-mono); }
@@ -307,7 +323,7 @@
   transition: all 0.2s; white-space: nowrap;
 }
 @media (hover: hover) {
-  .wk-home-btn:hover { border-color: var(--border-strong); }
+  .wk-home-btn:hover:not(.active) { border-color: var(--border-strong); }
 }
 .wk-home-btn.active { background: var(--tool-accent); color: var(--surface-0); border-color: transparent; font-weight: 600; }
 
@@ -332,7 +348,7 @@
   transition: all 0.2s; position: relative;
 }
 @media (hover: hover) {
-  .wk-eq-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+  .wk-eq-card:hover:not(.selected) { border-color: var(--border-strong); transform: translateY(-2px); }
 }
 .wk-eq-card.selected { border-color: var(--tool-accent); box-shadow: 0 0 0 2px var(--tool-accent); }
 .wk-eq-card .wk-eq-img-wrap {
@@ -554,7 +570,7 @@
   padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-caption); cursor: pointer; transition: all 0.2s;
 }
 @media (hover: hover) {
-  .wk-complete-btn:hover, .wk-skip-btn:hover { color: var(--text); border-color: var(--border-strong); }
+  .wk-complete-btn:hover:not(.done), .wk-skip-btn:hover:not(.done) { color: var(--text); border-color: var(--border-strong); }
 }
 .wk-complete-btn.done { color: var(--status-done); border-color: var(--status-done); }
 .wk-skip-btn.done { color: var(--status-skipped); border-color: var(--status-skipped); }
@@ -768,4 +784,50 @@
   .wk-ex-img { width: 100%; height: 180px; }
   .wk-ex-headinfo { width: 100%; margin-top: var(--space-3); }
   .wk-ex-chat { position: absolute; top: var(--space-2); right: var(--space-2); z-index: 2; background: color-mix(in srgb, var(--surface-0) 75%, transparent); }
+}
+
+/* ДОБОР ТАЧ-ТАРГЕТА до 44×44 — невидимой областью, видимый размер прежний.
+   Правило-близнец системного «ДОБОР ТАЧ-ТАРГЕТА» в style.css; здесь оно
+   написано отдельно потому, что субъект СВОЙ, а не системный: правило
+   на системный класс из страничного файла запрещено (§6.0.2). */
+@media (pointer: coarse) {
+  /* В списке `position: relative` ТОЛЬКО `.wk-tip-btn`: у `.wk-ex-chat`
+     и `.wk-calibration-close` свой `position: absolute`, и это правило
+     (оно ниже по файлу) перебило бы его — кнопки вернулись бы в поток.
+     Замер поймал это пиксельным дифом: высота `/workout` на 390px
+     выросла на 256px. Позиционированный элемент и так якорь для своего
+     псевдоэлемента. */
+  .wk-tip-btn { position: relative; }
+  .wk-tip-btn::after,
+  .wk-ex-chat::after,
+  .wk-calibration-close::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 44px; height: 44px; transform: translate(-50%, -50%);
+  }
+}
+
+/* ДОБОР ТАЧ-ТАРГЕТА до 44×44 — невидимой областью, видимый размер прежний.
+   Правило-близнец системного «ДОБОР ТАЧ-ТАРГЕТА» в style.css; здесь оно
+   написано отдельно потому, что субъект СВОЙ, а не системный: правило
+   на системный класс из страничного файла запрещено (§6.0.2). */
+@media (pointer: coarse) {
+  .wk-ex-progbtn,   .wk-ex-altbtn { position: relative; }
+  .wk-ex-progbtn::after,
+  .wk-ex-altbtn::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 100%; height: 44px; transform: translate(-50%, -50%);
+  }
+}
+
+/* ДОБОР ТАЧ-ТАРГЕТА у флажка «Лёгкий день». Сам `input` псевдоэлемента
+   не имеет по построению, и настоящая цель здесь — ПОДПИСЬ: нажатие
+   по ней переключает флажок. Подпись же высотой в строку, то есть 20px.
+   Область анкерится к ЛЕВОМУ краю, а не к центру: справа внутри той же
+   подписи стоит `.wk-tip-btn`, и накладка по центру отняла бы её. */
+@media (pointer: coarse) {
+  .wk-light-toggle { position: relative; }
+  .wk-light-toggle::after {
+    content: ''; position: absolute; left: 0; top: 50%;
+    width: 44px; height: 44px; transform: translateY(-50%);
+  }
 }

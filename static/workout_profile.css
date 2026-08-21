@@ -116,3 +116,14 @@
 .wk-eq-regen-banner { display: none; background: var(--tool-accent-dim); border: 1px solid var(--tool-accent); border-radius: var(--radius-sm); padding: var(--space-4); margin-top: var(--space-3); font-size: 0.875rem; color: var(--text); }
 .wk-eq-regen-banner.show { display: block; }
 .wk-eq-regen-banner button { margin-top: var(--space-2); }
+
+/* ДОБОР ТАЧ-ТАРГЕТА у подписи тумблера: `input` псевдоэлемента не имеет,
+   а нажимается вся подпись. Внутри неё других органов нет, поэтому
+   область во всю ширину. */
+@media (pointer: coarse) {
+  .wk-settings-toggle-row { position: relative; }
+  .wk-settings-toggle-row::after {
+    content: ''; position: absolute; left: 0; top: 50%;
+    width: 100%; height: 44px; transform: translateY(-50%);
+  }
+}

@@ -356,6 +356,22 @@ OR_ZDR = os.getenv("OR_ZDR", "1").strip().lower() not in ("0", "false", "no", ""
 ПОЛИТИКА_ЗАПРОСА = {"provider": {"data_collection": OR_DATA_COLLECTION,
                                  "zdr": OR_ZDR}}
 
+# АДРЕС OPENROUTER — ПЕРЕМЕННОЙ, а не строкой на месте вызова. Причина
+# та же, что у TURNSTILE_VERIFY_URL и RESEND_API_URL: ветку «сервис
+# не ответил / ответил не тем» иначе нечем прогнать, а проверка,
+# которую нечем прогнать, означает «проверено рассуждением» (§6.0.1).
+# Замер 2026-08-21 по задаче 128 упирался ровно в это: сообщение
+# «Ответ ассистента оборвался» показывалось и тогда, когда ответа
+# не было вовсе, — и убедиться в этом можно было, только подставив
+# адрес, который отвечает не так, как OpenRouter.
+#
+# Адресов ДВА, и второй не выводится из первого подстановкой: у речи
+# свой путь и своё поведение (поле `provider` он игнорирует, см. выше).
+OPENROUTER_URL = os.getenv(
+    "OPENROUTER_URL", "https://openrouter.ai/api/v1/chat/completions")
+OPENROUTER_AUDIO_URL = os.getenv(
+    "OPENROUTER_AUDIO_URL", "https://openrouter.ai/api/v1/audio/transcriptions")
+
 RESEND_API_KEY      = os.getenv("RESEND_API_KEY", "")
 # Адрес отправки — переменной, по той же причине, что TURNSTILE_VERIFY_URL
 # ниже: без неё путь «письмо ушло» не прогнать иначе как настоящей
@@ -401,6 +417,21 @@ def _model_output(payload: dict, метка: str, лимит: int) -> tuple[str,
     проверяется рассуждением, а не замером. Ровно этой строки не хватало,
     чтобы заметить 700 при расходе 958.
     """
+    # ОТКАЗ СЕРВИСА — ОТДЕЛЬНАЯ ПРИЧИНА, А НЕ «ПУСТОЙ ОТВЕТ». Заведено
+    # 2026-08-21, BACKLOG №128. OpenRouter на несуществующую модель,
+    # протухший ключ и исчерпанный кредит отвечает телом с полем `error`
+    # и БЕЗ `choices`. Прежний разбор получал `choices=[{}]`, то есть
+    # finish=None и пустой текст, и объявлял это «модель вернула пустой
+    # ответ» — а наружу уходило «Ответ ассистента оборвался. Попробуйте
+    # ещё раз». Оба утверждения ложны: ответа не было вовсе, и «ещё раз»
+    # не поможет никогда, потому что чинится это не повтором.
+    ошибка = payload.get("error")
+    if isinstance(ошибка, dict):
+        код = ошибка.get("code")
+        текст_ошибки = str(ошибка.get("message") or "")[:200]
+        print(f"[{метка}] сервис моделей ответил ошибкой: code={код} {текст_ошибки!r}")
+        return "", f"service: сервис моделей вернул ошибку (code={код}): {текст_ошибки}"
+
     choice = (payload.get("choices") or [{}])[0]
     finish = choice.get("finish_reason") or choice.get("native_finish_reason")
     текст = ((choice.get("message") or {}).get("content") or "").strip()
@@ -411,8 +442,87 @@ def _model_output(payload: dict, метка: str, лимит: int) -> tuple[str,
     if finish == "length":
         return текст, f"truncated: ответ оборван по лимиту (сгенерировано {расход} из {лимит})"
     if not текст:
+        # `choices` нет вовсе — это не «модель промолчала», а «ответ
+        # не той формы»: разобрать его нечем, и повтор тут тоже ни при чём.
+        if not payload.get("choices"):
+            return "", ("shape: сервис ответил телом без choices "
+                        f"(ключи: {', '.join(sorted(payload)) or 'нет'})")
         return "", f"empty: модель вернула пустой ответ (finish_reason={finish})"
     return текст, None
+
+
+# ── ТЕКСТ ЧЕЛОВЕКУ СТРОИТСЯ ИЗ ПРИЧИНЫ, И ИСТОЧНИК У НЕГО ОДИН ──────────────
+#
+# BACKLOG №128. До 2026-08-21 в двух местах — дневник и тренер — стояла
+# КОНСТАНТА «Ответ ассистента оборвался. Попробуйте ещё раз.», одна на все
+# исходы. Живой замер (`check_model_errors.py`) дал СЕМЬ фактических
+# случаев, и она описывает ОДИН: при отказе сервиса, при ответе не той
+# формы, при пустом ответе, при таймауте, при обрыве связи и при теле
+# не в JSON она говорит неправду, а «попробуйте ещё раз» в четырёх
+# из них не помогает никогда.
+#
+# Причина уже разложена `_model_output` (`truncated:` / `empty:` /
+# `service:` / `shape:`) — здесь она только переводится на человеческий.
+# Совет «попробуйте ещё раз» даётся ТОЛЬКО там, где повтор может помочь.
+# Текст обрыва у ДВУХ ассистентов — дневника и тренера — один и тот же,
+# и константа тут именно поэтому: две почти одинаковые строки в двух
+# местах разъезжаются молча, ровно как разъехался `max_tokens: 700`
+# во втором месте анализа вакансии (§2.1). У писем, анализа, разбора
+# резюме и программы текст обрыва СВОЙ — там он советует сократить
+# конкретный вход, и общей строкой это не выразить.
+ОБРЫВ_АССИСТЕНТА = ("Ответ ассистента не поместился в лимит и оборвался. "
+                    "Попробуйте ещё раз.")
+
+ТЕКСТ_СБОЯ = {
+    "empty": "Модель вернула пустой ответ. Попробуйте ещё раз.",
+    "service": "Сервис моделей вернул ошибку — это сбой на нашей стороне, "
+               "а не в вашем запросе. Повтор не поможет; мы уже видим "
+               "это в журнале.",
+    "shape": "Сервис моделей ответил не так, как мы ожидаем. Это сбой "
+             "на нашей стороне; повтор не поможет.",
+}
+
+
+def _текст_сбоя(сбой: str, обрыв: str) -> str:
+    """Сообщение человеку по причине из `_model_output`.
+
+    `обрыв` — текст ТОЛЬКО для случая «не поместилось в лимит»: он
+    зависит от места (письмо просят сократить, анализ — тоже, реплику
+    ассистента сокращать не просят), а остальные три случая от места
+    не зависят вовсе и живут в одном словаре выше.
+    """
+    вид = (сбой or "").split(":", 1)[0]
+    if вид == "truncated":
+        return обрыв
+    return ТЕКСТ_СБОЯ.get(
+        вид, "Ответ модели не получен. Попробуйте ещё раз.")
+
+
+def _текст_аварии(e: Exception, метка: str) -> tuple[str, int]:
+    """Беда НА ПУТИ к сервису — текст человеку и код ответа.
+
+    Отдельно от `_текст_сбоя`, потому что это другой класс: там сервис
+    ответил и ответ разобран, здесь ответа нет вовсе. До 2026-08-21
+    в обоих чатах стояло `return {"error": str(e)}, 500` — то есть
+    человеку показывался сырой текст исключения Python
+    («All connection attempts failed», «Expecting value: line 1
+    column 1»). Прочитать его нельзя, а «попробуйте ещё раз» он
+    не говорит даже там, где повтор помог бы.
+    """
+    print(f"[{метка}] сервис моделей не ответил: {type(e).__name__}: "
+          f"{str(e)[:200]}")
+    if isinstance(e, httpx.TimeoutException):
+        return ("Сервис моделей не ответил за 30 секунд. "
+                "Попробуйте ещё раз.", 504)
+    if isinstance(e, httpx.HTTPError):
+        return ("Не удалось связаться с сервисом моделей. "
+                "Попробуйте ещё раз через минуту.", 503)
+    if isinstance(e, (ValueError, _json.JSONDecodeError)):
+        # Тело не разобралось как JSON: сервис ответил страницей ошибки
+        # либо пустотой. Повтор тут не при чём — это сбой на нашей стороне.
+        return ("Сервис моделей ответил не так, как мы ожидаем. "
+                "Это сбой на нашей стороне; повтор не поможет.", 502)
+    return ("Внутренняя ошибка при обращении к сервису моделей.", 500)
 
 
 # Шифрование учётных данных весов Xiaomi при хранении в БД (см.
@@ -3460,7 +3570,7 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
+                OPENROUTER_URL,
                 headers={
                     "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                     "HTTP-Referer": "https://energydess.ru",
@@ -3482,11 +3592,10 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
         content, сбой = _model_output(response.json(), "analyze", ANALYZE_MAX_TOKENS)
         if сбой:
             print(f"[analyze] {сбой}")
-            return JSONResponse({"error": "Ответ анализа не поместился в лимит. "
-                                          "Сократите текст вакансии — оставьте требования и задачи."
-                                          if сбой.startswith("truncated")
-                                          else "Анализ вернул пустой ответ. Попробуйте ещё раз."},
-                                status_code=502)
+            return JSONResponse({"error": _текст_сбоя(
+                сбой, "Ответ анализа не поместился в лимит. Сократите текст "
+                      "вакансии — оставьте требования и задачи.")},
+                status_code=502)
 
         result = _extract_json(content)
         return JSONResponse(result)
@@ -3567,7 +3676,7 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
     try:
         async with httpx.AsyncClient() as client:
             ar = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
+                OPENROUTER_URL,
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess HH Helper"},
                 json={**ПОЛИТИКА_ЗАПРОСА, "model": ANALYZE_MODEL, "messages": [{"role": "user", "content": analysis_prompt}],
@@ -3704,7 +3813,7 @@ Call to action в финале. Тип CTA определяется правил
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
+                OPENROUTER_URL,
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess HH Helper"},
                 json={**ПОЛИТИКА_ЗАПРОСА, "model": LETTER_MODEL, "messages": [{"role": "user", "content": prompt}],
@@ -3719,11 +3828,10 @@ Call to action в финале. Тип CTA определяется правил
         letter, сбой = _model_output(response.json(), "letter", LETTER_MAX_TOKENS)
         if сбой:
             print(f"[letter] {сбой}")
-            return JSONResponse({"error": "Письмо не поместилось в лимит и оборвалось. "
-                                          "Попробуйте ещё раз — или сократите текст вакансии."
-                                          if сбой.startswith("truncated")
-                                          else "Модель вернула пустой ответ. Попробуйте ещё раз."},
-                                status_code=502)
+            return JSONResponse({"error": _текст_сбоя(
+                сбой, "Письмо не поместилось в лимит и оборвалось. "
+                      "Попробуйте ещё раз — или сократите текст вакансии.")},
+                status_code=502)
 
         # ── Сохраняем в историю писем ─────────────────────────────────────────
         letter_id = None
@@ -3952,7 +4060,7 @@ async def parse_resume_to_dossier(request: Request, user=Depends(get_current_use
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
+                OPENROUTER_URL,
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess HH Helper"},
                 json={**ПОЛИТИКА_ЗАПРОСА, "model": PARSER_MODEL, "messages": [{"role": "user", "content": prompt}],
@@ -3964,11 +4072,10 @@ async def parse_resume_to_dossier(request: Request, user=Depends(get_current_use
         raw, сбой = _model_output(response.json(), "parser", PARSER_MAX_TOKENS)
         if сбой:
             print(f"[parser] {сбой}")
-            return JSONResponse({"error": "Разбор резюме не поместился в лимит. "
-                                          "Сократите резюме или заполните досье вручную."
-                                          if сбой.startswith("truncated")
-                                          else "Разбор вернул пустой ответ. Попробуйте ещё раз."},
-                                status_code=502)
+            return JSONResponse({"error": _текст_сбоя(
+                сбой, "Разбор резюме не поместился в лимит. Сократите резюме "
+                      "или заполните досье вручную.")},
+                status_code=502)
         result = _extract_json(raw)
         return JSONResponse(result)
     except httpx.TimeoutException:
@@ -4940,7 +5047,7 @@ async def _переводы_слов(слова: list, db: Session) -> tuple[dic
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
+                OPENROUTER_URL,
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru",
                          "X-Title": "EnergyDess Nutrition"},
@@ -5057,7 +5164,7 @@ def _for_vision(content: bytes, file: UploadFile) -> tuple[str, str]:
 async def _call_vision(b64: str, mime: str, prompt: str, max_tokens: int = VISION_MAX_TOKENS) -> str:
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            "https://openrouter.ai/api/v1/chat/completions",
+            OPENROUTER_URL,
             headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                      "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
             json={**ПОЛИТИКА_ЗАПРОСА, "model": LETTER_MODEL,
@@ -5076,8 +5183,9 @@ async def _call_vision(b64: str, mime: str, prompt: str, max_tokens: int = VISIO
     # молча не подставляется. Поэтому обрыв — исключение, а не «пустой разбор».
     текст, сбой = _model_output(resp.json(), "vision", max_tokens)
     if сбой:
-        raise RuntimeError("Разбор фото оборвался — попробуйте ещё раз"
-                           if сбой.startswith("truncated") else "Модель вернула пустой ответ")
+        raise RuntimeError(_текст_сбоя(
+            сбой, "Разбор фото не поместился в лимит и оборвался — "
+                  "попробуйте ещё раз"))
     return текст
 
 
@@ -5395,7 +5503,7 @@ async def _ai_food_estimate(query: str) -> list:
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
+                OPENROUTER_URL,
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
                 json={**ПОЛИТИКА_ЗАПРОСА, "model": MODEL, "messages": [{"role": "user", "content": prompt}],
@@ -7269,7 +7377,7 @@ async def nut_ai_chat(request: Request, user=Depends(get_current_user), db: Sess
         try:
             async with httpx.AsyncClient() as client:
                 resp = await client.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
+                    OPENROUTER_URL,
                     headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                              "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
                     json={**ПОЛИТИКА_ЗАПРОСА, "model": LETTER_MODEL, "messages": api_messages,
@@ -7281,10 +7389,12 @@ async def nut_ai_chat(request: Request, user=Depends(get_current_user), db: Sess
             reply, сбой = _model_output(resp.json(), "nut-chat", CHAT_MAX_TOKENS)
             if сбой:
                 print(f"[nut-chat] {сбой}")
-                return JSONResponse({"error": "Ответ ассистента оборвался. Попробуйте ещё раз."},
-                                    status_code=502)
+                return JSONResponse(
+                    {"error": _текст_сбоя(сбой, ОБРЫВ_АССИСТЕНТА)},
+                    status_code=502)
         except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=500)
+            текст, код = _текст_аварии(e, "nut-chat")
+            return JSONResponse({"error": текст}, status_code=код)
 
     reply, foods = _extract_food_blocks(reply)
     db.add(ChatMessage(user_id=user.id, role="assistant", content=reply))
@@ -7488,7 +7598,7 @@ async def nut_transcribe(file: UploadFile = File(...),
                 # (openrouter.ai/settings/privacy), см. BACKLOG №19.
                 # Сторожит тест test_у_распознавания_речи_политики_НЕТ_и_это_решение.
                 resp = await client.post(
-                    "https://openrouter.ai/api/v1/audio/transcriptions",
+                    OPENROUTER_AUDIO_URL,
                     headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
                     json={
                         "input_audio": {"data": base64.b64encode(content).decode("ascii"), "format": audio_format},
@@ -8122,7 +8232,7 @@ async def workout_generate_program(user=Depends(get_current_user), db: Session =
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
+                OPENROUTER_URL,
                 headers={
                     "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                     "HTTP-Referer": "https://energydess.ru",
@@ -8147,11 +8257,10 @@ async def workout_generate_program(user=Depends(get_current_user), db: Session =
         text, сбой = _model_output(response.json(), "program", PROGRAM_MAX_TOKENS)
         if сбой:
             print(f"[program] {сбой}")
-            return JSONResponse({"error": "Программа не поместилась в лимит и оборвалась. "
-                                          "Попробуйте ещё раз."
-                                          if сбой.startswith("truncated")
-                                          else "Модель вернула пустой ответ. Попробуйте ещё раз."},
-                                status_code=502)
+            return JSONResponse({"error": _текст_сбоя(
+                сбой, "Программа не поместилась в лимит и оборвалась. "
+                      "Попробуйте ещё раз.")},
+                status_code=502)
         start, end = text.find("{"), text.rfind("}")
         if start == -1 or end == -1:
             return JSONResponse({"error": "ИИ вернул не JSON"}, status_code=500)
@@ -9258,7 +9367,7 @@ async def workout_chat(request: Request, user=Depends(get_current_user), db: Ses
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
+                OPENROUTER_URL,
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Workout"},
                 json={**ПОЛИТИКА_ЗАПРОСА, "model": LETTER_MODEL, "messages": api_messages,
@@ -9271,10 +9380,11 @@ async def workout_chat(request: Request, user=Depends(get_current_user), db: Ses
         reply, сбой = _model_output(resp.json(), "wk-chat", CHAT_MAX_TOKENS)
         if сбой:
             print(f"[wk-chat] {сбой}")
-            return JSONResponse({"error": "Ответ ассистента оборвался. Попробуйте ещё раз."},
+            return JSONResponse({"error": _текст_сбоя(сбой, ОБРЫВ_АССИСТЕНТА)},
                                 status_code=502)
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        текст, код = _текст_аварии(e, "wk-chat")
+        return JSONResponse({"error": текст}, status_code=код)
 
     reply, действия, битых = _extract_workout_actions(reply)
     profile = db.query(WorkoutProfile).filter(WorkoutProfile.user_id == user.id).first()

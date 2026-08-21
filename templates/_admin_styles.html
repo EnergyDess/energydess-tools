@@ -601,6 +601,19 @@
     border-color: var(--accent-brand);
     color: var(--accent-brand);
   }
+  /* ДОБОР ТАЧ-ТАРГЕТА до 44×44 — невидимой областью, видимый размер
+     прежний (34px). Ряд кнопок разложен с зазором --space-2 = 8px,
+     то есть по 4px с каждой стороны: область 44 съедает 5px соседа
+     по горизонтали. Поэтому растится только ВЫСОТА, а ширина остаётся
+     своей — полоса 34×44 ловит палец не хуже квадрата, а сосед остаётся
+     за собой (проверено `py check_touch.py --соседи`). */
+  @media (pointer: coarse) {
+    .ex-page-btn { position: relative; }
+    .ex-page-btn::after {
+      content: ''; position: absolute; left: 0; top: 50%;
+      width: 100%; height: 44px; transform: translateY(-50%);
+    }
+  }
   /* Многоточие между блоками номеров страниц — не кнопка, а разрыв ряда */
   .ex-page-gap { color: var(--text-faint); padding: 0 var(--space-1); }
 
