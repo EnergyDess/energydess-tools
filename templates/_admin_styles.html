@@ -650,4 +650,49 @@
     box-shadow: var(--shadow-lg);
   }
   .ex-video-box iframe { width: 100%; height: 100%; border: none; display: block; }
+
+  /* ── Экран каталога Enshrouded (BACKLOG №137) ──────────────────────
+     Только РАСКЛАДКА экземпляра: таблица, карточка, поля, кнопки,
+     плашки и модальное окно тут системные, ни одного из них эти
+     правила субъектом не берут. */
+  /* Ряд органов в шапке карточки. Свой класс на списке категорий,
+     а не `.ens-a-tools .select`: субъектом там оказался бы системный
+     `.select`, и это была бы находка проверки 1 — пусть и законная
+     по свойству (ширина — раскладка экземпляра). Своё имя дешевле. */
+  .ens-a-tools { display: flex; align-items: center; justify-content: flex-end;
+                 gap: var(--space-3); flex: 1; flex-wrap: wrap; }
+  .ens-a-cat { width: auto; min-width: 11rem; flex: none; }
+  .ens-a-add { flex: none; white-space: nowrap; }
+  .ens-a-thumb { width: 64px; height: 40px; object-fit: contain;
+                 background: var(--surface-sunken); border-radius: var(--radius-sm); display: block; }
+  .ens-a-id { font-family: var(--font-mono); font-size: var(--text-mono); color: var(--text-2); }
+  /* Вторичная подпись под названием. Роль ТА ЖЕ, что у восьми других
+     мест проекта (замер 2026-08-22, BACKLOG №126: `.cta-sub`,
+     `.wk-step-sub`, `.admin-wrap .subtitle`…), и системного имени
+     под неё пока нет — решение о новом компоненте за владельцем,
+     поэтому здесь страничное имя, а не самовольный системный класс. */
+  .ens-a-en, .ens-a-note { color: var(--text-2); font-size: var(--text-caption); }
+  .ens-a-note { line-height: 1.5; margin-top: var(--space-2); }
+  .ens-a-none { color: var(--text-faint); font-size: var(--text-caption); }
+  .ens-a-edit { padding: var(--space-1) var(--space-3); }
+  .ens-a-field { margin-bottom: var(--space-4); }
+  .ens-a-two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+  .ens-a-slots { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+  .ens-a-chk { display: flex; align-items: center; gap: var(--space-2);
+               font-size: var(--text-body-sm); color: var(--text-2); }
+  .ens-a-img { display: flex; gap: var(--space-4); align-items: flex-start; }
+  .ens-a-prev { width: 180px; height: 128px; object-fit: contain; flex: none;
+                background: var(--surface-sunken); border: 1px solid var(--border);
+                border-radius: var(--radius-sm); display: flex;
+                align-items: center; justify-content: center; }
+  .ens-a-imgctl { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+  .ens-a-url { display: flex; gap: var(--space-2); }
+  .ens-a-url .input { flex: 1; min-width: 0; }
+  .ens-a-actions { display: flex; justify-content: flex-end; gap: var(--space-3);
+                   margin-top: var(--space-5); }
+  @media (max-width: 640px) {
+    .ens-a-two { grid-template-columns: 1fr; }
+    .ens-a-img { flex-direction: column; }
+    .ens-a-prev { width: 100%; }
+  }
 </style>

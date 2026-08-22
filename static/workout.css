@@ -180,7 +180,8 @@
   box-shadow: 0 0 0 1px var(--tool-accent);
 }
 .wk-option-icon { margin-bottom: var(--space-2); line-height: 0; }
-.wk-option-label { font-weight: 600; color: var(--text); font-size: var(--text-body-sm); }
+.wk-option-label,
+.wk-alt-option-name { font-weight: 600; color: var(--text); font-size: var(--text-body-sm); }
 .wk-option-desc { color: var(--text-2); font-size: var(--text-caption); margin-top: var(--space-1); }
 
 /* Частота — ряд кнопок 1..6 */
@@ -423,7 +424,8 @@
    экземпляра (`--meter-h`). Своего вида тут не было. */
 .wk-nutrition-bar { --meter-h: 8px; }
 .wk-nutrition-bar-fill { transition: width 0.3s; }
-.wk-nutrition-hint { margin-top: var(--space-2); font-size: var(--text-mono); color: var(--tool-accent); }
+.wk-nutrition-hint,
+.wk-chat-result-counts { margin-top: var(--space-2); font-size: var(--text-mono); color: var(--tool-accent); }
 .wk-nutrition-warning { margin-top: var(--space-3); padding: var(--space-3); background: color-mix(in srgb, var(--warning) 10%, transparent); border: 1px solid var(--warning); border-radius: var(--radius-sm); font-size: var(--text-caption); color: var(--text); line-height: 1.5; }
 
 /* Программа тренировок */
@@ -463,7 +465,6 @@
 .wk-chat-result { align-self: flex-start; max-width: 92%; background: var(--surface-3); border: 1px solid var(--tool-accent); border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4); font-size: var(--text-caption); color: var(--text-2); }
 .wk-chat-result strong { color: var(--text); }
 .wk-chat-result-list { margin-top: var(--space-1); padding-left: 1.1em; }
-.wk-chat-result-counts { margin-top: var(--space-2); font-size: var(--text-mono); color: var(--tool-accent); }
 .wk-chat-result-disclaimer { margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--border); font-size: var(--text-mono); color: var(--text-2); }
 .wk-chat-add-eq-btn { margin-top: var(--space-2); background: var(--tool-accent); border: none; color: var(--surface-0); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-caption); font-weight: 600; cursor: pointer; }
 .wk-chat-loading { align-self: flex-start; color: var(--text-2); font-size: var(--text-caption); }
@@ -485,7 +486,8 @@
 @media (hover: hover) {
   .wk-return-option:hover { border-color: var(--tool-accent); transform: translateY(-1px); }
 }
-.wk-return-option-title { font-weight: 700; color: var(--text); font-size: var(--text-body-sm); margin-bottom: var(--space-1); }
+.wk-return-option-title,
+.wk-progress-suggestion-title { font-weight: 700; color: var(--text); font-size: var(--text-body-sm); margin-bottom: var(--space-1); }
 .wk-return-option-desc { color: var(--text-2); font-size: var(--text-caption); }
 .wk-return-confirm { background: var(--surface-2); border: 1px solid var(--status-done); border-radius: var(--radius-lg); padding: var(--space-6); color: var(--text); font-size: var(--text-body-sm); line-height: 1.6; text-align: center; }
 
@@ -660,7 +662,6 @@
   .wk-alt-option:hover { border-color: var(--tool-accent); }
 }
 .wk-alt-option img { width: 44px; height: 44px; border-radius: var(--radius-sm); object-fit: cover; flex-shrink: 0; }
-.wk-alt-option-name { font-size: var(--text-body-sm); font-weight: 600; color: var(--text); }
 /* BACKLOG №115: правило совпадало с `.empty-state-inline` дословно,
    расхождение ноль. Класс удалён вместе с правилом. */
 .wk-ex-chat {
@@ -719,8 +720,8 @@
 
 .wk-progress-suggestion { display: none; margin-top: var(--space-3); background: linear-gradient(135deg, color-mix(in srgb, var(--tool-accent) 14%, transparent), color-mix(in srgb, var(--tool-accent) 6%, transparent)); border: 1px solid var(--tool-accent); border-radius: var(--radius-sm); padding: var(--space-4); }
 .wk-progress-suggestion.show { display: block; }
-.wk-progress-suggestion-title { font-weight: 700; color: var(--text); margin-bottom: var(--space-1); font-size: var(--text-body-sm); }
-.wk-progress-suggestion-text { color: var(--text-2); font-size: var(--text-caption); line-height: 1.5; margin-bottom: var(--space-3); }
+.wk-progress-suggestion-text,
+.wk-machine-prompt-text { color: var(--text-2); font-size: var(--text-caption); line-height: 1.5; margin-bottom: var(--space-3); }
 .wk-progress-suggestion-btns { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 /* Кнопка действия в акценте — одно объявление на две (BACKLOG №126).
    Системной `.btn-primary` они не равны: у той свои паддинги, кегль
@@ -767,7 +768,6 @@
 .wk-save-sets-btn.saved { background: var(--surface-3); color: var(--status-done); }
 
 .wk-machine-prompt.show { display: block; }
-.wk-machine-prompt-text { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-3); line-height: 1.5; }
 .wk-machine-prompt-btns { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .wk-machine-prompt-btn { background: var(--surface-3); border: 1px solid var(--border); color: var(--text); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-caption); cursor: pointer; transition: all 0.2s; }
 @media (hover: hover) {

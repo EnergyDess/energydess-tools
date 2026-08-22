@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine, event, Column, Integer, String, Text, DateTime, Boolean, Float, JSON, UniqueConstraint
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
+import json
 import os
 import re
 import shutil
@@ -196,6 +197,55 @@ class EnshroudedSlot(Base):
     rarity = Column(String, default="common")
     level = Column(Integer, nullable=True)
     duplicates = Column(Integer, default=0)
+
+
+class EnshroudedSet(Base):
+    """КАТАЛОГ СЕТОВ. До 2026-08-22 лежал JS-литералом `SETS` внутри
+    `templates/enshrouded.html` и правился коммитом с деплоем.
+
+    ПОЧЕМУ ПЕРЕЕХАЛ. Экран управления (BACKLOG №137) писал бы в шаблон,
+    то есть в код, который перекрывается следующей выкаткой — правка
+    жила бы до первого деплоя и исчезала молча.
+
+    `id` — СТРОКА И ТА ЖЕ, ЧТО В ОТМЕТКАХ. `enshrouded_slots.set_id`
+    ссылается сюда строкой, внешнего ключа нет — проверено
+    `PRAGMA foreign_key_list(enshrouded_slots)`, ответ пуст. Строк
+    на проде 252 при 81 отмеченном сете (замер 2026-08-22, задача 137),
+    локально на стенде 60 при 21.
+
+    Переименование id осиротило бы отметки МОЛЧА: ошибки нет, галочки
+    просто исчезают с экрана. Поэтому id при переносе НЕ трогается,
+    а экран правки его не меняет вовсе — поле там заблокировано,
+    и рядом написано, сколько отметок висит (`admin_enshrouded_save`
+    в main.py).
+
+    `img_ext` — ПОЛЕМ, а не выведением из каталога. Прежде расширение
+    считал сервер один раз при импорте (`main.ENSHROUDED_PNG`), и файл,
+    положенный экраном на живом сервере, в список не попадал бы
+    до перезапуска: ссылка `.jpg`, на диске `.png`, баннер схлопнут,
+    ни ошибки, ни строки в журнале (задача 137, пункт 5).
+
+    `img_ver` — восемь знаков sha256 от содержимого файла. Он уезжает
+    в адрес картинки ровно так же, как `st()` версионирует статику
+    (§2.2): без него заменённая картинка показывалась бы старой
+    до суток, и владелец видел бы, что «загрузка не сработала».
+    """
+    __tablename__ = "enshrouded_sets"
+    id = Column(String, primary_key=True)
+    name_ru = Column(String, nullable=False)
+    name_en = Column(String, nullable=False)
+    crafter = Column(String, nullable=False)
+    lvl = Column(Integer, nullable=True)
+    # Состав. `pieces` — список id системных слотов, `custom` — свои
+    # слоты со своими подписями (так устроен один сет из 90, sp_hats).
+    # JSON строкой: список из пяти строк не стоит отдельной таблицы,
+    # а редактируется он целиком, а не по элементу.
+    pieces = Column(Text, nullable=True)
+    custom = Column(Text, nullable=True)
+    img_ext = Column(String, nullable=True)
+    img_ver = Column(String, nullable=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime, default=datetime.utcnow)
 
 
 class NutritionProfile(Base):
@@ -823,6 +873,42 @@ def get_db():
         db.close()
 
 
+# ── КАРТИНКИ РАЗДЕЛА ENSHROUDED: ДВА КАТАЛОГА, И ПОРЯДОК ВАЖЕН ───────
+# Загруженный файл обязан пережить деплой, а `static/` уезжает В ОБРАЗ
+# (его нет в `.dockerignore`) — образ неизменяем, и файл, положенный
+# туда на живом сервере, исчезнет со следующей выкаткой. Немой отказ
+# §6.0.1 в чистом виде: загрузка «сработала», картинка была, потом
+# пропала без единой строки в журнале.
+#
+# Поэтому загруженное кладётся НА ТОМ, рядом с базой, — тем же способом,
+# что кадры упражнений (`previews/`) и вложения переписки (`media/`).
+#
+# `static/enshrouded/` при этом остаётся и становится СЕМЕНЕМ: ровно так
+# же, как `exercises_seed.json` для справочника упражнений. Двух мест
+# у картинки нет — есть одно правило разрешения, записанное ОДИН раз
+# здесь, и обе стороны (сервер и проверка 24) зовут именно его.
+ENSHROUDED_DIR = os.path.join(os.path.dirname(DB_PATH) or ".", "enshrouded")
+ENSHROUDED_SEED_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                   "static", "enshrouded")
+
+
+def enshrouded_img(set_id, ext):
+    """Путь к файлу картинки сета или None. ТОМ СИЛЬНЕЕ СЕМЕНИ.
+
+    Порядок именно такой: заменённая владельцем картинка обязана
+    перекрывать ту, что приехала в образе, — иначе замена не была бы
+    заменой.
+    """
+    if not ext:
+        return None
+    имя = f"{set_id}.{ext}"
+    свой = os.path.join(ENSHROUDED_DIR, имя)
+    if os.path.exists(свой):
+        return свой
+    семя = os.path.join(ENSHROUDED_SEED_DIR, имя)
+    return семя if os.path.exists(семя) else None
+
+
 def init_db():
     Base.metadata.create_all(bind=engine)
 
@@ -926,6 +1012,7 @@ def migrate_db():
     _migrate_muscle_mass(conn)
     _migrate_goal_history(conn)
     _seed_food_translations(conn)
+    _seed_enshrouded_catalog(conn)
     conn.close()
 
 
@@ -1052,6 +1139,48 @@ def _migrate_forget_zepp_password(conn) -> int:
     if стёрто:
         print(f"[migrate] стёрто сохранённых паролей Zepp: {стёрто}")
     return стёрто
+
+
+def _seed_enshrouded_catalog(conn) -> int:
+    """Наполняет каталог сетов из `enshrouded_seed.json`, если он ПУСТ.
+
+    Только наполнение пустого, как у справочника упражнений: иначе
+    каждый старт затирал бы правки, сделанные экраном управления, —
+    то есть экран работал бы до первого перезапуска.
+
+    ОБРАТИМА: только ДОБАВЛЯЕТ строки в новую таблицу, ни одной
+    существующей не читает на запись. Откат — `DROP TABLE
+    enshrouded_sets`, и старый код продолжает читать каталог
+    из шаблона.
+    """
+    try:
+        есть = conn.execute("SELECT COUNT(*) FROM enshrouded_sets").fetchone()[0]
+    except Exception:
+        return 0
+    if есть:
+        return 0
+    путь = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "enshrouded_seed.json")
+    if not os.path.exists(путь):
+        print("[enshrouded] семени каталога нет — раздел останется пустым")
+        return 0
+    with open(путь, encoding="utf-8") as f:
+        данные = json.load(f)
+    сколько = 0
+    for с in данные.get("сеты", []):
+        conn.execute(
+            "INSERT INTO enshrouded_sets (id, name_ru, name_en, crafter, lvl,"
+            " pieces, custom, img_ext, img_ver, sort_order, updated_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (с["id"], с["name_ru"], с["name_en"], с["crafter"], с.get("lvl"),
+             json.dumps(с["pieces"], ensure_ascii=False) if с.get("pieces") else None,
+             json.dumps(с["custom"], ensure_ascii=False) if с.get("custom") else None,
+             с.get("img_ext"), None, с.get("sort_order", 0),
+             datetime.utcnow().isoformat(" ", "seconds")))
+        сколько += 1
+    conn.commit()
+    print(f"[enshrouded] каталог наполнен из семени: {сколько} сетов")
+    return сколько
 
 
 def _migrate_goal_history(conn) -> int:
@@ -1483,6 +1612,12 @@ PRIVACY_NOT_PERSONAL = {
     # перестанет быть общей — это будет история поиска конкретного человека,
     # и её придётся заводить и в USER_TABLES, и в политику (§6.1)
     "food_translations": "кеш переводов слов, общий для всех, без привязки к пользователю",
+    # Каталог сетов Enshrouded (BACKLOG №137). Содержимое РАЗДЕЛА, а не
+    # человека: девяносто строк про игровую броню, одинаковые для всех,
+    # ни user_id, ни привязки. ОТМЕТКИ пользователей лежат отдельно —
+    # `enshrouded_slots`, и они в политике названы и в каскаде удаления
+    # стоят. Перепутать легко ровно потому, что имена похожи.
+    "enshrouded_sets": "каталог сетов раздела Enshrouded, одинаковый для всех",
 }
 
 

@@ -1623,8 +1623,8 @@ html.assistant-mode, html.assistant-mode body {
 .hist-kcal-val { font-size: 1.25rem; font-weight: 800; }
 
 /* ── Профиль: пояснения, сообщения, ряды действий ── */
-.p-note        { color: var(--text-2); font-size: var(--text-caption); line-height: 1.5; margin-bottom: var(--space-2); }
-.p-note-sm     { color: var(--text-2); font-size: var(--text-caption);   line-height: 1.5; margin-bottom: var(--space-2); }
+.p-note,
+.p-note-sm { color: var(--text-2); font-size: var(--text-caption); line-height: 1.5; margin-bottom: var(--space-2); }
 .p-note-inline { color: var(--text-2); font-size: var(--text-caption); }
 .p-msg         { font-size: var(--text-caption); margin-top: var(--space-2); }
 /* Предупреждение о пересчёте прошлых дней. Оболочка системная —
@@ -2057,7 +2057,8 @@ html.assistant-mode, html.assistant-mode body {
   /* Левая колонка: кольцо, макросы, снизу кнопка нутрициолога.
      Без !important: перебиваем `.d-left, .d-right` (0,1,0) селектором
      #tab-diary.active .d-left (1,2,0) — id весит на порядок больше. */
-  #tab-diary.active .d-left {
+  #tab-diary.active .d-left,
+  #tab-diary.active .d-right {
     display: flex;
     flex-direction: column;
     height: auto;
@@ -2121,17 +2122,6 @@ html.assistant-mode, html.assistant-mode body {
   .ai-btn {
     flex-shrink: 0; margin-top: auto; margin-bottom: calc(var(--nut-water-pad) + 1px);
     padding: calc(0.8125 * var(--nut-u)); font-size: calc(0.88 * var(--nut-u));
-  }
-
-  /* Та же арифметика специфичности, что и у .d-left выше */
-  #tab-diary.active .d-right {
-    display: flex;
-    flex-direction: column;
-    gap: calc(0.875 * var(--nut-u));
-    height: auto;
-    min-height: 0;
-    overflow: visible;
-    padding-right: 0;
   }
 
   /* Приёмы пищи — сетка два на два. Четыре в ряд давали колонку в 269px
@@ -2461,9 +2451,13 @@ html.assistant-mode, html.assistant-mode body {
     margin-left: auto; margin-right: auto;
   }
   /* Та же арифметика специфичности, что у .d-left в дневнике: колонки
-     истории не прокручиваются каждая сама — прокручивается вкладка */
+     ни истории, ни веса не прокручиваются каждая сама — прокручивается
+     вкладка. Два правила были дословными близнецами и сведены
+     2026-08-22 (BACKLOG №126). */
   #tab-history.active .d-left,
-  #tab-history.active .d-right {
+  #tab-history.active .d-right,
+  #tab-weight.active .d-left,
+  #tab-weight.active .d-right {
     display: block; height: auto; min-height: 0; overflow: visible; padding-right: 0;
   }
 
@@ -2519,13 +2513,7 @@ html.assistant-mode, html.assistant-mode body {
     max-width: calc(87.5 * var(--nut-u));
     margin-left: auto; margin-right: auto;
   }
-  /* Та же арифметика специфичности, что у .d-left в дневнике и истории:
-     колонки вкладки не прокручиваются каждая сама — прокручивается вкладка */
-  #tab-weight.active .d-left,
-  #tab-weight.active .d-right {
-    display: block; height: auto; min-height: 0; overflow: visible; padding-right: 0;
-  }
-  /* Кеглей `.box-title` здесь больше нет: заголовки перешли на системный
+    /* Кеглей `.box-title` здесь больше нет: заголовки перешли на системный
      `.field-label`, а системный компонент внутри раздела сохраняет системный
      размер — то же решение, что у `.chip`, `.input` и `.segmented-btn`.
      Паддингов `.wt-hero`, `.wt-measures` и `.chart-box` здесь нет по той же

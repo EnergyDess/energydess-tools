@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% set meta_title = 'Enshrouded — Админ' %}
+  {% include '_meta.html' %}
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="{{ st('style.css') }}">
+  {% include '_admin_styles.html' %}
+</head>
+<body class="has-site-header page-column">
+
+{% import '_modal.html' as m %}
+{% include '_admin_nav.html' %}
+
+<div class="admin-wrap page-fill">
+  {% set active = 'enshrouded' %}
+  {% include '_admin_subnav.html' %}
+
+  <h1>Каталог Enshrouded</h1>
+  <p class="subtitle">Сеты брони: названия, категория, уровень, состав и картинка</p>
+
+  <div class="card admin-panel">
+    <div class="card-header">
+      <span>Сеты (<span id="ens-count">{{ sets|length }}</span>)</span>
+      <div class="ens-a-tools">
+        <div class="search-wrap">
+          <svg class="admin-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="ens-q" class="search-input-admin"
+                 placeholder="Поиск по названию или идентификатору…" oninput="отобрать()">
+        </div>
+        <select class="select input-sm ens-a-cat" id="ens-cat" onchange="отобрать()" aria-label="Категория">
+          <option value="">Все категории</option>
+          {% for c in crafters %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+        </select>
+        <button class="btn-primary ens-a-add" type="button" onclick="открыть(null)">Добавить сет</button>
+      </div>
+    </div>
+
+    <div class="table-scroll">
+      <table class="foods-table" id="ens-table">
+        <thead>
+          <tr>
+            <th>Картинка</th><th>Идентификатор</th><th>Название</th>
+            <th>Категория</th><th>Уровень</th><th>Состав</th>
+            <th>Отметки</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="ens-rows"></tbody>
+      </table>
+    </div>
+    <p class="empty-state" id="ens-empty" hidden>Ничего не нашлось</p>
+  </div>
+</div>
+
+{% call m.modal('ens-edit', 'Сет', icon='shield') %}
+  <div id="ens-body"></div>
+{% endcall %}
+
+{# `modal.js` подключается страницей: в общий хвост он НЕ входит —
+   он нужен пяти страницам из двадцати шести. Без него окно правки
+   не открывается вовсе, и отказ немой: кнопка нажимается, ничего
+   не происходит, консоль чиста (поймано приёмкой этого же захода). #}
+<script src="{{ st('modal.js') }}"></script>
+{% include '_page_end.html' %}
+
+<script>
+/* Экран управления каталогом Enshrouded (BACKLOG №137).
+
+   СВОЕЙ ВЁРСТКИ ТУТ НЕТ: таблица, карточка, поля, кнопки, модальное окно
+   и плашки — системные компоненты либо компоненты админки; страничные
+   классы (`.ens-a-*`) держат только раскладку экземпляра.
+
+   ИДЕНТИФИКАТОР У СУЩЕСТВУЮЩЕГО СЕТА НЕ РЕДАКТИРУЕТСЯ, и поле для него
+   заблокировано не для красоты: `enshrouded_slots.set_id` ссылается
+   на каталог СТРОКОЙ, внешнего ключа нет. Переименование осиротило бы
+   отметки МОЛЧА — ошибки не будет, галочки просто исчезнут. */
+const СЕТЫ = {{ sets|tojson }};
+const КАТЕГОРИИ = {{ crafters|tojson }};
+const СЛОТЫ = {{ slots|tojson }};
+const ПОТОЛОК = [{{ max_w }}, {{ max_h }}];
+let правим = null;
+
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function составСловами(с) {
+  if (с.custom && с.custom.length) return 'свой: ' + с.custom.map(k => k.label).join(', ');
+  if (с.pieces && с.pieces.length) return с.pieces.join(', ');
+  return 'полный (5)';
+}
+
+function отобрать() {
+  const q = (document.getElementById('ens-q').value || '').trim().toLowerCase();
+  const cat = document.getElementById('ens-cat').value;
+  const видно = СЕТЫ.filter(с =>
+    (!cat || с.crafter === cat) &&
+    (!q || с.id.toLowerCase().includes(q) ||
+           (с.name_ru || '').toLowerCase().includes(q) ||
+           (с.name_en || '').toLowerCase().includes(q)));
+  document.getElementById('ens-count').textContent = видно.length;
+  document.getElementById('ens-empty').hidden = видно.length > 0;
+  document.getElementById('ens-table').hidden = видно.length === 0;
+  document.getElementById('ens-rows').innerHTML = видно.map(с => `
+    <tr data-id="${esc(с.id)}">
+      <td>${с.img ? `<img class="ens-a-thumb" src="${esc(с.img)}" alt="">`
+                  : '<span class="ens-a-none">нет</span>'}</td>
+      <td><code class="ens-a-id">${esc(с.id)}</code></td>
+      <td>${esc(с.name_ru)}<br><span class="ens-a-en">${esc(с.name_en)}</span></td>
+      <td>${esc(с.crafter)}</td>
+      <td>${с.lvl ?? '—'}</td>
+      <td>${esc(составСловами(с))}</td>
+      <td>${с.marks || 0}</td>
+      <td><button class="btn-secondary ens-a-edit" type="button"
+                  onclick="открыть('${esc(с.id)}')">Править</button></td>
+    </tr>`).join('');
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function открыть(id) {
+  правим = id ? СЕТЫ.find(с => с.id === id) : null;
+  const с = правим || {id: '', name_ru: '', name_en: '', crafter: КАТЕГОРИИ[0],
+                       lvl: null, pieces: null, custom: null, img: null, marks: 0};
+  const свой = !!(с.custom && с.custom.length);
+  const набор = (с.pieces && с.pieces.length) ? с.pieces : СЛОТЫ;
+  document.getElementById('ens-edit-title').textContent =
+    правим ? `Сет «${с.name_ru}»` : 'Новый сет';
+  document.getElementById('ens-body').innerHTML = `
+    <div id="ens-msg"></div>
+
+    <div class="ens-a-field">
+      <label class="field-label" for="f-id">Идентификатор</label>
+      <input class="input" id="f-id" value="${esc(с.id)}" ${правим ? 'disabled' : ''}
+             placeholder="bs_fur" autocomplete="off">
+      <p class="ens-a-note">${правим
+        ? 'Не меняется: на него ссылаются отметки пользователей — их сейчас '
+          + (с.marks || 0) + '. Переименование стёрло бы их молча.'
+        : 'Латиница, цифры и подчёркивание. Станет именем файла картинки.'}</p>
+    </div>
+
+    <div class="ens-a-field">
+      <label class="field-label" for="f-ru">Название по-русски</label>
+      <input class="input" id="f-ru" value="${esc(с.name_ru)}" autocomplete="off">
+    </div>
+    <div class="ens-a-field">
+      <label class="field-label" for="f-en">Название по-английски</label>
+      <input class="input" id="f-en" value="${esc(с.name_en)}" autocomplete="off">
+    </div>
+
+    <div class="ens-a-two">
+      <div class="ens-a-field">
+        <label class="field-label" for="f-cat">Категория</label>
+        <select class="select" id="f-cat">
+          ${КАТЕГОРИИ.map(k =>
+            `<option value="${k}"${k === с.crafter ? ' selected' : ''}>${k}</option>`).join('')}
+        </select>
+      </div>
+      <div class="ens-a-field">
+        <label class="field-label" for="f-lvl">Уровень</label>
+        <input class="input" id="f-lvl" type="number" min="1" max="200"
+               value="${с.lvl ?? ''}" placeholder="пусто">
+        <p class="ens-a-note">Вводится руками: из уровней найденных предметов
+          он не выводится — замер по 18 сетам «Мира» показал, что ни минимум,
+          ни максимум, ни среднее его не воспроизводят.</p>
+      </div>
+    </div>
+
+    <div class="ens-a-field">
+      <span class="field-label">Состав</span>
+      <div class="ens-a-slots">
+        ${СЛОТЫ.map(k => `
+          <label class="ens-a-chk">
+            <input type="checkbox" class="f-piece" value="${k}"
+                   ${!свой && набор.includes(k) ? 'checked' : ''} ${свой ? 'disabled' : ''}> ${k}
+          </label>`).join('')}
+      </div>
+      ${свой ? `<p class="ens-a-note">У этого сета СВОИ слоты со своими подписями
+         (${с.custom.map(k => esc(k.label)).join(', ')}), и обычный состав
+         к нему не применяется. Здесь он показан, чтобы не выглядел
+         потерянным; правится он пока разговором.</p>` : ''}
+    </div>
+
+    <div class="ens-a-field">
+      <span class="field-label">Картинка</span>
+      <div class="ens-a-img">
+        ${с.img ? `<img class="ens-a-prev" id="f-prev" src="${esc(с.img)}" alt="">`
+                : '<div class="ens-a-prev ens-a-none" id="f-prev">нет картинки</div>'}
+        <div class="ens-a-imgctl">
+          <input type="file" id="f-file" accept="image/*" class="input" ${правим ? '' : 'disabled'}>
+          <div class="ens-a-url">
+            <input class="input" id="f-url" placeholder="…или ссылка на картинку"
+                   ${правим ? '' : 'disabled'} autocomplete="off">
+            <button class="btn-secondary" type="button" id="f-up"
+                    ${правим ? '' : 'disabled'} onclick="загрузить()">Загрузить</button>
+          </div>
+          <p class="ens-a-note">${правим
+            ? `Ужимается до ${ПОТОЛОК[0]}×${ПОТОЛОК[1]} — размер самого крупного
+               места показа с запасом на плотность экрана. Кладётся на том,
+               а не в статику: иначе исчезнет со следующей выкаткой.`
+            : 'Сначала сохраните сет — картинка кладётся по его идентификатору.'}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="ens-a-actions">
+      ${правим ? '<button class="btn-danger" type="button" onclick="удалить()">Удалить сет</button>' : ''}
+      <button class="btn-primary" type="button" onclick="сохранить()">Сохранить</button>
+    </div>`;
+  window.открыть_модалку('ens-edit');
+}
+
+function сказать(текст, вид) {
+  document.getElementById('ens-msg').innerHTML =
+    `<div class="alert alert-${вид}">${esc(текст)}</div>`;
+}
+
+async function сохранить() {
+  const свой = правим && правим.custom && правим.custom.length;
+  const тело = {
+    id: document.getElementById('f-id').value.trim() || (правим ? правим.id : ''),
+    name_ru: document.getElementById('f-ru').value.trim(),
+    name_en: document.getElementById('f-en').value.trim(),
+    crafter: document.getElementById('f-cat').value,
+    lvl: document.getElementById('f-lvl').value,
+    pieces: свой ? null : [...document.querySelectorAll('.f-piece:checked')].map(e => e.value),
+    custom: свой ? правим.custom : null,
+  };
+  const о = await fetch('/admin/api/enshrouded/set', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(тело)});
+  const д = await о.json().catch(() => ({}));
+  if (!о.ok) return сказать(д.error || `Сервер ответил ${о.status}`, 'error');
+  const и = СЕТЫ.findIndex(с => с.id === д.set.id);
+  if (и >= 0) СЕТЫ[и] = д.set; else СЕТЫ.push(д.set);
+  отобрать();
+  const созданный = д.created;
+  правим = д.set;
+  if (созданный) открыть(д.set.id);
+  сказать(созданный ? 'Сет заведён. Теперь можно загрузить картинку.' : 'Сохранено.', 'success');
+}
+
+async function загрузить() {
+  if (!правим) return;
+  const файл = document.getElementById('f-file').files[0];
+  const ссылка = document.getElementById('f-url').value.trim();
+  if (!файл && !ссылка) return сказать('Выберите файл или вставьте ссылку', 'warn');
+  const форма = new FormData();
+  if (файл) форма.append('file', файл); else форма.append('url', ссылка);
+  document.getElementById('f-up').disabled = true;
+  const о = await fetch(`/admin/api/enshrouded/set/${правим.id}/image`,
+                        {method: 'POST', body: форма});
+  document.getElementById('f-up').disabled = false;
+  const д = await о.json().catch(() => ({}));
+  if (!о.ok) return сказать(д.error || `Сервер ответил ${о.status}`, 'error');
+  const и = СЕТЫ.findIndex(с => с.id === правим.id);
+  СЕТЫ[и].img = д.img; СЕТЫ[и].img_ext = д.ext;
+  правим = СЕТЫ[и];
+  /* Адрес несёт версию содержимого, поэтому новая картинка видна СРАЗУ,
+     а не через сутки: без версии браузер отдал бы старую из кеша,
+     и загрузка выглядела бы несработавшей. */
+  document.getElementById('f-prev').outerHTML =
+    `<img class="ens-a-prev" id="f-prev" src="${esc(д.img)}" alt="">`;
+  отобрать();
+  сказать(`Загружено из «${д.src}»: было ${д.was[0]}×${д.was[1]}, ` +
+          `стало ${д.now[0]}×${д.now[1]}, ${Math.round(д.bytes / 1024)} КБ.`, 'success');
+}
+
+async function удалить() {
+  if (!правим) return;
+  let о = await fetch(`/admin/api/enshrouded/set/${правим.id}`, {method: 'DELETE'});
+  let д = await о.json().catch(() => ({}));
+  if (о.status === 409) {
+    if (!confirm(д.text + '\n\nУдалить сет?')) return;
+    о = await fetch(`/admin/api/enshrouded/set/${правим.id}?confirm=1`, {method: 'DELETE'});
+    д = await о.json().catch(() => ({}));
+  }
+  if (!о.ok) return сказать(д.error || `Сервер ответил ${о.status}`, 'error');
+  const и = СЕТЫ.findIndex(с => с.id === правим.id);
+  if (и >= 0) СЕТЫ.splice(и, 1);
+  правим = null;
+  отобрать();
+  window.закрыть_модалку('ens-edit');
+}
+
+отобрать();
+</script>
+</body>
+</html>

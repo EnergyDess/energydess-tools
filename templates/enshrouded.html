@@ -162,105 +162,16 @@ const CRAFTERS = {
   special:    { name:'Спецпредметы',     sub:'События / Магазин', ico:'sparkles'      },
 };
 
-const SETS = [
-  { id:'bs_fur',     nameRu:'Меховой доспех',       name:'Fur Armor',          crafter:'blacksmith', lvl:5  },
-  { id:'bs_rf',      nameRu:'Начинающий боец',      name:'Rising Fighter',     crafter:'blacksmith', lvl:7  },
-  { id:'bs_adv',     nameRu:'Авантюрист',           name:'Adventurer',         crafter:'blacksmith', lvl:13 },
-  { id:'bs_tank',    nameRu:'Костолом',             name:'Tank',               crafter:'blacksmith', lvl:13 },
-  { id:'bs_merc',    nameRu:'Наёмник',              name:'Mercenary',          crafter:'blacksmith', lvl:18 },
-  { id:'bs_guard',   nameRu:'Страж',                name:'Guardian',           crafter:'blacksmith', lvl:18 },
-  { id:'bs_blk',     nameRu:'Чёрный страж',         name:'Blackguard',         crafter:'blacksmith', lvl:18 },
-  { id:'bs_sold',    nameRu:'Солдат',               name:'Soldier',            crafter:'blacksmith', lvl:23 },
-  { id:'bs_rogue',   nameRu:'Разбойник',            name:'Rogue',              crafter:'blacksmith', lvl:23 },
-  { id:'bs_ward',    nameRu:'Блюститель',           name:'Warden',             crafter:'blacksmith', lvl:23 },
-  { id:'bs_mtn',     nameRu:'Горная тень',          name:"Mountain's Shadow",  crafter:'blacksmith', lvl:33 },
-  { id:'bs_wolf',    nameRu:'Волчий клык',          name:"Wolf's Fang",        crafter:'blacksmith', lvl:33 },
-  { id:'bs_bull',    nameRu:'Бронзовый бык',        name:'Brazen Bull',        crafter:'blacksmith', lvl:33 },
-  { id:'bs_sun',     nameRu:'Пронзающее солнце',    name:'Sunpiercer',         crafter:'blacksmith', lvl:43 },
-  { id:'bs_gold',    nameRu:'Золотой оплот',        name:'Golden Bulwark',     crafter:'blacksmith', lvl:43 },
-  { id:'ht_scout',   nameRu:'Лазутчик',             name:'Scout',              crafter:'huntress',   lvl:8  },
-  { id:'ht_trail',   nameRu:'Следопыт',             name:'Ranger',             crafter:'huntress',   lvl:13 },
-  { id:'ht_shoot',   nameRu:'Стрелок',              name:'Archer',             crafter:'huntress',   lvl:13 },
-  { id:'ht_plague',  nameRu:'Вестник чумы',         name:'Plaguebringer',      crafter:'huntress',   lvl:18 },
-  { id:'ht_hunt',    nameRu:'Охотник',              name:'Hunter',             crafter:'huntress',   lvl:18 },
-  { id:'ht_marks',   nameRu:'Меткий стрелок',       name:'Marksman',           crafter:'huntress',   lvl:18 },
-  { id:'ht_ass',     nameRu:'Убийца',               name:'Assassin',           crafter:'huntress',   lvl:23 },
-  { id:'ht_deer',    nameRu:'Ловец оленей',         name:'Deerstalker',        crafter:'huntress',   lvl:23 },
-  { id:'ht_sharp',   nameRu:'Снайпер',              name:'Sharpshooter',       crafter:'huntress',   lvl:23 },
-  { id:'ht_frost',   nameRu:'Хладнокровный рубака', name:'Frostbite Slasher',  crafter:'huntress',   lvl:33 },
-  { id:'ht_horn',    nameRu:'Горнорог',             name:'Alpine Antler',      crafter:'huntress',   lvl:33 },
-  { id:'ht_tblazer', nameRu:'Первопроходец',        name:'Trailblazer',        crafter:'huntress',   lvl:33 },
-  { id:'ht_quet',    nameRu:'Охотник на кецалей',   name:'Quetzal Hunter',     crafter:'huntress',   lvl:43 },
-  { id:'ht_blood',   nameRu:'Кровавое перо',        name:'Bloodfeather',       crafter:'huntress',   lvl:43 },
-  { id:'ht_skull',   nameRu:'Охотник за черепами',  name:'Skull Stalker',      crafter:'huntress',   lvl:43 },
-  { id:'al_appr',    nameRu:'Ученик алхимика',      name:'Alchemist Apprentice', crafter:'alchemist', lvl:13 },
-  { id:'al_heal',    nameRu:'Целитель',             name:'Healer',             crafter:'alchemist',  lvl:13 },
-  { id:'al_mage',    nameRu:'Маг',                  name:'Mage',               crafter:'alchemist',  lvl:13 },
-  { id:'al_herb',    nameRu:'Травник',              name:'Herbalist',          crafter:'alchemist',  lvl:18 },
-  { id:'al_wiz',     nameRu:'Чародей',              name:'Magician',           crafter:'alchemist',  lvl:18 },
-  { id:'al_omen',    nameRu:'Предвестие',           name:'Omen',               crafter:'alchemist',  lvl:18 },
-  { id:'al_lock',    nameRu:'Колдун',               name:'Warlock',            crafter:'alchemist',  lvl:23 },
-  { id:'al_sage',    nameRu:'Мудрец',               name:'Sage',               crafter:'alchemist',  lvl:23 },
-  { id:'al_arch',    nameRu:'Архимаг',              name:'Archmage',           crafter:'alchemist',  lvl:23 },
-  { id:'al_hail',    nameRu:'Градобой',             name:'Hailcaster',         crafter:'alchemist',  lvl:33 },
-  { id:'al_pearl',   nameRu:'Перламутровое касание',name:'Pearlfrost Mentor',  crafter:'alchemist',  lvl:33 },
-  { id:'al_thaum',   nameRu:'Чудотворец',           name:'Thaumaturge',        crafter:'alchemist',  lvl:33 },
-  { id:'al_wave',    nameRu:'Заклинатель волн',     name:'Waveborne Ritualist',crafter:'alchemist',  lvl:43 },
-  { id:'al_tide',    nameRu:'Зов приливов',         name:'Tidecaller',         crafter:'alchemist',  lvl:43 },
-  { id:'w_worn',     nameRu:'Изношенные штаны',     name:'Worn Pants',         crafter:'world',      lvl:1,  pieces:['legs'] },
-  { id:'w_ragged',   nameRu:'Потрёпанный',          name:'Ragged',             crafter:'world',      lvl:3  },
-  { id:'w_wand',     nameRu:'Обувь бродяги',        name:"Wanderer's Boots",   crafter:'world',      lvl:9,  pieces:['feet'] },
-  { id:'w_warrior',  nameRu:'Воитель',              name:'Warrior',            crafter:'world',      lvl:13 },
-  { id:'sp_gnorth',  nameRu:'Страж Севера',         name:'Guard of the North', crafter:'world',      lvl:13 },
-  { id:'w_wizard',   nameRu:'Волшебник',            name:'Wizard',             crafter:'world',      lvl:13 },
-  { id:'w_archer',   nameRu:'Лучник',               name:'Archer',             crafter:'world',      lvl:13 },
-  { id:'w_knight',   nameRu:'Рыцарь',               name:'Knight',             crafter:'world',      lvl:18 },
-  { id:'w_fowler',   nameRu:'Птицелов',             name:'Fowler',             crafter:'world',      lvl:18 },
-  { id:'w_mystic',   nameRu:'Тайновидец',           name:'Mystic',             crafter:'world',      lvl:18 },
-  { id:'w_hawk',     nameRu:'Ястреб',               name:'Hawk',               crafter:'world',      lvl:23 },
-  { id:'w_gloom',    nameRu:'Мрачный монарх',       name:'Gloom Monarch',      crafter:'world',      lvl:23 },
-  { id:'w_spell',    nameRu:'Разрушитель чар',      name:'Spellbreaker',       crafter:'world',      lvl:23 },
-  { id:'sp_edead',   nameRu:'Элитный комплект умертвий', name:'Elite Hollow',  crafter:'world',      lvl:23 },
-  { id:'w_paladin',  nameRu:'Паладин света',        name:'Radiant Paladin',    crafter:'world',      lvl:25 },
-  { id:'w_eagle',    nameRu:'Орлиное Око',          name:'Eagle Eye',          crafter:'world',      lvl:25 },
-  { id:'w_elder',    nameRu:'Старейшина',           name:'Elder',              crafter:'world',      lvl:25 },
-  { id:'w_gtsword',  nameRu:'Перчатки для двуручного меча', name:'Greatsword Gauntlets', crafter:'world', lvl:45, pieces:['gloves'] },
-  { id:'w_frozen',   nameRu:'Морозные перчатки',    name:'Frozen Gauntlets',   crafter:'world',      lvl:45, pieces:['gloves'] },
-  { id:'w_flaming',  nameRu:'Пылающие перчатки',    name:'Flaming Gauntlets',  crafter:'world',      lvl:45, pieces:['gloves'] },
-  { id:'w_drakian',  nameRu:'Драккская обувь',      name:'Drakian Boots',      crafter:'world',      lvl:45, pieces:['feet'] },
-  { id:'sp_snake',   nameRu:'Воин-змея',            name:'Serpent Warrior',    crafter:'special' },
-  { id:'sp_noble',   nameRu:'Знать',                name:'Noble Dress',        crafter:'special' },
-  { id:'sp_flame',   nameRu:'Пакт пламени',         name:'Flame Pact',         crafter:'special' },
-  { id:'sp_peasant', nameRu:'Крестьянин',           name:'Farmer',             crafter:'special', pieces:['head','chest','legs','feet'] },
-  { id:'sp_grave',   nameRu:'Могильщик',            name:'Gravedigger',        crafter:'special', pieces:['head','chest','legs','feet'] },
-  { id:'sp_royal',   nameRu:'Королевский комплект', name:'Royal',              crafter:'special' },
-  { id:'sp_explor',  nameRu:'Исследователь',        name:'Explorer',           crafter:'special' },
-  { id:'sp_hope',    nameRu:'Цветущая надежда',     name:'Efflorescent Hope',  crafter:'special' },
-  { id:'sp_milk',    nameRu:'Доярка',               name:'Milkmaid',           crafter:'special', pieces:['head','chest','feet'] },
-  { id:'sp_maid',    nameRu:'Горничная',            name:'Maid',               crafter:'special', pieces:['head','chest'] },
-  { id:'sp_emp',     nameRu:'Ученик эмпиреев',      name:'Scholar Of The Empyrean', crafter:'special' },
-  { id:'sp_smith',   nameRu:'Кузнец',               name:'Blacksmith',         crafter:'special', pieces:['head','chest','legs','feet'] },
-  { id:'sp_hunter',  nameRu:'Охотник',              name:'Hunter Outfit',      crafter:'special', pieces:['head','chest','legs','feet'] },
-  { id:'sp_hats',    nameRu:'Комплект головных уборов', name:'Hat Collection', crafter:'special',
-    custom:[
-      { id:'h_minstrel', label:'Менестрель', svg:'head' },
-      { id:'h_merchant', label:'Торговец',   svg:'head' },
-      { id:'h_scarf',    label:'Платок',     svg:'head' },
-      { id:'h_tricorn',  label:'Треуголка',  svg:'head' },
-    ]
-  },
-  { id:'sp_flamapp', nameRu:'Ученик юного пламени', name:'Scholar Of The Young Flame', crafter:'special' },
-  { id:'sp_fluffy',  nameRu:'Пушистый комплект',    name:'Fluffy',             crafter:'special' },
-  { id:'sp_winter',  nameRu:'Зимний комплект',      name:'Winterly',           crafter:'special' },
-  { id:'sp_jester',  nameRu:'Шутовской колпак',     name:'Jester Hat',         crafter:'special', pieces:['head'] },
-  { id:'sp_daydead', nameRu:'Сочельник',            name:"Hollow's Eve",       crafter:'special' },
-  { id:'sp_siren',   nameRu:'Искатель сирен',       name:'Siren Seeker',       crafter:'special' },
-  { id:'sp_capt',    nameRu:'Сюртук капитана',      name:"Captain's Coat",     crafter:'special', pieces:['chest'] },
-  { id:'sp_lumber',  nameRu:'Лесоруб',              name:'Lumberer',           crafter:'special' },
-  { id:'sp_rose',    nameRu:'Кровавая роза',        name:'Blood Rose',         crafter:'special' },
-  { id:'sp_summer',  nameRu:'Комплект летних игр',  name:'Summer Games',       crafter:'special' },
-  { id:'sp_sunny',   nameRu:'Комплект любителя солнца', name:'Sunny Loungewear', crafter:'special', pieces:['chest','legs','feet'] },
-];
+// КАТАЛОГ ПРИХОДИТ С СЕРВЕРА, а не лежит здесь литералом. До 2026-08-22
+// (BACKLOG №137) в этом месте стояли 90 строк с сетами, и добавить сет
+// без коммита и деплоя было нельзя. Теперь каталог — таблица
+// `enshrouded_sets`, правится экраном /admin/enshrouded.
+//
+// Имена полей те же, что были (`nameRu`, `name`, `crafter`, `lvl`,
+// `pieces`, `custom`): рисование их уже умеет читать, и переименование
+// стоило бы переписывания render() без единой выгоды. Прибавилось одно —
+// `img`: готовый адрес картинки С ВЕРСИЕЙ, посчитанный сервером.
+const SETS = {{ ens_sets|tojson }};
 
 function getPieces(set) {
   if (set.custom) return set.custom.map(c=>({id:c.id,label:c.label,svg:SVG[c.svg||'head']}));
@@ -350,10 +261,6 @@ function renderSection(cat,sets) {
   </section>`;
 }
 
-// Расширения выводит СЕРВЕР из каталога static/enshrouded (main.ENSHROUDED_PNG):
-// перечень руками отстал бы на первом же сете, добавленном разговором (§6.0.7).
-const PNG_ICONS=new Set({{ ens_png|tojson }});
-
 function slotHtml(set, sl) {
   const d=getSlot(set.id,sl.id);
   const isSpecial=set.crafter==='special';
@@ -382,11 +289,15 @@ function renderCard(set) {
   const lvlWord=set.crafter==='world'?'находка':'рецепт';
   const lvlTag=set.lvl?`<span class="lvl-tag">${lvlWord} ур. ${set.lvl}</span>`:'';
   const sid=set.id;
-  const src=`/static/enshrouded/${sid}.${PNG_ICONS.has(sid)?'png':'jpg'}`;
+  // Адрес картинки СЧИТАЕТ СЕРВЕР и присылает готовым, вместе с версией
+  // содержимого. Здесь его больше не собирают: расширение переехало
+  // в поле сета, а файл может лежать и на томе (заменённый владельцем),
+  // и в семени образа — правило разрешения одно и оно серверное.
+  const src=set.img||'';
   // Картинки нет — баннер убирается ЦЕЛИКОМ (hidden), а не схлопывается
   // в ноль высоты: нулевая кнопка осталась бы в порядке табуляции и
   // была бы находкой проверки 20 (тач-таргет).
-  const banner=`<button class="card-banner" type="button" data-zoom
+  const banner=!src?'':`<button class="card-banner" type="button" data-zoom
       aria-label="Увеличить изображение сета «${esc(set.nameRu)}»"><img src="${src}" alt=""
       onload="this.closest('.card-banner').classList.add('loaded')"
       onerror="this.closest('.card-banner').hidden=true"></button>`;

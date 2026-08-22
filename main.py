@@ -53,6 +53,7 @@ from sqlalchemy import or_, func
 from sqlalchemy.exc import SQLAlchemyError
 
 from database import (get_db, init_db, migrate_db, DB_PATH, SessionLocal, User, Resume, ToolAccess, EnshroudedSlot,
+                      EnshroudedSet, enshrouded_img, ENSHROUDED_DIR,
                       HHProfile, CoverLetter, NutritionProfile, NutritionGoalPeriod,
                       FoodLog, CustomFood, CustomRecipe, RecipeIngredient,
                       WaterLog, WeightLog, ChatMessage, Exercise, WorkoutProfile,
@@ -3194,27 +3195,100 @@ async def admin_exercise_replace_video(exercise_id: str, request: Request, user=
     return JSONResponse({"ok": True, "youtube_id": ex.youtube_id, "video_status": ex.video_status})
 
 
-# Расширения картинок раздела ВЫВОДЯТСЯ из каталога, а не перечисляются.
-# Перечнем это жило в шаблоне (`PNG_ICONS` из четырёх имён) и было бы
-# перечнем из 66 после того, как картинки забрали с вики: сеты
-# добавляются РАЗГОВОРОМ, и забытый id означал бы лишний 404 на каждой
-# отрисовке — немой отказ, который ловит только проверка 24 (§6.0.7).
-#
-# Считается ОДИН раз при импорте: static/ уезжает в ОБРАЗ, на живом
-# сервере каталог не меняется по построению. Локально новый файл
-# требует перезапуска — это названо, а не подразумевается.
-def _енш_расширения():
-    каталог = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           'static', 'enshrouded')
-    if not os.path.isdir(каталог):
-        return []
-    return sorted(и[:-4] for и in os.listdir(каталог) if и.endswith('.png'))
-
-
-ENSHROUDED_PNG = _енш_расширения()
-
-
 # ── Enshrouded Трекер ─────────────────────────────────────────────────────────
+#
+# КАТАЛОГ ЖИВЁТ В БАЗЕ С 2026-08-22 (BACKLOG №137). До этого 90 сетов
+# лежали JS-литералом `SETS` внутри шаблона и правились коммитом.
+#
+# Здесь же УМЕР `ENSHROUDED_PNG` — список id с расширением `.png`,
+# который считался ОДИН раз при импорте. Он был верным решением, пока
+# каталог не менялся на живом сервере; экран управления меняет ровно
+# это условие, и файл, положенный им, в список не попал бы до
+# перезапуска: ссылка `.jpg`, на диске `.png`, баннер схлопнут, ни
+# ошибки, ни строки в журнале (задача 137, пункт 5). Расширение стало
+# ПОЛЕМ сета — вопрос отпал вместе со списком.
+
+# Категории и виды слотов НЕ переехали в базу, и это решение, а не
+# недоделка. Они не содержимое, а УСТРОЙСТВО игры: пять ремесленников
+# и пять мест доспеха не меняются с выходом контента, у каждого свой
+# значок (Lucide у категории, встроенный SVG у слота), и править их
+# экрану управления незачем — редактировать нечего. Строка в базе,
+# которую нечем изменить, хуже константы: она обещает изменяемость,
+# которой нет.
+ENSHROUDED_CRAFTERS = ["blacksmith", "huntress", "alchemist", "world", "special"]
+ENSHROUDED_SLOTS = ["head", "chest", "gloves", "legs", "feet"]
+
+
+def _енш_каталог(db):
+    """Каталог для страницы — В ТОМ ЖЕ ВИДЕ, в каком его читал скрипт.
+
+    Имена полей оставлены прежними (`nameRu`, `name`, `crafter`, `lvl`,
+    `pieces`, `custom`): разметка раздела уже умеет их читать, и менять
+    их значило бы переписывать рисование ради переименования.
+    """
+    из = []
+    for с in db.query(EnshroudedSet).order_by(EnshroudedSet.sort_order,
+                                              EnshroudedSet.id).all():
+        запись = {"id": с.id, "nameRu": с.name_ru, "name": с.name_en,
+                  "crafter": с.crafter, "lvl": с.lvl,
+                  "img": _енш_адрес(с)}
+        if с.pieces:
+            запись["pieces"] = _json.loads(с.pieces)
+        if с.custom:
+            запись["custom"] = _json.loads(с.custom)
+        из.append(запись)
+    return из
+
+
+def _енш_адрес(с):
+    """Адрес картинки сета — ОДИН на весь проект, и версия в нём.
+
+    Версия (`?v=`) — восемь знаков sha256 от содержимого, ровно тот же
+    приём, что у `st()` для статики (§2.2). Без неё заменённая картинка
+    показывалась бы старой до суток: адрес не изменился, а `Cache-Control`
+    на картинках стоит `max-age=86400`. Владелец при этом видел бы,
+    что «загрузка не сработала», — немой отказ на ровном месте.
+    """
+    if not с.img_ext:
+        return None
+    хвост = f"?v={с.img_ver}" if с.img_ver else ""
+    return f"/enshrouded-img/{с.id}.{с.img_ext}{хвост}"
+
+
+def _енш_версия(путь):
+    """Восемь знаков sha256 от содержимого файла."""
+    h = hashlib.sha256()
+    with open(путь, "rb") as f:
+        for кусок in iter(lambda: f.read(65536), b""):
+            h.update(кусок)
+    return h.hexdigest()[:8]
+
+
+# ИМЯ ПАРАМЕТРА ПУТИ — ЛАТИНИЦЕЙ, и это не вкус (§6.0). Первая версия
+# звалась `{имя}`: обработчик при прямом вызове отдавал файл, а через
+# HTTP приходил 404 — Starlette компилирует путь в регулярку с именованной
+# группой, и кириллическое имя группы её ломает. Отказ немой: ни ошибки
+# при импорте, ни строки в журнале, только 404 на исправном коде.
+@app.get("/enshrouded-img/{name}")
+async def enshrouded_image(name: str):
+    """Картинка сета. Своим эндпоинтом, а не из /static, потому что
+    загруженное лежит НА ТОМЕ — `static/` уезжает в образ и переживает
+    деплой только в том виде, в каком туда попало (задача 137, пункт 2).
+
+    Разрешение пути — одно на проект, `database.enshrouded_img`: том
+    сильнее семени. Второй реализации нет, и проверка 24 зовёт ту же.
+    """
+    основа, _, ext = name.rpartition(".")
+    # Имя приходит из адресной строки: пускаем только то, что сами
+    # и выдаём. `..` и разделители пути сюда не пролезут по построению.
+    if not основа or ext not in ("jpg", "png") or not re.fullmatch(r"[a-z0-9_]+", основа):
+        return JSONResponse({"error": "Нет такой картинки"}, status_code=404)
+    путь = enshrouded_img(основа, ext)
+    if not путь:
+        return JSONResponse({"error": "Нет такой картинки"}, status_code=404)
+    return FileResponse(путь, media_type=f"image/{'png' if ext == 'png' else 'jpeg'}",
+                        headers={"Cache-Control": "public, max-age=86400"})
+
 
 @app.get("/enshrouded")
 async def enshrouded_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
@@ -3227,7 +3301,350 @@ async def enshrouded_page(request: Request, user=Depends(get_current_user), db: 
         return RedirectResponse("/?locked=enshrouded", status_code=302)
     return templates.TemplateResponse(request=request, name="enshrouded.html",
                                       context={"user": user,
-                                               "ens_png": ENSHROUDED_PNG})
+                                               "ens_sets": _енш_каталог(db)})
+
+
+# ══ ЭКРАН УПРАВЛЕНИЯ КАТАЛОГОМ (BACKLOG №137) ════════════════════════
+#
+# Наполнение раздела шло РАЗГОВОРОМ: владелец давал ссылку на вики или
+# папку со скриншотами, сет дописывался в JS-литерал внутри шаблона.
+# Правка требовала коммита и деплоя, а проверить результат можно было
+# только глазами по карточкам.
+#
+# ЭКРАН НУЖЕН НЕ СТОЛЬКО ДЛЯ ДОБАВЛЕНИЯ, СКОЛЬКО ДЛЯ ПРАВКИ: картинка
+# не та, уровень не тот, вики обновилась.
+
+# Потолок размера картинки — ТОТ ЖЕ, что сторожит проверка 24, и взят
+# он ОТТУДА, а не переписан числом. Экран ужимает загруженное до него
+# сам: иначе первый же файл с вики (1920x1080) уронил бы проверку ряда,
+# и владелец узнал бы об этом от чужого прогона, а не от своего действия.
+ENS_MAX_W, ENS_MAX_H = 1396, 994
+ENS_MAX_UPLOAD = 12 * 1024 * 1024
+
+
+def _енш_сет_наружу(с):
+    return {"id": с.id, "name_ru": с.name_ru, "name_en": с.name_en,
+            "crafter": с.crafter, "lvl": с.lvl,
+            "pieces": _json.loads(с.pieces) if с.pieces else None,
+            "custom": _json.loads(с.custom) if с.custom else None,
+            "img": _енш_адрес(с), "img_ext": с.img_ext,
+            "sort_order": с.sort_order}
+
+
+def _енш_отметок(db, set_id):
+    """Сколько чужих отметок висит на сете. Считается ПО ВСЕМ людям."""
+    return (db.query(EnshroudedSlot)
+            .filter(EnshroudedSlot.set_id == set_id).count())
+
+
+def _енш_проверить(данные):
+    """Разбор тела запроса. Возвращает (поля, ошибка).
+
+    ОТКАЗ НАЗЫВАЕТ ПОЛЕ. Одна фраза «проверьте данные» на восемь причин
+    заставляла бы искать не там — та же причина, по которой у сбоя
+    модели семь текстов, а не один (§2.5).
+    """
+    def строка(имя, максимум=120):
+        return (данные.get(имя) or "").strip()[:максимум]
+
+    sid = строка("id", 40)
+    if not sid:
+        return None, "Не заполнен идентификатор сета"
+    if not re.fullmatch(r"[a-z0-9_]+", sid):
+        return None, ("Идентификатор — только латиница в нижнем регистре, "
+                      "цифры и подчёркивание: он становится именем файла "
+                      "картинки и частью адреса")
+    имя_ру, имя_ен = строка("name_ru"), строка("name_en")
+    if not имя_ру:
+        return None, "Не заполнено русское название"
+    if not имя_ен:
+        return None, "Не заполнено английское название"
+    крафтер = строка("crafter", 20)
+    if крафтер not in ENSHROUDED_CRAFTERS:
+        return None, ("Категории «%s» не существует. Есть: %s"
+                      % (крафтер, ", ".join(ENSHROUDED_CRAFTERS)))
+    lvl = данные.get("lvl")
+    if lvl in ("", None):
+        lvl = None
+    else:
+        try:
+            lvl = int(lvl)
+        except (TypeError, ValueError):
+            return None, "Уровень — целое число или пусто"
+        if not 1 <= lvl <= 200:
+            return None, "Уровень вне разумного: ждём от 1 до 200"
+
+    pieces = данные.get("pieces") or None
+    if pieces is not None:
+        if not isinstance(pieces, list) or not pieces:
+            return None, "Состав — непустой список видов слотов"
+        чужие = [к for к in pieces if к not in ENSHROUDED_SLOTS]
+        if чужие:
+            return None, ("Таких видов слота нет: %s. Есть: %s"
+                          % (", ".join(map(str, чужие)), ", ".join(ENSHROUDED_SLOTS)))
+        if pieces == ENSHROUDED_SLOTS:
+            # Полный состав — это УМОЛЧАНИЕ, и хранить его полем значит
+            # завести второе представление одного и того же.
+            pieces = None
+
+    custom = данные.get("custom") or None
+    if custom is not None:
+        if not isinstance(custom, list) or not custom:
+            return None, "Свой состав — непустой список слотов"
+        видел = set()
+        for к in custom:
+            кид = (к.get("id") or "").strip()
+            подпись = (к.get("label") or "").strip()
+            if not re.fullmatch(r"[a-z0-9_]+", кид or ""):
+                return None, "У своего слота нужен идентификатор латиницей"
+            if not подпись:
+                return None, "У своего слота нужна подпись"
+            if кид in видел:
+                return None, f"Свой слот «{кид}» назван дважды"
+            видел.add(кид)
+        if pieces:
+            return None, ("Свой состав и обычный вместе не работают: "
+                          "обычный не действует, и это молчаливо")
+
+    return {"id": sid, "name_ru": имя_ру, "name_en": имя_ен,
+            "crafter": крафтер, "lvl": lvl, "pieces": pieces,
+            "custom": custom}, None
+
+
+@app.get("/admin/enshrouded")
+async def admin_enshrouded_page(request: Request, user=Depends(get_current_user),
+                                db: Session = Depends(get_db)):
+    if not _admin_guard(user):
+        return RedirectResponse("/", status_code=302)
+    сеты = (db.query(EnshroudedSet)
+            .order_by(EnshroudedSet.sort_order, EnshroudedSet.id).all())
+    отметки = {}
+    for s_id, сколько in (db.query(EnshroudedSlot.set_id,
+                                   func.count(EnshroudedSlot.id))
+                          .group_by(EnshroudedSlot.set_id).all()):
+        отметки[s_id] = сколько
+    данные = []
+    for с in сеты:
+        з = _енш_сет_наружу(с)
+        з["marks"] = отметки.get(с.id, 0)
+        данные.append(з)
+    return templates.TemplateResponse(
+        request=request, name="admin_enshrouded.html",
+        context={"user": user, "sets": данные,
+                 "crafters": ENSHROUDED_CRAFTERS,
+                 "slots": ENSHROUDED_SLOTS,
+                 "max_w": ENS_MAX_W, "max_h": ENS_MAX_H})
+
+
+@app.post("/admin/api/enshrouded/set")
+async def admin_enshrouded_save(request: Request, user=Depends(get_current_user),
+                                db: Session = Depends(get_db)):
+    """Завести сет или переписать существующий.
+
+    ИДЕНТИФИКАТОР У СУЩЕСТВУЮЩЕГО НЕ МЕНЯЕТСЯ, и это не забывчивость.
+    `enshrouded_slots.set_id` ссылается сюда СТРОКОЙ, внешнего ключа нет:
+    переименование осиротило бы отметки МОЛЧА — ошибки не будет, галочки
+    просто исчезнут с экрана у всех, кто отмечал этот сет. Хотите другой
+    идентификатор — заведите сет заново; сколько отметок потеряется,
+    экран скажет числом до того, как удалит старый.
+    """
+    if not _admin_guard(user):
+        return JSONResponse({"error": "Нет прав"}, status_code=403)
+    данные = await request.json()
+    поля, беда = _енш_проверить(данные)
+    if беда:
+        return JSONResponse({"error": беда}, status_code=400)
+
+    сет = db.query(EnshroudedSet).filter(EnshroudedSet.id == поля["id"]).first()
+    новый = сет is None
+    if новый:
+        последний = db.query(func.max(EnshroudedSet.sort_order)).scalar() or 0
+        сет = EnshroudedSet(id=поля["id"], sort_order=последний + 1)
+        db.add(сет)
+    сет.name_ru = поля["name_ru"]
+    сет.name_en = поля["name_en"]
+    сет.crafter = поля["crafter"]
+    сет.lvl = поля["lvl"]
+    сет.pieces = _json.dumps(поля["pieces"], ensure_ascii=False) if поля["pieces"] else None
+    сет.custom = _json.dumps(поля["custom"], ensure_ascii=False) if поля["custom"] else None
+    сет.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(сет)
+    з = _енш_сет_наружу(сет)
+    з["marks"] = _енш_отметок(db, сет.id)
+    return JSONResponse({"ok": True, "created": новый, "set": з})
+
+
+@app.delete("/admin/api/enshrouded/set/{set_id}")
+async def admin_enshrouded_delete(set_id: str, confirm: int = 0,
+                                  user=Depends(get_current_user),
+                                  db: Session = Depends(get_db)):
+    """Удалить сет. ОТМЕТКИ ЛЮДЕЙ НЕ ТРОГАЮТСЯ, и это выбор.
+
+    Строки `enshrouded_slots` переживают удаление сета: восстановление
+    каталога вернёт галочки на место, а стёртые отметки не вернёт ничто.
+    Сколько их — экран говорит ЧИСЛОМ и требует подтверждения, а не
+    удаляет молча.
+    """
+    if not _admin_guard(user):
+        return JSONResponse({"error": "Нет прав"}, status_code=403)
+    сет = db.query(EnshroudedSet).filter(EnshroudedSet.id == set_id).first()
+    if not сет:
+        return JSONResponse({"error": "Такого сета нет"}, status_code=404)
+    отметок = _енш_отметок(db, set_id)
+    if отметок and not confirm:
+        return JSONResponse(
+            {"error": "нужно подтверждение", "marks": отметок,
+             "text": ("На этом сете %d %s пользователей. Отметки останутся "
+                      "в базе и вернутся, если сет завести заново с тем же "
+                      "идентификатором." % (отметок, _plural_ru(отметок, "отметка",
+                                                     "отметки", "отметок")))},
+            status_code=409)
+    # ФАЙЛ НА ТОМЕ УБИРАЕТСЯ ВМЕСТЕ С СЕТОМ. Иначе каждое удаление
+    # оставляло бы сироту, и проверка 24 (вид СИРОТА) находила бы её
+    # у всякого, кто пользовался экраном, — то есть проверка ряда
+    # краснела бы от нормальной работы.
+    #
+    # Семя (`static/enshrouded/`) при этом НЕ трогается: оно едет
+    # в образе и правится коммитом, а не запросом с живого сервера.
+    убрано = []
+    for ext in ("jpg", "png"):
+        файл = os.path.join(ENSHROUDED_DIR, f"{set_id}.{ext}")
+        if os.path.exists(файл):
+            os.remove(файл)
+            убрано.append(f"{set_id}.{ext}")
+    db.delete(сет)
+    db.commit()
+    return JSONResponse({"ok": True, "marks_kept": отметок, "files": убрано})
+
+
+def _енш_обработать(сырое, set_id):
+    """Разбор, ужатие и запись файла. СИНХРОННАЯ, зовётся из потока.
+
+    Возвращает ((ext, было, стало, размер, путь), None) либо (None, беда).
+    Ошибка возвращается ЗНАЧЕНИЕМ, а не исключением: вызывающий обязан
+    отличить «это не картинка» от «у нас сломалось», и текст для человека
+    решается там же, где решаются все прочие (§2.5).
+    """
+    from PIL import Image
+    # Картинка ли это — решает РАЗБОР, а не расширение и не Content-Type:
+    # и то и другое присылает тот, кто загружает.
+    try:
+        img = Image.open(io.BytesIO(сырое))
+        img.load()
+    except Exception:
+        return None, ("Это не картинка: файл не открывается ни одним "
+                      "известным разбором")
+
+    было = img.size
+    прозрачность = img.mode in ("RGBA", "LA") or (
+        img.mode == "P" and "transparency" in img.info)
+    ext = "png" if прозрачность else "jpg"
+    if img.size[0] > ENS_MAX_W or img.size[1] > ENS_MAX_H:
+        img.thumbnail((ENS_MAX_W, ENS_MAX_H), Image.LANCZOS)
+    буфер = io.BytesIO()
+    if ext == "png":
+        img.convert("RGBA").save(буфер, "PNG", optimize=True)
+    else:
+        img.convert("RGB").save(буфер, "JPEG", quality=88, optimize=True)
+    тело = буфер.getvalue()
+
+    os.makedirs(ENSHROUDED_DIR, exist_ok=True)
+    # Прежнее расширение убирается: иначе у одного сета остались бы два
+    # файла, и разрешение пути стало бы зависеть от порядка проверки.
+    for прежнее in ("jpg", "png"):
+        если_есть = os.path.join(ENSHROUDED_DIR, f"{set_id}.{прежнее}")
+        if прежнее != ext and os.path.exists(если_есть):
+            os.remove(если_есть)
+    итог = os.path.join(ENSHROUDED_DIR, f"{set_id}.{ext}")
+    with open(итог, "wb") as f:
+        f.write(тело)
+    return (ext, было, img.size, len(тело), итог), None
+
+
+@app.post("/admin/api/enshrouded/set/{set_id}/image")
+async def admin_enshrouded_image(set_id: str, request: Request,
+                                 file: UploadFile = File(None),
+                                 url: str = Form(None),
+                                 user=Depends(get_current_user),
+                                 db: Session = Depends(get_db)):
+    """Картинка сета: файлом с компьютера ИЛИ по ссылке.
+
+    КЛАДЁТСЯ НА ТОМ, а не в `static/`: `static/` уезжает в образ, и файл,
+    положенный туда на живом сервере, исчез бы со следующей выкаткой —
+    немой отказ, при котором загрузка «сработала» (задача 137, пункт 2).
+
+    УЖИМАЕТСЯ ДО ПОТОЛКА ПОКАЗА сразу здесь. Потолок общий с проверкой 24;
+    без ужатия первый же файл с вики (1920x1080) уронил бы её, и владелец
+    узнал бы о своей загрузке от чужого прогона.
+    """
+    if not _admin_guard(user):
+        return JSONResponse({"error": "Нет прав"}, status_code=403)
+    сет = db.query(EnshroudedSet).filter(EnshroudedSet.id == set_id).first()
+    if not сет:
+        return JSONResponse({"error": "Такого сета нет"}, status_code=404)
+
+    сырое, откуда = None, ""
+    if file is not None and file.filename:
+        сырое = await file.read()
+        откуда = "файл"
+    elif url:
+        адрес = url.strip()
+        if not адрес.startswith(("http://", "https://")):
+            return JSONResponse({"error": "Ссылка должна начинаться с http:// "
+                                          "или https://"}, status_code=400)
+        try:
+            async with httpx.AsyncClient(timeout=20, follow_redirects=True) as кл:
+                о = await кл.get(адрес)
+            if о.status_code != 200:
+                return JSONResponse(
+                    {"error": "По ссылке ответили %d — картинки там нет"
+                              % о.status_code}, status_code=400)
+            сырое = о.content
+        except httpx.HTTPError as e:
+            return JSONResponse(
+                {"error": "Не удалось скачать по ссылке: %s"
+                          % type(e).__name__}, status_code=400)
+        откуда = "ссылка"
+    else:
+        return JSONResponse({"error": "Не приложен ни файл, ни ссылка"},
+                            status_code=400)
+
+    if len(сырое) > ENS_MAX_UPLOAD:
+        return JSONResponse({"error": "Файл больше %d МБ"
+                                      % (ENS_MAX_UPLOAD // 1024 // 1024)},
+                            status_code=400)
+
+    # РАЗБОР И УЖАТИЕ — В ПОТОКЕ, и это не предосторожность: проверка 11
+    # нашла их находкой на этом самом коде. Картинка 4000x3000 занимает
+    # десятки миллисекунд (замер §6.0.5: `_upright_jpeg` 87 мс), и всё
+    # это время цикл событий не исполняет НИЧЕГО — ни другие запросы,
+    # ни /health, по которому Fly решает, жива ли машина.
+    #
+    # Именно `_в_потоке`, а не голый `asyncio.to_thread`: у обработчика
+    # есть сессия базы, и держать соединение через счёт незачем.
+    итог_разбора = await _в_потоке(db, _енш_обработать, сырое, set_id)
+    if итог_разбора[0] is None:
+        return JSONResponse({"error": итог_разбора[1]}, status_code=400)
+    ext, было, стало, размер, файл = итог_разбора[0]
+
+    # СЕТ ПЕРЕСПРАШИВАЕТСЯ ИЗ БАЗЫ. `_в_потоке` отдал соединение, значит
+    # объект ОТЦЕПЛЁН: присваивание в него прошло бы молча, commit прошёл
+    # бы, а до базы не доехало бы ничего (§6.0.5, проверка 15). Ровно эта
+    # ловушка трижды за три дня ловила заходы, которые про неё знали.
+    сет = db.query(EnshroudedSet).filter(EnshroudedSet.id == set_id).first()
+    if not сет:
+        return JSONResponse({"error": "Сет исчез, пока грузилась картинка"},
+                            status_code=404)
+    сет.img_ext = ext
+    сет.img_ver = _енш_версия(файл)
+    сет.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(сет)
+    return JSONResponse({"ok": True, "src": откуда,
+                         "was": list(было), "now": list(стало),
+                         "bytes": размер, "ext": ext,
+                         "img": _енш_адрес(сет)})
 
 
 @app.get("/api/enshrouded/state")
@@ -3271,29 +3688,6 @@ async def update_enshrouded_slot(request: Request, user=Depends(get_current_user
     slot.duplicates = data.get("duplicates", 0)
     db.commit()
     return JSONResponse({"ok": True})
-
-
-@app.post("/api/enshrouded/import")
-async def import_enshrouded_state(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    if not user:
-        return JSONResponse({"error": "Не авторизован"}, status_code=401)
-    data = await request.json()
-    for set_id, slots in data.items():
-        for slot_id, slot_data in slots.items():
-            slot = db.query(EnshroudedSlot).filter(
-                EnshroudedSlot.user_id == user.id,
-                EnshroudedSlot.set_id == set_id,
-                EnshroudedSlot.slot_id == slot_id,
-            ).first()
-            if not slot:
-                slot = EnshroudedSlot(user_id=user.id, set_id=set_id, slot_id=slot_id)
-                db.add(slot)
-            slot.owned = slot_data.get("owned", False)
-            slot.rarity = slot_data.get("rarity", "common")
-            slot.level = slot_data.get("level") or None
-            slot.duplicates = slot_data.get("duplicates", 0)
-    db.commit()
-    return JSONResponse({"ok": True, "imported": sum(len(v) for v in data.values())})
 
 
 # ── HH-ассистент ──────────────────────────────────────────────────────────────

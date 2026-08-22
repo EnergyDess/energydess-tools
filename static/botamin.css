@@ -85,7 +85,8 @@
   color: var(--text);
 }
 
-.bot-call-note {
+.bot-call-note,
+.bot-blocked-text {
   margin: var(--space-3) 0 0;
   font-size: var(--text-body-sm);
   line-height: 1.65;
@@ -146,12 +147,6 @@
   color: var(--text-strong);
 }
 
-.bot-blocked-text {
-  margin: var(--space-3) 0 0;
-  font-size: var(--text-body-sm);
-  line-height: 1.65;
-  color: var(--text-2);
-}
 
 /* Две причины, между которыми из браузера не выбрать: отказ выглядит
    одинаково. Поэтому нумерованный список, а не абзац — человек должен
@@ -331,7 +326,8 @@
   color: var(--text-2);
 }
 
-.bot-card code {
+.bot-card code,
+.bot-notes code {
   padding: 2px var(--space-1);
   border-radius: var(--radius-sm);
   background: var(--surface-sunken);
@@ -389,15 +385,6 @@
   color: var(--text);
 }
 
-.bot-notes code {
-  padding: 2px var(--space-1);
-  border-radius: var(--radius-sm);
-  background: var(--surface-sunken);
-  font-family: var(--font-mono);
-  font-size: var(--text-caption);
-  color: var(--text);
-  overflow-wrap: anywhere;
-}
 
 /* ── Мобильная версия ──────────────────────────────────────────────────── */
 

@@ -1,0 +1,1063 @@
+{
+ "формат": 1,
+ "сеты": [
+  {
+   "id": "bs_fur",
+   "name_ru": "Меховой доспех",
+   "name_en": "Fur Armor",
+   "crafter": "blacksmith",
+   "lvl": 5,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 0
+  },
+  {
+   "id": "bs_rf",
+   "name_ru": "Начинающий боец",
+   "name_en": "Rising Fighter",
+   "crafter": "blacksmith",
+   "lvl": 7,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 1
+  },
+  {
+   "id": "bs_adv",
+   "name_ru": "Авантюрист",
+   "name_en": "Adventurer",
+   "crafter": "blacksmith",
+   "lvl": 13,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 2
+  },
+  {
+   "id": "bs_tank",
+   "name_ru": "Костолом",
+   "name_en": "Tank",
+   "crafter": "blacksmith",
+   "lvl": 13,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 3
+  },
+  {
+   "id": "bs_merc",
+   "name_ru": "Наёмник",
+   "name_en": "Mercenary",
+   "crafter": "blacksmith",
+   "lvl": 18,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 4
+  },
+  {
+   "id": "bs_guard",
+   "name_ru": "Страж",
+   "name_en": "Guardian",
+   "crafter": "blacksmith",
+   "lvl": 18,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 5
+  },
+  {
+   "id": "bs_blk",
+   "name_ru": "Чёрный страж",
+   "name_en": "Blackguard",
+   "crafter": "blacksmith",
+   "lvl": 18,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 6
+  },
+  {
+   "id": "bs_sold",
+   "name_ru": "Солдат",
+   "name_en": "Soldier",
+   "crafter": "blacksmith",
+   "lvl": 23,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 7
+  },
+  {
+   "id": "bs_rogue",
+   "name_ru": "Разбойник",
+   "name_en": "Rogue",
+   "crafter": "blacksmith",
+   "lvl": 23,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 8
+  },
+  {
+   "id": "bs_ward",
+   "name_ru": "Блюститель",
+   "name_en": "Warden",
+   "crafter": "blacksmith",
+   "lvl": 23,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 9
+  },
+  {
+   "id": "bs_mtn",
+   "name_ru": "Горная тень",
+   "name_en": "Mountain's Shadow",
+   "crafter": "blacksmith",
+   "lvl": 33,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 10
+  },
+  {
+   "id": "bs_wolf",
+   "name_ru": "Волчий клык",
+   "name_en": "Wolf's Fang",
+   "crafter": "blacksmith",
+   "lvl": 33,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 11
+  },
+  {
+   "id": "bs_bull",
+   "name_ru": "Бронзовый бык",
+   "name_en": "Brazen Bull",
+   "crafter": "blacksmith",
+   "lvl": 33,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 12
+  },
+  {
+   "id": "bs_sun",
+   "name_ru": "Пронзающее солнце",
+   "name_en": "Sunpiercer",
+   "crafter": "blacksmith",
+   "lvl": 43,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 13
+  },
+  {
+   "id": "bs_gold",
+   "name_ru": "Золотой оплот",
+   "name_en": "Golden Bulwark",
+   "crafter": "blacksmith",
+   "lvl": 43,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 14
+  },
+  {
+   "id": "ht_scout",
+   "name_ru": "Лазутчик",
+   "name_en": "Scout",
+   "crafter": "huntress",
+   "lvl": 8,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 15
+  },
+  {
+   "id": "ht_trail",
+   "name_ru": "Следопыт",
+   "name_en": "Ranger",
+   "crafter": "huntress",
+   "lvl": 13,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 16
+  },
+  {
+   "id": "ht_shoot",
+   "name_ru": "Стрелок",
+   "name_en": "Archer",
+   "crafter": "huntress",
+   "lvl": 13,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 17
+  },
+  {
+   "id": "ht_plague",
+   "name_ru": "Вестник чумы",
+   "name_en": "Plaguebringer",
+   "crafter": "huntress",
+   "lvl": 18,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 18
+  },
+  {
+   "id": "ht_hunt",
+   "name_ru": "Охотник",
+   "name_en": "Hunter",
+   "crafter": "huntress",
+   "lvl": 18,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 19
+  },
+  {
+   "id": "ht_marks",
+   "name_ru": "Меткий стрелок",
+   "name_en": "Marksman",
+   "crafter": "huntress",
+   "lvl": 18,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 20
+  },
+  {
+   "id": "ht_ass",
+   "name_ru": "Убийца",
+   "name_en": "Assassin",
+   "crafter": "huntress",
+   "lvl": 23,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 21
+  },
+  {
+   "id": "ht_deer",
+   "name_ru": "Ловец оленей",
+   "name_en": "Deerstalker",
+   "crafter": "huntress",
+   "lvl": 23,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 22
+  },
+  {
+   "id": "ht_sharp",
+   "name_ru": "Снайпер",
+   "name_en": "Sharpshooter",
+   "crafter": "huntress",
+   "lvl": 23,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 23
+  },
+  {
+   "id": "ht_frost",
+   "name_ru": "Хладнокровный рубака",
+   "name_en": "Frostbite Slasher",
+   "crafter": "huntress",
+   "lvl": 33,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 24
+  },
+  {
+   "id": "ht_horn",
+   "name_ru": "Горнорог",
+   "name_en": "Alpine Antler",
+   "crafter": "huntress",
+   "lvl": 33,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 25
+  },
+  {
+   "id": "ht_tblazer",
+   "name_ru": "Первопроходец",
+   "name_en": "Trailblazer",
+   "crafter": "huntress",
+   "lvl": 33,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 26
+  },
+  {
+   "id": "ht_quet",
+   "name_ru": "Охотник на кецалей",
+   "name_en": "Quetzal Hunter",
+   "crafter": "huntress",
+   "lvl": 43,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 27
+  },
+  {
+   "id": "ht_blood",
+   "name_ru": "Кровавое перо",
+   "name_en": "Bloodfeather",
+   "crafter": "huntress",
+   "lvl": 43,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 28
+  },
+  {
+   "id": "ht_skull",
+   "name_ru": "Охотник за черепами",
+   "name_en": "Skull Stalker",
+   "crafter": "huntress",
+   "lvl": 43,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 29
+  },
+  {
+   "id": "al_appr",
+   "name_ru": "Ученик алхимика",
+   "name_en": "Alchemist Apprentice",
+   "crafter": "alchemist",
+   "lvl": 13,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 30
+  },
+  {
+   "id": "al_heal",
+   "name_ru": "Целитель",
+   "name_en": "Healer",
+   "crafter": "alchemist",
+   "lvl": 13,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 31
+  },
+  {
+   "id": "al_mage",
+   "name_ru": "Маг",
+   "name_en": "Mage",
+   "crafter": "alchemist",
+   "lvl": 13,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 32
+  },
+  {
+   "id": "al_herb",
+   "name_ru": "Травник",
+   "name_en": "Herbalist",
+   "crafter": "alchemist",
+   "lvl": 18,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 33
+  },
+  {
+   "id": "al_wiz",
+   "name_ru": "Чародей",
+   "name_en": "Magician",
+   "crafter": "alchemist",
+   "lvl": 18,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 34
+  },
+  {
+   "id": "al_omen",
+   "name_ru": "Предвестие",
+   "name_en": "Omen",
+   "crafter": "alchemist",
+   "lvl": 18,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 35
+  },
+  {
+   "id": "al_lock",
+   "name_ru": "Колдун",
+   "name_en": "Warlock",
+   "crafter": "alchemist",
+   "lvl": 23,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 36
+  },
+  {
+   "id": "al_sage",
+   "name_ru": "Мудрец",
+   "name_en": "Sage",
+   "crafter": "alchemist",
+   "lvl": 23,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 37
+  },
+  {
+   "id": "al_arch",
+   "name_ru": "Архимаг",
+   "name_en": "Archmage",
+   "crafter": "alchemist",
+   "lvl": 23,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 38
+  },
+  {
+   "id": "al_hail",
+   "name_ru": "Градобой",
+   "name_en": "Hailcaster",
+   "crafter": "alchemist",
+   "lvl": 33,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 39
+  },
+  {
+   "id": "al_pearl",
+   "name_ru": "Перламутровое касание",
+   "name_en": "Pearlfrost Mentor",
+   "crafter": "alchemist",
+   "lvl": 33,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 40
+  },
+  {
+   "id": "al_thaum",
+   "name_ru": "Чудотворец",
+   "name_en": "Thaumaturge",
+   "crafter": "alchemist",
+   "lvl": 33,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 41
+  },
+  {
+   "id": "al_wave",
+   "name_ru": "Заклинатель волн",
+   "name_en": "Waveborne Ritualist",
+   "crafter": "alchemist",
+   "lvl": 43,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 42
+  },
+  {
+   "id": "al_tide",
+   "name_ru": "Зов приливов",
+   "name_en": "Tidecaller",
+   "crafter": "alchemist",
+   "lvl": 43,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 43
+  },
+  {
+   "id": "w_worn",
+   "name_ru": "Изношенные штаны",
+   "name_en": "Worn Pants",
+   "crafter": "world",
+   "lvl": 1,
+   "pieces": [
+    "legs"
+   ],
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 44
+  },
+  {
+   "id": "w_ragged",
+   "name_ru": "Потрёпанный",
+   "name_en": "Ragged",
+   "crafter": "world",
+   "lvl": 3,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 45
+  },
+  {
+   "id": "w_wand",
+   "name_ru": "Обувь бродяги",
+   "name_en": "Wanderer's Boots",
+   "crafter": "world",
+   "lvl": 9,
+   "pieces": [
+    "feet"
+   ],
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 46
+  },
+  {
+   "id": "w_warrior",
+   "name_ru": "Воитель",
+   "name_en": "Warrior",
+   "crafter": "world",
+   "lvl": 13,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 47
+  },
+  {
+   "id": "sp_gnorth",
+   "name_ru": "Страж Севера",
+   "name_en": "Guard of the North",
+   "crafter": "world",
+   "lvl": 13,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 48
+  },
+  {
+   "id": "w_wizard",
+   "name_ru": "Волшебник",
+   "name_en": "Wizard",
+   "crafter": "world",
+   "lvl": 13,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 49
+  },
+  {
+   "id": "w_archer",
+   "name_ru": "Лучник",
+   "name_en": "Archer",
+   "crafter": "world",
+   "lvl": 13,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 50
+  },
+  {
+   "id": "w_knight",
+   "name_ru": "Рыцарь",
+   "name_en": "Knight",
+   "crafter": "world",
+   "lvl": 18,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 51
+  },
+  {
+   "id": "w_fowler",
+   "name_ru": "Птицелов",
+   "name_en": "Fowler",
+   "crafter": "world",
+   "lvl": 18,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 52
+  },
+  {
+   "id": "w_mystic",
+   "name_ru": "Тайновидец",
+   "name_en": "Mystic",
+   "crafter": "world",
+   "lvl": 18,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 53
+  },
+  {
+   "id": "w_hawk",
+   "name_ru": "Ястреб",
+   "name_en": "Hawk",
+   "crafter": "world",
+   "lvl": 23,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 54
+  },
+  {
+   "id": "w_gloom",
+   "name_ru": "Мрачный монарх",
+   "name_en": "Gloom Monarch",
+   "crafter": "world",
+   "lvl": 23,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 55
+  },
+  {
+   "id": "w_spell",
+   "name_ru": "Разрушитель чар",
+   "name_en": "Spellbreaker",
+   "crafter": "world",
+   "lvl": 23,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 56
+  },
+  {
+   "id": "sp_edead",
+   "name_ru": "Элитный комплект умертвий",
+   "name_en": "Elite Hollow",
+   "crafter": "world",
+   "lvl": 23,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 57
+  },
+  {
+   "id": "w_paladin",
+   "name_ru": "Паладин света",
+   "name_en": "Radiant Paladin",
+   "crafter": "world",
+   "lvl": 25,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 58
+  },
+  {
+   "id": "w_eagle",
+   "name_ru": "Орлиное Око",
+   "name_en": "Eagle Eye",
+   "crafter": "world",
+   "lvl": 25,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 59
+  },
+  {
+   "id": "w_elder",
+   "name_ru": "Старейшина",
+   "name_en": "Elder",
+   "crafter": "world",
+   "lvl": 25,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 60
+  },
+  {
+   "id": "w_gtsword",
+   "name_ru": "Перчатки для двуручного меча",
+   "name_en": "Greatsword Gauntlets",
+   "crafter": "world",
+   "lvl": 45,
+   "pieces": [
+    "gloves"
+   ],
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 61
+  },
+  {
+   "id": "w_frozen",
+   "name_ru": "Морозные перчатки",
+   "name_en": "Frozen Gauntlets",
+   "crafter": "world",
+   "lvl": 45,
+   "pieces": [
+    "gloves"
+   ],
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 62
+  },
+  {
+   "id": "w_flaming",
+   "name_ru": "Пылающие перчатки",
+   "name_en": "Flaming Gauntlets",
+   "crafter": "world",
+   "lvl": 45,
+   "pieces": [
+    "gloves"
+   ],
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 63
+  },
+  {
+   "id": "w_drakian",
+   "name_ru": "Драккская обувь",
+   "name_en": "Drakian Boots",
+   "crafter": "world",
+   "lvl": 45,
+   "pieces": [
+    "feet"
+   ],
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 64
+  },
+  {
+   "id": "sp_snake",
+   "name_ru": "Воин-змея",
+   "name_en": "Serpent Warrior",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 65
+  },
+  {
+   "id": "sp_noble",
+   "name_ru": "Знать",
+   "name_en": "Noble Dress",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 66
+  },
+  {
+   "id": "sp_flame",
+   "name_ru": "Пакт пламени",
+   "name_en": "Flame Pact",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 67
+  },
+  {
+   "id": "sp_peasant",
+   "name_ru": "Крестьянин",
+   "name_en": "Farmer",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": [
+    "head",
+    "chest",
+    "legs",
+    "feet"
+   ],
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 68
+  },
+  {
+   "id": "sp_grave",
+   "name_ru": "Могильщик",
+   "name_en": "Gravedigger",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": [
+    "head",
+    "chest",
+    "legs",
+    "feet"
+   ],
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 69
+  },
+  {
+   "id": "sp_royal",
+   "name_ru": "Королевский комплект",
+   "name_en": "Royal",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 70
+  },
+  {
+   "id": "sp_explor",
+   "name_ru": "Исследователь",
+   "name_en": "Explorer",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 71
+  },
+  {
+   "id": "sp_hope",
+   "name_ru": "Цветущая надежда",
+   "name_en": "Efflorescent Hope",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 72
+  },
+  {
+   "id": "sp_milk",
+   "name_ru": "Доярка",
+   "name_en": "Milkmaid",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": [
+    "head",
+    "chest",
+    "feet"
+   ],
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 73
+  },
+  {
+   "id": "sp_maid",
+   "name_ru": "Горничная",
+   "name_en": "Maid",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": [
+    "head",
+    "chest"
+   ],
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 74
+  },
+  {
+   "id": "sp_emp",
+   "name_ru": "Ученик эмпиреев",
+   "name_en": "Scholar Of The Empyrean",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 75
+  },
+  {
+   "id": "sp_smith",
+   "name_ru": "Кузнец",
+   "name_en": "Blacksmith",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": [
+    "head",
+    "chest",
+    "legs",
+    "feet"
+   ],
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 76
+  },
+  {
+   "id": "sp_hunter",
+   "name_ru": "Охотник",
+   "name_en": "Hunter Outfit",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": [
+    "head",
+    "chest",
+    "legs",
+    "feet"
+   ],
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 77
+  },
+  {
+   "id": "sp_hats",
+   "name_ru": "Комплект головных уборов",
+   "name_en": "Hat Collection",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": [
+    {
+     "id": "h_minstrel",
+     "label": "Менестрель",
+     "svg": "head"
+    },
+    {
+     "id": "h_merchant",
+     "label": "Торговец",
+     "svg": "head"
+    },
+    {
+     "id": "h_scarf",
+     "label": "Платок",
+     "svg": "head"
+    },
+    {
+     "id": "h_tricorn",
+     "label": "Треуголка",
+     "svg": "head"
+    }
+   ],
+   "img_ext": "png",
+   "sort_order": 78
+  },
+  {
+   "id": "sp_flamapp",
+   "name_ru": "Ученик юного пламени",
+   "name_en": "Scholar Of The Young Flame",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 79
+  },
+  {
+   "id": "sp_fluffy",
+   "name_ru": "Пушистый комплект",
+   "name_en": "Fluffy",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 80
+  },
+  {
+   "id": "sp_winter",
+   "name_ru": "Зимний комплект",
+   "name_en": "Winterly",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 81
+  },
+  {
+   "id": "sp_jester",
+   "name_ru": "Шутовской колпак",
+   "name_en": "Jester Hat",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": [
+    "head"
+   ],
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 82
+  },
+  {
+   "id": "sp_daydead",
+   "name_ru": "Сочельник",
+   "name_en": "Hollow's Eve",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 83
+  },
+  {
+   "id": "sp_siren",
+   "name_ru": "Искатель сирен",
+   "name_en": "Siren Seeker",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 84
+  },
+  {
+   "id": "sp_capt",
+   "name_ru": "Сюртук капитана",
+   "name_en": "Captain's Coat",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": [
+    "chest"
+   ],
+   "custom": null,
+   "img_ext": "png",
+   "sort_order": 85
+  },
+  {
+   "id": "sp_lumber",
+   "name_ru": "Лесоруб",
+   "name_en": "Lumberer",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 86
+  },
+  {
+   "id": "sp_rose",
+   "name_ru": "Кровавая роза",
+   "name_en": "Blood Rose",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 87
+  },
+  {
+   "id": "sp_summer",
+   "name_ru": "Комплект летних игр",
+   "name_en": "Summer Games",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": null,
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 88
+  },
+  {
+   "id": "sp_sunny",
+   "name_ru": "Комплект любителя солнца",
+   "name_en": "Sunny Loungewear",
+   "crafter": "special",
+   "lvl": null,
+   "pieces": [
+    "chest",
+    "legs",
+    "feet"
+   ],
+   "custom": null,
+   "img_ext": "jpg",
+   "sort_order": 89
+  }
+ ]
+}

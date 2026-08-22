@@ -288,7 +288,13 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
   }
-  .card-static:hover { transform: none; box-shadow: none; border-color: var(--border); }
+  /* ГАСЯЩИЙ ВАРИАНТ — ОДИН НА ТРИ РОЛИ. Тела совпадали дословно:
+     карточка без действия и плитка инструмента, который закрыт или ещё
+     не готов, одинаково отменяют подъём `.card`. Сведено 2026-08-22
+     (BACKLOG №126). */
+  .card-static:hover,
+  .tool-card.is-locked:hover,
+  .tool-card.is-soon:hover { transform: none; box-shadow: none; border-color: var(--border); }
 }
 
 /* ── ТРИ ВАРИАНТА КАРТОЧКИ. Заведены 2026-08-20, BACKLOG №116 ────────────
@@ -365,10 +371,7 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
 /* Неактивные состояния — карточка не кликается, ховер-эффектов нет */
 .tool-card.is-locked, .tool-card.is-soon { opacity: 0.45; pointer-events: none; }
 @media (hover: hover) {
-  .tool-card.is-locked:hover, .tool-card.is-soon:hover {
-    transform: none; box-shadow: none; border-color: var(--border);
   }
-}
 
 .tool-card-icon {
   width: 52px; height: 52px;
