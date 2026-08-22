@@ -322,6 +322,7 @@
     .card-body { padding:18px; }
     .card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
     .card-name { font-size:1.05rem; font-weight:700; line-height:1.2; color:#d4b070; letter-spacing:.01em; }
+    .ens-source { text-align:center; color:var(--ens-text-2); font-size:.8125rem; padding:24px 16px 0; margin:0; }
     .card-meta { display:flex; align-items:center; gap:5px; font-size:.8125rem; color:var(--ens-text-2); margin-top:4px; flex-wrap:wrap; }
     .card-dot { width:5px; height:5px; border-radius:50%; display:inline-block; flex-shrink:0; }
     .cat-sec[data-cat="blacksmith"] .card-dot { background:var(--c-smith);   box-shadow:0 0 6px rgba(212,138,42,.6); }
@@ -534,6 +535,8 @@
   <main id="main" style="display:none"></main>
 </div>
 
+<p class="ens-source">Изображения сетов — материалы Enshrouded Wiki.</p>
+
 <!-- Import modal -->
 <div id="import-modal">
   <div class="import-box">
@@ -627,13 +630,13 @@ const SETS = [
   { id:'bs_gold',    nameRu:'Золотой оплот',        name:'Golden Bulwark',     crafter:'blacksmith', lvl:43 },
   { id:'ht_scout',   nameRu:'Лазутчик',             name:'Scout',              crafter:'huntress',   lvl:8  },
   { id:'ht_trail',   nameRu:'Следопыт',             name:'Ranger',             crafter:'huntress',   lvl:13 },
-  { id:'ht_shoot',   nameRu:'Стрелок',              name:'Archer',             crafter:'huntress',   lvl:13, noWiki:true },
+  { id:'ht_shoot',   nameRu:'Стрелок',              name:'Archer',             crafter:'huntress',   lvl:13 },
   { id:'ht_plague',  nameRu:'Вестник чумы',         name:'Plaguebringer',      crafter:'huntress',   lvl:18 },
   { id:'ht_hunt',    nameRu:'Охотник',              name:'Hunter',             crafter:'huntress',   lvl:18 },
-  { id:'ht_marks',   nameRu:'Меткий стрелок',       name:'Marksman',           crafter:'huntress',   lvl:18, noWiki:true },
+  { id:'ht_marks',   nameRu:'Меткий стрелок',       name:'Marksman',           crafter:'huntress',   lvl:18 },
   { id:'ht_ass',     nameRu:'Убийца',               name:'Assassin',           crafter:'huntress',   lvl:23 },
   { id:'ht_deer',    nameRu:'Ловец оленей',         name:'Deerstalker',        crafter:'huntress',   lvl:23 },
-  { id:'ht_sharp',   nameRu:'Снайпер',              name:'Sharpshooter',       crafter:'huntress',   lvl:23, noWiki:true },
+  { id:'ht_sharp',   nameRu:'Снайпер',              name:'Sharpshooter',       crafter:'huntress',   lvl:23 },
   { id:'ht_frost',   nameRu:'Хладнокровный рубака', name:'Frostbite Slasher',  crafter:'huntress',   lvl:33 },
   { id:'ht_horn',    nameRu:'Горнорог',             name:'Alpine Antler',      crafter:'huntress',   lvl:33 },
   { id:'ht_tblazer', nameRu:'Первопроходец',        name:'Trailblazer',        crafter:'huntress',   lvl:33 },
@@ -644,7 +647,7 @@ const SETS = [
   { id:'al_heal',    nameRu:'Целитель',             name:'Healer',             crafter:'alchemist',  lvl:13 },
   { id:'al_mage',    nameRu:'Маг',                  name:'Mage',               crafter:'alchemist',  lvl:13 },
   { id:'al_herb',    nameRu:'Травник',              name:'Herbalist',          crafter:'alchemist',  lvl:18 },
-  { id:'al_wiz',     nameRu:'Чародей',              name:'Magician',           crafter:'alchemist',  lvl:18, noWiki:true },
+  { id:'al_wiz',     nameRu:'Чародей',              name:'Magician',           crafter:'alchemist',  lvl:18 },
   { id:'al_omen',    nameRu:'Предвестие',           name:'Omen',               crafter:'alchemist',  lvl:18 },
   { id:'al_lock',    nameRu:'Колдун',               name:'Warlock',            crafter:'alchemist',  lvl:23 },
   { id:'al_sage',    nameRu:'Мудрец',               name:'Sage',               crafter:'alchemist',  lvl:23 },
@@ -654,27 +657,27 @@ const SETS = [
   { id:'al_thaum',   nameRu:'Чудотворец',           name:'Thaumaturge',        crafter:'alchemist',  lvl:33 },
   { id:'al_wave',    nameRu:'Заклинатель волн',     name:'Waveborne Ritualist',crafter:'alchemist',  lvl:43 },
   { id:'al_tide',    nameRu:'Зов приливов',         name:'Tidecaller',         crafter:'alchemist',  lvl:43 },
-  { id:'w_worn',     nameRu:'Изношенные штаны',     name:'Worn Pants',         crafter:'world',      lvl:1,  pieces:['legs'], noWiki:true },
+  { id:'w_worn',     nameRu:'Изношенные штаны',     name:'Worn Pants',         crafter:'world',      lvl:1,  pieces:['legs'] },
   { id:'w_ragged',   nameRu:'Потрёпанный',          name:'Ragged',             crafter:'world',      lvl:3  },
-  { id:'w_wand',     nameRu:'Обувь бродяги',        name:"Wanderer's Boots",   crafter:'world',      lvl:9,  pieces:['feet'],   wikiImg:"Wanderer's_Boots.png" },
+  { id:'w_wand',     nameRu:'Обувь бродяги',        name:"Wanderer's Boots",   crafter:'world',      lvl:9,  pieces:['feet'] },
   { id:'w_warrior',  nameRu:'Воитель',              name:'Warrior',            crafter:'world',      lvl:13 },
   { id:'sp_gnorth',  nameRu:'Страж Севера',         name:'Guard of the North', crafter:'world',      lvl:13 },
   { id:'w_wizard',   nameRu:'Волшебник',            name:'Wizard',             crafter:'world',      lvl:13 },
-  { id:'w_archer',   nameRu:'Лучник',               name:'Archer',             crafter:'world',      lvl:13, noWiki:true },
+  { id:'w_archer',   nameRu:'Лучник',               name:'Archer',             crafter:'world',      lvl:13 },
   { id:'w_knight',   nameRu:'Рыцарь',               name:'Knight',             crafter:'world',      lvl:18 },
   { id:'w_fowler',   nameRu:'Птицелов',             name:'Fowler',             crafter:'world',      lvl:18 },
   { id:'w_mystic',   nameRu:'Тайновидец',           name:'Mystic',             crafter:'world',      lvl:18 },
   { id:'w_hawk',     nameRu:'Ястреб',               name:'Hawk',               crafter:'world',      lvl:23 },
   { id:'w_gloom',    nameRu:'Мрачный монарх',       name:'Gloom Monarch',      crafter:'world',      lvl:23 },
-  { id:'w_spell',    nameRu:'Разрушитель чар',      name:'Spellbreaker',       crafter:'world',      lvl:23, wikiImg:'Spellbinder_Set.png' },
+  { id:'w_spell',    nameRu:'Разрушитель чар',      name:'Spellbreaker',       crafter:'world',      lvl:23 },
   { id:'sp_edead',   nameRu:'Элитный комплект умертвий', name:'Elite Hollow',  crafter:'world',      lvl:23 },
   { id:'w_paladin',  nameRu:'Паладин света',        name:'Radiant Paladin',    crafter:'world',      lvl:25 },
-  { id:'w_eagle',    nameRu:'Орлиное Oko',           name:'Eagle Eye',          crafter:'world',      lvl:25 },
+  { id:'w_eagle',    nameRu:'Орлиное Око',           name:'Eagle Eye',          crafter:'world',      lvl:25 },
   { id:'w_elder',    nameRu:'Старейшина',           name:'Elder',              crafter:'world',      lvl:25 },
-  { id:'w_gtsword',  nameRu:'Перчатки для двуручного меча', name:'Greatsword Gauntlets', crafter:'world', lvl:45, pieces:['gloves'], wikiImg:'Greatsword_Gauntlets.png' },
-  { id:'w_frozen',   nameRu:'Морозные перчатки',    name:'Frozen Gauntlets',   crafter:'world',      lvl:45, pieces:['gloves'], wikiImg:'Frozen_Gauntlets.png' },
-  { id:'w_flaming',  nameRu:'Пылающие перчатки',    name:'Flaming Gauntlets',  crafter:'world',      lvl:45, pieces:['gloves'], wikiImg:'Flaming_Gauntlets.png' },
-  { id:'w_drakian',  nameRu:'Драккская обувь',       name:'Drakian Boots',      crafter:'world',      lvl:45, pieces:['feet'],   wikiImg:'Drakian_Boots.png' },
+  { id:'w_gtsword',  nameRu:'Перчатки для двуручного меча', name:'Greatsword Gauntlets', crafter:'world', lvl:45, pieces:['gloves'] },
+  { id:'w_frozen',   nameRu:'Морозные перчатки',    name:'Frozen Gauntlets',   crafter:'world',      lvl:45, pieces:['gloves'] },
+  { id:'w_flaming',  nameRu:'Пылающие перчатки',    name:'Flaming Gauntlets',  crafter:'world',      lvl:45, pieces:['gloves'] },
+  { id:'w_drakian',  nameRu:'Драккская обувь',       name:'Drakian Boots',      crafter:'world',      lvl:45, pieces:['feet'] },
   { id:'sp_snake',   nameRu:'Воин-змея',            name:'Serpent Warrior',    crafter:'special' },
   { id:'sp_noble',   nameRu:'Знать',                name:'Noble Dress',        crafter:'special' },
   { id:'sp_flame',   nameRu:'Пакт пламени',         name:'Flame Pact',         crafter:'special' },
@@ -685,10 +688,10 @@ const SETS = [
   { id:'sp_hope',    nameRu:'Цветущая надежда',     name:'Efflorescent Hope',  crafter:'special' },
   { id:'sp_milk',    nameRu:'Доярка',               name:'Milkmaid',           crafter:'special', pieces:['head','chest','feet'] },
   { id:'sp_maid',    nameRu:'Горничная',            name:'Maid',               crafter:'special', pieces:['head','chest'] },
-  { id:'sp_emp',     nameRu:'Ученик эмпиреев',      name:'Scholar Of The Empyrean', crafter:'special', noWiki:true },
+  { id:'sp_emp',     nameRu:'Ученик эмпиреев',      name:'Scholar Of The Empyrean', crafter:'special' },
   { id:'sp_smith',   nameRu:'Кузнец',               name:'Blacksmith',         crafter:'special', pieces:['head','chest','legs','feet'] },
   { id:'sp_hunter',  nameRu:'Охотник',              name:'Hunter Outfit',      crafter:'special', pieces:['head','chest','legs','feet'] },
-  { id:'sp_hats',    nameRu:'Комплект головных уборов', name:'Hat Collection', crafter:'special', noWiki:true,
+  { id:'sp_hats',    nameRu:'Комплект головных уборов', name:'Hat Collection', crafter:'special',
     custom:[
       { id:'h_minstrel', label:'Менестрель', svg:'head' },
       { id:'h_merchant', label:'Торговец',   svg:'head' },
@@ -699,14 +702,14 @@ const SETS = [
   { id:'sp_flamapp', nameRu:'Ученик юного пламени', name:'Scholar Of The Young Flame', crafter:'special' },
   { id:'sp_fluffy',  nameRu:'Пушистый комплект',    name:'Fluffy',             crafter:'special' },
   { id:'sp_winter',  nameRu:'Зимний комплект',      name:'Winterly',           crafter:'special' },
-  { id:'sp_jester',  nameRu:'Шутовской колпак',     name:'Jester Hat',         crafter:'special', pieces:['head'], wikiImg:"Jester_Hat.png" },
+  { id:'sp_jester',  nameRu:'Шутовской колпак',     name:'Jester Hat',         crafter:'special', pieces:['head'] },
   { id:'sp_daydead', nameRu:'Сочельник',             name:"Hollow's Eve",       crafter:'special' },
   { id:'sp_siren',   nameRu:'Искатель сирен',       name:'Siren Seeker',       crafter:'special' },
-  { id:'sp_capt',    nameRu:'Сюртук капитана',      name:"Captain's Coat",     crafter:'special', pieces:['chest'], wikiImg:"Captain's_Coat.png" },
-  { id:'sp_lumber',  nameRu:'Лесоруб',              name:'Lumberer',           crafter:'special', noWiki:true },
+  { id:'sp_capt',    nameRu:'Сюртук капитана',      name:"Captain's Coat",     crafter:'special', pieces:['chest'] },
+  { id:'sp_lumber',  nameRu:'Лесоруб',              name:'Lumberer',           crafter:'special' },
   { id:'sp_rose',    nameRu:'Кровавая роза',        name:'Blood Rose',         crafter:'special' },
   { id:'sp_summer',  nameRu:'Комплект летних игр',  name:'Summer Games',       crafter:'special' },
-  { id:'sp_sunny',   nameRu:'Комплект любителя солнца', name:'Sunny Loungewear', crafter:'special', noWiki:true, pieces:['chest','legs','feet'] },
+  { id:'sp_sunny',   nameRu:'Комплект любителя солнца', name:'Sunny Loungewear', crafter:'special', pieces:['chest','legs','feet'] },
 ];
 
 function getPieces(set) {
@@ -823,7 +826,9 @@ function renderSection(cat,sets) {
 
 // Эти иконки существуют только в .png — сразу запрашиваем правильное расширение,
 // чтобы не плодить лишние 404 на .jpg в логах
-const PNG_ICONS=new Set(['al_wiz','ht_marks','ht_shoot','sp_hats']);
+// Расширения выводит СЕРВЕР из каталога static/enshrouded (main.ENSHROUDED_PNG):
+// перечень руками отстал бы на первом же сете, добавленном разговором (§6.0.7).
+const PNG_ICONS=new Set({{ ens_png|tojson }});
 
 function renderCard(set) {
   const p=progress(set);
@@ -838,15 +843,23 @@ function renderCard(set) {
     const dupe=d.duplicates>0?`<span class="slot-dupe">+${d.duplicates}</span>`:'';
     return `<div class="slot ${cls}" data-set="${set.id}" data-slot="${sl.id}"><div class="slot-box">${sl.svg}${lvl}${dupe}</div><div class="slot-lbl">${sl.label}</div></div>`;
   }).join('');
-  const lvlTag=set.lvl?`<span class="lvl-tag">lvl ${set.lvl}</span>`:'';
+  // Число у карточки и число в углу слота — РАЗНЫЕ величины, и до
+  // 2026-08-22 оба стояли голыми: «lvl 7» рядом с названием против «8»
+  // в слоте читались как противоречие. У крафтовых категорий это
+  // уровень ОТКРЫТИЯ РЕЦЕПТА у ремесленника (проверено владельцем
+  // в игре: «Начинающий боец» открывается у кузнеца на 7); у «Мира» —
+  // ступень, на которой сет ВЫПАДАЕТ. В углу слота — уровень
+  // конкретного найденного экземпляра, он у мировых находок гуляет.
+  const lvlWord=set.crafter==='world'?'находка':'рецепт';
+  const lvlTag=set.lvl?`<span class="lvl-tag">${lvlWord} ур. ${set.lvl}</span>`:'';
   const sid=set.id;
-  const wikiFile=!set.noWiki&&(set.wikiImg||(set.name?set.name.replace(/\s+/g,'_')+'_Set.png':null));
-  const wikiUrl=wikiFile?`https://enshrouded.wiki.gg/images/${wikiFile}`:null;
-  const firstSrc=wikiUrl||`/static/enshrouded/${sid}.${PNG_ICONS.has(sid)?'png':'jpg'}`;
+  // ИСТОЧНИК ОДИН — свой файл. Картинки забраны с вики 2026-08-22:
+  // 64 карточки из 90 брали её с enshrouded.wiki.gg при КАЖДОЙ отрисовке,
+  // и 16 адресов к тому дню уже были мертвы. Ветки выбора источника
+  // здесь больше нет: выбирать не из чего.
+  const firstSrc=`/static/enshrouded/${sid}.${PNG_ICONS.has(sid)?'png':'jpg'}`;
   // При ошибке — схлопываем баннер (no-img), не удаляем, чтобы не было layout-скачка
-  const errChain=wikiUrl
-    ?`if(this.step===undefined){this.step=1;this.src='/static/enshrouded/${sid}.jpg'}else if(this.step===1){this.step=2;this.src='/static/enshrouded/${sid}.png'}else{this.closest('.card-banner').classList.add('no-img')}`
-    :`if(!this.src.endsWith('.png')){this.src='/static/enshrouded/${sid}.png'}else{this.closest('.card-banner').classList.add('no-img')}`;
+  const errChain=`this.closest('.card-banner').classList.add('no-img')`;
   const bannerHtml=`<div class="card-banner"><img src="${firstSrc}" alt="" onload="this.closest('.card-banner').classList.add('loaded')" onerror="${errChain}"></div>`;
   return `<div class="set-card ${done?'done':''}" data-id="${set.id}">${bannerHtml}<div class="card-body"><div class="card-top"><div><div class="card-name">${set.nameRu}</div><div class="card-meta"><span class="card-dot"></span><span>${set.name||''}</span>${lvlTag}</div></div><div class="card-prog ${done?'done':''}">${p.owned}/${p.total}</div></div><div class="pbar"><div class="pbar-f ${done?'complete':p.owned?'partial':''}" style="width:${pct}%"></div></div><div class="slots">${slotsHtml}</div></div></div>`;
 }

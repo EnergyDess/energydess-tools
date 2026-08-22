@@ -3194,6 +3194,26 @@ async def admin_exercise_replace_video(exercise_id: str, request: Request, user=
     return JSONResponse({"ok": True, "youtube_id": ex.youtube_id, "video_status": ex.video_status})
 
 
+# Расширения картинок раздела ВЫВОДЯТСЯ из каталога, а не перечисляются.
+# Перечнем это жило в шаблоне (`PNG_ICONS` из четырёх имён) и было бы
+# перечнем из 66 после того, как картинки забрали с вики: сеты
+# добавляются РАЗГОВОРОМ, и забытый id означал бы лишний 404 на каждой
+# отрисовке — немой отказ, который ловит только проверка 24 (§6.0.7).
+#
+# Считается ОДИН раз при импорте: static/ уезжает в ОБРАЗ, на живом
+# сервере каталог не меняется по построению. Локально новый файл
+# требует перезапуска — это названо, а не подразумевается.
+def _енш_расширения():
+    каталог = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           'static', 'enshrouded')
+    if not os.path.isdir(каталог):
+        return []
+    return sorted(и[:-4] for и in os.listdir(каталог) if и.endswith('.png'))
+
+
+ENSHROUDED_PNG = _енш_расширения()
+
+
 # ── Enshrouded Трекер ─────────────────────────────────────────────────────────
 
 @app.get("/enshrouded")
@@ -3205,7 +3225,9 @@ async def enshrouded_page(request: Request, user=Depends(get_current_user), db: 
         return gate
     if not user_has_access(user, "enshrouded", db):
         return RedirectResponse("/?locked=enshrouded", status_code=302)
-    return templates.TemplateResponse(request=request, name="enshrouded.html", context={"user": user})
+    return templates.TemplateResponse(request=request, name="enshrouded.html",
+                                      context={"user": user,
+                                               "ens_png": ENSHROUDED_PNG})
 
 
 @app.get("/api/enshrouded/state")
