@@ -382,7 +382,17 @@
 @media (hover: hover) {
   .wk-action-btn:hover { border-color: var(--tool-accent); }
 }
-.wk-weight-chart-box { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-5); }
+/* Коробка раздела — одно объявление на две (BACKLOG №126). Тела
+   совпадали дословно. К `.card .card-compact` это НЕ сводится:
+   у системной карточки радиус --radius-md и паддинг --space-3,
+   здесь --radius-sm и --space-4, то есть перевод изменил бы облик,
+   а не только имя. Замер и цена — BACKLOG №126. */
+.wk-weight-chart-box,
+.wk-nutrition-box {
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: var(--space-4);
+  margin-bottom: var(--space-5);
+}
 .wk-weight-chart-title { font-family: var(--font); font-weight: 700; color: var(--text); font-size: var(--text-body-sm); margin-bottom: var(--space-2); }
 .wk-weight-svg { width: 100%; height: 140px; overflow: visible; }
 .wk-chart-tooltip { position: fixed; z-index: 3000; background: var(--surface-3); border: 1px solid var(--tool-accent); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); font-size: var(--text-mono); color: var(--text); pointer-events: none; display: none; white-space: nowrap; }
@@ -404,7 +414,6 @@
   .wk-ex-chartbtn:hover { border-color: var(--tool-accent); color: var(--text); }
 }
 .wk-done-actions { display: flex; gap: var(--space-2); justify-content: center; margin-top: var(--space-4); flex-wrap: wrap; max-width: 420px; margin-left: auto; margin-right: auto; }
-.wk-nutrition-box { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-5); }
 .wk-nutrition-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); }
 .wk-nutrition-label { font-family: var(--font); font-weight: 700; color: var(--text); font-size: var(--text-body-sm); }
 .wk-nutrition-value { font-size: var(--text-caption); color: var(--text-2); }
@@ -632,7 +641,17 @@
 .wk-stuck-nudge.show { display: flex; }
 .wk-stuck-try-btn { background: var(--surface-3); border: 1px solid var(--warning); color: var(--text); padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-mono); cursor: pointer; white-space: nowrap; }
 
-.wk-alt-picker { display: none; margin-top: var(--space-3); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-4); }
+/* Раскрывающаяся панель под упражнением — одно объявление на три
+   (BACKLOG №126): подбор альтернативы, вопрос про тренажёр, настройка
+   прогрессии. Тела совпадали дословно. Показ у каждой свой
+   (`.имя.show { display: block }` ниже) и остаётся своим. */
+.wk-alt-picker,
+.wk-machine-prompt,
+.wk-progedit-panel {
+  display: none; margin-top: var(--space-3);
+  background: var(--surface-2); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: var(--space-4);
+}
 .wk-alt-picker.show { display: block; }
 .wk-alt-picker-title { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-3); }
 .wk-alt-options { display: flex; gap: var(--space-3); flex-wrap: wrap; }
@@ -703,7 +722,15 @@
 .wk-progress-suggestion-title { font-weight: 700; color: var(--text); margin-bottom: var(--space-1); font-size: var(--text-body-sm); }
 .wk-progress-suggestion-text { color: var(--text-2); font-size: var(--text-caption); line-height: 1.5; margin-bottom: var(--space-3); }
 .wk-progress-suggestion-btns { display: flex; gap: var(--space-2); flex-wrap: wrap; }
-.wk-progress-up-btn { background: var(--tool-accent); border: none; color: var(--surface-0); padding: var(--space-2) var(--space-4); border-radius: var(--radius-sm); font-size: var(--text-caption); font-weight: 600; cursor: pointer; }
+/* Кнопка действия в акценте — одно объявление на две (BACKLOG №126).
+   Системной `.btn-primary` они не равны: у той свои паддинги, кегль
+   и переход, — перевод изменил бы облик, а не имя. */
+.wk-progress-up-btn,
+.wk-machine-fixed-save {
+  background: var(--tool-accent); border: none; color: var(--surface-0);
+  padding: var(--space-2) var(--space-4); border-radius: var(--radius-sm);
+  font-size: var(--text-caption); font-weight: 600; cursor: pointer;
+}
 .wk-progress-keep-btn { background: transparent; border: 1px solid var(--border); color: var(--text-2); padding: var(--space-2) var(--space-4); border-radius: var(--radius-sm); font-size: var(--text-caption); cursor: pointer; }
 @media (hover: hover) {
   .wk-progress-keep-btn:hover { color: var(--text); border-color: var(--border-strong); }
@@ -739,7 +766,6 @@
 }
 .wk-save-sets-btn.saved { background: var(--surface-3); color: var(--status-done); }
 
-.wk-machine-prompt { display: none; margin-top: var(--space-3); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-4); }
 .wk-machine-prompt.show { display: block; }
 .wk-machine-prompt-text { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-3); line-height: 1.5; }
 .wk-machine-prompt-btns { display: flex; gap: var(--space-2); flex-wrap: wrap; }
@@ -753,7 +779,6 @@
   width: 100%; background: var(--surface-3); border: 1px solid var(--border); border-radius: var(--radius-sm);
   padding: var(--space-3); color: var(--text); font-family: var(--font-mono); font-size: var(--text-body-sm); margin-bottom: var(--space-2);
 }
-.wk-machine-fixed-save { background: var(--tool-accent); border: none; color: var(--surface-0); padding: var(--space-2) var(--space-4); border-radius: var(--radius-sm); font-size: var(--text-caption); font-weight: 600; cursor: pointer; }
 .wk-machine-reminder { margin-top: var(--space-3); background: color-mix(in srgb, var(--warning) 10%, transparent); border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent); border-radius: var(--radius-sm); padding: var(--space-3); font-size: var(--text-caption); color: var(--text-2); }
 
 /* Тултипы "?" */
@@ -775,7 +800,6 @@
 }
 
 /* Редактор шага прогрессии (переиспользует стиль пресетов анкеты) */
-.wk-progedit-panel { margin-top: var(--space-3); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-4); display: none; }
 .wk-progedit-panel.show { display: block; }
 
 @media (max-width: 640px) {

@@ -164,6 +164,11 @@ affordance. На углублении выключенный тумблер ст
   --accent-enshrouded-dim: rgba(217,119,6,0.15);
   --accent-enshrouded-hover: #A25904;
 
+  /* Поле видеокадра. Абсолютный чёрный и НЕ поверхность темы: ролик
+     смонтирован на чёрном, поля обязаны с ним совпадать — поедет тема,
+     поедут поля, и вокруг ролика появится рамка, которой в нём нет */
+  --letterbox: #000;
+
   /* Семантические */
   --success: #10B981;
   --success-strong: #34D399;     /* «лучше нормы»: вторая зелёная зона, §2.18 */
@@ -4349,6 +4354,9 @@ fallback. Элемент оказывается серым или бесцвет
   --accent-enshrouded: #D97706;
   --accent-enshrouded-dim: rgba(217,119,6,0.15);
   --accent-enshrouded-hover: #A25904;
+
+  /* Video letterbox — absolute black, not a theme surface */
+  --letterbox: #000;
 
   /* Semantic */
   --success: #10B981;

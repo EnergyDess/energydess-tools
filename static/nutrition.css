@@ -129,7 +129,10 @@ html.assistant-mode, html.assistant-mode body {
    есть чем. Причина — ПОРЯДОК ОТРИСОВКИ:
 
      · `static/style.css` содержит легаси-правило по ТЕГУ:
-       `.nav, main, footer, .auth-wrap { position: relative; z-index: 1 }`.
+       `.nav, main, footer, .auth-wrap` — position relative, z-index 1.
+       Фигурных скобок в цитате нет намеренно: проверка 1 ищет имя
+       системного класса на строке со скобкой и прозу от кода
+       не отличает (§6.0.2, признанные пробелы).
        `.site-footer` — это `<footer>`, и он получает z-index 1;
      · вкладка ассистента — `position: fixed` БЕЗ z-index, то есть auto (0);
      · `<main>` на этой странице нет вовсе (`.nut-app` — обычный div),
@@ -522,7 +525,24 @@ html.assistant-mode, html.assistant-mode body {
   background: var(--surface-sunken); border: 1px solid var(--border);
   border-radius: 999px; padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
 }
-.water-log-ml { font-size: var(--text-caption); color: var(--text-2); font-weight: 600; }
+/* ВТОРИЧНАЯ ПОДПИСЬ — одно объявление на все шесть мест (BACKLOG №126).
+   Тела этих правил совпадали ДОСЛОВНО и лежали в шести местах файла:
+   объём порции воды, бренд и «на 100 г» в находке, подпись окна порции,
+   подпись калорий в истории, бренд в карточке блюда. Шесть копий трёх
+   свойств расходятся поодиночке и молча — вид у одинаковых по смыслу
+   подписей начинает различаться, и заметить это можно только рядом.
+   Имена оставлены свои: сведено ОБЪЯВЛЕНИЕ, а не элементы.
+   Десктопные размеры у .water-log-ml, .r-brand, .r-per и .hist-kcal-lbl
+   свои и остаются в @media (min-width: 900px) ниже — они и должны
+   различаться, потому что различаются места. */
+.water-log-ml,
+.r-brand,
+.r-per,
+.por-sub,
+.hist-kcal-lbl,
+.food-brand {
+  font-size: var(--text-caption); color: var(--text-2); font-weight: 600;
+}
 /* BACKLOG №113. Было: свой крестик 20×20 с хардкодом #ef4444 в трёх
    местах. Стало: `.btn-icon .btn-icon-round .btn-icon-sm .btn-icon-danger`.
    Расхождение вида: размер 20 → 26, цвет покоя --text-2 → --text-faint
@@ -747,13 +767,11 @@ html.assistant-mode, html.assistant-mode body {
 }
 .r-info { flex: 1; min-width: 0; }
 .r-name  { font-size: var(--text-caption); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.r-brand { font-size: var(--text-caption); color: var(--text-2); font-weight: 600; }
 /* «бренд не указан» — это отсутствие данных, а не название. Курсив отделяет
    его от настоящих брендов в соседних строках; цвет тот же --text-2, своего
    серого не заводим */
 .r-nobrand { font-style: italic; }
 .r-kcal  { font-size: var(--text-caption); color: var(--tool-accent); font-weight: 700; white-space: nowrap; }
-.r-per   { font-size: var(--text-caption); color: var(--text-2); font-weight: 600; }
 /* BACKLOG №115: то же, базовая форма. Расхождение: кегль 13.9 → 15px,
    жирность 600 → 400, паддинг 28/16 → 32/16. Имя `.nut-empty` осталось
    только под масштаб --nut-u. */
@@ -1216,7 +1234,6 @@ html.assistant-mode, html.assistant-mode body {
 /* ── Portion modal ── */
 .por-name { font-size: var(--text-body); font-weight: 700; margin-bottom: var(--space-1); }
 .por-sub-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-3); }
-.por-sub  { font-size: var(--text-caption); color: var(--text-2); font-weight: 600; }
 /* BACKLOG №114. Было: своя пилюля `.por-edit-btn` с активным состоянием
    в акценте. Стало: системный `.chip` — он и есть пилюля, и его `.active`
    уже красится акцентом (design-system.md §2.х). Расхождение вида:
@@ -1604,7 +1621,6 @@ html.assistant-mode, html.assistant-mode body {
    кольца: их роль (позиционирование числа по центру) взяли .hd-ring
    и .hd-ring-c в блоке «История» выше. */
 .hist-kcal-val { font-size: 1.25rem; font-weight: 800; }
-.hist-kcal-lbl { font-size: var(--text-caption); color: var(--text-2); font-weight: 600; }
 
 /* ── Профиль: пояснения, сообщения, ряды действий ── */
 .p-note        { color: var(--text-2); font-size: var(--text-caption); line-height: 1.5; margin-bottom: var(--space-2); }
@@ -1771,7 +1787,6 @@ html.assistant-mode, html.assistant-mode body {
 .chat-input-row-modal { padding-bottom: var(--space-4); }
 
 /* ── То, что собирает скрипт ── */
-.food-brand      { font-weight: 600; color: var(--text-2); font-size: var(--text-caption); }
 /* .meal-card-tight и .meal-hdr-static удалены: их носила ТОЛЬКО копия
    карточки приёма пищи для истории, а копии больше нет — обе вкладки
    собирает один `renderMeals`. Оставить правила значило бы описывать
@@ -1892,17 +1907,17 @@ html.assistant-mode, html.assistant-mode body {
     order: -1;
     flex-direction: column; width: var(--nut-aside); min-width: var(--nut-aside);
     height: 100%; border-top: none; border-right: 1px solid var(--border);
-    padding: 0 0.625rem 0.625rem; gap: 0.125rem; align-items: stretch;
+    padding: 0 calc(0.625 * var(--nut-u)) calc(0.625 * var(--nut-u)); gap: calc(0.125 * var(--nut-u)); align-items: stretch;
     justify-content: flex-start; background: rgba(7,7,15,.88);
     backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
     overflow: hidden;
   }
   .sidebar-hd {
-    display: flex; align-items: center; gap: 0.5rem;
-    padding: 1.375rem 0.75rem 0.875rem;
-    font-family: var(--font); font-size: 1rem; font-weight: 800;
+    display: flex; align-items: center; gap: calc(0.5 * var(--nut-u));
+    padding: calc(1.375 * var(--nut-u)) calc(0.75 * var(--nut-u)) calc(0.875 * var(--nut-u));
+    font-family: var(--font); font-size: var(--nut-u); font-weight: 800;
     white-space: nowrap;
-    border-bottom: 1px solid var(--border); margin: 0 0 0.625rem;
+    border-bottom: 1px solid var(--border); margin: 0 0 calc(0.625 * var(--nut-u));
     flex-shrink: 0;
     background: linear-gradient(90deg, var(--tool-accent), var(--wat));
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
@@ -1910,11 +1925,11 @@ html.assistant-mode, html.assistant-mode body {
   /* Значок опущен из градиентной заливки заголовка: -webkit-text-fill-color
      красит текст, а svg рисуется stroke-ом и заливку игнорирует — без сброса
      он унаследовал бы прозрачный текст и исчез бы вместе с ним */
-  .sidebar-hd span:first-child { -webkit-text-fill-color: initial; font-size: 1.3rem; line-height: 0; }
+  .sidebar-hd span:first-child { -webkit-text-fill-color: initial; font-size: calc(1.3 * var(--nut-u)); line-height: 0; }
   .sidebar-date {
-    display: flex; align-items: center; gap: 0.4375rem;
-    font-size: .82rem; color: var(--text-2); font-weight: 600; text-transform: capitalize;
-    padding: 0 0.75rem 1rem; font-family: var(--font-mono); flex-shrink: 0;
+    display: flex; align-items: center; gap: calc(0.4375 * var(--nut-u));
+    font-size: calc(0.82 * var(--nut-u)); color: var(--text-2); font-weight: 600; text-transform: capitalize;
+    padding: 0 calc(0.75 * var(--nut-u)) var(--nut-u); font-family: var(--font-mono); flex-shrink: 0;
     letter-spacing: .04em;
   }
   .sidebar-date::before {
@@ -1924,8 +1939,8 @@ html.assistant-mode, html.assistant-mode body {
   .nut-nav-btn {
     flex: none;
     flex-direction: row; height: 3rem; width: 100%;
-    padding: 0 0.875rem; justify-content: flex-start;
-    gap: 0.75rem; font-size: .96rem; border-radius: 0.6875rem;
+    padding: 0 calc(0.875 * var(--nut-u)); justify-content: flex-start;
+    gap: calc(0.75 * var(--nut-u)); font-size: calc(0.96 * var(--nut-u)); border-radius: 0.6875rem;
     transition: background .15s, color .15s;
   }
   .nut-nav-btn svg { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
@@ -1940,7 +1955,7 @@ html.assistant-mode, html.assistant-mode body {
      у активной кнопки «Добавить» — оттуда и брались !important. Теперь она
      идёт ДО, и .active выигрывает по порядку, как и задумано. */
   .nut-nav-btn[data-tab="search"] {
-    margin: 0.5rem 0 0.625rem;
+    margin: calc(0.5 * var(--nut-u)) 0 calc(0.625 * var(--nut-u));
     background: transparent;
     border: 1px solid transparent;
     color: var(--text-2);
@@ -1971,9 +1986,9 @@ html.assistant-mode, html.assistant-mode body {
 
   /* ── Each column scrolls on its own — the page itself never does ── */
   .d-left, .d-right {
-    display: flex; flex-direction: column; gap: 0.875rem;
+    display: flex; flex-direction: column; gap: calc(0.875 * var(--nut-u));
     height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden;
-    padding-right: 0.375rem;
+    padding-right: calc(0.375 * var(--nut-u));
   }
   .d-left::-webkit-scrollbar, .d-right::-webkit-scrollbar, .a-left::-webkit-scrollbar,
   #tab-search.active::-webkit-scrollbar, .chat-msgs::-webkit-scrollbar,
@@ -2061,7 +2076,7 @@ html.assistant-mode, html.assistant-mode body {
   }
   .ring-svg { width: calc(10.5 * var(--nut-u)); height: calc(10.5 * var(--nut-u)); }
   .ring-remain { font-size: calc(2.1 * var(--nut-u)); line-height: 1.1; }
-  .ring-lbl { font-size: calc(0.8125 * var(--nut-u)); margin: 0 0 0.1875rem; }
+  .ring-lbl { font-size: calc(0.8125 * var(--nut-u)); margin: 0 0 calc(0.1875 * var(--nut-u)); }
   .ring-eaten { font-size: calc(0.8125 * var(--nut-u)); }
   /* Отступ подписи от кольца — той же единицей, что и всё остальное
      на этом экране: иначе на 2560 кольцо вырастет, а зазор останется
@@ -2081,7 +2096,7 @@ html.assistant-mode, html.assistant-mode body {
   }
   .macros-cap {
     display: block; font-size: calc(0.8125 * var(--nut-u)); color: var(--text-2);
-    margin-bottom: 0.125rem;
+    margin-bottom: calc(0.125 * var(--nut-u));
   }
   /* Строка макроса: подпись слева, числа справа, полоса под ними на всю
      ширину. Разметка при этом не менялась — порядок в ней подпись → полоса
@@ -2089,7 +2104,7 @@ html.assistant-mode, html.assistant-mode body {
      задаёт сетка, а не DOM */
   .macro-card {
     flex: none; padding: 0; background: none; border: none; border-radius: 0;
-    display: grid; grid-template-columns: 1fr auto; gap: 0.3125rem 0.5rem;
+    display: grid; grid-template-columns: 1fr auto; gap: calc(0.3125 * var(--nut-u)) calc(0.5 * var(--nut-u));
   }
   .macro-label { grid-column: 1; grid-row: 1; font-size: calc(0.8125 * var(--nut-u)); margin: 0; }
   .macro-val   { grid-column: 2; grid-row: 1; font-size: calc(0.8125 * var(--nut-u)); text-align: right; }
@@ -2166,12 +2181,12 @@ html.assistant-mode, html.assistant-mode body {
      На мобильной ширине ручной ввод стоит отдельной строкой снизу —
      там пять кнопок в ряд дали бы по 68px. Здесь места хватает, и по
      нижнему краю этого ряда выравнивается кнопка нутрициолога слева */
-  .water-btns { gap: 0.5rem; }
+  .water-btns { gap: calc(0.5 * var(--nut-u)); }
   .water-btn { height: calc(2.375 * var(--nut-u)); font-size: calc(0.8125 * var(--nut-u)); }
   .water-btn-manual {
     width: auto; flex: 1.4; height: calc(2.375 * var(--nut-u)); margin-top: 0;
     font-size: calc(0.8125 * var(--nut-u));
-    display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem;
+    display: inline-flex; align-items: center; justify-content: center; gap: calc(0.375 * var(--nut-u));
   }
   .water-btn-manual svg { width: 0.875rem; height: 0.875rem; }
   /* Полоска дней на десктопе чуть просторнее — место есть */
@@ -2392,10 +2407,10 @@ html.assistant-mode, html.assistant-mode body {
   .as-bar-fill.is-carb { background: var(--carb); }
   .as-bar-fill.is-wat  { background: var(--wat); }
   .search-back {
-    display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1.125rem;
-    padding: 0.625rem 1.125rem; border-radius: 0.625rem; background: var(--surface-1);
+    display: inline-flex; align-items: center; gap: calc(0.5 * var(--nut-u)); margin-bottom: calc(1.125 * var(--nut-u));
+    padding: calc(0.625 * var(--nut-u)) calc(1.125 * var(--nut-u)); border-radius: 0.625rem; background: var(--surface-1);
     border: 1px solid var(--border); color: var(--text-2);
-    font-size: .9rem; font-weight: 600; cursor: pointer;
+    font-size: calc(0.9 * var(--nut-u)); font-weight: 600; cursor: pointer;
     transition: color .15s, border-color .15s;
   }
   @media (hover: hover) {
@@ -2476,7 +2491,7 @@ html.assistant-mode, html.assistant-mode body {
      то есть дефект жил ровно на самой частой ширине и только на ней.
      Поймано замером кеглей по всем четырём ширинам, а не чтением. */
   .cal-wd span { font-size: calc(0.8125 * var(--nut-u)); }
-  .cal-c { padding: calc(0.375 * var(--nut-u)) 0.125rem; }
+  .cal-c { padding: calc(0.375 * var(--nut-u)) calc(0.125 * var(--nut-u)); }
   .cal-note { font-size: calc(0.8125 * var(--nut-u)); }
   .mo { margin-top: calc(0.875 * var(--nut-u)); }
   .mo-title { font-size: calc(0.94 * var(--nut-u)); }
@@ -2529,12 +2544,12 @@ html.assistant-mode, html.assistant-mode body {
   .wt-note { font-size: calc(0.8125 * var(--nut-u)); }
 
   /* ── PROFILE: two equal columns ── */
-  #tab-profile.active { display: grid; grid-template-columns: 1fr 1fr; gap: 1.75rem; overflow: hidden; }
-  .p-sec-title { font-size: .82rem; }
-  .f-label { font-size: .88rem; }
-  .targets-title { font-size: .9rem; }
-  .t-val { font-size: 1.3rem; }
-  .t-lbl { font-size: .8rem; }
+  #tab-profile.active { display: grid; grid-template-columns: 1fr 1fr; gap: calc(1.75 * var(--nut-u)); overflow: hidden; }
+  .p-sec-title { font-size: calc(0.82 * var(--nut-u)); }
+  .f-label { font-size: calc(0.88 * var(--nut-u)); }
+  .targets-title { font-size: calc(0.9 * var(--nut-u)); }
+  .t-val { font-size: calc(1.3 * var(--nut-u)); }
+  .t-lbl { font-size: calc(0.8 * var(--nut-u)); }
 
   /* Раньше здесь карточки перекрывались хардкодами rgba(22,26,44,.88) и
      rgba(26,30,50,.92) с backdrop-filter — блок подгонял десктоп под

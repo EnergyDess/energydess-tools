@@ -3051,8 +3051,19 @@ function drawVoiceWave(canvas, amplitudes) {
   ctx.clearRect(0,0,w,h);
   // Цвет дорожки — ИЗ ТОКЕНА, а не хардкодом: canvas var() не понимает,
   // поэтому значение читается у корня (BACKLOG №18).
-  ctx.fillStyle = getComputedStyle(document.documentElement)
-                    .getPropertyValue('--success').trim() || '#10B981';
+  //
+  // ФОЛБЭКА НЕТ НАМЕРЕННО. Здесь стояло `|| '#10B981'`, и это был
+  // не запасной цвет, а немой отказ (§6.0.1): строка прятала ровно то,
+  // ради чего цвет и читается из токена, — что токен не разрешился.
+  // Дорожка при этом рисовалась бы правильным цветом, и расхождение
+  // палитры с дневником обнаружилось бы в тот день, когда --success
+  // поменяют. Не разрешился — причина называется в консоли, а дорожка
+  // уходит в чёрный по умолчанию canvas, то есть отказ ВИДЕН глазом.
+  const дорожка = getComputedStyle(document.documentElement)
+                    .getPropertyValue('--success').trim();
+  if (!дорожка) console.warn('[дневник] токен --success не разрешился — '
+                             + 'дорожка голоса останется без цвета');
+  else ctx.fillStyle = дорожка;
   const barW=3, gap=2, n=Math.floor(w/(barW+gap));
   const data = amplitudes.slice(-n);
   const pad = n - data.length;

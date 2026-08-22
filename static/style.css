@@ -114,6 +114,13 @@
   --accent-enshrouded-hover: #A25904;
 
   /* Semantic */
+  /* Поле видеокадра. Абсолютный чёрный и НЕ поверхность темы: ролик
+     смонтирован на чёрном, и поля кадра обязаны с ним совпадать —
+     поедет тема, поедут поля, и вокруг ролика появится рамка,
+     которой в нём нет. Токеном, а не литералом, по правилу §6:
+     цвета в проекте объявляются один раз и по имени. */
+  --letterbox: #000;
+
   --success: #10B981;
   /* Второй уровень успеха: «лучше нормы» там, где хороших зон две подряд
      (вода, мышцы, белок, кость — см. body_scales.ПОКАЗАТЕЛИ). НЕ новое
@@ -1714,6 +1721,14 @@ img.avatar { object-fit: cover; padding: 0; }
               transform var(--dur-slow) var(--ease-out);
 }
 .reveal.revealed { opacity: 1; transform: translateY(0); }
+/* Лесенка появления — та же ручка, что у .stagger-in ниже: номер
+   позиции приезжает из разметки переменной --n, шаг задаёт сам
+   компонент. Здесь она появилась потому, что landing.css держал
+   три правила `.features-grid .reveal:nth-child(N)` — то есть
+   страница объявляла системный класс СУБЪЕКТОМ и меняла ему вид
+   (transition-delay). Механизм общий для любого ряда карточек,
+   поэтому живёт в системе, а не в странице. */
+.reveal { transition-delay: calc(var(--n, 0) * var(--шаг, 60ms)); }
 
 /* ── Появление списка при загрузке ──────────────────────────────────────────
    Рядом с .reveal и по той же причине: это тот же приём, только повод другой.
@@ -1975,7 +1990,10 @@ textarea::placeholder, input::placeholder { color: var(--text-faint); }
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-.badge-purple { background: var(--accent-brand-dim); color: var(--accent-brand); border: 1px solid var(--accent-brand); }
+/* .badge-purple УДАЛЁН 2026-08-22 (BACKLOG №126): его тело совпадало
+   с .badge-blue ДОСЛОВНО — два имени, один вид, — и в разметке он
+   не встречался ни разу. Два имени под один вид расходятся молча:
+   правят одно, а вёрстка носит другое. */
 .badge-blue   { background: var(--accent-brand-dim); color: var(--accent-brand); border: 1px solid var(--accent-brand); }
 .badge-green  { background: rgba(16,185,129,0.08); color: var(--success); border: 1px solid rgba(16,185,129,0.18); }
 /* Нейтральный бейдж для состояний без окраски («Нет доступа») */

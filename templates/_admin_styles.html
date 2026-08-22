@@ -97,7 +97,10 @@
     tr:hover td { background: var(--surface-2); }
   }
 
-  .email-cell { color: var(--text-2); font-size: var(--text-caption); font-weight: 500; }
+  /* Вторичная подпись админки — одно объявление на две (BACKLOG №126):
+     адрес в таблице пользователей и подпись счётчика в справочнике. */
+  .email-cell,
+  .ex-stat-label { color: var(--text-2); font-size: var(--text-caption); font-weight: 500; }
   .date-cell  { color: var(--text-2); font-size: var(--text-caption); }
 
   /* Тумблер доступа к инструменту берётся из компонентной базы (.toggle,
@@ -223,7 +226,15 @@
     flex: 1; max-width: 360px; min-width: 220px;
     box-sizing: border-box;
   }
-  .search-wrap .search-icon {
+  /* СВОЁ имя, а не системное `.search-icon`. Тот класс принадлежит
+     глобальному поиску в шапке (`.header-search .search-icon`
+     в style.css), и здесь он был СТОЛКНОВЕНИЕМ ИМЁН, а не вариантом
+     компонента: два разных значка носили одно имя, а страница правила
+     ему цвет и размер. Ровно тот же долг, что чинила задача 110
+     переименованием `.hint` в `.profile-hint`. Нашла его проверка 1
+     после того, как компонентная база перестала быть перечнем
+     (BACKLOG №121): в прежнем списке из 91 имени `search-icon` не было. */
+  .search-wrap .admin-search-icon {
     position: absolute; left: var(--space-3); top: 50%;
     transform: translateY(-50%);
     width: 15px; height: 15px;
@@ -390,7 +401,6 @@
     font-size: var(--text-h3); font-weight: 500;
     color: var(--text-strong); line-height: 1; margin-bottom: var(--space-1);
   }
-  .ex-stat-label { font-size: var(--text-caption); color: var(--text-2); font-weight: 500; }
 
   .ex-filters {
     display: flex; gap: var(--space-3);
@@ -634,7 +644,7 @@
   .ex-video-box {
     width: min(800px, var(--viewer-w, 94vw));
     aspect-ratio: 16/9;
-    background: #000;   /* видео-контейнер — чёрный по смыслу, не токен темы */
+    background: var(--letterbox);
     border-radius: var(--radius-md);
     overflow: hidden;
     box-shadow: var(--shadow-lg);
