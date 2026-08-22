@@ -108,6 +108,53 @@
     м.dispatchEvent(new CustomEvent('modal:close', { bubbles: true }));
   };
 
+  // ── TAB НЕ ВЫХОДИТ ЗА ПРЕДЕЛЫ ОТКРЫТОГО ОКНА ──
+  //
+  // Заведено 2026-08-22 (BACKLOG №2, блок E.5). Найдено ЗАМЕРОМ, а не
+  // чтением: сорок нажатий Tab при открытом окне — тридцать оказались
+  // ВНЕ его, на ссылках подвала и на карточках под затемнением. То есть
+  // клавиатурой человек уходил в страницу, которой не видит.
+  //
+  // Отказ немой в самой неприятной форме: разметка УТВЕРЖДАЛА обратное.
+  // `_modal.html` объявляет `role="dialog" aria-modal="true"`, а
+  // `aria-modal` по спецификации означает «всё вне диалога недоступно»,
+  // — программа чтения с экрана верит объявлению, клавиатура вела себя
+  // иначе, и разойтись они могли сколько угодно долго.
+  //
+  // `inert` здесь стоит только на ЗАКРЫТЫХ окнах, и это правильно: вешать
+  // его на соседей открытого пришлось бы снимать при вложенном окне,
+  // а стопка тут норма. Ловушка на Tab делает то же и стопке не мешает —
+  // она смотрит на ВЕРХНЮЮ модалку и ни на что больше.
+  var ФОКУСИРУЕМЫЕ = 'a[href], button, input, select, textarea, ' +
+                     '[tabindex]:not([tabindex="-1"])';
+
+  function остановки(м) {
+    return Array.prototype.filter.call(м.querySelectorAll(ФОКУСИРУЕМЫЕ),
+      function (el) {
+        // disabled и спрятанное Tab не берёт и сам; проверяем, чтобы
+        // не отправить фокус в невидимое поле руками.
+        return !el.disabled && !el.hasAttribute('inert') &&
+               el.offsetWidth + el.offsetHeight > 0;
+      });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Tab' || !стек.length) return;
+    var м = document.getElementById(стек[стек.length - 1]);
+    if (!м) return;
+    var список = остановки(м);
+    if (!список.length) { e.preventDefault(); return; }
+    var первый = список[0], последний = список[список.length - 1];
+    var где = document.activeElement;
+    if (!м.contains(где)) {
+      e.preventDefault();
+      (e.shiftKey ? последний : первый).focus();
+      return;
+    }
+    if (e.shiftKey && где === первый) { e.preventDefault(); последний.focus(); }
+    else if (!e.shiftKey && где === последний) { e.preventDefault(); первый.focus(); }
+  });
+
   // ── Escape закрывает верхнюю открытую ──
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape' || !стек.length) return;

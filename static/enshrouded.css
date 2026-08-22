@@ -1,0 +1,357 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   ENSHROUDED — трекер сетов брони. Страничные стили.
+
+   ВЫНЕСЕНЫ ИЗ ШАБЛОНА 2026-08-22 (BACKLOG №2). До этого 470 строк CSS
+   жили инлайновым <style> в templates/enshrouded.html — раздел был
+   единственным инструментом без своего файла стилей.
+
+   ЧТО ЗДЕСЬ ЕСТЬ И ЧЕГО НЕТ. Есть раскладка экрана и роли, которых
+   в системе нет по построению: сетка карточек, баннер картинки, слот
+   доспеха, цвет редкости, цвет категории. Нет ни одного системного
+   имени субъектом селектора (проверка 1) и ни одного объявления
+   системного токена вне :root (проверка 2).
+
+   ЦВЕТ. Раздел объявляет тему на <body> (theme-enshrouded), то есть
+   акцент приходит из системы четырьмя токенами. Своих оранжевых
+   литералов в файле нет ни одного: до правки их было больше сорока,
+   и раздел выдавал себя именно ими.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── ЦВЕТ КАТЕГОРИИ — ОДНА ПЕРЕМЕННАЯ, А НЕ ПЯТЬ НАБОРОВ ПРАВИЛ ────────
+   Было: пять категорий × шесть мест = тридцать правил с одинаковым
+   телом и разным цветом. Стало: секция объявляет --cat, дальше одно
+   правило на место.
+
+   Цвет категории остаётся ТОЛЬКО в заголовке секции, её значке и значке
+   вкладки. На карточку он больше не идёт, и это не вкус, а замер:
+   в категории «Мир» тема синяя и редкость «Редкий» синяя, в
+   «Спецпредметах» тема пурпурная и «Эпический» пурпурный — цвет
+   категории отнимал цвет у редкости ровно там, где они совпадали.
+   Категория подписана словом и значком, редкость — только цветом. */
+.cat-sec[data-cat="blacksmith"] { --cat: #d48a2a; }
+.cat-sec[data-cat="huntress"]   { --cat: #5db86e; }
+.cat-sec[data-cat="alchemist"]  { --cat: #a870ce; }
+.cat-sec[data-cat="world"]      { --cat: #5a9fd4; }
+.cat-sec[data-cat="special"]    { --cat: #d469b8; }
+.ens-tab[data-cat="blacksmith"] { --cat: #d48a2a; }
+.ens-tab[data-cat="huntress"]   { --cat: #5db86e; }
+.ens-tab[data-cat="alchemist"]  { --cat: #a870ce; }
+.ens-tab[data-cat="world"]      { --cat: #5a9fd4; }
+.ens-tab[data-cat="special"]    { --cat: #d469b8; }
+
+/* ── ЦВЕТ РЕДКОСТИ. Игровая величина, поэтому литералами и здесь ───────
+   Пять уровней, замер 2026-08-22: контраст к поверхности слота
+   (--surface-sunken) 5.53…9.43 при пороге WCAG 1.4.11 = 3.0; попарное
+   цветовое различие dE(CIE76) минимум 40.7 при пороге различимости
+   глазом около 10. То есть цвета несут смысл и после снятия
+   категорийных тем с карточек. */
+.slot[data-r="common"]     { --rar: #8a8a8a; }
+.slot[data-r="uncommon"]   { --rar: #4db86a; }
+.slot[data-r="rare"]       { --rar: #4a9fdf; }
+.slot[data-r="epic"]       { --rar: #b06fd4; }
+.slot[data-r="legendary"]  { --rar: #f5a623; }
+/* «Спецпредметы» редкости не имеют вовсе — владение метится акцентом
+   раздела, а не выдуманным уровнем. */
+.slot[data-r="owned"]      { --rar: var(--tool-accent); }
+.r-dot[data-r="common"]    { --rar: #8a8a8a; }
+.r-dot[data-r="uncommon"]  { --rar: #4db86a; }
+.r-dot[data-r="rare"]      { --rar: #4a9fdf; }
+.r-dot[data-r="epic"]      { --rar: #b06fd4; }
+.r-dot[data-r="legendary"] { --rar: #f5a623; }
+
+/* ── Панель раздела ───────────────────────────────────────────────────
+   64px — высота липкой .site-header; панель прилипает под ней.
+   Число участвует в расчёте и в других местах проекта — перечень
+   в design-system.md §4.1. */
+.ens-bar {
+  position: sticky; top: 64px; z-index: 49;
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-4) var(--space-5) 0;
+}
+.ens-bar-row {
+  display: flex; align-items: center; gap: var(--space-4);
+  max-width: 1600px; margin: 0 auto;
+}
+.ens-brand { flex-shrink: 0; }
+.ens-title {
+  font-size: var(--text-h3); font-weight: 700; line-height: 1.1;
+  letter-spacing: -0.01em; color: var(--tool-accent);
+}
+/* Вторичная строка под заголовком — одна роль на два места: подпись
+   раздела и подпись категории. Сведено в один селектор, а не написано
+   дважды (BACKLOG №126: дубль внутри одного файла безопасен по
+   построению, каскад у обоих один и тот же). */
+.ens-sub, .cat-sub {
+  font-size: var(--text-caption); color: var(--text-faint);
+  margin-top: var(--space-1);
+}
+.ens-search { position: relative; flex: 1; max-width: 360px; }
+.ens-search-ico {
+  position: absolute; left: var(--space-3); top: 50%;
+  transform: translateY(-50%); color: var(--text-faint);
+  pointer-events: none; width: 16px; height: 16px;
+}
+.ens-search input { padding-left: var(--space-7); }
+.ens-stats { margin-left: auto; display: flex; gap: var(--space-3); }
+.ens-stat {
+  text-align: center;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-4);
+}
+.ens-stat-v {
+  display: block; font-family: var(--font-mono);
+  font-size: var(--text-body-lg); font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums; color: var(--tool-accent);
+}
+.ens-stat-l {
+  display: block; margin-top: var(--space-1);
+  font-size: var(--text-mono); font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--text-faint); white-space: nowrap;
+}
+
+/* ── Вкладки категорий ────────────────────────────────────────────────
+   Компонент системный (.segmented .segmented-accent + .segmented-btn),
+   здесь только раскладка ряда: он шире экрана и прокручивается.
+   Ни одного объявления вида системному классу тут нет. */
+.ens-tabs {
+  max-width: 1600px; margin: var(--space-4) auto 0;
+  overflow-x: auto; scrollbar-width: none;
+  border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+}
+.ens-tabs::-webkit-scrollbar { height: 0; }
+.ens-tab { flex: none; }
+.ens-tab-ico { color: var(--cat, var(--text-faint)); display: flex; }
+.ens-tab-ico svg { width: 14px; height: 14px; }
+.ens-tab-cnt {
+  font-family: var(--font-mono); font-size: var(--text-mono);
+  color: var(--text-faint);
+}
+
+/* ── Основная область ─────────────────────────────────────────────────
+   contain: раздел — самая длинная страница проекта (12 000 px на 1440),
+   и без изоляции перерисовка одной карточки пересчитывает всю. */
+.ens-main { max-width: 1600px; margin: 0 auto; padding: var(--space-6) var(--space-5); }
+.ens-sets { contain: layout paint; }
+.ens-loading { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); }
+.ens-source {
+  text-align: center; color: var(--text-faint);
+  font-size: var(--text-caption); padding-top: var(--space-5);
+}
+
+/* ── Секция категории ─────────────────────────────────────────────────*/
+.cat-sec { margin-bottom: var(--space-7); }
+.cat-hdr { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+.cat-ico {
+  width: 32px; height: 32px; border-radius: var(--radius-sm); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--cat);
+  background: color-mix(in srgb, var(--cat) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cat) 35%, transparent);
+}
+.cat-ico svg { width: 16px; height: 16px; }
+.cat-name {
+  font-size: var(--text-caption); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--cat);
+}
+.cat-line {
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cat) 45%, transparent), transparent);
+}
+
+/* ── Сетка карточек ───────────────────────────────────────────────────*/
+.sets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--space-4); }
+
+/* ── Карточка сета ────────────────────────────────────────────────────
+   Компонент системный: .card .card-flush. Здесь только собственное —
+   отметка собранного сета и раскладка тела. */
+.set-card { position: relative; }
+
+/* СОБРАННЫЙ СЕТ — ТИХАЯ ОТМЕТКА. Обводка акцентом и значок в углу.
+   ПОСТОЯННОЙ анимации нет намеренно: собранных сетов десятки, и сорок
+   пульсирующих карточек в сетке — рябь, а не отметка. */
+.set-card.is-done { border-color: var(--tool-accent); }
+.set-done-mark {
+  position: absolute; top: var(--space-3); right: var(--space-3); z-index: 1;
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--tool-accent-ink); background: var(--tool-accent);
+  box-shadow: var(--shadow-sm);
+}
+.set-done-mark svg { width: 15px; height: 15px; stroke-width: 2.5; }
+/* НАГРАДА ЗА ДЕЙСТВИЕ, А НЕ СОСТОЯНИЕ: класс вешается в момент, когда
+   отмечен ПОСЛЕДНИЙ предмет сета, и снимается по концу анимации.
+   Перезагрузка страницы её не запускает — отметка есть, движения нет. */
+.set-card.just-done { animation: ens-done 700ms var(--ease-out) 1; }
+.set-card.just-done .set-done-mark { animation: ens-done-mark 700ms var(--ease-out) 1; }
+@keyframes ens-done {
+  0%   { box-shadow: 0 0 0 0 var(--tool-accent-dim); }
+  40%  { box-shadow: 0 0 0 10px var(--tool-accent-dim); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes ens-done-mark {
+  0%   { transform: scale(0.4); opacity: 0; }
+  55%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── Баннер картинки ──────────────────────────────────────────────────
+   ФИКСИРОВАННАЯ ВЫСОТА И СВОЙ ФОН, картинка вписывается ЦЕЛИКОМ.
+   До правки стояло object-fit: cover с object-position: center 15% —
+   персонаж упирался макушкой в край карточки, а часть картинок вообще
+   снимки экрана со стеной и полом. contain лечит и то и другое:
+   разнородность источников перестаёт быть видна, потому что каждая
+   картинка лежит на одной и той же подложке целиком. */
+.card-banner {
+  height: 180px; width: 100%; padding: 0;
+  background: var(--surface-sunken);
+  border: none; border-bottom: 1px solid var(--border);
+  display: block; position: relative; overflow: hidden;
+  cursor: default;
+}
+.card-banner:focus-visible { outline: 2px solid var(--tool-accent); outline-offset: -2px; }
+/* Курсор следует за ДЕЙСТВИЕМ, а не за классом: увеличение открывается
+   у баннера с загруженной картинкой и больше ни у кого. */
+.card-banner.loaded { cursor: zoom-in; }
+
+/* ── Тело карточки ────────────────────────────────────────────────────*/
+.card-body { padding: var(--space-4); }
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-3); }
+.card-name { font-size: var(--text-body); font-weight: 700; line-height: 1.25; color: var(--text); }
+.card-meta {
+  display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+  margin-top: var(--space-1); font-size: var(--text-caption); color: var(--text-faint);
+}
+.lvl-tag {
+  font-family: var(--font-mono); font-size: var(--text-mono);
+  color: var(--text-2); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 0 var(--space-2);
+}
+.card-prog {
+  flex-shrink: 0; font-family: var(--font-mono); font-size: var(--text-caption);
+  font-weight: 700; color: var(--text-faint); font-variant-numeric: tabular-nums;
+}
+.card-prog.is-done { color: var(--tool-accent); }
+.ens-pbar { margin-bottom: var(--space-4); }
+
+/* ── Слоты доспеха ────────────────────────────────────────────────────
+   ВЫРАВНИВАНИЕ ВЛЕВО И ПОСТОЯННЫЙ РАЗМЕР. Было flex: 1 — сет из одного
+   предмета растягивал единственный слот на всю карточку и ставил
+   подпись по центру: это читалось как поломка вёрстки, а не как «в сете
+   один предмет». Составы замерены: из 90 сетов 74 на пять предметов,
+   8 на один, 5 на четыре, 2 на три, 1 на два. */
+.slots { display: flex; gap: var(--space-2); justify-content: flex-start; flex-wrap: wrap; }
+.slot { flex: none; width: 54px; display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
+.slot-btn {
+  width: 54px; height: 54px; padding: 0;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border);
+  background: var(--surface-sunken);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; cursor: pointer;
+  color: var(--text-faint);
+  transition: border-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease);
+}
+.slot-btn svg { width: 24px; height: 24px; }
+@media (hover: hover) {
+  .slot-btn:hover { border-color: var(--border-strong); color: var(--text-2); }
+}
+.slot-btn:focus-visible { outline: 2px solid var(--tool-accent); outline-offset: 2px; }
+/* Предмет есть: цвет редкости. Одно правило на пять уровней. */
+.slot[data-r] .slot-btn {
+  border-color: color-mix(in srgb, var(--rar) 60%, transparent);
+  background: color-mix(in srgb, var(--rar) 9%, var(--surface-sunken));
+  color: var(--rar);
+}
+@media (hover: hover) {
+  .slot[data-r] .slot-btn:hover { border-color: var(--rar); color: var(--rar); }
+}
+/* ЛЕГЕНДАРНАЯ ПУЛЬСАЦИЯ ОСТАЁТСЯ. Единственная постоянная анимация
+   на экране, и она несёт смысл: высшая редкость. */
+.slot[data-r="legendary"] .slot-btn { animation: ens-legendary 2.5s ease-in-out infinite; }
+@keyframes ens-legendary {
+  0%, 100% { box-shadow: 0 0 10px color-mix(in srgb, var(--rar) 30%, transparent); }
+  50%      { box-shadow: 0 0 18px color-mix(in srgb, var(--rar) 55%, transparent); }
+}
+.slot-lvl {
+  position: absolute; bottom: 3px; right: 4px; line-height: 1;
+  font-family: var(--font-mono); font-size: var(--text-mono); font-weight: 700;
+  color: var(--tool-accent);
+}
+.slot-dupe {
+  position: absolute; top: 3px; left: 4px; line-height: 1.5;
+  border-radius: var(--radius-sm); padding: 0 3px;
+  font-size: 0.625rem; font-weight: 800;
+  color: var(--tool-accent-ink); background: var(--tool-accent);
+}
+.slot-lbl {
+  font-size: var(--text-mono); font-weight: 600; color: var(--text-faint);
+  text-align: center; line-height: 1.2;
+}
+
+/* ── Окно предмета: только раскладка, компоненты системные ────────────*/
+.ens-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-4); }
+.ens-row-lbl { font-size: var(--text-body-sm); color: var(--text-2); }
+.ens-dupe { display: flex; align-items: center; gap: var(--space-2); }
+.ens-dupe-v {
+  min-width: 24px; text-align: center; font-family: var(--font-mono);
+  font-size: var(--text-body); font-weight: 800; color: var(--tool-accent);
+}
+.ens-div { height: 1px; background: var(--border); margin: var(--space-4) 0; }
+/* БЛОКИ «РЕДКОСТЬ» И «УРОВЕНЬ ПРЕДМЕТА» ПОКАЗЫВАЮТСЯ ВСЕГДА. Было
+   display:none при выключенном тумблере — окно обрывалось на середине
+   и читалось как поломка. Приглушение вместо пропажи: видно, что тут
+   есть, и видно, что оно пока не действует. */
+.ens-fields.is-off { opacity: 0.45; }
+.r-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: var(--rar); }
+.ens-lvl-row { display: flex; align-items: center; gap: var(--space-3); }
+.ens-lvl-row .input { width: 96px; }
+.ens-set-name {
+  font-size: var(--text-mono); font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--text-faint); margin-bottom: var(--space-2);
+}
+.ens-slot-name { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-body); font-weight: 700; color: var(--text); margin-bottom: var(--space-4); }
+.ens-slot-name svg { width: 18px; height: 18px; }
+
+/* ── Увеличение картинки ──────────────────────────────────────────────
+   Размер окна владелец считает оптимальным (700×500) и менять его
+   не просил. Что ЧИНИТСЯ — положение: окно вылезало за пределы видимой
+   области и перекрывало карточку, к которой относится. Ширина и высота
+   теперь ограничиваются окном браузера, а положение выбирается так,
+   чтобы не задеть якорь.
+
+   На сенсорной ширине наведения нет вовсе — там окно открывается
+   нажатием по картинке и закрывается нажатием мимо либо Escape. */
+.ens-zoom {
+  position: fixed; left: -9999px; top: -9999px; z-index: 190;
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden; pointer-events: none;
+  opacity: 0; transition: opacity var(--dur-fast) var(--ease);
+}
+.ens-zoom.is-open { opacity: 1; }
+/* Картинка вписывается в свою коробку ЦЕЛИКОМ — и в баннере карточки,
+   и в окне увеличения. Одно правило: тело совпадало дословно. */
+.card-banner img, .ens-zoom img {
+  display: block; width: 100%; height: 100%; object-fit: contain;
+}
+
+/* ── Узкий экран ──────────────────────────────────────────────────────*/
+@media (max-width: 640px) {
+  .ens-bar { padding: var(--space-3) var(--space-4) 0; }
+  .ens-bar-row { flex-wrap: wrap; gap: var(--space-2) var(--space-3); }
+  .ens-brand { flex: 1; }
+  .ens-search { order: 3; flex: none; width: 100%; max-width: none; }
+  .ens-stats { margin-left: auto; }
+  .ens-stat { padding: var(--space-1) var(--space-3); }
+  .ens-main { padding: var(--space-5) var(--space-4); }
+  .sets-grid { grid-template-columns: 1fr; }
+  .card-banner { height: 220px; }
+}
