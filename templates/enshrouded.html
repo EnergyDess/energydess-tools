@@ -131,9 +131,9 @@
   </div>
 {% endcall %}
 
-<div class="ens-zoom" id="img-zoom" aria-hidden="true"><img id="img-zoom-img" src="" alt=""></div>
 
 <script src="{{ st('modal.js') }}"></script>
+<script src="{{ st('img-zoom.js') }}" defer></script>
 <script>
 const SVG = {
   head:   '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 13 Q4 5 12 5 Q20 5 20 13"/><line x1="3" y1="13" x2="21" y2="13"/><line x1="3" y1="17" x2="21" y2="17"/></svg>',
@@ -143,24 +143,18 @@ const SVG = {
   feet:   '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 4 L7 16 L4 20 L20 20 L20 17 L11 17 L11 4 Z"/></svg>',
 };
 
-const SLOT_DEFS = [
-  { id:'head',   label:'Шлем'      },
-  { id:'chest',  label:'Нагрудник' },
-  { id:'gloves', label:'Перчатки'  },
-  { id:'legs',   label:'Поножи'    },
-  { id:'feet',   label:'Ботинки'   },
-];
-
-// ico — ИМЯ ЗНАЧКА LUCIDE, а не эмодзи. Эмодзи в UI-элементах запрещены
-// (design-system.md §8); раздел был последним местом, где они остались,
-// и это был названный остаток задачи 31.
-const CRAFTERS = {
-  blacksmith: { name:'Кузнец',           sub:'Крафт',             ico:'hammer'        },
-  huntress:   { name:'Охотница',         sub:'Крафт',             ico:'target'        },
-  alchemist:  { name:'Алхимик',          sub:'Крафт',             ico:'flask-conical' },
-  world:      { name:'Найдено в мире',   sub:'Находка',           ico:'map'           },
-  special:    { name:'Спецпредметы',     sub:'События / Магазин', ico:'sparkles'      },
-};
+// ВИДЫ СЛОТОВ И КАТЕГОРИИ ПРИХОДЯТ С СЕРВЕРА, а не лежат здесь
+// литералом. До 2026-08-23 они были литералами ровно тут — и это был
+// ЕДИНСТВЕННЫЙ в проекте источник русских названий, из-за чего экран
+// управления показывал внутренние имена (`blacksmith`, `head`)
+// в таблице, в отборе и в форме: взять подписи ему было неоткуда,
+// а завести свой список значило бы получить второй перечень,
+// расходящийся молча (§6.0.7).
+//
+// Источник теперь один — `enshrouded_defs.py`; его же читает
+// проверка 24. `ico` — имя значка Lucide, а не эмодзи (§8).
+const SLOT_DEFS = {{ ens_slots|tojson }};
+const CRAFTERS = {{ ens_crafters|tojson }};
 
 // КАТАЛОГ ПРИХОДИТ С СЕРВЕРА, а не лежит здесь литералом. До 2026-08-22
 // (BACKLOG №137) в этом месте стояли 90 строк с сетами, и добавить сет
@@ -297,7 +291,7 @@ function renderCard(set) {
   // Картинки нет — баннер убирается ЦЕЛИКОМ (hidden), а не схлопывается
   // в ноль высоты: нулевая кнопка осталась бы в порядке табуляции и
   // была бы находкой проверки 20 (тач-таргет).
-  const banner=!src?'':`<button class="card-banner" type="button" data-zoom
+  const banner=!src?'':`<button class="card-banner img-zoom-box" type="button" data-zoom
       aria-label="Увеличить изображение сета «${esc(set.nameRu)}»"><img src="${src}" alt=""
       onload="this.closest('.card-banner').classList.add('loaded')"
       onerror="this.closest('.card-banner').hidden=true"></button>`;
@@ -407,8 +401,9 @@ function refreshCard(setId){
 document.getElementById('main').addEventListener('click',e=>{
   const slot=e.target.closest('.slot');
   if(slot){openPopup(slot.dataset.set,slot.dataset.slot);return;}
-  const banner=e.target.closest('.card-banner.loaded');
-  if(banner){toggleZoom(banner);}
+  // Нажатие по баннеру НЕ обрабатывается здесь: увеличение слушает
+  // `[data-zoom]` само. Второй обработчик на том же элементе открывал
+  // и тут же закрывал бы окно на сенсорном экране.
 });
 
 /* ── Вкладки и поиск ──────────────────────────────────── */
@@ -464,107 +459,15 @@ document.getElementById('ensLvl').addEventListener('change',e=>{
   refreshSlot(setId,slotId);
 });
 
-/* ── УВЕЛИЧЕНИЕ КАРТИНКИ ──────────────────────────────────
-   Размер окна остаётся тем же, 700×500, — владелец считает его
-   оптимальным. Что чинится:
+/* УВЕЛИЧЕНИЕ КАРТИНКИ ЖИВЁТ В СИСТЕМЕ — `static/img-zoom.js`.
+   Здесь было ~90 строк: окно, размещение по четырём сторонам от якоря,
+   наведение, касание, Escape. С 2026-08-23 потребителей у механики
+   два — баннер этой карточки и миниатюра в таблице /admin/enshrouded, —
+   и переписывать те же строки во второй шаблон значило бы завести
+   дубль, расходящийся молча (§6.0.7). Отсюда компонент.
 
-   · ОКНО НЕ ВЫЛЕЗАЕТ за пределы видимой области. Прежний код брал
-     700×500 всегда, включая ширину 390, где окно шире экрана на 310px;
-   · ОКНО НЕ ЗАКРЫВАЕТ КАРТОЧКУ, к которой относится. Оно ставится
-     справа от неё, при нехватке места слева, и только если ни там,
-     ни там не поместилось — над или под;
-   · НА СЕНСОРНОМ ЭКРАНЕ наведения нет вовсе, то есть увеличения там
-     не было в принципе. Открывается нажатием по картинке.  */
-const ЖЕЛАЕМЫЙ_W = 700, ЖЕЛАЕМЫЙ_H = 500, ПОЛЕ = 8, ЗАЗОР = 14;
-// Ниже этой ширины окно перестаёт быть увеличением — тогда лучше
-// поставить его по центру экрана, чем ужимать до значка.
-const МИНИМУМ_W = 300;
-const zoomEl=document.getElementById('img-zoom');
-const zoomImg=document.getElementById('img-zoom-img');
-const естьНаведение=window.matchMedia('(hover: hover)').matches;
-let zoomAnchor=null;
-
-function закрытьZoom(){zoomAnchor=null;zoomEl.classList.remove('is-open');}
-
-function показатьZoom(banner){
-  const src=banner.querySelector('img')?.src;
-  if(!src)return;
-  zoomAnchor=banner;
-  const показать=()=>{
-    if(zoomAnchor!==banner)return;
-    разместитьZoom(banner);
-    zoomEl.classList.add('is-open');
-  };
-  if(zoomImg.src===src&&zoomImg.complete&&zoomImg.naturalWidth>0){показать();return;}
-  zoomEl.classList.remove('is-open');
-  zoomImg.onload=()=>requestAnimationFrame(показать);
-  zoomImg.onerror=()=>{};
-  zoomImg.src=src;
-  if(zoomImg.complete&&zoomImg.naturalWidth>0)requestAnimationFrame(показать);
-}
-
-function toggleZoom(banner){
-  if(zoomAnchor===banner&&zoomEl.classList.contains('is-open'))закрытьZoom();
-  else показатьZoom(banner);
-}
-
-function разместитьZoom(anchor){
-  const vw=document.documentElement.clientWidth, vh=window.innerHeight;
-  const r=anchor.getBoundingClientRect();
-  // ЧЕТЫРЕ СТОРОНЫ ОТ ЯКОРЯ. Выбирается та, где помещается САМОЕ КРУПНОЕ
-  // окно с сохранением пропорции; окно ставится ВНУТРИ выбранной стороны,
-  // то есть якоря оно не задевает по построению, а не по расчёту.
-  //
-  // Прежний код перебирал только «справа, иначе слева», а при нехватке
-  // места с обеих сторон ПРИЖИМАЛ окно к краю — и оно ложилось поверх той
-  // самой карточки, картинку которой показывает. Замер после правки: 90
-  // карточек × три ширины, перекрытий якоря 0, вылетов за экран 0.
-  const стороны=[
-    {x0:r.right+ЗАЗОР, x1:vw-ПОЛЕ,       y0:ПОЛЕ,           y1:vh-ПОЛЕ},
-    {x0:ПОЛЕ,          x1:r.left-ЗАЗОР,  y0:ПОЛЕ,           y1:vh-ПОЛЕ},
-    {x0:ПОЛЕ,          x1:vw-ПОЛЕ,       y0:r.bottom+ЗАЗОР, y1:vh-ПОЛЕ},
-    {x0:ПОЛЕ,          x1:vw-ПОЛЕ,       y0:ПОЛЕ,           y1:r.top-ЗАЗОР},
-  ];
-  let лучшая=null, лучшийK=0;
-  for(const б of стороны){
-    const k=Math.min(1,(б.x1-б.x0)/ЖЕЛАЕМЫЙ_W,(б.y1-б.y0)/ЖЕЛАЕМЫЙ_H);
-    if(k>лучшийK){лучшийK=k;лучшая=б;}
-  }
-  const зажать=(v,мин,макс)=>Math.max(мин,Math.min(v,Math.max(мин,макс)));
-  let w,h,left,top;
-  if(лучшая&&ЖЕЛАЕМЫЙ_W*лучшийK>=МИНИМУМ_W){
-    w=Math.round(ЖЕЛАЕМЫЙ_W*лучшийK); h=Math.round(ЖЕЛАЕМЫЙ_H*лучшийK);
-    left=Math.round(зажать(r.left+r.width/2-w/2,лучшая.x0,лучшая.x1-w));
-    top =Math.round(зажать(r.top +r.height/2-h/2,лучшая.y0,лучшая.y1-h));
-  }else{
-    // Ни с одной стороны не помещается ничего годного — окно встаёт
-    // по центру экрана. Якорь оно при этом закроет, и это меньшее зло:
-    // окно в 200px увеличением уже не является.
-    const k=Math.min(1,(vw-ПОЛЕ*2)/ЖЕЛАЕМЫЙ_W,(vh-ПОЛЕ*2)/ЖЕЛАЕМЫЙ_H);
-    w=Math.round(ЖЕЛАЕМЫЙ_W*k); h=Math.round(ЖЕЛАЕМЫЙ_H*k);
-    left=Math.round((vw-w)/2); top=Math.round((vh-h)/2);
-  }
-  zoomEl.style.width=w+'px'; zoomEl.style.height=h+'px';
-  zoomEl.style.left=left+'px'; zoomEl.style.top=top+'px';
-}
-
-if(естьНаведение){
-  document.getElementById('main').addEventListener('mousemove',e=>{
-    const banner=e.target.closest('.card-banner.loaded');
-    if(banner===zoomAnchor)return;
-    if(!banner){закрытьZoom();return;}
-    показатьZoom(banner);
-  });
-  document.getElementById('main').addEventListener('mouseleave',закрытьZoom);
-}
-// Нажатие мимо картинки закрывает увеличение — единственный способ
-// закрыть его пальцем, кроме повторного нажатия по той же картинке.
-document.addEventListener('click',e=>{
-  if(zoomAnchor&&!e.target.closest('.card-banner'))закрытьZoom();
-},true);
-document.addEventListener('keydown',e=>{if(e.key==='Escape')закрытьZoom();});
-window.addEventListener('resize',()=>{if(zoomAnchor)разместитьZoom(zoomAnchor);});
-window.addEventListener('scroll',закрытьZoom,{passive:true});
+   Странице теперь достаточно атрибута `data-zoom` на баннере
+   (см. renderCard) и подключённого скрипта в хвосте. */
 
 /* ── Init ─────────────────────────────────────────────── */
 loadState();

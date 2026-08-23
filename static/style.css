@@ -2980,3 +2980,75 @@ body.auth-layout .auth-wrap {
   stroke-width: 1.5;
   flex-shrink: 0;
 }
+
+/* ── Увеличение картинки по наведению ────────────────────────────────────
+   Компонент, а не приём одной страницы: потребителей два — баннер
+   карточки в разделе Enshrouded и миниатюра в таблице /admin/enshrouded.
+   Механика в `static/img-zoom.js`, разметку она заводит сама; странице
+   достаточно пометить якорь атрибутом `data-zoom`.
+
+   Размер окна (700×500 желаемых) владелец считает оптимальным. Ширина
+   и высота ограничиваются окном браузера, положение выбирается из
+   четырёх сторон от якоря — той, где помещается самое крупное окно.
+   На сенсорной ширине наведения нет вовсе: окно открывается нажатием
+   по картинке и закрывается нажатием мимо либо Escape.
+
+   `pointer-events: none` обязателен: окно ложится рядом с курсором,
+   и без него оно перехватывало бы наведение у собственного якоря —
+   курсор ушёл бы «на окно», mousemove отдал бы null, окно закрылось
+   бы, курсор вернулся на якорь, и так по кругу. */
+.img-zoom {
+  position: fixed; left: -9999px; top: -9999px; z-index: 190;
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden; pointer-events: none;
+  opacity: 0; transition: opacity var(--dur-fast) var(--ease);
+}
+.img-zoom.is-open { opacity: 1; }
+/* ЯКОРЬ-КОРОБКА. Якоря бывают двух устройств, и разница не косметическая:
+   миниатюра в таблице — картинка, задающая размер собой, а баннер
+   карточки — коробка ПОСТОЯННОЙ высоты, в которую картинка вписывается.
+   Второму нужен этот вариант; первому он сломал бы размер (обёртка
+   `inline-block` считается от картинки, и `height: 100%` замкнулся бы
+   сам на себя).
+
+   Правило одно на окно увеличения и на якорь-коробку: тела совпадали
+   дословно, и раздельные объявления были бы дублем — их и нашла мерка
+   задачи 126 сразу после того, как компонент выделили из страницы. */
+.img-zoom img,
+.img-zoom-box img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+/* ── Опасное действие ────────────────────────────────────────────────────
+   ПЕРЕЕХАЛ СЮДА ИЗ `profile.css` 2026-08-23. Компонент был системным
+   по употреблению (профиль, окно удаления аккаунта, экран управления
+   каталогом Enshrouded), а объявлен в файле ОДНОЙ страницы — и на
+   /admin/enshrouded, где `profile.css` не подключается, кнопка
+   «Удалить сет» рисовалась голой кнопкой браузера: радиус 0, паддинг 0,
+   фон rgb(240,240,240), рамка `2px outset`. Отказ немой: класс на месте,
+   разметка верна, консоль чиста.
+
+   Метрики те же, что у `.btn-secondary` (min-height, padding,
+   font-size) — отличается только семантикой цвета. Иначе кнопки одного
+   уровня на странице имели бы разную высоту. */
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: transparent;
+  color: var(--error);
+  border: 1px solid color-mix(in srgb, var(--error) 40%, transparent);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-weight: 500;
+  font-size: var(--text-body);
+  min-height: 40px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+@media (hover: hover) {
+  .btn-danger:hover { background: color-mix(in srgb, var(--error) 10%, transparent); }
+}

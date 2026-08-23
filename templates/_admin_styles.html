@@ -142,17 +142,30 @@
   }
   .toast.show { opacity: 1; transform: translateY(0); }
 
-  /* ── Таблица продуктов: фиксированная раскладка колонок ──────────────── */
+  /* ── Таблица админки ────────────────────────────────────────────────────
+     ГЕОМЕТРИЯ КОЛОНОК ПРИНАДЛЕЖИТ КОНКРЕТНОЙ ТАБЛИЦЕ, А НЕ КЛАССУ —
+     разделено 2026-08-23. Правила ниже писались под таблицу продуктов
+     и адресовали колонки НОМЕРАМИ: первая — «Пользователь», четвёртая
+     и дальше — числа КБЖУ. Носителей у класса при этом ДВА, и у второго
+     (каталог Enshrouded) первая колонка — КАРТИНКА.
+
+     Чем это кончилось: правило узкого экрана `nth-child(1) { display:
+     none }`, законное для колонки с почтой, на 390px УБИРАЛО С ЭКРАНА
+     столбец с картинками — ровно тот, ради которого владелец и просил
+     увеличение. Отказ немой: таблица цела, строки на месте, ошибок нет.
+
+     Поймано проходом экрана насквозь (`check_ens_admin_ui.py`), а не
+     чтением: на 390 миниатюра «есть в дереве» и невидима. */
   .foods-table { table-layout: fixed; width: 100%; }
   .foods-table th, .foods-table td { padding: var(--space-3) var(--space-5); }
   /* числовые колонки — уже, по центру, чтобы числа помещались */
-  .foods-table th:nth-child(n+4):nth-child(-n+7),
-  .foods-table td:nth-child(n+4):nth-child(-n+7) { padding: var(--space-3) var(--space-2); text-align: center; }
+  .foods-table-products th:nth-child(n+4):nth-child(-n+7),
+  .foods-table-products td:nth-child(n+4):nth-child(-n+7) { padding: var(--space-3) var(--space-2); text-align: center; }
   .food-input-num { text-align: center; padding: var(--space-2) var(--space-2); }
   /* последняя колонка (кнопки): справа тот же отступ --space-5, что слева у
      первой колонки — иначе иконка удаления упиралась в границу карточки.
      Ширина увеличена на величину отступа, чтобы кнопки не сжались. */
-  .foods-table th:nth-child(8), .foods-table td:nth-child(8) {
+  .foods-table-products th:nth-child(8), .foods-table-products td:nth-child(8) {
     padding: var(--space-2) var(--space-5) var(--space-2) var(--space-2);
     white-space: nowrap; width: 112px;
     text-align: right;   /* прижать кнопки к правому краю — иначе они «плавали» посередине колонки */
@@ -176,14 +189,14 @@
      делят остаток: замер до правки давал им по 382px на 1440 и по 409px
      на 1920+, то есть запас есть. Сумма ширин ниже не участвует
      в мобильном min-width: там колонка скрыта целиком (см. ниже). */
-  .foods-table th:nth-child(1), .foods-table td:nth-child(1) {
+  .foods-table-products th:nth-child(1), .foods-table-products td:nth-child(1) {
     width: 240px; overflow-wrap: anywhere;
   }
   /* col 2 (Название) и col 3 (Бренд) без явной ширины — делят остаток */
-  .foods-table th:nth-child(4), .foods-table td:nth-child(4) { width: 96px; }
-  .foods-table th:nth-child(5), .foods-table td:nth-child(5) { width: 80px; }
-  .foods-table th:nth-child(6), .foods-table td:nth-child(6) { width: 80px; }
-  .foods-table th:nth-child(7), .foods-table td:nth-child(7) { width: 80px; }
+  .foods-table-products th:nth-child(4), .foods-table-products td:nth-child(4) { width: 96px; }
+  .foods-table-products th:nth-child(5), .foods-table-products td:nth-child(5) { width: 80px; }
+  .foods-table-products th:nth-child(6), .foods-table-products td:nth-child(6) { width: 80px; }
+  .foods-table-products th:nth-child(7), .foods-table-products td:nth-child(7) { width: 80px; }
 
   /* Инпуты в таблице — .input .input-sm из компонентной базы. Здесь
      стояла копия компонента: комментарий над ней так и говорил, «.input
@@ -287,15 +300,27 @@
        не обязана влезать, — но 148px её ширины это 148px лишней
        прокрутки до КБЖУ, ради которых всё и делалось. Кто добавил
        продукт, отвечает поиск в шапке: он фильтрует и по email. */
-    .foods-table { table-layout: fixed; min-width: 836px; }
-    .foods-table th:nth-child(1), .foods-table td:nth-child(1) { display: none; }
-    .foods-table th:nth-child(2), .foods-table td:nth-child(2) { width: 260px; }
-    .foods-table th:nth-child(3), .foods-table td:nth-child(3) { width: 160px; }
-    .foods-table th:nth-child(4), .foods-table td:nth-child(4) { width: 88px; }
-    .foods-table th:nth-child(5), .foods-table td:nth-child(5),
-    .foods-table th:nth-child(6), .foods-table td:nth-child(6),
-    .foods-table th:nth-child(7), .foods-table td:nth-child(7) { width: 72px; }
-    .foods-table th:nth-child(8), .foods-table td:nth-child(8) { width: 112px; }
+    .foods-table-products { table-layout: fixed; min-width: 836px; }
+    /* КАТАЛОГ ENSHROUDED — СВОИ ширины: колонок столько же, но значат
+       они другое. Картинка ОСТАЁТСЯ: она тут содержимое, а не служебная
+       колонка. Сумма ширин равна min-width — меняете одну, меняйте и её. */
+    .foods-table-ens { table-layout: fixed; min-width: 780px; }
+    .foods-table-ens th:nth-child(1), .foods-table-ens td:nth-child(1) { width: 88px; }
+    .foods-table-ens th:nth-child(2), .foods-table-ens td:nth-child(2) { width: 132px; }
+    .foods-table-ens th:nth-child(3), .foods-table-ens td:nth-child(3) { width: 168px; }
+    .foods-table-ens th:nth-child(4), .foods-table-ens td:nth-child(4) { width: 104px; }
+    .foods-table-ens th:nth-child(5), .foods-table-ens td:nth-child(5) { width: 64px; }
+    .foods-table-ens th:nth-child(6), .foods-table-ens td:nth-child(6) { width: 132px; }
+    .foods-table-ens th:nth-child(7), .foods-table-ens td:nth-child(7) { width: 68px; }
+    .foods-table-ens th:nth-child(8), .foods-table-ens td:nth-child(8) { width: 112px; }
+    .foods-table-products th:nth-child(1), .foods-table-products td:nth-child(1) { display: none; }
+    .foods-table-products th:nth-child(2), .foods-table-products td:nth-child(2) { width: 260px; }
+    .foods-table-products th:nth-child(3), .foods-table-products td:nth-child(3) { width: 160px; }
+    .foods-table-products th:nth-child(4), .foods-table-products td:nth-child(4) { width: 88px; }
+    .foods-table-products th:nth-child(5), .foods-table-products td:nth-child(5),
+    .foods-table-products th:nth-child(6), .foods-table-products td:nth-child(6),
+    .foods-table-products th:nth-child(7), .foods-table-products td:nth-child(7) { width: 72px; }
+    .foods-table-products th:nth-child(8), .foods-table-products td:nth-child(8) { width: 112px; }
     /* Таблица пользователей влезала и раньше (замер: 776px при обёртке
        356, ни одна ячейка не обрезана), но её ширину задавало содержимое —
        то есть держалась она случайно. Минимум фиксирует то, что и так
@@ -659,10 +684,70 @@
      а не `.ens-a-tools .select`: субъектом там оказался бы системный
      `.select`, и это была бы находка проверки 1 — пусть и законная
      по свойству (ширина — раскладка экземпляра). Своё имя дешевле. */
+  /* ── Каталог Enshrouded: ШИРИНЫ КОЛОНОК НА ДЕСКТОПЕ ────────────────
+     Заведены 2026-08-23 и найдены ПРОВЕРКОЙ 16, а не чтением: разведя
+     геометрию колонок на две таблицы, заход дал каталогу узкие правила
+     и не дал широких — а `table-layout: fixed` без явных ширин делит
+     ширину ПОРОВНУ. Замер до и после разведения, 1440:
+
+       колонка         было   стало (без правил)   надо
+       Картинка         240         170             100  — миниатюра 64
+       Идентификатор    336         170             140  — `sp_flamapp`
+       Название         336         170             остаток
+       Категория         96         170             140  — «Спецпредметы»
+       Уровень           80         170              80  — число
+       Состав            80         170             остаток — «Шлем,
+                                                     Нагрудник, Перчатки,
+                                                     Поножи, Ботинки»
+       Отметки           80         170              90  — число
+       кнопка           112         170             112
+
+     Строк выше медианы по высоте: было 7, стало 30 — то есть у трети
+     таблицы английское название переносилось на вторую строку. Это
+     и назвала проверка 16 видом ВЫСОТА: `.ens-a-en` 18 → 42px.
+
+     «Название» и «Состав» ЯВНОЙ ширины не получают и делят остаток —
+     ровно как колонки 2 и 3 у таблицы продуктов: длина у них
+     не ограничена ничем, а у остальных шести ограничена содержимым. */
+  .foods-table-ens th:nth-child(1), .foods-table-ens td:nth-child(1) { width: 100px; }
+  .foods-table-ens th:nth-child(2), .foods-table-ens td:nth-child(2) { width: 140px; }
+  .foods-table-ens th:nth-child(4), .foods-table-ens td:nth-child(4) { width: 140px; }
+  .foods-table-ens th:nth-child(5), .foods-table-ens td:nth-child(5) { width: 80px; }
+  .foods-table-ens th:nth-child(7), .foods-table-ens td:nth-child(7) { width: 90px; }
+  .foods-table-ens th:nth-child(8), .foods-table-ens td:nth-child(8) { width: 112px; }
+  /* Числовые колонки по центру — у продуктов это делает правило
+     `nth-child(n+4)..(-n+7)`, но там четыре подряд числовые, а здесь
+     между ними стоит «Состав» со строкой. Поэтому поимённо. */
+  .foods-table-ens th:nth-child(5), .foods-table-ens td:nth-child(5),
+  .foods-table-ens th:nth-child(7), .foods-table-ens td:nth-child(7) { text-align: center; }
+
   .ens-a-tools { display: flex; align-items: center; justify-content: flex-end;
                  gap: var(--space-3); flex: 1; flex-wrap: wrap; }
   .ens-a-cat { width: auto; min-width: 11rem; flex: none; }
   .ens-a-add { flex: none; white-space: nowrap; }
+  /* Миниатюра — ЯКОРЬ УВЕЛИЧЕНИЯ. Обёртка нужна не для красоты:
+     `data-zoom` ищет внутри себя <img>, а не является им, и вешать
+     атрибут на саму картинку значило бы искать её внутри неё же.
+     Курсор идёт за ДЕЙСТВИЕМ (обёрткой), а не за классом картинки —
+     иначе он обещал бы жест элементу, который его не обрабатывает
+     (§6.0.3, «декоративные обещания»). */
+  /* НАСТОЯЩАЯ КНОПКА, а не span с обработчиком. На сенсорном экране
+     миниатюра — орган управления (касание открывает увеличение),
+     и элементом без роли до неё нельзя дойти ни табом, ни Enter.
+     Тот же прецедент, что у превью упражнения (задачи 73 и 127).
+
+     Высота 44 — сенсорный минимум (§6.0.11). Картинка внутри остаётся
+     64×40; растёт ОБЛАСТЬ НАЖАТИЯ, а не изображение. В строке таблицы
+     эти четыре пикселя бесплатны: строка и так выше. */
+  .ens-a-thumbwrap {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 44px; padding: 0; border: none; background: none;
+    cursor: zoom-in;
+  }
+  .ens-a-thumbwrap:focus-visible {
+    outline: 2px solid var(--accent-brand); outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
   .ens-a-thumb { width: 64px; height: 40px; object-fit: contain;
                  background: var(--surface-sunken); border-radius: var(--radius-sm); display: block; }
   .ens-a-id { font-family: var(--font-mono); font-size: var(--text-mono); color: var(--text-2); }
@@ -686,13 +771,43 @@
                 border-radius: var(--radius-sm); display: flex;
                 align-items: center; justify-content: center; }
   .ens-a-imgctl { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
-  .ens-a-url { display: flex; gap: var(--space-2); }
-  .ens-a-url .input { flex: 1; min-width: 0; }
+  /* ПОЛЕ НЕ УЖЕ ЧИТАЕМОГО МИНИМУМА, КНОПКА УСТУПАЕТ МЕСТО. Ряд
+     переносится: пока в контейнере хватает на 14rem поля плюс кнопку,
+     они стоят рядом, не хватает — кнопка уходит под поле, и поле
+     получает всю ширину.
+
+     Чинится КЛАСС, а не строка (§6.0.7). Прежний `flex: 1` отдавал
+     полю остаток после кнопки: в колонке 310px это 173px, внутри
+     139px — а подсказка «…или ссылка на картинку» просила 189px
+     и обрезалась на «…или ссылка на к». Подобрать текст покороче
+     значило бы починить ЭТУ подсказку и оставить следующую
+     обрезаться молча. */
+  .ens-a-url { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+  .ens-a-url .input { flex: 1 1 14rem; min-width: 0; }
+  /* ОПАСНОЕ ДЕЙСТВИЕ РАЗВЕДЕНО С СОХРАНЕНИЕМ — решение владельца
+     2026-08-23. Стояли они вплотную (зазор 12px, замер), а последствия
+     у них противоположные: одно правит, второе стирает безвозвратно.
+     `margin-right: auto` уводит «Удалить» к левому краю ряда, то есть
+     промахнуться мимо «Сохранить» в его сторону нельзя — между ними
+     оказывается вся ширина окна, а не одна ступень шкалы. */
   .ens-a-actions { display: flex; justify-content: flex-end; gap: var(--space-3);
-                   margin-top: var(--space-5); }
+                   margin-top: var(--space-5); flex-wrap: wrap; }
+  .ens-a-del { margin-right: auto; }
+  /* В окне подтверждения обе кнопки — ответ на один вопрос, разводить
+     их незачем: там опасное действие и есть предмет разговора. */
+  .ens-a-actions-danger { justify-content: flex-end; }
+  /* Кнопка загрузки не сжимается: подпись «Загрузить» в один ряд
+     с полем ссылки иначе переносится по буквам на узком окне. */
+  .ens-a-up { flex: none; white-space: nowrap; }
   @media (max-width: 640px) {
     .ens-a-two { grid-template-columns: 1fr; }
     .ens-a-img { flex-direction: column; }
     .ens-a-prev { width: 100%; }
+    /* На узком окне ряд «поле + кнопка» ломается в столбик: на 390
+       поле ссылки внутри ряда получало 139px под подсказку шириной
+       189px — она обрезалась на «…или ссылка на к». */
+    .ens-a-url { flex-direction: column; align-items: stretch; }
+    .ens-a-del { margin-right: 0; width: 100%; }
+    .ens-a-actions { flex-direction: column-reverse; }
   }
 </style>

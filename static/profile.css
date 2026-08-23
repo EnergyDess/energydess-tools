@@ -86,29 +86,11 @@
 
 /* ── Опасная зона ───────────────────────────────────────────────────────── */
 .danger-card { border-color: color-mix(in srgb, var(--error) 25%, transparent); }
-/* Метрики те же, что у .btn-secondary из компонентной базы (min-height,
-   padding, font-size) — отличается только семантикой цвета. Иначе кнопки
-   одного уровня на странице имели разную высоту: 48 у secondary, 47 у danger. */
-.btn-danger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  background: transparent;
-  color: var(--error);
-  border: 1px solid color-mix(in srgb, var(--error) 40%, transparent);
-  padding: var(--space-3) var(--space-5);
-  border-radius: var(--radius-sm);
-  font-family: var(--font);
-  font-weight: 500;
-  font-size: var(--text-body);
-  min-height: 40px;
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease);
-}
-@media (hover: hover) {
-  .btn-danger:hover { background: color-mix(in srgb, var(--error) 10%, transparent); }
-}
+/* `.btn-danger` ПЕРЕЕХАЛ В `style.css` 2026-08-23. Здесь он был
+   не переопределением — компонент объявлялся у страницы, а носили его
+   ТРИ шаблона, и на /admin/enshrouded (где этот файл не подключён)
+   кнопка «Удалить сет» рисовалась голой кнопкой браузера. Тот же
+   случай, что был у тумблера строкой выше. */
 
 /* ── Содержимое модалок ──────────────────────────────────────────────────
    Сам оверлей, шапка, заголовок и кнопка закрытия — компонент

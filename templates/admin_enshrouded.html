@@ -30,19 +30,24 @@
         <div class="search-wrap">
           <svg class="admin-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          {# Многоточия в конце подсказки НЕТ — решение владельца 2026-08-23.
+             В шапке сайта оно стоит («Найти инструмент, письмо, продукт…»)
+             и означает «перечень неполон»; здесь названо ровно то, по чему
+             ищут, и продолжать нечего. #}
           <input type="text" id="ens-q" class="search-input-admin"
-                 placeholder="Поиск по названию или идентификатору…" oninput="отобрать()">
+                 placeholder="Поиск по названию или идентификатору"
+                 data-narrow-hint="Поиск по каталогу" oninput="отобрать()">
         </div>
         <select class="select input-sm ens-a-cat" id="ens-cat" onchange="отобрать()" aria-label="Категория">
           <option value="">Все категории</option>
-          {% for c in crafters %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+          {% for c in crafters %}<option value="{{ c.id }}">{{ c.label }}</option>{% endfor %}
         </select>
         <button class="btn-primary ens-a-add" type="button" onclick="открыть(null)">Добавить сет</button>
       </div>
     </div>
 
     <div class="table-scroll">
-      <table class="foods-table" id="ens-table">
+      <table class="foods-table foods-table-ens" id="ens-table">
         <thead>
           <tr>
             <th>Картинка</th><th>Идентификатор</th><th>Название</th>
@@ -61,11 +66,28 @@
   <div id="ens-body"></div>
 {% endcall %}
 
+{# ПОДТВЕРЖДЕНИЕ УДАЛЕНИЯ — СИСТЕМНОЕ ОКНО, а не confirm() браузера.
+   Прежний код звал confirm(), и звал его ТОЛЬКО когда сервер отвечал 409,
+   то есть при отметках больше нуля. Отметок нет у 70 сетов из 90 —
+   и удаление проходило молча, одним нажатием и без вопроса. #}
+{% call m.modal('ens-del', 'Удалить сет?', icon='alert-triangle', icon_tone='warning') %}
+  <p id="ens-del-text"></p>
+  <div class="ens-a-actions ens-a-actions-danger">
+    <button class="btn-secondary" type="button" data-modal-close>Отмена</button>
+    <button class="btn-danger" type="button" id="ens-del-go">Удалить сет</button>
+  </div>
+{% endcall %}
+
 {# `modal.js` подключается страницей: в общий хвост он НЕ входит —
    он нужен пяти страницам из двадцати шести. Без него окно правки
    не открывается вовсе, и отказ немой: кнопка нажимается, ничего
-   не происходит, консоль чиста (поймано приёмкой этого же захода). #}
+   не происходит, консоль чиста (поймано приёмкой захода 137).
+
+   `img-zoom.js` — увеличение картинки по наведению. Тот же компонент,
+   что в самом разделе: миниатюра в таблице 64×40, разглядеть в ней
+   нечего, а второй реализации быть не должно (§6.0.7). #}
 <script src="{{ st('modal.js') }}"></script>
+<script src="{{ st('img-zoom.js') }}" defer></script>
 {% include '_page_end.html' %}
 
 <script>
@@ -78,19 +100,33 @@
    ИДЕНТИФИКАТОР У СУЩЕСТВУЮЩЕГО СЕТА НЕ РЕДАКТИРУЕТСЯ, и поле для него
    заблокировано не для красоты: `enshrouded_slots.set_id` ссылается
    на каталог СТРОКОЙ, внешнего ключа нет. Переименование осиротило бы
-   отметки МОЛЧА — ошибки не будет, галочки просто исчезнут. */
+   отметки МОЛЧА — ошибки не будет, галочки просто исчезнут.
+
+   ЧЕЛОВЕКУ ПОКАЗЫВАЮТСЯ РУССКИЕ НАЗВАНИЯ — «Кузнец», «Шлем», — а внутрь
+   уходят идентификаторы (`blacksmith`, `head`). До 2026-08-23 экран
+   показывал идентификаторы в таблице, в отборе и в форме: русские
+   названия существовали ТОЛЬКО в JS-литерале шаблона раздела, и взять
+   их здесь было неоткуда. Источник теперь один — `enshrouded_defs.py`. */
 const СЕТЫ = {{ sets|tojson }};
-const КАТЕГОРИИ = {{ crafters|tojson }};
-const СЛОТЫ = {{ slots|tojson }};
+const КАТЕГОРИИ = {{ crafters|tojson }};   // [{id, label}] — label по-русски
+const СЛОТЫ = {{ slots|tojson }};          // [{id, label}] — label по-русски
 const ПОТОЛОК = [{{ max_w }}, {{ max_h }}];
+const ПОДПИСЬ_КАТЕГОРИИ = Object.fromEntries(КАТЕГОРИИ.map(к => [к.id, к.label]));
+const ПОДПИСЬ_СЛОТА = Object.fromEntries(СЛОТЫ.map(с => [с.id, с.label]));
 let правим = null;
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
+/* Незнакомый идентификатор показывается КАК ЕСТЬ, а не пропускается
+   и не заменяется прочерком: слот или категория, выпавшие из показа
+   молча, — ровно та дыра, которую ищет проверка 24. */
+const покат = id => ПОДПИСЬ_КАТЕГОРИИ[id] || id;
+const послот = id => ПОДПИСЬ_СЛОТА[id] || id;
+
 function составСловами(с) {
   if (с.custom && с.custom.length) return 'свой: ' + с.custom.map(k => k.label).join(', ');
-  if (с.pieces && с.pieces.length) return с.pieces.join(', ');
+  if (с.pieces && с.pieces.length) return с.pieces.map(послот).join(', ');
   return 'полный (5)';
 }
 
@@ -107,11 +143,13 @@ function отобрать() {
   document.getElementById('ens-table').hidden = видно.length === 0;
   document.getElementById('ens-rows').innerHTML = видно.map(с => `
     <tr data-id="${esc(с.id)}">
-      <td>${с.img ? `<img class="ens-a-thumb" src="${esc(с.img)}" alt="">`
+      <td>${с.img ? `<button class="ens-a-thumbwrap" type="button" data-zoom
+                       aria-label="Увеличить картинку сета «${esc(с.name_ru)}»"
+                       ><img class="ens-a-thumb" src="${esc(с.img)}" alt=""></button>`
                   : '<span class="ens-a-none">нет</span>'}</td>
       <td><code class="ens-a-id">${esc(с.id)}</code></td>
       <td>${esc(с.name_ru)}<br><span class="ens-a-en">${esc(с.name_en)}</span></td>
-      <td>${esc(с.crafter)}</td>
+      <td>${esc(покат(с.crafter))}</td>
       <td>${с.lvl ?? '—'}</td>
       <td>${esc(составСловами(с))}</td>
       <td>${с.marks || 0}</td>
@@ -123,10 +161,10 @@ function отобрать() {
 
 function открыть(id) {
   правим = id ? СЕТЫ.find(с => с.id === id) : null;
-  const с = правим || {id: '', name_ru: '', name_en: '', crafter: КАТЕГОРИИ[0],
+  const с = правим || {id: '', name_ru: '', name_en: '', crafter: КАТЕГОРИИ[0].id,
                        lvl: null, pieces: null, custom: null, img: null, marks: 0};
   const свой = !!(с.custom && с.custom.length);
-  const набор = (с.pieces && с.pieces.length) ? с.pieces : СЛОТЫ;
+  const набор = (с.pieces && с.pieces.length) ? с.pieces : СЛОТЫ.map(k => k.id);
   document.getElementById('ens-edit-title').textContent =
     правим ? `Сет «${с.name_ru}»` : 'Новый сет';
   document.getElementById('ens-body').innerHTML = `
@@ -156,7 +194,7 @@ function открыть(id) {
         <label class="field-label" for="f-cat">Категория</label>
         <select class="select" id="f-cat">
           ${КАТЕГОРИИ.map(k =>
-            `<option value="${k}"${k === с.crafter ? ' selected' : ''}>${k}</option>`).join('')}
+            `<option value="${k.id}"${k.id === с.crafter ? ' selected' : ''}>${esc(k.label)}</option>`).join('')}
         </select>
       </div>
       <div class="ens-a-field">
@@ -174,8 +212,8 @@ function открыть(id) {
       <div class="ens-a-slots">
         ${СЛОТЫ.map(k => `
           <label class="ens-a-chk">
-            <input type="checkbox" class="f-piece" value="${k}"
-                   ${!свой && набор.includes(k) ? 'checked' : ''} ${свой ? 'disabled' : ''}> ${k}
+            <input type="checkbox" class="f-piece" value="${k.id}"
+                   ${!свой && набор.includes(k.id) ? 'checked' : ''} ${свой ? 'disabled' : ''}> ${esc(k.label)}
           </label>`).join('')}
       </div>
       ${свой ? `<p class="ens-a-note">У этого сета СВОИ слоты со своими подписями
@@ -190,24 +228,25 @@ function открыть(id) {
         ${с.img ? `<img class="ens-a-prev" id="f-prev" src="${esc(с.img)}" alt="">`
                 : '<div class="ens-a-prev ens-a-none" id="f-prev">нет картинки</div>'}
         <div class="ens-a-imgctl">
-          <input type="file" id="f-file" accept="image/*" class="input" ${правим ? '' : 'disabled'}>
+          <input type="file" id="f-file" accept="image/*" class="input" onchange="выбрана()">
           <div class="ens-a-url">
-            <input class="input" id="f-url" placeholder="…или ссылка на картинку"
-                   ${правим ? '' : 'disabled'} autocomplete="off">
-            <button class="btn-secondary" type="button" id="f-up"
-                    ${правим ? '' : 'disabled'} onclick="загрузить()">Загрузить</button>
+            <input class="input" id="f-url" placeholder="Ссылка на картинку" autocomplete="off">
+            <button class="btn-secondary ens-a-up" type="button" id="f-up"
+                    onclick="загрузить()">Загрузить</button>
           </div>
-          <p class="ens-a-note">${правим
+          <p class="ens-a-note" id="f-imgnote">${правим
             ? `Ужимается до ${ПОТОЛОК[0]}×${ПОТОЛОК[1]} — размер самого крупного
                места показа с запасом на плотность экрана. Кладётся на том,
                а не в статику: иначе исчезнет со следующей выкаткой.`
-            : 'Сначала сохраните сет — картинка кладётся по его идентификатору.'}</p>
+            : `Выберите файл или вставьте ссылку — картинка встанет на место
+               сразу после сохранения. Ужимается до ${ПОТОЛОК[0]}×${ПОТОЛОК[1]}.`}</p>
         </div>
       </div>
     </div>
 
     <div class="ens-a-actions">
-      ${правим ? '<button class="btn-danger" type="button" onclick="удалить()">Удалить сет</button>' : ''}
+      ${правим ? `<button class="btn-danger ens-a-del" type="button"
+                          onclick="спроситьУдаление()">Удалить сет</button>` : ''}
       <button class="btn-primary" type="button" onclick="сохранить()">Сохранить</button>
     </div>`;
   window.открыть_модалку('ens-edit');
@@ -216,6 +255,17 @@ function открыть(id) {
 function сказать(текст, вид) {
   document.getElementById('ens-msg').innerHTML =
     `<div class="alert alert-${вид}">${esc(текст)}</div>`;
+}
+
+/* Показать выбранный файл СРАЗУ. Без этого человек, выбравший картинку
+   до сохранения, не видит никакого следа своего действия: имя файла
+   прячется внутри поля, а превью показывает «нет картинки». */
+function выбрана() {
+  const файл = document.getElementById('f-file').files[0];
+  if (!файл) return;
+  const прев = document.getElementById('f-prev');
+  прев.outerHTML = `<img class="ens-a-prev" id="f-prev" src="${URL.createObjectURL(файл)}" alt="">`;
+  if (!правим) сказать(`Картинка «${файл.name}» встанет на место после сохранения.`, 'accent');
 }
 
 async function сохранить() {
@@ -239,52 +289,121 @@ async function сохранить() {
   отобрать();
   const созданный = д.created;
   правим = д.set;
+
+  /* КАРТИНКА, ВЫБРАННАЯ ДО СОХРАНЕНИЯ, УЕЗЖАЕТ ПРЯМО СЕЙЧАС. Файл
+     именуется идентификатором сета, и до этой секунды его не было —
+     но порядок внутренний, и объяснять его человеку незачем. Прежде
+     форма создания просто ГАСИЛА оба поля и кнопку с подписью
+     «Сначала сохраните сет»: выбрать картинку было физически нельзя. */
+  const естьЧто = document.getElementById('f-file').files[0] ||
+                  document.getElementById('f-url').value.trim();
+  if (естьЧто) {
+    const итог = await отправитьКартинку();
+    const голова = созданный
+      ? (итог.ok ? 'Сет заведён, картинка загружена. ' : 'Сет заведён, но картинка не загрузилась: ')
+      : (итог.ok ? 'Сохранено. ' : 'Сохранено, но картинка не загрузилась: ');
+    if (созданный) открыть(д.set.id);
+    return сказать(голова + итог.текст, итог.ok ? 'success' : 'warn');
+  }
   if (созданный) открыть(д.set.id);
-  сказать(созданный ? 'Сет заведён. Теперь можно загрузить картинку.' : 'Сохранено.', 'success');
+  сказать(созданный ? 'Сет заведён.' : 'Сохранено.', 'success');
 }
 
-async function загрузить() {
-  if (!правим) return;
+/* Отправка картинки. ОДНА на оба пути — кнопку «Загрузить» у готового
+   сета и догрузку сразу после создания. Второй реализации нет: разойдясь,
+   они дали бы разный разбор ответа на одном и том же адресе. */
+async function отправитьКартинку() {
   const файл = document.getElementById('f-file').files[0];
   const ссылка = document.getElementById('f-url').value.trim();
-  if (!файл && !ссылка) return сказать('Выберите файл или вставьте ссылку', 'warn');
+  if (!файл && !ссылка) return {ok: false, текст: 'не выбран ни файл, ни ссылка'};
   const форма = new FormData();
   if (файл) форма.append('file', файл); else форма.append('url', ссылка);
-  document.getElementById('f-up').disabled = true;
   const о = await fetch(`/admin/api/enshrouded/set/${правим.id}/image`,
                         {method: 'POST', body: форма});
-  document.getElementById('f-up').disabled = false;
   const д = await о.json().catch(() => ({}));
-  if (!о.ok) return сказать(д.error || `Сервер ответил ${о.status}`, 'error');
+  if (!о.ok) return {ok: false, текст: д.error || `сервер ответил ${о.status}`};
   const и = СЕТЫ.findIndex(с => с.id === правим.id);
   СЕТЫ[и].img = д.img; СЕТЫ[и].img_ext = д.ext;
   правим = СЕТЫ[и];
   /* Адрес несёт версию содержимого, поэтому новая картинка видна СРАЗУ,
      а не через сутки: без версии браузер отдал бы старую из кеша,
      и загрузка выглядела бы несработавшей. */
-  document.getElementById('f-prev').outerHTML =
+  const прев = document.getElementById('f-prev');
+  if (прев) прев.outerHTML =
     `<img class="ens-a-prev" id="f-prev" src="${esc(д.img)}" alt="">`;
   отобрать();
-  сказать(`Загружено из «${д.src}»: было ${д.was[0]}×${д.was[1]}, ` +
-          `стало ${д.now[0]}×${д.now[1]}, ${Math.round(д.bytes / 1024)} КБ.`, 'success');
+  return {ok: true, текст: `Из «${д.src}»: было ${д.was[0]}×${д.was[1]}, ` +
+                           `стало ${д.now[0]}×${д.now[1]}, ${Math.round(д.bytes / 1024)} КБ.`};
 }
 
-async function удалить() {
-  if (!правим) return;
-  let о = await fetch(`/admin/api/enshrouded/set/${правим.id}`, {method: 'DELETE'});
-  let д = await о.json().catch(() => ({}));
-  if (о.status === 409) {
-    if (!confirm(д.text + '\n\nУдалить сет?')) return;
-    о = await fetch(`/admin/api/enshrouded/set/${правим.id}?confirm=1`, {method: 'DELETE'});
-    д = await о.json().catch(() => ({}));
+async function загрузить() {
+  if (!правим) {
+    // Сохранение утащит картинку с собой само — просить нажать «Загрузить»
+    // ещё раз незачем.
+    return сохранить();
   }
+  const кн = document.getElementById('f-up');
+  кн.disabled = true;
+  const итог = await отправитьКартинку();
+  кн.disabled = false;
+  сказать((итог.ok ? 'Загружено. ' : 'Не загрузилось: ') + итог.текст,
+          итог.ok ? 'success' : 'error');
+}
+
+/* ── Удаление: вопрос ВСЕГДА, и с числом ────────────────────────────
+   Число отметок называет СЕРВЕР (ответ 409), а не эта страница: у неё
+   в `СЕТЫ[i].marks` лежит снимок на момент загрузки экрана, и за время
+   работы он устареет молча. */
+let удаляем = null;
+
+async function спроситьУдаление() {
+  if (!правим) return;
+  const о = await fetch(`/admin/api/enshrouded/set/${правим.id}`, {method: 'DELETE'});
+  const д = await о.json().catch(() => ({}));
+  if (о.status !== 409) {
+    // Сервер ОБЯЗАН спросить. Не спросил — значит что-то не так с ним,
+    // а не «можно удалять молча»: молчаливое удаление здесь и чинится.
+    return сказать(д.error || `Сервер ответил ${о.status}, а ждали вопроса`, 'error');
+  }
+  удаляем = правим.id;
+  document.getElementById('ens-del-text').textContent = д.text;
+  window.открыть_модалку('ens-del');
+}
+
+document.getElementById('ens-del-go').addEventListener('click', async () => {
+  if (!удаляем) return;
+  const о = await fetch(`/admin/api/enshrouded/set/${удаляем}?confirm=1`, {method: 'DELETE'});
+  const д = await о.json().catch(() => ({}));
+  window.закрыть_модалку('ens-del');
   if (!о.ok) return сказать(д.error || `Сервер ответил ${о.status}`, 'error');
-  const и = СЕТЫ.findIndex(с => с.id === правим.id);
+  const и = СЕТЫ.findIndex(с => с.id === удаляем);
   if (и >= 0) СЕТЫ.splice(и, 1);
-  правим = null;
+  удаляем = null; правим = null;
   отобрать();
   window.закрыть_модалку('ens-edit');
-}
+});
+
+/* ПОДСКАЗКА ПОИСКА КОРОЧЕ НА УЗКОМ ЭКРАНЕ. Тот же приём, что у поиска
+   в шапке сайта (BACKLOG №64): полная строка просит 288px, а поле
+   на 390 даёт внутри 258 — она обрезалась бы на середине слова.
+   Порог 640px — тот же, на котором ломается раскладка экрана.
+
+   Подменяется АТРИБУТ, а не текст в разметке: на широком окне подсказка
+   обязана называть оба способа поиска, и укоротить её насовсем значило
+   бы спрятать от всех то, что не помещается у одного. */
+(function () {
+  const поле = document.getElementById('ens-q');
+  const полная = поле.placeholder;
+  // Имя атрибута ЛАТИНИЦЕЙ (§6.0). `dataset` убирает дефис только
+  // перед ASCII-буквой: у `data-узкая-подсказка` ключ не собирается,
+  // чтение молча даёт undefined, подсказка остаётся длинной —
+  // и правка выглядит несработавшей. Замерено на этом же коде.
+  const узкая = поле.dataset.narrowHint || полная;
+  const узко = window.matchMedia('(max-width: 640px)');
+  const выбрать = () => { поле.placeholder = узко.matches ? узкая : полная; };
+  выбрать();
+  узко.addEventListener('change', выбрать);
+})();
 
 отобрать();
 </script>

@@ -27,6 +27,14 @@ import os, sys, json, statistics
 БАЗА = os.environ.get("ENSW_BASE", "http://127.0.0.1:8899")
 ШИРИНЫ = [(1440, 900, False), (2560, 1400, False), (390, 844, True)]
 
+# ЧИСЛО КОЛОНОК МОЖНО НАВЯЗАТЬ — `py check_ens_width.py --колонок 5`.
+# Это ОТРИЦАТЕЛЬНЫЙ КОНТРОЛЬ мерки зазоров, а не настройка раздела:
+# «слипшихся пар 0» на текущей раскладке ничего не значит, пока
+# не показано, что при более тесной раскладке мерка их НАХОДИТ.
+# Сетка при этом не правится — правило подкладывается в страницу
+# на время замера, и код раздела остаётся тем же.
+НАВЯЗАТЬ = None
+
 ЗАМЕР_JS = r"""
 () => {
   const прям = el => { const r = el.getBoundingClientRect();
@@ -101,6 +109,10 @@ def прогон():
             _войти(стр)
             стр.goto(f"{БАЗА}/enshrouded", wait_until="networkidle", timeout=60000)
             стр.wait_for_selector(".set-card", timeout=30000)
+            if НАВЯЗАТЬ:
+                стр.add_style_tag(content=
+                    ".sets-grid { grid-template-columns: repeat(%d, minmax(0, 1fr))"
+                    " !important; }" % НАВЯЗАТЬ)
             стр.wait_for_timeout(800)
             итог[ш] = стр.evaluate(ЗАМЕР_JS)
             к.close()
@@ -140,6 +152,9 @@ def печать(итог):
 
 
 if __name__ == "__main__":
+    if "--колонок" in sys.argv:
+        НАВЯЗАТЬ = int(sys.argv[sys.argv.index("--колонок") + 1])
+        print(f"КОНТРОЛЬ: навязано {НАВЯЗАТЬ} колонок на КАЖДОЙ ширине")
     итог = прогон()
     печать(итог)
     if "--json" in sys.argv:

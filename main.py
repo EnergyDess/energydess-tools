@@ -48,6 +48,7 @@ from fastapi.exceptions import HTTPException
 from bs4 import BeautifulSoup
 import httpx
 import base64
+import enshrouded_defs as _енш_опр
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 from sqlalchemy.exc import SQLAlchemyError
@@ -3215,8 +3216,14 @@ async def admin_exercise_replace_video(exercise_id: str, request: Request, user=
 # экрану управления незачем — редактировать нечего. Строка в базе,
 # которую нечем изменить, хуже константы: она обещает изменяемость,
 # которой нет.
-ENSHROUDED_CRAFTERS = ["blacksmith", "huntress", "alchemist", "world", "special"]
-ENSHROUDED_SLOTS = ["head", "chest", "gloves", "legs", "feet"]
+#
+# РУССКИЕ НАЗВАНИЯ И ЗДЕСЬ НЕ ЖИВУТ. Они в `enshrouded_defs.py` —
+# единственном источнике на три потребителя: этот файл, шаблон раздела
+# и проверка 24. До 2026-08-23 они были ТОЛЬКО в JS-литерале шаблона,
+# и экран управления показывал внутренние имена (`blacksmith`, `head`)
+# в таблице, в отборе и в форме.
+ENSHROUDED_CRAFTERS = _енш_опр.ИДЕНТИФИКАТОРЫ_КАТЕГОРИЙ
+ENSHROUDED_SLOTS = _енш_опр.ИДЕНТИФИКАТОРЫ_СЛОТОВ
 
 
 def _енш_каталог(db):
@@ -3301,7 +3308,9 @@ async def enshrouded_page(request: Request, user=Depends(get_current_user), db: 
         return RedirectResponse("/?locked=enshrouded", status_code=302)
     return templates.TemplateResponse(request=request, name="enshrouded.html",
                                       context={"user": user,
-                                               "ens_sets": _енш_каталог(db)})
+                                               "ens_sets": _енш_каталог(db),
+                                               "ens_crafters": _енш_опр.КАТЕГОРИИ,
+                                               "ens_slots": _енш_опр.СЛОТЫ})
 
 
 # ══ ЭКРАН УПРАВЛЕНИЯ КАТАЛОГОМ (BACKLOG №137) ════════════════════════
@@ -3431,8 +3440,12 @@ async def admin_enshrouded_page(request: Request, user=Depends(get_current_user)
     return templates.TemplateResponse(
         request=request, name="admin_enshrouded.html",
         context={"user": user, "sets": данные,
-                 "crafters": ENSHROUDED_CRAFTERS,
-                 "slots": ENSHROUDED_SLOTS,
+                 # ПОДПИСИ, А НЕ ИДЕНТИФИКАТОРЫ. Экран показывает человеку
+                 # «Кузнец» и «Шлем», внутрь уходит `blacksmith` и `head`.
+                 # Источник один на весь проект — `enshrouded_defs`.
+                 "crafters": [{"id": к, "label": _енш_опр.КОРОТКО[к]}
+                              for к in ENSHROUDED_CRAFTERS],
+                 "slots": _енш_опр.СЛОТЫ,
                  "max_w": ENS_MAX_W, "max_h": ENS_MAX_H})
 
 
@@ -3479,12 +3492,26 @@ async def admin_enshrouded_save(request: Request, user=Depends(get_current_user)
 async def admin_enshrouded_delete(set_id: str, confirm: int = 0,
                                   user=Depends(get_current_user),
                                   db: Session = Depends(get_db)):
-    """Удалить сет. ОТМЕТКИ ЛЮДЕЙ НЕ ТРОГАЮТСЯ, и это выбор.
+    """Удалить сет ВМЕСТЕ С ОТМЕТКАМИ. Подтверждение спрашивается ВСЕГДА.
 
-    Строки `enshrouded_slots` переживают удаление сета: восстановление
-    каталога вернёт галочки на место, а стёртые отметки не вернёт ничто.
-    Сколько их — экран говорит ЧИСЛОМ и требует подтверждения, а не
-    удаляет молча.
+    ЗДЕСЬ БЫЛО ОБРАТНОЕ, И ЭТО ОТМЕНЕНО ВЛАДЕЛЬЦЕМ 2026-08-23. Прежний
+    текст гласил: «ОТМЕТКИ ЛЮДЕЙ НЕ ТРОГАЮТСЯ… восстановление каталога
+    вернёт галочки на место». Замерены обе половины прежнего решения,
+    и обе оказались негодны:
+
+      · ПОДТВЕРЖДЕНИЕ СПРАШИВАЛОСЬ ТОЛЬКО ПРИ `отметок > 0`. Замер
+        по базе съёмки: сетов 90, отметки есть у 20 — то есть у 70 из 90
+        (78%) удаление проходило МОЛЧА, одним нажатием и без вопроса.
+        Ровно это владелец и увидел;
+      · ОТМЕТКИ, ПЕРЕЖИВШИЕ СВОЙ СЕТ, — это сироты. Ссылка идёт СТРОКОЙ,
+        внешнего ключа нет (замер: `PRAGMA foreign_key_list` пуст),
+        значит никто их больше не покажет и никто не уберёт. Довод
+        «вернутся, если завести сет заново с тем же идентификатором»
+        верен буквально и бесполезен: идентификатор надо помнить,
+        а помнить его неоткуда — сет удалён.
+
+    Теперь: подтверждение ВСЕГДА (`confirm=1`), число отметок называется
+    до удаления, отметки уходят вместе с сетом, сирот не остаётся.
     """
     if not _admin_guard(user):
         return JSONResponse({"error": "Нет прав"}, status_code=403)
@@ -3492,13 +3519,18 @@ async def admin_enshrouded_delete(set_id: str, confirm: int = 0,
     if not сет:
         return JSONResponse({"error": "Такого сета нет"}, status_code=404)
     отметок = _енш_отметок(db, set_id)
-    if отметок and not confirm:
+    if not confirm:
+        # ВОПРОС ЗАДАЁТСЯ И ПРИ НУЛЕ ОТМЕТОК. «Ничего не пропадёт» —
+        # тоже ответ, и человек должен получить его ДО удаления, а не
+        # догадываться о нём по отсутствию вопроса.
+        сколько = ("%d %s пользователей пропад%s вместе с ним"
+                   % (отметок, _plural_ru(отметок, "отметка", "отметки", "отметок"),
+                      "ёт" if отметок % 10 == 1 and отметок % 100 != 11 else "ут")
+                   ) if отметок else "отметок пользователей на нём нет — не пропадёт ничего"
         return JSONResponse(
             {"error": "нужно подтверждение", "marks": отметок,
-             "text": ("На этом сете %d %s пользователей. Отметки останутся "
-                      "в базе и вернутся, если сет завести заново с тем же "
-                      "идентификатором." % (отметок, _plural_ru(отметок, "отметка",
-                                                     "отметки", "отметок")))},
+             "text": "Сет «%s» будет удалён: %s. Отменить будет нечем."
+                     % (сет.name_ru or set_id, сколько)},
             status_code=409)
     # ФАЙЛ НА ТОМЕ УБИРАЕТСЯ ВМЕСТЕ С СЕТОМ. Иначе каждое удаление
     # оставляло бы сироту, и проверка 24 (вид СИРОТА) находила бы её
@@ -3513,9 +3545,16 @@ async def admin_enshrouded_delete(set_id: str, confirm: int = 0,
         if os.path.exists(файл):
             os.remove(файл)
             убрано.append(f"{set_id}.{ext}")
+    # ОТМЕТКИ УХОДЯТ ВМЕСТЕ С СЕТОМ — решение владельца 2026-08-23.
+    # Строка, оставшаяся без своего сета, невидима: её не покажет ни один
+    # экран и не уберёт ни одна уборка, потому что ссылка идёт строкой
+    # и внешнего ключа нет. Число сказано человеку выше, до удаления.
+    отметок_убрано = (db.query(EnshroudedSlot)
+                      .filter(EnshroudedSlot.set_id == set_id).delete())
     db.delete(сет)
     db.commit()
-    return JSONResponse({"ok": True, "marks_kept": отметок, "files": убрано})
+    return JSONResponse({"ok": True, "marks_deleted": отметок_убрано,
+                         "files": убрано})
 
 
 def _енш_обработать(сырое, set_id):
