@@ -55,7 +55,7 @@
       <ul class="footer-contacts">
         <li>
           <a href="mailto:pr@energydess.ru">
-            <i data-lucide="mail"></i> pr@energydess.ru
+            {{ значок('mail') }} pr@energydess.ru
           </a>
         </li>
       </ul>
@@ -63,12 +63,12 @@
 
     {% if not footer_guest %}
     <div class="footer-col">
-      <h4><i data-lucide="layout-grid"></i> Инструменты</h4>
+      <h4>{{ значок('layout-grid') }} Инструменты</h4>
       <ul>
         {% for tool in TOOLS %}
         <li class="tool-{{ tool.id }}">
           <a href="{{ tool.url }}">
-            <i data-lucide="{{ TOOL_ICONS.get(tool.id, 'box') }}"></i> {{ tool.name }}
+            {{ значок(TOOL_ICONS.get(tool.id, 'box')) }} {{ tool.name }}
           </a>
         </li>
         {% endfor %}
@@ -77,26 +77,26 @@
     {% endif %}
 
     <div class="footer-col">
-      <h4><i data-lucide="user"></i> Аккаунт</h4>
+      <h4>{{ значок('user') }} Аккаунт</h4>
       <ul>
-        <li><a href="/"><i data-lucide="home"></i> Главная</a></li>
+        <li><a href="/">{{ значок('home') }} Главная</a></li>
         {% if footer_guest %}
-        <li><a href="/login"><i data-lucide="log-in"></i> Войти</a></li>
-        <li><a href="/register"><i data-lucide="user-plus"></i> Создать аккаунт</a></li>
+        <li><a href="/login">{{ значок('log-in') }} Войти</a></li>
+        <li><a href="/register">{{ значок('user-plus') }} Создать аккаунт</a></li>
         {% else %}
-        <li><a href="/profile"><i data-lucide="settings"></i> Профиль</a></li>
+        <li><a href="/profile">{{ значок('settings') }} Профиль</a></li>
         {% endif %}
       </ul>
     </div>
 
     <div class="footer-col">
-      <h4><i data-lucide="info"></i> О проекте</h4>
+      <h4>{{ значок('info') }} О проекте</h4>
       <ul>
-        <li><a href="/about"><i data-lucide="sparkles"></i> О проекте</a></li>
-        <li><a href="/me"><i data-lucide="user-round"></i> Обо мне</a></li>
-        <li><a href="/terms"><i data-lucide="file-text"></i> Условия использования</a></li>
-        <li><a href="/privacy"><i data-lucide="shield-check"></i> Политика конфиденциальности</a></li>
-        <li><a href="/cookies"><i data-lucide="cookie"></i> Cookies</a></li>
+        <li><a href="/about">{{ значок('sparkles') }} О проекте</a></li>
+        <li><a href="/me">{{ значок('user-round') }} Обо мне</a></li>
+        <li><a href="/terms">{{ значок('file-text') }} Условия использования</a></li>
+        <li><a href="/privacy">{{ значок('shield-check') }} Политика конфиденциальности</a></li>
+        <li><a href="/cookies">{{ значок('cookie') }} Cookies</a></li>
       </ul>
     </div>
 
@@ -108,7 +108,7 @@
        (design-system.md, раздел 8), рендерятся системным шрифтом и выпадают
        из типографики. Иконка наследует размер строки через 1em #}
     <span class="footer-made">
-      Сделано с <i data-lucide="heart" class="footer-heart"></i> для всех поклонников AI
+      Сделано с {{ значок('heart', 'footer-heart') }} для всех поклонников AI
     </span>
   </div>
 </footer>

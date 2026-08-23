@@ -24,7 +24,14 @@
 <div class="admin-bar">
   <div class="chip-row" role="group" aria-label="Отбор">
     {% for ч in отбор %}
-    <button type="button" class="chip {{ 'active' if loop.first }}" data-pick="{{ ч.id }}">
+    {# `tap-44` — согласие на добор области касания до 44×44 невидимым
+       слоем (design-system.md §2.7). Здесь чип ОРГАН УПРАВЛЕНИЯ: им
+       переключают отбор, и на телефоне в него надо попасть пальцем.
+       Замер до правки на 390 с сенсором: область 91×28 при минимуме 44.
+       Всем чипам сразу это не даётся намеренно — в дневнике чипами метят
+       приём пищи, они стоят плотным рядом, и невидимая область там
+       крала бы соседей. #}
+    <button type="button" class="chip tap-44 {{ 'active' if loop.first }}" data-pick="{{ ч.id }}">
       {{ ч.label }}<span class="chip-n">{{ ч.n }}</span>
     </button>
     {% endfor %}

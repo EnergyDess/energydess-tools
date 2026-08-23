@@ -1,6 +1,20 @@
-{# РЯД РАЗДЕЛОВ АДМИНКИ. Подключать ВНУТРИ .admin-wrap (нужен верхний
-   padding контейнера, иначе уходит под фиксированную шапку).
+{# ПАНЕЛЬ РАЗДЕЛОВ АДМИНКИ. Подключать ПЕРЕД .admin-wrap, а не внутри
+   (BACKLOG №150): это отдельная навигационная полоса во всю ширину
+   экрана со своей подложкой, а не строка внутри страницы.
    Параметр `active` — 'users' | 'products' | 'exercises' | 'enshrouded'.
+
+   ДО 2026-08-23 ряд стоял ВНУТРИ .admin-wrap и был прозрачным: замер
+   на 2560 — фон `rgba(0, 0, 0, 0)` при фоне страницы `rgb(10,11,13)`,
+   то есть подложки не было вовсе, а сам ряд начинался в 344.5px
+   от левого края экрана. Владелец описал это как «висит в пустоте
+   и никак не обозначен».
+
+   ПАНЕЛЬ ВО ВСЮ ШИРИНУ, СОДЕРЖИМОЕ — ПО ШИРИНЕ КОНТЕНТА. Подложка
+   тянется от края до края экрана, а вкладки стоят ровно над первой
+   колонкой таблицы: ряд, съехавший к краю экрана относительно того,
+   чем он управляет, читался бы как чужой элемент. Образец —
+   `.ens-bar` в разделе Enshrouded, и число `top: 64px` там же:
+   это высота липкой шапки сайта (design-system.md §4.1).
 
    СИСТЕМНЫЙ `.tab-bar` + `.tab-btn`, а не свои пилюли — 2026-08-23,
    BACKLOG №148. Прежние `.admin-subnav a` были копией вкладки раздела
@@ -14,9 +28,11 @@
 
    «Дашборд» из ряда УДАЛЁН вместе с самим экраном (BACKLOG №147):
    он показывал три числа, дублирующие эти же вкладки. #}
-<nav class="tab-bar admin-tabs" aria-label="Разделы админки">
-  <a href="/admin/users"      class="tab-btn {{ 'active' if active == 'users' }}"><i data-lucide="users"></i>Пользователи</a>
-  <a href="/admin/products"   class="tab-btn {{ 'active' if active == 'products' }}"><i data-lucide="apple"></i>Продукты</a>
-  <a href="/admin/exercises"  class="tab-btn {{ 'active' if active == 'exercises' }}"><i data-lucide="dumbbell"></i>Упражнения</a>
-  <a href="/admin/enshrouded" class="tab-btn {{ 'active' if active == 'enshrouded' }}"><i data-lucide="shield"></i>Enshrouded</a>
+<div class="admin-nav-bar">
+  <nav class="tab-bar tab-bar-lg admin-tabs" aria-label="Разделы админки">
+    <a href="/admin/users"      class="tab-btn {{ 'active' if active == 'users' }}">{{ значок('users') }}Пользователи</a>
+    <a href="/admin/products"   class="tab-btn {{ 'active' if active == 'products' }}">{{ значок('apple') }}Продукты</a>
+    <a href="/admin/exercises"  class="tab-btn {{ 'active' if active == 'exercises' }}">{{ значок('dumbbell') }}Упражнения</a>
+    <a href="/admin/enshrouded" class="tab-btn {{ 'active' if active == 'enshrouded' }}">{{ значок('shield') }}Enshrouded</a>
 </nav>
+</div>

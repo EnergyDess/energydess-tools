@@ -65,7 +65,7 @@
     <div class="modal-hdr">
       {%- if icon %}
       <span class="modal-icon{% if icon_tone %} modal-icon-{{ icon_tone }}{% endif %}" aria-hidden="true">
-        {%- if icon_lucide %}<i data-lucide="{{ icon }}"></i>{% else %}{{ icon }}{% endif -%}
+        {%- if icon_lucide %}{{ значок(icon) }}{% else %}{{ icon }}{% endif -%}
       </span>
       {%- endif %}
       <span class="modal-title" id="{{ tid }}">{{ title }}</span>

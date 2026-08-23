@@ -30,24 +30,24 @@
   {% set em_err = request.query_params.get('email_error') %}
   {% if em_ok %}
   <div class="alert alert-success">
-    <i data-lucide="check-circle"></i>
+    {{ значок('check-circle') }}
     <span><strong>Адрес входа изменён.</strong> Дальше входите с {{ user.email }}.</span>
   </div>
   {% elif em_err == 'expired' %}
   <div class="alert alert-warn">
-    <i data-lucide="clock"></i>
+    {{ значок('clock') }}
     <span><strong>Срок ссылки истёк.</strong> Заявка отменена, адрес остался прежним.
       Начните смену заново — придёт новая ссылка.</span>
   </div>
   {% elif em_err == 'taken' %}
   <div class="alert alert-error">
-    <i data-lucide="alert-circle"></i>
+    {{ значок('alert-circle') }}
     <span><strong>Адрес уже занят.</strong> Пока письмо шло, этот адрес занял другой
       аккаунт. Ваш адрес остался прежним.</span>
   </div>
   {% elif em_err %}
   <div class="alert alert-warn">
-    <i data-lucide="alert-circle"></i>
+    {{ значок('alert-circle') }}
     <span><strong>Ссылка не подошла.</strong> Она срабатывает один раз — возможно,
       по ней уже переходили. Адрес остался прежним.</span>
   </div>
@@ -71,8 +71,8 @@
         {% else %}
         <span class="avatar avatar-lg" id="avatar-letter">{{ (user.display_name or user.email)[:1]|upper }}</span>
         {% endif %}
-        <label class="avatar-upload-btn" for="avatar-file" title="Сменить фото">
-          <i data-lucide="camera"></i>
+        <label class="avatar-upload-btn tap-44" for="avatar-file" title="Сменить фото">
+          {{ значок('camera') }}
         </label>
         <input type="file" id="avatar-file" accept="image/png,image/jpeg,image/webp"
                hidden onchange="pickAvatar(this)">
@@ -112,7 +112,7 @@
           </optgroup>
           {% endfor %}
         </select>
-        <i data-lucide="chevron-down" class="select-arrow"></i>
+        {{ значок('chevron-down', 'select-arrow') }}
       </div>
     </div>
     <p class="profile-hint tz-warning">
@@ -202,10 +202,10 @@
              onkeydown="if(event.key==='Enter')отправитьСменуПочты()">
     </div>
     <div class="alert alert-error" id="email-error" hidden>
-      <i data-lucide="alert-circle"></i><span id="email-error-text"></span>
+      {{ значок('alert-circle') }}<span id="email-error-text"></span>
     </div>
     <div class="alert alert-success" id="email-done" hidden>
-      <i data-lucide="mail-check"></i><span id="email-done-text"></span>
+      {{ значок('mail-check') }}<span id="email-done-text"></span>
     </div>
     <div class="form-actions">
       <button class="btn-ghost" type="button" data-modal-close>Закрыть</button>
@@ -229,10 +229,10 @@
              onkeydown="if(event.key==='Enter')отправитьСменуПароля()">
     </div>
     <div class="alert alert-error" id="pwd-error" hidden>
-      <i data-lucide="alert-circle"></i><span id="pwd-error-text"></span>
+      {{ значок('alert-circle') }}<span id="pwd-error-text"></span>
     </div>
     <div class="alert alert-success" id="pwd-done" hidden>
-      <i data-lucide="check-circle"></i><span id="pwd-done-text"></span>
+      {{ значок('check-circle') }}<span id="pwd-done-text"></span>
     </div>
     <div class="form-actions">
       <button class="btn-ghost" type="button" data-modal-close>Закрыть</button>

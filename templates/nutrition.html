@@ -20,7 +20,7 @@
 
   <!-- App header -->
   <header class="nut-hdr">
-    <button class="nut-hdr-back" onclick="handleBack()">
+    <button class="nut-hdr-back tap-44" onclick="handleBack()">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
     </button>
     <span class="nut-hdr-title" id="hdr-title">Дневник питания</span>
@@ -119,7 +119,7 @@
         <div id="meals-wrap"></div>
         <div class="card card-static card-compact water-card">
           <div class="water-hdr">
-            <span class="water-emoji"><i data-lucide="droplet"></i></span>
+            <span class="water-emoji">{{ значок('droplet') }}</span>
             <span class="water-name">Вода</span>
             <span class="water-val" id="water-val">0 / 2000 мл</span>
           </div>
@@ -140,7 +140,7 @@
             <button class="water-btn" onclick="addWater(250)">+250</button>
             <button class="water-btn" onclick="addWater(300)">+300</button>
             <button class="water-btn" onclick="addWater(500)">+500</button>
-            <button class="water-btn-manual" onclick="openWaterManual()"><i data-lucide="pencil"></i> Ввести вручную</button>
+            <button class="water-btn-manual" onclick="openWaterManual()">{{ значок('pencil') }} Ввести вручную</button>
           </div>
         </div>
       </div>
@@ -171,15 +171,15 @@
            только на отмотанном дне: подпись, появляющаяся иногда, замечается
            реже, чем подпись, которая есть всегда. #}
         <div class="alert alert-accent add-date-note" id="add-date-note">
-          <i data-lucide="calendar-clock"></i><span id="add-date-text"></span>
+          {{ значок('calendar-clock') }}<span id="add-date-text"></span>
         </div>
         <div class="card card-static a-box">
           <div class="field-label a-box-title">Приём пищи</div>
           <div class="s-chips a-meals" id="meal-chips">
-            <button class="chip active" data-meal="breakfast" onclick="setSearchMeal(this)"><i data-lucide="sunrise"></i> Завтрак</button>
-            <button class="chip" data-meal="lunch"     onclick="setSearchMeal(this)"><i data-lucide="sun"></i> Обед</button>
-            <button class="chip" data-meal="dinner"    onclick="setSearchMeal(this)"><i data-lucide="moon"></i> Ужин</button>
-            <button class="chip" data-meal="snack"     onclick="setSearchMeal(this)"><i data-lucide="apple"></i> Перекус</button>
+            <button class="chip active" data-meal="breakfast" onclick="setSearchMeal(this)">{{ значок('sunrise') }} Завтрак</button>
+            <button class="chip" data-meal="lunch"     onclick="setSearchMeal(this)">{{ значок('sun') }} Обед</button>
+            <button class="chip" data-meal="dinner"    onclick="setSearchMeal(this)">{{ значок('moon') }} Ужин</button>
+            <button class="chip" data-meal="snack"     onclick="setSearchMeal(this)">{{ значок('apple') }} Перекус</button>
           </div>
         </div>
         {# Способы ввода. На десктопе названы словами — там есть место, и
@@ -189,13 +189,13 @@
         <div class="card card-static a-box">
           <div class="field-label a-box-title">Способ ввода</div>
           <button class="btn-secondary a-method a-method-wide" onclick="openPhoto()">
-            <i data-lucide="camera"></i> Сфотографировать
+            {{ значок('camera') }} Сфотографировать
           </button>
           <button class="btn-secondary a-method a-method-wide" onclick="openScanner()">
-            <i data-lucide="scan-barcode"></i> Сканировать штрихкод
+            {{ значок('scan-barcode') }} Сканировать штрихкод
           </button>
           <button class="btn-secondary a-method a-method-manual" onclick="openCustomFoodModal()">
-            <i data-lucide="pencil"></i> Свой продукт
+            {{ значок('pencil') }} Свой продукт
           </button>
         </div>
       </div>
@@ -258,15 +258,15 @@
                запись ушла бы в приём, который человек видит невыбранным. #}
             <div class="field-label a-box-title">Приём пищи</div>
             <div class="s-chips ap-meals" id="ap-meal-chips">
-              <button class="chip active" data-meal="breakfast" onclick="setSearchMeal(this)"><i data-lucide="sunrise"></i> Завтрак</button>
-              <button class="chip" data-meal="lunch"     onclick="setSearchMeal(this)"><i data-lucide="sun"></i> Обед</button>
-              <button class="chip" data-meal="dinner"    onclick="setSearchMeal(this)"><i data-lucide="moon"></i> Ужин</button>
-              <button class="chip" data-meal="snack"     onclick="setSearchMeal(this)"><i data-lucide="apple"></i> Перекус</button>
+              <button class="chip active" data-meal="breakfast" onclick="setSearchMeal(this)">{{ значок('sunrise') }} Завтрак</button>
+              <button class="chip" data-meal="lunch"     onclick="setSearchMeal(this)">{{ значок('sun') }} Обед</button>
+              <button class="chip" data-meal="dinner"    onclick="setSearchMeal(this)">{{ значок('moon') }} Ужин</button>
+              <button class="chip" data-meal="snack"     onclick="setSearchMeal(this)">{{ значок('apple') }} Перекус</button>
             </div>
             {# Четвёртое место, где видна дата: панель — последняя точка
                перед записью, ровно как строка над кнопкой в модалке #}
             <div class="alert alert-accent ap-date-note" id="ap-date-note">
-              <i data-lucide="calendar-clock"></i><span id="ap-date-text"></span>
+              {{ значок('calendar-clock') }}<span id="ap-date-text"></span>
             </div>
             <button class="btn-primary btn-block ap-add" onclick="confirmAdd(true)">Добавить в дневник</button>
           </div>
@@ -327,7 +327,7 @@
         <div class="cal card card-static">
           <div class="cal-hd">
             <button class="btn-icon btn-icon-solid" id="cal-prev" onclick="calShift(-1)"
-                    aria-label="Предыдущий месяц"><i data-lucide="chevron-left"></i></button>
+                    aria-label="Предыдущий месяц">{{ значок('chevron-left') }}</button>
             {# Выбор месяца и года — рядом со стрелками, а не вместо них:
                стрелками ходят на соседний месяц, списками прыгают на дальний.
                Одними стрелками до июня из августа — четыре нажатия #}
@@ -345,7 +345,7 @@
                       onchange="calPick()" aria-label="Год"></select>
             </div>
             <button class="btn-icon btn-icon-solid" id="cal-next" onclick="calShift(1)"
-                    aria-label="Следующий месяц"><i data-lucide="chevron-right"></i></button>
+                    aria-label="Следующий месяц">{{ значок('chevron-right') }}</button>
           </div>
           <div class="cal-wd" aria-hidden="true">
             <span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span>
@@ -389,7 +389,7 @@
                  Блок отдельный, а не переписанный текст в .wt-prog-lbl:
                  туда нужна кнопка, а не только слово -->
             <div class="wt-done" id="wt-done" style="display:none">
-              <div class="wt-done-txt"><i data-lucide="check-circle-2"></i> <span id="wt-done-lbl">Цель достигнута</span></div>
+              <div class="wt-done-txt">{{ значок('check-circle-2') }} <span id="wt-done-lbl">Цель достигнута</span></div>
               <button class="btn-secondary btn-block" onclick="поставитьНовуюЦель()">Поставить новую цель</button>
             </div>
           </div>
@@ -400,7 +400,7 @@
           <div class="wt-mrow"><span class="wt-mname">Ягодицы</span><span class="wt-mval" id="m-hips">не записан</span></div>
           <div class="wt-mrow"><span class="wt-mname">Грудь</span><span class="wt-mval" id="m-chest">не записан</span></div>
         </div>
-        <button class="btn-primary btn-block save-btn-flush" onclick="открыть_модалку('modal-measure')"><i data-lucide="ruler"></i> Записать замер</button>
+        <button class="btn-primary btn-block save-btn-flush" onclick="открыть_модалку('modal-measure')">{{ значок('ruler') }} Записать замер</button>
       </div>
       <div class="d-right">
         <div class="card card-static chart-box">
@@ -491,7 +491,7 @@
           <div class="p-sec-title p-sec-title-hint">Умные весы
             <span class="hint">
               <button type="button" class="hint-btn" aria-expanded="false" aria-label="Как приходят измерения">
-                <i data-lucide="help-circle"></i>
+                {{ значок('help-circle') }}
               </button>
               <span class="hint-pop" role="note">
                 <strong class="hint-h">Как измерение попадает на сайт</strong>
@@ -535,7 +535,7 @@
                блока: человеку надо объяснить, почему у него снова
                спрашивают пароль, ровно там, где спрашивают #}
             <div class="alert alert-warn scale-reauth" id="scale-reauth" style="display:none">
-              <i data-lucide="key-round"></i>
+              {{ значок('key-round') }}
               <span>Ключ доступа Zepp Life перестал действовать, и синхронизация остановилась. Это не поломка сайта: ключом распоряжается Zepp, и он может быть отозван на их стороне. Уже загруженные измерения на месте. Введите пароль ещё раз — он снова нужен только на один вход.</span>
             </div>
             <p class="p-note">Подключите весы Mi Body Composition Scale — вес и состав тела будут подтягиваться автоматически. Это неофициальная интеграция: если Zepp Life изменит свой API, синхронизация может прерваться — тогда просто продолжайте вводить вес вручную, ничего не сломается.</p>
@@ -548,7 +548,7 @@
             <div class="input-wrap scale-input">
               <input type="password" class="input input-compact" id="scale-password" placeholder="пароль" autocomplete="current-password">
               <button type="button" class="btn-icon eye-btn" onclick="toggleEye('scale-password', this)" tabindex="-1" aria-label="Показать пароль">
-                <i data-lucide="eye"></i>
+                {{ значок('eye') }}
               </button>
             </div>
             <button class="btn-primary btn-block" onclick="connectScale()" id="scale-connect-btn">Подключить весы</button>
@@ -580,13 +580,13 @@
                значило бы дать ложную находку проверке 1 (§6.0.2) #}
             <div class="alert alert-error scale-err" id="scale-err" style="display:none"></div>
             <div class="scale-acts">
-              <button class="btn-secondary" id="scale-sync-btn" onclick="syncScaleNow()"><i data-lucide="refresh-cw"></i> Синхронизировать сейчас</button>
+              <button class="btn-secondary" id="scale-sync-btn" onclick="syncScaleNow()">{{ значок('refresh-cw') }} Синхронизировать сейчас</button>
               {# РАЗРУШАЮЩЕЕ ДЕЙСТВИЕ. Было `.act-btn.act-btn-danger` —
                  обычная кнопка, у которой отличается только цвет текста
                  (и тот хардкодом). Теперь отдельный вид: приглушённая,
                  в красном, с подтверждением, и стоит НЕ рядом с главной
                  кнопкой, а отбита от неё #}
-              <button class="btn-ghost scale-drop" onclick="disconnectScale()"><i data-lucide="unlink"></i> Отключить</button>
+              <button class="btn-ghost scale-drop" onclick="disconnectScale()">{{ значок('unlink') }} Отключить</button>
             </div>
           </div>
           {# ИТОГ СИНХРОНИЗАЦИИ ЖИВЁТ ДО ЗАКРЫТИЯ.
@@ -602,9 +602,9 @@
              только по крестику или при уходе со страницы. #}
           <div class="scale-result" id="scale-result" style="display:none">
             <div class="alert" id="scale-result-alert">
-              <i data-lucide="info" id="scale-result-icon"></i>
+              {{ значок('info', id='scale-result-icon') }}
               <span id="scale-result-text"></span>
-              <button class="btn-icon scale-result-x" onclick="закрытьИтогВесов()" aria-label="Закрыть сообщение"><i data-lucide="x"></i></button>
+              <button class="btn-icon scale-result-x" onclick="закрытьИтогВесов()" aria-label="Закрыть сообщение">{{ значок('x') }}</button>
             </div>
           </div>
         </div>
@@ -654,11 +654,11 @@
              а не свой `.act-btn`: роль та же, что у ряда, отличается
              только направлением. #}
           <div class="segmented segmented-stack" id="rg-act">
-          <button class="segmented-btn" data-val="sedentary"  onclick="setAct(this)"><i data-lucide="armchair"></i> Сидячий — офис, мало движения</button>
-          <button class="segmented-btn" data-val="light"      onclick="setAct(this)"><i data-lucide="footprints"></i> Лёгкий — прогулки, редкие тренировки</button>
-          <button class="segmented-btn active" data-val="moderate" onclick="setAct(this)"><i data-lucide="activity"></i> Умеренный — тренировки 3-4 раза в неделю</button>
-          <button class="segmented-btn" data-val="active"     onclick="setAct(this)"><i data-lucide="dumbbell"></i> Активный — тренировки 5-6 раз</button>
-          <button class="segmented-btn" data-val="very_active" onclick="setAct(this)"><i data-lucide="flame"></i> Очень активный — ежедневно</button>
+          <button class="segmented-btn" data-val="sedentary"  onclick="setAct(this)">{{ значок('armchair') }} Сидячий — офис, мало движения</button>
+          <button class="segmented-btn" data-val="light"      onclick="setAct(this)">{{ значок('footprints') }} Лёгкий — прогулки, редкие тренировки</button>
+          <button class="segmented-btn active" data-val="moderate" onclick="setAct(this)">{{ значок('activity') }} Умеренный — тренировки 3-4 раза в неделю</button>
+          <button class="segmented-btn" data-val="active"     onclick="setAct(this)">{{ значок('dumbbell') }} Активный — тренировки 5-6 раз</button>
+          <button class="segmented-btn" data-val="very_active" onclick="setAct(this)">{{ значок('flame') }} Очень активный — ежедневно</button>
           </div>
         </div>
         <div class="accent-box accent-box-targets" id="targets-box" style="display:none">
@@ -753,7 +753,7 @@
 
   <!-- Bottom nav / Desktop sidebar -->
   <nav class="nut-nav">
-    <div class="sidebar-hd"><span><i data-lucide="salad"></i></span> Дневник питания</div>
+    <div class="sidebar-hd"><span>{{ значок('salad') }}</span> Дневник питания</div>
     <div class="sidebar-date" id="sidebar-date"></div>
     <button class="nut-nav-btn active" data-tab="diary"   onclick="switchTab(this)">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
@@ -793,7 +793,7 @@
       <div class="por-name" id="por-name"></div>
       <div class="por-sub-row">
         <div class="por-sub" id="por-sub"></div>
-        <button class="chip por-edit-btn" id="por-edit-btn" onclick="togglePorEdit()" type="button"><i data-lucide="pencil"></i> Изменить</button>
+        <button class="chip por-edit-btn" id="por-edit-btn" onclick="togglePorEdit()" type="button">{{ значок('pencil') }} Изменить</button>
       </div>
       <div class="por-edit-grid" id="por-edit-grid" style="display:none">
         <div class="f-field f-field-wide"><label class="field-label f-label">Бренд / заведение</label><input type="text" class="input input-compact" id="pe-brand" placeholder="Например, ресторан или производитель" oninput="onPorEdit()"></div>
@@ -803,10 +803,10 @@
         <div class="f-field"><label class="field-label f-label">Углеводы, г</label><input type="number" class="input input-compact" id="pe-carb" oninput="onPorEdit()"></div>
       </div>
       <div class="s-chips" id="por-meal-chips">
-        <button class="chip" data-meal="breakfast" onclick="setPorMeal(this)"><i data-lucide="sunrise"></i> Завтрак</button>
-        <button class="chip" data-meal="lunch"     onclick="setPorMeal(this)"><i data-lucide="sun"></i> Обед</button>
-        <button class="chip" data-meal="dinner"    onclick="setPorMeal(this)"><i data-lucide="moon"></i> Ужин</button>
-        <button class="chip" data-meal="snack"     onclick="setPorMeal(this)"><i data-lucide="apple"></i> Перекус</button>
+        <button class="chip" data-meal="breakfast" onclick="setPorMeal(this)">{{ значок('sunrise') }} Завтрак</button>
+        <button class="chip" data-meal="lunch"     onclick="setPorMeal(this)">{{ значок('sun') }} Обед</button>
+        <button class="chip" data-meal="dinner"    onclick="setPorMeal(this)">{{ значок('moon') }} Ужин</button>
+        <button class="chip" data-meal="snack"     onclick="setPorMeal(this)">{{ значок('apple') }} Перекус</button>
       </div>
       <div class="g-wrap">
         <input type="number" class="g-input" id="g-input" value="100" min="1" max="5000" oninput="updateCalc()" onfocus="setTimeout(()=>this.select())">
@@ -828,7 +828,7 @@
          последняя точка, где ошибку ещё можно заметить, дальше запись уходит
          в базу. #}
       <div class="alert alert-accent por-date-note" id="por-date-note">
-        <i data-lucide="calendar-clock"></i><span id="por-date-text"></span>
+        {{ значок('calendar-clock') }}<span id="por-date-text"></span>
       </div>
       <button class="add-btn" id="por-add-btn" onclick="confirmAdd()">Добавить в дневник</button>
 {% endcall %}
@@ -1924,7 +1924,7 @@ function foodItemHTML(item, опции = {}) {
       <div class="food-sub">${item.grams}г · Б:${item.protein}г Ж:${item.fat}г У:${item.carbs}г</div>
     </div>
     <span class="food-kcal">${Math.round(item.calories)}</span>
-    ${опции.правка ? `<button class="food-edit" onclick="event.stopPropagation();editFoodItem(${item.id})"
+    ${опции.правка ? `<button class="food-edit tap-44" onclick="event.stopPropagation();editFoodItem(${item.id})"
         aria-label="Изменить ${esc(item.name)}"><i data-lucide="pencil"></i></button>` : ''}
     <button class="btn-icon btn-icon-sm btn-icon-danger food-del" onclick="event.stopPropagation();delFood(${item.id})"
             aria-label="Удалить ${esc(item.name)}">×</button>

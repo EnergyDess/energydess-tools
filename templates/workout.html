@@ -19,7 +19,7 @@
 
   <div class="wk-shell">
     <div class="wk-head">
-      <span class="eyebrow"><i data-lucide="dumbbell" class="tool-icon"></i> Тренировки</span>
+      <span class="eyebrow">{{ значок('dumbbell', 'tool-icon') }} Тренировки</span>
       <h1>Программа тренировок</h1>
       <p>Несколько вопросов — и соберём программу под вас</p>
     </div>
@@ -37,27 +37,27 @@
         <div class="wk-step-sub">Это определит баланс объёма и интенсивности в программе.</div>
         <div class="wk-options">
           <div class="wk-option" data-field="goal" data-value="mass">
-            <div class="wk-option-icon"><i data-lucide="trending-up"></i></div>
+            <div class="wk-option-icon">{{ значок('trending-up') }}</div>
             <div class="wk-option-label">Масса</div>
             <div class="wk-option-desc">Набор мышечной массы</div>
           </div>
           <div class="wk-option" data-field="goal" data-value="strength">
-            <div class="wk-option-icon"><i data-lucide="dumbbell"></i></div>
+            <div class="wk-option-icon">{{ значок('dumbbell') }}</div>
             <div class="wk-option-label">Сила</div>
             <div class="wk-option-desc">Рост рабочих весов</div>
           </div>
           <div class="wk-option" data-field="goal" data-value="lose">
-            <div class="wk-option-icon"><i data-lucide="flame"></i></div>
+            <div class="wk-option-icon">{{ значок('flame') }}</div>
             <div class="wk-option-label">Похудение</div>
             <div class="wk-option-desc">Снижение веса тела</div>
           </div>
           <div class="wk-option" data-field="goal" data-value="maintain">
-            <div class="wk-option-icon"><i data-lucide="scale"></i></div>
+            <div class="wk-option-icon">{{ значок('scale') }}</div>
             <div class="wk-option-label">Поддержание</div>
             <div class="wk-option-desc">Сохранить форму</div>
           </div>
           <div class="wk-option" data-field="goal" data-value="recomp">
-            <div class="wk-option-icon"><i data-lucide="refresh-cw"></i></div>
+            <div class="wk-option-icon">{{ значок('refresh-cw') }}</div>
             <div class="wk-option-label">Рекомпозиция</div>
             <div class="wk-option-desc">Масса + жиросжигание · важен Дневник питания</div>
           </div>
@@ -66,15 +66,15 @@
 
       <!-- Шаг 2 — Зоны упора (двухступенчато: сначала да/нет, потом чек-лист до 2 зон) -->
       <section class="wk-step" data-step="2">
-        <div class="wk-step-title">Есть зоны, которые хотите подтянуть? <button type="button" class="wk-tip-btn" data-tip="Выберите только то, что реально отстаёт. Если хотите развиваться равномерно — пропустите этот шаг.">?</button></div>
+        <div class="wk-step-title">Есть зоны, которые хотите подтянуть? <button type="button" class="wk-tip-btn tap-44" data-tip="Выберите только то, что реально отстаёт. Если хотите развиваться равномерно — пропустите этот шаг.">?</button></div>
         <div class="wk-step-sub">Если хочешь развить всё тело равномерно — базовая программа уже покрывает все группы мышц.</div>
         <div class="wk-options" id="wkFocusChoice">
           <div class="wk-option" data-choice="yes">
-            <div class="wk-option-icon"><i data-lucide="target"></i></div>
+            <div class="wk-option-icon">{{ значок('target') }}</div>
             <div class="wk-option-label">Да, есть отстающие</div>
           </div>
           <div class="wk-option" data-choice="no">
-            <div class="wk-option-icon"><i data-lucide="scale"></i></div>
+            <div class="wk-option-icon">{{ значок('scale') }}</div>
             <div class="wk-option-label">Нет, хочу развиваться равномерно</div>
           </div>
         </div>
@@ -132,17 +132,17 @@
         <div class="wk-step-sub">Поможет выбрать подходящую нагрузку и технику упражнений.</div>
         <div class="wk-options">
           <div class="wk-option" data-field="level" data-value="beginner">
-            <div class="wk-option-icon"><i data-lucide="sprout"></i></div>
+            <div class="wk-option-icon">{{ значок('sprout') }}</div>
             <div class="wk-option-label">Новичок</div>
             <div class="wk-option-desc">До 1 года</div>
           </div>
           <div class="wk-option" data-field="level" data-value="intermediate">
-            <div class="wk-option-icon"><i data-lucide="biceps-flexed"></i></div>
+            <div class="wk-option-icon">{{ значок('biceps-flexed') }}</div>
             <div class="wk-option-label">Средний</div>
             <div class="wk-option-desc">1–3 года</div>
           </div>
           <div class="wk-option" data-field="level" data-value="expert">
-            <div class="wk-option-icon"><i data-lucide="trophy"></i></div>
+            <div class="wk-option-icon">{{ значок('trophy') }}</div>
             <div class="wk-option-label">Опытный</div>
             <div class="wk-option-desc">3+ года</div>
           </div>
@@ -176,7 +176,7 @@
           </div>
         </div>
         <div class="wk-disclaimer">
-          <span class="ico"><i data-lucide="triangle-alert"></i></span>
+          <span class="ico">{{ значок('triangle-alert') }}</span>
           <span>Это фитнес-помощник, а не медицинский сервис. При реальной травме или боли — обратись к врачу; здесь нет лечебных предписаний, только исключение нагружающих упражнений.</span>
         </div>
       </section>
@@ -191,7 +191,7 @@
         </div>
         <div class="wk-eq-toolbar">
           <span class="wk-eq-count" id="wkEqCount">Отмечено: 0</span>
-          <button class="wk-home-btn" id="wkHomeBtn" type="button"><i data-lucide="house"></i> Дом без инвентаря</button>
+          <button class="wk-home-btn" id="wkHomeBtn" type="button">{{ значок('house') }} Дом без инвентаря</button>
         </div>
         <div class="wk-eq-grid" id="wkEqGrid">
           {% for item in equipment_options %}
@@ -210,12 +210,12 @@
       <!-- Готово -->
       <section class="wk-step" data-step="done">
         <div class="wk-done-panel">
-          <div class="ico"><i data-lucide="circle-check"></i></div>
+          <div class="ico">{{ значок('circle-check') }}</div>
           <h2>Профиль сохранён</h2>
           <p id="wkDoneSub">Собираем программу под вас…</p>
           <div class="wk-done-actions">
-            <button type="button" class="wk-action-btn" id="wkGeneralChatBtn"><i data-lucide="message-circle"></i> Ассистент</button>
-            <a class="wk-action-btn" href="/workout/profile" title="Настройки"><i data-lucide="settings"></i> Настройки</a>
+            <button type="button" class="wk-action-btn" id="wkGeneralChatBtn">{{ значок('message-circle') }} Ассистент</button>
+            <a class="wk-action-btn" href="/workout/profile" title="Настройки">{{ значок('settings') }} Настройки</a>
           </div>
         </div>
         <div class="wk-nutrition-box" id="wkNutritionBox" style="display:none">
@@ -282,7 +282,7 @@
   <div class="wk-chat-panel">
     <div class="wk-chat-header">
       <div>
-        <div class="wk-chat-title"><i data-lucide="message-circle"></i> Ассистент</div>
+        <div class="wk-chat-title">{{ значок('message-circle') }} Ассистент</div>
         <div class="wk-chat-subtitle" id="wkChatSubtitle"></div>
       </div>
       <button type="button" class="wk-chat-close" id="wkChatClose">×</button>
@@ -640,7 +640,7 @@
     alternative: 'Оба упражнения работают на одни мышцы — выбирай что удобнее сегодня.',
   };
   function tipBtn(key) {
-    return '<button type="button" class="wk-tip-btn" data-tip="' + TIPS[key] + '">?</button>';
+    return '<button type="button" class="wk-tip-btn tap-44" data-tip="' + TIPS[key] + '">?</button>';
   }
   var activeTipBtn = null;
   function closeTip() {
@@ -749,7 +749,7 @@
             (p.kind === 'weight' ? '<button type="button" class="wk-ex-chartbtn"><i data-lucide="bar-chart-3"></i> График</button>' : '') +
           '</div>' +
         '</div>' +
-        '<button type="button" class="wk-ex-chat" data-ex-name="' + d.name_ru + '" title="Спросить ассистента"><i data-lucide="message-circle"></i></button>' +
+        '<button type="button" class="wk-ex-chat tap-44" data-ex-name="' + d.name_ru + '" title="Спросить ассистента"><i data-lucide="message-circle"></i></button>' +
       '</div>' +
       reminderBanner +
       '<div class="wk-progedit-panel"></div>' +
@@ -859,7 +859,7 @@
     var calibKey = 'wk_calibration_dismissed_' + prog.id;
     if (!localStorage.getItem(calibKey)) {
       html += '<div class="wk-calibration-banner" id="wkCalibBanner">' +
-        '<button type="button" class="wk-calibration-close" id="wkCalibClose">×</button>' +
+        '<button type="button" class="wk-calibration-close tap-44" id="wkCalibClose">×</button>' +
         '<div><strong>Первая тренировка — это калибровка.</strong> Веса в полях ориентировочные, меняйте на те, что реально можете сделать с правильной техникой. Прогрессия начнётся от ваших реальных данных.</div>' +
       '</div>';
     }

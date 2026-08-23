@@ -16,9 +16,10 @@
 {% import '_admin_head.html' as ah %}
 {% include '_admin_nav.html' %}
 
+{% set active = 'users' %}
+{% include '_admin_subnav.html' %}
+
 <div class="admin-wrap page-fill">
-  {% set active = 'users' %}
-  {% include '_admin_subnav.html' %}
 
   {{ ah.head('Пользователи', 'Кто зарегистрирован и какие инструменты ему открыты',
              отбор, 'Поиск по адресу почты', 'Поиск по почте') }}

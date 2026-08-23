@@ -16,9 +16,10 @@
 {% import '_admin_head.html' as ah %}
 {% include '_admin_nav.html' %}
 
+{% set active = 'exercises' %}
+{% include '_admin_subnav.html' %}
+
 <div class="admin-wrap page-fill">
-  {% set active = 'exercises' %}
-  {% include '_admin_subnav.html' %}
 
   {# Два списка ОСТАЮТСЯ списками, и это решение, а не недоделка: групп мышц
      {{ muscle_groups|length }}, видов оборудования {{ equipment_labels|length }}.

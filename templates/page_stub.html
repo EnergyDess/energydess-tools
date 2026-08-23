@@ -217,7 +217,7 @@
 
 <main class="container">
   <div class="doc-wrap">
-    <a href="/" class="doc-back"><i data-lucide="arrow-left"></i> На главную</a>
+    <a href="/" class="doc-back">{{ значок('arrow-left') }} На главную</a>
     <h1>{{ page.title }}</h1>
     <p class="doc-lead">{{ page.lead }}</p>
 
@@ -255,7 +255,7 @@
       {% for tool in TOOLS %}
       <li class="tool-{{ tool.id }}">
         <a href="{{ tool.url }}">
-          <span class="doc-tools-icon"><i data-lucide="{{ TOOL_ICONS.get(tool.id, 'box') }}"></i></span>
+          <span class="doc-tools-icon">{{ значок(TOOL_ICONS.get(tool.id, 'box')) }}</span>
           <span>
             <span class="doc-tools-name">{{ tool.name }}</span>
             <span class="doc-tools-desc">{{ tool.desc }}</span>
@@ -274,7 +274,7 @@
     <div class="doc-body{% if page.long %} doc-body--long{% endif %}">{{ page.content|safe }}</div>
     {% elif not page.content and not page.content_before %}
     <div class="alert alert-warn">
-      <i data-lucide="pen-line"></i>
+      {{ значок('pen-line') }}
       <span>Страница ещё наполняется — содержимое появится в ближайшее время.</span>
     </div>
     {% endif %}

@@ -33,13 +33,13 @@
       <span class="crumb-current">Профиль</span>
     </nav>
     <div class="wkp-head">
-      <h1><i data-lucide="settings" class="tool-icon wkp-head-icon"></i> Профиль тренировок</h1>
+      <h1>{{ значок('settings', 'tool-icon wkp-head-icon') }} Профиль тренировок</h1>
     </div>
 
     <div class="wk-card">
       <div class="wk-profile-sec-title">Моя анкета</div>
       <div class="wk-anketa-summary" id="wkAnketaSummary"></div>
-      <a class="wk-action-btn" href="/workout?edit_anketa=1"><i data-lucide="pencil"></i> Изменить анкету</a>
+      <a class="wk-action-btn" href="/workout?edit_anketa=1">{{ значок('pencil') }} Изменить анкету</a>
     </div>
 
     <div class="wk-card">
@@ -99,7 +99,7 @@
       <p class="wk-profile-hint">Отметьте, какое оборудование у вас есть. Не нашли нужный тренажёр — позже можно скинуть фото в чат ассистенту.</p>
       <div class="wk-eq-toolbar">
         <span class="wk-eq-count" id="wkEqCount">Отмечено: 0</span>
-        <button class="wk-home-btn" id="wkHomeBtn" type="button"><i data-lucide="house"></i> Дом без инвентаря</button>
+        <button class="wk-home-btn" id="wkHomeBtn" type="button">{{ значок('house') }} Дом без инвентаря</button>
       </div>
       <div class="wk-eq-grid" id="wkEqGrid">
         {% for item in equipment_options %}
@@ -117,7 +117,7 @@
       <div class="wk-profile-msg" id="wkEquipmentMsg"></div>
       <div class="wk-eq-regen-banner" id="wkEqRegenBanner">
         Оборудование изменилось — программа была собрана под старый список. Обновить её под новое оборудование?
-        <div><button type="button" class="wk-action-btn" id="wkRegenNowBtn"><i data-lucide="refresh-cw"></i> Обновить программу</button></div>
+        <div><button type="button" class="wk-action-btn" id="wkRegenNowBtn">{{ значок('refresh-cw') }} Обновить программу</button></div>
       </div>
     </div>
   </div>

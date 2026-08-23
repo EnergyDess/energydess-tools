@@ -157,34 +157,34 @@
 
       {% if not tool.active %}
         <div class="card tool-card stagger-in tool-{{ tool.id }} is-soon" style="--n: {{ loop.index0 }}">
-          <div class="tool-card-icon"><i data-lucide="{{ TOOL_ICONS.get(tool.id, 'box') }}"></i></div>
+          <div class="tool-card-icon">{{ значок(TOOL_ICONS.get(tool.id, 'box')) }}</div>
           <div class="tool-card-title">{{ tool.name }}</div>
           <div class="tool-card-desc">{{ tool.desc }}</div>
           <div class="tool-card-foot">
             <span class="badge badge-blue">Скоро</span>
-            <span class="tool-card-arrow"><i data-lucide="arrow-right"></i></span>
+            <span class="tool-card-arrow">{{ значок('arrow-right') }}</span>
           </div>
         </div>
 
       {% elif tool.has_access %}
         <a href="{{ tool.url }}" class="card tool-card stagger-in tool-{{ tool.id }}" style="--n: {{ loop.index0 }}">
-          <div class="tool-card-icon"><i data-lucide="{{ TOOL_ICONS.get(tool.id, 'box') }}"></i></div>
+          <div class="tool-card-icon">{{ значок(TOOL_ICONS.get(tool.id, 'box')) }}</div>
           <div class="tool-card-title">{{ tool.name }}</div>
           <div class="tool-card-desc">{{ tool.desc }}</div>
           <div class="tool-card-foot">
             <span></span>
-            <span class="tool-card-arrow"><i data-lucide="arrow-right"></i></span>
+            <span class="tool-card-arrow">{{ значок('arrow-right') }}</span>
           </div>
         </a>
 
       {% else %}
         <div class="card tool-card stagger-in tool-{{ tool.id }} is-locked" style="--n: {{ loop.index0 }}">
-          <div class="tool-card-icon"><i data-lucide="{{ TOOL_ICONS.get(tool.id, 'box') }}"></i></div>
+          <div class="tool-card-icon">{{ значок(TOOL_ICONS.get(tool.id, 'box')) }}</div>
           <div class="tool-card-title">{{ tool.name }}</div>
           <div class="tool-card-desc">{{ tool.desc }}</div>
           <div class="tool-card-foot">
             <span class="badge badge-muted">Нет доступа</span>
-            <span class="lock-icon"><i data-lucide="lock"></i></span>
+            <span class="lock-icon">{{ значок('lock') }}</span>
           </div>
         </div>
       {% endif %}

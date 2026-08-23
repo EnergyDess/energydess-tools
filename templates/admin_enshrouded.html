@@ -17,9 +17,10 @@
 {% import '_admin_head.html' as ah %}
 {% include '_admin_nav.html' %}
 
+{% set active = 'enshrouded' %}
+{% include '_admin_subnav.html' %}
+
 <div class="admin-wrap page-fill">
-  {% set active = 'enshrouded' %}
-  {% include '_admin_subnav.html' %}
 
   {% call ah.head('Каталог Enshrouded', 'Сеты брони: названия, категория, уровень, состав и картинка',
                   отбор, 'Поиск по названию или идентификатору', 'Поиск по каталогу') %}

@@ -26,7 +26,7 @@
       <p class="ens-sub">Трекер сетов брони</p>
     </div>
     <div class="ens-search">
-      <i class="ens-search-ico" data-lucide="search" aria-hidden="true"></i>
+      {{ значок('search', 'ens-search-ico') }}
       <input class="input input-compact" type="text" id="searchInput"
              placeholder="Поиск по названию сета…" autocomplete="off"
              aria-label="Поиск по названию сета">
@@ -47,27 +47,27 @@
      цвет ВЫБОРА — заливка акцентом раздела. #}
   <div class="segmented segmented-accent ens-tabs" role="tablist">
     <button class="segmented-btn ens-tab active" data-cat="all" role="tab" aria-selected="true">
-      <span class="ens-tab-ico"><i data-lucide="layers"></i></span>
+      <span class="ens-tab-ico">{{ значок('layers') }}</span>
       Все <span class="ens-tab-cnt" id="tc-all">0</span>
     </button>
     <button class="segmented-btn ens-tab" data-cat="blacksmith" role="tab" aria-selected="false">
-      <span class="ens-tab-ico"><i data-lucide="hammer"></i></span>
+      <span class="ens-tab-ico">{{ значок('hammer') }}</span>
       Кузнец <span class="ens-tab-cnt" id="tc-blacksmith">0</span>
     </button>
     <button class="segmented-btn ens-tab" data-cat="huntress" role="tab" aria-selected="false">
-      <span class="ens-tab-ico"><i data-lucide="target"></i></span>
+      <span class="ens-tab-ico">{{ значок('target') }}</span>
       Охотница <span class="ens-tab-cnt" id="tc-huntress">0</span>
     </button>
     <button class="segmented-btn ens-tab" data-cat="alchemist" role="tab" aria-selected="false">
-      <span class="ens-tab-ico"><i data-lucide="flask-conical"></i></span>
+      <span class="ens-tab-ico">{{ значок('flask-conical') }}</span>
       Алхимик <span class="ens-tab-cnt" id="tc-alchemist">0</span>
     </button>
     <button class="segmented-btn ens-tab" data-cat="world" role="tab" aria-selected="false">
-      <span class="ens-tab-ico"><i data-lucide="map"></i></span>
+      <span class="ens-tab-ico">{{ значок('map') }}</span>
       Мир <span class="ens-tab-cnt" id="tc-world">0</span>
     </button>
     <button class="segmented-btn ens-tab" data-cat="special" role="tab" aria-selected="false">
-      <span class="ens-tab-ico"><i data-lucide="sparkles"></i></span>
+      <span class="ens-tab-ico">{{ значок('sparkles') }}</span>
       Спецпредметы <span class="ens-tab-cnt" id="tc-special">0</span>
     </button>
   </div>

@@ -38,7 +38,7 @@
        здесь невозможна (без опознанной куки форма стала бы рассылкой писем
        на любой адрес). #}
     {% if not can_resend %}
-    <div class="verify-icon"><i data-lucide="mail"></i></div>
+    <div class="verify-icon">{{ значок('mail') }}</div>
     <h1 class="v-mb-8">Подтвердите почту по ссылке из письма</h1>
     <p class="v-lead v-mb-4">
       Эта страница узнаёт вас только первые 30 минут после регистрации —
@@ -51,7 +51,7 @@
     </p>
     <a href="/login" class="btn-primary">Войти</a>
     {% else %}
-    <div class="verify-icon"><i data-lucide="{{ 'alert-triangle' if notice == 'failed' else 'mail' }}"></i></div>
+    <div class="verify-icon">{{ значок('alert-triangle' if notice == 'failed' else 'mail') }}</div>
     {% if notice == 'failed' %}
     {# Раньше страница утверждала «мы отправили письмо» независимо от того,
        ушло оно или нет — человек ждал письма, которого не будет #}

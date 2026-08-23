@@ -23,7 +23,7 @@
      под собой — три элемента подряд об одном. Правило и разбор —
      design-system.md §10.3, BACKLOG.md задача 39 #}
   <header class="hh-page-header">
-    <span class="eyebrow"><i data-lucide="briefcase" class="tool-icon"></i> Карьера</span>
+    <span class="eyebrow">{{ значок('briefcase', 'tool-icon') }} Карьера</span>
     <h1>HH-ассистент</h1>
     <p>Вставьте текст или ссылку на вакансию — получите сопроводительное письмо за 15 секунд</p>
   </header>
@@ -33,19 +33,19 @@
   <!-- ── Табы разделов ─────────────────────────────────────────────────── -->
   <div class="tab-bar tab-bar-sticky hh-tabs" role="tablist">
     <button class="tab-btn active" data-view="write" onclick="switchView('write')">
-      <i data-lucide="pen-line"></i> Написать письмо
+      {{ значок('pen-line') }} Написать письмо
     </button>
     <button class="tab-btn" data-view="history" onclick="switchView('history')">
-      <i data-lucide="history"></i> История писем
+      {{ значок('history') }} История писем
     </button>
     <button class="tab-btn" data-view="dossier" onclick="switchView('dossier')">
-      <i data-lucide="folder-open"></i> Досье
+      {{ значок('folder-open') }} Досье
       <span class="resume-badge {{ 'resume-badge-ok' if has_dossier else 'resume-badge-warn' }}" id="dosie-badge">
         {%- if has_dossier -%}✓{%- else -%}нет{%- endif -%}
       </span>
     </button>
     <button class="tab-btn" data-view="resume" onclick="switchView('resume')">
-      <i data-lucide="file-text"></i> Резюме
+      {{ значок('file-text') }} Резюме
       <span class="resume-badge {{ 'resume-badge-ok' if has_resume else 'resume-badge-warn' }}" id="resume-badge">
         {%- if has_resume -%}✓{%- else -%}нет{%- endif -%}
       </span>
@@ -63,10 +63,10 @@
 
           <div class="segmented">
             <button class="segmented-btn active" onclick="switchTab('text')">
-              <i data-lucide="clipboard-list"></i> Текст
+              {{ значок('clipboard-list') }} Текст
             </button>
             <button class="segmented-btn" onclick="switchTab('url')">
-              <i data-lucide="link"></i> Ссылка
+              {{ значок('link') }} Ссылка
             </button>
           </div>
 
@@ -90,7 +90,7 @@
                одни служебные плашки. Раньше это выглядело как успех: счётчик
                показывал тысячи символов, а в модель уезжал куки-баннер. #}
             <div class="alert alert-warn" id="fetch-warn" style="display:none">
-              <i data-lucide="alert-triangle"></i>
+              {{ значок('alert-triangle') }}
               <span><strong>Похоже, описание не загрузилось.</strong>
               <span id="fetch-warn-msg"></span>
               Откройте вакансию на сайте, скопируйте описание и вставьте
@@ -137,7 +137,7 @@
           {# Причина автоопределения — цитата из самой вакансии, а не наша
              формулировка: человек должен опознать это место глазами #}
           <div class="lang-reason" id="lang-reason" style="display:none">
-            <i data-lucide="info"></i>
+            {{ значок('info') }}
             <span>Английский выбран автоматически: в вакансии сказано
               «<span class="lang-reason-quote" id="lang-reason-quote"></span>». Можно переключить обратно.</span>
           </div>
@@ -149,7 +149,7 @@
         </div>
 
         <div class="card card-static tips">
-          <div class="tips-title"><i data-lucide="lightbulb"></i> Советы</div>
+          <div class="tips-title">{{ значок('lightbulb') }} Советы</div>
           <ul>
             <li>Текст: вставляйте полное описание — требования, задачи, условия</li>
             <li>Ссылка: работает для большинства сайтов с вакансиями</li>
@@ -166,19 +166,19 @@
           <div class="panel-title panel-title-grow">Сопроводительное письмо</div>
           <div class="result-actions" id="result-actions" style="display:none">
             <button class="btn-secondary" id="copy-btn" onclick="copyLetter()">
-              <i data-lucide="copy"></i>Копировать
+              {{ значок('copy') }}Копировать
             </button>
             <button class="btn-secondary" id="edit-btn" onclick="toggleLetterEdit()">
-              <i data-lucide="edit-3"></i><span id="edit-btn-label">Редактировать</span>
+              {{ значок('edit-3') }}<span id="edit-btn-label">Редактировать</span>
             </button>
             <button class="btn-secondary" onclick="generateLetter()">
-              <i data-lucide="refresh-cw"></i>Перегенерировать
+              {{ значок('refresh-cw') }}Перегенерировать
             </button>
           </div>
         </div>
 
         <div class="empty-state empty-state-hero" id="empty-state">
-          <div class="empty-state-icon"><i data-lucide="sparkles"></i></div>
+          <div class="empty-state-icon">{{ значок('sparkles') }}</div>
           <h3>Здесь появится письмо</h3>
           <p>Вставьте текст или ссылку на вакансию и нажмите «Написать письмо»</p>
         </div>
@@ -191,7 +191,7 @@
 
         <div class="error-state" id="error-state">
           <div class="alert alert-error">
-            <i data-lucide="alert-circle"></i>
+            {{ значок('alert-circle') }}
             <span id="error-msg"></span>
           </div>
         </div>
@@ -208,7 +208,7 @@
            сгенерировано, но без разбора требований. Раньше единственным
            признаком был заголовок «Без названия» в истории. #}
         <div class="alert alert-warn" id="analysis-fail-note" style="display:none">
-          <i data-lucide="alert-triangle"></i>
+          {{ значок('alert-triangle') }}
           <span><strong>Вакансия не разобрана.</strong> Письмо составлено по общему тексту,
           без учёта конкретных требований работодателя. Стоит сгенерировать заново.</span>
         </div>
@@ -217,7 +217,7 @@
            перегенерируем — просто говорим, что делать прямо сейчас: скопировать.
            Иначе человек закроет вкладку и потеряет письмо, не зная об этом. #}
         <div class="alert alert-warn" id="save-fail-note" style="display:none">
-          <i data-lucide="save-off"></i>
+          {{ значок('save-off') }}
           <span><strong>Письмо не сохранилось в историю.</strong> Скопируйте его сейчас —
           после перезагрузки страницы оно пропадёт.</span>
         </div>
@@ -449,7 +449,7 @@
       </div>
       <div class="upload-row">
         <label class="upload-label" for="resume-file">
-          <i data-lucide="upload"></i>
+          {{ значок('upload') }}
           Загрузить PDF / DOCX
           <input type="file" id="resume-file" accept=".pdf,.doc,.docx" style="display:none" onchange="uploadResumeFile(this)">
         </label>
