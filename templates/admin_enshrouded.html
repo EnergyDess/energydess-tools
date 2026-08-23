@@ -9,45 +9,26 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="{{ st('style.css') }}">
-  {% include '_admin_styles.html' %}
+  <link rel="stylesheet" href="{{ st('admin.css') }}">
 </head>
 <body class="has-site-header page-column">
 
 {% import '_modal.html' as m %}
+{% import '_admin_head.html' as ah %}
 {% include '_admin_nav.html' %}
 
-<div class="admin-wrap admin-wrap-cat page-fill">
+<div class="admin-wrap page-fill">
   {% set active = 'enshrouded' %}
   {% include '_admin_subnav.html' %}
 
-  <h1>Каталог Enshrouded</h1>
-  <p class="subtitle">Сеты брони: названия, категория, уровень, состав и картинка</p>
+  {% call ah.head('Каталог Enshrouded', 'Сеты брони: названия, категория, уровень, состав и картинка',
+                  отбор, 'Поиск по названию или идентификатору', 'Поиск по каталогу') %}
+    <button class="btn-primary ens-a-add" type="button" onclick="открыть(null)">Добавить сет</button>
+  {% endcall %}
 
   <div class="card admin-panel">
-    <div class="card-header">
-      <span>Сеты (<span id="ens-count">{{ sets|length }}</span>)</span>
-      <div class="ens-a-tools">
-        <div class="search-wrap">
-          <svg class="admin-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          {# Многоточия в конце подсказки НЕТ — решение владельца 2026-08-23.
-             В шапке сайта оно стоит («Найти инструмент, письмо, продукт…»)
-             и означает «перечень неполон»; здесь названо ровно то, по чему
-             ищут, и продолжать нечего. #}
-          <input type="text" id="ens-q" class="search-input-admin"
-                 placeholder="Поиск по названию или идентификатору"
-                 data-narrow-hint="Поиск по каталогу" oninput="отобрать()">
-        </div>
-        <select class="select input-sm ens-a-cat" id="ens-cat" onchange="отобрать()" aria-label="Категория">
-          <option value="">Все категории</option>
-          {% for c in crafters %}<option value="{{ c.id }}">{{ c.label }}</option>{% endfor %}
-        </select>
-        <button class="btn-primary ens-a-add" type="button" onclick="открыть(null)">Добавить сет</button>
-      </div>
-    </div>
-
     <div class="table-scroll">
-      <table class="foods-table foods-table-ens" id="ens-table">
+      <table class="admin-table admin-table-ens" id="ens-table">
         <thead>
           <tr>
             <th>Картинка</th><th>Идентификатор</th><th>Название</th>
@@ -58,8 +39,10 @@
         <tbody id="ens-rows"></tbody>
       </table>
     </div>
-    <p class="empty-state" id="ens-empty" hidden>Ничего не нашлось</p>
+    <p class="empty-state admin-empty" id="ens-empty" hidden>Под текущий отбор не попал ни один сет</p>
   </div>
+
+  <p class="data-note" id="note"></p>
 </div>
 
 {% call m.modal('ens-edit', 'Сет', icon='shield') %}
@@ -130,17 +113,54 @@ function составСловами(с) {
   return 'полный (5)';
 }
 
+/* ОТБОР ПО КАТЕГОРИИ — ЧИПАМИ, а не выпадающим списком (BACKLOG №148).
+   Категорий пять, множество их закрыто устройством игры (§5.7) — то есть
+   ряд из шести чипов не вырастет ни завтра, ни через год. Список тут
+   отнимал два действия вместо одного и не показывал, СКОЛЬКО в категории
+   сетов, пока в неё не заглянешь. */
+let отбор_кат = 'all';
+
+function пересчитать_чипы() {
+  const счёт = {all: СЕТЫ.length};
+  СЕТЫ.forEach(с => { счёт[с.crafter] = (счёт[с.crafter] || 0) + 1; });
+  document.querySelectorAll('[data-pick]').forEach(b => {
+    const n = b.querySelector('.chip-n');
+    if (n && счёт[b.dataset.pick] !== undefined) n.textContent = счёт[b.dataset.pick];
+    b.classList.toggle('active', b.dataset.pick === отбор_кат);
+  });
+  return счёт;
+}
+
+function подпись(видно, счёт) {
+  const q = (document.getElementById('admin-q').value || '').trim();
+  const части = [];
+  if (отбор_кат !== 'all') части.push('категория «' + покат(отбор_кат) + '»');
+  if (q) части.push('поиск «' + q + '»');
+  const отмечено = СЕТЫ.filter(с => (с.marks || 0) > 0).length;
+  const без_картинки = СЕТЫ.filter(с => !с.img).length;
+  let t = 'Показано ' + видно + ' из ' + СЕТЫ.length + '. ';
+  t += части.length ? 'Отбор: ' + части.join(', ') + '. '
+                    : 'Отбора нет — в таблице весь каталог. ';
+  t += 'Столбец «Отметки» — сколько галочек люди уже поставили на сет: '
+     + 'сейчас отмечен ' + отмечено + ' сет(ов), и при удалении такого сета '
+     + 'его отметки пропадут вместе с ним. ';
+  t += без_картинки
+     ? 'Без картинки ' + без_картинки + ' — у них баннер в разделе схлопнут.'
+     : 'Картинка есть у всех сетов каталога.';
+  document.getElementById('note').textContent = t;
+}
+
 function отобрать() {
-  const q = (document.getElementById('ens-q').value || '').trim().toLowerCase();
-  const cat = document.getElementById('ens-cat').value;
+  const q = (document.getElementById('admin-q').value || '').trim().toLowerCase();
+  const cat = отбор_кат === 'all' ? '' : отбор_кат;
   const видно = СЕТЫ.filter(с =>
     (!cat || с.crafter === cat) &&
     (!q || с.id.toLowerCase().includes(q) ||
            (с.name_ru || '').toLowerCase().includes(q) ||
            (с.name_en || '').toLowerCase().includes(q)));
-  document.getElementById('ens-count').textContent = видно.length;
   document.getElementById('ens-empty').hidden = видно.length > 0;
   document.getElementById('ens-table').hidden = видно.length === 0;
+  подпись(видно.length, пересчитать_чипы());
   document.getElementById('ens-rows').innerHTML = видно.map(с => `
     <tr data-id="${esc(с.id)}">
       <td>${с.img ? `<button class="ens-a-thumbwrap" type="button" data-zoom
@@ -386,27 +406,17 @@ document.getElementById('ens-del-go').addEventListener('click', async () => {
   window.закрыть_модалку('ens-edit');
 });
 
-/* ПОДСКАЗКА ПОИСКА КОРОЧЕ НА УЗКОМ ЭКРАНЕ. Тот же приём, что у поиска
-   в шапке сайта (BACKLOG №64): полная строка просит 288px, а поле
-   на 390 даёт внутри 258 — она обрезалась бы на середине слова.
-   Порог 640px — тот же, на котором ломается раскладка экрана.
+/* ПОДСКАЗКА ПОИСКА КОРОЧЕ НА УЗКОМ ЭКРАНЕ живёт теперь в `ui.js`
+   (`data-narrow-hint`, 2026-08-23): поле поиска приезжает из общего
+   макроса шапки раздела, то есть потребителей у механики стало четыре,
+   а не один. Четыре копии разошлись бы молча — тот же довод, по которому
+   увеличение картинки уехало в `img-zoom.js`. */
 
-   Подменяется АТРИБУТ, а не текст в разметке: на широком окне подсказка
-   обязана называть оба способа поиска, и укоротить её насовсем значило
-   бы спрятать от всех то, что не помещается у одного. */
-(function () {
-  const поле = document.getElementById('ens-q');
-  const полная = поле.placeholder;
-  // Имя атрибута ЛАТИНИЦЕЙ (§6.0). `dataset` убирает дефис только
-  // перед ASCII-буквой: у `data-узкая-подсказка` ключ не собирается,
-  // чтение молча даёт undefined, подсказка остаётся длинной —
-  // и правка выглядит несработавшей. Замерено на этом же коде.
-  const узкая = поле.dataset.narrowHint || полная;
-  const узко = window.matchMedia('(max-width: 640px)');
-  const выбрать = () => { поле.placeholder = узко.matches ? узкая : полная; };
-  выбрать();
-  узко.addEventListener('change', выбрать);
-})();
+document.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => {
+  отбор_кат = b.dataset.pick;
+  отобрать();
+}));
+document.getElementById('admin-q').addEventListener('input', отобрать);
 
 отобрать();
 </script>

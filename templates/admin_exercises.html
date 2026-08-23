@@ -9,84 +9,46 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="{{ st('style.css') }}">
-  {% include '_admin_styles.html' %}
+  <link rel="stylesheet" href="{{ st('admin.css') }}">
 </head>
 <body class="has-site-header page-column">
 
+{% import '_admin_head.html' as ah %}
 {% include '_admin_nav.html' %}
 
 <div class="admin-wrap page-fill">
   {% set active = 'exercises' %}
   {% include '_admin_subnav.html' %}
 
-  <h1>База упражнений</h1>
-  <p class="subtitle">Проверка видео для {{ total }} упражнений программы тренировок</p>
-
-  <!-- Статистика — кликабельные фильтры по статусу -->
-  <div class="ex-stats">
-    <div class="card ex-stat active" data-status="all">
-      <div class="ex-stat-value" id="stat-all">{{ total }}</div>
-      <div class="ex-stat-label">Всего</div>
-    </div>
-    <div class="card ex-stat" data-status="unchecked">
-      <div class="ex-stat-value" id="stat-unchecked">{{ status_counts.unchecked }}</div>
-      <div class="ex-stat-label">Не проверено</div>
-    </div>
-    <div class="card ex-stat" data-status="approved">
-      <div class="ex-stat-value" id="stat-approved">{{ status_counts.approved }}</div>
-      <div class="ex-stat-label">Одобрено</div>
-    </div>
-    <div class="card ex-stat" data-status="wrong">
-      <div class="ex-stat-value" id="stat-wrong">{{ status_counts.wrong }}</div>
-      <div class="ex-stat-label">Неверное</div>
-    </div>
-    <div class="card ex-stat" data-status="no_video">
-      <div class="ex-stat-value" id="stat-no_video">{{ status_counts.no_video }}</div>
-      <div class="ex-stat-label">Без видео</div>
-    </div>
-  </div>
-
-  <!-- Фильтры -->
-  <div class="ex-filters">
-    <select class="ex-select" id="filter-muscle">
+  {# Два списка ОСТАЮТСЯ списками, и это решение, а не недоделка: групп мышц
+     {{ muscle_groups|length }}, видов оборудования {{ equipment_labels|length }}.
+     Чипами такой ряд занял бы две-три строки над таблицей и перестал бы
+     читаться сплошным перечнем — то есть отбор стал бы хуже, а не лучше.
+     Чипы взяли СТАТУС: там пять значений, они взаимоисключающие и это
+     главная ось работы на экране. #}
+  {% call ah.head('Упражнения', 'Проверка видео для ' ~ total ~ ' упражнений программы тренировок',
+                  отбор, 'Поиск по названию', 'Поиск') %}
+    <select class="select input-sm" id="filter-muscle" aria-label="Группа мышц">
       <option value="all">Все группы мышц</option>
-      {% for key, label in muscle_groups.items() %}
-      <option value="{{ key }}">{{ label }}</option>
-      {% endfor %}
+      {% for key, label in muscle_groups.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
     </select>
-
-    <select class="ex-select" id="filter-status">
-      <option value="all">Любой статус</option>
-      <option value="unchecked">Не проверено</option>
-      <option value="approved">Одобрено</option>
-      <option value="wrong">Неверное</option>
-      <option value="no_video">Без видео</option>
-    </select>
-
-    <select class="ex-select" id="filter-equipment">
+    <select class="select input-sm" id="filter-equipment" aria-label="Оборудование">
       <option value="all">Любое оборудование</option>
-      {% for key, label in equipment_labels.items() %}
-      <option value="{{ key }}">{{ label }}</option>
-      {% endfor %}
+      {% for key, label in equipment_labels.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
     </select>
+  {% endcall %}
 
-    <div class="search-wrap">
-      <svg class="admin-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="filter-search" placeholder="Поиск по названию..." class="search-input-admin">
-    </div>
-  </div>
-
-  <!-- Сетка карточек — наполняется JS -->
   <div class="ex-grid" id="ex-grid"></div>
-  <div class="empty-state admin-empty" id="ex-empty" style="display:none">Ничего не найдено по текущим фильтрам</div>
+  <p class="empty-state admin-empty" id="ex-empty" hidden>Под текущий отбор не попало ни одно упражнение</p>
 
   <div class="ex-pagination" id="ex-pagination"></div>
+
+  <p class="data-note" id="note"></p>
 </div>
 
 {# Просмотр видео на общем компоненте, вариант modal-ov-viewer — тот же
    случай, что просмотр фото в дневнике: рамка окна мешала бы содержимому,
-   поэтому chrome=false и плавающая кнопка закрытия.
-   Раньше здесь был свой оверлей .ex-modal-overlay со своим onclick. #}
+   поэтому chrome=false и плавающая кнопка закрытия. #}
 {% import '_modal.html' as m %}
 {% call m.modal('ex-video-modal', 'Видео упражнения', variant='modal-ov-viewer', chrome=false) %}
       <div class="ex-video-box" id="ex-modal-iframe-wrap"></div>
@@ -102,21 +64,14 @@ const EQUIPMENT_LABELS = {{ equipment_labels | tojson }};
 const STATUS_LABELS = {unchecked: 'Не проверено', approved: 'Одобрено', wrong: 'Неверное', no_video: 'Без видео'};
 const PAGE_SIZE = 30;
 
-const state = {
-  muscle: 'all',
-  status: 'all',
-  equipment: 'all',
-  search: '',
-  page: 1,
-};
+const state = {muscle: 'all', pick: 'all', equipment: 'all', q: '', page: 1};
 
-// ── Пришли по ссылке с дашборда с ?status=no_video — применяем сразу ──
+// Пришли по ссылке `?status=no_video` — применяем сразу. Адрес СОХРАНЁН
+// намеренно: он был у ссылки-действия удалённого дашборда (BACKLOG №147),
+// и ломать чужие закладки заодно с уборкой экрана незачем.
 (function applyStatusFromUrl() {
   const q = new URLSearchParams(window.location.search).get('status');
-  if (q && STATUS_LABELS[q]) {
-    state.status = q;
-    document.getElementById('filter-status').value = q;
-  }
+  if (q && STATUS_LABELS[q]) state.pick = q;
 })();
 
 function showToast(msg) {
@@ -131,26 +86,29 @@ function escHtml(str) {
 }
 
 function getFiltered() {
-  const s = state.search.trim().toLowerCase();
+  const s = state.q.trim().toLowerCase();
   return EXERCISES.filter(e => {
     if (state.muscle !== 'all' && e.muscle_group !== state.muscle) return false;
-    if (state.status !== 'all' && e.video_status !== state.status) return false;
+    if (state.pick !== 'all' && e.video_status !== state.pick) return false;
     if (state.equipment !== 'all' && e.equipment !== state.equipment) return false;
     if (s && !e.name_ru.toLowerCase().includes(s)) return false;
     return true;
   });
 }
 
-function renderStats() {
+// Числа в чипах — ЖИВЫЕ: одобрил видео, и «Не проверено» стало меньше
+// на единицу в ту же секунду. Первый расчёт пришёл с сервера (разметка),
+// дальше пересчитывается тут по тем же данным, что рисуют карточки, —
+// второго источника чисел нет.
+function renderChips() {
   const counts = {all: EXERCISES.length, unchecked: 0, approved: 0, wrong: 0, no_video: 0};
   EXERCISES.forEach(e => { counts[e.video_status] = (counts[e.video_status] || 0) + 1; });
-  Object.keys(counts).forEach(k => {
-    const el = document.getElementById('stat-' + k);
-    if (el) el.textContent = counts[k];
+  document.querySelectorAll('[data-pick]').forEach(b => {
+    const n = b.querySelector('.chip-n');
+    if (n && counts[b.dataset.pick] !== undefined) n.textContent = counts[b.dataset.pick];
+    b.classList.toggle('active', b.dataset.pick === state.pick);
   });
-  document.querySelectorAll('.ex-stat').forEach(el => {
-    el.classList.toggle('active', el.dataset.status === state.status);
-  });
+  return counts;
 }
 
 function cardHtml(e) {
@@ -159,8 +117,7 @@ function cardHtml(e) {
     : '';
   // Кадр берётся со СВОЕГО домена, а не с img.youtube.com: ссылка на
   // YouTube оставляет ровно те запросы, ради снятия которых заведён фасад
-  // (BACKLOG №73). Замер до правки на этой странице: 5 запросов
-  // к img.youtube.com при загрузке, и это только видимые карточки.
+  // (BACKLOG №73).
   const thumb = e.youtube_id
     ? `<img src="/exercise-preview/${escHtml(e.youtube_id)}.jpg" alt="" loading="lazy">
        <div class="ex-card-play"><svg viewBox="0 0 68 48" width="48" height="34"><path d="M66.5 7.7c-.8-2.9-2.5-5.2-5.4-6C55.8.2 34 0 34 0S12.2.2 6.9 1.7c-2.9.8-4.6 3.1-5.4 6C0 13 0 24 0 24s0 11 1.5 16.3c.8 2.9 2.5 5.1 5.4 5.9C12.2 47.7 34 48 34 48s21.8-.3 27.1-1.8c2.9-.8 4.6-3 5.4-5.9C68 35 68 24 68 24s0-11-1.5-16.3z" fill="#f00"/><path d="M45 24 27 14v20" fill="#fff"/></svg></div>`
@@ -168,14 +125,13 @@ function cardHtml(e) {
   const equipLabel = EQUIPMENT_LABELS[e.equipment] || e.equipment || '—';
   const muscleLabel = MUSCLE_LABELS[e.muscle_group] || '—';
   const warn = e.video_status === 'wrong'
-    ? `<div class="ex-card-warn visible">Видео помечено как неверное — нажми «Заменить», чтобы указать правильное.</div>`
+    ? `<div class="ex-card-warn visible">Видео помечено как неверное — нажмите «Заменить», чтобы указать правильное.</div>`
     : `<div class="ex-card-warn"></div>`;
 
   const nameEn = e.name_en && e.name_en.trim()
     ? `<div class="ex-card-name-en">${escHtml(e.name_en)}</div>`
     : '';
 
-  // Мета-строка: мышцы · оборудование [· level] [· mechanic] — level/mechanic только если заполнены
   const metaParts = [muscleLabel, equipLabel];
   if (e.level) metaParts.push(escHtml(e.level));
   if (e.mechanic) metaParts.push(escHtml(e.mechanic));
@@ -204,15 +160,16 @@ function cardHtml(e) {
         ${nameEn}
         <div class="ex-card-meta">${metaParts.join(' · ')}</div>
         <div class="ex-card-actions">
-          <button class="ex-btn ex-btn-approve ${e.video_status === 'approved' ? 'active' : ''}" onclick="setStatus('${escHtml(e.id)}', 'approved')">✓ Одобрено</button>
-          <button class="ex-btn ex-btn-wrong ${e.video_status === 'wrong' ? 'active' : ''}" onclick="setStatus('${escHtml(e.id)}', 'wrong')">✗ Неверное</button>
+          <button class="ex-btn ex-btn-approve ${e.video_status === 'approved' ? 'active' : ''}" onclick="setStatus('${escHtml(e.id)}', 'approved')">Одобрено</button>
+          <button class="ex-btn ex-btn-wrong ${e.video_status === 'wrong' ? 'active' : ''}" onclick="setStatus('${escHtml(e.id)}', 'wrong')">Неверное</button>
           <button class="ex-btn ex-btn-replace" onclick="toggleReplace('${escHtml(e.id)}')">Заменить</button>
         </div>
         ${instructionsBtn}
         ${instructionsBlock}
         <div class="ex-replace-row" id="replace-row-${escHtml(e.id)}">
-          <input type="text" class="ex-replace-input" id="replace-input-${escHtml(e.id)}" placeholder="Ссылка на youtube.com или youtu.be">
-          <button class="ex-replace-save" onclick="saveReplace('${escHtml(e.id)}')">Сохранить</button>
+          <input type="text" class="input input-sm ex-replace-input" id="replace-input-${escHtml(e.id)}"
+                 placeholder="Ссылка на youtube.com или youtu.be" aria-label="Ссылка на видео">
+          <button class="btn-primary ex-replace-save" onclick="saveReplace('${escHtml(e.id)}')">Сохранить</button>
         </div>
         ${warn}
       </div>
@@ -232,14 +189,35 @@ function renderGrid() {
   const empty = document.getElementById('ex-empty');
   if (!pageItems.length) {
     grid.innerHTML = '';
-    empty.style.display = 'block';
+    empty.hidden = false;
   } else {
-    empty.style.display = 'none';
+    empty.hidden = true;
     grid.innerHTML = pageItems.map(cardHtml).join('');
   }
 
   renderPagination(totalPages);
-  renderStats();
+  const counts = renderChips();
+  подпись(filtered.length, totalPages, counts);
+}
+
+function подпись(нашлось, страниц, counts) {
+  const ч = document.querySelector('[data-pick="' + state.pick + '"]');
+  const имя = ч ? ч.firstChild.textContent.trim() : 'Все';
+  const показано = Math.min(PAGE_SIZE, Math.max(0, нашлось - (state.page - 1) * PAGE_SIZE));
+  let t = 'Показано ' + показано + ' из ' + нашлось + ' подошедших, всего в справочнике '
+        + EXERCISES.length + '. ';
+  if (страниц > 1) t += 'Это страница ' + state.page + ' из ' + страниц + ' по 30 карточек. ';
+  const части = [];
+  if (state.pick !== 'all') части.push('статус «' + имя + '»');
+  if (state.muscle !== 'all') части.push('группа мышц «' + MUSCLE_LABELS[state.muscle] + '»');
+  if (state.equipment !== 'all') части.push('оборудование «' + EQUIPMENT_LABELS[state.equipment] + '»');
+  if (state.q.trim()) части.push('поиск по названию «' + state.q.trim() + '»');
+  t += части.length ? 'Отбор: ' + части.join(', ') + '. ' : 'Отбора нет — показан весь справочник. ';
+  t += 'Не проверено ' + counts.unchecked + ', без видео ' + counts.no_video
+     + ': «не проверено» значит, что видео подобрано импортом и его никто не смотрел, '
+     + '«без видео» — что подобрать не удалось и ссылку надо найти руками. '
+     + 'Числа в чипах меняются сразу, как только вы жмёте «Одобрено» или «Неверное».';
+  document.getElementById('note').textContent = t;
 }
 
 function renderPagination(totalPages) {
@@ -251,7 +229,6 @@ function renderPagination(totalPages) {
 
   let html = btn('← Пред', state.page - 1, state.page === 1, false);
 
-  // Окно страниц: текущая ± 2, плюс первая/последняя с многоточием
   const windowStart = Math.max(1, state.page - 2);
   const windowEnd = Math.min(totalPages, state.page + 2);
 
@@ -274,30 +251,21 @@ function renderPagination(totalPages) {
 function goToPage(p) {
   state.page = p;
   renderGrid();
-  window.scrollTo({top: document.querySelector('.ex-filters').offsetTop - 80, behavior: 'smooth'});
+  window.scrollTo({top: document.querySelector('.admin-bar').offsetTop - 80, behavior: 'smooth'});
 }
 
-// ── Фильтры ──
+// ── Отбор ──
+document.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => {
+  state.pick = b.dataset.pick; state.page = 1; renderGrid();
+}));
 document.getElementById('filter-muscle').addEventListener('change', function() {
   state.muscle = this.value; state.page = 1; renderGrid();
-});
-document.getElementById('filter-status').addEventListener('change', function() {
-  state.status = this.value; state.page = 1; renderGrid();
 });
 document.getElementById('filter-equipment').addEventListener('change', function() {
   state.equipment = this.value; state.page = 1; renderGrid();
 });
-document.getElementById('filter-search').addEventListener('input', function() {
-  state.search = this.value; state.page = 1; renderGrid();
-});
-
-document.querySelectorAll('.ex-stat').forEach(tile => {
-  tile.addEventListener('click', () => {
-    state.status = tile.dataset.status === 'all' ? 'all' : tile.dataset.status;
-    document.getElementById('filter-status').value = state.status;
-    state.page = 1;
-    renderGrid();
-  });
+document.getElementById('admin-q').addEventListener('input', function() {
+  state.q = this.value; state.page = 1; renderGrid();
 });
 
 // ── Действия над карточкой ──
@@ -312,7 +280,7 @@ async function setStatus(id, status) {
     const data = await res.json();
     const ex = EXERCISES.find(e => e.id === id);
     if (ex) ex.video_status = data.video_status;
-    showToast(status === 'approved' ? '✓ Одобрено' : '✗ Помечено как неверное');
+    showToast(status === 'approved' ? 'Одобрено' : 'Помечено как неверное');
     renderGrid();
   } catch {
     showToast('Не удалось сохранить статус');
@@ -354,7 +322,7 @@ async function saveReplace(id) {
     const ex = EXERCISES.find(e => e.id === id);
     if (ex) { ex.youtube_id = data.youtube_id; ex.video_status = data.video_status; }
     input.value = '';
-    showToast('✓ Видео заменено');
+    showToast('Видео заменено');
     renderGrid();
   } catch {
     showToast('Ошибка сети — ссылка не сохранена');
@@ -369,11 +337,9 @@ function openVideoModal(youtubeId) {
 }
 
 // Уничтожение iframe — на событии компонента, а не в своей функции закрытия.
-// Это ровно тот случай, что камера у сканера штрих-кодов: пока закрытие было
-// одно (своя кнопка и клик вне звали одну и ту же функцию), уборка держалась
-// на ней. Компонент добавил Escape — и закрытие им прошло бы мимо уборки:
-// оверлей исчез, а видео продолжало бы играть со звуком за кадром.
-// Ни ошибки, ни следа в консоли — только звук из ниоткуда.
+// Пока закрытие было одно, уборка держалась на ней; компонент добавил
+// Escape — и закрытие им прошло бы мимо уборки: оверлей исчез, а видео
+// продолжало бы играть со звуком за кадром.
 document.getElementById('ex-video-modal').addEventListener('modal:close', () => {
   document.getElementById('ex-modal-iframe-wrap').innerHTML = '';
 });
@@ -381,12 +347,6 @@ document.getElementById('ex-video-modal').addEventListener('modal:close', () => 
 renderGrid();
 </script>
 
-
-{# Общий футер. Раньше его тут не было вовсе — админка была единственным
-   разделом сайта без нижней навигации. Причина отпала: перейти из админки
-   в инструмент или в правовую страницу удобно, и особенной админка для
-   этого не настолько (BACKLOG №56). Вариант полный: сюда попадает только
-   администратор, то есть авторизованный. #}
 <script src="{{ st('modal.js') }}"></script>
 {% include '_page_end.html' %}
 </body>

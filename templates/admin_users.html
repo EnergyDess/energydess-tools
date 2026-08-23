@@ -9,71 +9,72 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="{{ st('style.css') }}">
-  {% include '_admin_styles.html' %}
+  <link rel="stylesheet" href="{{ st('admin.css') }}">
 </head>
 <body class="has-site-header page-column">
 
+{% import '_admin_head.html' as ah %}
 {% include '_admin_nav.html' %}
 
 <div class="admin-wrap page-fill">
   {% set active = 'users' %}
   {% include '_admin_subnav.html' %}
 
-  <h1>Пользователи</h1>
-  <p class="subtitle">Управляйте доступом пользователей к инструментам</p>
+  {{ ah.head('Пользователи', 'Кто зарегистрирован и какие инструменты ему открыты',
+             отбор, 'Поиск по адресу почты', 'Поиск по почте') }}
 
   <div class="card admin-panel">
-    <div class="card-header">
-      <span>Пользователи (<span id="user-count">{{ users|length }}</span>)</span>
-      <div class="search-wrap">
-        <svg class="admin-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="user-search" placeholder="Поиск по email..."
-          oninput="filterUsers(this.value)"
-          class="search-input-admin">
-      </div>
-    </div>
-
-    {% if users %}
     <div class="table-scroll">
-    <table class="users-table">
-      <thead>
-        <tr>
-          <th>Email</th>
-          <th>Дата регистрации</th>
-          {% for tool in tools %}
-          <th>{{ tool.name }}</th>
+      <table class="admin-table admin-table-users">
+        <thead>
+          <tr>
+            <th>Почта</th>
+            <th>Регистрация</th>
+            {% for tool in tools %}<th>{{ tool.name }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody id="rows">
+          {% for u in users %}
+          <tr data-email="{{ u.email }}" data-access="{{ 'yes' if u.tools.values()|select|list else 'no' }}">
+            <td class="email-cell">{{ u.email }}</td>
+            <td class="date-cell">{{ u.created_at.strftime('%d.%m.%Y') if u.created_at else '—' }}</td>
+            {% for tool in tools %}
+            <td>
+              <label class="toggle">
+                <input type="checkbox" {% if u.tools[tool.id] %}checked{% endif %}
+                       aria-label="{{ tool.name }} для {{ u.email }}"
+                       onchange="toggleAccess({{ u.id }}, '{{ tool.id }}', this)">
+                <span class="track"></span>
+              </label>
+            </td>
+            {% endfor %}
+          </tr>
           {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for u in users %}
-        <tr>
-          <td class="email-cell">{{ u.email }}</td>
-          <td class="date-cell">{{ u.created_at.strftime('%d.%m.%Y') if u.created_at else '—' }}</td>
-          {% for tool in tools %}
-          <td>
-            <label class="toggle">
-              <input type="checkbox"
-                     {% if u.tools[tool.id] %}checked{% endif %}
-                     onchange="toggleAccess({{ u.id }}, '{{ tool.id }}', this)">
-              <span class="track"></span>
-            </label>
-          </td>
-          {% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </tbody>
+      </table>
     </div>
-    {% else %}
-    <div class="empty-state admin-empty">Пока нет зарегистрированных пользователей</div>
-    {% endif %}
+    <p class="empty-state admin-empty" id="empty" hidden>Под текущий отбор не попал ни один пользователь</p>
   </div>
+
+  {# Строка-объяснение: ЧТО показано и КАК посчитано. Числа в неё уезжают
+     из тех же данных, что и в чипы, — второго счёта тут нет. #}
+  <p class="data-note" id="note"></p>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
+const ВСЕГО = {{ users|length }};
+const С_ДОСТУПОМ = {{ отбор[1].n }};
+const state = {pick: 'all', q: ''};
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
 async function toggleAccess(userId, toolId, checkbox) {
   try {
     const res = await fetch('/admin/toggle', {
@@ -83,39 +84,60 @@ async function toggleAccess(userId, toolId, checkbox) {
     });
     const data = await res.json();
     if (!res.ok) { checkbox.checked = !checkbox.checked; return; }
-    showToast(data.access ? '✓ Доступ выдан' : '✗ Доступ закрыт');
+    // Признак строки пересчитывается ТУТ ЖЕ: без этого чип «Без доступа»
+    // после выдачи доступа продолжал бы показывать строку, которой в нём
+    // уже не место, — и отказ был бы немой (§6.0.1).
+    const row = checkbox.closest('tr');
+    row.dataset.access = row.querySelectorAll('input[type=checkbox]:checked').length ? 'yes' : 'no';
+    отобрать();
+    showToast(data.access ? 'Доступ выдан' : 'Доступ закрыт');
   } catch {
     checkbox.checked = !checkbox.checked;
+    showToast('Не удалось изменить доступ');
   }
 }
 
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
+function отобрать() {
+  const rows = document.querySelectorAll('#rows tr');
+  const s = state.q.trim().toLowerCase();
+  let видно = 0;
+  rows.forEach(row => {
+    const почта = (row.dataset.email || '').toLowerCase();
+    const ок = (state.pick === 'all' || row.dataset.access === state.pick)
+            && (!s || почта.includes(s));
+    row.hidden = !ок;
+    if (ок) видно++;
+  });
+  document.getElementById('empty').hidden = видно > 0;
+  подпись(видно);
 }
 
-function filterUsers(q) {
-  const rows = document.querySelectorAll('tbody tr');
-  const s = q.trim().toLowerCase();
-  let visible = 0;
-  rows.forEach(row => {
-    const email = row.querySelector('.email-cell')?.textContent.toLowerCase() || '';
-    const show  = !s || email.includes(s);
-    row.style.display = show ? '' : 'none';
-    if (show) visible++;
-  });
-  document.getElementById('user-count').textContent = s ? visible + '/' + rows.length : rows.length;
+function подпись(видно) {
+  const ч = document.querySelector('[data-pick="' + state.pick + '"]');
+  const имя = ч ? ч.firstChild.textContent.trim() : 'Все';
+  let t = 'Показано ' + видно + ' из ' + ВСЕГО + '. ';
+  t += state.pick === 'all' ? 'Отбора нет — в таблице все зарегистрированные, кроме вас. '
+                             : 'Отбор «' + имя + '». ';
+  if (state.q.trim()) t += 'Плюс поиск по адресу почты: «' + state.q.trim() + '». ';
+  t += 'Доступ считается открытым, если у человека включён хотя бы один инструмент — '
+     + 'сейчас таких ' + С_ДОСТУПОМ + '. Переключатель в строке действует сразу, '
+     + 'сохранять ничего не нужно.';
+  document.getElementById('note').textContent = t;
 }
+
+document.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-pick]').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  state.pick = b.dataset.pick;
+  отобрать();
+}));
+document.getElementById('admin-q').addEventListener('input', function () {
+  state.q = this.value; отобрать();
+});
+
+отобрать();
 </script>
 
-
-{# Общий футер. Раньше его тут не было вовсе — админка была единственным
-   разделом сайта без нижней навигации. Причина отпала: перейти из админки
-   в инструмент или в правовую страницу удобно, и особенной админка для
-   этого не настолько (BACKLOG №56). Вариант полный: сюда попадает только
-   администратор, то есть авторизованный. #}
 {% include '_page_end.html' %}
 </body>
 </html>

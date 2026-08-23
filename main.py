@@ -2983,29 +2983,27 @@ def _parse_youtube_id(url: str) -> Optional[str]:
 
 
 @app.get("/admin")
-async def admin_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
+async def admin_page(request: Request, user=Depends(get_current_user)):
+    """Дашборда больше НЕТ — решение владельца 2026-08-23 (BACKLOG №147).
+
+    Он показывал три числа, дублирующие вкладки, и одну ссылку-действие.
+    Числа теперь стоят чипами-фильтрами прямо над таблицей своего раздела,
+    то есть рядом с тем, что ими отбирается; ссылка «N без видео» переехала
+    в «Упражнения» чипом «Без видео N» с тем же адресом `?status=no_video`.
+
+    Роут ОСТАВЛЕН редиректом, а не удалён: `/admin` стоит ссылкой в шапке
+    сайта (`templates/_header.html`, выпадашка аватара), и 404 там означал бы
+    сломанную ссылку в общем компоненте. Куда: «Пользователи» — первый раздел
+    ряда и единственный, где админ ДЕЙСТВУЕТ над людьми (выдача доступа);
+    остальные три — модерация содержимого, к ней приходят по делу.
+
+    Гейт свой, а не унаследованный от целевой страницы: не-админ обязан
+    получить тот же ответ, что и на прежнем дашборде, — уход на лаунчер,
+    а не подсказку о существовании `/admin/users`.
+    """
     if not _admin_guard(user):
         return RedirectResponse("/", status_code=302)
-
-    users_count = db.query(User).filter(User.id != user.id).count()
-    foods_count = db.query(CustomFood).count()
-    exercises_count = db.query(Exercise).count()
-
-    today_start = datetime.combine(datetime.utcnow().date(), datetime.min.time())
-    new_users_today = db.query(User).filter(User.id != user.id, User.created_at >= today_start).count()
-
-    exercises_unchecked = db.query(Exercise).filter(Exercise.video_status == "unchecked").count()
-    exercises_no_video = db.query(Exercise).filter(Exercise.video_status == "no_video").count()
-    exercises_no_video_word = _plural_ru(exercises_no_video, "упражнение", "упражнения", "упражнений")
-
-    return templates.TemplateResponse(request=request, name="admin.html",
-                                      context={"user": user, "users_count": users_count,
-                                               "foods_count": foods_count,
-                                               "exercises_count": exercises_count,
-                                               "new_users_today": new_users_today,
-                                               "exercises_unchecked": exercises_unchecked,
-                                               "exercises_no_video": exercises_no_video,
-                                               "exercises_no_video_word": exercises_no_video_word})
+    return RedirectResponse("/admin/users", status_code=302)
 
 
 @app.get("/admin/users")
@@ -3026,8 +3024,19 @@ async def admin_users_page(request: Request, user=Depends(get_current_user), db:
             "tools": {t["id"]: (u.id, t["id"]) in access_set for t in TOOLS},
         })
 
+    # ЧИСЛА ЧИПОВ СЧИТАЕТ СЕРВЕР, а не разметка. Причина не в удобстве:
+    # чип отбора обещает, сколько строк он покажет, и посчитанное на клиенте
+    # число совпадало бы с выдачей только пока обе стороны считают одинаково.
+    # Разойдясь, они дали бы чип «С доступом 3», открывающий четыре строки, —
+    # и признака ошибки не было бы никакого.
+    с_доступом = sum(1 for u in users_data if any(u["tools"].values()))
+    отбор = [{"id": "all",  "label": "Все",          "n": len(users_data)},
+             {"id": "yes",  "label": "С доступом",   "n": с_доступом},
+             {"id": "no",   "label": "Без доступа",  "n": len(users_data) - с_доступом}]
+
     return templates.TemplateResponse(request=request, name="admin_users.html",
-                                      context={"user": user, "users": users_data, "tools": TOOLS})
+                                      context={"user": user, "users": users_data,
+                                               "tools": TOOLS, "отбор": отбор})
 
 
 @app.get("/admin/products")
@@ -3052,8 +3061,19 @@ async def admin_products_page(request: Request, user=Depends(get_current_user), 
         "created_at": f.created_at,
     } for f in foods]
 
+    # Признаки отбора выбраны по РАБОТЕ, которую тут делают: это модерация
+    # чужих записей, и чинить в них нечего, кроме неполноты. Бренд и штрих-код
+    # — ровно те два поля, без которых запись не склеивается с близнецом
+    # из справочника (§5.0.7), то есть даёт человеку дубль в поиске.
+    без_бренда = sum(1 for f in foods_data if not (f["brand"] or "").strip())
+    без_кода = sum(1 for f in foods_data if not (f["barcode"] or "").strip())
+    отбор = [{"id": "all",     "label": "Все",             "n": len(foods_data)},
+             {"id": "nobrand", "label": "Без бренда",      "n": без_бренда},
+             {"id": "nocode",  "label": "Без штрих-кода",  "n": без_кода}]
+
     return templates.TemplateResponse(request=request, name="admin_products.html",
-                                      context={"user": user, "foods": foods_data})
+                                      context={"user": user, "foods": foods_data,
+                                               "отбор": отбор})
 
 
 @app.get("/admin/exercises")
@@ -3085,10 +3105,21 @@ async def admin_exercises_page(request: Request, user=Depends(get_current_user),
             "video_status": status,
         })
 
+    # Порядок чипов — порядок работы: сперва «сколько всего», потом «что
+    # ещё не тронуто», потом исходы. «Без видео» стоит последним и несёт
+    # то самое число, ради которого на удалённом дашборде была отдельная
+    # ссылка-действие (BACKLOG №147).
+    отбор = [{"id": "all",       "label": "Все",           "n": len(exercises_data)},
+             {"id": "unchecked", "label": "Не проверено",  "n": status_counts["unchecked"]},
+             {"id": "approved",  "label": "Одобрено",      "n": status_counts["approved"]},
+             {"id": "wrong",     "label": "Неверное",      "n": status_counts["wrong"]},
+             {"id": "no_video",  "label": "Без видео",     "n": status_counts["no_video"]}]
+
     return templates.TemplateResponse(request=request, name="admin_exercises.html",
                                       context={"user": user, "exercises": exercises_data,
                                                "total": len(exercises_data),
                                                "status_counts": status_counts,
+                                               "отбор": отбор,
                                                "muscle_groups": MUSCLE_GROUP_LABELS_RU,
                                                "equipment_labels": EXERCISE_EQUIPMENT_LABELS_RU})
 
@@ -3445,6 +3476,13 @@ async def admin_enshrouded_page(request: Request, user=Depends(get_current_user)
                  # Источник один на весь проект — `enshrouded_defs`.
                  "crafters": [{"id": к, "label": _енш_опр.КОРОТКО[к]}
                               for к in ENSHROUDED_CRAFTERS],
+                 # Чипы отбора: «Все» плюс по одному на категорию. Категорий
+                 # пять и множество их закрыто устройством игры (§5.7), то есть
+                 # перечень тут законен и растянуться не может.
+                 "отбор": ([{"id": "all", "label": "Все", "n": len(данные)}] +
+                           [{"id": к, "label": _енш_опр.КОРОТКО[к],
+                             "n": sum(1 for з in данные if з["crafter"] == к)}
+                            for к in ENSHROUDED_CRAFTERS]),
                  "slots": _енш_опр.СЛОТЫ,
                  "max_w": ENS_MAX_W, "max_h": ENS_MAX_H})
 

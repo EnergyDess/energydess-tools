@@ -263,10 +263,39 @@
     window.addEventListener('resize', пересчитать);
   }
 
+  /* КОРОТКАЯ ПОДСКАЗКА ПОЛЯ НА УЗКОМ ЭКРАНЕ — `data-narrow-hint`.
+     Механика жила внутри одного шаблона (экран управления каталогом,
+     BACKLOG №64/№137). С 2026-08-23 поле поиска приезжает из общего
+     макроса шапки раздела админки, то есть потребителей стало четыре, —
+     и четыре копии разошлись бы МОЛЧА: подсказка просто осталась бы
+     длинной там, где её забыли скопировать (§6.0.7).
+
+     Подменяется АТРИБУТ, а не текст в разметке: на широком окне подсказка
+     обязана называть все способы поиска, и укоротить её насовсем значило
+     бы спрятать от всех то, что не помещается у одного.
+
+     Имя атрибута ЛАТИНИЦЕЙ: `dataset` убирает дефис только перед
+     ASCII-буквой, у кириллического имени ключ не собирается вовсе,
+     чтение даёт undefined, и правка выглядит несработавшей (§6.0). */
+  function initNarrowHints() {
+    var поля = document.querySelectorAll('[data-narrow-hint]');
+    if (!поля.length) return;
+    var узко = window.matchMedia('(max-width: 640px)');
+    var выбрать = function () {
+      поля.forEach(function (поле) {
+        if (!поле.dataset.wideHint) поле.dataset.wideHint = поле.placeholder || '';
+        поле.placeholder = узко.matches ? поле.dataset.narrowHint : поле.dataset.wideHint;
+      });
+    };
+    выбрать();
+    узко.addEventListener('change', выбрать);
+  }
+
   function init() {
     initScrollReveal();
     initAvatarDropdown();
     initHints();
+    initNarrowHints();
     initLucideAutoDraw();
   }
 

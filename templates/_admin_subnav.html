@@ -1,12 +1,22 @@
-{# Подстраничная навигация админки — переключение между 4 разделами.
-   Подключать ВНУТРИ .admin-wrap (нужен верхний padding контейнера, иначе
-   уходит под фиксированную .nav — см. _admin_nav.html).
-   Параметр `active` — 'dashboard' | 'users' | 'products' | 'exercises'
-   | 'enshrouded'. #}
-<div class="admin-subnav">
-  <a href="/admin" class="{{ 'active' if active == 'dashboard' }}">Дашборд</a>
-  <a href="/admin/users" class="{{ 'active' if active == 'users' }}">Пользователи</a>
-  <a href="/admin/products" class="{{ 'active' if active == 'products' }}">Продукты</a>
-  <a href="/admin/exercises" class="{{ 'active' if active == 'exercises' }}">Упражнения</a>
-  <a href="/admin/enshrouded" class="{{ 'active' if active == 'enshrouded' }}">Enshrouded</a>
-</div>
+{# РЯД РАЗДЕЛОВ АДМИНКИ. Подключать ВНУТРИ .admin-wrap (нужен верхний
+   padding контейнера, иначе уходит под фиксированную шапку).
+   Параметр `active` — 'users' | 'products' | 'exercises' | 'enshrouded'.
+
+   СИСТЕМНЫЙ `.tab-bar` + `.tab-btn`, а не свои пилюли — 2026-08-23,
+   BACKLOG №148. Прежние `.admin-subnav a` были копией вкладки раздела
+   под своим именем: тот же смысл («верхний уровень навигации ВНУТРИ
+   инструмента»), своя реализация на 30 строк, без значков и вдвое выше
+   (43.5px против 40 у системной).
+
+   Значок у каждого раздела обязателен — им ряд и опознаётся боковым
+   зрением; имена Lucide, не эмодзи (design-system.md §8). Lucide
+   дорисовывает `_page_end.html`.
+
+   «Дашборд» из ряда УДАЛЁН вместе с самим экраном (BACKLOG №147):
+   он показывал три числа, дублирующие эти же вкладки. #}
+<nav class="tab-bar admin-tabs" aria-label="Разделы админки">
+  <a href="/admin/users"      class="tab-btn {{ 'active' if active == 'users' }}"><i data-lucide="users"></i>Пользователи</a>
+  <a href="/admin/products"   class="tab-btn {{ 'active' if active == 'products' }}"><i data-lucide="apple"></i>Продукты</a>
+  <a href="/admin/exercises"  class="tab-btn {{ 'active' if active == 'exercises' }}"><i data-lucide="dumbbell"></i>Упражнения</a>
+  <a href="/admin/enshrouded" class="tab-btn {{ 'active' if active == 'enshrouded' }}"><i data-lucide="shield"></i>Enshrouded</a>
+</nav>

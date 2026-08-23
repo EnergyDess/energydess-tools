@@ -224,7 +224,7 @@ def снять(добавка_css="", добавка_js="", тихо=False):
     итог = {}
     with sync_playwright() as p:
         бр = p.chromium.launch()
-        for ш, в, сенсор in ШИРИНЫ:
+        for ш, в, сенсор in ch.отобрать_ширины(ШИРИНЫ):
             к = бр.new_context(viewport={"width": ш, "height": в},
                                has_touch=сенсор, is_mobile=сенсор)
             стр = к.new_page()

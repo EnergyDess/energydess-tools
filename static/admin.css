@@ -1,0 +1,915 @@
+/* СТИЛИ АДМИНКИ. Вынесены из инлайнового <style> в шаблоне 2026-08-23
+   (BACKLOG №148): 897 строк жили в `templates/_admin_styles.html`
+   и приезжали ЗАНОВО с каждой из четырёх страниц, потому что разметка
+   отдаётся с `no-cache` (§2.2). Это был последний страничный CSS проекта
+   внутри шаблона — все остальные разделы держат свой файл рядом (§3).
+
+   Правила системы отсюда НЕ переопределяются: админка берёт компонентную
+   базу как есть и добавляет только раскладку экземпляра. Файл внесён
+   в переменную `pages` §6.0.2 тем же коммитом — иначе он молча выпал бы
+   из-под шести грепов, а те продолжали бы печатать «чисто».
+
+   ── ЧТО ЗДЕСЬ ПОМЕНЯЛОСЬ ТЕМ ЖЕ ЗАХОДОМ ──────────────────────────────
+   · дашборда больше нет (BACKLOG №147) — вместе с ним ушли `.admin-tiles`,
+     `.admin-tile*` и `.admin-quicklink`;
+   · ряд разделов — системные `.tab-bar`/`.tab-btn`, а не свои пилюли
+     `.admin-subnav a`;
+   · отбор — системные `.chip` + `.chip-n`, а не крупные плитки `.ex-stat`
+     и не выпадающие списки;
+   · таблицы у всех четырёх разделов зовутся `.admin-table`, а не
+     `.admin-table-users` / `.admin-table` порознь;
+   · ширина обёртки одна на все четыре — 1920px. До этого три раздела
+     стояли на 1480 (57.8% экрана на 2560), а каталог Enshrouded на 1920
+     своим классом `.admin-wrap-cat`. */
+
+/* ── Каркас страницы ─────────────────────────────────────────────────── */
+/* width: 100% обязателен с тех пор, как страница стала колонкой
+   (body.page-column, BACKLOG №60). У элемента флекса авто-отступы
+   по поперечной оси отменяют растягивание, и ширина становится
+   по содержимому: замер — 545px вместо 1265.
+
+   ШИРИНА ОДНА НА ВСЕ ЧЕТЫРЕ РАЗДЕЛА — 1920px, 2026-08-23 (BACKLOG №148).
+   До этого три раздела стояли на 1480, а каталог Enshrouded на 1920
+   своим классом `.admin-wrap-cat`: тот заход правил только каталог
+   и честно не трогал соседей. Теперь трогает — и класс-исключение снят,
+   потому что исключение без причины хуже отсутствующего.
+
+   Замер на 2560 до правки: обёртка 1480 — это 57.8% экрана, таблица
+   пользователей 1414 при семи колонках, то есть по краям 1080px пустоты
+   при переносах ВНУТРИ ячеек. 1920 — ширина большего монитора владельца:
+   на нём таблица занимает почти весь экран, на 2560 — три четверти.
+
+   ВЕЛИЧИНА ВЫВЕДЕНА ЗАМЕРОМ ТЕКСТА, а не назначена. Каталог Enshrouded,
+   ширина текста в одну строку по всем 90 строкам на 2560:
+     Картинка 208 · Идентификатор 124.5 · Название 283.4 · Категория 163.9
+     Уровень 66.6 · Состав 412.5 · Отметки 57.7 · кнопка 143
+   Сумма — 1459: ниже неё колонки начинают переносить, и при прежних
+   1480 «Состав» уже не помещался. Выше растёт не польза, а дыра ВНУТРИ
+   ячейки. Каталог тут самый требовательный из четырёх, поэтому его
+   число и стало общим. */
+.admin-wrap {
+  width: 100%;
+  max-width: 1920px; margin: 0 auto;
+  padding: var(--space-7) var(--space-6);
+}
+.admin-wrap h1 {
+  font-size: var(--text-h2); font-weight: 700;
+  color: var(--text-strong); margin-bottom: var(--space-2);
+}
+.admin-wrap .subtitle {
+  color: var(--text-2); font-size: var(--text-body-sm);
+  margin-bottom: var(--space-5);
+}
+@media (max-width: 1200px) { .admin-wrap { padding: var(--space-7) var(--space-5); } }
+@media (max-width: 640px) { .admin-wrap { padding: var(--space-6) var(--space-4); } }
+
+/* ── РЯД РАЗДЕЛОВ: раскладка системного `.tab-bar` в админке ───────────
+   Своих пилюль `.admin-subnav a` больше нет (BACKLOG №148) — это была
+   копия вкладки раздела под другим именем. Странице остаётся отбивка
+   снизу, то есть место ряда в потоке, а не его вид. */
+.admin-tabs { margin-bottom: var(--space-6); }
+
+/* ── РЯД ОТБОРА: чипы слева, поиск и прочие органы справа ──────────────
+   Один на все четыре раздела. До 2026-08-23 у каждого он был свой:
+   у «Упражнений» — крупные плитки `.ex-stat` по 140px над отдельным
+   рядом списков, у остальных трёх — строка «Название (25)» ВНУТРИ
+   карточки таблицы, а у каталога поиск стоял третьим местом. */
+.admin-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-4) var(--space-5); flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+.chip-row { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.admin-bar-tools {
+  display: flex; align-items: center; gap: var(--space-3);
+  flex: 1; justify-content: flex-end; flex-wrap: wrap;
+}
+/* Список внутри ряда не тянется во всю ширину и не сжимается
+   до нечитаемого: это раскладка экземпляра, вид берёт системный
+   `.select .input-sm`. */
+.admin-bar-tools .select { width: auto; min-width: 11rem; flex: none; }
+@media (max-width: 640px) {
+  /* На узком экране ряд ломается в столбик, и органы справа
+     растягиваются на всю ширину: иначе поиск получает 40% строки. */
+  .admin-bar { flex-direction: column; align-items: stretch; }
+  /* ПОИСК УХОДИТ НА СВОЮ СТРОКУ — `flex-basis: 100%`, а не «пусть
+     перенесётся сам». Замер до правки на 390, раздел «Упражнения»:
+     ряд 358px, два списка по 168 (16..184 и 196..364) и поле поиска
+     на x=377 — то есть ПРАВЕЕ ЭКРАНА целиком. Перенос не случился
+     потому, что у всех троих `flex-basis: 0%`: браузер считает, что
+     они помещаются, и только потом упирается в `min-width: 220px`
+     поля, которое уже некуда сжимать.
+
+     Дотянуться туда нельзя ничем: `body` объявлен `overflow-x: clip`,
+     горизонтальной прокрутки у страницы нет. Отказ немой — поле есть
+     в дереве, размер у него нормальный, ошибок нет. Поймано проходом
+     насквозь (`check_admin_ui.py`) на 390: `elementFromPoint` в центре
+     поля вернул null. */
+  .admin-bar-tools { flex-direction: column; align-items: stretch; }
+  .admin-bar-tools .search-wrap { min-width: 0; max-width: none; }
+  .admin-bar-tools .select { flex: none; width: 100%; min-width: 0; }
+  /* Ряд чипов прокручивается вбок, а не переносится: пять чипов
+     статуса в столбик на 390 съедали бы три строки экрана.
+
+     `min-width: 0` И `max-width: 100%` ОБЯЗАТЕЛЬНЫ ОБА, и без них
+     `overflow-x: auto` не делает ничего. Ряд стоит в КОЛОНОЧНОМ флексе
+     (`.admin-bar` на узком экране), а там его ширина — поперечный размер
+     линии, и линия растёт до min-content содержимого. У ряда
+     с `flex-wrap: nowrap` min-content — это СУММА чипов: замер на 390
+     до правки, каталог Enshrouded — ряд 643px внутри контейнера 358.
+     Одного `min-width: 0` не хватило — замерено, ряд остался 643. Прокручиваться ему при этом незачем (он и так весь
+     «помещается» в себя), а страница горизонтальной прокрутки не имеет
+     вовсе — `body { overflow-x: clip }`. То есть чипы с четвёртого
+     по шестой были ЗА ЭКРАНОМ и недостижимы ничем.
+
+     Отказ немой: чипы есть в дереве, размеры у них нормальные, ошибок
+     нет. Поймал это ПИКСЕЛЬНЫЙ ДИФ — кадр `full_page` вышел шириной 659
+     вместо 390, — а не проход насквозь: тот спрашивал второй чип ряда,
+     а второй ещё виден. */
+  .chip-row { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+              min-width: 0; max-width: 100%; }
+  .chip-row::-webkit-scrollbar { display: none; }
+}
+
+/* ── Карточка-контейнер таблицы: .card из компонентной базы + модификатор.
+   Свой padding не нужен (у th/td собственный), hover-подъём для таблицы
+   неуместен — гасим его через .card-static-подобное поведение. ── */
+.admin-panel { padding: 0; overflow: hidden; }
+@media (hover: hover) {
+  .admin-panel:hover {
+    transform: none;
+    box-shadow: var(--shadow-sm);
+    border-color: var(--border);
+  }
+}
+/* `.card-header` УДАЛЁН 2026-08-23. Он держал ряд «название слева, поиск
+   справа» ВНУТРИ карточки таблицы и повторял то, что теперь говорит ряд
+   отбора выше неё: строка «Пользователи (25)» — это чип «Все 25», только
+   без возможности нажать. Два места с одним числом всегда кончаются тем,
+   что одно из них отстаёт. */
+
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* нативный горизонтальный скроллбар таблицы был светлым и выбивался
+   из тёмной темы — приводим к токенам */
+.table-scroll { scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent; }
+.table-scroll::-webkit-scrollbar { height: 8px; }
+.table-scroll::-webkit-scrollbar-track { background: transparent; }
+.table-scroll::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 999px;
+}
+@media (hover: hover) {
+  .table-scroll::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+}
+
+/* ── Таблицы ──────────────────────────────────────────────────────────
+   СЕЛЕКТОРЫ ПО КЛАССУ, А НЕ ПО ГОЛОМУ ТЕГУ — 2026-08-23. Здесь стояли
+   `table`, `th`, `td`, `tr:hover td`: наследство тех времён, когда стили
+   админки жили инлайновым <style> внутри четырёх шаблонов и достать
+   чужую таблицу было неоткуда.
+
+   Работало это ровно потому, что других таблиц на страницах админки нет,
+   — то есть держалось на обстоятельстве, а не на правиле. И один раз
+   уже подвело В ЭТОМ ЖЕ ЗАХОДЕ: голый `th, td` в блоке узкого экрана
+   имеет специфичность (0,0,1) и проигрывал `.admin-table th` (0,1,1)
+   при любом порядке строк, так что паддинг 390-го получала ОДНА таблица
+   из трёх. Пока имена таблиц были разные, расхождение было незаметно;
+   общее имя его показало.
+
+   Носителей проверено три из трёх: `grep '<table' templates/admin_*.html`.
+   `width: 100%` из голого `table` не переехало — оно уже объявлено
+   у `.admin-table` строкой ниже. */
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th {
+  padding: var(--space-3) var(--space-5);
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--surface-2);
+}
+.admin-table td {
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-body-sm);
+  color: var(--text);
+  border-bottom: 1px solid var(--border-hairline);
+}
+.admin-table tr:last-child td { border-bottom: none; }
+@media (hover: hover) {
+  .admin-table tr:hover td { background: var(--surface-2); }
+}
+
+/* Вторичная подпись админки — одно объявление на две (BACKLOG №126):
+   адрес в таблице пользователей и подпись счётчика в справочнике. */
+/* Вторичная подпись админки. Парой с `.ex-stat-label` это правило
+   стояло по BACKLOG №126 (свод дублей); плиток статистики больше нет,
+   и пара распалась сама. */
+.email-cell { color: var(--text-2); font-size: var(--text-caption); font-weight: 500; }
+.date-cell  { color: var(--text-2); font-size: var(--text-caption); }
+
+/* Тумблер доступа к инструменту берётся из компонентной базы (.toggle,
+   style.css). Своя копия жила здесь и успела разъехаться с системной:
+   38×22 против 40×22, бегунок 14 против 16, сдвиг бегунка через left
+   вместо transform. Удалена в задаче 26 BACKLOG; дорожка в разметке
+   переименована с .toggle-track на системный .track. */
+
+/* BACKLOG №115. Здесь стояло ВТОРОЕ правило под именем `.empty-state`
+   — при том, что первое живёт в `hh.css` с другим телом. Это было
+   не «две реализации», а столкновение имён: какое применится, решал
+   порядок подключения файлов. Теперь компонент один, в системе.
+
+   ОТБИВКА ВЕРНУЛАСЬ 2026-08-21. Расхождение «вертикальный отступ
+   72 → 32px» было записано как принятое, но это −47 % высоты блока:
+   168 → 26px замером (возврат — обратно 168). Пустая таблица админки — это ВЕСЬ экран, а не
+   строка в карточке, и системные 32px оставляли надпись висеть у
+   верхнего края пустого поля. Возвращено СВОИМ классом, а не правкой
+   компонента: 72px нужны здесь и не нужны больше нигде, а §2.20
+   прямо говорит, что отбивка компоненту не принадлежит. */
+.admin-empty { padding: var(--space-8) var(--space-5); }
+
+/* ── Toast ───────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: var(--space-5); right: var(--space-5);
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-caption);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity var(--dur-base) var(--ease), transform var(--dur-base) var(--ease);
+  pointer-events: none;
+  z-index: 9999;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+
+/* ── Таблица админки ────────────────────────────────────────────────────
+   ГЕОМЕТРИЯ КОЛОНОК ПРИНАДЛЕЖИТ КОНКРЕТНОЙ ТАБЛИЦЕ, А НЕ КЛАССУ —
+   разделено 2026-08-23. Правила ниже писались под таблицу продуктов
+   и адресовали колонки НОМЕРАМИ: первая — «Пользователь», четвёртая
+   и дальше — числа КБЖУ. Носителей у класса при этом ДВА, и у второго
+   (каталог Enshrouded) первая колонка — КАРТИНКА.
+
+   Чем это кончилось: правило узкого экрана `nth-child(1) { display:
+   none }`, законное для колонки с почтой, на 390px УБИРАЛО С ЭКРАНА
+   столбец с картинками — ровно тот, ради которого владелец и просил
+   увеличение. Отказ немой: таблица цела, строки на месте, ошибок нет.
+
+   Поймано проходом экрана насквозь (`check_ens_admin_ui.py`), а не
+   чтением: на 390 миниатюра «есть в дереве» и невидима. */
+.admin-table { table-layout: fixed; width: 100%; }
+/* ТАБЛИЦА ПОЛЬЗОВАТЕЛЕЙ — `auto`, и это НЕ забытая правка.
+   Общее имя `.admin-table` она получила 2026-08-23 вместе с остальными
+   тремя, а вместе с ним и `table-layout: fixed`, которого у неё
+   не было НИКОГДА: до этого она звалась `.users-table` и жила
+   на содержимом. Фиксированная раскладка без явных ширин делит
+   таблицу РОВНО ПОПОЛАМ между колонками, а колонок тут шесть —
+   почта, дата и четыре тумблера, — то есть почте достаётся столько же,
+   сколько тумблеру.
+
+   ЗАМЕР НА 390, до и после общего класса: колонка почты 221.5 → 126.7px,
+   адрес переносится на вторую строку, высота строки 49 → 66.6px,
+   страница на 1477 строках 74 000 → 99 922px (+35%). Нашла это
+   проверка 16 видом ВЫСОТА — не чтение и не глаз.
+
+   Явные ширины тут были бы хуже `auto`: колонок с тумблерами столько,
+   сколько инструментов в проекте, и заводя пятый пришлось бы править
+   ещё и CSS. */
+.admin-table-users { table-layout: auto; }
+.admin-table th, .admin-table td { padding: var(--space-3) var(--space-5); }
+/* числовые колонки — уже, по центру, чтобы числа помещались */
+.admin-table-foods th:nth-child(n+4):nth-child(-n+7),
+.admin-table-foods td:nth-child(n+4):nth-child(-n+7) { padding: var(--space-3) var(--space-2); text-align: center; }
+.num { text-align: center; padding: var(--space-2) var(--space-2); }
+/* последняя колонка (кнопки): справа тот же отступ --space-5, что слева у
+   первой колонки — иначе иконка удаления упиралась в границу карточки.
+   Ширина увеличена на величину отступа, чтобы кнопки не сжались. */
+.admin-table-foods th:nth-child(8), .admin-table-foods td:nth-child(8) {
+  padding: var(--space-2) var(--space-5) var(--space-2) var(--space-2);
+  white-space: nowrap; width: 112px;
+  text-align: right;   /* прижать кнопки к правому краю — иначе они «плавали» посередине колонки */
+}
+/* Колонка «Пользователь» — 240px и ПЕРЕНОС ПО СИМВОЛУ (BACKLOG №59).
+   Было 148px без переноса, и адрес НЕ обрезался, вопреки заголовку
+   задачи: `overflow` там `visible`, `text-overflow` — `clip`, то есть
+   ни многоточия, ни обрезки нет вовсе. Он ВЫЛЕЗАЛ за колонку и налезал
+   на соседнюю. Замер 2026-08-20 на 1440: адрес в 65 знаков давал
+   scrollWidth 188 при clientWidth 148 (+40px наружу) и раздувал строку
+   до 108px против обычных 64. Переполнялся и обычный
+   `screenshot@local.dev` — 158 против 148, то есть +10px.
+
+   `overflow-wrap: anywhere`, а не `word-break: break-all`: первый рвёт
+   слово ТОЛЬКО когда иначе не помещается, второй рвёт всегда и режет
+   короткие адреса без нужды. Многоточия не появилось и не должно:
+   обрезанный адрес не отличает одного пользователя от другого — ровно
+   то, ради чего колонка существует.
+
+   240px взяты у колонок 2 и 3, у которых явной ширины нет и которые
+   делят остаток: замер до правки давал им по 382px на 1440 и по 409px
+   на 1920+, то есть запас есть. Сумма ширин ниже не участвует
+   в мобильном min-width: там колонка скрыта целиком (см. ниже). */
+.admin-table-foods th:nth-child(1), .admin-table-foods td:nth-child(1) {
+  width: 240px; overflow-wrap: anywhere;
+}
+/* col 2 (Название) и col 3 (Бренд) без явной ширины — делят остаток */
+.admin-table-foods th:nth-child(4), .admin-table-foods td:nth-child(4) { width: 96px; }
+.admin-table-foods th:nth-child(5), .admin-table-foods td:nth-child(5) { width: 80px; }
+.admin-table-foods th:nth-child(6), .admin-table-foods td:nth-child(6) { width: 80px; }
+.admin-table-foods th:nth-child(7), .admin-table-foods td:nth-child(7) { width: 80px; }
+
+/* Инпуты в таблице — .input .input-sm из компонентной базы. Здесь
+   стояла копия компонента: комментарий над ней так и говорил, «.input
+   из базы, уменьшенный под ячейку». Уменьшенный вариант теперь есть
+   в системе (.input-sm), спиннеры type="number" гасит сам компонент,
+   а фокус берёт --tool-accent вместо жёсткого --accent-brand.
+   BACKLOG.md, задача 42. Странице остался .num выше —
+   выравнивание и ширина в числовой колонке, то есть раскладка ячейки,
+   а не оформление поля. */
+
+/* Кнопки сохранить / удалить в строке продукта.
+   BACKLOG №119: обе переведены на системную `.btn-icon .btn-icon-sm`.
+   Кнопка удаления была отдельной, ДЕСЯТОЙ реализацией того же крестика
+   (40×32, свой паддинг и радиус); сохранение — её парой по размеру,
+   поэтому переводятся обе разом: сведи одну — и пара разъедется.
+   Расхождение вида: 40×32 → 26×26 у обеих. Здесь остались только тон
+   подтверждения и правило «пока строку не тронули — место занято,
+   кнопки не видно» (иначе строка дёргалась бы при первой правке). */
+/* Две кнопки в ячейке действий стоят в ряд и прижаты вправо. Раскладка
+   ЯЧЕЙКИ, а не кнопок: сами кнопки системные. */
+/* Ряд ФЛЕКСОМ, а не `text-align` плюс `vertical-align` у кнопок.
+   Второе брало системный `.btn-icon` субъектом и объявляло ему
+   `vertical-align` — то есть ВИД компонента, а не место экземпляра
+   (находка проверки 1, разбивка первого числа). Флекс делает то же
+   самое, ничего компоненту не говоря. */
+.row-actions { display: flex; justify-content: flex-end;
+               align-items: center; gap: var(--space-1); }
+
+.food-save-btn {
+  background: var(--accent-brand-dim);
+  border: 1px solid var(--accent-brand);
+  color: var(--accent-brand);
+  visibility: hidden;
+}
+.food-save-btn.dirty { visibility: visible; }
+@media (hover: hover) {
+  .food-save-btn:hover { background: color-mix(in srgb, var(--accent-brand) 28%, transparent); }
+}
+/* `.food-del-btn` УДАЛЁН 2026-08-23: он повторял системный
+   `.btn-icon-danger` (тот же тон `--error` 10%/30%), а разметка теперь
+   ставит системный класс прямо. Тот же случай, что был у самой кнопки
+   в BACKLOG №119, только на этаж выше — там сводили размер, тут тон. */
+
+/* ── Поле поиска в шапке карточки ──────────────────────────────────────
+   Один слой, как в .header-search: обёртка — только позиционирующий
+   контейнер (без фона и рамки), обрамление несёт сам инпут. Раньше рамка
+   была и у обёртки, и визуально спорила с рамкой карточки — «рамка в рамке». */
+.search-wrap {
+  position: relative;
+  flex: 1; max-width: 360px; min-width: 220px;
+  box-sizing: border-box;
+}
+/* СВОЁ имя, а не системное `.search-icon`. Тот класс принадлежит
+   глобальному поиску в шапке (`.header-search .search-icon`
+   в style.css), и здесь он был СТОЛКНОВЕНИЕМ ИМЁН, а не вариантом
+   компонента: два разных значка носили одно имя, а страница правила
+   ему цвет и размер. Ровно тот же долг, что чинила задача 110
+   переименованием `.hint` в `.profile-hint`. Нашла его проверка 1
+   после того, как компонентная база перестала быть перечнем
+   (BACKLOG №121): в прежнем списке из 91 имени `search-icon` не было. */
+.search-wrap .admin-search-icon {
+  position: absolute; left: var(--space-3); top: 50%;
+  transform: translateY(-50%);
+  width: 15px; height: 15px;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+/* .search-wrap в селекторе обязателен: глобальное input[type="text"] из
+   style.css имеет специфичность 0,1,1 и перебивало одиночный класс —
+   padding-left не применялся, иконка налезала на плейсхолдер */
+.search-wrap .search-input-admin {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3) var(--space-2) 36px;  /* слева место под иконку */
+  color: var(--text);
+  font-size: var(--text-body-sm);
+  font-family: var(--font);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.search-wrap .search-input-admin::placeholder { color: var(--text-faint); }
+.search-wrap .search-input-admin:focus,
+.search-wrap .search-input-admin:focus-visible {
+  outline: none;
+  border-color: var(--accent-brand);
+  box-shadow: 0 0 0 3px var(--accent-brand-dim);
+}
+
+@media (max-width: 640px) {
+  /* ── Таблица продуктов на узком экране ──────────────────────────────
+     Прокрутка вбок остаётся, но колонки держат ширину под содержимое.
+
+     Что было и почему это не работало. `table { width: 100% }` плюс
+     table-layout: auto заставляли таблицу уложиться в 356px обёртки —
+     и она укладывалась, отдавая числовым колонкам по 34px. Замер
+     2026-08-11 на 390px: вся таблица 472px при обёртке 356, поля КБЖУ
+     по 34px, в них видно «52,» и «22(» вместо чисел. То есть
+     горизонтальная прокрутка формально работала (472 > 356), но
+     прокручивать было нечего: содержимое уже сжали до нечитаемого.
+
+     min-width снимает именно это: таблица обязана быть шириной 836px,
+     колонки получают заданные ширины, а обёртка .table-scroll честно
+     прокручивает. Сумма ширин ниже равна min-width — если менять одну,
+     менять и её, иначе остаток разойдётся по колонкам без ширины.
+
+     Колонка «Пользователь» остаётся скрытой, и теперь это выбор,
+     а не вынужденность. Вернуть её было бы можно — таблица больше
+     не обязана влезать, — но 148px её ширины это 148px лишней
+     прокрутки до КБЖУ, ради которых всё и делалось. Кто добавил
+     продукт, отвечает поиск в шапке: он фильтрует и по email. */
+  .admin-table-foods { table-layout: fixed; min-width: 836px; }
+  /* КАТАЛОГ ENSHROUDED — СВОИ ширины: колонок столько же, но значат
+     они другое. Картинка ОСТАЁТСЯ: она тут содержимое, а не служебная
+     колонка. Сумма ширин равна min-width — меняете одну, меняйте и её. */
+  /* Колонка картинки и колонка кнопки пересчитаны 2026-08-23 вместе
+     с десктопными: миниатюра выросла до 160×90, кнопка не помещалась
+     в 112 и вылезала за ячейку. Сумма ширин по-прежнему равна
+     min-width — 88→176 и 112→152 дают 780 + 88 + 40 = 908. */
+  .admin-table-ens { table-layout: fixed; min-width: 908px; }
+  .admin-table-ens th:nth-child(1), .admin-table-ens td:nth-child(1) { width: 176px; }
+  .admin-table-ens th:nth-child(2), .admin-table-ens td:nth-child(2) { width: 132px; }
+  .admin-table-ens th:nth-child(3), .admin-table-ens td:nth-child(3) { width: 168px; }
+  .admin-table-ens th:nth-child(4), .admin-table-ens td:nth-child(4) { width: 104px; }
+  .admin-table-ens th:nth-child(5), .admin-table-ens td:nth-child(5) { width: 64px; }
+  .admin-table-ens th:nth-child(6), .admin-table-ens td:nth-child(6) { width: 132px; }
+  .admin-table-ens th:nth-child(7), .admin-table-ens td:nth-child(7) { width: 68px; }
+  .admin-table-ens th:nth-child(8), .admin-table-ens td:nth-child(8) { width: 152px; }
+  .admin-table-foods th:nth-child(1), .admin-table-foods td:nth-child(1) { display: none; }
+  .admin-table-foods th:nth-child(2), .admin-table-foods td:nth-child(2) { width: 260px; }
+  .admin-table-foods th:nth-child(3), .admin-table-foods td:nth-child(3) { width: 160px; }
+  .admin-table-foods th:nth-child(4), .admin-table-foods td:nth-child(4) { width: 88px; }
+  .admin-table-foods th:nth-child(5), .admin-table-foods td:nth-child(5),
+  .admin-table-foods th:nth-child(6), .admin-table-foods td:nth-child(6),
+  .admin-table-foods th:nth-child(7), .admin-table-foods td:nth-child(7) { width: 72px; }
+  .admin-table-foods th:nth-child(8), .admin-table-foods td:nth-child(8) { width: 112px; }
+  /* Таблица пользователей влезала и раньше (замер: 776px при обёртке
+     356, ни одна ячейка не обрезана), но её ширину задавало содержимое —
+     то есть держалась она случайно. Минимум фиксирует то, что и так
+     получалось, и не даёт колонке с почтой схлопнуться на длинном адресе. */
+  .admin-table-users { min-width: 760px; }
+  /* Паддинг узкого экрана — ПО КЛАССУ, а не по голому тегу. Голый
+     `th, td` имеет специфичность (0,0,1) и проигрывал `.admin-table th`
+     (0,1,1) при любом порядке строк: на 390 его получала ОДНА таблица
+     из трёх — та, у которой классового правила не было (пользователи).
+     Пока имена были разные, это не замечалось; общее имя сделало
+     расхождение видимым, а заодно и починяемым.
+
+     Замер на 390 после правки: таблица пользователей 872 → 776px,
+     то есть 96px горизонтальной прокрутки убрано, а не добавлено. */
+  .admin-table th, .admin-table td { padding: var(--space-3) var(--space-4); }
+}
+
+/* ДАШБОРД УДАЛЁН 2026-08-23 (BACKLOG №147), и вместе с ним `.admin-tiles`,
+   `.admin-tile*` и `.admin-quicklink` — 34 строки, у которых не осталось
+   ни одного носителя в разметке. Числа плиток стоят теперь чипами отбора
+   в своих разделах, ссылка «N без видео» — чипом «Без видео N» там же. */
+
+/* Пилюли `.admin-subnav a` УДАЛЕНЫ 2026-08-23 (BACKLOG №148) — 30 строк.
+   Это была копия системной вкладки раздела под своим именем: тот же смысл,
+   свой вид (высота 43.5px против 40 у системной), без значков. Раскладка
+   ряда — `.admin-tabs` выше. */
+
+/* ── /admin/exercises: сетка карточек ────────────────────────────────
+   `.ex-stats`, `.ex-stat*`, `.ex-filters` и `.ex-select` УДАЛЕНЫ
+   2026-08-23 (BACKLOG №148) — 45 строк. Пять плиток по 140px над
+   отдельным рядом из трёх списков занимали 168px высоты и по виду
+   спорили с самой таблицей: цифра в плитке была крупнее заголовка
+   раздела. Отбор по статусу — чипы `.chip` + `.chip-n` в общем ряду,
+   два оставшихся списка — системный `.select .input-sm` там же. */
+.ex-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4); margin-bottom: var(--space-6);
+}
+@media (max-width: 900px) { .ex-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .ex-grid { grid-template-columns: 1fr; } }
+/* ЧЕТВЁРТАЯ КОЛОНКА НА ШИРОКОМ ЭКРАНЕ — 2026-08-23, и это правка МОЕЙ ЖЕ
+   правки. Обёртка выросла с 1480 до 1920 (BACKLOG №148, B.7), а колонок
+   осталось три — то есть карточка стала ШИРЕ, и пустоты в ней БОЛЬШЕ,
+   ровно против того, о чём просил владелец («плотная компоновка без
+   больших пустот»).
+
+   Замер на 2560, три колонки: карточка 461.3 -> 608 (+31.8%), баннер
+   16/9 вместе с ней 258.4 -> 340.9. У 787 упражнений из 873 видео нет
+   вовсе, и весь этот прирост — пустая коробка с надписью «Без видео».
+
+   Порог 1760px выведен из числа, а не назначен: минимальная разумная
+   карточка тут 404px (та же, что у сетов в разделе Enshrouded, BACKLOG
+   №143), четыре колонки с зазором 16 требуют 404*4 + 16*3 = 1664,
+   плюс паддинги обёртки 2*32 и полоса прокрутки — 1760.
+
+   Замер после: карточка 608 -> 452 на 2560 и 603 -> 448 на 1920, то есть
+   вернулась к прежним 461 с точностью до девяти пикселей. */
+@media (min-width: 1760px) { .ex-grid { grid-template-columns: repeat(4, 1fr); } }
+
+.ex-card { padding: 0; overflow: hidden; }
+/* Превью с видео — НАСТОЯЩАЯ <button>, а не div с onclick (BACKLOG №73).
+   Раньше до него нельзя было дойти табом и нечем было запустить видео
+   с клавиатуры: обработчик висел на div, а div в порядок обхода
+   не входит. Сброс ниже нужен затем, чтобы кнопка выглядела ровно как
+   прежний div — своих полей, рамки и фона у неё быть не должно. */
+.ex-card-thumb {
+  position: relative; width: 100%;
+  aspect-ratio: 16/9;
+  background: var(--surface-2);
+  overflow: hidden;
+  display: block; padding: 0; border: 0; margin: 0;
+  font: inherit; color: inherit; text-align: inherit;
+}
+.ex-card-thumb:focus-visible {
+  outline: 2px solid var(--tool-accent, var(--accent-brand));
+  outline-offset: -2px;
+}
+/* Кадр показывает, что он кликабелен, и в фокусе тоже — иначе идущий
+   табом не видит, на чём стоит. */
+.ex-card-thumb:focus-visible .ex-card-play { opacity: 1; }
+/* Указатель — только у превью, которое открывается. `onclick` разметка
+   ставит лишь при наличии youtube_id, и селектор по атрибуту повторяет
+   то же условие: одно место решает, а не два (BACKLOG.md, задача 71).
+   Замер: из 30 превью на экране 25 без видео, и все 25 обещали нажатие.
+   Проверено нажатием — ни разметка, ни модалки не менялись; контроль
+   на превью С видео открывает окно, то есть проверка рабочая. */
+.ex-card-thumb[onclick] { cursor: pointer; }
+.ex-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ex-card-thumb-empty {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; color: var(--text-faint); font-size: var(--text-caption);
+}
+.ex-card-play {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--surface-0) 25%, transparent);
+  opacity: 0; transition: opacity var(--dur-fast) var(--ease);
+}
+@media (hover: hover) {
+  .ex-card-thumb:hover .ex-card-play { opacity: 1; }
+}
+.ex-card-play svg { width: 48px; height: 48px; filter: drop-shadow(var(--shadow-md)); }
+.ex-card-badge {
+  position: absolute; top: var(--space-2); right: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono); font-weight: 500;
+  padding: 3px var(--space-2); border-radius: 999px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.ex-badge-approved { background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--success); }
+.ex-badge-wrong    { background: color-mix(in srgb, var(--error) 20%, transparent);   color: var(--error); }
+.ex-badge-no_video { background: var(--surface-3); color: var(--text-2); }
+
+.ex-card-body { padding: var(--space-4); }
+.ex-card-name { font-size: var(--text-body-sm); font-weight: 600; color: var(--text); line-height: 1.3; }
+.ex-card-name-en { font-size: var(--text-caption); color: var(--text-faint); margin-top: 2px; font-style: italic; }
+.ex-card-meta { font-size: var(--text-caption); color: var(--text-2); margin: var(--space-2) 0 var(--space-3); }
+
+.ex-card-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.ex-btn {
+  flex: 1; min-width: 0;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-caption); font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  font-family: var(--font);
+  white-space: nowrap;
+}
+.ex-btn-approve {
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  border-color: color-mix(in srgb, var(--success) 30%, transparent);
+  color: var(--success);
+}
+@media (hover: hover) {
+  .ex-btn-approve:hover:not(.active) { background: color-mix(in srgb, var(--success) 20%, transparent); }
+}
+.ex-btn-approve.active { background: color-mix(in srgb, var(--success) 28%, transparent); }
+.ex-btn-wrong {
+  background: color-mix(in srgb, var(--error) 10%, transparent);
+  border-color: color-mix(in srgb, var(--error) 30%, transparent);
+  color: var(--error);
+}
+@media (hover: hover) {
+  .ex-btn-wrong:hover:not(.active) { background: color-mix(in srgb, var(--error) 20%, transparent); }
+}
+.ex-btn-wrong.active { background: color-mix(in srgb, var(--error) 28%, transparent); }
+.ex-btn-replace { background: var(--surface-2); border-color: var(--border); color: var(--text); }
+@media (hover: hover) {
+  .ex-btn-replace:hover { border-color: var(--accent-brand); }
+}
+
+/* «Показать технику» — отдельной строкой под тремя основными кнопками */
+.ex-btn-howto {
+  display: flex; width: 100%; margin-top: var(--space-2);
+  background: none; border-color: var(--border); color: var(--text-2);
+}
+@media (hover: hover) {
+  .ex-btn-howto:hover { border-color: var(--accent-brand); color: var(--text); }
+}
+
+.ex-instructions {
+  display: none;
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.ex-instructions.open { display: block; }
+.ex-instructions ol {
+  margin: 0; padding-left: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-2);
+}
+.ex-instructions li { font-size: var(--text-caption); color: var(--text); line-height: 1.45; }
+
+.ex-replace-row { display: none; gap: var(--space-2); margin-top: var(--space-2); }
+.ex-replace-row.open { display: flex; }
+/* Поле ссылки — СИСТЕМНОЕ `.input .input-sm`. Здесь стояла его копия
+   на 17 строк: свой фон, своя рамка, свой радиус, свой фокус на жёстком
+   `--accent-brand` вместо `--tool-accent`. Ровно тот дубль, что уже
+   сводили у полей таблицы продуктов (BACKLOG №42). Странице остаётся
+   раскладка в ряду. */
+.ex-replace-input { flex: 1; min-width: 0; }
+/* Кнопка — СИСТЕМНАЯ `.btn-primary`. Здесь стояла её приглушённая копия
+   (фон `--accent-brand-dim`, акцентный текст): по виду она читалась как
+   вторичная, хотя это единственное действие ряда. Странице остаётся
+   только «не сжимайся» — раскладка экземпляра. */
+.ex-replace-save { flex: none; white-space: nowrap; }
+.ex-card-warn {
+  display: none;
+  font-size: var(--text-caption); color: var(--error);
+  margin-top: var(--space-2); line-height: 1.4;
+}
+.ex-card-warn.visible { display: block; }
+
+.ex-pagination {
+  display: flex; align-items: center; justify-content: center; gap: var(--space-2);
+  margin-top: var(--space-3); flex-wrap: wrap;
+}
+.ex-page-btn {
+  min-width: 34px; height: 34px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: var(--text-caption);
+  cursor: pointer; font-family: var(--font);
+  padding: 0 var(--space-3);
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+@media (hover: hover) {
+  .ex-page-btn:hover:not(:disabled) { border-color: var(--accent-brand); }
+}
+.ex-page-btn:disabled { opacity: .35; cursor: default; }
+.ex-page-btn.active {
+  background: var(--accent-brand-dim);
+  border-color: var(--accent-brand);
+  color: var(--accent-brand);
+}
+/* ДОБОР ТАЧ-ТАРГЕТА до 44×44 — невидимой областью, видимый размер
+   прежний (34px). Ряд кнопок разложен с зазором --space-2 = 8px,
+   то есть по 4px с каждой стороны: область 44 съедает 5px соседа
+   по горизонтали. Поэтому растится только ВЫСОТА, а ширина остаётся
+   своей — полоса 34×44 ловит палец не хуже квадрата, а сосед остаётся
+   за собой (проверено `py check_touch.py --соседи`). */
+@media (pointer: coarse) {
+  .ex-page-btn { position: relative; }
+  .ex-page-btn::after {
+    content: ''; position: absolute; left: 0; top: 50%;
+    width: 100%; height: 44px; transform: translateY(-50%);
+  }
+}
+/* Многоточие между блоками номеров страниц — не кнопка, а разрыв ряда */
+.ex-page-gap { color: var(--text-faint); padding: 0 var(--space-1); }
+
+/* ── Модалка видео ──────────────────────────────────────────────────── */
+/* Оверлей, лист и кнопка закрытия — компонент (вариант modal-ov-viewer).
+   Здесь остался только сам видео-контейнер: 16/9 в 800px по-прежнему
+   нужен, иначе ролик растянулся бы на весь лист просмотра, рассчитанный
+   под фотографию. Убраны .ex-modal-overlay (своя копия каркаса)
+   и .ex-modal-close (кнопка компонента её заменила). */
+/* Ширина названа ЧИСЛОМ, а не через `width: 100%; max-width: 800px`.
+   Тело просмотрщика с 2026-08-17 облегает содержимое (fit-content,
+   задача 72), и «100% от родителя, который меряется по ребёнку» —
+   это цикл: браузер разрешает его по max-content, то есть по размеру
+   пустого iframe, и ролик схлопывался до 300px. Потолок берётся
+   из того же токена компонента, что и у картинки: своё число здесь
+   разъехалось бы с шириной листа молча. */
+.ex-video-box {
+  width: min(800px, var(--viewer-w, 94vw));
+  aspect-ratio: 16/9;
+  background: var(--letterbox);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+.ex-video-box iframe { width: 100%; height: 100%; border: none; display: block; }
+
+/* ── Экран каталога Enshrouded (BACKLOG №137) ──────────────────────
+   Только РАСКЛАДКА экземпляра: таблица, карточка, поля, кнопки,
+   плашки и модальное окно тут системные, ни одного из них эти
+   правила субъектом не берут. */
+
+/* ── Каталог Enshrouded: ШИРИНЫ КОЛОНОК НА ДЕСКТОПЕ ────────────────
+   Заведены 2026-08-23 и найдены ПРОВЕРКОЙ 16, а не чтением: разведя
+   геометрию колонок на две таблицы, заход дал каталогу узкие правила
+   и не дал широких — а `table-layout: fixed` без явных ширин делит
+   ширину ПОРОВНУ. Замер до и после разведения, 1440:
+
+     колонка         было   стало (без правил)   надо
+     Картинка         240         170             100  — миниатюра 64
+     Идентификатор    336         170             140  — `sp_flamapp`
+     Название         336         170             остаток
+     Категория         96         170             140  — «Спецпредметы»
+     Уровень           80         170              80  — число
+     Состав            80         170             остаток — «Шлем,
+                                                   Нагрудник, Перчатки,
+                                                   Поножи, Ботинки»
+     Отметки           80         170              90  — число
+     кнопка           112         170             112
+
+   Строк выше медианы по высоте: было 7, стало 30 — то есть у трети
+   таблицы английское название переносилось на вторую строку. Это
+   и назвала проверка 16 видом ВЫСОТА: `.ens-a-en` 18 → 42px.
+
+   «СОСТАВ» ПОЛУЧИЛ ЯВНЫЕ 420 — 2026-08-23, по снимку широкого экрана.
+   Пока обёртка была 1480, гибкие колонки делили 752 и обе были тесны;
+   после расширения до 1920 им доставалось по 508 при нужных 283 и 412,
+   то есть пустота переехала СНАРУЖИ ВНУТРЬ таблицы: «полный (5)»
+   в поле шириной с абзац. 420 — замеренная нужда самого длинного
+   состава (412.5) плюс ступень; остаток целиком уходит «Названию»,
+   у которого длина не ограничена ничем.
+
+   «Название» ЯВНОЙ ширины не получает и забирает остаток —
+   ровно как колонки 2 и 3 у таблицы продуктов: длина у них
+   не ограничена ничем, а у остальных шести ограничена содержимым. */
+/* ШИРИНЫ ПЕРЕСЧИТАНЫ 2026-08-23 ПО ЗАМЕРУ ТЕКСТА (числа — в комментарии
+   к `.admin-wrap-cat` выше). Три колонки изменились, и у каждой своя
+   причина:
+     Картинка   100 → 208 — миниатюра выросла 64 → 160 (E.3 ниже);
+     Категория  140 → 168 — «Спецпредметы» требует 163.9 на 2560,
+                            то есть в прежние 140 не помещалась и
+                            вылезала за колонку молча — ровно дефект
+                            задачи 59, только в другой таблице;
+     кнопка     112 → 152 — сама кнопка 94.9 плюс паддинги ячейки 48.
+                            При 112 она вылезала ЗА ячейку на 6.9px
+                            (замер), то есть «поля справа» у неё было
+                            не мало, а отрицательно. */
+/* ЭТИ ШИРИНЫ — ТОЛЬКО ДЛЯ ШИРОКОГО ЭКРАНА, и медиазапрос тут
+   не украшение, а починка каскада. Мобильный блок (max-width: 640)
+   стоит В ФАЙЛЕ ВЫШЕ и при равной специфичности проигрывает: на 390
+   действовали десктопные 100/140/140/80/90/112, а мобильные 88/132/
+   104/64/68/112 применялись только к колонкам 3 и 6, для которых
+   десктопного правила не было. Дефект существовал и до этого захода
+   (замер «до»: колонка «Картинка» на 390 равна 100, а мобильное
+   правило просит 88), но заметен стал сразу: новая явная ширина
+   «Состава» 420 перебила мобильные 132 и удлинила таблицу на 390
+   с 1138 до 1426 px, то есть добавила 288px горизонтальной
+   прокрутки на телефоне. */
+@media (min-width: 641px) {
+  .admin-table-ens th:nth-child(1), .admin-table-ens td:nth-child(1) { width: 208px; }
+  .admin-table-ens th:nth-child(2), .admin-table-ens td:nth-child(2) { width: 140px; }
+  .admin-table-ens th:nth-child(4), .admin-table-ens td:nth-child(4) { width: 168px; }
+  .admin-table-ens th:nth-child(5), .admin-table-ens td:nth-child(5) { width: 80px; }
+  .admin-table-ens th:nth-child(6), .admin-table-ens td:nth-child(6) { width: 420px; }
+  .admin-table-ens th:nth-child(7), .admin-table-ens td:nth-child(7) { width: 90px; }
+  .admin-table-ens th:nth-child(8), .admin-table-ens td:nth-child(8) { width: 152px; }
+}
+/* Кнопка прижимается к ПРАВОМУ краю своей ячейки, а воздух ей даёт
+   собственный паддинг ячейки (24px). Прежняя выключка `start` при
+   тесной колонке выглядела прижатием к правому краю таблицы, потому
+   что кнопка за неё вылезала. */
+.admin-table-ens th:nth-child(8), .admin-table-ens td:nth-child(8) { text-align: right; }
+/* Числовые колонки по центру — у продуктов это делает правило
+   `nth-child(n+4)..(-n+7)`, но там четыре подряд числовые, а здесь
+   между ними стоит «Состав» со строкой. Поэтому поимённо. */
+.admin-table-ens th:nth-child(5), .admin-table-ens td:nth-child(5),
+.admin-table-ens th:nth-child(7), .admin-table-ens td:nth-child(7) { text-align: center; }
+
+/* `.ens-a-tools` и `.ens-a-cat` УДАЛЕНЫ 2026-08-23: ряд органов теперь
+   общий на четыре раздела (`.admin-bar-tools` выше), а отбор по категории
+   стал чипами. Кнопке остаётся «не сжимайся». */
+.ens-a-add { flex: none; white-space: nowrap; }
+/* Миниатюра — ЯКОРЬ УВЕЛИЧЕНИЯ. Обёртка нужна не для красоты:
+   `data-zoom` ищет внутри себя <img>, а не является им, и вешать
+   атрибут на саму картинку значило бы искать её внутри неё же.
+   Курсор идёт за ДЕЙСТВИЕМ (обёрткой), а не за классом картинки —
+   иначе он обещал бы жест элементу, который его не обрабатывает
+   (§6.0.3, «декоративные обещания»). */
+/* НАСТОЯЩАЯ КНОПКА, а не span с обработчиком. На сенсорном экране
+   миниатюра — орган управления (касание открывает увеличение),
+   и элементом без роли до неё нельзя дойти ни табом, ни Enter.
+   Тот же прецедент, что у превью упражнения (задачи 73 и 127).
+
+   Высота 44 — сенсорный минимум (§6.0.11). Картинка внутри остаётся
+   64×40; растёт ОБЛАСТЬ НАЖАТИЯ, а не изображение. В строке таблицы
+   эти четыре пикселя бесплатны: строка и так выше. */
+.ens-a-thumbwrap {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 0; border: none; background: none;
+  cursor: zoom-in;
+}
+.ens-a-thumbwrap:focus-visible {
+  outline: 2px solid var(--accent-brand); outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+/* РАЗМЕР МИНИАТЮРЫ — 2026-08-23, решение владельца: «по ним нельзя
+   понять, что изображено». Прежние 64×40 показывали картинку
+   1396×785 в масштабе 4.6% по стороне.
+
+   ВЫВЕДЕН, А НЕ НАЗНАЧЕН, и из двух замеров сразу:
+     · пропорция 16/9 — МОДА соотношений каталога (54 файла из 90),
+       та же, что у баннера карточки в разделе. При ней большинство
+       миниатюр заполняет коробку целиком, а не лежит маркой в поле;
+     · 160 по ширине — 2.5× прежнего, то есть 11.5% натуральной
+       стороны, и это ближайшая к уже принятому в проекте размеру
+       превью в форме правки (180×128) величина, при которой строка
+       таблицы вырастает с 74 до 114, а не вдвое.
+   Увеличение по наведению остаётся: миниатюра — якорь `data-zoom`. */
+.ens-a-thumb { width: 160px; height: 90px; object-fit: contain;
+               background: var(--surface-sunken); border-radius: var(--radius-sm); display: block; }
+.ens-a-id { font-family: var(--font-mono); font-size: var(--text-mono); color: var(--text-2); }
+/* Вторичная подпись под названием. Роль ТА ЖЕ, что у восьми других
+   мест проекта (замер 2026-08-22, BACKLOG №126: `.cta-sub`,
+   `.wk-step-sub`, `.admin-wrap .subtitle`…), и системного имени
+   под неё пока нет — решение о новом компоненте за владельцем,
+   поэтому здесь страничное имя, а не самовольный системный класс. */
+.ens-a-en, .ens-a-note { color: var(--text-2); font-size: var(--text-caption); }
+.ens-a-note { line-height: 1.5; margin-top: var(--space-2); }
+.ens-a-none { color: var(--text-faint); font-size: var(--text-caption); }
+.ens-a-edit { padding: var(--space-1) var(--space-3); }
+.ens-a-field { margin-bottom: var(--space-4); }
+.ens-a-two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.ens-a-slots { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+.ens-a-chk { display: flex; align-items: center; gap: var(--space-2);
+             font-size: var(--text-body-sm); color: var(--text-2); }
+.ens-a-img { display: flex; gap: var(--space-4); align-items: flex-start; }
+.ens-a-prev { width: 180px; height: 128px; object-fit: contain; flex: none;
+              background: var(--surface-sunken); border: 1px solid var(--border);
+              border-radius: var(--radius-sm); display: flex;
+              align-items: center; justify-content: center; }
+.ens-a-imgctl { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+/* ПОЛЕ НЕ УЖЕ ЧИТАЕМОГО МИНИМУМА, КНОПКА УСТУПАЕТ МЕСТО. Ряд
+   переносится: пока в контейнере хватает на 14rem поля плюс кнопку,
+   они стоят рядом, не хватает — кнопка уходит под поле, и поле
+   получает всю ширину.
+
+   Чинится КЛАСС, а не строка (§6.0.7). Прежний `flex: 1` отдавал
+   полю остаток после кнопки: в колонке 310px это 173px, внутри
+   139px — а подсказка «…или ссылка на картинку» просила 189px
+   и обрезалась на «…или ссылка на к». Подобрать текст покороче
+   значило бы починить ЭТУ подсказку и оставить следующую
+   обрезаться молча. */
+.ens-a-url { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.ens-a-url .input { flex: 1 1 14rem; min-width: 0; }
+/* ОПАСНОЕ ДЕЙСТВИЕ РАЗВЕДЕНО С СОХРАНЕНИЕМ — решение владельца
+   2026-08-23. Стояли они вплотную (зазор 12px, замер), а последствия
+   у них противоположные: одно правит, второе стирает безвозвратно.
+   `margin-right: auto` уводит «Удалить» к левому краю ряда, то есть
+   промахнуться мимо «Сохранить» в его сторону нельзя — между ними
+   оказывается вся ширина окна, а не одна ступень шкалы. */
+.ens-a-actions { display: flex; justify-content: flex-end; gap: var(--space-3);
+                 margin-top: var(--space-5); flex-wrap: wrap; }
+.ens-a-del { margin-right: auto; }
+/* В окне подтверждения обе кнопки — ответ на один вопрос, разводить
+   их незачем: там опасное действие и есть предмет разговора. */
+.ens-a-actions-danger { justify-content: flex-end; }
+/* Тот же ряд в окне подтверждения удаления продукта. Своим именем,
+   а не `.ens-a-*`: раздел другой, а привязывать раскладку окна продуктов
+   к имени каталога значило бы, что удаление первого сломается от правки
+   второго. */
+.admin-modal-actions { display: flex; justify-content: flex-end;
+                       gap: var(--space-3); margin-top: var(--space-5);
+                       flex-wrap: wrap; }
+/* Кнопка загрузки не сжимается: подпись «Загрузить» в один ряд
+   с полем ссылки иначе переносится по буквам на узком окне. */
+.ens-a-up { flex: none; white-space: nowrap; }
+@media (max-width: 640px) {
+  .ens-a-two { grid-template-columns: 1fr; }
+  .ens-a-img { flex-direction: column; }
+  .ens-a-prev { width: 100%; }
+  /* На узком окне ряд «поле + кнопка» ломается в столбик: на 390
+     поле ссылки внутри ряда получало 139px под подсказку шириной
+     189px — она обрезалась на «…или ссылка на к». */
+  .ens-a-url { flex-direction: column; align-items: stretch; }
+  .ens-a-del { margin-right: 0; width: 100%; }
+  .ens-a-actions { flex-direction: column-reverse; }
+}

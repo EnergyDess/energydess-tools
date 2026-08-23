@@ -9,77 +9,86 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="{{ st('style.css') }}">
-  {% include '_admin_styles.html' %}
+  <link rel="stylesheet" href="{{ st('admin.css') }}">
 </head>
 <body class="has-site-header page-column">
 
+{% import '_admin_head.html' as ah %}
 {% include '_admin_nav.html' %}
 
 <div class="admin-wrap page-fill">
   {% set active = 'products' %}
   {% include '_admin_subnav.html' %}
 
-  <h1>База продуктов</h1>
-  <p class="subtitle">Модерация продуктов, добавленных пользователями</p>
+  {{ ah.head('Продукты', 'Записи, которые люди завели в свою базу питания вручную',
+             отбор, 'Поиск по названию, бренду или почте', 'Поиск по базе') }}
 
   <div class="card admin-panel">
-    <div class="card-header">
-      <span>База продуктов (<span id="food-count">{{ foods|length }}</span>)</span>
-      <div class="search-wrap">
-        <svg class="admin-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="food-search" placeholder="Поиск по названию, бренду, email..."
-          oninput="filterFoods(this.value)"
-          class="search-input-admin">
-      </div>
-    </div>
-
-    {% if foods %}
     <div class="table-scroll">
-    <table class="foods-table foods-table-products">
-      <thead>
-        <tr>
-          <th>Пользователь</th>
-          <th>Название</th>
-          <th>Бренд</th>
-          <th>Ккал</th>
-          <th>Б</th>
-          <th>Ж</th>
-          <th>У</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for f in foods %}
-        <tr data-food-id="{{ f.id }}">
-          <td class="date-cell food-email">{{ f.email }}</td>
-          <td><input class="input input-sm food-name" type="text" value="{{ f.name }}"></td>
-          <td><input class="input input-sm food-brand" type="text" value="{{ f.brand }}"></td>
-          <td><input class="input input-sm food-input-num food-cal" type="number" step="0.1" value="{{ f.calories }}"></td>
-          <td><input class="input input-sm food-input-num food-prot" type="number" step="0.1" value="{{ f.protein }}"></td>
-          <td><input class="input input-sm food-input-num food-fat" type="number" step="0.1" value="{{ f.fat }}"></td>
-          <td><input class="input input-sm food-input-num food-carb" type="number" step="0.1" value="{{ f.carbs }}"></td>
-          <td>
-            <button class="btn-icon btn-icon-sm food-save-btn" onclick="saveFood({{ f.id }}, this)" title="Сохранить">
-              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-            </button>
-            <button class="btn-icon btn-icon-sm btn-icon-danger food-del-btn" onclick="deleteFood({{ f.id }}, this)" title="Удалить">
-              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-            </button>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+      <table class="admin-table admin-table-foods">
+        <thead>
+          <tr>
+            <th>Чей</th><th>Название</th><th>Бренд</th>
+            <th>Ккал</th><th>Б</th><th>Ж</th><th>У</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          {% for f in foods %}
+          <tr data-food-id="{{ f.id }}"
+              data-brand="{{ 'yes' if f.brand.strip() else 'no' }}"
+              data-code="{{ 'yes' if f.barcode.strip() else 'no' }}"
+              data-email="{{ f.email }}">
+            <td class="date-cell food-email">{{ f.email }}</td>
+            <td><input class="input input-sm food-name" type="text" value="{{ f.name }}" aria-label="Название"></td>
+            <td><input class="input input-sm food-brand" type="text" value="{{ f.brand }}" aria-label="Бренд"></td>
+            <td><input class="input input-sm num food-cal"  type="number" step="0.1" value="{{ f.calories }}" aria-label="Ккал"></td>
+            <td><input class="input input-sm num food-prot" type="number" step="0.1" value="{{ f.protein }}" aria-label="Белки"></td>
+            <td><input class="input input-sm num food-fat"  type="number" step="0.1" value="{{ f.fat }}" aria-label="Жиры"></td>
+            <td><input class="input input-sm num food-carb" type="number" step="0.1" value="{{ f.carbs }}" aria-label="Углеводы"></td>
+            <td class="row-actions">
+              <button class="btn-icon btn-icon-sm food-save-btn" onclick="saveFood({{ f.id }}, this)" title="Сохранить" aria-label="Сохранить">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+              <button class="btn-icon btn-icon-sm btn-icon-danger" onclick="delFood({{ f.id }}, this)" title="Удалить" aria-label="Удалить">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-    {% else %}
-    <div class="empty-state admin-empty">Пока никто не добавил продукты в личную базу</div>
-    {% endif %}
+    <p class="empty-state admin-empty" id="empty" {% if foods %}hidden{% endif %}>
+      {% if foods %}Под текущий отбор не попала ни одна запись{% else %}Пока никто не добавил продукты в личную базу{% endif %}
+    </p>
   </div>
+
+  <p class="data-note" id="note"></p>
 </div>
+
+{# ПОДТВЕРЖДЕНИЕ УДАЛЕНИЯ — СИСТЕМНОЕ ОКНО, а не confirm() браузера.
+   Тот же случай, что у каталога Enshrouded (§5.7): confirm() рисует ОС,
+   он не темизуется, не читается как часть страницы и на телефоне выглядит
+   чужим. Плюс он не может назвать, ЧТО именно удаляется, — а тут удаляется
+   ЧУЖАЯ запись, и назвать её надо. #}
+{% import '_modal.html' as m %}
+{% call m.modal('food-del', 'Удалить продукт?', icon='alert-triangle', icon_tone='warning') %}
+  <p id="food-del-text"></p>
+  <div class="admin-modal-actions">
+    <button class="btn-secondary" type="button" data-modal-close>Отмена</button>
+    <button class="btn-danger" type="button" id="food-del-go">Удалить</button>
+  </div>
+{% endcall %}
 
 <div class="toast" id="toast"></div>
 
 <script>
+const ВСЕГО = {{ foods|length }};
+const БЕЗ_БРЕНДА = {{ отбор[1].n }};
+const БЕЗ_КОДА = {{ отбор[2].n }};
+const state = {pick: 'all', q: ''};
+let удаляем = null;
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -87,14 +96,13 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// Показывать ✓ только при редактировании строки
 document.querySelectorAll('[data-food-id] .input').forEach(input => {
   input.addEventListener('input', () => {
     input.closest('tr').querySelector('.food-save-btn').classList.add('dirty');
   });
 });
 
-async function saveFood(foodId, btn) {
+async function saveFood(id, btn) {
   const row = btn.closest('tr');
   const body = {
     name: row.querySelector('.food-name').value.trim(),
@@ -105,57 +113,97 @@ async function saveFood(foodId, btn) {
     carbs: parseFloat(row.querySelector('.food-carb').value) || 0,
   };
   try {
-    const res = await fetch(`/admin/foods/${foodId}`, {
-      method: 'PUT',
-      headers: {'Content-Type': 'application/json'},
+    const res = await fetch('/admin/foods/' + id, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body)
     });
     if (!res.ok) throw new Error();
-    btn.classList.remove('dirty'); // скрыть после успешного сохранения
-    showToast('✓ Сохранено');
+    btn.classList.remove('dirty');
+    // Признак «есть бренд» пересчитывается СРАЗУ: иначе запись, которой
+    // бренд только что вписали, осталась бы в чипе «Без бренда», и отказ
+    // был бы немой — таблица при этом выглядит исправной (§6.0.1).
+    row.dataset.brand = body.brand ? 'yes' : 'no';
+    отобрать();
+    showToast('Сохранено');
   } catch {
-    showToast('✗ Не удалось сохранить');
+    showToast('Не удалось сохранить');
   }
 }
 
-async function deleteFood(foodId, btn) {
-  if (!confirm('Удалить этот продукт из базы?')) return;
+function delFood(id, btn) {
   const row = btn.closest('tr');
+  удаляем = {id: id, row: row};
+  document.getElementById('food-del-text').textContent =
+    (row.querySelector('.food-name').value || 'Запись без названия')
+    + ' — из личной базы ' + row.dataset.email + '. Восстановить её будет нечем.';
+  открыть_модалку('food-del');
+}
+
+document.getElementById('food-del-go').addEventListener('click', async () => {
+  if (!удаляем) return;
+  const id = удаляем.id, row = удаляем.row;
   try {
-    const res = await fetch(`/admin/foods/${foodId}`, {method: 'DELETE'});
+    const res = await fetch('/admin/foods/' + id, {method: 'DELETE'});
     if (!res.ok) throw new Error();
     row.remove();
-    const tbody = document.querySelector('#food-count').closest('.card').querySelector('tbody');
-    const total = tbody ? tbody.querySelectorAll('tr').length : 0;
-    document.getElementById('food-count').textContent = total;
-    showToast('✓ Удалено');
+    закрыть_модалку('food-del');
+    отобрать();
+    showToast('Удалено');
   } catch {
-    showToast('✗ Не удалось удалить');
+    showToast('Не удалось удалить');
   }
+});
+
+function отобрать() {
+  const rows = document.querySelectorAll('#rows tr');
+  const s = state.q.trim().toLowerCase();
+  let видно = 0;
+  rows.forEach(row => {
+    let ок = true;
+    if (state.pick === 'nobrand') ок = row.dataset.brand === 'no';
+    if (state.pick === 'nocode')  ок = row.dataset.code === 'no';
+    if (ок && s) {
+      const t = [row.dataset.email,
+                 row.querySelector('.food-name').value,
+                 row.querySelector('.food-brand').value].join(' ').toLowerCase();
+      ок = t.includes(s);
+    }
+    row.hidden = !ок;
+    if (ок) видно++;
+  });
+  if (ВСЕГО) document.getElementById('empty').hidden = видно > 0;
+  подпись(видно);
 }
 
-function filterFoods(q) {
-  const rows = document.querySelectorAll('[data-food-id]');
-  const s = q.trim().toLowerCase();
-  let visible = 0;
-  rows.forEach(row => {
-    const email = row.querySelector('.food-email')?.textContent.toLowerCase() || '';
-    const name  = row.querySelector('.food-name')?.value.toLowerCase() || '';
-    const brand = row.querySelector('.food-brand')?.value.toLowerCase() || '';
-    const show  = !s || email.includes(s) || name.includes(s) || brand.includes(s);
-    row.style.display = show ? '' : 'none';
-    if (show) visible++;
-  });
-  document.getElementById('food-count').textContent = s ? visible + '/' + rows.length : rows.length;
+function подпись(видно) {
+  const ч = document.querySelector('[data-pick="' + state.pick + '"]');
+  const имя = ч ? ч.firstChild.textContent.trim() : 'Все';
+  let t = 'Показано ' + видно + ' из ' + ВСЕГО + '. ';
+  t += state.pick === 'all'
+     ? 'Отбора нет — в таблице все записи, которые люди завели вручную в дневнике питания. '
+     : 'Отбор «' + имя + '». ';
+  if (state.q.trim()) t += 'Плюс поиск по названию, бренду и почте: «' + state.q.trim() + '». ';
+  t += 'Без бренда сейчас ' + БЕЗ_БРЕНДА + ', без штрих-кода ' + БЕЗ_КОДА
+     + ': по этим двум полям запись склеивается с близнецом из общего справочника, '
+     + 'и пока их нет, человек видит в поиске две одинаковые карточки. '
+     + 'Правки в строке сохраняются галочкой — она появляется после первого изменения.';
+  document.getElementById('note').textContent = t;
 }
+
+document.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-pick]').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  state.pick = b.dataset.pick;
+  отобрать();
+}));
+document.getElementById('admin-q').addEventListener('input', function () {
+  state.q = this.value; отобрать();
+});
+
+отобрать();
 </script>
 
-
-{# Общий футер. Раньше его тут не было вовсе — админка была единственным
-   разделом сайта без нижней навигации. Причина отпала: перейти из админки
-   в инструмент или в правовую страницу удобно, и особенной админка для
-   этого не настолько (BACKLOG №56). Вариант полный: сюда попадает только
-   администратор, то есть авторизованный. #}
+<script src="{{ st('modal.js') }}"></script>
 {% include '_page_end.html' %}
 </body>
 </html>

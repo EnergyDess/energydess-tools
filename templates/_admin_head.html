@@ -1,0 +1,44 @@
+{# ШАПКА РАЗДЕЛА АДМИНКИ — заголовок, пояснение, ряд отбора, поиск.
+   Одна на все четыре раздела: до 2026-08-23 каждый писал свою (BACKLOG
+   №148). Расхождения были не косметические — у «Упражнений» числа стояли
+   плитками по 140px над фильтрами, у остальных трёх строкой «Название (25)»
+   ВНУТРИ карточки таблицы, а у Enshrouded поиск жил третьим местом.
+
+   МАКРОСОМ, а не include: разделу надо доложить в ряд свои органы —
+   два списка у «Упражнений», кнопку «Добавить сет» у Enshrouded, — и через
+   include это пришлось бы передавать готовой разметкой в переменной.
+
+   Имя атрибута ЛАТИНИЦЕЙ (`data-pick`), хотя весь остальной текст русский:
+   оно уезжает в `element.dataset`, то есть в машинный слой, а там правило
+   одно — ASCII (CLAUDE.md §6.0). Кириллическое имя работает не везде
+   одинаково, и отказ был бы немой: обработчик просто не нашёл бы ключа.
+
+   Разметка чипа — КНОПКА, а не ссылка: отбор применяется на месте, без
+   перезагрузки. Скрипт раздела вешает обработчик на `[data-pick]`,
+   и это единственный контракт между шапкой и разделом. #}
+
+{% macro head(title, subtitle, отбор, placeholder, narrow='') %}
+<h1>{{ title }}</h1>
+<p class="subtitle">{{ subtitle }}</p>
+
+<div class="admin-bar">
+  <div class="chip-row" role="group" aria-label="Отбор">
+    {% for ч in отбор %}
+    <button type="button" class="chip {{ 'active' if loop.first }}" data-pick="{{ ч.id }}">
+      {{ ч.label }}<span class="chip-n">{{ ч.n }}</span>
+    </button>
+    {% endfor %}
+  </div>
+
+  <div class="admin-bar-tools">
+    {% if caller is defined %}{{ caller() }}{% endif %}
+    <div class="search-wrap">
+      <svg class="admin-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="search-input-admin" id="admin-q"
+             placeholder="{{ placeholder }}"
+             {% if narrow %}data-narrow-hint="{{ narrow }}"{% endif %}>
+    </div>
+  </div>
+</div>
+{% endmacro %}

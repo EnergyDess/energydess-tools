@@ -148,7 +148,7 @@ def прогон(добавка_css="", тихо=False):
 
     with sync_playwright() as p:
         бр = p.chromium.launch()
-        for ширина, высота, сенсор in ШИРИНЫ:
+        for ширина, высота, сенсор in ch.отобрать_ширины(ШИРИНЫ):
             к = бр.new_context(viewport={"width": ширина, "height": высота},
                                has_touch=сенсор, is_mobile=сенсор)
             стр = к.new_page()
