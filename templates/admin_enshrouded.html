@@ -16,7 +16,7 @@
 {% import '_modal.html' as m %}
 {% include '_admin_nav.html' %}
 
-<div class="admin-wrap page-fill">
+<div class="admin-wrap admin-wrap-cat page-fill">
   {% set active = 'enshrouded' %}
   {% include '_admin_subnav.html' %}
 
@@ -203,7 +203,10 @@ function открыть(id) {
                value="${с.lvl ?? ''}" placeholder="пусто">
         <p class="ens-a-note">Вводится руками: из уровней найденных предметов
           он не выводится — замер по 18 сетам «Мира» показал, что ни минимум,
-          ни максимум, ни среднее его не воспроизводят.</p>
+          ни максимум, ни среднее его не воспроизводят.
+          <br>У категории «Мир» подпись уровня в разделе не показывается
+          (решение 2026-08-23), но поле хранится и сверено с вики —
+          менять его тут можно.</p>
       </div>
     </div>
 
