@@ -46,9 +46,22 @@
              placeholder="Название, вещество или категория" autocomplete="off"
              aria-label="Поиск по аптечке">
     </div>
-    <button class="btn btn-primary apt-add" type="button"
+    {# КНОПКА ПАНЕЛИ РИСУЕТСЯ СЕРВЕРОМ и стоит в разметке
+       с первого кадра, без единой строки скрипта. Орган, который
+       дорисовывается после загрузки, — это пустое место на первом
+       кадре и рывок на втором (§6.0.15, §6.0.17).
+
+       ОНА ЖЕ ГЛАВНАЯ, а «Добавить» стала вторичной: заполнять
+       карточку руками — длинный путь, и акцентной заливкой
+       обязан быть короткий. Обе остаются: ассистент может
+       быть не настроен, а завести позицию надо всё равно. #}
+    <button class="btn btn-primary apt-ai-open" type="button"
+            id="apt-ai-open" onclick="аптАИОткрыть()">
+      {{ значок('sparkles') }} Завести с ассистентом
+    </button>
+    <button class="btn btn-secondary apt-add" type="button"
             onclick="аптОткрытьФорму()">
-      {{ значок('plus') }} Добавить
+      {{ значок('plus') }} Вручную
     </button>
   </div>
 
@@ -88,6 +101,73 @@
   </p>
 </main>
 
+{# ── ПАНЕЛЬ АССИСТЕНТА ЗАВЕДЕНИЯ ───────────────────────────────────
+   BACKLOG №166.
+
+   ПАНЕЛЬ СБОКУ, А НЕ МОДАЛКА. Диалог заполнения многошаговый: ассистент
+   показывает черновик, человек правит, тот переспрашивает. Модалка
+   поверх формы дала бы два слоя друг на друге — и карточку, которую
+   собирают, не было бы видно рядом с разговором о ней.
+
+   РАЗМЕТКА ЦЕЛИКОМ СЕРВЕРНАЯ, включая содержимое. Постановка разрешала
+   грузить содержимое при первом открытии; так делать НЕ СТАЛИ, и это
+   строже, а не слабее: панель статична и весит меньше килобайта,
+   а догрузка завела бы ровно тот пустой кадр, ради отсутствия которого
+   оговорка и написана (§6.0.17, задача 161 открыта). Кадра, которого
+   нет по построению, не бывает.
+
+   ЧЕГО ЗДЕСЬ НЕТ И БЫТЬ НЕ ДОЛЖНО: ассистент отвечает ТОЛЬКО про
+   заведение карточки. «Что мне выпить от головы» — следующий этап
+   (задача 165), и подсказывать лечение он не будет ни сейчас, ни тогда. #}
+<div class="apt-ai-back" id="apt-ai-back" onclick="аптАИЗакрыть()"></div>
+<aside class="apt-ai" id="apt-ai" aria-label="Ассистент заведения"
+       aria-hidden="true">
+  <div class="apt-ai-head">
+    {{ значок('sparkles') }}
+    <h2 class="apt-ai-title">Заведу карточку</h2>
+    <button class="btn-icon btn-icon-solid tap-44" type="button"
+            onclick="аптАИЗакрыть()" aria-label="Закрыть панель"
+            title="Закрыть">{{ значок('x') }}</button>
+  </div>
+  <p class="apt-ai-sub">Сфотографируйте упаковку, продиктуйте или вставьте
+    ссылку на препарат — соберу карточку, а вы проверите.</p>
+
+  <div class="apt-ai-log" id="apt-ai-log" aria-live="polite"></div>
+
+  <div class="apt-ai-bar">
+    {# КОНТЕЙНЕР ОВЕРЛЕЯ ЗАПИСИ: диктофон кладёт дорожку `inset: 0`
+       в элемент с этим классом, отсюда `data-voice-box` на кнопке #}
+    <div class="apt-ai-row">
+      <textarea class="textarea textarea-compact apt-ai-in" id="apt-ai-in"
+                rows="2" maxlength="2000" aria-label="Описание упаковки"
+                placeholder="Нурофен 200, 20 таблеток, годен до 06.2028"></textarea>
+      <button class="btn-icon btn-icon-round tap-44" type="button"
+              id="apt-ai-mic" data-voice-box=".apt-ai-row"
+              aria-label="Продиктовать" title="Продиктовать">
+        {{ значок('mic') }}</button>
+      <button class="btn-icon btn-icon-accent tap-44" type="button"
+              onclick="аптАИОтправитьТекст()" id="apt-ai-send"
+              aria-label="Разобрать" title="Разобрать">
+        {{ значок('arrow-right') }}</button>
+    </div>
+    <div class="apt-ai-tools">
+      {# СЪЁМКА КАМЕРОЙ. `capture="environment"` — задняя камера: снимают
+         упаковку, а не себя. На десктопе атрибут игнорируется и открывается
+         обычный выбор файла, поэтому вторая кнопка «загрузить» не нужна #}
+      <label class="btn btn-secondary btn-sm tap-44">
+        {{ значок('camera') }} Снять упаковку
+        <input type="file" accept="image/*" capture="environment" hidden
+               id="apt-ai-photo" onchange="аптАИФото(this)">
+      </label>
+      <button class="btn btn-secondary btn-sm tap-44" type="button"
+              onclick="аптАИСпроситьСсылку()">
+        {{ значок('link') }} Ссылка</button>
+    </div>
+    <p class="apt-ai-hint">Дозу и срок после вскрытия ассистент не заполняет:
+      первое назначает врач, второе стоит в инструкции.</p>
+  </div>
+</aside>
+
 {# ── ПОЛОСА ОТМЕНЫ ─────────────────────────────────────────────────
    Системный компонент .undo-bar (design-system.md §2.13) с полосой
    обратного отсчёта. Одна на страницу: второе списание подряд не заводит
@@ -109,12 +189,12 @@
         onsubmit="return аптСохранить(event)">
     <div class="apt-row apt-row-2">
       <div class="form-group">
-        <label class="field-label" for="apt-f-name">Название *</label>
+        <label class="field-label" for="apt-f-name">Название *<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
         <input class="input" id="apt-f-name" maxlength="120" required
                placeholder="Нурофен">
       </div>
       <div class="form-group">
-        <label class="field-label" for="apt-f-sub">Действующее вещество</label>
+        <label class="field-label" for="apt-f-sub">Действующее вещество<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
         <input class="input" id="apt-f-sub" maxlength="200"
                placeholder="Ибупрофен, 200 мг">
         <p class="apt-hint">По нему ищется. Нурофен и Ибупрофен — одно
@@ -124,7 +204,7 @@
 
     <div class="apt-row apt-row-3">
       <div class="form-group">
-        <label class="field-label" for="apt-f-form">Форма выпуска *</label>
+        <label class="field-label" for="apt-f-form">Форма выпуска *<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
         <select class="select input" id="apt-f-form" onchange="аптФормаСменилась()">
           {% for ф in формы %}
           <option value="{{ ф.id }}">{{ ф.имя }}</option>
@@ -139,13 +219,13 @@
         <select class="select input" id="apt-f-unit"></select>
       </div>
       <div class="form-group apt-only-exact">
-        <label class="field-label" for="apt-f-left">Осталось *</label>
+        <label class="field-label" for="apt-f-left">Осталось *<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
         <div class="apt-num"><input class="input apt-num-in" id="apt-f-left" type="number"
                step="any" min="0" inputmode="decimal">
           <span class="apt-unit" id="apt-u-left"></span></div>
       </div>
       <div class="form-group apt-only-exact">
-        <label class="field-label" for="apt-f-total">Было в упаковке *</label>
+        <label class="field-label" for="apt-f-total">Было в упаковке<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
         <div class="apt-num"><input class="input apt-num-in" id="apt-f-total" type="number"
                step="any" min="0" inputmode="decimal">
           <span class="apt-unit" id="apt-u-total"></span></div>
@@ -165,14 +245,12 @@
 
     <div class="apt-row apt-row-3">
       <div class="form-group">
-        <label class="field-label" for="apt-f-exp">Годен до *</label>
+        <label class="field-label" for="apt-f-exp">Годен до *<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
         <input class="input" id="apt-f-exp" type="month" required>
       </div>
       <div class="form-group">
         <label class="field-label" for="apt-f-open">Вскрыто</label>
         <input class="input" id="apt-f-open" type="date">
-        <p class="apt-hint">Можно не заполнять — встанет само при первом
-          приёме.</p>
       </div>
       <div class="form-group">
         <label class="field-label" for="apt-f-place">Где лежит</label>
@@ -194,6 +272,26 @@
       </div>
     </div>
 
+    {# СРОК ОТ АССИСТЕНТА — ЕДИНСТВЕННОЕ ПОЛЕ С ЗАМКОМ, А НЕ ПРОСТО
+       ПОМЕТКОЙ. Ошибка в названии видна с одного взгляда; ошибка в дате
+       не видна никак, а цена у неё — выпитое просроченное лекарство:
+       2027 вместо 2021 на фотографии различается одной цифрой.
+
+       СТОИТ ПОД РЯДОМ, А НЕ В ЯЧЕЙКЕ ПОЛЯ. Внутри ячейки блок получал
+       треть ширины формы, объяснение переносилось на восемь строк
+       и налезало на соседний ряд — замер на 1920: ширина 264 px при
+       высоте 148. Здесь он — обычная строка формы и занимает её целиком.
+
+       Показывается классом `.apt-f-exp-ai`, который скрипт ставит НА
+       ГРУППУ ПОЛЯ СРОКА. Селектор идёт от неё через `:has()` — то есть
+       признак остаётся ОДИН и там же, где пометка поля. #}
+    <div class="apt-exp-confirm" id="apt-exp-confirm">
+      <span>Дату подставил ассистент. Сверьте её с упаковкой —
+        без подтверждения карточка не сохранится.</span>
+      <button class="btn btn-secondary btn-sm" type="button"
+              onclick="аптПодтвердитьСрок()">Совпадает</button>
+    </div>
+
     {# СРОК ПОСЛЕ ВСКРЫТИЯ ЖИВЁТ И У ТЮБИКА, поэтому `apt-only-exact`
        стоит на ПОЛЕ ДОЗЫ, а не на всём ряду. Первая версия пометила ряд
        целиком, и у мази с гелем поле пропадало вместе с дозой — при том
@@ -205,17 +303,27 @@
         <div class="apt-num"><input class="input apt-num-in" id="apt-f-dose" type="number"
                step="any" min="0" value="1" inputmode="decimal">
           <span class="apt-unit" id="apt-u-dose"></span></div>
-        <p class="apt-hint">Столько снимет кнопка приёма на карточке.</p>
       </div>
       <div class="form-group" id="apt-f-days-box">
         <label class="field-label" for="apt-f-days">Годен после вскрытия, дней</label>
         <input class="input" id="apt-f-days" type="number" min="1" max="3650"
                inputmode="numeric">
-        {# ЧИСЛО НАШЕ, И ЭТО СКАЗАНО ВСЛУХ. Точный срок стоит в инструкции
-           к препарату; инструкцию мы не копируем и не пересказываем,
-           поэтому подставляем осторожное умолчание и говорим, чьё оно #}
-        <p class="apt-hint">Подставлено осторожное умолчание для этой формы.
-          Точный срок — в инструкции к вашему препарату.</p>
+        {# ПОДСКАЗКА ПОКАЗЫВАЕТСЯ ТОЛЬКО ТАМ, ГДЕ ЗНАЧЕНИЕ РЕАЛЬНО ВСТАЛО.
+
+           До 2026-08-24 она стояла ВСЕГДА и гласила «Подставлено
+           осторожное умолчание для этой формы» — в том числе над ПУСТЫМ
+           полем. У таблеток, капсул, свечей, ампул и порошка
+           `вскрытие_дней` равно `None`, то есть умолчания нет вовсе,
+           и пять форм из двенадцати сообщали о действии, которого
+           не произошло.
+
+           Интерфейс не имеет права сообщать о том, чего не сделал:
+           это тот же класс, что «Сохранено» при неуехавшем фото (§6.0).
+           Показ двигает `аптФормаСменилась` — там же, где умолчание
+           и подставляется, а не вторым решением рядом. #}
+        <p class="apt-hint apt-hint-days" id="apt-days-note" hidden>Подставлено
+          осторожное умолчание для этой формы. Точный срок —
+          в инструкции к вашему препарату.</p>
       </div>
     </div>
 
@@ -234,19 +342,34 @@
 
     <div class="apt-row apt-row-2">
       <div class="form-group">
-        <label class="field-label" for="apt-f-code">Штрих-код упаковки</label>
+        <label class="field-label" for="apt-f-code">Штрих-код упаковки<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
         <input class="input" id="apt-f-code" inputmode="numeric" maxlength="14"
                placeholder="04601234567890">
         <p class="apt-hint">Не обязателен. Нужен, чтобы повторная покупка
           той же пачки подставилась из вашей же базы.</p>
       </div>
-      <div class="form-group">
-        <label class="field-label" for="apt-f-url">Ссылка на инструкцию</label>
+      {# ПОЛЯ «ССЫЛКА НА ИНСТРУКЦИЮ» В ОСНОВНОЙ ФОРМЕ БОЛЬШЕ НЕТ.
+
+         Оно требовало найти адрес самому — работу ради ссылки, которую
+         никто не откроет. Теперь карточка САМА показывает «Инструкцию»:
+         поиск по ДЕЙСТВУЮЩЕМУ ВЕЩЕСТВУ в справочнике. Ноль работы,
+         всегда актуально, чужого текста у нас в базе нет.
+
+         РУЧНОЕ ПЕРЕОПРЕДЕЛЕНИЕ ОСТАЛОСЬ, но спрятано: человек мог найти
+         инструкцию именно к своей упаковке, и отбирать у него уже
+         сделанную работу нельзя. Своё поле СИЛЬНЕЕ справочника — разбор
+         у `_апт_ссылка_на_вещество` в main.py.
+
+         `<details>`, а не `hidden` со своей кнопкой: сворачивание родное,
+         клавиатура и программа чтения знают его без нашего участия,
+         и второй реализации сворачивания заводить не надо. #}
+      <details class="form-group apt-url-more">
+        <summary class="apt-url-sum">Своя ссылка на инструкцию</summary>
         <input class="input" id="apt-f-url" type="url" maxlength="500"
-               placeholder="https://…">
-        <p class="apt-hint">Только адрес источника. Текст инструкции
-          и дозировки мы не копируем и не пересказываем.</p>
-      </div>
+               placeholder="https://…" aria-label="Ссылка на инструкцию">
+        <p class="apt-hint">Без неё карточка ведёт в поиск по действующему
+          веществу. Текст инструкции и дозировки мы не копируем.</p>
+      </details>
     </div>
 
     <div class="form-group">
@@ -262,8 +385,6 @@
                accept="image/*" capture="environment"
                onchange="аптВыбралиФото(this)">
       </div>
-      <p class="apt-hint" id="apt-photo-note">Файл уедет на сервер сразу
-        после сохранения карточки.</p>
     </div>
 
     <label class="apt-switch">
@@ -333,6 +454,7 @@
 {% endcall %}
 
 <script src="{{ st('modal.js') }}"></script>
+<script src="{{ st('voice-input.js') }}"></script>
 <script>
 /* ══ АПТЕЧКА — поведение экрана ═══════════════════════════════════════
 
@@ -522,6 +644,16 @@ function аптФормаСменилась(сохранитьЕдиницу) {
 
   const днями = document.getElementById('apt-f-days');
   if (!днями.value && ф['вскрытие_дней']) днями.value = ф['вскрытие_дней'];
+  /* ПОДСКАЗКА — ТОЛЬКО ТАМ, ГДЕ ЗНАЧЕНИЕ РЕАЛЬНО ВСТАЛО. Разбор —
+     у самой подсказки в разметке. Условие смотрит на ПОЛЕ, а не на
+     `вскрытие_дней` формы: у правки существующей позиции значение
+     пришло из базы, и «подставлено умолчание» про него тоже неправда.
+
+     Ставится ЗДЕСЬ, а не вторым решением рядом: подсказка обязана
+     двигаться тем же кодом, который подставляет число, иначе они
+     разойдутся при первой правке одного из двух. */
+  document.getElementById('apt-days-note').hidden =
+    !(ф['вскрытие_дней'] && String(днями.value) === String(ф['вскрытие_дней']));
 }
 document.getElementById('apt-f-unit').addEventListener('change', () =>
   аптФормаСменилась(document.getElementById('apt-f-unit').value));
@@ -534,6 +666,11 @@ document.getElementById('apt-f-scale').addEventListener('click', e => {
 });
 
 function аптОткрытьФорму(поз) {
+  /* ПОМЕТКИ АССИСТЕНТА СНИМАЮТСЯ ПРИ КАЖДОМ ОТКРЫТИИ. Иначе они
+     пережили бы закрытие окна и встретили человека на СЛЕДУЮЩЕЙ
+     карточке — там, где ассистент ничего не заполнял. Пометка,
+     оставшаяся от прошлого раза, врёт ровно так же, как её отсутствие */
+  аптСнятьПометки();
   АПТ.правим = поз ? поз.id : null;
   АПТ.файл = null;
   АПТ.фотоЕсть = !!(поз && поз.photo);
@@ -569,6 +706,7 @@ function аптОткрытьФорму(поз) {
   const свои = (поз && поз['категории']) || [];
   document.querySelectorAll('#apt-f-cats [data-cat]').forEach(ч =>
     ч.classList.toggle('active', свои.includes(+ч.dataset.cat)));
+  аптСрокЗамок();
   открыть_модалку('apt-form');
 }
 
@@ -621,6 +759,12 @@ async function аптСохранить(событие) {
       code_gtin: аптЗнач('apt-f-code'),
       note: аптЗнач('apt-f-note'),
       is_rx: document.getElementById('apt-f-rx').checked,
+      /* ЗАМОК ПРОВЕРЯЕТСЯ И НА СЕРВЕРЕ. Экран сюда не пустит, но
+         `_апт_проверить` обязан отказать самостоятельно: заслон сторожит
+         не чужой запрос, а СОБСТВЕННУЮ ОШИБКУ ЭКРАНА — то, что черновик
+         уедет в базу мимо подтверждения */
+      'черновик': АИ.срокОтАссистента,
+      'срок_подтверждён': АИ.срокПодтверждён,
       'категории': [...document.querySelectorAll('#apt-f-cats [data-cat].active')]
                      .map(ч => +ч.dataset.cat),
     };
@@ -662,6 +806,8 @@ async function аптСохранить(событие) {
       итог = тф;
     }
     закрыть_модалку('apt-form');
+    аптСнятьПометки();
+    аптСрокЗамок();
     аптПрименитьСетку(итог);
     return false;
   } finally {
@@ -811,6 +957,300 @@ document.getElementById('apt-cat-list').addEventListener('click', async e => {
   location.reload();
 });
 
+
+/* ══ АССИСТЕНТ ЗАВЕДЕНИЯ ══════════════════════════════════════════════
+   BACKLOG №166.
+
+   ЧТО ЭТОТ КУСОК НЕ ДЕЛАЕТ:
+
+     · не разбирает ответ модели. Разбор, отсев запретных полей и сведение
+       категорий — на СЕРВЕРЕ (`_апт_очистить_черновик`,
+       `_апт_свести_черновик`). Второй разборщик в браузере разошёлся бы
+       с первым молча, и запрет «не заполнять дозу» держался бы в одном
+       из двух мест (§6.0.7);
+     · не записывает диктофон. Диктофон — системный компонент
+       `static/voice-input.js`, тот же, что в переписке дневника;
+     · не решает, какие поля помечены. Список приходит ответом сервера
+       полем `заполнено` — иначе пометка и отсев разъехались бы. */
+
+const АИ = {
+  занят: false,
+  черновик: null,      // последний черновик от ассистента
+  срокОтАссистента: false,
+  срокПодтверждён: false,
+};
+
+function аптАИОткрыть() {
+  document.getElementById('apt-ai').classList.add('open');
+  document.getElementById('apt-ai').setAttribute('aria-hidden', 'false');
+  document.getElementById('apt-ai-back').classList.add('open');
+  const л = document.getElementById('apt-ai-log');
+  /* Приветствие рисуется ПРИ ПЕРВОМ ОТКРЫТИИ, а не в разметке: пустая
+     лента с текстом на первом кадре читалась бы как уже начатый разговор */
+  if (!л.children.length) {
+    аптАИСказать('ai', 'Что заводим? Сфотографируйте упаковку, продиктуйте '
+      + 'или напишите — например «Нурофен 200, 20 таблеток, годен до 06.2028».');
+  }
+  document.getElementById('apt-ai-in').focus();
+}
+
+function аптАИЗакрыть() {
+  document.getElementById('apt-ai').classList.remove('open');
+  document.getElementById('apt-ai').setAttribute('aria-hidden', 'true');
+  document.getElementById('apt-ai-back').classList.remove('open');
+}
+
+function аптАИСказать(кто, текст, разметка) {
+  const л = document.getElementById('apt-ai-log');
+  const д = document.createElement('div');
+  д.className = 'apt-ai-msg apt-ai-msg-' + кто;
+  /* ТЕКСТ — ЧЕРЕЗ textContent, а не innerHTML: он приходит от модели
+     и из ответов чужих сайтов, то есть это ДАННЫЕ, а не разметка */
+  д.textContent = текст;
+  if (разметка) д.appendChild(разметка);
+  л.appendChild(д);
+  л.scrollTop = л.scrollHeight;
+  return д;
+}
+
+function аптАИЖдём(текст) {
+  АИ.занят = true;
+  document.getElementById('apt-ai-send').disabled = true;
+  return аптАИСказать('ai', текст);
+}
+
+function аптАИГотово(пузырь) {
+  АИ.занят = false;
+  document.getElementById('apt-ai-send').disabled = false;
+  if (пузырь) пузырь.remove();
+}
+
+/* ── ТРИ СЦЕНАРИЯ, ОДНА ДВЕРЬ ─────────────────────────────────────
+   Фото, текст и ссылка отличаются только тем, ОТКУДА берётся описание.
+   Дальше путь общий — и на сервере тоже: три эндпоинта дали бы три
+   разбора ответа модели, расходящихся молча. */
+async function аптАИПослать(настройки, подпись) {
+  if (АИ.занят) return;
+  аптАИСказать('me', подпись);
+  const ждём = аптАИЖдём('Смотрю…');
+  let тело;
+  try {
+    const отв = await fetch('/medkit/api/assist', настройки);
+    try { тело = await отв.json(); } catch (e) { тело = {}; }
+    if (!отв.ok) тело = {error: тело.error || ('Сервер ответил ' + отв.status)};
+  } catch (e) {
+    тело = {error: 'Сеть не отвечает — ничего не разобрано'};
+  }
+  аптАИГотово(ждём);
+  if (тело.error) {
+    аптАИСказать('bad', тело.error);
+    return;
+  }
+  аптАИПоказатьЧерновик(тело);
+}
+
+function аптАИОтправитьТекст() {
+  const поле = document.getElementById('apt-ai-in');
+  const текст = (поле.value || '').trim();
+  if (!текст) { поле.focus(); return; }
+  поле.value = '';
+  аптАИПослать({
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({text: текст}),
+  }, текст);
+}
+
+function аптАИФото(input) {
+  const ф = input.files && input.files[0];
+  input.value = '';
+  if (!ф) return;
+  const фд = new FormData();
+  фд.append('file', ф);
+  const подпись = (document.getElementById('apt-ai-in').value || '').trim();
+  if (подпись) {
+    фд.append('text', подпись);
+    document.getElementById('apt-ai-in').value = '';
+  }
+  аптАИПослать({method: 'POST', body: фд},
+               'Фото упаковки' + (подпись ? ' · ' + подпись : ''));
+}
+
+function аптАИСпроситьСсылку() {
+  const поле = document.getElementById('apt-ai-in');
+  const текст = (поле.value || '').trim();
+  /* Ссылка вводится в ТО ЖЕ поле, а не в своё. Второе поле означало бы,
+     что человек выбирает между ними до того, как что-то ввёл, — а адрес
+     от описания отличается ровно тем, что начинается с http, и это
+     видно машине */
+  if (!/^https?:\/\//i.test(текст)) {
+    аптАИСказать('bad', 'Вставьте в поле адрес страницы препарата — '
+      + 'он начинается с http. Многие аптеки закрыты от автоматического '
+      + 'чтения; если не выйдет, снимите упаковку на камеру.');
+    поле.focus();
+    return;
+  }
+  поле.value = '';
+  аптАИПослать({
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({url: текст}),
+  }, текст);
+}
+
+/* ПОДПИСИ ПОЛЕЙ БЕРУТСЯ ИЗ ФОРМЫ, а не переписываются здесь: второй
+   набор названий разошёлся бы с первым при первой же правке */
+const АИ_ПОДПИСИ = {
+  name: 'Название', substance: 'Вещество', form: 'Форма',
+  unit: 'Единица', qty_total: 'Было', qty_left: 'Осталось',
+  expires_ym: 'Годен до', code_gtin: 'Штрих-код', 'категории': 'Категории',
+};
+
+function аптАИПоказатьЧерновик(тело) {
+  const поля = тело['поля'] || {};
+  const имена = тело['заполнено'] || [];
+  if (!имена.length) {
+    аптАИСказать('ai', тело['вопрос']
+      || 'Не разобрал ничего пригодного. Попробуйте назвать препарат '
+         + 'и количество: «Нурофен 200, 20 таблеток».');
+    return;
+  }
+  АИ.черновик = тело;
+  const св = document.createElement('dl');
+  св.className = 'apt-ai-draft';
+  имена.forEach(к => {
+    const стр = document.createElement('div');
+    const dt = document.createElement('dt');
+    dt.textContent = АИ_ПОДПИСИ[к] || к;
+    const dd = document.createElement('dd');
+    let зн = поля[к];
+    if (к === 'form') {
+      const ф = АПТ.формы.find(x => x.id === зн);
+      зн = ф ? ф['имя'] : зн;
+    }
+    if (к === 'unit') зн = (АПТ.единицы[зн] || {})['кратко'] || зн;
+    dd.textContent = Array.isArray(зн) ? зн.length + ' шт.' : String(зн);
+    стр.append(dt, dd);
+    св.appendChild(стр);
+  });
+  аптАИСказать('ai', 'Вот что вышло:', св);
+  if (тело['вопрос']) аптАИСказать('ai', тело['вопрос']);
+
+  const кн = document.createElement('button');
+  кн.className = 'btn btn-primary btn-block';
+  кн.type = 'button';
+  кн.textContent = 'Открыть карточку и проверить';
+  кн.onclick = () => аптАИВФорму();
+  document.getElementById('apt-ai-log').appendChild(кн);
+  document.getElementById('apt-ai-log').scrollTop = 1e6;
+}
+
+/* ЧЕРНОВИК УХОДИТ В ТУ ЖЕ ФОРМУ, что и ручное заведение. Вторая форма
+   «проверьте карточку» означала бы два экрана с одинаковыми полями,
+   расходящихся при первой же правке одного из них — ровно довод, по
+   которому у добавления и правки форма одна. */
+function аптАИВФорму() {
+  const тело = АИ.черновик;
+  if (!тело) return;
+  аптОткрытьФорму();
+  const поля = тело['поля'] || {};
+
+  if (поля.form) {
+    document.getElementById('apt-f-form').value = поля.form;
+    аптФормаСменилась(поля.unit);
+  }
+  const ставим = {
+    name: 'apt-f-name', substance: 'apt-f-sub', qty_left: 'apt-f-left',
+    qty_total: 'apt-f-total', expires_ym: 'apt-f-exp', code_gtin: 'apt-f-code',
+  };
+  Object.entries(ставим).forEach(([ключ, id]) => {
+    if (поля[ключ] === undefined) return;
+    const эл = document.getElementById(id);
+    if (эл) эл.value = поля[ключ];
+  });
+  if (Array.isArray(поля['категории'])) {
+    document.querySelectorAll('#apt-f-cats [data-cat]').forEach(ч =>
+      ч.classList.toggle('active', поля['категории'].includes(+ч.dataset.cat)));
+  }
+
+  аптПометитьАссистентом(тело['заполнено'] || []);
+  АИ.срокОтАссистента = !!тело['срок_подтвердить'];
+  АИ.срокПодтверждён = false;
+  аптСрокЗамок();
+  аптАИЗакрыть();
+}
+
+/* ПОМЕТКА НА КАЖДОМ ПОЛЕ, А НЕ ОБЩИЙ ФЛАГ «ассистент отработал».
+   Снимается она по одному полю — как только человек его правит, — и общим
+   флагом это не выразить. Без пометки выдуманное значение проскочило бы
+   молча: карточка выглядит заполненной, а откуда взялось число, на экране
+   не написано (§6.0). */
+const АИ_ПОЛЕ_К_ЭЛЕМЕНТУ = {
+  name: 'apt-f-name', substance: 'apt-f-sub', form: 'apt-f-form',
+  qty_left: 'apt-f-left', qty_total: 'apt-f-total',
+  expires_ym: 'apt-f-exp', code_gtin: 'apt-f-code',
+};
+
+function аптСнятьПометки() {
+  document.querySelectorAll('.apt-form .apt-f-ai').forEach(г =>
+    г.classList.remove('apt-f-ai'));
+  document.querySelectorAll('.apt-form .apt-in-ai').forEach(э =>
+    э.classList.remove('apt-in-ai'));
+  document.getElementById('apt-f-exp').closest('.form-group')
+    .classList.remove('apt-f-exp-ai');
+  АИ.срокОтАссистента = false;
+  АИ.срокПодтверждён = false;
+}
+
+function аптПометитьАссистентом(имена) {
+  аптСнятьПометки();
+  имена.forEach(к => {
+    const эл = document.getElementById(АИ_ПОЛЕ_К_ЭЛЕМЕНТУ[к]);
+    if (!эл) return;
+    /* КЛАСС НА САМ ОРГАН, а не только на группу: рамку красит СВОЙ
+       класс на том же элементе, потому что системный `.input`
+       субъектом селектора в страничном файле стоять не должен
+       (§6.0.2). На группе остаётся `apt-f-ai` — она держит подпись
+       «заполнил ассистент» и служит признаком при снятии пометки */
+    эл.classList.add('apt-in-ai');
+    const гр = эл.closest('.form-group');
+    if (гр) гр.classList.add('apt-f-ai');
+  });
+  if (имена.includes('expires_ym')) {
+    document.getElementById('apt-f-exp').closest('.form-group')
+      .classList.add('apt-f-exp-ai');
+  }
+}
+
+/* Правка руками снимает пометку с ЭТОГО поля: значение больше не чужое */
+document.addEventListener('input', e => {
+  const гр = e.target.closest && e.target.closest('.apt-form .apt-f-ai');
+  if (гр) гр.classList.remove('apt-f-ai');
+  if (e.target.classList) e.target.classList.remove('apt-in-ai');
+  /* Срок — особый случай: правка руками закрывает вопрос о доверии
+     к дате целиком, замок снимается вместе с пометкой */
+  if (e.target.id === 'apt-f-exp') {
+    АИ.срокОтАссистента = false;
+    АИ.срокПодтверждён = false;
+    e.target.closest('.form-group').classList.remove('apt-f-exp-ai');
+    аптСрокЗамок();
+  }
+});
+
+function аптПодтвердитьСрок() {
+  АИ.срокПодтверждён = true;
+  document.getElementById('apt-f-exp').closest('.form-group')
+    .classList.remove('apt-f-exp-ai');
+  аптСрокЗамок();
+}
+
+/* ЗАМОК ВИДЕН, А НЕ ТОЛЬКО ДЕЙСТВУЕТ. Выключенная кнопка без объяснения
+   читается как поломка; подпись рядом с ней говорит, чего ждут */
+function аптСрокЗамок() {
+  const надо = АИ.срокОтАссистента && !АИ.срокПодтверждён;
+  const кн = document.getElementById('apt-save');
+  кн.disabled = надо;
+  кн.title = надо ? 'Подтвердите срок годности' : '';
+}
+
 /* ── ПРИВЯЗКА ─────────────────────────────────────────────────────
    Делегатом на документ, а не на карточку: сетка перерисовывается
    целиком, и обработчики, навешенные на карточки, пропали бы вместе
@@ -842,6 +1282,46 @@ document.getElementById('apt-q').addEventListener('input', аптОтобрат�
 
 аптФормаСменилась();
 аптОтобрать();
+
+/* ДИКТОФОН ПАНЕЛИ — ТОТ ЖЕ КОМПОНЕНТ, ЧТО В ПЕРЕПИСКЕ ДНЕВНИКА
+   (`static/voice-input.js`). Второй реализации записи голоса в проекте
+   нет и не должно появиться: две копии разошлись бы молча (задача 126).
+
+   Здесь — три страничные вещи, ровно те же, что у дневника: где рисовать
+   дорожку, чем сообщать об отказе микрофона и что делать с записью. */
+подключитьДиктофон('apt-ai-mic', {
+  контейнер: '.apt-ai-row',
+  сообщить: (т) => аптАИСказать('bad', т),
+  готово: async (blob) => {
+    const ждём = аптАИЖдём('Распознаю…');
+    const текст = await голосВТекст(blob);
+    аптАИГотово(ждём);
+    if (!текст) { аптАИСказать('bad', 'Не удалось распознать речь'); return; }
+    /* Распознанное уходит В ПОЛЕ, а не сразу в разбор: человек обязан
+       увидеть, что услышал диктофон, до того как это станет карточкой.
+       Ошибка распознавания, уехавшая в модель молча, вернулась бы
+       карточкой не того лекарства */
+    const поле = document.getElementById('apt-ai-in');
+    поле.value = (поле.value ? поле.value.trim() + ' ' : '') + текст;
+    поле.focus();
+  },
+});
+
+/* Enter отправляет, Shift+Enter переносит строку — как в переписке */
+document.getElementById('apt-ai-in').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); аптАИОтправитьТекст(); }
+});
+
+/* Escape закрывает панель. Своя обработка, а не общая модальная:
+   панель модалкой не является и в стопку окон не входит */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape'
+      && document.getElementById('apt-ai').classList.contains('open')
+      && !document.querySelector('.modal-ov.open')) {
+    аптАИЗакрыть();
+  }
+});
+
 </script>
 
 {% include '_page_end.html' %}

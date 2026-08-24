@@ -1012,6 +1012,7 @@
 <div class="toast" id="toast"></div>
 <input type="file" id="photo-in" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event)">
 
+<script src="{{ st('voice-input.js') }}"></script>
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
 // Подсказка приёма пищи по текущему времени — используется как стартовый выбор
@@ -2891,245 +2892,35 @@ async function runPhotoAnalyze() {
   btn.disabled = false; btn.textContent = 'Анализировать';
 }
 
-// ── Голосовые сообщения (запись + распознавание через Whisper) ─────────────────
-// mode 'chat'  — после распознавания добавляется голосовой пузырь в чат и идёт ИИ-ответ
-// mode 'field' — распознанный текст просто вставляется в текстовое поле targetId
-const VOICE_BARS = 27;
-const ICON_PAUSE = `<svg fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>`;
-const ICON_MIC = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>`;
-let voiceRec = null;
-
+// -- ГОЛОСОВЫЕ СООБЩЕНИЯ -----------------------------------------------------
+// mode 'chat'  - после распознавания добавляется голосовой пузырь в чат и идёт ИИ-ответ
+// mode 'field' - распознанный текст просто вставляется в текстовое поле targetId
+//
+// САМ ДИКТОФОН ЖИВЁТ В `static/voice-input.js` - СИСТЕМНЫЙ КОМПОНЕНТ.
+// До 2026-08-24 эти ~200 строк лежали здесь инлайном, и потребитель у них
+// был один. Аптечке понадобился тот же диктофон; копия стала бы ровно тем
+// дублем, против которого заведена задача 126, - две реализации записи
+// разошлись бы молча. Вынесено ЦЕЛИКОМ, а не переписано похоже.
+//
+// Здесь осталась ОБЁРТКА: она знает, что у дневника контейнер оверлея
+// зовётся `.chat-input-row, .s-bar`, что сообщать об отказе надо через
+// `toast`, и что делать с готовой записью. Ровно эти три вещи и были
+// страничными.
 function attachVoiceButton(btnId, mode, targetId) {
-  const btn = document.getElementById(btnId);
-  if (!btn) return;
-  btn.addEventListener('click', () => voiceStart(btn, mode, targetId));
-  // На Android долгое нажатие иначе открывает системное меню "Копировать"
-  btn.addEventListener('contextmenu', (e) => e.preventDefault());
-}
-
-function fmtDur(sec) {
-  sec = Math.max(0, Math.round(sec));
-  const m = Math.floor(sec/60), s = sec%60;
-  return `${m}:${s.toString().padStart(2,'0')}`;
-}
-
-// Реальная длительность записи без учёта времени на паузе
-function voiceElapsedMs(rec) {
-  let paused = rec.pausedMs;
-  if (rec.paused) paused += Date.now() - rec.pauseStart;
-  return (Date.now() - rec.startTime) - paused;
-}
-
-// Тап по микрофону — запись начинается сразу, без удержания пальца
-async function voiceStart(btn, mode, targetId) {
-  if (voiceRec) return;
-  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
-    toast('Запись голоса не поддерживается этим браузером', false); return;
-  }
-  const container = btn.closest('.chat-input-row, .s-bar');
-  if (!container) return;
-
-  let stream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({audio: true});
-  } catch {
-    toast('Доступ к микрофону не разрешён', false); return;
-  }
-
-  const mime = ['audio/webm;codecs=opus','audio/webm','audio/mp4'].find(t=>MediaRecorder.isTypeSupported(t)) || '';
-  const recorder = new MediaRecorder(stream, mime ? {mimeType: mime} : undefined);
-  const chunks = [];
-  recorder.ondataavailable = (ev) => { if (ev.data.size) chunks.push(ev.data); };
-
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-  const analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 256;
-  audioCtx.createMediaStreamSource(stream).connect(analyser);
-
-  const overlay = document.createElement('div');
-  overlay.className = 'voice-rec-overlay';
-  overlay.innerHTML = `
-    <button class="btn-icon btn-icon-round voice-rec-del" title="Удалить">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H6a1 1 0 01-1-1V6h14z"/></svg>
-    </button>
-    <div class="voice-rec-dot"></div>
-    <span class="voice-rec-timer">0:00</span>
-    <div class="voice-rec-wave"><canvas></canvas></div>
-    <button class="btn-icon btn-icon-round voice-rec-send" title="Отправить">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-    </button>`;
-  container.appendChild(overlay);
-  btn.classList.add('voice-active');
-
-  // Плавающая кнопка паузы над кнопкой отправки — тап ставит на паузу/продолжает без удержания пальца
-  const pauseFloat = document.createElement('button');
-  pauseFloat.className = 'voice-pause-float';
-  pauseFloat.title = 'Пауза';
-  pauseFloat.innerHTML = ICON_PAUSE;
-  document.body.appendChild(pauseFloat);
-
-  voiceRec = {
-    btn, mode, targetId, container, overlay, pauseFloat, recorder, stream, chunks, audioCtx, analyser,
-    startTime: Date.now(), paused: false, pausedMs: 0, pauseStart: 0,
-    amplitudes: [], rafId: null, timerId: null,
-  };
-
-  // Позиционируем после того, как анимация появления отрисуется, иначе геометрия
-  // считается по "стартовому" кадру (scale(.97)) и кнопка съезжает в сторону
-  requestAnimationFrame(() => requestAnimationFrame(positionPauseFloat));
-  window.addEventListener('resize', positionPauseFloat);
-
-  overlay.querySelector('.voice-rec-del').onclick = voiceCancel;
-  overlay.querySelector('.voice-rec-send').onclick = voiceSend;
-  pauseFloat.onclick = voiceTogglePause;
-
-  recorder.start();
-  voiceRec.timerId = setInterval(() => {
-    if (!voiceRec) return;
-    const el = voiceRec.overlay.querySelector('.voice-rec-timer');
-    if (el) el.textContent = fmtDur(voiceElapsedMs(voiceRec)/1000);
-    positionPauseFloat();
-  }, 200);
-  voiceLoop();
-}
-
-// Плавающая кнопка-пауза держится точно по центру над кнопкой отправки
-function positionPauseFloat() {
-  if (!voiceRec) return;
-  const send = voiceRec.overlay.querySelector('.voice-rec-send').getBoundingClientRect();
-  const float = voiceRec.pauseFloat.getBoundingClientRect();
-  voiceRec.pauseFloat.style.left = (send.left + send.width/2 - float.width/2) + 'px';
-  voiceRec.pauseFloat.style.top = (send.top - float.height - 16) + 'px';
-}
-
-// Пауза/продолжение записи без остановки захвата — кнопка меняет цвет и иконку
-function voiceTogglePause() {
-  const rec = voiceRec;
-  if (!rec) return;
-  if (!rec.paused) {
-    rec.paused = true;
-    rec.pauseStart = Date.now();
-    rec.recorder.pause();
-    cancelAnimationFrame(rec.rafId);
-    rec.overlay.querySelector('.voice-rec-dot').classList.add('paused');
-    rec.pauseFloat.classList.add('is-paused');
-    rec.pauseFloat.title = 'Продолжить';
-    rec.pauseFloat.innerHTML = ICON_MIC;
-  } else {
-    rec.pausedMs += Date.now() - rec.pauseStart;
-    rec.paused = false;
-    rec.recorder.resume();
-    rec.overlay.querySelector('.voice-rec-dot').classList.remove('paused');
-    rec.pauseFloat.classList.remove('is-paused');
-    rec.pauseFloat.title = 'Пауза';
-    rec.pauseFloat.innerHTML = ICON_PAUSE;
-    voiceLoop();
-  }
-}
-
-function voiceLoop() {
-  if (!voiceRec || voiceRec.paused) return;
-  const rec = voiceRec;
-  const data = new Uint8Array(rec.analyser.fftSize);
-  rec.analyser.getByteTimeDomainData(data);
-  let sum = 0;
-  for (let i=0;i<data.length;i++) { const v=(data[i]-128)/128; sum += v*v; }
-  const amp = Math.min(1, Math.sqrt(sum/data.length)*4);
-  rec.amplitudes.push(amp);
-  drawVoiceWave(rec.overlay.querySelector('canvas'), rec.amplitudes);
-  rec.rafId = requestAnimationFrame(voiceLoop);
-}
-
-function drawVoiceWave(canvas, amplitudes) {
-  const dpr = window.devicePixelRatio || 1;
-  const w = canvas.clientWidth, h = canvas.clientHeight;
-  if (!w || !h) return;
-  if (canvas.width !== w*dpr || canvas.height !== h*dpr) { canvas.width = w*dpr; canvas.height = h*dpr; }
-  const ctx = canvas.getContext('2d');
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.clearRect(0,0,w,h);
-  // Цвет дорожки — ИЗ ТОКЕНА, а не хардкодом: canvas var() не понимает,
-  // поэтому значение читается у корня (BACKLOG №18).
-  //
-  // ФОЛБЭКА НЕТ НАМЕРЕННО. Здесь стояло `|| '#10B981'`, и это был
-  // не запасной цвет, а немой отказ (§6.0.1): строка прятала ровно то,
-  // ради чего цвет и читается из токена, — что токен не разрешился.
-  // Дорожка при этом рисовалась бы правильным цветом, и расхождение
-  // палитры с дневником обнаружилось бы в тот день, когда --success
-  // поменяют. Не разрешился — причина называется в консоли, а дорожка
-  // уходит в чёрный по умолчанию canvas, то есть отказ ВИДЕН глазом.
-  const дорожка = getComputedStyle(document.documentElement)
-                    .getPropertyValue('--success').trim();
-  if (!дорожка) console.warn('[дневник] токен --success не разрешился — '
-                             + 'дорожка голоса останется без цвета');
-  else ctx.fillStyle = дорожка;
-  const barW=3, gap=2, n=Math.floor(w/(barW+gap));
-  const data = amplitudes.slice(-n);
-  const pad = n - data.length;
-  data.forEach((v,i)=>{
-    const bh = Math.max(2, v*h);
-    ctx.fillRect((pad+i)*(barW+gap), (h-bh)/2, barW, bh);
+  подключитьДиктофон(btnId, {
+    контейнер: '.chat-input-row, .s-bar',
+    сообщить: (т) => toast(т, false),
+    готово: (blob, duration, bars) =>
+      sendVoiceMessage(mode, targetId, blob, duration, URL.createObjectURL(blob), bars),
   });
 }
 
-// Удалить запись без отправки
-function voiceCancel() {
-  if (!voiceRec) return;
-  const rec = voiceRec;
-  voiceRec = null;
-  cleanupVoiceUI(rec);
-  rec.recorder.onstop = () => {
-    rec.stream.getTracks().forEach(t=>t.stop());
-    rec.audioCtx.close();
-  };
-  rec.recorder.stop();
-}
-
-// Завершить запись и сразу отправить
-function voiceSend() {
-  if (!voiceRec) return;
-  const rec = voiceRec;
-  voiceRec = null;
-  const duration = voiceElapsedMs(rec) / 1000;
-  cleanupVoiceUI(rec);
-  const bars = resampleAmplitudes(rec.amplitudes, VOICE_BARS);
-  rec.recorder.onstop = () => {
-    rec.stream.getTracks().forEach(t=>t.stop());
-    rec.audioCtx.close();
-    if (duration < 0.6) return;
-    const blob = new Blob(rec.chunks, {type: rec.recorder.mimeType || 'audio/webm'});
-    const audioUrl = URL.createObjectURL(blob);
-    sendVoiceMessage(rec.mode, rec.targetId, blob, duration, audioUrl, bars);
-  };
-  rec.recorder.stop();
-}
-
-function cleanupVoiceUI(rec) {
-  clearInterval(rec.timerId);
-  cancelAnimationFrame(rec.rafId);
-  window.removeEventListener('resize', positionPauseFloat);
-  rec.overlay.remove();
-  rec.pauseFloat.remove();
-  rec.btn.classList.remove('voice-active');
-}
-
-function resampleAmplitudes(arr, n) {
-  if (!arr.length) return new Array(n).fill(0.15);
-  const out = [];
-  for (let i=0;i<n;i++) out.push(arr[Math.floor(i/n*arr.length)]);
-  return out;
-}
-
-async function transcribeBlob(blob) {
-  const fd = new FormData();
-  fd.append('file', blob, 'voice.webm');
-  try {
-    const resp = await fetch('/nutrition/api/transcribe', {method:'POST', body:fd});
-    const data = await resp.json();
-    return (data.text || '').trim();
-  } catch { return ''; }
-}
+// Распознавание живёт там же: адрес один на всех потребителей
+const transcribeBlob = голосВТекст;
+// «0:07» под голосовым пузырём. Формат тот же, что на таймере записи,
+// и второй реализации у него быть не должно: разойдись они — одна и та же
+// запись показывала бы разную длительность на разных экранах
+const fmtDur = голосДлит;
 
 async function sendVoiceMessage(mode, targetId, blob, duration, audioUrl, bars) {
   if (mode === 'field') {

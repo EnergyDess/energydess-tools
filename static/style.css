@@ -3280,6 +3280,65 @@ body.auth-layout .auth-wrap {
 .img-zoom img,
 .img-zoom-box img { display: block; width: 100%; height: 100%; object-fit: contain; }
 
+
+/* ── ДИКТОФОН — запись голоса поверх строки ввода ───────────────
+
+   Системный компонент с 2026-08-24. Потребителей ДВА — переписка
+   дневника питания и панель ассистента аптечки; поведение живёт
+   в `static/voice-input.js`, разметку оверлея заводит он сам.
+
+   ПЕРЕЕХАЛО ИЗ `nutrition.css` ЦЕЛИКОМ, а не написано похоже: копия
+   правил разошлась бы с оригиналом молча (задача 126). Страничным
+   осталось ровно одно правило — у дневника на время записи прячется
+   кнопка вложения, и это про его строку ввода, а не про диктофон.
+
+   Заливка дорожки и кнопки отправки идут от `--tool-accent`, то есть
+   у каждого раздела свои: у дневника изумруд, у аптечки бирюза.        */
+/* ── Запись голосового сообщения (оверлей вместо строки ввода) ── */
+@keyframes mic-pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+@keyframes voice-fade-in { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: scale(1); } }
+.voice-rec-overlay {
+  position: absolute; inset: 0; display: flex; align-items: center; gap: var(--space-2);
+  padding: 0 var(--space-2); background: var(--surface-1); border-radius: var(--radius-md); z-index: 2;
+  animation: voice-fade-in .15s ease;
+}
+.voice-rec-dot { width: 0.5625rem; height: 0.5625rem; border-radius: 50%; background: var(--error); flex-shrink: 0; animation: mic-pulse 1s infinite; }
+.voice-rec-dot.paused { animation: none; background: var(--text-2); }
+.voice-rec-timer {
+  font-size: var(--text-caption); font-weight: 700; color: var(--text); flex-shrink: 0;
+  min-width: 2.25rem; font-variant-numeric: tabular-nums;
+}
+.voice-rec-wave { flex: 1; height: 1.75rem; min-width: 0; }
+.voice-rec-wave canvas { width: 100%; height: 100%; display: block; }
+/* `.icon-btn` отсюда убран: класс переименован в системный `.btn-icon`
+   задачей 42, в разметке его ноль вхождений, и правило про него искало
+   то, чего нет, — тихий ноль, который читается как «проверено» */
+/* Удалить запись (слева) и отправить (справа) */
+/* BACKLOG №113. Обе кнопки диктофона — системные `.btn-icon .btn-icon-round`.
+   Переводятся ПАРОЙ: «удалить» здесь не инлайновый крестик, а орган
+   управления записью, и его размер задан соседкой «отправить». Сведи
+   одну — и пара разъедется. Расхождение вида: 36 → 40px у обеих.
+   Здесь остались только заливки. */
+.voice-rec-del { background: color-mix(in srgb, var(--error) 12%, transparent); color: var(--error); }
+/* иконка на заливке акцента — --tool-accent-ink, тот же токен, что
+   у системной `.btn-icon-accent`. Соседний .voice-rec-del не трогаем:
+   у него фон полупрозрачный красный на тёмной подложке, там как раз
+   светлый цвет и нужен */
+.voice-rec-send { background: var(--tool-accent); color: var(--tool-accent-ink); }
+.voice-rec-send svg { width: 1.0625rem; height: 1.0625rem; }
+.voice-rec-send:active { opacity: .9; }
+/* Плавающая кнопка паузы/продолжения над кнопкой отправки — без удержания пальца */
+.voice-pause-float {
+  position: fixed; width: 2.5rem; height: 2.5rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  background: var(--surface-sunken); color: var(--tool-accent); border: 1px solid var(--tool-accent);
+  box-shadow: var(--shadow-md); z-index: 220;
+  -webkit-tap-highlight-color: transparent; transition: color .15s, border-color .15s;
+}
+.voice-pause-float svg { width: 1.0625rem; height: 1.0625rem; flex-shrink: 0; }
+.voice-pause-float.is-paused { color: var(--error); border-color: var(--error); animation: mic-pulse 1.4s infinite; }
+
+
 /* ── Опасное действие ────────────────────────────────────────────────────
    ПЕРЕЕХАЛ СЮДА ИЗ `profile.css` 2026-08-23. Компонент был системным
    по употреблению (профиль, окно удаления аккаунта, экран управления
