@@ -137,14 +137,15 @@ function cardHtml(e) {
   if (e.level) metaParts.push(escHtml(e.level));
   if (e.mechanic) metaParts.push(escHtml(e.mechanic));
 
-  const hasInstructions = Array.isArray(e.instructions) && e.instructions.length > 0;
+  // ТЕКСТА ТЕХНИКИ В `e` НЕТ — только признак `has_instructions`
+  // (BACKLOG №159). Блок рисуется пустым, текст приезжает при первом
+  // нажатии и остаётся в `техникаКеш`.
+  const hasInstructions = !!e.has_instructions;
   const instructionsBtn = hasInstructions
     ? `<button class="ex-btn ex-btn-howto" onclick="toggleInstructions('${escHtml(e.id)}')">Показать технику</button>`
     : '';
   const instructionsBlock = hasInstructions
-    ? `<div class="ex-instructions" id="instructions-${escHtml(e.id)}">
-         <ol>${e.instructions.map(step => `<li>${escHtml(step)}</li>`).join('')}</ol>
-       </div>`
+    ? `<div class="ex-instructions" id="instructions-${escHtml(e.id)}"></div>`
     : '';
 
   return `
@@ -296,9 +297,41 @@ function toggleReplace(id) {
   }
 }
 
-function toggleInstructions(id) {
+// Техника, уже приехавшая с сервера. Ключ — id упражнения.
+const техникаКеш = {};
+
+async function toggleInstructions(id) {
   const block = document.getElementById('instructions-' + id);
-  if (block) block.classList.toggle('open');
+  if (!block) return;
+
+  // Закрываем — сети не трогаем.
+  if (block.classList.contains('open')) { block.classList.remove('open'); return; }
+
+  if (техникаКеш[id]) {
+    block.innerHTML = техникаКеш[id];
+    block.classList.add('open');
+    return;
+  }
+
+  block.innerHTML = '<p class="ex-howto-wait">Загружаем технику…</p>';
+  block.classList.add('open');
+  try {
+    const r = await fetch('/admin/api/exercise/' + encodeURIComponent(id) + '/instructions');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    const шаги = Array.isArray(d.instructions) ? d.instructions : [];
+    // ОТКАЗ НЕ МОЛЧИТ, И ПУСТОТА ТОЖЕ ГОВОРИТ. Кнопка нарисована
+    // по признаку `has_instructions`; пустой ответ на ней означает,
+    // что признак разошёлся с данными, — и это надо видеть, а не
+    // получать пустой раскрытый блок (§6.0.1).
+    техникаКеш[id] = шаги.length
+      ? '<ol>' + шаги.map(s => '<li>' + escHtml(s) + '</li>').join('') + '</ol>'
+      : '<p class="ex-howto-wait">Техника у этого упражнения не записана.</p>';
+    block.innerHTML = техникаКеш[id];
+  } catch (e) {
+    block.innerHTML = '<p class="ex-howto-wait">Не удалось загрузить технику ('
+      + escHtml(String(e.message || e)) + '). Нажмите ещё раз.</p>';
+  }
 }
 
 async function saveReplace(id) {

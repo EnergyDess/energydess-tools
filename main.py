@@ -41,6 +41,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pydantic import BaseModel
 from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, BackgroundTasks, Cookie
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import (JSONResponse, RedirectResponse, FileResponse,
                                PlainTextResponse, Response)
@@ -83,6 +84,68 @@ socket.getaddrinfo = _getaddrinfo_ipv4_only
 app = FastAPI(title="EnergyDess Tools")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+# ── `|tojson` НЕ ЭКРАНИРУЕТ КИРИЛЛИЦУ. BACKLOG №159 ────────────────────
+# Умолчание `json.dumps` — `ensure_ascii=True`, то есть каждая русская
+# буква уезжает в разметку шестью байтами вместо двух. Замер
+# на `/admin/exercises`: 445 197 таких последовательностей, +1.70 МБ
+# к одной странице — 59.6% её веса.
+#
+# БЕЗОПАСНОСТЬ НЕ СНИЖАЕТСЯ, и это свойство `htmlsafe_json_dumps`,
+# а не наше допущение: экранирование `<`, `>`, `&`, апострофа, U+2028
+# и U+2029 она делает ПОСЛЕ дампа и от `ensure_ascii` не зависит.
+# Проверено тестом `tests/test_tojson_policy.py` — литерал закрывающего
+# тега внутри данных по-прежнему тег НЕ закрывает.
+#
+# Политикой, а не фильтром на месте: мест с `|tojson` двенадцать
+# в шести шаблонах, и правка одного из них оставила бы остальные
+# одиннадцать без изменений — молча (§6.0.7, класс вместо перечня).
+templates.env.policies["json.dumps_kwargs"] = {"ensure_ascii": False,
+                                               "sort_keys": True}
+
+
+# U+2028 и U+2029 — LINE SEPARATOR и PARAGRAPH SEPARATOR. В исходнике
+# они невидимы, поэтому объявлены кодами: строка с ними, набранная
+# литералом, читается как пустая.
+_РАЗДЕЛИТЕЛИ_СТРОК = ((chr(0x2028), chr(92) + "u2028"),
+                      (chr(0x2029), chr(92) + "u2029"))
+
+
+def _tojson_без_разделителей_строк(*аргс, **кв):
+    """`|tojson` ПЛЮС экранирование U+2028 и U+2029. BACKLOG №159.
+
+    НАЙДЕНО ТЕСТОМ, А НЕ ПРЕДУСМОТРЕНО. Снятие `ensure_ascii` выглядит
+    как правка про вес, а трогает оно ЭКРАНИРОВАНИЕ: пока стояло
+    умолчание, эти два знака уезжали кодами ЗАОДНО со всей кириллицей.
+    Сняли — и они пошли в разметку сырыми, а `htmlsafe_json_dumps`
+    их не трогает (в Jinja 3 они убраны из списка как легальные с ES2019).
+
+    Почему всё-таки экранируем. ES2019 разрешил их внутри строковых
+    литералов, то есть современный браузер не сломается, — но правка
+    не должна ОСЛАБЛЯТЬ то, что работало. Знак, пришедший из чужого
+    текста (описание вакансии, имя продукта), не обязан зависеть
+    от года выпуска браузера, а отказ был бы немой: скрипт оборвался
+    бы на середине литерала, и страница просто не завелась бы.
+
+    Сторожит `tests/test_tojson_policy.py`.
+    """
+    вышло = str(_tojson_из_jinja(*аргс, **кв))
+    # ЧЕРЕЗ chr(), А НЕ ЛИТЕРАЛОМ, И ЭТО НЕ ПЕДАНТИЗМ: первая версия
+    # строки была записана как replace("<символ>", "<escape>") — и Python
+    # прочитал ОБА аргумента как один и тот же символ, то есть замена
+    # была пустой операцией. Тест это назвал; глазами в исходнике
+    # отличить одно от другого нельзя вовсе — U+2028 невидим.
+    for символ, кодом in _РАЗДЕЛИТЕЛИ_СТРОК:
+        вышло = вышло.replace(символ, кодом)
+    return Markup(вышло)
+
+
+_tojson_из_jinja = templates.env.filters["tojson"]
+# Маркер переносится ВМЕСТЕ с функцией: по нему Jinja решает, передавать
+# ли первым аргументом eval-контекст. Потеряй его — фильтр получит
+# значение вместо контекста и упадёт на первой же странице.
+_tojson_без_разделителей_строк.jinja_pass_arg = _tojson_из_jinja.jinja_pass_arg
+templates.env.filters["tojson"] = _tojson_без_разделителей_строк
 
 # Календарные вебхуки голосового агента (ElevenLabs): /api/agent/slots и
 # /api/agent/slots/check. Отдельным модулем, потому что общего с остальным
@@ -3111,7 +3174,12 @@ async def admin_exercises_page(request: Request, user=Depends(get_current_user),
             "equipment": e.equipment,
             "level": e.level or "",
             "mechanic": e.mechanic or "",
-            "instructions": e.instructions_ru or [],
+            # ТЕКСТА ТЕХНИКИ ЗДЕСЬ НЕТ — только признак. BACKLOG №159.
+            # Инструкции занимали 79.7% этого списка (0.92 МБ из 1.15),
+            # а на экране их не видно: блок закрыт, пока не нажали
+            # «Показать технику». Текст дотягивается по требованию —
+            # `/admin/api/exercise/{id}/instructions`.
+            "has_instructions": bool(e.instructions_ru),
             "youtube_id": e.youtube_id or "",
             "video_status": status,
         })
@@ -3161,6 +3229,31 @@ async def admin_toggle(
         db.add(ToolAccess(user_id=target_user_id, tool_id=tool_id))
         db.commit()
         return JSONResponse({"access": True})
+
+
+@app.get("/admin/api/exercise/{exercise_id}/instructions")
+async def admin_exercise_instructions(exercise_id: str, user=Depends(get_current_user),
+                                      db: Session = Depends(get_db)):
+    """ТЕХНИКА ОДНОГО УПРАЖНЕНИЯ — по требованию, а не со списком.
+
+    Заведён BACKLOG №159. Список из 873 упражнений вёз текст техники
+    целиком, хотя на экране он закрыт до нажатия «Показать технику»:
+    0.92 МБ из 1.15 МБ данных, то есть 79.7%.
+
+    ОТВЕТ РАЗЛИЧАЕТ ТРИ ИСХОДА, а не два: упражнения нет — 404;
+    упражнение есть, техники у него нет — 200 с пустым списком.
+    Свалить второе в 404 значило бы сделать «нечего показывать»
+    неотличимым от «не нашли» (§6.0.1) — а кнопка «Показать технику»
+    рисуется как раз по признаку `has_instructions`, и её нажатие
+    на записи без техники было бы ошибкой НАШЕЙ разметки.
+    """
+    if not _admin_guard(user):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+
+    у = db.query(Exercise).filter(Exercise.id == exercise_id).first()
+    if not у:
+        return JSONResponse({"error": "Упражнение не найдено"}, status_code=404)
+    return JSONResponse({"instructions": у.instructions_ru or []})
 
 
 @app.put("/admin/foods/{food_id}")

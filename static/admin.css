@@ -718,6 +718,15 @@
   display: flex; flex-direction: column; gap: var(--space-2);
 }
 .ex-instructions li { font-size: var(--text-caption); color: var(--text); line-height: 1.45; }
+/* Служебная строка внутри блока техники: «загружаем», «не записана»,
+   «не удалось». Текст, а не молчание, — блок раскрывается сразу, и без
+   строки он был бы просто пустым прямоугольником (BACKLOG №159). */
+.ex-howto-wait {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--text-2);
+  line-height: 1.45;
+}
 
 .ex-replace-row { display: none; gap: var(--space-2); margin-top: var(--space-2); }
 .ex-replace-row.open { display: flex; }
