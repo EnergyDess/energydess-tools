@@ -9,6 +9,37 @@
 {% set _url = BASE_URL ~ request.url.path %}
 {% set _image = BASE_URL ~ '/static/og.png' %}
 
+  {# ШРИФТЫ ЗАГРУЖАЮТСЯ НЕ БЛОКИРУЯ ОТРИСОВКУ — BACKLOG №157.
+     Прежде этот адрес стоял ПЕРВОЙ СТРОКОЙ `static/style.css`
+     как `@import`, и это худшее из возможных мест: `@import`
+     блокирует отрисовку, а сам адрес браузер узнаёт только скачав
+     и разобрав `style.css`, то есть третьим оборотом подряд —
+     и к ЧУЖОМУ origin.
+
+     Замер (`py check_nav_flash.py`, задержка чужого CSS шрифтов):
+     0 мс — пустых кадров 0 из 4; 60 мс — 1 из 4; 120 мс — 4 из 4;
+     300 мс — 12 из 12. Сам адрес отвечает за 160 мс на тёплом
+     соединении и за 560 мс на холодном (замер `curl`, 2026-08-24).
+     То есть пустой кадр, который владелец снял на видео, живёт
+     ровно здесь.
+
+     `media="print"` плюс `onload` — стандартный приём: браузер
+     скачивает файл, но к экранной отрисовке он не относится, пока
+     скрипт не переключит носитель. Отрисовка не ждёт чужой сети
+     вообще.
+
+     НОВОГО МЕЛЬКАНИЯ ШРИФТА ЭТО НЕ ЗАВОДИТ: в самом адресе стоит
+     `display=swap`, то есть текст и сегодня рисуется запасной
+     гарнитурой и подменяется по приезде файла. Меняется только
+     то, что первый кадр наступает раньше.
+
+     `<noscript>` — для случая без скриптов: там пусть блокирует,
+     иначе шрифта не будет вовсе. #}
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" media="print"
+        onload="this.media='all'; this.onload=null">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"></noscript>
+
   <title>{{ _full_title }}</title>
   <meta name="description" content="{{ _desc }}">
 

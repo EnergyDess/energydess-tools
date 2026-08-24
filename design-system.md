@@ -4685,6 +4685,9 @@ id в разметке не было ни одного, а загрузка со
   --warning: #F59E0B;
   --error: #EF4444;
 
+  /* Avatar */
+  --avatar-size: 36px;
+
   /* Radii */
   --radius-sm: 8px;
   --radius-md: 12px;

@@ -8,6 +8,14 @@
   <meta name="robots" content="noindex, nofollow">
   <title>{{ program.title }} · Демо</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  {# Шрифты: те же теги, что в templates/_meta.html. Здесь они
+     повторены потому, что эта страница `_meta.html` не подключает,
+     а `@import` из style.css убран (BACKLOG №157). Строки стоят
+     РАДИ СОХРАНЕНИЯ ОБЛИКА страницы, а не ради её переделки. #}
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" media="print"
+        onload="this.media='all'; this.onload=null">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"></noscript>
   <link rel="stylesheet" href="{{ st('style.css') }}">
   <style>
     /* ── Светлый Partiful-вдохновлённый фон демо (переопределяет общий cyan/purple mesh
