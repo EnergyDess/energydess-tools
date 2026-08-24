@@ -168,6 +168,14 @@
   --accent-enshrouded: #D97706;
   --accent-enshrouded-dim: rgba(217,119,6,0.15);
   --accent-enshrouded-hover: #A25904;
+  /* Аптечка: cyan. Отстоит от эмеральда дневника на 28° по тону —
+     столько же, сколько между медью Enshrouded и янтарём тренировок,
+     а те две темы соседствуют без путаницы. Наведение СВЕТЛЕЕ базового,
+     потому что надпись на этой заливке тёмная (§1.4): контраст растёт
+     8.11 → 10.61, а не падает */
+  --accent-medkit: #06B6D4;
+  --accent-medkit-dim: rgba(6,182,212,0.15);
+  --accent-medkit-hover: #07D0F2;
 
   /* Semantic */
   /* Поле видеокадра. Абсолютный чёрный и НЕ поверхность темы: ролик
@@ -265,6 +273,12 @@
   --tool-accent-dim: var(--accent-enshrouded-dim);
   --tool-accent-hover: var(--accent-enshrouded-hover);
   --tool-accent-ink: var(--text-strong);   /* белый на #D97706 — 3.19 */
+}
+.theme-medkit, .tool-medkit {
+  --tool-accent: var(--accent-medkit);
+  --tool-accent-dim: var(--accent-medkit-dim);
+  --tool-accent-hover: var(--accent-medkit-hover);
+  --tool-accent-ink: var(--surface-0);     /* белый дал бы 2.43, тёмный — 8.11 */
 }
 
 /* ── База ───────────────────────────────────────────────────────────────── */
@@ -1463,8 +1477,43 @@ a.tab-btn { text-decoration: none; }
     transition: transform var(--dur-base) var(--ease-out);
   }
   .modal-ov.open .modal-sh { transform: none; }
+  /* ФОРМА В ДВЕ И ТРИ КОЛОНКИ — вариант `.modal-ov-wide`.
+     540px это ширина под ОДИН столбец полей; форма аптечки ставит рядом
+     три (форма выпуска, осталось, было в упаковке), и в 540 они выходят
+     по 150px — поле, в которое не помещается «04601234567890».
+     Только на десктопе: на узком экране лист по-прежнему во всю ширину,
+     а колонки схлопываются в одну самой страницей. */
+  .modal-ov-wide .modal-sh { max-width: 860px; }
   /* «Ручка» — обещание жеста, которого на мыши нет (CLAUDE.md §6.0.3) */
   .modal-drag { display: none; }
+}
+
+/* ── Выбор файла ─────────────────────────────────────────────────────────
+   Родная кнопка `<input type=file>` приезжает со своим оформлением
+   и на тёмной теме выглядит светлым чужим прямоугольником с надписью
+   «Choose File». Красится ТОЛЬКО псевдоэлемент кнопки: сам инпут
+   остаётся системным `.input`, и поведение выбора файла не трогается. */
+.input[type="file"] {
+  padding: 6px var(--space-3);
+  line-height: 1.9;
+  cursor: pointer;
+}
+.input[type="file"]::file-selector-button {
+  margin-right: var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-caption);
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .input[type="file"]::file-selector-button:hover {
+    border-color: var(--tool-accent, var(--accent-brand));
+    color: var(--tool-accent, var(--accent-brand));
+  }
 }
 
 /* Фон не прокручивается под открытой модалкой. Классом на <html>, как уже
@@ -1654,6 +1703,7 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 .search-item-icon.tool-nutrition  { color: var(--accent-nutrition); }
 .search-item-icon.tool-workout    { color: var(--accent-workout); }
 .search-item-icon.tool-enshrouded { color: var(--accent-enshrouded); }
+.search-item-icon.tool-medkit     { color: var(--accent-medkit); }
 .search-item-icon.tool-admin      { color: var(--text-2); }
 /* BACKLOG №115: было своё правило, повторявшее `.empty-state-inline`
    (паддинг 12 против 12/16, тот же кегль, то же выравнивание).

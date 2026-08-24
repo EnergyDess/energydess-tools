@@ -865,6 +865,144 @@ class PainZonePatch(Base):
     suggested_return_weight = Column(Float, nullable=True)
 
 
+# ══ АПТЕЧКА (BACKLOG №162) ══════════════════════════════════════════
+#
+# Инструмент отвечает на три вопроса: что у меня есть, сколько осталось,
+# не протухло ли. Формы выпуска, единицы и базовые категории — НЕ здесь,
+# а в `medkit_defs.py`: это устройство предметной области, одно на три
+# потребителя (сервер, шаблон, проверка), и второй копии у него нет.
+
+
+class MedkitItem(Base):
+    """ПОЗИЦИЯ АПТЕЧКИ — одна упаковка лекарства.
+
+    ВЛАДЕЛЕЦ (`user_id`) ЗАЛОЖЕН СРАЗУ, хотя аптечка на первом этапе
+    личная и другого владельца у позиции быть не может. Это прямое
+    требование постановки, и довод в нём назван: на этапе 2 список
+    станет общим на несколько человек, и без владельца непонятно, чьи
+    позиции уносить при выходе участника. Добавить колонку потом дешевле
+    не станет — данные к тому моменту уже накопятся, и проставлять
+    владельца задним числом будет нечем.
+
+    СРОК ГОДНОСТИ ХРАНИТСЯ КАК 'ГГГГ-ММ', А НЕ ДАТОЙ. На упаковке стоит
+    месяц и год, дня там нет. Дата заставила бы выдумать день — а он
+    участвует в сравнении, то есть выдумка попала бы прямо в ответ
+    на главный вопрос инструмента. Разворачивается в ПОСЛЕДНИЙ день
+    месяца: «годен до 03.2027» означает «включая весь март», и это
+    общепринятое чтение, а не наша трактовка.
+
+    СОСТОЯНИЕ СРОКА КОЛОНКИ НЕ ИМЕЕТ. Оно вычисляется (§A.4): хранимое
+    протухало бы в полночь и молча — запись не меняется, а мир вокруг
+    неё меняется.
+
+    `qty_left`/`qty_total` пусты у форм со шкалой (мазь, гель, крем),
+    `scale` пусто у всех остальных. Обе колонки разом не заполнены
+    никогда: у тюбика точного числа не существует, и место под него
+    в схеме означало бы, что оно бывает.
+    """
+    __tablename__ = "medkit_items"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    # Действующее вещество с дозировкой одной строкой: «Ибупрофен, 200 мг».
+    # НЕОБЯЗАТЕЛЬНОЕ, но ищется поиском — в этом половина ценности
+    # инструмента: Нурофен и Ибупрофен это одно и то же, и без поля
+    # человек покупает третью пачку того же самого
+    substance = Column(String, nullable=True)
+    form = Column(String, nullable=False)          # id из medkit_defs.ФОРМЫ
+    unit = Column(String, nullable=False)          # id из medkit_defs.ЕДИНИЦЫ
+    qty_left = Column(Float, nullable=True)
+    qty_total = Column(Float, nullable=True)
+    scale = Column(String, nullable=True)          # full/half/low у тюбика
+    dose = Column(Float, nullable=True)            # разовая доза
+    expires_ym = Column(String, nullable=False)    # 'ГГГГ-ММ', ОБЯЗАТЕЛЬНОЕ
+    opened_on = Column(String, nullable=True)      # 'ГГГГ-ММ-ДД'
+    # Срок годности после вскрытия. Умолчание берётся у формы, но лежит
+    # ЗДЕСЬ, а не подставляется при каждом чтении: иначе правка умолчания
+    # в коде задним числом переписала бы срок у всех уже заведённых
+    # позиций — то же самое, от чего в дневнике питания завели журнал норм
+    opened_days = Column(Integer, nullable=True)
+    place_id = Column(Integer, nullable=True, index=True)
+    # ИМЯ КОЛОНКИ ТО ЖЕ, ЧТО У ВЛОЖЕНИЯ ПЕРЕПИСКИ И СНИМКА ТЕЛА, и это
+    # не вкус: `/media/{вид}/{токен}` — ОДИН обработчик на все виды,
+    # и запись он ищет по `image_path`. Первая версия назвала колонку
+    # `photo` — файл ложился на том исправно, а КАЖДАЯ картинка отдавалась
+    # 404: на экране «фото не загрузилось», в журнале ни строки.
+    # Теперь допущение обработчика проверяется при старте (`МЕДИА_МОДЕЛИ`
+    # в main.py), а не держится на внимательности следующего
+    image_path = Column(String, nullable=True)      # токен файла на томе
+    is_rx = Column(Boolean, nullable=False, default=False)
+    note = Column(Text, nullable=True)
+    # ТОЛЬКО ССЫЛКА НА ИСТОЧНИК. Текст инструкции и дозировки в базу
+    # не копируется и не пересказывается — прямой запрет постановки,
+    # и он единственный в проекте, где выдуманное число опасно, а заметить
+    # подмену пользователь не сможет
+    leaflet_url = Column(String, nullable=True)
+    # GTIN из кода маркировки, 14 цифр. НЕ вся строка со сканера:
+    # у лекарства в DataMatrix лежат ещё серийный номер и криптоподпись,
+    # СВОИ У КАЖДОЙ ПАЧКИ (замер — check_medkit_scan.py). Сохрани мы
+    # строку целиком — вторая пачка того же препарата не нашлась бы
+    # по коду никогда, а выглядело бы это как «сканер не сработал»
+    code_gtin = Column(String, nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MedkitPlace(Base):
+    """МЕСТО ХРАНЕНИЯ: «Полка в ванной», «Аптечка в машине».
+
+    Отдельной таблицей, а не строкой в позиции, хотя связь один-к-одному.
+    Причина в том, что справочник ПОПОЛНЯЕТСЯ ПОЛЬЗОВАТЕЛЕМ (§A.1):
+    выводи мы его из уже введённых строк — «Полка в ванной» и «полка
+    в ванной» стали бы двумя разными местами, отличить их на экране было бы
+    нечем, а фильтр по месту молча делил бы одну полку надвое.
+    """
+    __tablename__ = "medkit_places"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MedkitCategory(Base):
+    """КАТЕГОРИЯ. `user_id IS NULL` — базовая, общая для всех.
+
+    Базовые НЕ размножаются копией на каждого зарегистрировавшегося:
+    двенадцать строк на пользователя означали бы, что правка названия
+    базовой категории доезжает до тех, кто завёлся после правки,
+    и не доезжает до остальных — расхождение молчащее и неисправимое.
+
+    Каскад удаления аккаунта чистит `WHERE user_id = ?`, а сравнение
+    с NULL в SQL никогда не истинно — то есть базовые строки он не
+    трогает по построению, а не по отдельной оговорке.
+    """
+    __tablename__ = "medkit_categories"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=True, index=True)
+    slug = Column(String, nullable=True)           # только у базовых
+    name = Column(String, nullable=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MedkitItemCategory(Base):
+    """СВЯЗЬ ПОЗИЦИИ С КАТЕГОРИЯМИ — МНОГИЕ-КО-МНОГИМ, а не поле.
+
+    Прямая цитата постановки: «Ибупрофен это и голова, и температура,
+    и зубная боль. Одна категория на позицию сломает поиск». Поле
+    заставило бы выбрать одну из трёх правд, и две оставшиеся исчезли бы
+    молча — позиция просто не нашлась бы по двум запросам из трёх.
+
+    Своего `user_id` у связи нет намеренно: владелец у неё ровно тот,
+    что у позиции, и вторая копия этого факта могла бы с ней разойтись.
+    Каскад удаления берёт её через родителя — CHILD_TABLES.
+    """
+    __tablename__ = "medkit_item_categories"
+    id = Column(Integer, primary_key=True)
+    item_id = Column(Integer, nullable=False, index=True)
+    category_id = Column(Integer, nullable=False, index=True)
+
+
 def get_db():
     db = SessionLocal()
     try:
@@ -975,6 +1113,10 @@ def migrate_db():
         "ALTER TABLE users ADD COLUMN pending_email VARCHAR",
         "ALTER TABLE users ADD COLUMN pending_email_token VARCHAR",
         "ALTER TABLE users ADD COLUMN pending_email_expires DATETIME",
+        # Аптечка (BACKLOG №162). Колонка заведена сразу как `image_path`;
+        # строка здесь нужна тем базам, где таблица уже создалась
+        # с прежним именем `photo` за время самого захода
+        "ALTER TABLE medkit_items ADD COLUMN image_path VARCHAR",
     ]:
         try:
             conn.execute(col)
@@ -1013,6 +1155,7 @@ def migrate_db():
     _migrate_goal_history(conn)
     _seed_food_translations(conn)
     _seed_enshrouded_catalog(conn)
+    _seed_medkit_categories(conn)
     conn.close()
 
 
@@ -1181,6 +1324,52 @@ def _seed_enshrouded_catalog(conn) -> int:
     conn.commit()
     print(f"[enshrouded] каталог наполнен из семени: {сколько} сетов")
     return сколько
+
+
+def _seed_medkit_categories(conn) -> int:
+    """Досыпает БАЗОВЫЕ категории аптечки. Идемпотентно: узнаёт строку
+    по `slug`, а не по русскому названию.
+
+    Название однажды поправят — и наполнение по названию завело бы
+    вторую строку рядом с первой, а позиции остались бы висеть на старой.
+    Отказ немой: категорий стало две, обе выглядят настоящими, счётчик
+    в чипе показывает не то.
+
+    Список берётся из `medkit_defs`, а не переписан сюда: двенадцать
+    строк в двух местах разошлись бы молча (§6.0.7). Импорт локальный —
+    `database` грузится раньше всех, и тащить модуль на верхний уровень
+    незачем.
+    """
+    try:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS medkit_categories ("
+            "id INTEGER PRIMARY KEY, user_id INTEGER, slug VARCHAR, "
+            "name VARCHAR NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, "
+            "created_at DATETIME)")
+    except Exception as e:
+        print(f"[medkit] таблица категорий не создана: {type(e).__name__}: {e}")
+        return 0
+    try:
+        import medkit_defs
+    except Exception as e:
+        print(f"[medkit] medkit_defs не прочитан: {type(e).__name__}: {e}")
+        return 0
+    добавлено = 0
+    for i, (slug, имя) in enumerate(medkit_defs.БАЗОВЫЕ_КАТЕГОРИИ):
+        есть = conn.execute(
+            "SELECT 1 FROM medkit_categories WHERE user_id IS NULL AND slug = ?",
+            (slug,)).fetchone()
+        if есть:
+            continue
+        conn.execute(
+            "INSERT INTO medkit_categories (user_id, slug, name, sort_order, "
+            "created_at) VALUES (NULL, ?, ?, ?, ?)",
+            (slug, имя, i, datetime.utcnow()))
+        добавлено += 1
+    if добавлено:
+        conn.commit()
+        print(f"[medkit] базовых категорий добавлено: {добавлено}")
+    return добавлено
 
 
 def _migrate_goal_history(conn) -> int:
@@ -1531,6 +1720,10 @@ USER_TABLES = [
     "water_logs", "chat_messages", "weight_logs", "scale_connections", "body_photos",
     "workout_profiles", "workout_programs", "workout_sessions", "set_logs",
     "progression_settings", "workout_exercise_swaps", "pain_zone_patches",
+    # Аптечка. `medkit_categories` здесь ТОЖЕ, и это не ошибка: у неё есть
+    # user_id, а базовые строки лежат с user_id IS NULL — сравнение с NULL
+    # в SQL никогда не истинно, поэтому каскад их не тронет по построению
+    "medkit_items", "medkit_places", "medkit_categories",
 ]
 
 # Таблицы, привязанные к пользователю ЧЕРЕЗ родителя: поиском по user_id их
@@ -1540,6 +1733,9 @@ CHILD_TABLES = [
      "workout_programs"),
     ("workout_program_days", "program_id", "workout_programs", None, None),
     ("recipe_ingredients", "recipe_id", "custom_recipes", None, None),
+    # Связь позиции аптечки с категориями: своего user_id у неё нет
+    # намеренно — владелец ровно тот, что у позиции (см. MedkitItemCategory)
+    ("medkit_item_categories", "item_id", "medkit_items", None, None),
 ]
 
 # email_logs намеренно НЕ удаляется, а обезличивается — см. _anonymize_email_logs
@@ -1595,6 +1791,13 @@ PRIVACY_MENTIONS = {
     "workout_exercise_swaps":    ["замены упражнений"],
     "pain_zone_patches":         ["правки программы"],
     "enshrouded_slots":          ["enshrouded"],
+    # Аптечка. Формулировка про лекарства обязана быть в политике отдельной
+    # строкой: это сведения о здоровье, то есть особая категория данных,
+    # а не «прочее содержимое аккаунта»
+    "medkit_items":              ["аптечк"],
+    "medkit_places":             ["места хранения"],
+    "medkit_categories":         ["категории аптечки"],
+    "medkit_item_categories":    ["категории аптечки"],
     "email_logs":                ["факте отправки"],
     # Журнал попыток входа: адрес подключения и ХЕШ введённого адреса почты.
     # Персональные данные (IP-адрес ими является), поэтому категория обязана
@@ -1809,8 +2012,20 @@ def delete_user_cascade(user_id: int, dry_run: bool = False) -> dict:
     return отчёт
 
 
+# ВИДЫ ПРИВАТНЫХ МЕДИАФАЙЛОВ — ОДИН СПИСОК НА ВСЕХ.
+#
+# Лежит здесь, а не в `main.py`, потому что второй потребитель —
+# каскад удаления аккаунта ниже, а `database` импортировать `main` не может
+# (обратный импорт потянул бы сюда весь FastAPI). До аптечки список стоял
+# в `main.py` строкой `MEDIA_KINDS = ("chat", "body")` и ВТОРОЙ РАЗ здесь
+# перечнем в цикле уборки. Разошлись бы они молча и в худшую сторону:
+# новый вид файлов сохранялся бы исправно, а при удалении аккаунта
+# оставался бы на диске — ни ошибки, ни строки в журнале (§6.0.7).
+MEDIA_KINDS = ("chat", "body", "medkit")
+
+
 def _delete_media_dirs(user_id: int, dry_run: bool = False) -> int:
-    """Удаляет каталоги приватных медиа: вложения переписки и фото тела.
+    """Удаляет каталоги приватных медиа — все виды из MEDIA_KINDS.
     Возвращает число удалённых файлов.
 
     Каталогом целиком, а не по одному файлу: список файлов в базе может
@@ -1820,7 +2035,7 @@ def _delete_media_dirs(user_id: int, dry_run: bool = False) -> int:
     """
     корень = os.path.join(os.path.dirname(DB_PATH) or ".", "media")
     удалено = 0
-    for вид in ("chat", "body"):
+    for вид in MEDIA_KINDS:
         каталог = os.path.join(корень, вид, str(int(user_id)))
         if not os.path.isdir(каталог):
             continue

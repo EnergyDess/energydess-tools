@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% set meta_tool = 'medkit' %}
+  {% include '_meta.html' %}
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ st('style.css') }}">
+  <link rel="stylesheet" href="{{ st('medkit.css') }}">
+</head>
+{# ТЕМА РАЗДЕЛА — НА <body>, а не на <main>: переменные наследуются вниз
+   по дереву, и объявление на главном блоке обрезало бы акцент по его
+   границе. Всё, что лежит рядом — модалки, полоса отмены, — темы
+   не увидело бы вовсе (CLAUDE.md §4). #}
+<body class="has-site-header theme-medkit page-column">
+
+{% include '_header.html' %}
+
+{# СВОЕЙ ПАНЕЛИ НАВИГАЦИИ У РАЗДЕЛА НЕТ — прямое указание постановки
+   и аннотации эскиза: шапка сайта, затем сразу заголовок, как у остальных
+   инструментов. Панель вкладок есть только у админки, и переносить её
+   сюда не надо. Кнопки участников тоже нет: общая аптечка это этап 2,
+   вести ей пока некуда. #}
+<main class="container container-wide apt-wrap page-fill">
+
+  <header class="apt-head">
+    <h1 class="apt-title">Аптечка</h1>
+    <p class="apt-sub">Что лежит дома, сколько осталось и что пора выбросить</p>
+  </header>
+
+  <div class="apt-bar">
+    <div class="input-wrap apt-search">
+      {{ значок('search', 'apt-search-ico') }}
+      <input class="input apt-search-input" type="search" id="apt-q"
+             placeholder="Название, вещество или категория" autocomplete="off"
+             aria-label="Поиск по аптечке">
+    </div>
+    <button class="btn btn-primary apt-add" type="button"
+            onclick="аптОткрытьФорму()">
+      {{ значок('plus') }} Добавить
+    </button>
+  </div>
+
+  {# ЧИПЫ ОТБОРА. Показываются только НЕПУСТЫЕ категории плюс «Все»:
+     чип-фильтр с нулём — это тупик, по нему нечего находить. «Просрочено»
+     красный и ПОСЛЕДНИЙ намеренно — это единственный список, который надо
+     разобрать физически, и появляется он, только когда есть что разбирать.
+
+     `tap-44` — согласие на добор области касания невидимым слоем (§2.7):
+     чип здесь орган управления, и на телефоне в него надо попасть пальцем. #}
+  <div class="apt-chips" id="apt-chips" role="group" aria-label="Отбор по категории">
+    <button type="button" class="chip tap-44 active" data-pick="all">
+      Все <span class="chip-n" data-n="all">{{ счёт.all }}</span></button>
+    {% for к in категории %}
+      {% if счёт.get(к.id|string) %}
+      <button type="button" class="chip tap-44" data-pick="{{ к.id }}">
+        {{ к.name }} <span class="chip-n" data-n="{{ к.id }}">{{ счёт[к.id|string] }}</span></button>
+      {% endif %}
+    {% endfor %}
+    {% if счёт.expired %}
+    <button type="button" class="chip tap-44 apt-chip-bad" data-pick="expired">
+      Просрочено <span class="chip-n" data-n="expired">{{ счёт.expired }}</span></button>
+    {% endif %}
+    <button type="button" class="chip tap-44 apt-chip-add" data-cats-open>
+      {{ значок('plus') }} Категория</button>
+  </div>
+
+  <div id="apt-grid-box">{% include '_medkit_grid.html' %}</div>
+
+  {# ЛЕГЕНДА — три состояния срока, главная ценность экрана. Стоит
+     под сеткой, а не над: цвет объясняют после того, как его увидели #}
+  <p class="apt-legend">
+    <span><i class="apt-dot apt-dot-ok"></i>годен</span>
+    <span><i class="apt-dot apt-dot-warn"></i>истекает в ближайшие
+      {{ ДНЕЙ_ДО_ИСТЕЧЕНИЯ }} дней либо вскрыт</span>
+    <span><i class="apt-dot apt-dot-bad"></i>просрочен</span>
+  </p>
+</main>
+
+{# ── ПОЛОСА ОТМЕНЫ ─────────────────────────────────────────────────
+   Системный компонент .undo-bar (design-system.md §2.13) с полосой
+   обратного отсчёта. Одна на страницу: второе списание подряд не заводит
+   вторую полосу, а меняет подпись и перезапускает отсчёт. #}
+<div class="undo-bar" id="undo-bar" role="status" aria-live="polite">
+  <span class="undo-bar-text" id="undo-bar-text"></span>
+  <button class="undo-bar-btn" type="button" onclick="аптОтменитьПриём()">Вернуть</button>
+</div>
+
+{% import '_modal.html' as m %}
+
+{# ── ФОРМА ДОБАВЛЕНИЯ И ПРАВКИ ─────────────────────────────────────
+   Одна на оба случая: два окна с одинаковыми полями разошлись бы
+   при первой же правке — новое поле появилось бы в добавлении
+   и не появилось бы в правке. #}
+{% call m.modal('apt-form', 'Добавить лекарство', title_id='apt-form-title',
+                icon='pill', variant='modal-ov-wide') %}
+  <form id="apt-form-el" class="apt-form" autocomplete="off"
+        onsubmit="return аптСохранить(event)">
+    <div class="apt-row apt-row-2">
+      <div class="form-group">
+        <label class="field-label" for="apt-f-name">Название *</label>
+        <input class="input" id="apt-f-name" maxlength="120" required
+               placeholder="Нурофен">
+      </div>
+      <div class="form-group">
+        <label class="field-label" for="apt-f-sub">Действующее вещество</label>
+        <input class="input" id="apt-f-sub" maxlength="200"
+               placeholder="Ибупрофен, 200 мг">
+        <p class="apt-hint">По нему ищется. Нурофен и Ибупрофен — одно
+          и то же, и без этой строки легко купить третью пачку.</p>
+      </div>
+    </div>
+
+    <div class="apt-row apt-row-3">
+      <div class="form-group">
+        <label class="field-label" for="apt-f-form">Форма выпуска *</label>
+        <select class="select input" id="apt-f-form" onchange="аптФормаСменилась()">
+          {% for ф in формы %}
+          <option value="{{ ф.id }}">{{ ф.имя }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {# ЕДИНИЦА ПОКАЗЫВАЕТСЯ ТОЛЬКО ТАМ, ГДЕ ЕСТЬ ВЫБОР. Форма с одной
+         допустимой единицей его не спрашивает: выбор из одного варианта —
+         не выбор, а лишний орган на экране #}
+      <div class="form-group" id="apt-f-unit-box" hidden>
+        <label class="field-label" for="apt-f-unit">Считать в</label>
+        <select class="select input" id="apt-f-unit"></select>
+      </div>
+      <div class="form-group apt-only-exact">
+        <label class="field-label" for="apt-f-left">Осталось *</label>
+        <div class="apt-num"><input class="input apt-num-in" id="apt-f-left" type="number"
+               step="any" min="0" inputmode="decimal">
+          <span class="apt-unit" id="apt-u-left"></span></div>
+      </div>
+      <div class="form-group apt-only-exact">
+        <label class="field-label" for="apt-f-total">Было в упаковке *</label>
+        <div class="apt-num"><input class="input apt-num-in" id="apt-f-total" type="number"
+               step="any" min="0" inputmode="decimal">
+          <span class="apt-unit" id="apt-u-total"></span></div>
+      </div>
+      {# ШКАЛА ВМЕСТО ЧИСЛА У ТЮБИКА. Точное число там было бы враньём,
+         которое пользователь введёт сам: в тюбике нет делений #}
+      <div class="form-group apt-only-scale" hidden>
+        <label class="field-label">Сколько осталось *</label>
+        <div class="segmented" id="apt-f-scale" role="group">
+          {% for ш in шкала %}
+          <button type="button" class="segmented-btn{{ ' active' if loop.first }}"
+                  data-scale="{{ ш.id }}">{{ ш.имя }}</button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="apt-row apt-row-3">
+      <div class="form-group">
+        <label class="field-label" for="apt-f-exp">Годен до *</label>
+        <input class="input" id="apt-f-exp" type="month" required>
+      </div>
+      <div class="form-group">
+        <label class="field-label" for="apt-f-open">Вскрыто</label>
+        <input class="input" id="apt-f-open" type="date">
+        <p class="apt-hint">Можно не заполнять — встанет само при первом
+          приёме.</p>
+      </div>
+      <div class="form-group">
+        <label class="field-label" for="apt-f-place">Где лежит</label>
+        <div class="apt-place">
+          <select class="select input" id="apt-f-place">
+            <option value="">не указано</option>
+            {% for м in места %}<option value="{{ м.id }}">{{ м.name }}</option>{% endfor %}
+          </select>
+          <button class="btn-icon btn-icon-outline tap-44" type="button"
+                  onclick="аптПоказатьНовоеМесто()" aria-label="Добавить место"
+                  title="Добавить место">{{ значок('plus') }}</button>
+        </div>
+        <div class="apt-place-new" id="apt-place-new" hidden>
+          <input class="input input-compact" id="apt-place-name" maxlength="60"
+                 placeholder="Полка в ванной" aria-label="Новое место хранения">
+          <button class="btn btn-secondary" type="button"
+                  onclick="аптНовоеМесто()">Завести</button>
+        </div>
+      </div>
+    </div>
+
+    {# СРОК ПОСЛЕ ВСКРЫТИЯ ЖИВЁТ И У ТЮБИКА, поэтому `apt-only-exact`
+       стоит на ПОЛЕ ДОЗЫ, а не на всём ряду. Первая версия пометила ряд
+       целиком, и у мази с гелем поле пропадало вместе с дозой — при том
+       что у них умолчание 90 дней и править его было нечем. Найдено
+       снимком формы тюбика, а не чтением. #}
+    <div class="apt-row apt-row-2">
+      <div class="form-group apt-only-exact">
+        <label class="field-label" for="apt-f-dose">Разовая доза</label>
+        <div class="apt-num"><input class="input apt-num-in" id="apt-f-dose" type="number"
+               step="any" min="0" value="1" inputmode="decimal">
+          <span class="apt-unit" id="apt-u-dose"></span></div>
+        <p class="apt-hint">Столько снимет кнопка приёма на карточке.</p>
+      </div>
+      <div class="form-group" id="apt-f-days-box">
+        <label class="field-label" for="apt-f-days">Годен после вскрытия, дней</label>
+        <input class="input" id="apt-f-days" type="number" min="1" max="3650"
+               inputmode="numeric">
+        {# ЧИСЛО НАШЕ, И ЭТО СКАЗАНО ВСЛУХ. Точный срок стоит в инструкции
+           к препарату; инструкцию мы не копируем и не пересказываем,
+           поэтому подставляем осторожное умолчание и говорим, чьё оно #}
+        <p class="apt-hint">Подставлено осторожное умолчание для этой формы.
+          Точный срок — в инструкции к вашему препарату.</p>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="field-label">Категории</label>
+      {# Их МОЖЕТ БЫТЬ НЕСКОЛЬКО: ибупрофен — это и голова, и температура.
+         Одна категория на позицию сломала бы поиск #}
+      <div class="apt-chips apt-form-cats" id="apt-f-cats">
+        {% for к in категории %}
+        <button type="button" class="chip tap-44" data-cat="{{ к.id }}">{{ к.name }}</button>
+        {% endfor %}
+        <button type="button" class="chip tap-44 apt-chip-add" data-cats-open>
+          {{ значок('plus') }} Своя</button>
+      </div>
+    </div>
+
+    <div class="apt-row apt-row-2">
+      <div class="form-group">
+        <label class="field-label" for="apt-f-code">Штрих-код упаковки</label>
+        <input class="input" id="apt-f-code" inputmode="numeric" maxlength="14"
+               placeholder="04601234567890">
+        <p class="apt-hint">Не обязателен. Нужен, чтобы повторная покупка
+          той же пачки подставилась из вашей же базы.</p>
+      </div>
+      <div class="form-group">
+        <label class="field-label" for="apt-f-url">Ссылка на инструкцию</label>
+        <input class="input" id="apt-f-url" type="url" maxlength="500"
+               placeholder="https://…">
+        <p class="apt-hint">Только адрес источника. Текст инструкции
+          и дозировки мы не копируем и не пересказываем.</p>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="field-label" for="apt-f-photo">Фото упаковки</label>
+      <div class="apt-photo-row">
+        <div class="apt-photo-prev" id="apt-f-prev" hidden>
+          <img id="apt-f-prev-img" alt="Фото упаковки">
+          <button class="btn-icon btn-icon-sm btn-icon-danger btn-icon-overlay tap-44"
+                  type="button" onclick="аптУбратьФото()"
+                  aria-label="Убрать фото">{{ значок('trash-2') }}</button>
+        </div>
+        <input class="input" id="apt-f-photo" type="file"
+               accept="image/*" capture="environment"
+               onchange="аптВыбралиФото(this)">
+      </div>
+      <p class="apt-hint" id="apt-photo-note">Файл уедет на сервер сразу
+        после сохранения карточки.</p>
+    </div>
+
+    <label class="apt-switch">
+      <span class="toggle"><input type="checkbox" id="apt-f-rx">
+        <span class="track"></span></span>
+      <span class="apt-switch-t">Рецептурный</span>
+      <span class="apt-hint">— пометка, что без рецепта такую пачку
+        в аптеке не продадут</span>
+    </label>
+
+    <div class="form-group">
+      <label class="field-label" for="apt-f-note">Заметка</label>
+      <textarea class="textarea textarea-compact" id="apt-f-note" rows="2"
+                maxlength="2000" placeholder="Что сказал врач, где купили…"></textarea>
+    </div>
+
+    <div class="alert alert-error apt-err" id="apt-form-err" hidden></div>
+
+    <div class="apt-foot">
+      <button class="btn btn-ghost" type="button" data-modal-close>Отмена</button>
+      <button class="btn btn-primary" type="submit" id="apt-save">Сохранить</button>
+    </div>
+  </form>
+{% endcall %}
+
+{# ── ПОДТВЕРЖДЕНИЕ УДАЛЕНИЯ ────────────────────────────────────────
+   Спрашивается ВСЕГДА и системным окном, а не `confirm()` браузера:
+   удаление позиции необратимо, окна отмены у него нет. #}
+{% call m.modal('apt-del', 'Удалить позицию?', icon='alert-triangle',
+                icon_tone='warning') %}
+  <p class="apt-del-name" id="apt-del-name"></p>
+  <p class="apt-del-note">Позиция и её фото исчезнут насовсем — окна
+    отмены у удаления нет.</p>
+  <div class="apt-foot">
+    <button class="btn btn-ghost" type="button" data-modal-close>Оставить</button>
+    <button class="btn btn-danger" type="button" onclick="аптУдалить()">Удалить</button>
+  </div>
+{% endcall %}
+
+{# ── СВОИ КАТЕГОРИИ ────────────────────────────────────────────────
+   Заводятся как папки в телеграме. Удаляются ТОЛЬКО свои: базовая общая
+   для всех, и удаление её одним человеком забрало бы её у остальных. #}
+{% call m.modal('apt-cats', 'Категории', icon='tag') %}
+  <p class="apt-del-note">Базовые категории общие и не удаляются. Свои —
+    ваши: их можно завести и убрать.</p>
+  <div class="apt-cat-add">
+    <input class="input" id="apt-cat-name" maxlength="60"
+           placeholder="Например, «Для ребёнка»" aria-label="Название категории">
+    <button class="btn btn-primary" type="button" onclick="аптДобавитьКатегорию()">
+      Завести</button>
+  </div>
+  <div class="alert alert-error apt-err" id="apt-cat-err" hidden></div>
+  <ul class="apt-cat-list" id="apt-cat-list">
+    {% for к in категории %}
+    <li class="apt-cat-item" data-cat-row="{{ к.id }}">
+      <span class="apt-cat-name">{{ к.name }}</span>
+      {% if к.user_id %}
+      <button class="btn-icon btn-icon-sm btn-icon-danger tap-44" type="button"
+              data-cat-del="{{ к.id }}" aria-label="Удалить категорию {{ к.name }}"
+              title="Удалить">{{ значок('trash-2') }}</button>
+      {% else %}
+      <span class="apt-cat-base">базовая</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+{% endcall %}
+
+<script src="{{ st('modal.js') }}"></script>
+<script>
+/* ══ АПТЕЧКА — поведение экрана ═══════════════════════════════════════
+
+   ЧТО ЭТОТ СКРИПТ НЕ ДЕЛАЕТ, И ЭТО ГЛАВНОЕ:
+
+     · не строит карточку. Разметку рисует сервер (`_medkit_grid.html`),
+       и после каждой правки сюда приезжает готовый HTML. Двух построителей
+       одной карточки в проекте нет — разошлись бы они молча;
+     · не склоняет по-русски. «Принял 1 таблетку» и «Списано: 2 таблетки»
+       приходят с сервера готовыми строками (§6.0.7);
+     · не считает остаток. Число после списания ПРОЧИТАНО ИЗ БАЗЫ, а не
+       вычтено здесь: подтверждение, собранное из намерений, — тот самый
+       немой отказ, что разбирала §5.0.3. */
+
+const АПТ = {
+  формы: {{ формы | tojson }},
+  единицы: {{ единицы | tojson }},
+  правим: null,          // id позиции в открытой форме, null — новая
+  файл: null,            // выбранное фото, ждёт сохранения карточки
+  фотоЕсть: false,
+  удаляем: null,
+  отбор: 'all',
+  /* Списание накапливается: три нажатия подряд отменяются ЦЕЛИКОМ,
+     к состоянию ДО ПЕРВОГО. Поэтому запоминается первое, а не последнее */
+  пачка: null,
+  таймер: null,
+};
+const ОКНО_ОТМЕНЫ_МС = 6000;
+
+/* ── Обмен с сервером. Отказ НАЗЫВАЕТСЯ, а не проглатывается ──────── */
+async function аптЗапрос(адрес, настройки) {
+  let ответ;
+  try {
+    ответ = await fetch(адрес, настройки);
+  } catch (e) {
+    return {ошибка: 'Сеть не отвечает — ничего не сохранено'};
+  }
+  let тело = {};
+  try { тело = await ответ.json(); } catch (e) {}
+  if (!ответ.ok) {
+    return {ошибка: тело.error || ('Сервер ответил ' + ответ.status)};
+  }
+  return тело;
+}
+
+/* Сетка перерисовывается ЦЕЛИКОМ разметкой сервера — см. шапку скрипта */
+function аптПрименитьСетку(тело) {
+  if (!тело || !тело.html) return;
+  document.getElementById('apt-grid-box').innerHTML = тело.html;
+  /* Позиции приезжают ТЕМ ЖЕ ответом, что и разметка. Отдельный запрос
+     за ними дал бы окно, в котором сетка уже новая, а форма правки
+     открывает СТАРЫЕ значения — без единого признака на экране */
+  if (тело['позиции']) АПТ_ПОЗИЦИИ = тело['позиции'];
+  аптОбновитьЧипы(тело['счёт'] || {});
+  рисоватьЗначки();
+  аптОтобрать();
+}
+
+/* Счётчики чипов приходят с сервера вместе с разметкой: посчитай их
+   здесь — и число в чипе могло бы разойтись с числом карточек */
+function аптОбновитьЧипы(счёт) {
+  document.querySelectorAll('#apt-chips .chip-n').forEach(el => {
+    const ключ = el.dataset.n;
+    const n = счёт[ключ];
+    const чип = el.closest('.chip');
+    /* Чип категории, в которой не осталось ничего, ПРЯЧЕТСЯ: фильтр,
+       по которому нечего находить, — тупик. «Все» остаётся всегда */
+    if (ключ !== 'all' && !n) { чип.hidden = true; return; }
+    чип.hidden = false;
+    el.textContent = n;
+  });
+}
+
+/* ── ОТБОР И ПОИСК: прячут уже нарисованное, разметки не строят ───── */
+function аптОтобрать() {
+  const запрос = (document.getElementById('apt-q').value || '')
+                   .trim().toLowerCase();
+  const карточки = [...document.querySelectorAll('.apt-card')];
+  let видно = 0;
+  карточки.forEach(к => {
+    const поКатегории =
+      АПТ.отбор === 'all' ||
+      (АПТ.отбор === 'expired' && к.dataset.state === 'expired') ||
+      (к.dataset.cats || '').split(',').includes(АПТ.отбор);
+    /* Строку поиска собрал СЕРВЕР (`data-find`): иначе браузеру пришлось
+       бы знать, по каким полям искать, и список этих полей жил бы вторым
+       экземпляром рядом с серверным (§6.0.7) */
+    const поЗапросу = !запрос || (к.dataset.find || '').includes(запрос);
+    const показать = поКатегории && поЗапросу;
+    к.hidden = !показать;
+    if (показать) видно++;
+  });
+  const всего = карточки.length;
+  const подпись = document.getElementById('apt-note');
+  if (подпись) {
+    подпись.textContent = (видно === всего)
+      ? ('В аптечке ' + всего + ' ' + аптПозиций(всего))
+      : ('Показано ' + видно + ' из ' + всего);
+  }
+  /* Пусто в ОТБОРЕ — это не пустая аптечка, и подставлять одно вместо
+     другого нельзя: экран говорит оба факта и даёт выйти обратно */
+  const пусто = document.getElementById('apt-empty-find');
+  if (пусто) {
+    пусто.hidden = !(всего && !видно);
+    if (всего && !видно) {
+      document.getElementById('apt-empty-find-sub').textContent =
+        'Во всей аптечке — ' + всего + ' ' + аптПозиций(всего) + '.';
+    }
+  }
+}
+
+/* Единственное склонение в браузере, и оно НЕ про единицы измерения:
+   «позиция/позиции/позиций» — про сам список, у сервера этой строки нет */
+function аптПозиций(n) {
+  const две = n % 100, одна = n % 10;
+  if (две >= 11 && две <= 14) return 'позиций';
+  if (одна === 1) return 'позиция';
+  if (одна >= 2 && одна <= 4) return 'позиции';
+  return 'позиций';
+}
+
+function аптСброситьОтбор() {
+  АПТ.отбор = 'all';
+  document.getElementById('apt-q').value = '';
+  document.querySelectorAll('#apt-chips .chip').forEach(ч =>
+    ч.classList.toggle('active', ч.dataset.pick === 'all'));
+  аптОтобрать();
+}
+
+/* ── ФОРМА ───────────────────────────────────────────────────────── */
+function аптФорма() { return АПТ.формы.find(ф => ф.id === аптЗнач('apt-f-form')); }
+function аптЗнач(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+
+/* Форма выпуска определяет ВСЁ остальное: какие единицы допустимы, есть
+   ли числа вообще, нужна ли шкала. Несочетаемое выбрать нельзя — и это
+   проверяется ещё раз НА СЕРВЕРЕ: запрет на экране обходится запросом
+   мимо экрана */
+function аптФормаСменилась(сохранитьЕдиницу) {
+  const ф = аптФорма();
+  if (!ф) return;
+  const шкала = ф['счёт'] === 'шкала';
+  document.querySelectorAll('.apt-only-exact').forEach(el => el.hidden = шкала);
+  document.querySelectorAll('.apt-only-scale').forEach(el => el.hidden = !шкала);
+  document.getElementById('apt-f-days-box').hidden = false;
+
+  const выбор = document.getElementById('apt-f-unit');
+  const короб = document.getElementById('apt-f-unit-box');
+  const прежняя = сохранитьЕдиницу || выбор.value;
+  выбор.innerHTML = '';
+  ф['единицы'].forEach(е => {
+    const o = document.createElement('option');
+    o.value = е;
+    o.textContent = АПТ.единицы[е]['кратко'] || 'тюбик';
+    выбор.appendChild(o);
+  });
+  if (ф['единицы'].includes(прежняя)) выбор.value = прежняя;
+  /* Выбор из одного варианта — не выбор: короб единицы прячется */
+  короб.hidden = ф['единицы'].length < 2;
+
+  const кратко = (АПТ.единицы[выбор.value] || {})['кратко'] || '';
+  ['apt-u-left', 'apt-u-total', 'apt-u-dose'].forEach(id =>
+    document.getElementById(id).textContent = кратко);
+
+  const днями = document.getElementById('apt-f-days');
+  if (!днями.value && ф['вскрытие_дней']) днями.value = ф['вскрытие_дней'];
+}
+document.getElementById('apt-f-unit').addEventListener('change', () =>
+  аптФормаСменилась(document.getElementById('apt-f-unit').value));
+
+document.getElementById('apt-f-scale').addEventListener('click', e => {
+  const б = e.target.closest('[data-scale]');
+  if (!б) return;
+  document.querySelectorAll('#apt-f-scale .segmented-btn')
+    .forEach(x => x.classList.toggle('active', x === б));
+});
+
+function аптОткрытьФорму(поз) {
+  АПТ.правим = поз ? поз.id : null;
+  АПТ.файл = null;
+  АПТ.фотоЕсть = !!(поз && поз.photo);
+  document.getElementById('apt-form-title').textContent =
+    поз ? 'Правка позиции' : 'Добавить лекарство';
+  document.getElementById('apt-form-err').hidden = true;
+  document.getElementById('apt-f-name').value = поз ? поз.name : '';
+  document.getElementById('apt-f-sub').value = поз ? (поз.substance || '') : '';
+  document.getElementById('apt-f-form').value = поз ? поз.form : АПТ.формы[0].id;
+  аптФормаСменилась(поз ? поз.unit : null);
+  document.getElementById('apt-f-left').value = поз && поз.qty_left != null ? поз.qty_left : '';
+  document.getElementById('apt-f-total').value = поз && поз.qty_total != null ? поз.qty_total : '';
+  document.getElementById('apt-f-dose').value = поз && поз.dose != null ? поз.dose : 1;
+  document.getElementById('apt-f-exp').value = поз ? поз.expires_ym : '';
+  document.getElementById('apt-f-open').value = поз ? (поз.opened_on || '') : '';
+  document.getElementById('apt-f-days').value =
+    поз && поз.opened_days != null ? поз.opened_days : '';
+  if (!поз) {
+    const ф = аптФорма();
+    document.getElementById('apt-f-days').value = (ф && ф['вскрытие_дней']) || '';
+  }
+  document.getElementById('apt-f-place').value = поз && поз.place_id ? поз.place_id : '';
+  document.getElementById('apt-f-code').value = поз ? (поз.code_gtin || '') : '';
+  document.getElementById('apt-f-url').value = поз ? (поз.leaflet_url || '') : '';
+  document.getElementById('apt-f-note').value = поз ? (поз.note || '') : '';
+  document.getElementById('apt-f-rx').checked = !!(поз && поз.is_rx);
+  document.getElementById('apt-f-photo').value = '';
+  const прев = document.getElementById('apt-f-prev');
+  прев.hidden = !(поз && поз.photo);
+  if (поз && поз.photo) document.getElementById('apt-f-prev-img').src = поз.photo;
+  document.querySelectorAll('#apt-f-scale .segmented-btn').forEach((б, i) =>
+    б.classList.toggle('active', поз ? б.dataset.scale === поз.scale : i === 0));
+  const свои = (поз && поз['категории']) || [];
+  document.querySelectorAll('#apt-f-cats [data-cat]').forEach(ч =>
+    ч.classList.toggle('active', свои.includes(+ч.dataset.cat)));
+  открыть_модалку('apt-form');
+}
+
+function аптВыбралиФото(input) {
+  const ф = input.files && input.files[0];
+  АПТ.файл = ф || null;
+  const прев = document.getElementById('apt-f-prev');
+  if (!ф) { прев.hidden = !АПТ.фотоЕсть; return; }
+  document.getElementById('apt-f-prev-img').src = URL.createObjectURL(ф);
+  прев.hidden = false;
+}
+
+async function аптУбратьФото() {
+  АПТ.файл = null;
+  document.getElementById('apt-f-photo').value = '';
+  document.getElementById('apt-f-prev').hidden = true;
+  if (АПТ.правим && АПТ.фотоЕсть) {
+    const т = await аптЗапрос('/medkit/api/items/' + АПТ.правим + '/photo',
+                              {method: 'DELETE'});
+    if (т['ошибка']) { аптОшибкаФормы(т['ошибка']); return; }
+    АПТ.фотоЕсть = false;
+    аптПрименитьСетку(т);
+  }
+}
+
+function аптОшибкаФормы(текст) {
+  const el = document.getElementById('apt-form-err');
+  el.textContent = текст;
+  el.hidden = false;
+}
+
+async function аптСохранить(событие) {
+  событие.preventDefault();
+  const кнопка = document.getElementById('apt-save');
+  кнопка.disabled = true;
+  try {
+    const ф = аптФорма();
+    const шкала = ф && ф['счёт'] === 'шкала';
+    const выбрана = document.querySelector('#apt-f-scale .segmented-btn.active');
+    const тело = {
+      name: аптЗнач('apt-f-name'),
+      substance: аптЗнач('apt-f-sub'),
+      form: аптЗнач('apt-f-form'),
+      unit: аптЗнач('apt-f-unit'),
+      expires_ym: аптЗнач('apt-f-exp'),
+      opened_on: аптЗнач('apt-f-open'),
+      opened_days: аптЗнач('apt-f-days'),
+      place_id: аптЗнач('apt-f-place'),
+      leaflet_url: аптЗнач('apt-f-url'),
+      code_gtin: аптЗнач('apt-f-code'),
+      note: аптЗнач('apt-f-note'),
+      is_rx: document.getElementById('apt-f-rx').checked,
+      'категории': [...document.querySelectorAll('#apt-f-cats [data-cat].active')]
+                     .map(ч => +ч.dataset.cat),
+    };
+    if (шкала) {
+      тело.scale = выбрана ? выбрана.dataset.scale : '';
+    } else {
+      тело.qty_left = аптЗнач('apt-f-left');
+      тело.qty_total = аптЗнач('apt-f-total');
+      тело.dose = аптЗнач('apt-f-dose');
+    }
+    const адрес = АПТ.правим ? '/medkit/api/items/' + АПТ.правим
+                             : '/medkit/api/items';
+    const т = await аптЗапрос(адрес, {
+      method: АПТ.правим ? 'PUT' : 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(тело),
+    });
+    if (т['ошибка']) { аптОшибкаФормы(т['ошибка']); return false; }
+
+    /* Фото уезжает ПОСЛЕ сохранения карточки: файл именуется токеном,
+       который выдаётся уже существующей позиции. Порядок внутренний,
+       и человеку про него знать незачем — поэтому поле живое всегда,
+       а не выключено с подписью «сначала сохраните» */
+    const id = АПТ.правим || т.id;
+    let итог = т;
+    if (АПТ.файл && id) {
+      const форма = new FormData();
+      форма.append('file', АПТ.файл);
+      const тф = await аптЗапрос('/medkit/api/items/' + id + '/photo',
+                                 {method: 'POST', body: форма});
+      if (тф['ошибка']) {
+        /* ДВА ИСХОДА НАЗЫВАЮТСЯ ПООТДЕЛЬНОСТИ. «Сохранено» при неуехавшем
+           фото — ровно тот немой отказ, ради которого весь §6.0 */
+        аптПрименитьСетку(т);
+        аптОшибкаФормы('Позиция сохранена, но фото не загрузилось: '
+                       + тф['ошибка']);
+        return false;
+      }
+      итог = тф;
+    }
+    закрыть_модалку('apt-form');
+    аптПрименитьСетку(итог);
+    return false;
+  } finally {
+    кнопка.disabled = false;
+  }
+}
+
+/* ── СПИСАНИЕ И ОТМЕНА ───────────────────────────────────────────── */
+async function аптПринять(id) {
+  const т = await аптЗапрос('/medkit/api/items/' + id + '/take',
+                            {method: 'POST'});
+  if (т['ошибка']) { аптСообщить(т['ошибка']); return; }
+  аптПрименитьСетку(т);
+  /* Пачка накапливается: отмена возвращает к состоянию ДО ПЕРВОГО
+     нажатия, а не до последнего. Поэтому прежнее состояние
+     запоминается только один раз */
+  if (!АПТ.пачка || АПТ.пачка.id !== id) {
+    АПТ.пачка = {id: id, qty: т['было'], opened_on: т['было_вскрыто'], n: 1};
+  } else {
+    АПТ.пачка.n++;
+  }
+  аптПолоса(АПТ.пачка.n === 1 ? т['фраза']
+                              : 'Списано подряд: ' + АПТ.пачка.n);
+}
+
+function аптПолоса(текст) {
+  const bar = document.getElementById('undo-bar');
+  document.getElementById('undo-bar-text').textContent = текст;
+  bar.classList.add('show');
+  if (АПТ.таймер) clearTimeout(АПТ.таймер);
+  АПТ.таймер = setTimeout(аптЗакрытьПолосу, ОКНО_ОТМЕНЫ_МС);
+  /* Длительность отдаётся полосе отсчёта отсюда, чтобы число жило
+     в одном месте. Класс снимается и возвращается через reflow — иначе
+     при втором списании подряд полоса продолжила бы утекать со старого
+     места и соврала бы про остаток окна (§2.13) */
+  bar.style.setProperty('--undo-window', ОКНО_ОТМЕНЫ_МС + 'ms');
+  bar.classList.remove('run');
+  void bar.offsetWidth;
+  bar.classList.add('run');
+}
+
+function аптЗакрытьПолосу() {
+  if (АПТ.таймер) { clearTimeout(АПТ.таймер); АПТ.таймер = null; }
+  АПТ.пачка = null;
+  const bar = document.getElementById('undo-bar');
+  bar.classList.remove('show');
+  bar.classList.remove('run');
+}
+
+async function аптОтменитьПриём() {
+  const п = АПТ.пачка;
+  аптЗакрытьПолосу();
+  if (!п) return;
+  /* Возврат к ПРЕЖНЕМУ ЧИСЛУ, а не прибавление дозы обратно: остаток
+     упирается в ноль, и «отнять 1, потом прибавить 1» у позиции
+     с половиной таблетки дало бы единицу там, где было 0,5 */
+  const т = await аптЗапрос('/medkit/api/items/' + п.id + '/restore', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({qty: п.qty, opened_on: п.opened_on || ''}),
+  });
+  if (т['ошибка']) { аптСообщить(т['ошибка']); return; }
+  аптПрименитьСетку(т);
+}
+
+function аптСообщить(текст) {
+  аптПолоса(текст);
+  document.querySelector('.undo-bar-btn').hidden = true;
+  setTimeout(() => { document.querySelector('.undo-bar-btn').hidden = false; },
+             ОКНО_ОТМЕНЫ_МС);
+}
+
+/* ── УДАЛЕНИЕ ────────────────────────────────────────────────────── */
+function аптСпросить(id) {
+  const поз = аптПозиция(id);
+  АПТ.удаляем = id;
+  document.getElementById('apt-del-name').textContent = поз ? поз.name : '';
+  открыть_модалку('apt-del');
+}
+
+async function аптУдалить() {
+  const id = АПТ.удаляем;
+  закрыть_модалку('apt-del');
+  АПТ.удаляем = null;
+  if (!id) return;
+  const т = await аптЗапрос('/medkit/api/items/' + id, {method: 'DELETE'});
+  if (т['ошибка']) { аптСообщить(т['ошибка']); return; }
+  аптПрименитьСетку(т);
+}
+
+/* ── МЕСТА И КАТЕГОРИИ ───────────────────────────────────────────── */
+/* Своё поле, а не `prompt()` браузера: родное окно уже отвергнуто
+   в этом проекте для подтверждения удаления (§5.7), и заводить его
+   обратно ради ввода строки значило бы держать два разных вида диалога
+   на одном экране */
+function аптПоказатьНовоеМесто() {
+  const блок = document.getElementById('apt-place-new');
+  блок.hidden = !блок.hidden;
+  if (!блок.hidden) document.getElementById('apt-place-name').focus();
+}
+
+async function аптНовоеМесто() {
+  const поле = document.getElementById('apt-place-name');
+  const имя = (поле.value || '').trim();
+  if (!имя) { поле.focus(); return; }
+  const т = await аптЗапрос('/medkit/api/places', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name: имя}),
+  });
+  if (т['ошибка']) { аптОшибкаФормы(т['ошибка']); return; }
+  const выбор = document.getElementById('apt-f-place');
+  if (!т['уже_было']) {
+    const o = document.createElement('option');
+    o.value = т.id; o.textContent = т.name;
+    выбор.appendChild(o);
+  }
+  выбор.value = т.id;
+  поле.value = '';
+  document.getElementById('apt-place-new').hidden = true;
+}
+
+async function аптДобавитьКатегорию() {
+  const поле = document.getElementById('apt-cat-name');
+  const имя = (поле.value || '').trim();
+  const ош = document.getElementById('apt-cat-err');
+  ош.hidden = true;
+  if (!имя) { ош.textContent = 'Не заполнено название'; ош.hidden = false; return; }
+  const т = await аптЗапрос('/medkit/api/categories', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name: имя}),
+  });
+  if (т['ошибка']) { ош.textContent = т['ошибка']; ош.hidden = false; return; }
+  поле.value = '';
+  /* Перезагрузка страницы, а не дорисовка списка в трёх местах: категория
+     нужна в окне категорий, в чипах отбора И в чипах формы, и три
+     дорисовки разошлись бы при первой же правке одной из них */
+  location.reload();
+}
+
+document.getElementById('apt-cat-list').addEventListener('click', async e => {
+  const б = e.target.closest('[data-cat-del]');
+  if (!б) return;
+  const т = await аптЗапрос('/medkit/api/categories/' + б.dataset.catDel,
+                            {method: 'DELETE'});
+  const ош = document.getElementById('apt-cat-err');
+  if (т['ошибка']) { ош.textContent = т['ошибка']; ош.hidden = false; return; }
+  location.reload();
+});
+
+/* ── ПРИВЯЗКА ─────────────────────────────────────────────────────
+   Делегатом на документ, а не на карточку: сетка перерисовывается
+   целиком, и обработчики, навешенные на карточки, пропали бы вместе
+   с ними — молча, при исправном на вид экране. */
+let АПТ_ПОЗИЦИИ = {{ позиции | tojson }};
+function аптПозиция(id) { return АПТ_ПОЗИЦИИ.find(п => п.id === +id); }
+
+document.addEventListener('click', e => {
+  const чип = e.target.closest('#apt-chips [data-pick]');
+  if (чип) {
+    АПТ.отбор = чип.dataset.pick;
+    document.querySelectorAll('#apt-chips .chip')
+      .forEach(x => x.classList.toggle('active', x === чип));
+    аптОтобрать();
+    return;
+  }
+  if (e.target.closest('[data-cats-open]')) { открыть_модалку('apt-cats'); return; }
+  const катЧип = e.target.closest('#apt-f-cats [data-cat]');
+  if (катЧип) { катЧип.classList.toggle('active'); return; }
+  const take = e.target.closest('[data-take]');
+  if (take) { аптПринять(take.dataset.take); return; }
+  const edit = e.target.closest('[data-edit]');
+  if (edit) { аптОткрытьФорму(аптПозиция(edit.dataset.edit)); return; }
+  const del = e.target.closest('[data-del]');
+  if (del) { аптСпросить(del.dataset.del); return; }
+});
+
+document.getElementById('apt-q').addEventListener('input', аптОтобрать);
+
+аптФормаСменилась();
+аптОтобрать();
+</script>
+
+{% include '_page_end.html' %}
+</body>
+</html>

@@ -1,0 +1,394 @@
+/* ══ АПТЕЧКА — РАСКЛАДКА ЭКРАНА ═══════════════════════════════════════
+   Всё оформление — из системы: цвета через токены, отступы по шкале
+   `--space-*`, кегли по `--text-*`. Здесь только то, чего в системе
+   нет и быть не должно, — раскладка конкретного экрана.
+
+   НИ ОДИН СИСТЕМНЫЙ КЛАСС НЕ СТОИТ СУБЪЕКТОМ СЕЛЕКТОРА (§6.0.2,
+   проверка 1). Где размер компонента на этом экране должен отличаться,
+   рядом с системным классом стоит СВОЙ — приём тот же, что у `.ds-arrow`
+   на `.btn-icon` в полоске дней дневника.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ШИРИНА — СВОИМ КЛАССОМ НА ТОМ ЖЕ ЭЛЕМЕНТЕ, что и системный
+   `.container-wide`, а не правкой самого контейнера: приём тот же, что
+   у `.ds-arrow` на `.btn-icon` в полоске дней дневника.
+
+   1920, а не системные 1600: у владельца два монитора, 1920 и 2560,
+   и на втором 1600 это 62.5% экрана — ровно та доля, которую он назвал
+   дефектом у админки (BACKLOG №148, «57.8%»). Число взято оттуда же,
+   чтобы страницы сайта не расходились в ширине между собой. */
+.apt-wrap {
+  /* `width: 100%` ОБЯЗАТЕЛЕН, и это не «на всякий случай». `<body>`
+     объявлен `page-column`, то есть flex-колонкой, а у системного
+     `.container` стоит `margin: 0 auto` — горизонтальные авто-поля
+     ОТМЕНЯЮТ растягивание flex-элемента, и ширина схлопывается
+     до содержимого.
+
+     На заполненном экране это незаметно: карточки широкие. А на ПУСТОЙ
+     аптечке схлопывалось всё сразу — заголовок, поиск, чипы и легенда
+     уезжали в центр узкой колонкой, и страница выглядела чужой.
+     Найдено снимком пустого состояния, а не чтением. */
+  width: 100%;
+  max-width: 1920px;
+  padding-top: var(--space-6);
+  padding-bottom: var(--space-7);
+}
+
+/* ── Шапка раздела ─────────────────────────────────────────────── */
+.apt-head { margin-bottom: var(--space-5); }
+.apt-title {
+  font-size: var(--text-h2);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-1);
+}
+.apt-sub {
+  color: var(--text-2);
+  font-size: var(--text-body-sm);
+  margin: 0;
+}
+
+/* ── Ряд поиска и кнопки ───────────────────────────────────────── */
+.apt-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.apt-search {
+  position: relative;
+  flex: 1 1 auto;
+  /* Потолок, а не «во всю ширину»: поле поиска шириной в 2400 пикселей
+     на широком мониторе читается как ошибка вёрстки, а набранный
+     в нём запрос теряется в пустоте */
+  max-width: 420px;
+}
+.apt-search .apt-search-ico {
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px; height: 16px;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.apt-search-input { padding-left: var(--space-7); }
+.apt-add { margin-left: auto; flex: 0 0 auto; }
+
+/* ── Ряд чипов отбора ──────────────────────────────────────────── */
+.apt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+/* ЗАЗОР МЕЖДУ РЯДАМИ ЧИПОВ НА СЕНСОРНОМ — 16, а не 8. Не оформление:
+   `.tap-44` добирает область нажатия невидимым слоем 44×44, а сам чип
+   28 высотой — слой свисает на 8 пикселей вверх и вниз. При зазоре 8
+   слои соседних РЯДОВ перекрываются, и нижний (он позже в разметке)
+   отъедает у верхнего часть области.
+
+   ЗАМЕРЕНО, а не выведено: до правки область чипов второго ряда была
+   42, 43 и 35 пикселей по высоте при обещанных 44 — то есть добор
+   «сработал» и был съеден соседом. Ровно вторая половина приёмки
+   §6.0.11: «не крадёт соседей».
+
+   16 — ступень шкалы и ровно та величина, при которой слои соседних
+   рядов СМЫКАЮТСЯ, не перекрываясь: 44 − 28 = 16. */
+@media (pointer: coarse) {
+  .apt-chips { row-gap: var(--space-4); }
+}
+.apt-chips .apt-chip-bad.chip {
+  /* Просроченное — единственный список, который надо разобрать
+     физически, и цвет здесь несёт этот смысл, а не украшает */
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.32);
+  color: var(--error);
+}
+.apt-chips .apt-chip-bad.chip.active {
+  background: rgba(239, 68, 68, 0.24);
+  border-color: var(--error);
+}
+.apt-chips .apt-chip-add.chip {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--border-strong);
+  color: var(--text-faint);
+}
+.apt-chip-add svg { width: 14px; height: 14px; }
+
+/* ── Сетка карточек ────────────────────────────────────────────────
+   КОНТЕЙНЕРНЫЙ ЗАПРОС, А НЕ МЕДИА: ширина сетки задаётся контейнером,
+   а не окном, и медиазапрос отвечал бы на вопрос о ШИРИНЕ ОКНА там,
+   где спрашивают о ширине БЛОКА. На 1920 окно и контейнер расходятся
+   на полосу прокрутки и поля — порог, выведенный по окну, промахивался
+   бы у самой границы.
+
+   КОНТЕЙНЕР ОБЪЯВЛЕН НА ОБЁРТКЕ, А НЕ НА САМОЙ СЕТКЕ, и это не вкус.
+   Элемент НЕ МОЖЕТ спросить `@container` про самого себя: запрос ищет
+   ближайшего ПРЕДКА-контейнера. Первая версия объявляла `container-type`
+   прямо на `.apt-grid` — правило не применялось ни разу, `auto-fill`
+   давал ПЯТЬ колонок на 1920 и на 2560 при требовании четыре.
+
+   Отказ был немой в чистом виде: синтаксис верен, консоль чиста,
+   карточки нарисованы, просто их пять. Нашёл замер, а не чтение. */
+#apt-grid-box {
+  container-type: inline-size;
+  container-name: aptbox;
+}
+.apt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+/* ЧЕТЫРЕ КАРТОЧКИ В РЯД на 1920 и 2560 — прямое требование постановки.
+   Порог взят от минимума колонки: 4×260 плюс три зазора по 16 — это 1088,
+   то есть правило отсекает ровно ту ширину, на которой `auto-fill` сам
+   ушёл бы в пятую колонку, и ни пикселем раньше. */
+@container aptbox (min-width: 1100px) {
+  .apt-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.apt-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.apt-card[hidden] { display: none; }
+
+/* Плитка фото рисуется ВСЕГДА: без неё карточки в ряду разной высоты,
+   а ряд из четырёх с провалом посередине читается как сбой вёрстки */
+.apt-ph {
+  aspect-ratio: 16 / 9;
+  background: var(--surface-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.apt-ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.apt-ph-mark svg { width: 28px; height: 28px; color: var(--text-faint); }
+.apt-ph-none { background: var(--surface-2); }
+
+.apt-in {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+}
+.apt-name {
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.35;
+}
+.apt-mnn {
+  color: var(--text-2);
+  font-size: var(--text-caption);
+  margin: 0;
+}
+.apt-meta {
+  color: var(--text-faint);
+  font-size: var(--text-caption);
+  margin: var(--space-1) 0 0;
+  display: flex;
+  flex-direction: column;
+}
+.apt-meta-line { display: block; }
+.apt-scale { margin-top: var(--space-2); }
+
+.apt-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+/* Три состояния срока — главная ценность экрана. Тон берётся
+   из семантических токенов, а не подбирается заново */
+.apt-badge-ok { background: rgba(16, 185, 129, 0.14); color: var(--success); }
+.apt-badge-warn { background: rgba(245, 158, 11, 0.14); color: var(--warning); }
+.apt-badge-bad { background: rgba(239, 68, 68, 0.14); color: var(--error); }
+
+/* Кнопка приёма прижата к низу: у карточек ряда разное число строк,
+   и без этого кнопки шли бы лесенкой — а нажимают их подряд */
+.apt-take {
+  margin-top: auto;
+  width: 100%;
+  justify-content: center;
+}
+.apt-take svg { width: 15px; height: 15px; }
+
+.apt-acts {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+/* Та же причина, что у зазора рядов чипов выше, только по горизонтали:
+   кнопка-значок 26px, доборный слой 44 свисает на 9 в каждую сторону,
+   и при зазоре 8 соседние слои перекрываются. Замер до правки: область
+   41 пиксель по ширине вместо 44 у всех трёх кнопок карточки.
+
+   24, а не 18: 18 не ступень шкалы, а ближайшая ступень вниз (16) даёт
+   42 — то есть не чинит. Растёт зазор ТОЛЬКО на сенсорном, на мыши
+   кнопки остаются в 8 пикселях друг от друга. */
+@media (pointer: coarse) {
+  .apt-acts { gap: var(--space-5); }
+}
+/* Управление карточкой приглушено в покое и проявляется при наведении:
+   на экране из двадцати четырёх карточек семьдесят две кнопки спорят
+   за внимание с тем, ради чего экран и открыли */
+.apt-act { opacity: 0.55; transition: opacity var(--dur-fast) var(--ease); }
+@media (hover: hover) {
+  .apt-card:hover .apt-act { opacity: 1; }
+}
+/* На сенсорном наведения нет, и приглушённая навсегда кнопка читается
+   как неактивная — там она видна всегда */
+@media (hover: none) {
+  .apt-act { opacity: 1; }
+}
+.apt-act:focus-visible { opacity: 1; }
+
+/* ── Легенда и подписи ─────────────────────────────────────────── */
+.apt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin: var(--space-5) 0 0;
+  color: var(--text-2);
+  font-size: var(--text-caption);
+}
+.apt-legend span { display: flex; align-items: center; gap: var(--space-2); }
+.apt-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.apt-dot-ok { background: var(--success); }
+.apt-dot-warn { background: var(--warning); }
+.apt-dot-bad { background: var(--error); }
+
+.apt-empty { margin: var(--space-7) 0; }
+.apt-empty-find { margin: var(--space-6) 0 0; }
+#apt-note { margin-top: var(--space-4); }
+
+/* ── Форма ─────────────────────────────────────────────────────── */
+.apt-form { display: flex; flex-direction: column; gap: var(--space-3); }
+.apt-row { display: grid; gap: var(--space-3); }
+.apt-row-2 { grid-template-columns: 1fr 1fr; }
+.apt-row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.apt-row .form-group { margin: 0; min-width: 0; }
+.apt-row .form-group[hidden] { display: none; }
+
+.apt-hint {
+  color: var(--text-faint);
+  font-size: var(--text-caption);
+  margin: var(--space-1) 0 0;
+  line-height: 1.4;
+}
+
+/* Единица стоит ВНУТРИ поля, а не подписью рядом: подпись «шт» под
+   полем читается как отдельная величина, а внутри — как размерность
+   того, что вводят */
+.apt-num { position: relative; }
+.apt-unit {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+  font-size: var(--text-caption);
+  pointer-events: none;
+}
+/* Место под единицу отбирается У СВОЕГО КЛАССА на том же элементе,
+   а не у системного `.input`: субъектом селектора системный компонент
+   не становится (§6.0.2, проверка 1). Приём тот же, что у поля поиска
+   выше и у `.ds-arrow` на `.btn-icon` в полоске дней дневника. */
+.apt-num-in { padding-right: var(--space-7); }
+
+.apt-place { display: flex; gap: var(--space-2); align-items: center; }
+.apt-place .select { flex: 1; min-width: 0; }
+.apt-place-new {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.apt-place-new .input { flex: 1; min-width: 0; }
+
+.apt-form-cats { margin-bottom: 0; }
+
+.apt-photo-row { display: flex; gap: var(--space-3); align-items: flex-start; }
+.apt-photo-row .input { flex: 1; min-width: 0; }
+.apt-photo-prev {
+  position: relative;
+  width: 96px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface-3);
+  flex: 0 0 auto;
+}
+.apt-photo-prev img { width: 100%; height: 100%; object-fit: cover; }
+.apt-photo-prev .btn-icon-overlay { position: absolute; top: 2px; right: 2px; }
+
+.apt-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.apt-switch-t { font-size: var(--text-body-sm); }
+.apt-switch .apt-hint { margin: 0; flex: 1; min-width: 180px; }
+
+.apt-err { margin: 0; }
+.apt-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.apt-del-name {
+  font-size: var(--text-body-lg);
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+}
+.apt-del-note { color: var(--text-2); font-size: var(--text-body-sm); margin: 0; }
+
+/* ── Окно категорий ────────────────────────────────────────────── */
+.apt-cat-add {
+  display: flex;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 var(--space-3);
+}
+.apt-cat-add .input { flex: 1; min-width: 0; }
+.apt-cat-list { list-style: none; margin: 0; padding: 0; }
+.apt-cat-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-hairline);
+}
+.apt-cat-item:last-child { border-bottom: 0; }
+.apt-cat-name { flex: 1; font-size: var(--text-body-sm); }
+.apt-cat-base { color: var(--text-faint); font-size: var(--text-caption); }
+
+/* ── Узкий экран ───────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  /* ПЛИТКА БЕЗ ФОТО НА УЗКОМ ЭКРАНЕ НЕ РИСУЕТСЯ. Она заведена ради
+     ОДНОГО: чтобы карточки В РЯДУ были одной высоты, а ряд из четырёх
+     с провалом посередине не читался как сбой вёрстки. При одной
+     колонке ряда нет — и выравнивать нечего.
+
+     Замер: 12 карточек × 201 px пустой плитки — это 2412 px из 7318,
+     треть страницы, отданная значку. Карточки С ФОТО плитку сохраняют:
+     там она несёт содержимое, а не выравнивание. */
+  .apt-ph-none { display: none; }
+  .apt-bar { flex-wrap: wrap; }
+  .apt-search { max-width: none; flex: 1 1 100%; }
+  .apt-add { margin-left: 0; flex: 1 1 100%; justify-content: center; }
+  .apt-row-2, .apt-row-3 { grid-template-columns: 1fr; }
+  .apt-legend { gap: var(--space-3); flex-direction: column; }
+  .apt-foot { flex-direction: column-reverse; }
+  .apt-foot .btn { width: 100%; justify-content: center; }
+}

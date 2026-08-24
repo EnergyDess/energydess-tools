@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Аптечка — эскиз</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0c11;
+  --surface-1:#14151f;
+  --surface-2:#1a1c27;
+  --surface-3:#20222e;
+  --border:rgba(255,255,255,.07);
+  --border-strong:rgba(255,255,255,.14);
+  --text:#e8eaf0;
+  --text-2:#9296a6;
+  --text-3:#6b6f7f;
+  --accent:#4a8fe0;
+  --accent-bg:rgba(74,143,224,.14);
+  --accent-br:rgba(74,143,224,.35);
+  --brand:#f0743a;
+  --ok:#3fa87a;
+  --ok-bg:rgba(63,168,122,.14);
+  --warn:#d9a441;
+  --warn-bg:rgba(217,164,65,.14);
+  --bad:#e05c58;
+  --bad-bg:rgba(224,92,88,.14);
+  --r:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Manrope,system-ui,sans-serif;font-size:15px;line-height:1.55}
+.page{max-width:1500px;margin:0 auto;padding:32px 28px 80px}
+.note{max-width:1040px;margin:0 0 18px;color:var(--text-2);font-size:14px}
+.note b{color:var(--text);font-weight:500}
+.sec{margin:56px 0 0}
+.sec-h{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);font-weight:500;margin:0 0 6px}
+.sec-t{font-size:22px;font-weight:500;margin:0 0 4px}
+.frame{background:var(--bg);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-top:18px}
+
+/* шапка сайта */
+.top{height:56px;background:var(--surface-1);display:flex;align-items:center;gap:20px;padding:0 20px;border-bottom:1px solid var(--border)}
+.logo{display:flex;align-items:center;gap:7px;font-weight:600;font-size:15px}
+.bolt{color:var(--brand);font-size:16px}
+.top-search{flex:0 0 420px;margin-left:auto;margin-right:auto;height:34px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r);display:flex;align-items:center;padding:0 12px;gap:8px;color:var(--text-3);font-size:13px}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--surface-3);flex:0 0 28px}
+
+/* панель вкладок раздела */
+.tabs{height:56px;background:var(--surface-1);display:flex;align-items:center;gap:26px;padding:0 20px;border-bottom:1px solid var(--border)}
+.tab{font-size:15px;color:var(--text-2);height:100%;display:flex;align-items:center;border-bottom:2px solid transparent}
+.tab.on{color:var(--text);border-bottom-color:var(--accent)}
+
+.body{padding:26px 24px 32px}
+h1.t{font-size:26px;font-weight:500;margin:0 0 4px}
+p.sub{color:var(--text-2);font-size:14px;margin:0 0 20px}
+
+.bar{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;flex:1}
+.chip{font-size:13px;padding:7px 13px;border-radius:var(--r);background:var(--surface-2);color:var(--text-2);border:1px solid transparent;white-space:nowrap}
+.chip .n{color:var(--text-3);margin-left:5px}
+.chip.on{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-br)}
+.chip.on .n{color:var(--accent)}
+.chip.bad{background:var(--bad-bg);color:var(--bad);border-color:rgba(224,92,88,.32)}
+.chip.bad .n{color:var(--bad)}
+.chip.add{border:1px dashed var(--border-strong);background:transparent;color:var(--text-3)}
+.search{width:300px;height:36px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r);display:flex;align-items:center;padding:0 12px;gap:8px;color:var(--text-3);font-size:13px}
+.btn{height:36px;padding:0 15px;border-radius:var(--r);display:inline-flex;align-items:center;gap:7px;font-size:14px;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text);white-space:nowrap}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.icon{width:36px;padding:0;justify-content:center}
+
+/* карточки */
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.card{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.card .ph{height:104px;background:var(--surface-3);display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:12px;position:relative}
+.card .who{position:absolute;right:8px;top:8px;width:22px;height:22px;border-radius:50%;background:var(--accent-bg);color:var(--accent);font-size:11px;display:flex;align-items:center;justify-content:center;border:1px solid var(--accent-br)}
+.card .in{padding:12px 13px 13px;display:flex;flex-direction:column;gap:3px;flex:1}
+.nm{font-size:15px;font-weight:500}
+.mnn{font-size:12.5px;color:var(--text-2)}
+.meta{font-size:12.5px;color:var(--text-3);margin-top:5px}
+.badge{display:inline-block;font-size:12px;padding:3px 9px;border-radius:7px;margin-top:9px;align-self:flex-start}
+.b-ok{background:var(--ok-bg);color:var(--ok)}
+.b-warn{background:var(--warn-bg);color:var(--warn)}
+.b-bad{background:var(--bad-bg);color:var(--bad)}
+.rx{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--text-3);border:1px solid var(--border);border-radius:6px;padding:2px 7px;margin-top:9px;align-self:flex-start}
+.take{margin-top:11px;height:32px;border-radius:8px;background:var(--surface-3);border:1px solid var(--border-strong);display:flex;align-items:center;justify-content:center;gap:7px;font-size:13px;color:var(--text)}
+.scale{margin-top:9px;height:5px;border-radius:3px;background:var(--surface-3);overflow:hidden}
+.scale i{display:block;height:100%;background:var(--text-3)}
+
+/* формы */
+.modal-wrap{background:rgba(0,0,0,.5);padding:34px;display:flex;justify-content:center}
+.modal{width:720px;background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 22px 22px}
+.modal.sm{width:470px}
+.mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.mh h3{margin:0;font-size:18px;font-weight:500}
+.row{display:grid;gap:12px;margin-bottom:12px}
+.c2{grid-template-columns:1fr 1fr}
+.c3{grid-template-columns:1.15fr 1fr 1fr}
+.c3b{grid-template-columns:1fr 1fr 1.25fr}
+.f label{display:block;font-size:12px;color:var(--text-2);margin-bottom:5px}
+.inp{height:36px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r);display:flex;align-items:center;justify-content:space-between;padding:0 11px;font-size:14px}
+.inp.ph{color:var(--text-3)}
+.inp .u{color:var(--text-3);font-size:13px}
+.ta{min-height:58px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r);padding:9px 11px;font-size:14px}
+.sw{display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:14px}
+.knob{width:34px;height:19px;border-radius:10px;background:var(--surface-3);border:1px solid var(--border-strong);position:relative;flex:0 0 34px}
+.knob b{position:absolute;left:2px;top:2px;width:13px;height:13px;border-radius:50%;background:var(--text-3)}
+.hint{font-size:12px;color:var(--text-3)}
+.link{color:var(--accent);font-size:13px}
+.mfoot{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+
+/* общая аптечка */
+.mtabs{display:flex;gap:18px;border-bottom:1px solid var(--border);margin-bottom:14px}
+.mtab{font-size:14px;color:var(--text-2);padding-bottom:9px;border-bottom:2px solid transparent}
+.mtab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.person{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--border)}
+.person:last-child{border-bottom:0}
+.pav{width:34px;height:34px;border-radius:50%;background:var(--accent-bg);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex:0 0 34px}
+.pav.g{background:var(--surface-3);color:var(--text-2)}
+.pn{font-size:14px}
+.pm{font-size:12px;color:var(--text-3)}
+.pm.w{color:var(--warn)}
+
+/* ассистент */
+.fab{width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px}
+.chat{width:400px;background:var(--surface-1);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.chat-h{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 15px;border-bottom:1px solid var(--border);font-size:15px;font-weight:500}
+.chat-b{padding:15px;display:flex;flex-direction:column;gap:12px}
+.msg{max-width:88%;padding:10px 13px;border-radius:12px;font-size:14px;line-height:1.5}
+.me{align-self:flex-end;background:var(--accent-bg);color:var(--text);border:1px solid var(--accent-br)}
+.ai{align-self:flex-start;background:var(--surface-2);border:1px solid var(--border)}
+.ai .found{display:flex;gap:10px;margin-top:9px;padding:9px 10px;background:var(--surface-3);border-radius:9px;align-items:center}
+.ai .found .sq{width:34px;height:34px;border-radius:7px;background:var(--bg);flex:0 0 34px}
+.ai .found .t1{font-size:13.5px;font-weight:500}
+.ai .found .t2{font-size:12px;color:var(--text-3)}
+.ai .warnline{margin-top:9px;font-size:12.5px;color:var(--warn)}
+.chat-f{height:46px;border-top:1px solid var(--border);display:flex;align-items:center;padding:0 15px;color:var(--text-3);font-size:13.5px}
+
+/* тост */
+.toast{display:inline-flex;align-items:center;gap:14px;background:var(--surface-3);border:1px solid var(--border-strong);border-radius:10px;padding:11px 15px;font-size:14px}
+.toast .un{color:var(--accent)}
+
+/* аннотации */
+.ann{margin-top:14px;padding:14px 16px;background:var(--surface-1);border-left:2px solid var(--brand);border-radius:0;font-size:13.5px;color:var(--text-2)}
+.ann b{color:var(--text);font-weight:500}
+.ann ul{margin:7px 0 0;padding-left:18px}
+.ann li{margin:4px 0}
+.legend{display:flex;gap:22px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--text-2)}
+.legend span{display:flex;align-items:center;gap:7px}
+.dot{width:9px;height:9px;border-radius:50%}
+@media(max-width:1100px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<p class="sec-h">Эскиз</p>
+<h1 class="t" style="font-size:30px">Аптечка — этап 1</h1>
+<p class="note">Пропорции и композиция, не пиксельная спецификация. Цвета, отступы и радиусы брать из системы токенов сайта, а не отсюда. Сетка — <b>четыре карточки в ряд</b> на 1920 и 2560.</p>
+
+<!-- 1 -->
+<div class="sec">
+  <p class="sec-h">Экран 1</p>
+  <p class="sec-t">Главный список</p>
+  <div class="frame">
+    <div class="top">
+      <div class="logo"><span class="bolt">⚡</span>EnergyDess</div>
+      <div class="top-search">Найти инструмент, письмо, продукт…</div>
+      <div class="avatar"></div>
+    </div>
+    <div class="body">
+      <h1 class="t">Аптечка</h1>
+      <p class="sub">Что лежит дома, сколько осталось и что пора выбросить</p>
+
+      <div class="bar">
+        <div class="search">Название, вещество или симптом</div>
+        <div style="flex:1"></div>
+        <div class="btn pri">+ Добавить</div>
+      </div>
+
+      <div class="bar">
+        <div class="chips">
+          <span class="chip on">Все <span class="n">24</span></span>
+          <span class="chip">Голова и боль <span class="n">6</span></span>
+          <span class="chip">Простуда <span class="n">7</span></span>
+          <span class="chip">Температура <span class="n">4</span></span>
+          <span class="chip">ЖКТ <span class="n">5</span></span>
+          <span class="chip">Аллергия <span class="n">2</span></span>
+          <span class="chip">Раны и ожоги <span class="n">4</span></span>
+          <span class="chip bad">Просрочено <span class="n">3</span></span>
+          <span class="chip add">+ Категория</span>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div class="ph">фото упаковки<div class="who">З</div></div>
+          <div class="in">
+            <div class="nm">Нурофен</div>
+            <div class="mnn">Ибупрофен · 200 мг</div>
+            <div class="meta">Таблетки · 18 из 20<br>Полка в ванной</div>
+            <span class="badge b-ok">до 03.2027</span>
+            <div class="take">− Принял 1 таблетку</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ph">фото упаковки<div class="who">Д</div></div>
+          <div class="in">
+            <div class="nm">Лазолван</div>
+            <div class="mnn">Амброксол · сироп</div>
+            <div class="meta">Осталось 60 из 100 мл<br>Кухонный шкаф</div>
+            <span class="badge b-warn">вскрыт 12.08 · 6 дней</span>
+            <div class="take">− Принял 10 мл</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ph">фото упаковки</div>
+          <div class="in">
+            <div class="nm">Смекта</div>
+            <div class="mnn">Диосмектит · порошок</div>
+            <div class="meta">Пакетики · 3 из 10<br>Полка в ванной</div>
+            <span class="badge b-bad">истекла 01.2026</span>
+            <div class="take">− Принял 1 пакетик</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ph">фото упаковки<div class="who">З</div></div>
+          <div class="in">
+            <div class="nm">Аугментин</div>
+            <div class="mnn">Амоксициллин · 875 мг</div>
+            <div class="meta">Таблетки · 6 из 14<br>Полка в ванной</div>
+            <span class="badge b-ok">до 09.2027</span>
+            <span class="rx">℞ рецептурный</span>
+            <div class="take">− Принял 1 таблетку</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ph">фото упаковки</div>
+          <div class="in">
+            <div class="nm">Левомеколь</div>
+            <div class="mnn">Мазь · тюбик</div>
+            <div class="meta">Заканчивается<br>Аптечка в машине</div>
+            <div class="scale"><i style="width:22%"></i></div>
+            <span class="badge b-ok">до 05.2027</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ph">фото упаковки</div>
+          <div class="in">
+            <div class="nm">Супрастин</div>
+            <div class="mnn">Хлоропирамин · 25 мг</div>
+            <div class="meta">Таблетки · 20 из 20<br>Полка в ванной</div>
+            <span class="badge b-ok">до 11.2028</span>
+            <div class="take">− Принял 1 таблетку</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span><i class="dot" style="background:#3fa87a"></i>годен</span>
+        <span><i class="dot" style="background:#d9a441"></i>истекает в ближайшие 30 дней либо вскрыт</span>
+        <span><i class="dot" style="background:#e05c58"></i>просрочен</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="ann">
+    <b>Что важно в этом экране</b>
+    <ul>
+      <li>Три состояния срока — главная ценность. Чип «Просрочено» красный и стоит последним намеренно: это единственный список, который надо разобрать физически.</li>
+      <li>Карточка отвечает на три вопроса сразу: сколько осталось, годен ли, где лежит.</li>
+      <li>Кружок с буквой в углу фото — кто из участников общей аптечки завёл позицию. На личной аптечке не рисуется вовсе.</li>
+      <li>Кнопка приёма подписана единицей этой позиции: таблетка, мл, пакетик. У мазей кнопки нет — там шкала.</li>
+      <li>Категорий может быть несколько на позицию. «+ Категория» заводит свою, как папку в телеграме.</li>
+      <li>Плитка «Добавить» внутри сетки не нужна — есть кнопка в шапке раздела.</li>
+      <li>Своей панели навигации у раздела нет: шапка сайта, затем сразу заголовок, как у остальных инструментов. Панель вкладок есть только у админки, и переносить её сюда не надо.</li>
+      <li>Кнопки участников на первом этапе нет — вести ей пока некуда. Появится на этапе 2 вместе с общей аптечкой.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- 2 -->
+<div class="sec">
+  <p class="sec-h">Экран 2</p>
+  <p class="sec-t">Добавление и правка</p>
+  <div class="frame">
+    <div class="modal-wrap">
+      <div class="modal">
+        <div class="mh">
+          <h3>Добавить лекарство</h3>
+          <div class="btn">⌗ Сканировать код</div>
+        </div>
+
+        <div class="row c2">
+          <div class="f"><label>Название</label><div class="inp">Нурофен</div></div>
+          <div class="f"><label>Действующее вещество</label><div class="inp">Ибупрофен, 200 мг</div></div>
+        </div>
+
+        <div class="row c3">
+          <div class="f"><label>Форма выпуска</label><div class="inp">Таблетки <span class="u">▾</span></div></div>
+          <div class="f"><label>Осталось</label><div class="inp">18 <span class="u">шт</span></div></div>
+          <div class="f"><label>Было в упаковке</label><div class="inp">20 <span class="u">шт</span></div></div>
+        </div>
+
+        <div class="row c3b">
+          <div class="f"><label>Годен до</label><div class="inp">03.2027</div></div>
+          <div class="f"><label>Вскрыто</label><div class="inp ph">не вскрыто</div></div>
+          <div class="f"><label>Где лежит</label><div class="inp">Полка в ванной <span class="u">▾</span></div></div>
+        </div>
+
+        <div class="row c2">
+          <div class="f"><label>Разовая доза</label><div class="inp">1 <span class="u">таблетка</span></div></div>
+          <div class="f"><label>Фото упаковки</label><div class="inp ph">Загрузить или снять камерой</div></div>
+        </div>
+
+        <div class="f" style="margin-bottom:14px">
+          <label>Категории</label>
+          <div class="chips">
+            <span class="chip on">Голова и боль</span>
+            <span class="chip on">Температура</span>
+            <span class="chip">Простуда</span>
+            <span class="chip">ЖКТ</span>
+            <span class="chip">Аллергия</span>
+            <span class="chip add">+ Своя</span>
+          </div>
+        </div>
+
+        <div class="sw">
+          <div class="knob"><b></b></div>
+          <div>Рецептурный</div>
+          <div class="hint">— ассистент не предлагает его как вариант, в списке покупок помечен «нужен рецепт»</div>
+        </div>
+
+        <div class="f" style="margin-bottom:12px">
+          <label>Заметка</label>
+          <div class="ta">Врач сказал по 1 таблетке после еды, не больше 3 в день</div>
+        </div>
+
+        <div class="link">↗ Инструкция в госреестре</div>
+
+        <div class="mfoot">
+          <div class="btn">Отмена</div>
+          <div class="btn pri">Сохранить</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ann">
+    <b>Механика формы</b>
+    <ul>
+      <li>Форма выпуска выбирается первой и определяет единицу: штуки / мл / граммы / пакетики / тюбик. Несочетаемое выбрать нельзя.</li>
+      <li>Для тюбика поля «осталось» нет — вместо него шкала «полный / половина / заканчивается». Точное число там было бы враньём.</li>
+      <li>«Разовая доза» по умолчанию 1 для штучных форм, для сиропа задаётся вручную. Кнопка приёма снимает ровно её.</li>
+      <li>«Годен до» — обязательное. «Вскрыто» ставится либо руками, либо автоматически при первом приёме.</li>
+      <li>Инструкция — только ссылка на источник. Текст дозировок в базу не копируется и не пересказывается.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- 3 -->
+<div class="sec">
+  <p class="sec-h">Экран 3</p>
+  <p class="sec-t">Списание с отменой</p>
+  <div class="frame">
+    <div style="padding:34px;display:flex;justify-content:center">
+      <div class="toast">Списано: 1 таблетка Нурофена · осталось 17 <span class="un">Отменить</span></div>
+    </div>
+  </div>
+  <div class="ann">
+    <b>Правило</b> — подтверждения перед приёмом нет, оно убивает смысл быстрой кнопки. Вместо него отмена на несколько секунд после. Два тапа = две таблетки. Точное значение всегда можно поправить руками в карточке.
+  </div>
+</div>
+
+<!-- 4 -->
+<div class="sec">
+  <p class="sec-h">Экран 4</p>
+  <p class="sec-t">Общая аптечка (этап 2, здесь для полноты)</p>
+  <div class="frame">
+    <div class="modal-wrap">
+      <div class="modal sm">
+        <div class="mh"><h3>Общая аптечка</h3><span style="color:var(--text-3)">✕</span></div>
+        <div class="mtabs">
+          <span class="mtab on">Участники 2</span>
+          <span class="mtab">Приглашения 1</span>
+          <span class="mtab">Заблокированные</span>
+        </div>
+        <div class="inp ph" style="margin-bottom:14px;justify-content:space-between">Почта или ник на сайте <span class="link">Пригласить</span></div>
+        <div class="person">
+          <div class="pav">Д</div>
+          <div style="flex:1"><div class="pn">denison7111@gmail.com</div><div class="pm">Владелец · 16 позиций</div></div>
+        </div>
+        <div class="person">
+          <div class="pav">З</div>
+          <div style="flex:1"><div class="pn">zakatkinaa@mail.ru</div><div class="pm">Участник с 20.06 · 8 позиций</div></div>
+          <span style="color:var(--text-3)">⋯</span>
+        </div>
+        <div class="person">
+          <div class="pav g">Е</div>
+          <div style="flex:1"><div class="pn">ellniko@yandex.ru</div><div class="pm w">Приглашение отправлено вчера</div></div>
+          <span style="color:var(--text-2);font-size:13px">Отозвать</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ann">
+    Список общий, но у каждой позиции остаётся владелец — иначе при выходе участника непонятно, чьи лекарства уносить. Блокировка действует до приглашения, а не после. Нужна лента «что изменилось» за две недели, иначе список молча меняется под руками.
+  </div>
+</div>
+
+<!-- 5 -->
+<div class="sec">
+  <p class="sec-h">Экран 5</p>
+  <p class="sec-t">Виджет ассистента (этап 3, здесь для полноты)</p>
+  <div class="frame">
+    <div style="padding:34px;display:flex;gap:34px;align-items:flex-end;justify-content:center">
+      <div class="fab">✦</div>
+      <div class="chat">
+        <div class="chat-h">Аптечка — помощник <span style="color:var(--text-3);font-weight:400">✕</span></div>
+        <div class="chat-b">
+          <div class="msg me">Болит голова, есть что-нибудь?</div>
+          <div class="msg ai">
+            Есть.
+            <div class="found">
+              <div class="sq"></div>
+              <div><div class="t1">Нурофен · ибупрофен 200 мг</div><div class="t2">18 таблеток · до 03.2027 · полка в ванной</div></div>
+            </div>
+            <div class="warnline">Пенталгин тоже подходит, но истёк в январе — выбросить.</div>
+          </div>
+          <div class="msg me">А от изжоги?</div>
+          <div class="msg ai">Ничего из этой группы в аптечке нет. В аптеке спроси у фармацевта — он подберёт под тебя и посмотрит наличие.</div>
+        </div>
+        <div class="chat-f">Спросить про симптом или лекарство…</div>
+      </div>
+    </div>
+  </div>
+  <div class="ann">
+    <b>Границы ассистента</b>
+    <ul>
+      <li>Отвечает только из базы. В ответе всегда конкретный остаток, срок и место — их нельзя выдумать.</li>
+      <li>Когда пусто — называет группу и отправляет к фармацевту, конкретный препарат не называет.</li>
+      <li>Дозировки не пересказывает никогда.</li>
+      <li>Рецептурные позиции как вариант не предлагает.</li>
+      <li>Стоп-симптомы (боль в груди, одышка, температура у ребёнка, травма головы, необычная реакция на препарат) — сразу к врачу, без похода в базу.</li>
+      <li>Свёрнутая кнопка рисуется сервером и присутствует в разметке с первого кадра. Содержимое панели грузится при первом открытии. Иначе виджет вернёт пустой кадр — см. §6.0.17.</li>
+    </ul>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

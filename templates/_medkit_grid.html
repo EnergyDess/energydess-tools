@@ -1,0 +1,133 @@
+{# СЕТКА КАРТОЧЕК АПТЕЧКИ — ЕДИНСТВЕННЫЙ ПОСТРОИТЕЛЬ КАРТОЧКИ.
+
+   Потребителей два: первая отрисовка страницы (`medkit.html` включает
+   этот файл) и обновление после любой правки (`/medkit/api/grid`
+   рендерит его же и отдаёт готовой разметкой).
+
+   ВТОРОГО ПОСТРОИТЕЛЯ В БРАУЗЕРЕ НЕТ, и это решение. Собери карточку JS —
+   их стало бы два, и разошлись бы они молча: после сохранения человек
+   видел бы не то же самое, что при загрузке страницы, а заметить это
+   можно было бы только перезагрузив. Плюс первый нарисованный кадр
+   приезжал бы пустым и дорисовывался после — ровно то, что чинила
+   задача 149 (§6.0.15).
+
+   Отбор и поиск разметки НЕ СТРОЯТ: они прячут и показывают уже
+   нарисованные карточки по атрибутам `data-*`. Поэтому фильтрация
+   и не может разойтись с отрисовкой — рисует всегда одно место.
+
+   Имена атрибутов ЛАТИНИЦЕЙ: они уезжают в `element.dataset`, то есть
+   в машинный слой (§6.0). #}
+
+{% if not позиции %}
+  {# ПУСТОЕ СОСТОЯНИЕ — ПРИГЛАШЕНИЕ, А НЕ «ЗДЕСЬ НИЧЕГО НЕТ» (постановка
+     B.5). Системный компонент .empty-state (design-system.md §2.20);
+     отбивка вокруг него принадлежит месту применения, а не компоненту #}
+  <div class="empty-state empty-state-hero apt-empty" id="apt-empty-all">
+    <span class="empty-state-icon">{{ значок('pill') }}</span>
+    <p class="empty-state-title">Аптечка пока пустая</p>
+    <p class="empty-state-sub">Заведите первую упаковку — и станет видно,
+      что дома есть, сколько осталось и что пора выбросить.</p>
+    <button class="btn btn-primary" type="button" onclick="аптОткрытьФорму()">
+      {{ значок('plus') }} Добавить лекарство
+    </button>
+  </div>
+{% else %}
+<div class="apt-grid" id="apt-grid">
+  {% for п in позиции %}
+  <article class="card card-flush apt-card"
+           data-id="{{ п.id }}"
+           data-state="{{ п.состояние }}"
+           data-cats="{{ п.категории | join(',') }}"
+           data-find="{{ п.искать }}">
+    {# ФОТО. Плитка рисуется и без картинки: без неё карточки в ряду
+       разной высоты, а ряд из четырёх с провалом посередине читается
+       как сбой вёрстки #}
+    <div class="apt-ph{{ ' apt-ph-none' if not п.photo }}">
+      {% if п.photo %}
+        <img src="{{ п.photo }}" alt="Упаковка: {{ п.name }}" loading="lazy">
+      {% else %}
+        <span class="apt-ph-mark" aria-hidden="true">{{ значок('pill') }}</span>
+      {% endif %}
+    </div>
+
+    <div class="apt-in">
+      <h3 class="apt-name">{{ п.name }}</h3>
+      {% if п.substance %}<p class="apt-mnn">{{ п.substance }}</p>{% endif %}
+
+      <p class="apt-meta">
+        <span class="apt-meta-line">{{ п.остаток_строкой }}</span>
+        {% if п.место %}<span class="apt-meta-line">{{ п.место }}</span>{% endif %}
+      </p>
+
+      {% if п.счёт == 'шкала' %}
+      {# Системная полоса заполнения (§2.17). Число под ней не пишется:
+         точного числа у тюбика не существует по построению #}
+      <div class="meter apt-scale" role="img"
+           aria-label="Осталось: {{ п.шкала_имя|lower }}">
+        <div class="meter-fill" style="width: {{ п.шкала_доля }}%"></div>
+      </div>
+      {% endif %}
+
+      <div class="apt-badges">
+        <span class="badge apt-badge apt-badge-{{ п.состояние_тон }}">
+          {{ п.состояние_подпись }}</span>
+        {% if п.is_rx %}
+        {# Рецептурный — ПОМЕТКА, а не запрет. Инструмент не решает,
+           что человеку принимать; он говорит, что без рецепта эту пачку
+           в аптеке не продадут #}
+        <span class="badge badge-muted apt-rx">℞ рецептурный</span>
+        {% endif %}
+      </div>
+
+      {% if п.подпись_приёма %}
+      {# ПОДТВЕРЖДЕНИЯ ПЕРЕД ПРИЁМОМ НЕТ — оно убивает смысл быстрой
+         кнопки (постановка B.3). Вместо него полоса отмены ПОСЛЕ.
+         Подпись собрана СЕРВЕРОМ вместе со склонением: второй
+         реализации правил русского счёта в браузере нет (§6.0.7) #}
+      <button class="btn btn-secondary apt-take" type="button"
+              data-take="{{ п.id }}"
+              {% if not п.qty_left %}disabled
+                 title="Ничего не осталось — правьте карточку"{% endif %}>
+        {{ значок('minus') }} {{ п.подпись_приёма }}
+      </button>
+      {% endif %}
+
+      <div class="apt-acts">
+        <button class="btn-icon btn-icon-sm tap-44 apt-act" type="button"
+                data-edit="{{ п.id }}" aria-label="Правка: {{ п.name }}"
+                title="Правка">{{ значок('pencil') }}</button>
+        {% if п.leaflet_url %}
+        {# ТОЛЬКО ССЫЛКА НА ИСТОЧНИК. Текст инструкции и дозировки
+           не копируется и не пересказывается — прямой запрет постановки #}
+        <a class="btn-icon btn-icon-sm tap-44 apt-act" target="_blank"
+           rel="noopener" href="{{ п.leaflet_url }}"
+           aria-label="Инструкция: {{ п.name }}"
+           title="Инструкция в источнике">{{ значок('external-link') }}</a>
+        {% endif %}
+        <button class="btn-icon btn-icon-sm btn-icon-danger tap-44 apt-act"
+                type="button" data-del="{{ п.id }}"
+                aria-label="Удалить: {{ п.name }}"
+                title="Удалить">{{ значок('trash-2') }}</button>
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+
+{# ЧТО ИМЕННО ПОКАЗАНО — системный `.data-note` (§2.24). Строка нужна
+   ровно потому, что отбор и поиск прячут карточки: без неё «6 карточек»
+   на экране с 24 позициями читается как потеря данных #}
+<p class="data-note" id="apt-note"></p>
+
+{# Пустая выдача ОТБОРА — это НЕ пустая аптечка, и подставлять одно
+   вместо другого нельзя (тот же довод, что у областей поиска в дневнике,
+   §5.0.4). Блок лежит рядом с сеткой и показывается скриптом #}
+<div class="empty-state apt-empty-find" id="apt-empty-find" hidden>
+  <span class="empty-state-icon">{{ значок('search') }}</span>
+  <p class="empty-state-title">Здесь ничего не нашлось</p>
+  <p class="empty-state-sub" id="apt-empty-find-sub"></p>
+  <button class="btn btn-secondary" type="button" onclick="аптСброситьОтбор()">
+    Показать всю аптечку
+  </button>
+</div>
+{% endif %}
