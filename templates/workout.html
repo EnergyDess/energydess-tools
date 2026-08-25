@@ -1582,16 +1582,27 @@
   });
 
   $('#wkChatPhotoBtn').addEventListener('click', function () { $('#wkChatPhotoInput').click(); });
-  $('#wkChatPhotoInput').addEventListener('change', function () {
-    var file = this.files[0];
-    if (!file) return;
+  $('#wkChatPhotoInput').addEventListener('change', async function () {
+    var исходный = this.files[0];
+    if (!исходный) return;
+    /* УЖИМАЕМ ПЕРЕД ОТПРАВКОЙ — системным компонентом, тем же, что
+       у переписки дневника питания. Здесь его не было: снимок камеры
+       уезжал оригиналом, а дальше он идёт В МОДЕЛЬ, где картинка
+       свыше 5 МБ — гарантированный отказ (§2.1, VISION_IMAGE_MAX_MB) */
+    var итог = await уменьшитьФото(исходный, 1920, 0.9);
+    var file = итог.blob;
     var box = $('#wkChatMessages');
-    var reader = new FileReader();
-    reader.onload = function (e) {
-      box.appendChild(chatMsgEl('user', '[фото тренажёра]<img src="' + e.target.result + '">'));
+    if (итог.dataUrl) {
+      box.appendChild(chatMsgEl('user', '[фото тренажёра]<img src="' + итог.dataUrl + '">'));
       box.scrollTop = box.scrollHeight;
-    };
-    reader.readAsDataURL(file);
+    } else {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        box.appendChild(chatMsgEl('user', '[фото тренажёра]<img src="' + e.target.result + '">'));
+        box.scrollTop = box.scrollHeight;
+      };
+      reader.readAsDataURL(file);
+    }
 
     var loading = chatMsgEl('assistant', 'Смотрю фото…');
     loading.classList.add('wk-chat-loading');
@@ -1921,6 +1932,9 @@
 </script>
 
 <script src="{{ st('modal.js') }}"></script>
+{# УМЕНЬШЕНИЕ ФОТО — системный компонент: снимок тренажёра уходит
+   в модель, а картинка свыше 5 МБ там отказывает гарантированно #}
+<script src="{{ st('image-resize.js') }}"></script>
 {% include '_page_end.html' %}
 </body>
 </html>

@@ -944,6 +944,24 @@ class MedkitItem(Base):
     # строку целиком — вторая пачка того же препарата не нашлась бы
     # по коду никогда, а выглядело бы это как «сканер не сработал»
     code_gtin = Column(String, nullable=True, index=True)
+    # ── СПОСОБ ПРИЁМА: ДОСЛОВНАЯ ВЫДЕРЖКА, ИСТОЧНИК И ДАТА ───────────
+    #
+    # Хранится ТЕКСТ, и это не противоречит запрету выше на копирование
+    # инструкции — запрет был на ПЕРЕСКАЗ. Здесь лежит дословная цитата
+    # раздела о дозировании с именем источника и датой получения рядом:
+    # пересказ опасен тем, что «по 1 таблетке 3 раза» превращается
+    # в «по 3 таблетки 1 раз» незаметно, а цитата этим свойством
+    # не обладает.
+    #
+    # ДАТА ОБЯЗАТЕЛЬНА И ХРАНИТСЯ РЯДОМ С ТЕКСТОМ. У сохранённого текста
+    # устаревает источник, а страница обновляется — значит человек
+    # должен видеть, на какой день снята выдержка, и иметь ссылку
+    # проверить (постановка D.6). Текст без даты был бы утверждением
+    # о сегодня, сделанным полгода назад.
+    dosage_text = Column(Text, nullable=True)
+    dosage_source = Column(String, nullable=True)   # имя справочника
+    dosage_url = Column(String, nullable=True)      # страница ЭТОГО препарата
+    dosage_fetched_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
@@ -1117,6 +1135,12 @@ def migrate_db():
         # строка здесь нужна тем базам, где таблица уже создалась
         # с прежним именем `photo` за время самого захода
         "ALTER TABLE medkit_items ADD COLUMN image_path VARCHAR",
+        # Способ приёма — дословная выдержка с источником и датой
+        # (BACKLOG №172, блок D)
+        "ALTER TABLE medkit_items ADD COLUMN dosage_text TEXT",
+        "ALTER TABLE medkit_items ADD COLUMN dosage_source VARCHAR",
+        "ALTER TABLE medkit_items ADD COLUMN dosage_url VARCHAR",
+        "ALTER TABLE medkit_items ADD COLUMN dosage_fetched_at DATETIME",
     ]:
         try:
             conn.execute(col)

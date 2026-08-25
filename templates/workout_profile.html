@@ -285,13 +285,21 @@
     var input = $('#wkPhoto' + suffix);
     var slot = $('#wkSlot' + suffix);
     slot.addEventListener('click', function () { input.click(); });
-    input.addEventListener('change', function () {
+    input.addEventListener('change', async function () {
       var file = this.files[0];
       if (!file) return;
-      wkBodyPhotoFiles[angle] = file;
+      /* УЖИМАЕМ ПРИ ВЫБОРЕ — системным компонентом, тем же, что у фото
+         прогресса в дневнике питания (хранилище у них общее, эндпоинт
+         тот же). Здесь его не было: снимок камеры уезжал оригиналом */
+      var итог = await уменьшитьФото(file, 1920, 0.9);
+      wkBodyPhotoFiles[angle] = итог.blob;
+      if (итог.dataUrl) {
+        slot.innerHTML = '<img src="' + итог.dataUrl + '">';
+        return;
+      }
       var reader = new FileReader();
       reader.onload = function (e) { slot.innerHTML = '<img src="' + e.target.result + '">'; };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(итог.blob);
     });
   });
   $('#wkUploadPhotosBtn').addEventListener('click', function () {
@@ -486,6 +494,9 @@
   });
 })();
 </script>
+{# УМЕНЬШЕНИЕ ФОТО — системный компонент, тот же, что у дневника
+   питания: хранилище фото прогресса у них общее и эндпоинт один #}
+<script src="{{ st('image-resize.js') }}"></script>
 {% include '_page_end.html' %}
 </body>
 </html>

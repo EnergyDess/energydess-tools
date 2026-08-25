@@ -4295,14 +4295,21 @@ async function disconnectScale(ключ_мёртв) {
 
 // ── Фото-дневник прогресса тела ───────────────────────────────────────────────
 const bodyPhotoFiles = {};
-function previewBodyPhoto(input, angle) {
+async function previewBodyPhoto(input, angle) {
   const file = input.files[0];
   if (!file) return;
-  bodyPhotoFiles[angle] = file;
+  /* УЖИМАЕМ ПРИ ВЫБОРЕ — тем же системным компонентом, что фото еды
+     и вложение переписки. Здесь его НЕ БЫЛО: фото прогресса уезжало
+     оригиналом камеры, то есть до десяти мегабайт по мобильной сети
+     и раскрытие кадра целиком в памяти машины на 256 МБ (§5.8).
+     Превью строится из ужатого — человек видит ровно то, что уедет. */
+  const { blob, dataUrl } = await resizeImage(file, 1920, 0.9);
+  bodyPhotoFiles[angle] = blob;
   const slot = document.getElementById('slot-' + angle);
+  if (dataUrl) { slot.innerHTML = '<img src="' + dataUrl + '">'; return; }
   const reader = new FileReader();
   reader.onload = e => { slot.innerHTML = '<img src="' + e.target.result + '">'; };
-  reader.readAsDataURL(file);
+  reader.readAsDataURL(blob);
 }
 async function uploadBodyPhotos() {
   const angles = Object.keys(bodyPhotoFiles);
