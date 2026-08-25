@@ -959,6 +959,18 @@ class MedkitItem(Base):
     # проверить (постановка D.6). Текст без даты был бы утверждением
     # о сегодня, сделанным полгода назад.
     dosage_text = Column(Text, nullable=True)
+    # РАЗМЕТКА ТОГО ЖЕ ТЕКСТА: заголовки, абзацы, списки, таблицы
+    # (BACKLOG №173, блок A). JSON-список блоков, и это НЕ вторая
+    # копия выдержки: `dosage_text` остаётся источником правды,
+    # а блоки показываются, лишь пока их плоское чтение совпадает
+    # с ним ПОСИМВОЛЬНО. Не совпало — колонка пуста, на экране
+    # прежний плоский текст.
+    #
+    # ПУСТО У ВСЕХ, КТО ЗАВЁЛ ВЫДЕРЖКУ ДО ЭТОЙ ПРАВКИ, и это законно:
+    # разметку взять неоткуда — HTML страницы мы не храним, а вывести
+    # её из плоского текста значило бы догадываться о смысле, чего
+    # правило D.1 не разрешает.
+    dosage_blocks = Column(Text, nullable=True)
     dosage_source = Column(String, nullable=True)   # имя справочника
     dosage_url = Column(String, nullable=True)      # страница ЭТОГО препарата
     dosage_fetched_at = Column(DateTime, nullable=True)
@@ -1141,6 +1153,8 @@ def migrate_db():
         "ALTER TABLE medkit_items ADD COLUMN dosage_source VARCHAR",
         "ALTER TABLE medkit_items ADD COLUMN dosage_url VARCHAR",
         "ALTER TABLE medkit_items ADD COLUMN dosage_fetched_at DATETIME",
+        # Разметка выдержки (BACKLOG №173, блок A)
+        "ALTER TABLE medkit_items ADD COLUMN dosage_blocks TEXT",
     ]:
         try:
             conn.execute(col)
