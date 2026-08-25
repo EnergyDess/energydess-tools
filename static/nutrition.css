@@ -1412,20 +1412,10 @@ html.assistant-mode, html.assistant-mode body {
   display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent;
 }
 /* ── Меню "Камера / Галерея" у кнопки-скрепки ── */
-.attach-wrap { position: relative; flex-shrink: 0; }
-.attach-menu {
-  position: absolute; bottom: calc(100% + var(--space-2)); left: 0; display: none; flex-direction: column;
-  background: var(--surface-sunken); border: 1px solid var(--border); border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md); overflow: hidden; z-index: 60; min-width: 10.5rem;
-  animation: voice-fade-in .12s ease;
-}
-.attach-menu button {
-  display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3) var(--space-4);
-  background: none; border: none; color: var(--text); font-size: var(--text-caption); text-align: left;
-  cursor: pointer; -webkit-tap-highlight-color: transparent;
-}
-.attach-menu button:active { background: var(--surface-1); color: var(--tool-accent); }
-.attach-menu svg { width: 1.125rem; height: 1.125rem; flex-shrink: 0; }
+/* МЕНЮ ВЛОЖЕНИЯ ПЕРЕЕХАЛО В `style.css` — системный компонент.
+   Потребителей стало два (дневник и аптечка), и вторая копия правил
+   разошлась бы с первой молча (задача 126). Та же дорога, что прошли
+   запись голоса и уменьшение фото. */
 /* ЗАПИСЬ ГОЛОСА ПЕРЕЕХАЛА В `style.css` — системный компонент.
    Потребителей стало два (дневник и аптечка), и вторая копия правил
    разошлась бы с первой молча. Здесь осталось только то, что про ЭТОТ

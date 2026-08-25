@@ -3371,3 +3371,32 @@ body.auth-layout .auth-wrap {
 @media (hover: hover) {
   .btn-danger:hover { background: color-mix(in srgb, var(--error) 10%, transparent); }
 }
+
+
+/* ── МЕНЮ ВЛОЖЕНИЯ: СНЯТЬ НА КАМЕРУ ИЛИ ВЗЯТЬ ИЗ ГАЛЕРЕИ ──────────────
+ *
+ * Потребителей два: переписка дневника питания и панель ассистента
+ * аптечки. До 2026-08-25 правила лежали в `nutrition.css` при одном
+ * потребителе, и копия для аптечки стала бы дублем (задача 126).
+ *
+ * ЗАЧЕМ МЕНЮ, А НЕ ОДНА КНОПКА. `capture="environment"` на поле файла
+ * заставляет Android открыть КАМЕРУ и не пускает в галерею вовсе.
+ * Комментарий в аптечке утверждал обратное — «на десктопе атрибут
+ * игнорируется, поэтому второй кнопки не нужно», — и это верно ровно
+ * про десктоп: владелец снял упаковку заранее и вставить снимок
+ * не смог ничем. Двух путей требует не вкус, а поведение платформы.
+ */
+.attach-wrap { position: relative; flex-shrink: 0; }
+.attach-menu {
+  position: absolute; bottom: calc(100% + var(--space-2)); left: 0; display: none; flex-direction: column;
+  background: var(--surface-sunken); border: 1px solid var(--border); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md); overflow: hidden; z-index: 60; min-width: 10.5rem;
+  animation: voice-fade-in .12s ease;
+}
+.attach-menu button {
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3) var(--space-4);
+  background: none; border: none; color: var(--text); font-size: var(--text-caption); text-align: left;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.attach-menu button:active { background: var(--surface-1); color: var(--tool-accent); }
+.attach-menu svg { width: 1.125rem; height: 1.125rem; flex-shrink: 0; }
