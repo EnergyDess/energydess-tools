@@ -3144,7 +3144,16 @@ async function onChatAttach(e) {
   e.target.value = '';
   const { blob, dataUrl } = await resizeImage(file, 1920, 0.9);
   S.chatAttachment = blob;
-  S.chatAttachmentPreview = dataUrl;
+  /* ЗАПАСНОЙ АДРЕС ОБЯЗАТЕЛЕН (BACKLOG №177, C.2, второй путь).
+     `dataUrl` пуст на КАЖДОМ пути, где браузер картинку не открыл, —
+     а таких два: незнакомый формат (HEIC с айфона) и отказ `toBlob`.
+     Тогда снимок уходит на сервер как есть, а в ленте оставалась
+     голая надпись «Фото блюда»: превью нет, признака нет.
+     У панели аптечки запасной адрес был с самого начала
+     (`итог.dataUrl || URL.createObjectURL(итог.blob)`), здесь — нет.
+     Ровно тот же класс, что чинит C.2 в аптечке: правка легла
+     на один путь из двух. */
+  S.chatAttachmentPreview = dataUrl || (blob ? URL.createObjectURL(blob) : null);
   if (dataUrl) document.querySelectorAll('.chat-attach-img').forEach(img=>img.src = dataUrl);
   document.querySelectorAll('.chat-attach-preview').forEach(el=>el.style.display = 'flex');
 }

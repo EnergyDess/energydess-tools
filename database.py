@@ -974,6 +974,40 @@ class MedkitItem(Base):
     dosage_source = Column(String, nullable=True)   # имя справочника
     dosage_url = Column(String, nullable=True)      # страница ЭТОГО препарата
     dosage_fetched_at = Column(DateTime, nullable=True)
+    # ── СВОЯ СХЕМА С УПАКОВКИ ────────────────────────────────────────
+    #
+    # BACKLOG №177, блок A. ОТДЕЛЬНАЯ КОЛОНКА, А НЕ `dosage_text`,
+    # и не поле `note` — три разные вещи с тремя разными источниками:
+    #
+    #   `dosage_text`      выдержка ИЗ СПРАВОЧНИКА, дословная, с датой
+    #   `own_dosage_text`  то, что напечатано НА ЭТОЙ ПАЧКЕ, переписал
+    #                      человек
+    #   `note`             что назначил ВРАЧ лично
+    #
+    # Слив их в одну колонку, мы потеряли бы ровно то, ради чего
+    # выдержке нужны источник и дата: через полгода не отличить,
+    # откуда взялось число. Поэтому пометка «ваша запись» на экране
+    # обязательна, и держится она РАЗНЫМИ КОЛОНКАМИ, а не флагом
+    # рядом со общим текстом.
+    #
+    # СВОЯ ЗАПИСЬ ГЛАВНЕЕ СПРАВОЧНИКА (A.2) и не сбрасывается ничем:
+    # ни обновлением выдержки, ни правкой полей сопоставления, ни
+    # списанием. Она с той самой пачки, которая лежит в аптечке, —
+    # справочник про эту пачку знает меньше, чем её упаковка.
+    own_dosage_text = Column(Text, nullable=True)
+    own_dosage_at = Column(DateTime, nullable=True)
+    # ── ПОЧЕМУ СПРАВОЧНИК НИЧЕГО НЕ ДАЛ ──────────────────────────────
+    #
+    # BACKLOG №177, блок B.3. Причина ЗАПОМИНАЕТСЯ, потому что поиск
+    # уже сделан фоном при заведении карточки: не запомнив её, окно
+    # обязано либо промолчать («схема ещё не найдена» — неправда,
+    # искали), либо сходить в справочник ЗАНОВО у человека на глазах.
+    #
+    # Для добавки отсутствие схемы — НОРМАЛЬНОЕ ПОЛОЖЕНИЕ ДЕЛ, а не
+    # сбой: инструкций с режимом дозирования на БАДы не выпускают.
+    # Показать это сразу можно только тем, что причина лежит рядом.
+    dosage_miss = Column(Text, nullable=True)
+    dosage_miss_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
@@ -1155,6 +1189,11 @@ def migrate_db():
         "ALTER TABLE medkit_items ADD COLUMN dosage_fetched_at DATETIME",
         # Разметка выдержки (BACKLOG №173, блок A)
         "ALTER TABLE medkit_items ADD COLUMN dosage_blocks TEXT",
+        # BACKLOG №177: своя схема с упаковки и причина отказа справочника
+        "ALTER TABLE medkit_items ADD COLUMN own_dosage_text TEXT",
+        "ALTER TABLE medkit_items ADD COLUMN own_dosage_at DATETIME",
+        "ALTER TABLE medkit_items ADD COLUMN dosage_miss TEXT",
+        "ALTER TABLE medkit_items ADD COLUMN dosage_miss_at DATETIME",
     ]:
         try:
             conn.execute(col)

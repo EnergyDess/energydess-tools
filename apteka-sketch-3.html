@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Аптечка — эскиз 3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0c11; --s1:#14151f; --s2:#1a1c27; --s3:#22242f;
+  --br:rgba(255,255,255,.07); --br2:rgba(255,255,255,.14);
+  --t1:#eceef4; --t2:#9296a6; --t3:#6b6f7f;
+  --ac:#06b6d4; --ac-bg:rgba(6,182,212,.13); --ac-br:rgba(6,182,212,.34);
+  --brand:#f0743a;
+  --ok:#3fa87a; --ok-bg:rgba(63,168,122,.14);
+  --warn:#d9a441; --warn-bg:rgba(217,164,65,.14);
+  --bad:#e05c58; --bad-bg:rgba(224,92,88,.14);
+  --r:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t1);font-family:Manrope,system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.page{max-width:1560px;margin:0 auto;padding:34px 28px 90px}
+.eyebrow{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);font-weight:600;margin:0 0 6px}
+h1{font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em}
+.lede{max-width:860px;color:var(--t2);font-size:14.5px;margin:0}
+.lede b{color:var(--t1);font-weight:500}
+.sec{margin:58px 0 0}
+.sec h2{font-size:21px;font-weight:600;margin:0 0 4px;letter-spacing:-.01em}
+.sec .cap{color:var(--t2);font-size:14px;margin:0 0 18px;max-width:860px}
+.frame{background:var(--bg);border:1px solid var(--br);border-radius:16px;padding:24px}
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
+.row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
+.lbl{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);margin:0 0 9px;font-weight:600}
+
+/* модалка способа приёма */
+.modal{background:var(--s1);border:1px solid var(--br);border-radius:14px;overflow:hidden}
+.mh{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--br)}
+.mh .ttl{display:flex;align-items:center;gap:9px;font-size:15.5px;font-weight:600}
+.mh .x{width:26px;height:26px;border-radius:7px;background:var(--s3);display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:13px}
+.mb{padding:15px 16px}
+.doseblock{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:12px 14px}
+.doseblock h4{margin:0 0 5px;font-size:14.5px;font-weight:700}
+.doseblock p{margin:0;font-size:14px}
+.flat p{margin:0 0 9px;font-size:13.8px;line-height:1.5;color:var(--t1)}
+.flat p:last-child{margin-bottom:0}
+.hit{background:var(--ac-bg);border-left:2px solid var(--ac);padding:7px 10px;border-radius:0 7px 7px 0;font-weight:600}
+.more{display:inline-block;margin-top:11px;font-size:13px;color:var(--t2);border-bottom:1px dashed var(--br2);padding-bottom:1px}
+.src{margin-top:12px;padding-top:11px;border-top:1px solid var(--br);font-size:12.5px;color:var(--t3)}
+.src a{color:var(--ac);text-decoration:none}
+.disc{margin-top:7px;font-size:12px;color:var(--t3);line-height:1.45}
+.miss{font-size:13.5px;color:var(--t2);line-height:1.55;margin:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:38px;padding:0 16px;border-radius:var(--r);font-size:14px;font-weight:500;border:1px solid var(--br2);background:var(--s3);color:var(--t1)}
+.btn.pri{background:var(--ac);border-color:var(--ac);color:#08252b;font-weight:600}
+.btn.gh{background:transparent}
+.btns{display:flex;gap:9px;margin-top:13px;flex-wrap:wrap}
+.own{background:var(--ac-bg);border:1px solid var(--ac-br);border-radius:10px;padding:12px 14px}
+.own .tag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ac);margin-bottom:7px;font-weight:600;letter-spacing:.02em}
+.own p{margin:0;font-size:14px;line-height:1.5}
+.ta{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:11px 13px;min-height:74px;font-size:14px;color:var(--t3)}
+
+/* список покупок */
+.buy{background:var(--s2);border:1px solid var(--br);border-radius:14px;overflow:hidden}
+.buyhead{padding:14px 16px;border-bottom:1px solid var(--br);display:flex;align-items:center;justify-content:space-between}
+.buyhead .t{font-size:16px;font-weight:600}
+.buyhead .n{font-size:13px;color:var(--t3)}
+.bitem{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--br);align-items:flex-start}
+.bitem:last-child{border-bottom:0}
+.chk{width:19px;height:19px;border-radius:6px;border:1.5px solid var(--br2);flex:0 0 19px;margin-top:2px}
+.chk.on{background:var(--ok);border-color:var(--ok);display:flex;align-items:center;justify-content:center;color:#06251a;font-size:12px;font-weight:700}
+.bitem .body{flex:1;min-width:0}
+.bitem .nm{font-size:14.5px;font-weight:600}
+.bitem .why{font-size:12.5px;color:var(--t3);margin-top:2px}
+.bitem.done .nm{color:var(--t3);text-decoration:line-through}
+.bitem.done .why{color:var(--t3);opacity:.6}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:2px 8px;border-radius:20px;margin-top:6px;font-weight:600;letter-spacing:.02em}
+.p-ai{background:var(--ac-bg);color:var(--ac)}
+.p-out{background:var(--warn-bg);color:var(--warn)}
+.p-exp{background:var(--bad-bg);color:var(--bad)}
+.p-hand{background:var(--s3);color:var(--t2)}
+.bitem .act{font-size:12.5px;color:var(--ac);white-space:nowrap;margin-top:2px}
+.buyadd{padding:12px 16px;border-top:1px solid var(--br);display:flex;align-items:center;gap:9px}
+.buyadd .inp{flex:1;height:36px;background:var(--s1);border:1px solid var(--br);border-radius:var(--r);display:flex;align-items:center;padding:0 12px;font-size:13.5px;color:var(--t3)}
+
+/* чат */
+.chat{background:var(--s1);border:1px solid var(--br);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;height:560px}
+.chead{height:50px;display:flex;align-items:center;justify-content:space-between;padding:0 15px;border-bottom:1px solid var(--br);font-size:15px;font-weight:600}
+.chead .icons{display:flex;gap:7px;color:var(--t3);font-size:14px}
+.cbody{flex:1;padding:15px;display:flex;flex-direction:column;gap:11px;justify-content:flex-end;overflow:hidden}
+.daysep{display:flex;align-items:center;gap:11px;margin:3px 0}
+.daysep i{flex:1;height:1px;background:var(--br)}
+.daysep span{font-size:11.5px;color:var(--t3);letter-spacing:.03em}
+.msg{max-width:86%;padding:10px 13px;border-radius:12px;font-size:13.8px;line-height:1.5}
+.me{align-self:flex-end;background:var(--ac-bg);border:1px solid var(--ac-br)}
+.ai{align-self:flex-start;background:var(--s2);border:1px solid var(--br)}
+.find{margin-top:9px;padding:9px 11px;background:var(--s3);border-radius:9px;font-size:13px}
+.find .t{font-weight:600}
+.find .d{color:var(--t3);font-size:12.5px;margin-top:2px}
+.addbuy{margin-top:9px;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ac);border:1px solid var(--ac-br);border-radius:8px;padding:5px 10px}
+.cfoot{border-top:1px solid var(--br);padding:11px 15px;display:flex;align-items:center;gap:9px}
+.cfoot .inp{flex:1;height:38px;background:var(--s2);border:1px solid var(--br);border-radius:var(--r);display:flex;align-items:center;padding:0 12px;font-size:13.5px;color:var(--t3)}
+.cfoot .sq{width:38px;height:38px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;background:var(--s3);border:1px solid var(--br);color:var(--t2)}
+.cfoot .sq.pri{background:var(--ac);border-color:var(--ac);color:#08252b}
+
+/* аннотации */
+.ann{margin-top:16px;padding:15px 17px;background:var(--s1);border-left:2px solid var(--brand);font-size:13.5px;color:var(--t2)}
+.ann.blue{border-left-color:var(--ac)}
+.ann b{color:var(--t1);font-weight:600}
+.ann ul{margin:8px 0 0;padding-left:18px}
+.ann li{margin:5px 0}
+@media(max-width:1200px){.row3,.row2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<p class="eyebrow">Эскиз 3</p>
+<h1>Список покупок, история чата, окно приёма</h1>
+<p class="lede">Данные настоящие, с полки. Три темы: <b>список покупок</b> и откуда в него попадают позиции, <b>история чата</b> за пару дней, и <b>окно способа приёма</b> во всех четырёх состояниях — включая то, которого сейчас нет вовсе: своя схема с упаковки.</p>
+
+<!-- ОКНО ПРИЁМА -->
+<div class="sec">
+  <h2>Окно способа приёма — четыре состояния</h2>
+  <p class="cap">Сейчас работают только первое и третье. Второе выглядит как простыня, четвёртого нет вовсе.</p>
+
+  <div class="frame">
+    <div class="row3">
+
+      <!-- 1. нашлось с заголовками -->
+      <div>
+        <p class="lbl">1 · нашлось, в источнике есть заголовки</p>
+        <div class="modal">
+          <div class="mh"><div class="ttl">▤ Способ приёма · Цетрин</div><div class="x">✕</div></div>
+          <div class="mb">
+            <div class="doseblock">
+              <h4>Взрослые</h4>
+              <p>По 10 мг (1 таблетка) 1 раз/сут.</p>
+            </div>
+            <span class="more">Показать полностью</span>
+            <div class="src">Источник: Видаль, выдержка от 25.08. <a href="#">Открыть страницу препарата</a></div>
+            <div class="disc">Это выдержка из справочника, а не назначение. Что сказал ваш врач — в поле «Заметка» карточки.</div>
+          </div>
+        </div>
+        <div class="ann" style="margin-top:12px">Работает сейчас. Заголовок размечен в источнике — подхватили как есть.</div>
+      </div>
+
+      <!-- 2. нашлось сплошняком -->
+      <div>
+        <p class="lbl">2 · нашлось, заголовков в источнике нет</p>
+        <div class="modal">
+          <div class="mh"><div class="ttl">▤ Способ приёма · Энтерол</div><div class="x">✕</div></div>
+          <div class="mb">
+            <div class="flat">
+              <p>Для приема внутрь.</p>
+              <p>Возможен прием вне зависимости от приема пищи.</p>
+              <p class="hit">Взрослые и дети от 3 лет: по 1-2 капсулы 2 раза/сут.</p>
+              <p class="hit">Дети в возрасте от 1 года до 3 лет: по 1 капсуле 2 раза/сут.</p>
+              <p>Не следует принимать препарат вместе с горячими, холодными и алкогольными напитками…</p>
+            </div>
+            <span class="more">Показать полностью</span>
+            <div class="src">Источник: Видаль, выдержка от 26.08. <a href="#">Открыть страницу препарата</a></div>
+            <div class="disc">Это выдержка из справочника, а не назначение.</div>
+          </div>
+        </div>
+        <div class="ann" style="margin-top:12px"><b>Правка.</b> Строки со схемой выделены НА МЕСТЕ, ничего не переставлено. Опознаются по форме записи: количество + единица + частота. Текст дословный, инвариант сохраняется.</div>
+      </div>
+
+      <!-- 3. не нашлось -->
+      <div>
+        <p class="lbl">3 · не нашлось (БАД)</p>
+        <div class="modal">
+          <div class="mh"><div class="ttl">▤ Способ приёма · Фослюган</div><div class="x">✕</div></div>
+          <div class="mb">
+            <p class="miss">Это биологически активная добавка — в справочнике лекарственных средств таких нет, и схему приёма на них не публикуют. Она напечатана на вашей упаковке.</p>
+            <div class="btns">
+              <div class="btn pri">✎ Вписать с упаковки</div>
+              <div class="btn gh">Найти в справочнике</div>
+            </div>
+            <div class="disc">Поиск по действующему веществу может не совпасть с вашей упаковкой.</div>
+          </div>
+        </div>
+        <div class="ann" style="margin-top:12px"><b>Правка.</b> Для добавки это НЕ «не нашлось», а нормальное положение дел — и сообщение приходит сразу, без похода в справочник. Главное действие теперь — вписать самому.</div>
+      </div>
+
+    </div>
+
+    <div class="row2" style="margin-top:26px">
+      <!-- 4a. форма своей схемы -->
+      <div>
+        <p class="lbl">4a · вписываю сам</p>
+        <div class="modal">
+          <div class="mh"><div class="ttl">▤ Способ приёма · Фослюган</div><div class="x">✕</div></div>
+          <div class="mb">
+            <p class="lbl" style="margin-bottom:7px">Схема с упаковки</p>
+            <div class="ta">По 1 капсуле 2 раза в день во время еды, курс 30 дней…</div>
+            <div class="disc" style="margin-top:9px">Перепишите с упаковки как есть. Это ваша запись — она не заменяется данными справочника.</div>
+            <div class="btns"><div class="btn pri">Сохранить</div><div class="btn gh">Отмена</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4b. своя схема сохранена -->
+      <div>
+        <p class="lbl">4b · своя схема сохранена</p>
+        <div class="modal">
+          <div class="mh"><div class="ttl">▤ Способ приёма · Фослюган</div><div class="x">✕</div></div>
+          <div class="mb">
+            <div class="own">
+              <div class="tag">✎ ВАША ЗАПИСЬ С УПАКОВКИ</div>
+              <p>По 1 капсуле 2 раза в день во время еды, курс 30 дней.</p>
+            </div>
+            <div class="btns"><div class="btn gh">✎ Изменить</div></div>
+            <div class="src">Записано 26.08. В справочнике этого препарата нет.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ann blue">
+    <b>Чего сейчас нет вовсе — своей схемы</b>
+    <ul>
+      <li>Схема приходит либо из справочника, либо никак. Для БАДов её не будет никогда, а на упаковке она напечатана — владелец держит коробку в руках и не может это сохранить.</li>
+      <li>Своя запись ГЛАВНЕЕ справочника: она с той самой пачки. Если справочник потом что-то найдёт, своя запись остаётся, справочная добавляется отдельно.</li>
+      <li>Это НЕ поле «Заметка». Заметка — что назначил врач лично; здесь — то, что напечатано на пачке.</li>
+      <li>Пометка «ваша запись» обязательна: выдержка и своя запись не должны выглядеть одинаково.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- СПИСОК ПОКУПОК -->
+<div class="sec">
+  <h2>Список покупок</h2>
+  <p class="cap">Ценность не в самом списке, а в том, что позиции попадают в него сами — в момент, когда стало ясно, что чего-то нет.</p>
+
+  <div class="row2">
+    <div class="frame">
+      <div class="buy">
+        <div class="buyhead"><span class="t">Купить</span><span class="n">4 позиции · 1 куплена</span></div>
+
+        <div class="bitem">
+          <div class="chk"></div>
+          <div class="body">
+            <div class="nm">Что-то от головной боли</div>
+            <div class="why">Спрашивали 25.08 — в аптечке этой группы нет</div>
+            <span class="pill p-ai">✦ из разговора с ассистентом</span>
+          </div>
+        </div>
+
+        <div class="bitem">
+          <div class="chk"></div>
+          <div class="body">
+            <div class="nm">Креон 10000</div>
+            <div class="why">Панкреатин, 10000 ЕД · капсулы · истёк 03.2026</div>
+            <span class="pill p-exp">🗑 выброшено просроченным</span>
+          </div>
+          <div class="act">Повторить пачку</div>
+        </div>
+
+        <div class="bitem">
+          <div class="chk"></div>
+          <div class="body">
+            <div class="nm">Необутин</div>
+            <div class="why">Тримебутин, 200 мг · осталось 5 из 30</div>
+            <span class="pill p-out">▂ заканчивается</span>
+          </div>
+          <div class="act">Повторить пачку</div>
+        </div>
+
+        <div class="bitem done">
+          <div class="chk on">✓</div>
+          <div class="body">
+            <div class="nm">Пластырь</div>
+            <div class="why">Куплено сегодня</div>
+            <span class="pill p-hand">вписано руками</span>
+          </div>
+          <div class="act">Завести карточку</div>
+        </div>
+
+        <div class="buyadd">
+          <div class="inp">Что купить…</div>
+          <div class="btn pri" style="height:36px">Добавить</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="ann" style="margin-top:0">
+        <b>Откуда берутся позиции — четыре источника</b>
+        <ul>
+          <li><b>Ассистент не нашёл.</b> Спросили «что от головы», в аптечке пусто — предложение занести в список прямо в ответе.</li>
+          <li><b>Выбросили просроченное.</b> Нажали «Выбросить» — спросить, добавить ли в покупки. Название, вещество и дозировка уже известны.</li>
+          <li><b>Заканчивается.</b> Остаток ушёл в красную зону шкалы либо в ноль.</li>
+          <li><b>Вписано руками.</b> Обычная строка, безо всякой связи с карточками.</li>
+        </ul>
+      </div>
+      <div class="ann blue">
+        <b>Обратный ход</b>
+        <ul>
+          <li>Отметили купленным — предложить завести карточку. Для позиций, пришедших из выброшенного или заканчивающегося, все поля уже есть: остаётся срок годности и количество.</li>
+          <li>Купленное не исчезает сразу — остаётся зачёркнутым до конца дня, чтобы можно было снять галочку, если передумали.</li>
+          <li>В общей аптечке (этап 4) список общий: она добавила — вы видите в магазине.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ИСТОРИЯ ЧАТА -->
+<div class="sec">
+  <h2>История чата</h2>
+  <p class="cap">Переписка переживает перезагрузку и живёт несколько дней. Хранится вся, модели подаётся только хвост — по токенам это ничего не стоит.</p>
+
+  <div class="row2">
+    <div class="frame">
+      <div class="chat">
+        <div class="chead"><span>Аптечка на связи</span><span class="icons">? ✕</span></div>
+        <div class="cbody">
+
+          <div class="daysep"><i></i><span>вчера</span><i></i></div>
+
+          <div class="msg me">У меня болит голова. Есть что-то в аптечке?</div>
+          <div class="msg ai">
+            В вашей аптечке нет обезболивающих. Стоит обратиться в аптеку — фармацевт подберёт средство и учтёт особенности.
+            <div class="addbuy">+ Добавить в список покупок</div>
+          </div>
+
+          <div class="daysep"><i></i><span>сегодня</span><i></i></div>
+
+          <div class="msg me">Живот болит, что есть?</div>
+          <div class="msg ai">
+            В вашей аптечке есть несколько средств для ЖКТ.
+            <div class="find"><div class="t">Необутин · Тримебутин, 200 мг</div><div class="d">Таблетки · 5 из 30 · до 06.2028</div></div>
+            <div class="find"><div class="t">Энтерол · Сахаромицеты буларди</div><div class="d">Капсулы · 7 из 10 · до 04.2027</div></div>
+          </div>
+
+        </div>
+        <div class="cfoot">
+          <div class="sq">📎</div>
+          <div class="inp">Упаковка или вопрос</div>
+          <div class="sq">🎤</div>
+          <div class="sq pri">→</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="ann" style="margin-top:0">
+        <b>Как устроено</b>
+        <ul>
+          <li><b>Хранится всё, подаётся хвост.</b> В запрос к модели уходят последние несколько сообщений, а не вся переписка — расход не растёт со временем.</li>
+          <li><b>Разделители по дням.</b> Вечерний вопрос находится утром без прокрутки в никуда.</li>
+          <li><b>Срок жизни — несколько дней</b>, потом старое убирается. Точное число решим по опыту.</li>
+          <li>Текст весит единицы килобайт: одно фото упаковки дороже всей переписки за неделю.</li>
+        </ul>
+      </div>
+      <div class="ann blue">
+        <b>Связка с покупками</b><br>
+        Кнопка «Добавить в список покупок» стоит прямо в ответе, где ассистент сказал «этого нет». Это и есть момент, когда человек понимает, что надо купить, — заносить надо здесь, а не потом вспоминать.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ПРОЧЕЕ -->
+<div class="sec">
+  <div class="ann">
+    <b>В эскизе не показано, но входит в ту же работу</b>
+    <ul>
+      <li><b>Плашка скачет при наведении на «Найти в справочнике»</b> — текст переформатируется, появляется прокрутка, размер меняется. Наведение не должно менять содержимое, только подсветку.</li>
+      <li><b>Превью фото в ленте чата на телефоне</b> — сейчас надпись вместо картинки. На десктопе превью есть. Снова правка легла на один путь из двух.</li>
+      <li><b>Кнопка «Приём» в карточках ассистента</b> есть у одного препарата и нет у остальных — читается как поломка.</li>
+      <li><b>Отступ над подвалом</b> на всех страницах сайта: запас снизу у контента и сверху у подвала складываются. Чинится в одном месте.</li>
+      <li><b>Расширить список справочников</b> — Видаль единственный проверенный. Нужен замер на Необутине 200 мг и сиропе солодки: есть ли они в других источниках.</li>
+    </ul>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
