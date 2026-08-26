@@ -1026,6 +1026,11 @@ class MedkitItem(Base):
     # Показать это сразу можно только тем, что причина лежит рядом.
     dosage_miss = Column(Text, nullable=True)
     dosage_miss_at = Column(DateTime, nullable=True)
+    # ВИД ИСХОДА рядом с текстом причины (BACKLOG №181, C). Отдельным
+    # полем, а не разбором текста: тексты несут подстановки, сравнение
+    # шло бы по префиксу, и правка формулировки молча выключила бы
+    # кнопку повтора либо вернула её туда, где повтор бесполезен
+    dosage_miss_kind = Column(String(32), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
@@ -1277,6 +1282,7 @@ def migrate_db():
         "ALTER TABLE medkit_items ADD COLUMN own_dosage_at DATETIME",
         "ALTER TABLE medkit_items ADD COLUMN dosage_miss TEXT",
         "ALTER TABLE medkit_items ADD COLUMN dosage_miss_at DATETIME",
+        "ALTER TABLE medkit_items ADD COLUMN dosage_miss_kind VARCHAR(32)",
         # Список покупок (BACKLOG №178, блок B). Таблица заводится
         # `create_all`, здесь её нет; строка оставлена как отметка
         # о том, что колонок к существующим таблицам блок не добавил

@@ -296,12 +296,25 @@ async def main():
     р = argparse.ArgumentParser(description=__doc__)
     р.add_argument("--кратко", action="store_true",
                    help="только итог по каждому источнику")
+    # ВЫБОР ИСТОЧНИКА: разведка ходит по восьми чужим сайтам, и гонять
+    # все ради одного проверяемого — это восемь чужих сайтов на каждую
+    # правку. Имя, которого в списке нет, называется вслух, а не молча
+    # даёт пустой прогон (§6.0)
+    р.add_argument("--только", default="",
+                   help="разведать один источник по имени")
     а = р.parse_args()
+    если_один = (а.только or "").strip()
+    if если_один and если_один not in ИСТОЧНИКИ:
+        print("Источника %r нет. Есть: %s"
+              % (если_один, ", ".join(ИСТОЧНИКИ)))
+        return 2
 
     итоги = []
     async with httpx.AsyncClient(headers=ГОЛОВА, timeout=30,
                                  follow_redirects=True) as клиент:
         for имя, опис in ИСТОЧНИКИ.items():
+            if если_один and имя != если_один:
+                continue
             try:
                 итоги.append(await разведать(клиент, имя, опис, а.кратко))
             except Exception as e:
