@@ -1786,6 +1786,33 @@ img.avatar { object-fit: cover; padding: 0; }
   .avatar-btn:hover .avatar { border-color: var(--border-strong); }
 }
 .avatar-lg { width: 96px; height: 96px; font-size: var(--text-h3); }
+/* Мелкий вариант — для СПИСКОВ ЛЮДЕЙ: участники общей аптечки, строки
+   ленты изменений, карточка чужой позиции. 28px, потому что стоит
+   в ряду с текстом строки, а не в шапке: 36px там перебивал бы саму
+   строку по весу. Тач-таргета себе не добирает и не должен — это
+   картинка, а не орган управления (тот же довод, что у курсора
+   у `.avatar` выше). */
+.avatar-sm { width: 28px; height: 28px; font-size: var(--text-caption); }
+/* ОТТЕНКИ УЧАСТНИКОВ. Пять готовых акцентов инструментов, а не пять
+   новых токенов: цвет тут нужен ровно затем, чтобы две буквы в ленте
+   различались с одного взгляда, и заводить под это отдельную палитру
+   значило бы добавить в систему пять значений, которых больше нигде
+   нет (CLAUDE.md §6, «никаких новых токенов без обсуждения»).
+
+   НОМЕР — ЭТО ПОРЯДОК ВСТУПЛЕНИЯ В КРУГ, а не остаток от id: остаток
+   дал бы двоим один цвет с вероятностью 1/5, и заметить это было бы
+   нечем. Разбор — `_апт_люди` в main.py.
+
+   ПОРЯДОК ВЫБРАН ПОД САМЫЙ ЧАСТЫЙ СЛУЧАЙ — ДВОИХ. Первые два тона
+   отстоят друг от друга дальше всех: cyan против янтаря. Постановка
+   описывает ровно эту пару («двое живут вместе»), и пусти мы вторым
+   синий hh, две буквы различались бы хуже всего именно там, где
+   различаются чаще всего. */
+.avatar-tint-1 { background: var(--accent-medkit-dim);     color: var(--accent-medkit); }
+.avatar-tint-2 { background: var(--accent-workout-dim);    color: var(--accent-workout); }
+.avatar-tint-3 { background: var(--accent-hh-dim);         color: var(--accent-hh); }
+.avatar-tint-4 { background: var(--accent-nutrition-dim);  color: var(--accent-nutrition); }
+.avatar-tint-5 { background: var(--accent-enshrouded-dim); color: var(--accent-enshrouded); }
 
 .avatar-wrap { position: relative; }
 /* Кнопка добирает тач-таргет до 44×44 (сам кругляшок 36px) — паддинг

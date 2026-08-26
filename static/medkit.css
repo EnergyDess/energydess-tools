@@ -1734,3 +1734,162 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   border-color: var(--success);
   pointer-events: none;
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   ОБЩАЯ АПТЕЧКА (BACKLOG №182)
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── КНОПКА ПАНЕЛИ В ШАПКЕ (E.5) ────────────────────────────────────
+   Третья кнопка в ряду — КНОПКА-ЗНАЧОК, а не подписанная. Владелец
+   назвал три подписанные кнопки «многовато», и замер это подтверждает:
+   на 640 и уже они делят строку поровну и подписи ломаются. Разделено
+   не сокращением подписей, а ВЕСОМ: две кнопки заведения — ежедневное
+   действие и остаются подписанными, панель участников открывают раз
+   в месяц. */
+.apt-circle-open { position: relative; flex: 0 0 auto; }
+/* Счётчик участников. Тот же приём, что у `.chip-n`: маленькое число
+   рядом со значком, а не отдельный бейдж сбоку — иначе кнопка выросла
+   бы шире подписанных соседей */
+.apt-circle-n {
+  margin-left: var(--space-1);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--tool-accent);
+}
+.apt-circle-n[hidden] { display: none; }
+@media (max-width: 640px) {
+  /* В ряду кнопок она НЕ растягивается вместе с подписанными: значок
+     посреди широкой кнопки читается как незаполненное место */
+  .apt-head-act .apt-circle-open { flex: 0 0 auto; }
+  /* ТРЕТЬЯ КНОПКА УЕЗЖАЛА ЗА КРАЙ ЭКРАНА, И ЭТО ЗАМЕР, А НЕ ОПАСЕНИЕ.
+     На 390 её правый край стоял на 406 при окне 390 — 16 px наружу.
+     Причина: у `.apt-head-act .btn` было `flex: 1 1 0` при умолчании
+     `min-width: auto`, то есть подписанные кнопки не могли сжаться
+     уже своего самого длинного слова («ассистентом»), и остаток
+     доставался значку за границей окна.
+
+     `min-width: 0` разрешает сжатие; подписи при этом не ломаются —
+     они и так переносятся по словам. Проверено замером после правки,
+     а не глазом: `за_краем` 1 → 0. */
+  .apt-head-act .btn { min-width: 0; }
+}
+
+/* ── ПАНЕЛЬ УЧАСТНИКОВ ──────────────────────────────────────────── */
+.apt-circle-tabs { margin-bottom: var(--space-4); }
+.apt-circle-pane[hidden] { display: none; }
+.apt-circle-invite { display: flex; gap: var(--space-3); align-items: center; }
+.apt-circle-invite .input-wrap { flex: 1 1 auto; min-width: 0; }
+@media (max-width: 560px) {
+  .apt-circle-invite { flex-direction: column; align-items: stretch; }
+}
+
+.apt-people { list-style: none; margin: var(--space-4) 0 0; padding: 0; }
+.apt-person {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.apt-person:last-child { border-bottom: 0; }
+/* Имя и подпись — колонкой, и колонка забирает весь остаток строки:
+   иначе длинный адрес почты выталкивал бы бейдж и кнопку за край */
+.apt-person-t { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+.apt-person-n { font-size: var(--text-body-sm); overflow-wrap: anywhere; }
+.apt-person-m { font-size: var(--text-caption); color: var(--text-faint); }
+.apt-person-acts { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+@media (max-width: 560px) {
+  .apt-person { flex-wrap: wrap; }
+  .apt-person-acts { width: 100%; }
+}
+/* Бейдж владельца круга. СВОЙ класс поверх системного `.badge`,
+   а не переопределение `.badge`: акцент тут раздельный (§6.0.2) */
+.apt-badge-own {
+  background: var(--tool-accent-dim);
+  color: var(--tool-accent);
+  border: 1px solid var(--tool-accent);
+}
+
+/* ── ЛЕНТА ИЗМЕНЕНИЙ ────────────────────────────────────────────── */
+.apt-feed { list-style: none; margin: 0; padding: 0; }
+.apt-feed-day {
+  padding: var(--space-2) 0;
+  color: var(--text-faint);
+  font-size: var(--text-caption);
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.apt-feed-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.apt-feed-item:last-child { border-bottom: 0; }
+.apt-feed-t { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+.apt-feed-txt { font-size: var(--text-body-sm); overflow-wrap: anywhere; }
+.apt-feed-d { font-size: var(--text-caption); color: var(--text-faint); }
+.apt-feed-time {
+  font-size: var(--text-caption);
+  color: var(--text-faint);
+  flex: 0 0 auto;
+}
+
+/* ── ЧЬЯ ПАЧКА НА КАРТОЧКЕ (F.3) ────────────────────────────────────
+   Поверх снимка — на тёмной подложке: белая буква на светлой упаковке
+   не читается ни при каком оттенке, а подложка не зависит от того,
+   что человек сфотографировал. Где снимка нет, метка встаёт НАД
+   названием обычной строкой: подложка там не на чем лежать. */
+.apt-who {
+  position: absolute;
+  right: var(--space-2);
+  top: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px var(--space-2) 3px 3px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .62);
+  max-width: calc(100% - var(--space-6));
+}
+.apt-who-n {
+  font-size: var(--text-caption);
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Вариант без снимка: не поверх, а в потоке, и цвет обычный */
+.apt-in > .apt-who {
+  position: static;
+  background: none;
+  padding: 0;
+  margin-bottom: var(--space-2);
+  max-width: 100%;
+}
+.apt-in > .apt-who .apt-who-n { color: var(--text-2); }
+/* Буква у каждой пачки в раскрытой группе (D.6) */
+.apt-pack .avatar { flex: 0 0 auto; }
+
+/* ── ОКНО ВЫХОДА (D.2) ──────────────────────────────────────────── */
+.apt-leave-warn { margin: 0 0 var(--space-4); }
+.apt-leave-split { display: flex; gap: var(--space-3); }
+.apt-leave-col {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+.apt-leave-h {
+  font-size: var(--text-caption);
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.apt-leave-n { font-size: var(--text-h3); font-weight: 700; }
+.apt-leave-d { font-size: var(--text-caption); color: var(--text-2); }

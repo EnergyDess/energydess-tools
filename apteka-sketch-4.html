@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Аптечка — эскиз 4, общая аптечка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0c11; --s1:#14151f; --s2:#1a1c27; --s3:#22242f;
+  --br:rgba(255,255,255,.07); --br2:rgba(255,255,255,.14);
+  --t1:#eceef4; --t2:#9296a6; --t3:#6b6f7f;
+  --ac:#06b6d4; --ac-bg:rgba(6,182,212,.13); --ac-br:rgba(6,182,212,.34);
+  --brand:#f0743a;
+  --ok:#3fa87a; --ok-bg:rgba(63,168,122,.14);
+  --warn:#d9a441; --warn-bg:rgba(217,164,65,.14);
+  --bad:#e05c58; --bad-bg:rgba(224,92,88,.14);
+  --pur:#8b7fd4; --pur-bg:rgba(139,127,212,.14);
+  --r:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t1);font-family:Manrope,system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.page{max-width:1560px;margin:0 auto;padding:34px 28px 90px}
+.eyebrow{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);font-weight:600;margin:0 0 6px}
+h1{font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em}
+.lede{max-width:880px;color:var(--t2);font-size:14.5px;margin:0}
+.lede b{color:var(--t1);font-weight:500}
+.sec{margin:58px 0 0}
+.sec h2{font-size:21px;font-weight:600;margin:0 0 4px;letter-spacing:-.01em}
+.sec .cap{color:var(--t2);font-size:14px;margin:0 0 18px;max-width:880px}
+.frame{background:var(--bg);border:1px solid var(--br);border-radius:16px;padding:24px}
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
+.row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
+.lbl{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);margin:0 0 9px;font-weight:600}
+
+/* панель участников */
+.panel{background:var(--s1);border:1px solid var(--br);border-radius:14px;overflow:hidden}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--br)}
+.ph .t{font-size:15.5px;font-weight:600}
+.ph .x{width:26px;height:26px;border-radius:7px;background:var(--s3);display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:13px}
+.pb{padding:14px 16px}
+.tabs{display:flex;gap:18px;border-bottom:1px solid var(--br);margin-bottom:14px}
+.tab{font-size:13.8px;color:var(--t2);padding-bottom:9px;border-bottom:2px solid transparent;white-space:nowrap}
+.tab.on{color:var(--ac);border-bottom-color:var(--ac)}
+.inviterow{display:flex;gap:9px;margin-bottom:14px}
+.inp{flex:1;height:38px;background:var(--s2);border:1px solid var(--br);border-radius:var(--r);display:flex;align-items:center;padding:0 12px;font-size:13.5px;color:var(--t3)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:38px;padding:0 15px;border-radius:var(--r);font-size:13.8px;font-weight:500;border:1px solid var(--br2);background:var(--s3);color:var(--t1);white-space:nowrap}
+.btn.pri{background:var(--ac);border-color:var(--ac);color:#08252b;font-weight:600}
+.btn.sm{height:30px;padding:0 11px;font-size:12.5px}
+.btn.dn{color:var(--bad);border-color:rgba(224,92,88,.28)}
+.person{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--br)}
+.person:last-child{border-bottom:0}
+.av{width:34px;height:34px;border-radius:50%;flex:0 0 34px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.av.a{background:var(--ac-bg);color:var(--ac)}
+.av.b{background:var(--pur-bg);color:var(--pur)}
+.av.g{background:var(--s3);color:var(--t3)}
+.pn{font-size:13.8px}
+.pm{font-size:12px;color:var(--t3);margin-top:1px}
+.pm.w{color:var(--warn)}
+.badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.b-own{background:var(--ac-bg);color:var(--ac)}
+.b-mem{background:var(--s3);color:var(--t2)}
+
+/* карточка */
+.card{background:var(--s2);border:1px solid var(--br);border-radius:14px;overflow:hidden}
+.shot{aspect-ratio:4/3;background:var(--s3);display:flex;align-items:center;justify-content:center;position:relative}
+.shot .mock{width:70%;height:56%;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;text-align:center;padding:6px;line-height:1.2}
+.who{position:absolute;right:8px;top:8px;display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.62);border-radius:20px;padding:3px 9px 3px 3px}
+.who .av{width:20px;height:20px;flex:0 0 20px;font-size:10px}
+.who span{font-size:11.5px;color:#fff}
+.cin{padding:12px 14px}
+.nm{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.sub{font-size:12.5px;color:var(--t2);margin-top:2px}
+.qty{font-size:12.5px;color:var(--t3);margin-top:9px}
+.bar{margin-top:5px;height:4px;border-radius:2px;background:var(--s3);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ac)}
+.dbadge{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:11.5px;padding:4px 9px;border-radius:7px;margin-top:10px;background:var(--ok-bg);color:var(--ok)}
+.take{margin-top:11px;height:36px;border-radius:9px;background:var(--s3);border:1px solid var(--br2);display:flex;align-items:center;justify-content:center;font-size:13.8px}
+.acts{margin-top:10px;padding-top:9px;border-top:1px solid var(--br);display:flex;gap:6px}
+.act{flex:1;height:30px;border:1px solid var(--br);border-radius:8px;display:flex;align-items:center;justify-content:center;gap:5px;font-size:12.5px;color:var(--t2)}
+.act.dl{color:var(--bad);border-color:rgba(224,92,88,.26)}
+
+/* лента изменений */
+.feed{background:var(--s1);border:1px solid var(--br);border-radius:14px;overflow:hidden}
+.fitem{display:flex;gap:11px;padding:12px 16px;border-bottom:1px solid var(--br);align-items:flex-start}
+.fitem:last-child{border-bottom:0}
+.fitem .av{width:28px;height:28px;flex:0 0 28px;font-size:11px;margin-top:1px}
+.ftxt{font-size:13.5px;flex:1}
+.ftxt b{font-weight:600}
+.ftime{font-size:11.5px;color:var(--t3);margin-top:2px}
+.fday{padding:9px 16px;background:var(--s2);font-size:11.5px;color:var(--t3);letter-spacing:.03em;border-bottom:1px solid var(--br)}
+
+/* окно выхода */
+.warn{background:var(--warn-bg);border:1px solid rgba(217,164,65,.3);border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.5}
+.warn b{font-weight:600}
+.split{display:flex;gap:11px;margin-top:12px}
+.splitcol{flex:1;background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:11px 13px}
+.splitcol .h{font-size:12px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:6px}
+.splitcol .n{font-size:21px;font-weight:700}
+.splitcol .d{font-size:12.5px;color:var(--t2);margin-top:3px}
+
+.ann{margin-top:16px;padding:15px 17px;background:var(--s1);border-left:2px solid var(--brand);font-size:13.5px;color:var(--t2)}
+.ann.blue{border-left-color:var(--ac)}
+.ann b{color:var(--t1);font-weight:600}
+.ann ul{margin:8px 0 0;padding-left:18px}
+.ann li{margin:5px 0}
+@media(max-width:1200px){.row3,.row2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<p class="eyebrow">Эскиз 4 · этап 4</p>
+<h1>Общая аптечка</h1>
+<p class="lede">Двое живут вместе, лекарства на одной полке. Каждый заводит своё — видят оба. Она выпила последнюю таблетку и удалила карточку — у него тоже пропало. <b>Список общий, но у каждой позиции остаётся владелец</b>, иначе при выходе участника непонятно, чьи лекарства уносить.</p>
+
+<!-- ПАНЕЛЬ УЧАСТНИКОВ -->
+<div class="sec">
+  <h2>Панель участников</h2>
+  <p class="cap">Три вкладки, как в лаунчере. Открывается своей кнопкой рядом с «Завести с ассистентом».</p>
+
+  <div class="frame">
+    <div class="row3">
+
+      <div>
+        <p class="lbl">вкладка «участники»</p>
+        <div class="panel">
+          <div class="ph"><span class="t">Общая аптечка</span><span class="x">✕</span></div>
+          <div class="pb">
+            <div class="tabs">
+              <span class="tab on">Участники 2</span>
+              <span class="tab">Приглашения 1</span>
+              <span class="tab">Блок</span>
+            </div>
+            <div class="inviterow">
+              <div class="inp">Почта или ник на сайте</div>
+              <div class="btn pri">Пригласить</div>
+            </div>
+            <div class="person">
+              <div class="av a">Д</div>
+              <div style="flex:1"><div class="pn">denison7111@gmail.com</div><div class="pm">16 позиций · это вы</div></div>
+              <span class="badge b-own">владелец</span>
+            </div>
+            <div class="person">
+              <div class="av b">З</div>
+              <div style="flex:1"><div class="pn">zakatkinaa@mail.ru</div><div class="pm">8 позиций · с 20.06</div></div>
+              <span class="badge b-mem">участник</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="lbl">вкладка «приглашения»</p>
+        <div class="panel">
+          <div class="ph"><span class="t">Общая аптечка</span><span class="x">✕</span></div>
+          <div class="pb">
+            <div class="tabs">
+              <span class="tab">Участники 2</span>
+              <span class="tab on">Приглашения 1</span>
+              <span class="tab">Блок</span>
+            </div>
+            <div class="person">
+              <div class="av g">Е</div>
+              <div style="flex:1"><div class="pn">ellniko@yandex.ru</div><div class="pm w">Отправлено вчера · ждёт ответа</div></div>
+              <div class="btn sm">Отозвать</div>
+            </div>
+            <div style="margin-top:14px;padding-top:13px;border-top:1px solid var(--br)">
+              <p class="lbl">вам прислали</p>
+              <div class="person" style="border:0;padding-top:0">
+                <div class="av b">М</div>
+                <div style="flex:1"><div class="pn">mrfoxynsky@gmail.com</div><div class="pm">зовёт в свою аптечку · 12 позиций</div></div>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:4px">
+                <div class="btn pri sm">Принять</div>
+                <div class="btn sm">Отклонить</div>
+                <div class="btn sm dn">Заблокировать</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="lbl">вкладка «блок»</p>
+        <div class="panel">
+          <div class="ph"><span class="t">Общая аптечка</span><span class="x">✕</span></div>
+          <div class="pb">
+            <div class="tabs">
+              <span class="tab">Участники 2</span>
+              <span class="tab">Приглашения 1</span>
+              <span class="tab on">Блок 1</span>
+            </div>
+            <div class="person">
+              <div class="av g">К</div>
+              <div style="flex:1"><div class="pn">kossadcc@gmail.com</div><div class="pm">заблокирован 15.08</div></div>
+              <div class="btn sm">Разблокировать</div>
+            </div>
+            <div style="margin-top:12px;font-size:12.5px;color:var(--t3);line-height:1.5">
+              Заблокированные не могут прислать приглашение. Если приглашение уже висело — оно снимается.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="ann">
+    <b>Решения, заложенные в эту панель</b>
+    <ul>
+      <li><b>Одна общая аптечка, а не граф друзей.</b> Все участники видят один и тот же список. Граф («я дружу с А и с Б, они не видят друг друга») для одной полки в ванной бессмысленен и запутает.</li>
+      <li><b>Блокировка действует ДО приглашения.</b> Заблокировать можно прямо из полученного приглашения — иначе смысла в ней нет, спам уже пришёл.</li>
+      <li><b>Приглашение по почте или нику</b> — только для тех, кто уже зарегистрирован на сайте. Приглашать «в никуда» по чужой почте нельзя: это рассылка.</li>
+      <li>Пригласивший — владелец аптечки. Он может убрать участника; участник может уйти сам.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- КАРТОЧКА -->
+<div class="sec">
+  <h2>Карточка в общей аптечке</h2>
+  <p class="cap">Отличие от личной ровно одно: видно, чья позиция.</p>
+
+  <div class="frame">
+    <div class="row3">
+      <div>
+        <p class="lbl">моя позиция</p>
+        <div class="card">
+          <div class="shot">
+            <div class="mock" style="background:#f4f2f5;color:#6b2b6b">НЕОБУТИН</div>
+            <div class="who"><div class="av a">Д</div><span>вы</span></div>
+          </div>
+          <div class="cin">
+            <div class="nm">Необутин</div>
+            <div class="sub">Тримебутин, 200 мг · таблетки</div>
+            <div class="qty">осталось 5 из 30</div>
+            <div class="bar"><i style="width:17%;background:var(--bad)"></i></div>
+            <span class="dbadge">ДО 06.2028</span>
+            <div class="take">− Принял 1 таблетку</div>
+            <div class="acts"><div class="act">✎ Изменить</div><div class="act">▤ Приём</div><div class="act dl">🗑</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="lbl">её позиция</p>
+        <div class="card">
+          <div class="shot">
+            <div class="mock" style="background:#dcedf7;color:#1b4f7a">ЦЕТРИН</div>
+            <div class="who"><div class="av b">З</div><span>Зина</span></div>
+          </div>
+          <div class="cin">
+            <div class="nm">Цетрин</div>
+            <div class="sub">Цетиризин, 10 мг · таблетки</div>
+            <div class="qty">осталось 13 из 20</div>
+            <div class="bar"><i style="width:65%;background:var(--warn)"></i></div>
+            <span class="dbadge">ДО 02.2029</span>
+            <div class="take">− Принял 1 таблетку</div>
+            <div class="acts"><div class="act">✎ Изменить</div><div class="act">▤ Приём</div><div class="act dl">🗑</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="ann" style="margin-top:26px">
+          <b>Что можно делать с чужой позицией</b>
+          <ul>
+            <li><b>Всё то же, что со своей.</b> Владелец прямо описал сценарий: «она выпила последние таблетки, удалила — у меня тоже пропало». Значит списывать, править и удалять может любой участник.</li>
+            <li><b>Но каждое действие пишется в ленту с именем.</b> Иначе список молча меняется под руками, и непонятно, потерялось или выбросили.</li>
+            <li><b>Владелец позиции — не про права, а про принадлежность.</b> Он нужен только на выходе участника: чтобы знать, чьи пачки уносить.</li>
+            <li>Аватар рисуется только в общей аптечке. В личной его нет — там все позиции ваши.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ЛЕНТА -->
+<div class="sec">
+  <h2>Лента изменений</h2>
+  <p class="cap">Без неё общий список меняется молча. Две недели истории достаточно.</p>
+
+  <div class="row2">
+    <div class="frame">
+      <div class="feed">
+        <div class="fday">СЕГОДНЯ</div>
+        <div class="fitem">
+          <div class="av b">З</div>
+          <div class="ftxt"><b>Зина</b> списала 1 таблетку — Цетрин, осталось 13<div class="ftime">14:20</div></div>
+        </div>
+        <div class="fitem">
+          <div class="av b">З</div>
+          <div class="ftxt"><b>Зина</b> добавила в покупки: Нурофен<div class="ftime">11:05</div></div>
+        </div>
+        <div class="fitem">
+          <div class="av a">Д</div>
+          <div class="ftxt"><b>Вы</b> завели карточку — Энтерол<div class="ftime">09:41</div></div>
+        </div>
+        <div class="fday">ВЧЕРА</div>
+        <div class="fitem">
+          <div class="av b">З</div>
+          <div class="ftxt"><b>Зина</b> удалила — Смекта, закончилась<div class="ftime">20:12</div></div>
+        </div>
+        <div class="fitem">
+          <div class="av a">Д</div>
+          <div class="ftxt"><b>Вы</b> выбросили просроченное — Креон 10000<div class="ftime">18:30</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="ann" style="margin-top:0">
+        <b>Что попадает в ленту</b>
+        <ul>
+          <li>Заведение, удаление, списание, правка количества или срока.</li>
+          <li>Добавление в список покупок и отметка о покупке.</li>
+          <li>Приход и уход участников.</li>
+          <li><b>Не попадает:</b> открытие схемы приёма, поиск, просмотр. Читать чужие действия — не то же самое, что видеть изменения списка.</li>
+        </ul>
+      </div>
+      <div class="ann blue">
+        <b>Где живёт</b><br>
+        Отдельной вкладкой в панели участников либо значком с точкой, когда есть непрочитанное. Точное место решим по снимку — важно, чтобы за ней не надо было охотиться.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ВЫХОД -->
+<div class="sec">
+  <h2>Участник уходит</h2>
+  <p class="cap">Самое неочевидное место. Ради него в модели данных с самого первого захода лежит владелец позиции.</p>
+
+  <div class="row2">
+    <div class="frame">
+      <div class="panel" style="max-width:520px">
+        <div class="ph"><span class="t">Выйти из общей аптечки?</span><span class="x">✕</span></div>
+        <div class="pb">
+          <div class="warn">
+            <b>Зина заберёт свои 8 позиций.</b> Они исчезнут из вашего списка и останутся у неё. Ваши 16 останутся у вас.
+          </div>
+          <div class="split">
+            <div class="splitcol">
+              <div class="h">останется вам</div>
+              <div class="n">16</div>
+              <div class="d">позиций, заведённых вами</div>
+            </div>
+            <div class="splitcol">
+              <div class="h">уйдёт с Зиной</div>
+              <div class="n">8</div>
+              <div class="d">позиций, заведённых ею</div>
+            </div>
+          </div>
+          <div style="margin-top:12px;font-size:12.5px;color:var(--t3);line-height:1.5">
+            Список покупок разделится так же: общие строки останутся у обоих, вернуть их потом нельзя.
+          </div>
+          <div style="display:flex;gap:9px;margin-top:14px;justify-content:flex-end">
+            <div class="btn">Остаться</div>
+            <div class="btn dn">Выйти</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="ann" style="margin-top:0">
+        <b>Правила расхода</b>
+        <ul>
+          <li><b>Позиции уходят к своему владельцу</b> — тому, кто её завёл. Не к тому, кто последним правил.</li>
+          <li><b>Числа показываются ДО подтверждения.</b> «Уйдёт 8 позиций» — это то, что человек должен увидеть до нажатия, а не узнать после.</li>
+          <li><b>Фото уходят вместе с позицией.</b> Они принадлежат карточке, а не аптечке.</li>
+          <li><b>Схемы приёма и свои записи</b> уходят с карточкой — они её часть.</li>
+          <li>Лента изменений обрезается: чужие записи не должны остаться у ушедшего.</li>
+        </ul>
+      </div>
+      <div class="ann blue">
+        <b>Один вопрос владельцу</b><br>
+        Что если оба завели одну и ту же пачку — например, каждый свой Цетрин? Группировка упаковок уже сделана, они схлопнутся в одну карточку со сводкой. При выходе группа разделится обратно по владельцам. Проверить это надо отдельно: это единственное место, где две готовые механики встречаются.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ПРОЧЕЕ -->
+<div class="sec">
+  <div class="ann">
+    <b>В эскизе не показано, но входит в ту же работу</b>
+    <ul>
+      <li><b>Ассистент отвечает из общей аптечки.</b> «Что у меня от головы» — ищет по всем позициям, и в ответе видно, чья пачка и где лежит.</li>
+      <li><b>Список покупок общий.</b> Она добавила — вы видите в магазине. Это и было половиной смысла.</li>
+      <li><b>Кнопка панели участников</b> встаёт рядом с «Завести с ассистентом» и «Вручную». Три кнопки в ряд — многовато, компоновку надо решить на снимке.</li>
+      <li><b>История чата обнулилась меньше чем за сутки</b> — дефект прошлого захода, переписка должна жить несколько дней.</li>
+      <li><b>Кнопка «Приём» у просроченного</b> — вернуть. Схема нужна и для того, чтобы посмотреть перед покупкой новой пачки.</li>
+      <li><b>Список покупок свёрнут по умолчанию</b>, со счётчиком в заголовке.</li>
+    </ul>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

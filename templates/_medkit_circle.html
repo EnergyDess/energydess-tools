@@ -1,0 +1,233 @@
+{# ПАНЕЛЬ УЧАСТНИКОВ — ЕДИНСТВЕННЫЙ ПОСТРОИТЕЛЬ (BACKLOG №182, блок B).
+
+   Потребителей два: первая отрисовка страницы (`medkit.html` включает
+   этот файл внутрь системной модалки) и обновление после любого действия
+   панели (`/medkit/api/circle` рендерит его же и отдаёт готовой
+   разметкой). Второго построителя в браузере нет — та же причина, что
+   у сетки карточек и списка покупок: разошлись бы они молча, и после
+   «Пригласить» человек видел бы не то же самое, что при загрузке.
+
+   ВКЛАДКИ РИСУЮТСЯ ВСЕ ТРИ И ВСЕГДА, а прячется только СОДЕРЖИМОЕ.
+   Вкладка, которой нет в разметке, не может появиться от действия:
+   заведи человек первое приглашение — вкладки «Приглашения» не было бы
+   до перезагрузки. Ровно тот немой и ОТЛОЖЕННЫЙ отказ, что чинили чипы
+   категорий (§5.8).
+
+   ЛИЧНАЯ АПТЕЧКА ВИДИТ ЗДЕСЬ ТОЛЬКО ПОЛЕ ПРИГЛАШЕНИЯ. Ни списка
+   участников, ни ленты, ни выхода: показывать нечего, а F.4 требует,
+   чтобы в личной аптечке ничего общего не появлялось. Сама панель при
+   этом достижима всегда — иначе позвать кого-то было бы нечем, и общая
+   аптечка не могла бы возникнуть вовсе. #}
+
+<div class="apt-circle" data-common="{{ 1 if общая else 0 }}">
+
+{# ОТКАЗ ПОКАЗЫВАЕТСЯ В САМОЙ ПАНЕЛИ. Полоса отмены внизу страницы
+   из-под открытой модалки не видна вовсе — то есть «такого
+   пользователя нет» было бы сказано в никуда, и нажатие выглядело бы
+   как «кнопка не сработала» (§6.0.1). Блок в разметке ВСЕГДА
+   и прячется атрибутом: собери его скрипт — до первого отказа его
+   не существовало бы, и показывать было бы нечего. #}
+<div class="alert alert-error apt-err" id="apt-circle-err" hidden></div>
+
+  <div class="tab-bar apt-circle-tabs" role="tablist">
+    <button class="tab-btn is-active" type="button" role="tab"
+            aria-selected="true" data-ctab="people">
+      {{ значок('users') }} Участники{% if общая %}
+      <span class="chip-n">{{ участники | length }}</span>{% endif %}
+    </button>
+    <button class="tab-btn" type="button" role="tab" aria-selected="false"
+            data-ctab="invites">
+      {{ значок('mail') }} Приглашения{% set всего_пр = (отправленные | length) + (полученные | length) %}{% if всего_пр %}
+      <span class="chip-n">{{ всего_пр }}</span>{% endif %}
+    </button>
+    <button class="tab-btn" type="button" role="tab" aria-selected="false"
+            data-ctab="feed">
+      {{ значок('history') }} Лента{% if лента %}
+      <span class="chip-n">{{ лента | length }}</span>{% endif %}
+    </button>
+    <button class="tab-btn" type="button" role="tab" aria-selected="false"
+            data-ctab="block">
+      {{ значок('lock') }} Блок{% if блок %}
+      <span class="chip-n">{{ блок | length }}</span>{% endif %}
+    </button>
+  </div>
+
+  {# ── УЧАСТНИКИ ─────────────────────────────────────────────────── #}
+  <div class="apt-circle-pane" data-cpane="people">
+    {# ПОЛЕ ПРИГЛАШЕНИЯ СТОИТ ПЕРВЫМ И ВИДНО ВСЕГДА. В личной аптечке
+       это единственное, что здесь есть, — и подпись поля говорит
+       ровно то, чего от неё ждут: кого можно позвать. #}
+    <form class="apt-circle-invite" onsubmit="return аптКругПозвать(event)">
+      <div class="input-wrap">
+        <input class="input" id="apt-circle-who" maxlength="200"
+               placeholder="Почта или имя на сайте" autocomplete="off"
+               aria-label="Кого позвать в общую аптечку">
+      </div>
+      <button class="btn btn-primary" type="submit">
+        {{ значок('user-plus') }} Пригласить</button>
+    </form>
+    <p class="data-note">Позвать можно только того, кто уже
+      зарегистрирован здесь. По чужому адресу мы не пишем никому.</p>
+
+    {% if общая %}
+    <ul class="apt-people">
+      {% for ч in участники %}
+      <li class="apt-person">
+        <span class="avatar avatar-sm avatar-tint-{{ ч.тон }}"
+              aria-hidden="true">{{ ч.буква }}</span>
+        <span class="apt-person-t">
+          <span class="apt-person-n">{{ ч.имя }}</span>
+          <span class="apt-person-m">{{ ч.позиций }} поз.{% if ч.свой %} · это вы{% endif %}</span>
+        </span>
+        <span class="badge {{ 'apt-badge-own' if ч.владелец_круга else 'badge-muted' }}">
+          {{ 'владелец' if ч.владелец_круга else 'участник' }}</span>
+        {# УБРАТЬ УЧАСТНИКА МОЖЕТ ТОЛЬКО ВЛАДЕЛЕЦ КРУГА, ВЫЙТИ — САМ
+           УЧАСТНИК (A.5). Обе кнопки ведут в ОДНО окно с числами:
+           расход считается одним правилом, и второе место, где решают,
+           чьи позиции уходят, разошлось бы с первым молча. #}
+        {% if ч.свой %}
+        <button class="btn btn-secondary btn-sm" type="button"
+                onclick="аптКругВыход({{ ч.id }})">Выйти</button>
+        {% elif я_владелец %}
+        <button class="btn btn-danger btn-sm" type="button"
+                onclick="аптКругВыход({{ ч.id }})">Убрать</button>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="data-note">Список общий: любой участник может списать,
+      поправить и удалить любую позицию. Каждое такое действие видно
+      в ленте. Позиции при выходе уходят к тому, кто их завёл.</p>
+    {% else %}
+    <div class="empty-state empty-state-block">
+      <span class="empty-state-icon">{{ значок('users') }}</span>
+      <p class="empty-state-title">Аптечка личная</p>
+      <p class="empty-state-sub">Позовите того, с кем живёте, — список
+        станет общим: каждый заводит своё, а видят оба.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── ПРИГЛАШЕНИЯ ───────────────────────────────────────────────── #}
+  <div class="apt-circle-pane" data-cpane="invites" hidden>
+    {% if полученные %}
+    <p class="field-label">Вам прислали</p>
+    <ul class="apt-people">
+      {% for пр in полученные %}
+      <li class="apt-person">
+        <span class="avatar avatar-sm avatar-tint-2" aria-hidden="true">{{ пр.буква }}</span>
+        <span class="apt-person-t">
+          <span class="apt-person-n">{{ пр.имя }}</span>
+          <span class="apt-person-m">зовёт в свою аптечку · {{ пр.позиций }} поз. · {{ пр.когда }}</span>
+        </span>
+        <span class="apt-person-acts">
+          <button class="btn btn-primary btn-sm" type="button"
+                  onclick="аптКругПринять({{ пр.id }})">Принять</button>
+          <button class="btn btn-secondary btn-sm" type="button"
+                  onclick="аптКругСнять({{ пр.id }})">Отклонить</button>
+          {# ЗАБЛОКИРОВАТЬ МОЖНО ПРЯМО ОТСЮДА (B.3) — иначе смысла
+             в блокировке нет: спам уже пришёл, и «заблокировать»
+             означало бы «убрать с глаз то, что уже показали» #}
+          <button class="btn btn-danger btn-sm" type="button"
+                  onclick="аптКругБлок({{ пр.id }})">Заблокировать</button>
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if отправленные %}
+    <p class="field-label">Вы отправили</p>
+    <ul class="apt-people">
+      {% for пр in отправленные %}
+      <li class="apt-person">
+        <span class="avatar avatar-sm avatar-tint-3" aria-hidden="true">{{ пр.буква }}</span>
+        <span class="apt-person-t">
+          <span class="apt-person-n">{{ пр.имя }}</span>
+          <span class="apt-person-m">{{ пр.когда }} · ждёт ответа</span>
+        </span>
+        <button class="btn btn-secondary btn-sm" type="button"
+                onclick="аптКругСнять({{ пр.id }})">Отозвать</button>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if not полученные and not отправленные %}
+    <div class="empty-state empty-state-block">
+      <span class="empty-state-icon">{{ значок('mail') }}</span>
+      <p class="empty-state-title">Приглашений нет</p>
+      <p class="empty-state-sub">Ни отправленных, ни полученных.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── ЛЕНТА ИЗМЕНЕНИЙ ───────────────────────────────────────────── #}
+  <div class="apt-circle-pane" data-cpane="feed" hidden>
+    {% if not общая %}
+    <div class="empty-state empty-state-block">
+      <span class="empty-state-icon">{{ значок('history') }}</span>
+      <p class="empty-state-title">Лента бывает у общей аптечки</p>
+      <p class="empty-state-sub">В личной записывать нечего: все
+        действия в списке — ваши.</p>
+    </div>
+    {% elif not лента %}
+    <div class="empty-state empty-state-block">
+      <span class="empty-state-icon">{{ значок('history') }}</span>
+      <p class="empty-state-title">Пока ничего не менялось</p>
+      <p class="empty-state-sub">Здесь появится, кто что завёл, списал
+        или выбросил.</p>
+    </div>
+    {% else %}
+    <ul class="apt-feed">
+      {% set ns = namespace(день='') %}
+      {% for с in лента %}
+      {% if с.день != ns.день %}
+      {% set ns.день = с.день %}
+      <li class="apt-feed-day">{{ с.подпись_дня }}</li>
+      {% endif %}
+      <li class="apt-feed-item">
+        <span class="avatar avatar-sm avatar-tint-{{ с.кто.тон }}"
+              aria-hidden="true">{{ с.кто.буква }}</span>
+        <span class="apt-feed-t">
+          <span class="apt-feed-txt">{{ с.текст }}</span>
+          {% if с.детали %}<span class="apt-feed-d">{{ с.детали }}</span>{% endif %}
+        </span>
+        <span class="apt-feed-time">{{ с.время }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="data-note">Лента хранится {{ лента_дней }} дней. Открытие
+      карточки, поиск и просмотр в неё не попадают — она про изменения
+      списка, а не про чужие действия.</p>
+    {% endif %}
+  </div>
+
+  {# ── БЛОК ──────────────────────────────────────────────────────── #}
+  <div class="apt-circle-pane" data-cpane="block" hidden>
+    {% if блок %}
+    <ul class="apt-people">
+      {% for б in блок %}
+      <li class="apt-person">
+        <span class="avatar avatar-sm avatar-tint-5" aria-hidden="true">{{ б.буква }}</span>
+        <span class="apt-person-t">
+          <span class="apt-person-n">{{ б.имя }}</span>
+          <span class="apt-person-m">заблокирован {{ б.когда }}</span>
+        </span>
+        <button class="btn btn-secondary btn-sm" type="button"
+                onclick="аптКругРазблок({{ б.id }})">Разблокировать</button>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-state empty-state-block">
+      <span class="empty-state-icon">{{ значок('lock') }}</span>
+      <p class="empty-state-title">Никто не заблокирован</p>
+      <p class="empty-state-sub">Заблокировать можно прямо из полученного
+        приглашения.</p>
+    </div>
+    {% endif %}
+    <p class="data-note">Заблокированный не может прислать вам
+      приглашение. Уже висящее снимается в тот же миг.</p>
+  </div>
+</div>
