@@ -78,6 +78,15 @@ def _в_базу(запрос, параметры=()):
         conn.close()
 
 
+def _прибрать_сироп():
+    conn = sqlite3.connect(DB)
+    try:
+        conn.execute("DELETE FROM medkit_items WHERE name = ?", (СИРОП,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def _прибрать():
     conn = sqlite3.connect(DB)
     try:
@@ -136,16 +145,56 @@ def _завести_состояние():
             " created_at) VALUES (%s, 'user', ?, 'medkit', datetime('now'))"
             % u, ("Живот болит, что есть?",))
 
-    # ── СИРОП СОЛОДКИ: ФОРМА И ВЕЩЕСТВО ЕСТЬ, ДОЗИРОВКИ НЕТ ─────────
-    #
-    # Ровно тот случай блока A, ради которого заход и правил чистку
-    # названия: у Видаля страница есть, а у нас в карточке нечему
-    # совпадать с её «4 г/100 г»
-    return _в_базу(
-        "INSERT INTO medkit_items (user_id, name, substance, form, unit,"
-        " qty_left, qty_total, dose, expires_ym, is_rx, created_at,"
-        " updated_at) VALUES (%s, ?, 'Солодка', 'syrup', 'ml', 60, 100, 5,"
-        " '2027-09', 0, datetime('now'), datetime('now'))" % u, (СИРОП,))
+    # СИРОП СОЛОДКИ ЗАВОДИТСЯ НЕ ЗДЕСЬ, А ЧЕРЕЗ ПРИЛОЖЕНИЕ (`_завести_сироп`):
+    # прямая вставка в базу минует ФОНОВЫЙ ПОИСК СХЕМЫ, и окно способа
+    # приёма показало бы «ещё не искалась» — то есть НЕ ТОТ исход, ради
+    # которого блок A и делался. Первая версия съёмки так и сделала,
+    # и кадр это честно показал
+    return None
+
+
+async def _завести_сироп(pg):
+    """«Солодки сироп» — ЧЕРЕЗ ФОРМУ, чтобы отработал фоновый поиск.
+
+    Возвращает id либо None. Ждёт, пока фон запишет исход поиска;
+    не дождался — ГОВОРИТ ОБ ЭТОМ, а не снимает молча кадр другого
+    состояния. Фону нужна СЕТЬ (Видаль), и съёмка от неё зависит —
+    это цена того, что кадр показывает настоящий ответ, а не
+    подставленный.
+    """
+    ответ = await pg.evaluate("""async (имя) => {
+      const т = await fetch('/medkit/api/items', {method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: имя, substance: 'Солодка',
+          form: 'syrup', unit: 'ml', qty_left: 60, qty_total: 100,
+          dose: 5, expires_ym: '2027-09', is_rx: false,
+          'категории': []})});
+      return await т.json();
+    }""", СИРОП)
+    ид = (ответ or {}).get("id")
+    if not ид:
+        print("   сироп не завёлся: %r" % (ответ,))
+        return None
+    for _ in range(40):
+        строка = _из_базы("SELECT dosage_text, dosage_miss FROM medkit_items"
+                          " WHERE id = ?", (ид,))
+        if строка and (строка[0][0] or строка[0][1]):
+            print("   фон ответил: %s"
+                  % ((строка[0][0] and "схема найдена")
+                     or (строка[0][1] or "")[:70]))
+            return ид
+        await pg.wait_for_timeout(500)
+    print("   ФОН НЕ ОТВЕТИЛ за 20 с — кадр покажет «ещё не искалась», "
+          "а не исход поиска. Нужна сеть до Видаля")
+    return ид
+
+
+def _из_базы(запрос, параметры=()):
+    conn = sqlite3.connect(DB)
+    try:
+        return conn.execute(запрос, параметры).fetchall()
+    finally:
+        conn.close()
 
 
 async def _войти(pg):
@@ -202,11 +251,12 @@ async def кадры(pg, ширина, id_сиропа):
     # сеть, и кадр зависел бы от доступности Видаля. Снимается
     # состояние, в котором окно открывается У ВЛАДЕЛЬЦА — с причиной,
     # уже лежащей в базе от фонового поиска при заведении
-    есть = await pg.evaluate("(id) => !!аптПозиция(id)", str(id_сиропа))
+    есть = (id_сиропа is not None
+            and await pg.evaluate("(id) => !!аптПозиция(id)", str(id_сиропа)))
     if не_ноль(есть):
         await pg.evaluate("(id) => аптДозыОткрыть(id)", str(id_сиропа))
         await pg.wait_for_timeout(900)
-        await _снять(pg, "solodka-priyom", ширина, ".modal-ov.open .modal")
+        await _снять(pg, "solodka-priyom", ширина, "#apt-doses .modal-sh")
         await pg.evaluate("() => закрыть_модалку('apt-doses')")
     else:
         print("   ПРОПУЩЕН solodka-priyom — позиции нет в АПТ_ПОЗИЦИИ")
@@ -230,10 +280,17 @@ async def прогон(ширина, id_сиропа):
         pg = await ctx.new_page()
         await _войти(pg)
         try:
+            # ЧЕРЕЗ ПРИЛОЖЕНИЕ, а не в базу: нужен фоновый поиск схемы
+            await pg.goto(БАЗА + "/medkit", wait_until="networkidle")
+            id_сиропа = await _завести_сироп(pg)
             await кадры(pg, ширина, id_сиропа)
         finally:
             await ctx.close()
             await b.close()
+            # СИРОП УБИРАЕТСЯ ПОСЛЕ КАЖДОЙ ШИРИНЫ. Иначе вторая ширина
+            # завела бы вторую упаковку того же препарата, и экран
+            # показал бы ГРУППУ — то есть кадр другого состояния
+            _прибрать_сироп()
 
 
 def main():
@@ -243,12 +300,12 @@ def main():
     ширины = [a.ширина] if a.ширина else ШИРИНЫ
     print("СНИМКИ ЗАХОДА 178 -> %s" % КУДА)
     print("Состояние кадра заводится САМО и убирается в конце.")
-    id_сиропа = _завести_состояние()
-    print("Заведено: 4 строки покупок, 3 реплики, «%s» id %s"
-          % (СИРОП, id_сиропа))
+    _завести_состояние()
+    print("Заведено: 4 строки покупок, 3 реплики. Сироп заводится "
+          "в прогоне — через приложение, ради фонового поиска схемы.")
     try:
         for ш in ширины:
-            asyncio.run(прогон(ш, id_сиропа))
+            asyncio.run(прогон(ш, None))
     finally:
         _прибрать()
         print("Пробные записи убраны.")
