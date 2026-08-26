@@ -1461,3 +1461,266 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 }
 .apt-dupe[hidden] { display: none; }
 .apt-dupe-t { flex: 1; min-width: 12rem; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   СПИСОК ПОКУПОК (BACKLOG №178, блок B)
+   ═══════════════════════════════════════════════════════════════════
+
+   `<details>`, а не свой раскрыватель: он открывается до загрузки
+   скриптов, до него доходит Tab, и на первом кадре он уже нарисован —
+   ничего не появляется после (§6.0.15).
+
+   ОФОРМЛЕНИЕ БЕРЁТСЯ У СИСТЕМЫ: карточка это `.card`, кнопки внутри —
+   `.btn-secondary`/`.btn-danger` с `.btn-sm`, поле ввода — `.input`.
+   Здесь только раскладка экземпляра и то, чего в системе нет
+   по построению: флажок и пометка источника. */
+.apt-buy {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+}
+/* Раскрытый блок отделяется от свёрнутого рамкой между шапкой и телом,
+   а не тенью: тень тут значила бы «поверх страницы», чего нет */
+.apt-buy[open] { border-color: var(--border-strong); }
+
+.apt-buy-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  min-height: 44px;           /* тач-таргет: шапка и есть орган (§6.0.11) */
+  list-style: none;
+  user-select: none;
+}
+.apt-buy-head::-webkit-details-marker { display: none; }
+.apt-buy-ico { width: 18px; height: 18px; color: var(--tool-accent); flex: none; }
+.apt-buy-title { font-weight: 600; font-size: var(--text-body); }
+/* ЧИСЛО НА АКЦЕНТЕ, А НЕ СЕРОЕ: свёрнутый блок — одна строка, и число
+   в ней отвечает на единственный вопрос, который к ней есть */
+.apt-buy-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 var(--space-2);
+  border-radius: 11px;
+  background: var(--tool-accent);
+  color: var(--tool-accent-ink);
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+.apt-buy-n[hidden] { display: none; }
+.apt-buy-sub {
+  color: var(--text-faint);
+  font-size: var(--text-caption);
+  margin-left: auto;
+}
+/* Треугольник рисуем сами — родной `marker` в flex-подписи не встаёт
+   в строку и на разных платформах выглядит по-разному */
+.apt-buy-head::after {
+  content: "";
+  width: 8px; height: 8px;
+  border-right: 2px solid var(--text-faint);
+  border-bottom: 2px solid var(--text-faint);
+  transform: rotate(45deg);
+  transition: transform var(--dur-fast, .15s) ease;
+  flex: none;
+}
+.apt-buy[open] .apt-buy-head::after { transform: rotate(-135deg); }
+@media (hover: hover) {
+  .apt-buy-head:hover .apt-buy-title { color: var(--text-strong); }
+}
+
+.apt-buy-box {
+  border-top: 1px solid var(--border);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+.apt-buy-none {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-body-sm);
+  line-height: 1.5;
+}
+.apt-buy-list { list-style: none; margin: 0; padding: 0; }
+.apt-buy-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-hairline);
+}
+.apt-buy-item:last-child { border-bottom: 0; }
+
+/* ФЛАЖОК: родной `<input>` спрятан, видимая коробка — его подпись.
+   Спрятан ЧЕРЕЗ `opacity`+размер, а не `display:none`: последнее
+   выбивает его из порядка обхода клавиатурой, и отметить покупку
+   с клавиатуры стало бы нечем */
+.apt-buy-chk {
+  position: relative;
+  flex: none;
+  display: block;
+  width: 22px; height: 22px;
+  margin-top: 2px;
+  cursor: pointer;
+}
+.apt-buy-chk input {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+/* ИМЯ У ГАЛОЧКИ СВОЁ, а не `.apt-buy-box`: первая версия дала обоим
+   одно имя, и правило тела блока красило внутренность флажка. Ровно
+   то столкновение имён, что чинила задача 110, только внутри одного
+   файла — и поймано оно было чтением своего же кода, а не экраном */
+.apt-buy-tick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px; height: 22px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: transparent;
+  transition: background var(--dur-fast, .15s) ease,
+              border-color var(--dur-fast, .15s) ease;
+  pointer-events: none;
+}
+.apt-buy-tick svg { width: 14px; height: 14px; }
+.apt-buy-chk input:checked + .apt-buy-tick {
+  background: var(--success);
+  border-color: var(--success);
+  color: var(--surface-0);
+}
+.apt-buy-chk input:focus-visible + .apt-buy-tick {
+  outline: 2px solid var(--tool-accent);
+  outline-offset: 2px;
+}
+/* ОБЛАСТЬ НАЖАТИЯ ДОБИРАЕТСЯ НЕВИДИМЫМ СЛОЕМ, видимый размер не растёт
+   (§6.0.11). Только на сенсорном: на десктопе 22px мышью попадаются */
+@media (pointer: coarse) {
+  .apt-buy-chk::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 44px; height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.apt-buy-body { flex: 1; min-width: 0; }
+.apt-buy-name {
+  display: block;
+  font-weight: 600;
+  font-size: var(--text-body-sm);
+  overflow-wrap: anywhere;
+}
+.apt-buy-why {
+  display: block;
+  color: var(--text-faint);
+  font-size: var(--text-caption);
+  margin-top: 2px;
+}
+/* ПОМЕТКА ИСТОЧНИКА — свой компонент, а не `.chip`: чип это ОРГАН
+   отбора, до него доходит нажатие, а тут подпись, которую не нажимают.
+   Взять `.chip` значило бы обещать действие, которого нет (§6.0.3) */
+.apt-buy-tag {
+  display: inline-flex;
+  align-items: center;
+  margin-top: var(--space-2);
+  padding: 2px var(--space-2);
+  border-radius: 20px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.apt-buy-tag-ai { background: var(--tool-accent-dim); color: var(--tool-accent); }
+.apt-buy-tag-expired { background: rgba(239, 68, 68, .14); color: var(--error); }
+.apt-buy-tag-low { background: rgba(245, 158, 11, .14); color: var(--warning); }
+
+.apt-buy-acts {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+.apt-buy-act { flex: none; }
+/* ЗАЧЁРКНУТОЕ — ОСТАЁТСЯ ДО КОНЦА ДНЯ, а не исчезает: галочку надо
+   уметь снять, если передумали (постановка B.2) */
+.apt-buy-item.is-bought .apt-buy-name {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+.apt-buy-item.is-bought .apt-buy-why,
+.apt-buy-item.is-bought .apt-buy-tag { opacity: .6; }
+
+.apt-buy-add {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+.apt-buy-in { flex: 1; min-width: 0; }
+
+@media (max-width: 640px) {
+  /* На узком действия уходят под строку: три коробки в ряд с длинным
+     названием дают перенос посреди подписи кнопки */
+  .apt-buy-item { flex-wrap: wrap; }
+  .apt-buy-acts { width: 100%; padding-left: calc(22px + var(--space-3)); }
+  .apt-buy-sub { display: none; }   /* в шапке остаётся число */
+}
+
+/* «В ПОКУПКИ» В ПОЛОСЕ ОТМЕНЫ — ВТОРИЧНАЯ РЯДОМ С «ВЕРНУТЬ».
+   Обе кнопки полосы системные (`.undo-bar-btn`), но «Вернуть»
+   отменяет только что сделанное, а эта заводит новое; одинаковый вид
+   у них означал бы одинаковую срочность. Отличается приглушённой
+   надписью, а не размером: разный размер в полосе из двух кнопок
+   читается как «одна главная», чего тут нет. */
+.apt-undo-buy { color: var(--text-2); }
+.apt-undo-buy[hidden] { display: none; }
+@media (hover: hover) {
+  .apt-undo-buy:hover { color: var(--text-strong); }
+}
+
+/* ── РАЗДЕЛИТЕЛЬ ПО ДНЯМ В ЛЕНТЕ (BACKLOG №178, C.3) ────────────────
+   Вечерний вопрос находится утром без прокрутки в никуда. Черта
+   проведена рамкой псевдоэлементов, а не картинкой и не символами:
+   ширина её зависит от ширины панели, а подпись стоит по центру. */
+.apt-ai-day {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+}
+.apt-ai-day::before,
+.apt-ai-day::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.apt-ai-day span {
+  color: var(--text-faint);
+  font-size: var(--text-caption);
+  letter-spacing: .03em;
+  white-space: nowrap;
+}
+
+/* «В СПИСОК ПОКУПОК» ПОД ОТВЕТОМ (C.4). Вторичная кнопка: главное
+   в ответе — сам ответ, а занесение это следующий шаг, не равный ему
+   по весу. Отдельного вида у нажатой нет — меняется подпись
+   («✓ В списке покупок»), и приглушение говорит, что делать больше
+   нечего. */
+.apt-ai-buy { margin-top: var(--space-3); }
+.apt-ai-buy-done {
+  color: var(--success);
+  border-color: var(--success);
+  pointer-events: none;
+}

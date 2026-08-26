@@ -60,6 +60,7 @@
 """
 import argparse
 import asyncio
+import json
 import os
 import sqlite3
 import sys
@@ -116,6 +117,66 @@ DB = os.environ.get("DB_PATH", "app.db")
         "    const к = Object.assign({}, п); к['дозы_сгиб'] = null; return к;"
         "  }; });",
         "сгиб-прячет-остаток-и-раскрывает"),
+    # ── ПОДЛОГИ ПОД СПИСОК ПОКУПОК И ПЕРЕПИСКУ (BACKLOG №178) ───────
+    #
+    # Каждый ломает РОВНО ОДНО свойство. Общий подлог доказывал бы, что
+    # проба видит хоть что-то, и находка от одного шага закрыла бы
+    # собой молчание про остальные.
+    "покупки-не-доезжают-до-базы": (
+        # Строка рисуется на экране и НЕ уходит на сервер. Экран при
+        # этом выглядит исправным — ровно тот немой отказ, ради которого
+        # результат берётся ИЗ БАЗЫ, а не с экрана (§6.0.5)
+        "document.addEventListener('DOMContentLoaded', () => {"
+        "  window.аптКупить = async function (поле) {"
+        "    const л = document.getElementById('apt-buy-list');"
+        "    const li = document.createElement('li');"
+        "    li.className = 'apt-buy-item';"
+        "    li.textContent = поле.name || '';"
+        "    if (л.firstElementChild) л.firstElementChild.appendChild(li);"
+        "    else l.appendChild(li);"
+        "    document.getElementById('apt-buy').open = true;"
+        "    return {'уже_было': false};"
+        "  }; });",
+        "источник-руками"),
+    "флажок-покупки-у-всех": (
+        # Возврат к «спрашиваем всегда»: предлагать купить то, от чего
+        # человек отказался, — вопрос не о том (разбор в разметке окна)
+        "document.addEventListener('DOMContentLoaded', () => {"
+        "  const было = window.аптСпросить;"
+        "  window.аптСпросить = function (id) {"
+        "    было(id);"
+        "    document.getElementById('apt-del-buy').hidden = false;"
+        "  }; });",
+        "флажка-покупки-нет-у-рабочего"),
+    "обратный-ход-тащит-срок": (
+        # Перенос срока годности и остатка с прошлой пачки — то есть
+        # ровно того, чем две пачки и отличаются
+        "document.addEventListener('DOMContentLoaded', () => {"
+        "  const было = window.аптЗаполнитьПачкой;"
+        "  window.аптЗаполнитьПачкой = function (д) {"
+        "    было(д);"
+        "    document.getElementById('apt-f-exp').value = '2030-01';"
+        "    document.getElementById('apt-f-left').value = '7';"
+        "  }; });",
+        "обратный-ход-НЕ-переносит-срок-и-остаток"),
+    "разделителей-дней-нет": (
+        # Возврат к ленте без дат: вечерний вопрос теряется утром среди
+        # сегодняшних, и найти его можно только прокруткой в никуда
+        "document.addEventListener('DOMContentLoaded', () => {"
+        "  window.аптАИДень = function () {"
+        "    return document.createComment('день снят подлогом'); }; });",
+        "разделители-по-дням"),
+    "кнопки-покупок-в-ответе-нет": (
+        # Возврат к ответу без кнопки: человек понял, что надо купить,
+        # и заносить это ему негде — «вспомнит потом», а потом
+        # не вспоминают (C.4)
+        "document.addEventListener('DOMContentLoaded', () => {"
+        "  const было = window.аптАИОтвет;"
+        "  window.аптАИОтвет = function (тело) {"
+        "    было(тело);"
+        "    document.querySelectorAll('.apt-ai-buy').forEach(к => к.remove());"
+        "  }; });",
+        "кнопка-в-покупки-в-ответе"),
     "удаление-языком-устройства": (
         # Возврат прежней фразы (BACKLOG №173, блок B): «окна отмены
         # у удаления нет» — про «окно отмены» человек не знает
@@ -501,6 +562,73 @@ DB = os.environ.get("DB_PATH", "app.db")
     # Каждое открывает окно способа приёма САМО и меряет состояние
     # страницы, а не факт установки подлога: «скрипт запустился»
     # и «эффект наступил» — разные утверждения (§6.0.3).
+
+    # ── ДОКАЗАТЕЛЬСТВА ПОДЛОГОВ БЛОКОВ B И C (BACKLOG №178) ─────────
+    #
+    # Каждое меряет СОСТОЯНИЕ, которое подлог собирался изменить, —
+    # независимо от вердикта пробы. Подлог, совпавший с истиной, ничего
+    # не доказывает: «НАЙДЕН» тогда приходит по другой причине, и слепая
+    # проба неотличима от зрячей (§6.0.3).
+
+    # Доезжает ли занесённая строка ДО БАЗЫ. Меряется тем же способом,
+    # что и на бою: спрашиваем сервер, а не смотрим на экран
+    "покупки-не-доезжают-до-базы": (
+        "async () => { const б = await fetch('/medkit/api/buy',"
+        "    {method: 'POST', headers: {'Content-Type': 'application/json'},"
+        "     body: JSON.stringify({name: 'ДокПокупка', source: 'hand'})});"
+        "  const т = await б.json();"
+        "  const было = (т['покупки'] || []).length;"
+        "  await аптКупить({name: 'ДокПокупка2', source: 'hand'});"
+        "  const п = await (await fetch('/medkit/api/buy')).json();"
+        "  return 'после fetch ' + было + ', после аптКупить '"
+        "         + (п['покупки'] || []).length; }",
+        "сколько строк в БАЗЕ после занесения через аптКупить"),
+
+    # Показан ли флажок покупки у РАБОЧЕЙ позиции
+    "флажок-покупки-у-всех": (
+        "async () => { const к = [...document.querySelectorAll('.apt-card')]"
+        "    .find(к => к.dataset.state && к.dataset.state !== 'expired');"
+        "  if (!к) return 'рабочей позиции нет';"
+        "  аптСпросить(к.dataset.id);"
+        "  await new Promise(r => setTimeout(r, 250));"
+        "  const h = document.getElementById('apt-del-buy').hidden;"
+        "  закрыть_модалку('apt-del');"
+        "  return 'hidden у рабочей: ' + h; }",
+        "спрятан ли флажок покупки в окне удаления РАБОЧЕЙ позиции"),
+
+    # Что попадает в поле срока при обратном ходе
+    "обратный-ход-тащит-срок": (
+        "async () => { аптОткрытьФорму();"
+        "  аптЗаполнитьПачкой({name: 'ДокСнимок', substance: 'в, 1 мг',"
+        "                      form: 'tablet', unit: 'tablet'});"
+        "  const с = document.getElementById('apt-f-exp').value;"
+        "  const о = document.getElementById('apt-f-left').value;"
+        "  закрыть_модалку('apt-form');"
+        "  return 'срок=' + JSON.stringify(с) + ' остаток=' + JSON.stringify(о); }",
+        "срок и остаток после заполнения формы снимком"),
+
+    # Сколько разделителей дней рисуется на двухдневной переписке
+    "разделителей-дней-нет": (
+        "() => { const л = document.getElementById('apt-ai-log');"
+        "  л.innerHTML = '';"
+        "  л.appendChild(аптАИДень('вчера'));"
+        "  const n = л.querySelectorAll('.apt-ai-day').length;"
+        "  л.innerHTML = '';"
+        "  return 'разделителей после вызова аптАИДень: ' + n; }",
+        "рисует ли аптАИДень разделитель"),
+
+    # Остаётся ли кнопка покупок в построенном ответе
+    "кнопки-покупок-в-ответе-нет": (
+        "() => { const л = document.getElementById('apt-ai-log');"
+        "  л.innerHTML = '';"
+        "  аптАИОтвет({'вид': 'запрос', 'вопрос': 'проба',"
+        "    'нашлось': [], 'просрочено': [], 'рецептурные': [],"
+        "    'вступление': '', 'нет': 'нет', 'группа': 'докгруппа',"
+        "    'оговорка': ''});"
+        "  const n = л.querySelectorAll('.apt-ai-buy').length;"
+        "  л.innerHTML = '';"
+        "  return 'кнопок в ответе: ' + n; }",
+        "сколько кнопок «в покупки» в построенном ответе"),
 
     # Идёт ли выдержка полотном (запасной путь) вместо блоков
     "выдержка-полотном": (
@@ -2206,6 +2334,10 @@ async def _пройти(pg, о, ширина):
     # ── СВОЯ СХЕМА И ЧЕТЫРЕ СОСТОЯНИЯ ОКНА (BACKLOG №177) ──────────
     await _своя_схема_насквозь(pg, о)
 
+    # ── СПИСОК ПОКУПОК И ПЕРЕПИСКА (BACKLOG №178, блоки B и C) ──────
+    await _покупки_насквозь(pg, о)
+    await _переписка_насквозь(pg, о)
+
     # ── 16. ТАЧ-ТАРГЕТ на сенсорной ширине ───────────────────────────
     #
     # ОКНО ЗАКРЫВАЕТСЯ ПЕРЕД ЗАМЕРОМ. Первая версия пробы мерила область
@@ -2292,6 +2424,409 @@ def _убрать_пробы():
         return n
     finally:
         conn.close()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# СПИСОК ПОКУПОК НАСКВОЗЬ (BACKLOG №178, блок B)
+# ══════════════════════════════════════════════════════════════════════
+#
+# ЧЕТЫРЕ ИСТОЧНИКА ПРОХОДЯТСЯ ПООТДЕЛЬНО, а не «список наполняется».
+# Постановка B.6 требует именно этого, и довод виден на прошлых заходах:
+# правка ложилась на путь, названный в постановке, а второй такой же
+# оставался — трижды подряд (§6.0.7, `check_upload_paths`).
+#
+# РЕЗУЛЬТАТ БЕРЁТСЯ ИЗ БАЗЫ, А НЕ С ЭКРАНА. Строка, нарисованная
+# скриптом и не доехавшая до базы, выглядит на экране точно так же —
+# ровно тот немой отказ, что ловит §6.0.5.
+
+def _покупки_в_базе():
+    return _в_базе(
+        "SELECT name, source, why, form, bought_on FROM medkit_buy_items "
+        "WHERE user_id = (SELECT id FROM users WHERE email = ?) ORDER BY id",
+        (ПОЧТА,))
+
+
+def _покупки_очистить():
+    conn = sqlite3.connect(DB)
+    try:
+        n = conn.execute(
+            "DELETE FROM medkit_buy_items WHERE user_id = "
+            "(SELECT id FROM users WHERE email = ?)", (ПОЧТА,)).rowcount
+        conn.commit()
+        return n
+    finally:
+        conn.close()
+
+
+async def _покупки_насквозь(pg, о):
+    # ЧИСТЫЙ ЛИСТ ПЕРЕД ЗАМЕРОМ: строка, оставшаяся от прошлого прогона,
+    # засчиталась бы за находку этого
+    _покупки_очистить()
+    await pg.goto(БАЗА + "/medkit?buy=1", wait_until="networkidle")
+    await pg.add_style_tag(content="html, * { scroll-behavior: auto !important }")
+    await pg.wait_for_timeout(300)
+
+    открыт = await pg.evaluate("() => { const d = document.getElementById('apt-buy');"
+                               " return d && d.open; }")
+    о.шаг("покупки-открываются-адресом", открыт, "?buy=1")
+
+    ж = await pg.evaluate(ЖИВОЙ, "#apt-buy-name")
+    о.шаг("живое-поле-покупок", ж.get("живой"), ж.get("причина", ""))
+
+    # ── ИСТОЧНИК 4: ВПИСАНО РУКАМИ ───────────────────────────────────
+    await pg.fill("#apt-buy-name", "Пластырь ПробаПокупки")
+    await pg.click("#apt-buy-add button[type=submit]")
+    await pg.wait_for_timeout(600)
+    строки = _покупки_в_базе()
+    о.шаг("источник-руками", len(строки) == 1 and строки[0][1] == "hand",
+          "в базе %d: %s" % (len(строки), строки[:1]))
+    на_экране = await pg.evaluate(
+        "() => document.querySelectorAll('.apt-buy-item').length")
+    о.шаг("экран-совпал-с-базой-покупок", на_экране == len(строки),
+          "на экране %d, в базе %d" % (на_экране, len(строки)))
+    # ПОЛЕ ЧИСТИТСЯ: набранное, оставшееся в поле, при следующем нажатии
+    # завело бы дубль, а человек этого не ждал
+    осталось = await pg.input_value("#apt-buy-name")
+    о.шаг("поле-покупок-чистится", осталось == "", repr(осталось))
+
+    # ── ИСТОЧНИК 2: ВЫБРОСИЛИ ПРОСРОЧЕННОЕ ───────────────────────────
+    #
+    # Флажок обязан быть ТОЛЬКО у просроченного. Проверяются ОБА случая:
+    # «есть у просроченного» без «нет у рабочего» означало бы, что
+    # признак не разделяет вовсе
+    # ПРОСРОЧЕННУЮ ПОЗИЦИЮ ПРОБА ЗАВОДИТ СВОЮ, А НЕ БЕРЁТ СО СТЕНДА.
+    #
+    # Шаг её УДАЛЯЕТ — в этом весь источник `expired`, — и взяв
+    # стендовую, проба съела бы её насовсем: второй прогон остался бы
+    # без просроченного вовсе и напечатал бы «источник expired
+    # не пройден» на исправном коде. Ровно тот класс, что уже разбирали
+    # у неполного тела PUT: проба, портящая стенд, врёт не про себя,
+    # а про соседей.
+    _прямо_в_базу(
+        "INSERT INTO medkit_items (user_id, name, substance, form, unit,"
+        " qty_left, qty_total, dose, expires_ym, is_rx, created_at, updated_at)"
+        " VALUES ((SELECT id FROM users WHERE email = ?),"
+        " 'Проба-Просрочка', 'Пробное вещество, 5 мг', 'tablet', 'tablet',"
+        " 4, 10, 1, '2020-01', 0, datetime('now'), datetime('now'))",
+        (ПОЧТА,))
+    await pg.reload(wait_until="networkidle")
+    await pg.wait_for_timeout(500)
+    просроченный = _в_базе(
+        "SELECT id FROM medkit_items WHERE name = 'Проба-Просрочка'")
+    просроченный = str(просроченный[0][0]) if просроченный else None
+    рабочий = await pg.evaluate(
+        "() => { const к = [...document.querySelectorAll('.apt-card')]"
+        ".find(к => к.dataset.state && к.dataset.state !== 'expired');"
+        " return к ? к.dataset.id : null; }")
+    состояние = await pg.evaluate(
+        "(id) => { const к = document.querySelector("
+        "'.apt-card[data-id=\"' + id + '\"]');"
+        " return к ? к.dataset.state : 'карточки нет'; }", просроченный)
+    if not просроченный or состояние != "expired":
+        о.шаг("проба-просрочка-заведена", False,
+              "id %s, состояние %r" % (просроченный, состояние))
+        _покупки_очистить()
+        _прямо_в_базу("DELETE FROM medkit_items WHERE name = 'Проба-Просрочка'")
+        return
+    о.шаг("проба-просрочка-заведена", True,
+          "id %s, состояние %r" % (просроченный, состояние))
+
+    await pg.evaluate("(id) => аптСпросить(id)", рабочий)
+    await pg.wait_for_timeout(250)
+    у_рабочего = await pg.evaluate(
+        "() => document.getElementById('apt-del-buy').hidden")
+    о.шаг("флажка-покупки-нет-у-рабочего", у_рабочего is True,
+          "hidden=%s" % у_рабочего)
+    await pg.evaluate("() => закрыть_модалку('apt-del')")
+    await pg.wait_for_timeout(200)
+
+    await pg.evaluate("(id) => аптСпросить(id)", просроченный)
+    await pg.wait_for_timeout(250)
+    у_просроч = await pg.evaluate(
+        "() => document.getElementById('apt-del-buy').hidden")
+    о.шаг("флажок-покупки-у-просроченного", у_просроч is False,
+          "hidden=%s" % у_просроч)
+
+    имя_просроч = await pg.evaluate(
+        "(id) => { const п = аптПозиция(id); return п ? п.name : ''; }",
+        просроченный)
+    await pg.check("#apt-del-buy-chk")
+    await pg.evaluate("() => аптУдалить()")
+    await pg.wait_for_timeout(1000)
+    строки = _покупки_в_базе()
+    из_просроч = [с for с in строки if с[1] == "expired"]
+    о.шаг("источник-выброшено", len(из_просроч) == 1
+          and из_просроч[0][0] == имя_просроч,
+          "в базе %s, ждали %r" % (из_просроч, имя_просроч))
+    # B.6: СНИМОК ПОЛЕЙ ПЕРЕЖИЛ УДАЛЕНИЕ КАРТОЧКИ. Ссылка тут осиротела
+    # бы молча — строка осталась бы, а заполнять форму стало бы нечем
+    ушла = _в_базе("SELECT COUNT(*) FROM medkit_items WHERE id = ?",
+                   (просроченный,))[0][0]
+    о.шаг("карточка-удалена-строка-жива",
+          ушла == 0 and len(из_просроч) == 1 and bool(из_просроч[0][3]),
+          "карточек с id %s: %d, форма в строке: %r"
+          % (просроченный, ушла, из_просроч[0][3] if из_просроч else None))
+
+    # ── ИСТОЧНИК 3: ЗАКАНЧИВАЕТСЯ ────────────────────────────────────
+    #
+    # Позицию заводим САМИ и с остатком у самой границы: на стенде
+    # позиции в нужной точке может не быть, а замер, которому нечего
+    # мерить, молчит и выглядит пройденным
+    _прямо_в_базу(
+        "INSERT INTO medkit_items (user_id, name, substance, form, unit,"
+        " qty_left, qty_total, dose, expires_ym, is_rx, created_at, updated_at)"
+        " VALUES ((SELECT id FROM users WHERE email = ?),"
+        " 'Проба-Кончается', 'Пробное вещество, 10 мг', 'tablet', 'tablet',"
+        " 11, 30, 1, '2029-01', 0, datetime('now'), datetime('now'))",
+        (ПОЧТА,))
+    await pg.goto(БАЗА + "/medkit?buy=1", wait_until="networkidle")
+    await pg.wait_for_timeout(500)
+    ид = _в_базе("SELECT id FROM medkit_items WHERE name = 'Проба-Кончается'")
+    ид = ид[0][0] if ид else None
+    о.шаг("проба-заканчивается-заведена", bool(ид), "id %s" % ид)
+    if ид:
+        # 11 из 30 — это 36.7%, зона `warn`. Один приём уводит в 10 из 30,
+        # то есть ровно 33.3% — красная зона. ПЕРЕХОД, а не «уже мало»
+        await pg.evaluate("(id) => аптПринять(id)", ид)
+        await pg.wait_for_timeout(900)
+        видна = await pg.evaluate(
+            "() => !document.getElementById('undo-bar-buy').hidden")
+        о.шаг("предложение-в-покупки-при-переходе", видна,
+              "кнопка в полосе отмены видна: %s" % видна)
+        if видна:
+            await pg.evaluate("() => аптКупитьКончается()")
+            await pg.wait_for_timeout(800)
+            из_low = [с for с in _покупки_в_базе() if с[1] == "low"]
+            о.шаг("источник-заканчивается", len(из_low) == 1,
+                  "в базе %s" % из_low)
+        # ВТОРОЕ СПИСАНИЕ ИЗ КРАСНОЙ ЗОНЫ НЕ ПОВТОРЯЕТ ПРЕДЛОЖЕНИЕ:
+        # список, который навязывается, перестают открывать
+        await pg.evaluate("() => аптЗакрытьПолосу()")
+        await pg.evaluate("(id) => аптПринять(id)", ид)
+        await pg.wait_for_timeout(900)
+        снова = await pg.evaluate(
+            "() => !document.getElementById('undo-bar-buy').hidden")
+        о.шаг("предложение-не-повторяется", not снова,
+              "кнопка снова видна: %s" % снова)
+
+    # ── B.2: КУПЛЕНО НЕ ИСЧЕЗАЕТ, ГАЛОЧКА СНИМАЕТСЯ ──────────────────
+    await pg.goto(БАЗА + "/medkit?buy=1", wait_until="networkidle")
+    await pg.wait_for_timeout(400)
+    первый = await pg.evaluate(
+        "() => { const э = document.querySelector('[data-buy-check]');"
+        " return э ? э.dataset.buyCheck : null; }")
+    о.шаг("строки-покупок-на-экране", bool(первый), "id %s" % первый)
+    if первый:
+        ж = await pg.evaluate(ЖИВОЙ, "[data-buy-check='%s']" % первый)
+        о.шаг("живой-флажок-покупки", ж.get("живой"), ж.get("причина", ""))
+        await pg.check("[data-buy-check='%s']" % первый)
+        await pg.wait_for_timeout(700)
+        в_базе = _в_базе("SELECT bought_on FROM medkit_buy_items WHERE id = ?",
+                         (первый,))
+        о.шаг("куплено-записано-днём", bool(в_базе and в_базе[0][0]),
+              "bought_on=%r" % (в_базе[0][0] if в_базе else None))
+        осталась = await pg.evaluate('(id) => !!document.querySelector(\'[data-buy="\' + id + \'"]\')', первый)
+        зачёркнута = await pg.evaluate('(id) => { const э = document.querySelector(\'[data-buy="\' + id + \'"]\'); return !!э && э.classList.contains(\'is-bought\'); }', первый)
+        о.шаг("куплено-не-исчезает-а-зачёркнуто", осталась and зачёркнута,
+              "в дереве %s, зачёркнута %s" % (осталась, зачёркнута))
+        await pg.uncheck("[data-buy-check='%s']" % первый)
+        await pg.wait_for_timeout(700)
+        снято = _в_базе("SELECT bought_on FROM medkit_buy_items WHERE id = ?",
+                        (первый,))
+        о.шаг("галочка-снимается", bool(снято) and снято[0][0] is None,
+              "bought_on=%r" % (снято[0][0] if снято else None))
+
+    # ── B.3: ОБРАТНЫЙ ХОД ────────────────────────────────────────────
+    из_просроч_ид = _в_базе(
+        "SELECT id, name FROM medkit_buy_items WHERE source = 'expired' "
+        "AND user_id = (SELECT id FROM users WHERE email = ?)", (ПОЧТА,))
+    if из_просроч_ид:
+        bid, bname = из_просроч_ид[0]
+        await pg.check("[data-buy-check='%s']" % bid)
+        await pg.wait_for_timeout(700)
+        кн = await pg.evaluate(ЖИВОЙ, "[data-buy-card='%s']" % bid)
+        о.шаг("кнопка-завести-карточку-живая", кн.get("живой"),
+              кн.get("причина", ""))
+        await pg.click("[data-buy-card='%s']" % bid)
+        await pg.wait_for_timeout(500)
+        поля = await pg.evaluate(
+            "() => ({имя: document.getElementById('apt-f-name').value,"
+            " вещество: document.getElementById('apt-f-sub').value,"
+            " форма: document.getElementById('apt-f-form').value,"
+            " срок: document.getElementById('apt-f-exp').value,"
+            " осталось: document.getElementById('apt-f-left').value,"
+            " заголовок: document.getElementById('apt-form-title').textContent})")
+        о.шаг("обратный-ход-заполнил-поля",
+              поля["имя"] == bname and bool(поля["вещество"])
+              and bool(поля["форма"]), "%r" % поля)
+        # СРОК И КОЛИЧЕСТВО ПУСТЫ — именно их человек и вписывает
+        о.шаг("обратный-ход-НЕ-переносит-срок-и-остаток",
+              поля["срок"] == "" and поля["осталось"] == "",
+              "срок=%r остаток=%r" % (поля["срок"], поля["осталось"]))
+        # ЭТО НОВАЯ КАРТОЧКА, А НЕ ПРАВКА: заголовок «Правка позиции»
+        # означал бы, что форма собирается обновить чужую запись
+        о.шаг("обратный-ход-заводит-НОВУЮ",
+              "Правка" not in поля["заголовок"], поля["заголовок"])
+        await pg.evaluate("() => закрыть_модалку('apt-form')")
+        await pg.wait_for_timeout(250)
+
+    # ── B.4: СТРОКА УБИРАЕТСЯ ВРУЧНУЮ ────────────────────────────────
+    было = len(_покупки_в_базе())
+    уб = await pg.evaluate(
+        "() => { const э = document.querySelector('[data-buy-del]');"
+        " return э ? э.dataset.buyDel : null; }")
+    if уб:
+        await pg.click("[data-buy-del='%s']" % уб)
+        await pg.wait_for_timeout(700)
+        стало = len(_покупки_в_базе())
+        о.шаг("строка-убирается", стало == было - 1,
+              "было %d, стало %d" % (было, стало))
+
+    # ── ДУБЛЬ НЕ ЗАВОДИТСЯ ───────────────────────────────────────────
+    await pg.fill("#apt-buy-name", "Пластырь ПробаПокупки")
+    await pg.click("#apt-buy-add button[type=submit]")
+    await pg.wait_for_timeout(600)
+    сколько = sum(1 for с in _покупки_в_базе() if "ПробаПокупки" in с[0])
+    о.шаг("дубль-не-заводится", сколько == 1,
+          "строк с этим именем: %d" % сколько)
+
+    _покупки_очистить()
+    _прямо_в_базу("DELETE FROM medkit_items WHERE name = 'Проба-Кончается'")
+    # «Проба-Просрочка» удаляется САМИМ шагом источника `expired`;
+    # строка ниже нужна для случая, когда шаг до него не дошёл
+    _прямо_в_базу("DELETE FROM medkit_items WHERE name = 'Проба-Просрочка'")
+
+
+# ══════════════════════════════════════════════════════════════════════
+# ПЕРЕПИСКА НАСКВОЗЬ (BACKLOG №178, блок C)
+# ══════════════════════════════════════════════════════════════════════
+#
+# ЖИВОГО ВЫЗОВА МОДЕЛИ ЗДЕСЬ НЕТ, и это названо: ряд обязан быть
+# дешёвым и повторимым, а ответ модели не наш код. Реплики кладутся
+# ПРЯМО В БАЗУ — то есть ровно туда, откуда их читает боевой код, —
+# и дальше проверяется путь «база → экран», который блок и правил.
+
+def _переписка_очистить():
+    conn = sqlite3.connect(DB)
+    try:
+        n = conn.execute(
+            "DELETE FROM chat_messages WHERE tool = 'medkit' AND user_id = "
+            "(SELECT id FROM users WHERE email = ?)", (ПОЧТА,)).rowcount
+        conn.commit()
+        return n
+    finally:
+        conn.close()
+
+
+def _реплика(роль, текст, сдвиг_дней=0, payload=None):
+    _прямо_в_базу(
+        "INSERT INTO chat_messages (user_id, role, content, tool, payload,"
+        " created_at) VALUES ((SELECT id FROM users WHERE email = ?),"
+        " ?, ?, 'medkit', ?, datetime('now', ?))",
+        (ПОЧТА, роль, текст, payload, "-%d days" % сдвиг_дней))
+
+
+async def _переписка_насквозь(pg, о):
+    _переписка_очистить()
+    # ДВА ДНЯ: вчерашний вопрос и сегодняшний. Один день не проверяет
+    # разделитель вовсе — а он и есть предмет C.3
+    _реплика("user", "Проба: болит голова, есть что-то?", 1)
+    _реплика("assistant", "Проба: обезболивающих в аптечке нет.", 1,
+             payload=json.dumps({
+                 "вид": "запрос", "вопрос": "болит голова",
+                 "вступление": "", "нашлось": [], "просрочено": [],
+                 "рецептурные": [], "нет": "Обезболивающих нет.",
+                 "группа": "обезболивающее", "оговорка": ""},
+                 ensure_ascii=False))
+    _реплика("user", "Проба: сегодняшний вопрос", 0)
+
+    await pg.goto(БАЗА + "/medkit", wait_until="networkidle")
+    await pg.wait_for_timeout(300)
+    await pg.evaluate("() => аптАИОткрыть()")
+    await pg.wait_for_timeout(900)
+
+    реплик = await pg.evaluate(
+        "() => document.querySelectorAll('#apt-ai-log .apt-ai-msg').length")
+    о.шаг("переписка-восстановлена", реплик == 3, "реплик на экране %d" % реплик)
+
+    дни = await pg.evaluate(
+        "() => [...document.querySelectorAll('.apt-ai-day span')]"
+        ".map(э => э.textContent.trim())")
+    о.шаг("разделители-по-дням", дни == ["вчера", "сегодня"], "%r" % дни)
+
+    # C.4: КНОПКА В ОТВЕТЕ ВОССТАНОВЛЕНА ТЕМ ЖЕ ПОСТРОИТЕЛЕМ.
+    # Восстановленная реплика БЕЗ кнопки выглядит так же, как живая
+    # с кнопкой, — и человек не понял бы, почему вчерашний ответ отвечал
+    кнопка = await pg.evaluate(ЖИВОЙ, ".apt-ai-buy")
+    о.шаг("кнопка-в-покупки-в-ответе", кнопка.get("живой"),
+          кнопка.get("причина", ""))
+
+    # ── ИСТОЧНИК 1: ИЗ ОТВЕТА АССИСТЕНТА ─────────────────────────────
+    _покупки_очистить()
+    await pg.click(".apt-ai-buy")
+    await pg.wait_for_timeout(900)
+    из_ai = [с for с in _покупки_в_базе() if с[1] == "ai"]
+    о.шаг("источник-ассистент", len(из_ai) == 1
+          and из_ai[0][0] == "обезболивающее", "в базе %s" % из_ai)
+    подпись = await pg.evaluate(
+        "() => { const к = document.querySelector('.apt-ai-buy');"
+        " return к ? к.textContent.trim() : ''; }")
+    о.шаг("кнопка-говорит-что-занесла", "спис" in подпись.lower(),
+          repr(подпись))
+
+    # ── C.5: ПЕРЕЖИВАЕТ ПЕРЕЗАГРУЗКУ, ЗАКРЫТИЕ И ПЕРЕХОД ─────────────
+    await pg.reload(wait_until="networkidle")
+    await pg.wait_for_timeout(400)
+    await pg.evaluate("() => аптАИОткрыть()")
+    await pg.wait_for_timeout(900)
+    после = await pg.evaluate(
+        "() => document.querySelectorAll('#apt-ai-log .apt-ai-msg').length")
+    о.шаг("переписка-пережила-перезагрузку", после == 3, "реплик %d" % после)
+
+    await pg.evaluate("() => аптАИЗакрыть()")
+    await pg.wait_for_timeout(250)
+    await pg.evaluate("() => аптАИОткрыть()")
+    await pg.wait_for_timeout(500)
+    после2 = await pg.evaluate(
+        "() => document.querySelectorAll('#apt-ai-log .apt-ai-msg').length")
+    о.шаг("переписка-пережила-закрытие", после2 == 3, "реплик %d" % после2)
+
+    # ПЕРЕХОД НА ДРУГОЙ РАЗДЕЛ И ВОЗВРАТ — отдельная ось (§6.0.13):
+    # это ДРУГОЙ документ, и хранилище вкладки его переживало;
+    # переезд на сервер надо доказать отдельно
+    await pg.goto(БАЗА + "/nutrition", wait_until="networkidle")
+    await pg.goto(БАЗА + "/medkit", wait_until="networkidle")
+    await pg.wait_for_timeout(400)
+    await pg.evaluate("() => аптАИОткрыть()")
+    await pg.wait_for_timeout(900)
+    после3 = await pg.evaluate(
+        "() => document.querySelectorAll('#apt-ai-log .apt-ai-msg').length")
+    о.шаг("переписка-пережила-переход-на-раздел", после3 == 3,
+          "реплик %d" % после3)
+
+    # ── C.2: СТАРОЕ УБИРАЕТСЯ ПО СРОКУ. ПОДЛОГ ДАТЫ ──────────────────
+    #
+    # Реплика старше срока кладётся в базу ДАТОЙ, а не ожиданием недели
+    _реплика("user", "Проба: очень старая реплика", 30)
+    было_в_базе = _в_базе(
+        "SELECT COUNT(*) FROM chat_messages WHERE tool = 'medkit' "
+        "AND user_id = (SELECT id FROM users WHERE email = ?)", (ПОЧТА,))[0][0]
+    await pg.goto(БАЗА + "/medkit", wait_until="networkidle")
+    await pg.evaluate("() => аптАИОткрыть()")
+    await pg.wait_for_timeout(900)
+    стало_в_базе = _в_базе(
+        "SELECT COUNT(*) FROM chat_messages WHERE tool = 'medkit' "
+        "AND user_id = (SELECT id FROM users WHERE email = ?)", (ПОЧТА,))[0][0]
+    старая = await pg.evaluate(
+        "() => [...document.querySelectorAll('.apt-ai-msg')]"
+        ".some(э => э.textContent.includes('очень старая'))")
+    о.шаг("старое-убирается-по-сроку",
+          было_в_базе == 4 and стало_в_базе == 3 and not старая,
+          "в базе было %d, стало %d, на экране старая: %s"
+          % (было_в_базе, стало_в_базе, старая))
+
+    _переписка_очистить()
+    _покупки_очистить()
 
 
 # ══════════════════════════════════════════════════════════════════════
