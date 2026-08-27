@@ -1797,6 +1797,16 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 .apt-person-t { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
 .apt-person-n { font-size: var(--text-body-sm); overflow-wrap: anywhere; }
 .apt-person-m { font-size: var(--text-caption); color: var(--text-faint); }
+/* СТРОКА «ДОСТУП ЗАБРАЛИ» (BACKLOG №184, A.3). Тон предупреждения,
+   а не ошибки: ничего не сломалось, просто человеку закрыли инструмент,
+   и это чинится тумблером в админке. `--warning`, тот же токен, что
+   у янтарных состояний срока. */
+.apt-person-w {
+  font-size: var(--text-caption);
+  color: var(--warning);
+  line-height: 1.4;
+  margin-top: var(--space-1);
+}
 .apt-person-acts { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 @media (max-width: 560px) {
   .apt-person { flex-wrap: wrap; }
