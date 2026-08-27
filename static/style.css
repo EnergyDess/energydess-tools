@@ -3600,3 +3600,68 @@ body.auth-layout .auth-wrap {
 }
 .attach-menu button:active { background: var(--surface-1); color: var(--tool-accent); }
 .attach-menu svg { width: 1.125rem; height: 1.125rem; flex-shrink: 0; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   ВИДОИСКАТЕЛЬ СКАНЕРА — системный компонент (BACKLOG №163)
+   ═══════════════════════════════════════════════════════════════════
+   Потребителей ДВА: штрих-код продукта в дневнике питания и код
+   упаковки лекарства в аптечке. До 2026-08-28 правила лежали
+   в `nutrition.css` при одном потребителе; копия для аптечки была бы
+   ровно тем дублем, против которого заведена задача 126.
+
+   Html5Qrcode ОЧИЩАЕТ содержимое своего контейнера при запуске —
+   поэтому рамка и кнопка фонарика лежат в обёртке рядом, а не внутри.
+
+   ЧЁРНЫЙ ФОН ЗДЕСЬ ТОКЕНОМ `--letterbox`, а не литералом: тема им
+   не управляет по смыслу — за видоискателем стоит поле камеры,
+   и оно чёрное при любой теме. Тот же токен, что у видео-контейнера
+   админки (задача 18). */
+.scan-wrap {
+  width: 100%; aspect-ratio: 1;
+  background: var(--letterbox);
+  border-radius: 0.6875rem;
+  overflow: hidden; position: relative;
+  margin-bottom: var(--space-3);
+}
+/* КЛАССОМ, А НЕ `> div` И НЕ ПО id. `.scan-wrap > div` задел бы
+   и `.scan-overlay`: у той `position: absolute` с `inset`, и `width:
+   100%` перебил бы правую границу — рамка видоискателя уехала бы
+   за край. Найдено чтением своего же правила до прогона, но класс
+   тут правилен и сам по себе: контейнер у каждого потребителя
+   со своим id, а вид у него общий. */
+.scan-view { width: 100%; height: 100%; }
+.scan-overlay {
+  position: absolute; inset: 38% 8%;
+  border: 2px solid var(--tool-accent);
+  border-radius: 0.4375rem;
+  pointer-events: none;
+}
+/* КВАДРАТНАЯ РАМКА ПОД DataMatrix. Базовая широкая и вытянутая —
+   она нарисована под ПОЛОСЫ штрих-кода, и это верно для дневника.
+   Для кода лекарства она врёт: библиотека ловит КВАДРАТ (240×240,
+   `qrbox`), а рамка обещает широкий прямоугольник — человек наводит
+   по ней и промахивается мимо области распознавания.
+
+   Найдено НА СНИМКЕ, а не чтением: в кадре видно и голубую рамку,
+   и белые уголки самой библиотеки, и они не совпадают. */
+.scan-overlay-sq {
+  inset: 50% 50% auto auto;
+  width: min(240px, 62%);
+  aspect-ratio: 1;
+  transform: translate(50%, -50%);
+}
+.scan-torch-btn {
+  position: absolute; top: 0.625rem; right: 0.625rem; z-index: 5;
+  width: 2.375rem; height: 2.375rem; border-radius: 50%;
+  background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.25);
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background .15s, color .15s, border-color .15s;
+}
+/* было #06150c — тёмный хардкод, 7.39; --surface-0 даёт 7.76
+   и убирает свой оттенок */
+.scan-torch-btn.on {
+  background: var(--tool-accent);
+  color: var(--surface-0);
+  border-color: var(--tool-accent);
+}

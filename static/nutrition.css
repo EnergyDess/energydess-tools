@@ -1275,21 +1275,10 @@ html.assistant-mode, html.assistant-mode body {
 .add-btn:active { opacity: .85; }
 
 /* ── Scanner ── */
-/* Html5Qrcode очищает содержимое #qr-reader при инициализации,
-   поэтому рамку и кнопку фонарика выносим в отдельную обёртку */
-.scan-wrap { width: 100%; aspect-ratio: 1; background: #000; border-radius: 0.6875rem; overflow: hidden; position: relative; margin-bottom: var(--space-3); }
-#qr-reader { width: 100%; height: 100%; }
-.scan-overlay { position: absolute; inset: 38% 8%; border: 2px solid var(--tool-accent); border-radius: 0.4375rem; pointer-events: none; }
-.scan-torch-btn {
-  position: absolute; top: 0.625rem; right: 0.625rem; z-index: 5;
-  width: 2.375rem; height: 2.375rem; border-radius: 50%;
-  background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.25);
-  color: #fff; display: flex; align-items: center; justify-content: center;
-  cursor: pointer; -webkit-tap-highlight-color: transparent;
-  transition: background .15s, color .15s, border-color .15s;
-}
-/* было #06150c — тёмный хардкод, 7.39; --surface-0 даёт 7.76 и убирает свой оттенок */
-.scan-torch-btn.on { background: var(--tool-accent); color: var(--surface-0); border-color: var(--tool-accent); }
+/* ВИДОИСКАТЕЛЬ, РАМКА И ФОНАРИК ПЕРЕЕХАЛИ В СИСТЕМУ (`style.css`,
+   BACKLOG №163): потребителей стало двое — дневник и аптечка.
+   Здесь осталось только ПОЛЕ РУЧНОГО ВВОДА: оно страничное, у аптечки
+   в этом окне стоит другое содержимое. */
 .scan-manual { width: 100%; height: 2.75rem; background: var(--surface-sunken); border: 1px solid var(--border); border-radius: 0.6875rem; padding: 0 var(--space-3); color: var(--text); font-size: var(--text-body-sm); outline: none; font-family: var(--font); }
 .scan-manual:focus { border-color: var(--tool-accent); }
 

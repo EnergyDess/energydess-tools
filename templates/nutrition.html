@@ -838,7 +838,7 @@
    кнопка: выход из окна должен быть один на все три способа закрытия #}
 {% call m.modal('modal-scanner', 'Штрих-код') %}
       <div class="scan-wrap">
-        <div id="qr-reader"></div>
+        <div id="qr-reader" class="scan-view"></div>
         <div class="scan-overlay"></div>
         <button class="scan-torch-btn" id="scan-torch-btn" onclick="toggleTorch()" style="display:none" title="Фонарик">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M15 16v-3.34a4 4 0 10-6 0V16a2 2 0 002 2h2a2 2 0 002-2zM12 2v2M4.93 4.93l1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
@@ -1015,6 +1015,7 @@
 <script src="{{ st('voice-input.js') }}"></script>
 <script src="{{ st('image-resize.js') }}"></script>
 <script src="{{ st('attach-menu.js') }}"></script>
+<script src="{{ st('barcode-scan.js') }}"></script>
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
 // Подсказка приёма пищи по текущему времени — используется как стартовый выбор
@@ -1075,9 +1076,6 @@ const S = {
   recipeIngs: [],
   selRecipe: null, recFrac: 0.5,
   addFrom: 'diary',  // с какой вкладки ушли добавлять — туда и вернёмся
-  scannerInst: null,
-  scanToken: 0,
-  torchOn: false,
   addingIng: false,
   chatHistory: [],
   apiHistory: [],
@@ -2723,80 +2721,42 @@ async function confirmAdd(изПанели = false) {
 }
 
 // ── Scanner ───────────────────────────────────────────────────────────────────
-// Полностью останавливаем и разбираем предыдущий сканер: stop() сам по себе
-// оставляет в DOM элементы <video>/<canvas> с "замороженным" последним кадром,
-// и при повторном открытии новый экземпляр иногда успевает считать именно этот
-// старый кадр — отсюда баг "при новом сканировании показывается прошлый товар".
-async function stopScanner() {
-  if (!S.scannerInst) return;
-  const sc = S.scannerInst;
-  S.scannerInst = null;
-  try { await sc.stop(); } catch(e) {}
-  try { await sc.clear(); } catch(e) {}
-}
+// МЕХАНИКА ЖИВЁТ В СИСТЕМНОМ КОМПОНЕНТЕ `static/barcode-scan.js`
+// (BACKLOG №163). До 2026-08-28 она лежала здесь ~90 строками при одном
+// потребителе; второй появился в аптечке, и копия разошлась бы с этой
+// молча — вместе со всеми тремя починками, которые тут уже сделаны
+// (замороженный кадр прошлой сессии, гонка токенов, фонарик по факту
+// поддержки). Страничного осталось ровно три параметра: СПИСОК ФОРМАТОВ,
+// куда рисовать и что делать с кодом.
+//
+// СПИСОК ФОРМАТОВ ЗДЕСЬ НЕ ИЗМЕНИЛСЯ ни на один член. Он сужен
+// намеренно: без сужения библиотека путает полосы EAN-13 с QR-кодом
+// и выдаёт случайный код. DATA_MATRIX в нём по-прежнему НЕТ — код
+// лекарства дневнику не нужен, а его добавление сюда поменяло бы
+// поведение экрана, которого эта задача не касается.
+const ФОРМАТЫ_ПРОДУКТА = ['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E',
+                          'CODE_128', 'CODE_39', 'ITF', 'QR_CODE'];
+
+async function stopScanner() { await СканерКода.остановить(); }
 
 async function openScanner() {
   открыть_модалку('modal-scanner');
-  document.getElementById('barcode-input').value='';
-  await stopScanner();
-  const myToken = ++S.scanToken;
-  if (!window.Html5Qrcode) {
-    try { await loadScript('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'); } catch(e){ return; }
-  }
-  if (myToken !== S.scanToken) return; // модалку уже закрыли/переоткрыли пока грузился скрипт
-  try {
-    // Ограничиваем форматы только штрих-кодами товаров — без этого
-    // библиотека иногда путает полосы EAN-13 с QR-кодом и выдаёт случайный код
-    const sc = new Html5Qrcode('qr-reader', {
-      formatsToSupport: [
-        Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.ITF, Html5QrcodeSupportedFormats.QR_CODE,
-      ],
-      verbose: false,
-    });
-    S.scannerInst = sc;
-    // Прямоугольная рамка под штрих-код (шире, чем выше)
-    await sc.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:130}},
-      async code => {
-        if (myToken !== S.scanToken) return; // результат от уже закрытой сессии сканера — игнорируем
-        S.scanToken++;
-        await stopScanner();
-        закрыть_модалку('modal-scanner');
-        await handleBarcode(code);
-      },
-      ()=>{}
-    );
-    setupTorchButton();
-  } catch(e) {
-    // Если start() не удался (нет камеры, отказан доступ) — сканер не запущен,
-    // сбрасываем ссылку, иначе closeScanner() вызовет .stop() на нерабочем экземпляре
-    S.scannerInst = null;
-    console.log('Scanner',e);
-  }
-}
-
-// Показываем кнопку фонарика, только если камера поддерживает torch
-function setupTorchButton() {
-  const btn = document.getElementById('scan-torch-btn');
-  btn.style.display = 'none';
-  btn.classList.remove('on');
-  S.torchOn = false;
-  try {
-    const torch = S.scannerInst.getRunningTrackCameraCapabilities().torchFeature();
-    if (torch.isSupported()) btn.style.display = 'flex';
-  } catch(e) {}
+  document.getElementById('barcode-input').value = '';
+  await СканерКода.запустить({
+    контейнер: 'qr-reader',
+    форматы: ФОРМАТЫ_ПРОДУКТА,
+    рамка: {width: 260, height: 130},
+    фонарикId: 'scan-torch-btn',
+    готово: async code => {
+      закрыть_модалку('modal-scanner');
+      await handleBarcode(code);
+    },
+    отказ: () => {},
+  });
 }
 
 async function toggleTorch() {
-  if (!S.scannerInst) return;
-  try {
-    const torch = S.scannerInst.getRunningTrackCameraCapabilities().torchFeature();
-    S.torchOn = !S.torchOn;
-    await torch.apply(S.torchOn);
-    document.getElementById('scan-torch-btn').classList.toggle('on', S.torchOn);
-  } catch(e) { console.log('Torch',e); }
+  await СканерКода.фонарик(document.getElementById('scan-torch-btn'));
 }
 
 // Уборка (камера, фонарик) переехала на подписку modal:close — см.
@@ -4489,12 +4449,14 @@ async function saveProfile() {
 // закрытия и на любой глубине стопки, поэтому забыть один из них больше нельзя.
 function setupModalCleanup() {
   document.getElementById('modal-scanner').addEventListener('modal:close', () => {
-    S.scanToken++;
+    /* `сбросить` гасит результат уже закрытой сессии, не трогая камеру:
+       без него код, прочитанный в последний миг перед закрытием, ещё
+       успевал открыть карточку товара поверх закрытого окна */
+    СканерКода.сбросить();
     stopScanner();
     const t = document.getElementById('scan-torch-btn');
     t.style.display = 'none';
     t.classList.remove('on');
-    S.torchOn = false;
   });
   document.getElementById('modal-recipe-ing').addEventListener('modal:close', () => {
     S.addingIng = false;
