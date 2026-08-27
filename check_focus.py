@@ -137,6 +137,74 @@ _ПОДПИСЬ = """
 """
 
 
+# ── ДОКАЗАТЕЛЬСТВО ПОДЛОГА (§6.0.3) ─────────────────────────────────
+#
+# Вердикта пробы («немых стало больше») НЕ ХВАТАЕТ: немых могло
+# прибавиться и по другой причине, а стилевой подлог умеет провалиться
+# молча — `add_style_tag` с негодным CSS исключения не бросает, браузер
+# просто выбрасывает нераспознанное правило.
+#
+# Замер НЕЗАВИСИМЫЙ и логикой пробы не пользуется: у первой на странице
+# `.btn-secondary` навязывается `:focus-visible` через CDP и читается
+# то, чем кнопка на фокус и отвечает, — обводка и тень. Псевдокласс
+# навязывается, а не ставится табом, потому что вопрос здесь не «дошёл
+# ли обход», а «что применится, когда дойдёт».
+ДОКАЗАТЕЛЬСТВО_JS = """
+() => {
+  const el = document.querySelector('.btn-secondary, .btn-danger');
+  if (!el) return 'кнопки .btn-secondary на экране нет';
+  el.setAttribute('data-focus-proof', '1');
+  const s = getComputedStyle(el);
+  return 'outline=' + s.outlineWidth + ' ' + s.outlineStyle
+       + ' shadow=' + s.boxShadow;
+}
+"""
+
+
+def доказать_подлог(подлог):
+    """Чем `.btn-secondary` отвечает на фокус — без подлога и с ним.
+
+    Замер СОСТОЯНИЯ, а не факта установки стиля: «правило добавлено»
+    и «правило применилось» — разные утверждения, и расходятся они
+    молча.
+    """
+    from playwright.sync_api import sync_playwright
+
+    ответы = []
+    with sync_playwright() as p:
+        бр = p.chromium.launch()
+        for css in ("", подлог):
+            к = бр.new_context(viewport={"width": 1440, "height": 900})
+            стр = к.new_page()
+            cdp = к.new_cdp_session(стр)
+            cdp.send("DOM.enable")
+            cdp.send("CSS.enable")
+            ch._войти(стр)
+            стр.goto(f"{ch.БАЗА}/profile", wait_until="domcontentloaded",
+                     timeout=45000)
+            стр.wait_for_timeout(2200)
+            if css:
+                стр.add_style_tag(content=css)
+                стр.wait_for_timeout(ch.ПАУЗА_ПЕРЕХОДА)
+            стр.evaluate(ДОКАЗАТЕЛЬСТВО_JS)
+            корень = cdp.send("DOM.getDocument")["root"]["nodeId"]
+            узел = cdp.send("DOM.querySelector",
+                            {"nodeId": корень,
+                             "selector": "[data-focus-proof]"})["nodeId"]
+            if not узел:
+                ответы.append("кнопки .btn-secondary на экране нет")
+                к.close()
+                continue
+            cdp.send("CSS.forcePseudoState",
+                     {"nodeId": узел,
+                      "forcedPseudoClasses": ["focus", "focus-visible"]})
+            стр.wait_for_timeout(ch.ПАУЗА_ПЕРЕХОДА)
+            ответы.append(стр.evaluate(ДОКАЗАТЕЛЬСТВО_JS))
+            к.close()
+        бр.close()
+    return ответы[0], ответы[1]
+
+
 def прогон(ширина, высота, сенсор, шагов=60, подлог="", список=None):
     """Список — четвёрки (путь, имя, нужен_вход, подготовка).
 
@@ -233,6 +301,20 @@ def контроль():
     print("=" * 74)
     print("ОТРИЦАТЕЛЬНЫЙ КОНТРОЛЬ: у .btn-secondary и .btn-danger гасится фокус")
     print("=" * 74)
+    # ШАГ ПЕРВЫЙ — ДОКАЗАТЬ, ЧТО ПОДЛОГ СОСТОЯЛСЯ (§6.0.3)
+    д_чисто, д_подлог = доказать_подлог(ПОДЛОГ)
+    состоялся = д_чисто != д_подлог
+    print("  доказательство (отклик .btn-secondary на :focus-visible):")
+    print("     чисто      = %s" % д_чисто)
+    print("     с подлогом = %s" % д_подлог)
+    print("  → %s" % ("ПОДЛОГ СОСТОЯЛСЯ" if состоялся
+                      else "ПОДЛОГ НЕ СОСТОЯЛСЯ"))
+    if not состоялся:
+        print()
+        print("ПРОВАЛЕН: ломать было нечего — вердикт пробы про этот "
+              "подлог не значит ничего.")
+        return 1
+
     один = [("/profile", "профиль", True, None)]
     _, немых_ч, _ = прогон(1440, 900, False, список=один)
     _, немых_п, кто = прогон(1440, 900, False, подлог=ПОДЛОГ, список=один)
