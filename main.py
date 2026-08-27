@@ -8736,11 +8736,11 @@ def _last_activity_date(db: Session, user_id: int):
     return row[0] if row else None
 
 
-def _mesocycle_info(profile: WorkoutProfile):
+def _mesocycle_info(profile: WorkoutProfile, user):
     length = profile.mesocycle_length_weeks or MESOCYCLE_DEFAULT_WEEKS
     if not profile.mesocycle_started_date:
         return {"week": 1, "length": length, "due": False}
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = _сегодня(user).isoformat()
     days = (datetime.strptime(today, "%Y-%m-%d") - datetime.strptime(profile.mesocycle_started_date, "%Y-%m-%d")).days
     week = min(length, max(1, days // 7 + 1))
     return {"week": week, "length": length, "due": week >= length}
@@ -8867,7 +8867,7 @@ def _recent_pain_zone_returns(db: Session, user_id: int):
     }
 
 
-def _determine_today_day_id(db: Session, user_id: int, days: list):
+def _determine_today_day_id(db: Session, user, days: list):
     """Программа не привязана к конкретным дням недели — пользователь сам
     решает, когда какой день делать. "Сегодняшний" день для авто-раскрытия
     аккордеона определяем так: если сегодня уже начали какой-то день — он и
@@ -8875,7 +8875,8 @@ def _determine_today_day_id(db: Session, user_id: int, days: list):
     (с переходом в начало цикла), а если истории вообще нет — первый день."""
     if not days:
         return None
-    today = datetime.now().strftime("%Y-%m-%d")
+    user_id = user.id
+    today = _сегодня(user).isoformat()
     day_ids = [d.id for d in days]
     today_session = (db.query(WorkoutSession)
                       .filter(WorkoutSession.user_id == user_id, WorkoutSession.log_date == today,
@@ -8898,7 +8899,11 @@ def _determine_today_day_id(db: Session, user_id: int, days: list):
     return next_day.id
 
 
-def _serialize_program(db: Session, program: WorkoutProgram, user_id: int):
+def _serialize_program(db: Session, program: WorkoutProgram, user):
+    # `user` ЦЕЛИКОМ, А НЕ `user_id`: день берётся `_сегодня(user)`,
+    # а пояс лежит у пользователя. Номер сюда доехал бы, пояс — нет,
+    # и «сегодня» опять считалось бы в поясе процесса (BACKLOG №186)
+    user_id = user.id
     # недавние возвраты после снятия ограничения по зоне — подсказка на
     # карточке "входи через сниженный вес", а не сразу прежний рабочий
     return_notice_by_pe = _recent_pain_zone_returns(db, user_id)
@@ -8906,8 +8911,8 @@ def _serialize_program(db: Session, program: WorkoutProgram, user_id: int):
     days = (db.query(WorkoutProgramDay)
             .filter(WorkoutProgramDay.program_id == program.id)
             .order_by(WorkoutProgramDay.day_index).all())
-    today_day_id = _determine_today_day_id(db, user_id, days)
-    today = datetime.now().strftime("%Y-%m-%d")
+    today_day_id = _determine_today_day_id(db, user, days)
+    today = _сегодня(user).isoformat()
     today_sessions = {
         s.program_day_id: s for s in db.query(WorkoutSession).filter(
             WorkoutSession.user_id == user_id, WorkoutSession.log_date == today,
@@ -8958,7 +8963,7 @@ def _serialize_program(db: Session, program: WorkoutProgram, user_id: int):
         })
 
     profile = db.query(WorkoutProfile).filter(WorkoutProfile.user_id == user_id).first()
-    mesocycle = _mesocycle_info(profile) if profile else {"week": 1, "length": MESOCYCLE_DEFAULT_WEEKS, "due": False}
+    mesocycle = _mesocycle_info(profile, user) if profile else {"week": 1, "length": MESOCYCLE_DEFAULT_WEEKS, "due": False}
     pain_zones = [{"zone": z, "label": ZONE_LABELS_RU.get(z, z)} for z in (profile.pain_zones or [])] if profile else []
     return {
         "id": program.id, "structure": program.structure, "days_per_week": program.days_per_week,
@@ -8975,7 +8980,7 @@ async def workout_get_program(user=Depends(get_current_user), db: Session = Depe
                .first())
     if not program:
         return JSONResponse({"exists": False})
-    data = _serialize_program(db, program, user.id)
+    data = _serialize_program(db, program, user)
     data["exists"] = True
     return JSONResponse(data)
 
@@ -9082,7 +9087,7 @@ async def workout_generate_program(user=Depends(get_current_user), db: Session =
     program = WorkoutProgram(user_id=user.id, structure=structure, days_per_week=profile.days_per_week, active=True)
     db.add(program)
     # новая программа — новый мезоцикл, счётчик недель с нуля
-    profile.mesocycle_started_date = datetime.now().strftime("%Y-%m-%d")
+    profile.mesocycle_started_date = _сегодня(user).isoformat()
     db.flush()
     for d in built_days:
         day_row = WorkoutProgramDay(program_id=program.id, day_index=d["index"], day_type=d["type"], label=d["label"])
@@ -9103,7 +9108,7 @@ async def workout_generate_program(user=Depends(get_current_user), db: Session =
             order += 1
     db.commit()
 
-    return JSONResponse(_serialize_program(db, program, user.id))
+    return JSONResponse(_serialize_program(db, program, user))
 
 
 # ── Workout: логирование (подход / упражнение / тренировка) ─────────────────
@@ -9151,7 +9156,7 @@ async def workout_day_state(program_day_id: int, log_date: str = None,
                              user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
-    today = log_date or datetime.now().strftime("%Y-%m-%d")
+    today = log_date or _сегодня(user).isoformat()
 
     day = db.query(WorkoutProgramDay).filter(WorkoutProgramDay.id == program_day_id).first()
     if not day:
@@ -9306,7 +9311,7 @@ async def workout_log_set(request: Request, user=Depends(get_current_user), db: 
     data = await request.json()
     program_day_id = data.get("program_day_id")
     exercise_id = data.get("exercise_id")
-    log_date = data.get("log_date") or datetime.now().strftime("%Y-%m-%d")
+    log_date = data.get("log_date") or _сегодня(user).isoformat()
     sets = data.get("sets", [])
     if not program_day_id or not exercise_id:
         return JSONResponse({"error": "Не указано упражнение"}, status_code=400)
@@ -9356,7 +9361,7 @@ async def workout_skip(request: Request, user=Depends(get_current_user), db: Ses
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     data = await request.json()
     program_day_id = data.get("program_day_id")
-    log_date = data.get("log_date") or datetime.now().strftime("%Y-%m-%d")
+    log_date = data.get("log_date") or _сегодня(user).isoformat()
     skip_reason = data.get("skip_reason")
     if skip_reason not in SKIP_REASONS:
         return JSONResponse({"error": "Некорректная причина"}, status_code=400)
@@ -9374,7 +9379,7 @@ async def workout_complete(request: Request, user=Depends(get_current_user), db:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     data = await request.json()
     program_day_id = data.get("program_day_id")
-    log_date = data.get("log_date") or datetime.now().strftime("%Y-%m-%d")
+    log_date = data.get("log_date") or _сегодня(user).isoformat()
 
     session = _get_or_create_session(db, user.id, program_day_id, log_date)
     session.completed = True
@@ -9388,7 +9393,7 @@ async def workout_set_light_day(request: Request, user=Depends(get_current_user)
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     data = await request.json()
     program_day_id = data.get("program_day_id")
-    log_date = data.get("log_date") or datetime.now().strftime("%Y-%m-%d")
+    log_date = data.get("log_date") or _сегодня(user).isoformat()
     is_light_day = bool(data.get("is_light_day", True))
 
     session = _get_or_create_session(db, user.id, program_day_id, log_date)
@@ -9465,7 +9470,7 @@ async def workout_return_check(user=Depends(get_current_user), db: Session = Dep
     last_date = _last_activity_date(db, user.id)
     if not last_date:
         return JSONResponse({"show": False})
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = _сегодня(user).isoformat()
     gap_days = (datetime.strptime(today, "%Y-%m-%d") - datetime.strptime(last_date, "%Y-%m-%d")).days
     if gap_days < RETURN_GAP_DAYS:
         return JSONResponse({"show": False})
@@ -9488,7 +9493,7 @@ async def workout_return_plan(request: Request, user=Depends(get_current_user), 
         return JSONResponse({"error": "Сначала заполни анкету"}, status_code=400)
 
     profile.return_plan_status = choice
-    profile.return_plan_applied_date = datetime.now().strftime("%Y-%m-%d")
+    profile.return_plan_applied_date = _сегодня(user).isoformat()
     profile.return_plan_light_days_remaining = RETURN_PLAN_LIGHT_DAYS
     profile.return_plan_weight_factor = RETURN_PLAN_FACTORS[choice]
     db.commit()
@@ -9531,7 +9536,7 @@ async def workout_swap_exercise(request: Request, user=Depends(get_current_user)
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     data = await request.json()
     program_exercise_id = data.get("program_exercise_id")
-    log_date = data.get("log_date") or datetime.now().strftime("%Y-%m-%d")
+    log_date = data.get("log_date") or _сегодня(user).isoformat()
     swapped_to = data.get("swapped_to_exercise_id")
 
     existing = db.query(WorkoutExerciseSwap).filter(
@@ -9588,7 +9593,7 @@ async def workout_refresh_program(user=Depends(get_current_user), db: Session = 
         changed.append({"day_label": day.label, "from": exercise.name_ru, "to": alts[0].name_ru})
         candidate.exercise_id = alts[0].id
 
-    profile.mesocycle_started_date = datetime.now().strftime("%Y-%m-%d")
+    profile.mesocycle_started_date = _сегодня(user).isoformat()
     db.commit()
     data = _serialize_program(db, program, user.id)
     data["changes"] = changed
@@ -9709,7 +9714,7 @@ def _workout_nutrition_summary(db: Session, user: User, profile: WorkoutProfile)
     weight = _current_weight_kg(db, user.id)
     if not weight:
         return None
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = _сегодня(user).isoformat()
     logs = db.query(FoodLog).filter(FoodLog.user_id == user.id, FoodLog.log_date == today).all()
     totals = _diary_totals(logs)["totals"]
     factor = WORKOUT_PROTEIN_FACTOR_HIGH if profile.goal in ("mass", "recomp") else WORKOUT_PROTEIN_FACTOR_STANDARD
@@ -10082,7 +10087,7 @@ def _patch_program_remove_equipment(db: Session, user: User, profile: WorkoutPro
 
 
 def _shorten_today_guidance(db: Session, user: User) -> str:
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = _сегодня(user).isoformat()
     program = db.query(WorkoutProgram).filter(WorkoutProgram.user_id == user.id, WorkoutProgram.active == True).first()
     if not program:
         return "Программа ещё не сгенерирована."
@@ -10182,7 +10187,7 @@ async def workout_chat(request: Request, user=Depends(get_current_user), db: Ses
                         day_ids = {p.exercise_id for p in db.query(WorkoutProgramExercise).filter(WorkoutProgramExercise.day_id == pe.day_id).all()}
                         alts = _find_alternatives(db, exercise, profile, day_ids) if exercise else []
                         if alts:
-                            today = datetime.now().strftime("%Y-%m-%d")
+                            today = _сегодня(user).isoformat()
                             existing = db.query(WorkoutExerciseSwap).filter(
                                 WorkoutExerciseSwap.user_id == user.id, WorkoutExerciseSwap.program_exercise_id == pe.id,
                                 WorkoutExerciseSwap.log_date == today,
@@ -14609,6 +14614,37 @@ def _апт_доступ(db, u):
     return bool(u) and user_has_access(u, "medkit", db)
 
 
+def _апт_круг_завести(db, звавший, вошедший):
+    """СВЕСТИ ДВОИХ В ОДИН КРУГ. Единственное место, где круг заводится.
+
+    Обратная сторона `_апт_круг_прибрать`. Вынесена из обработчика
+    принятия приглашения 2026-08-27 (BACKLOG №187) не ради красоты:
+    второй потребитель — сидирование стенда, и написанный там свой
+    `MedkitCircle(...) + MedkitMember(...)` был бы ВТОРОЙ реализацией
+    того же правила. Разойтись они могли бы молча — сидированный круг
+    выглядел бы кругом, а вёл себя иначе (§6.0.7).
+
+    ПРИГЛАСИВШИЙ — ВЛАДЕЛЕЦ КРУГА (A.5), и он же становится первым
+    участником: множество «кто видит список» считается по строкам
+    `MedkitMember` и только по ним, а второе слагаемое (владелец
+    отдельно) можно было бы однажды забыть.
+
+    Коммита ЗДЕСЬ НЕТ намеренно: у принятия приглашения в той же
+    транзакции удаляется само приглашение, и разрывать это на два
+    коммита значило бы допустить состояние «в круге состоит, а
+    приглашение всё ещё висит».
+    """
+    круг, _ = _апт_круг(db, звавший)
+    if not круг:
+        круг = MedkitCircle(user_id=звавший.id)
+        db.add(круг)
+        db.flush()
+        db.add(MedkitMember(circle_id=круг.id, user_id=звавший.id))
+    db.add(MedkitMember(circle_id=круг.id, user_id=вошедший.id))
+    db.flush()
+    return круг
+
+
 def _апт_круг_прибрать(db, круг):
     """КРУГ ИЗ ОДНОГО ЧЕЛОВЕКА РАСПУСКАЕТСЯ, а не остаётся жить.
 
@@ -14972,17 +15008,7 @@ async def medkit_invite_accept(invite_id: int, request: Request,
             {"error": "У того, кто вас позвал, аптечка больше не открыта — "
                       "принять приглашение сейчас нельзя. Общий список "
                       "он всё равно не увидит."}, status_code=409)
-    круг, _ = _апт_круг(db, звавший)
-    if not круг:
-        # ПРИГЛАСИВШИЙ — ВЛАДЕЛЕЦ КРУГА (A.5). Он же становится первым
-        # участником: множество «кто видит список» считается по строкам
-        # `MedkitMember` и только по ним, а второе слагаемое (владелец
-        # отдельно) можно было бы однажды забыть
-        круг = MedkitCircle(user_id=звавший.id)
-        db.add(круг)
-        db.flush()
-        db.add(MedkitMember(circle_id=круг.id, user_id=звавший.id))
-    db.add(MedkitMember(circle_id=круг.id, user_id=user.id))
+    круг = _апт_круг_завести(db, звавший, user)
     db.delete(пр)
     db.commit()
     _апт_событие(db, круг, user, "join")

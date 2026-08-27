@@ -140,24 +140,12 @@
 @media (pointer: coarse) {
   .apt-chips { row-gap: var(--space-4); }
 }
-.apt-chips .apt-chip-bad.chip {
-  /* Просроченное — единственный список, который надо разобрать
-     физически, и цвет здесь несёт этот смысл, а не украшает */
-  background: rgba(239, 68, 68, 0.14);
-  border-color: rgba(239, 68, 68, 0.32);
-  color: var(--error);
-}
-.apt-chips .apt-chip-bad.chip.active {
-  background: rgba(239, 68, 68, 0.24);
-  border-color: var(--error);
-}
-.apt-chips .apt-chip-add.chip {
-  background: transparent;
-  border-style: dashed;
-  border-color: var(--border-strong);
-  color: var(--text-faint);
-}
-.apt-chip-add svg { width: 14px; height: 14px; }
+/* ЧИПЫ «ПРОСРОЧЕНО» И «+ КАТЕГОРИЯ» ЗДЕСЬ БОЛЬШЕ НЕ ОПИСЫВАЮТСЯ.
+   Три правила брали системный `.chip` СУБЪЕКТОМ и меняли ему вид —
+   долг первого числа ряда §6.0.2 (BACKLOG №185). Переехали
+   в компонентную базу вариантами `.chip-danger` и `.chip-dashed`
+   (`static/style.css`, design-system.md §2.9); цвет при этом никуда
+   не делся — он несёт смысл, и снимать его было нельзя. */
 
 /* ── Сетка карточек ────────────────────────────────────────────────
    КОНТЕЙНЕРНЫЙ ЗАПРОС, А НЕ МЕДИА: ширина сетки задаётся контейнером,

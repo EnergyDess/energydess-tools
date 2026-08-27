@@ -244,10 +244,10 @@
       <button type="button" class="chip tap-44" data-pick="{{ к.id }}">
         {{ к.name }} <span class="chip-n" data-n="{{ к.id }}">{{ счёт.get(к.id|string, 0) }}</span></button>
     {% endfor %}
-    <button type="button" class="chip tap-44 apt-chip-bad" data-pick="expired"
+    <button type="button" class="chip chip-danger tap-44" data-pick="expired"
             {% if not счёт.expired %}hidden{% endif %}>
       Просрочено <span class="chip-n" data-n="expired">{{ счёт.expired }}</span></button>
-    <button type="button" class="chip tap-44 apt-chip-add" data-cats-open>
+    <button type="button" class="chip chip-dashed tap-44" data-cats-open>
       {{ значок('plus') }} Категория</button>
   </div>
 
@@ -681,7 +681,7 @@
         {% for к in категории %}
         <button type="button" class="chip tap-44" data-cat="{{ к.id }}">{{ к.name }}</button>
         {% endfor %}
-        <button type="button" class="chip tap-44 apt-chip-add" data-cats-open>
+        <button type="button" class="chip chip-dashed tap-44" data-cats-open>
           {{ значок('plus') }} Своя</button>
       </div>
     </div>
