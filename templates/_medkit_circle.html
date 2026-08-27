@@ -52,6 +52,13 @@
     </button>
   </div>
 
+  {# ВСЕ ЧЕТЫРЕ ВКЛАДКИ ЛЕЖАТ В ОДНОЙ ЯЧЕЙКЕ СЕТКИ — так высота панели
+     равна высоте САМОЙ РОСЛОЙ из них и не меняется от переключения
+     (BACKLOG №184, блок D). Прячется `visibility`, а не `display`:
+     у `display: none` вкладка выпала бы из сетки, и мерить высоту
+     было бы нечем. Разбор — у самого правила в `medkit.css`. #}
+  <div class="apt-circle-panes">
+
   {# ── УЧАСТНИКИ ─────────────────────────────────────────────────── #}
   <div class="apt-circle-pane" data-cpane="people">
     {# ПОЛЕ ПРИГЛАШЕНИЯ СТОИТ ПЕРВЫМ И ВИДНО ВСЕГДА. В личной аптечке
@@ -120,7 +127,7 @@
   </div>
 
   {# ── ПРИГЛАШЕНИЯ ───────────────────────────────────────────────── #}
-  <div class="apt-circle-pane" data-cpane="invites" hidden>
+  <div class="apt-circle-pane is-off" data-cpane="invites">
     {% if полученные %}
     <p class="field-label">Вам прислали</p>
     <ul class="apt-people">
@@ -189,7 +196,7 @@
   </div>
 
   {# ── ЛЕНТА ИЗМЕНЕНИЙ ───────────────────────────────────────────── #}
-  <div class="apt-circle-pane" data-cpane="feed" hidden>
+  <div class="apt-circle-pane is-off" data-cpane="feed">
     {% if not общая %}
     <div class="empty-state empty-state-block">
       <span class="empty-state-icon">{{ значок('history') }}</span>
@@ -230,7 +237,7 @@
   </div>
 
   {# ── БЛОК ──────────────────────────────────────────────────────── #}
-  <div class="apt-circle-pane" data-cpane="block" hidden>
+  <div class="apt-circle-pane is-off" data-cpane="block">
     {% if блок %}
     <ul class="apt-people">
       {% for б in блок %}
@@ -255,5 +262,6 @@
     {% endif %}
     <p class="data-note">Заблокированный не может прислать вам
       приглашение. Уже висящее снимается в тот же миг.</p>
+  </div>
   </div>
 </div>

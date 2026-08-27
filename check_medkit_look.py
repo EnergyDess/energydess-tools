@@ -461,6 +461,359 @@ async def _войти(pg):
 }"""
 
 
+
+# ═════════════════════════════════════════════════════════════════════
+# РЕЖИМ `--круг` (BACKLOG №184, блоки B, C, D)
+#
+# ТРИ ВОПРОСА, И ВСЕ ТРИ ЗАДАЛ ВЛАДЕЛЕЦ, ПОСМОТРЕВ НА ЖИВОЙ ЭКРАН
+# ПОСЛЕ ЭТАПА 4:
+#
+#   B  где стоят органы управления списком. «Завести», «Вручную»
+#      и «Участники» висели В СТРОКЕ ЗАГОЛОВКА, то есть по другую
+#      сторону от ряда покупок и в метре пустоты от поиска, которым
+#      этот же список отбирают;
+#   C  кнопка-значок участников рядом с двумя подписанными кнопками:
+#      габарит и контраст к подложке;
+#   D  высота панели участников на каждой из ЧЕТЫРЁХ вкладок. Четыре
+#      разные высоты означают, что окно прыгает при переключении.
+#
+# КРУГ ЗАВОДИТСЯ ПРОБОЙ И ЕЮ ЖЕ УБИРАЕТСЯ. Без круга три вкладки
+# из четырёх пусты, и «высоты совпали» вышло бы про четыре пустых
+# состояния — то есть про то, чего человек не увидит. Заводится
+# НАСТОЯЩИМ путём (приглашение — принятие), а не строками в базе:
+# подставленный круг показал бы не то, что показывает сервер.
+# ═════════════════════════════════════════════════════════════════════
+
+КРУГ = "--круг" in sys.argv
+
+СОСЕД = ("neighbour@local.dev", "Neighbour-Local-2026")
+
+
+def _круг_завести():
+    """Завести круг двумя НАСТОЯЩИМИ запросами и вернуть, убирать ли."""
+    import http.cookiejar
+    import json as _js
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    def клиент():
+        cj = http.cookiejar.CookieJar()
+        return urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(cj))
+
+    def войти(op, почта, пароль):
+        d = urllib.parse.urlencode({"email": почта, "password": пароль})
+        op.open(urllib.request.Request(БАЗА + "/login", data=d.encode()),
+                timeout=30)
+
+    def зов(op, путь, метод="GET", тело=None):
+        д = _js.dumps(тело).encode() if тело is not None else None
+        req = urllib.request.Request(БАЗА + путь, data=д, method=метод)
+        if д:
+            req.add_header("Content-Type", "application/json")
+        try:
+            r = op.open(req, timeout=60)
+            return r.status, _js.loads(r.read().decode("utf-8", "replace"))
+        except urllib.error.HTTPError as e:
+            try:
+                return e.code, _js.loads(e.read().decode("utf-8", "replace"))
+            except Exception:
+                return e.code, {}
+
+    я, сосед = клиент(), клиент()
+    войти(я, ПОЧТА, ПАРОЛЬ)
+    войти(сосед, *СОСЕД)
+    к, т = зов(я, "/medkit/api/circle")
+    if т.get("общая"):
+        return False           # круг уже был — не наш, не убираем
+    зов(я, "/medkit/api/circle/invite", "POST", {"кого": СОСЕД[0]})
+    к, т = зов(сосед, "/medkit/api/circle")
+    пришедшие = т.get("полученные") or []
+    if not пришедшие:
+        print("   КРУГ НЕ ЗАВЁЛСЯ: приглашение не дошло до соседа")
+        return False
+    зов(сосед, "/medkit/api/circle/invite/%d/accept" % пришедшие[0]["id"],
+        "POST")
+    к, т = зов(я, "/medkit/api/circle")
+    if not т.get("общая"):
+        print("   КРУГ НЕ ЗАВЁЛСЯ: после принятия аптечка осталась личной")
+        return False
+    return True
+
+
+def _круг_убрать():
+    """Убрать круг ПРЯМО В БАЗЕ — тем же приёмом, что `удалить_всё`."""
+    import sqlite3
+    from database import DB_PATH
+    c = sqlite3.connect(DB_PATH)
+    for t in ("medkit_events", "medkit_members", "medkit_invites"):
+        c.execute("DELETE FROM " + t)
+    c.execute("DELETE FROM medkit_circles")
+    c.commit()
+    c.close()
+    print("   круг и приглашения убраны")
+
+
+# ── ЗАМЕР B и C: строка управления списком ────────────────────────────
+#
+# ПУСТОТА МЕРИТСЯ МЕЖДУ ПРЯМОУГОЛЬНИКАМИ КОРОБОК, а не по `left`
+# соседей: вопрос владельца — «сколько пустого места между поиском
+# и кнопками», и это расстояние от правого края одного до левого
+# края другого.
+СТРОКА_УПРАВЛЕНИЯ = r"""() => {
+  const п = (с) => document.querySelector(с);
+  const кор = (э) => { if (!э) return null; const к = э.getBoundingClientRect();
+    return {л: Math.round(к.left), п: Math.round(к.right),
+            в: Math.round(к.top), н: Math.round(к.bottom),
+            ш: Math.round(к.width), вы: Math.round(к.height)}; };
+  const видно = (э) => { if (!э) return false;
+    const с = getComputedStyle(э), к = э.getBoundingClientRect();
+    return с.display !== 'none' && с.visibility !== 'hidden'
+        && к.width > 0 && к.height > 0; };
+
+  const разбор = s => { const m = String(s).match(/[\d.]+/g) || [];
+    return [+m[0]||0, +m[1]||0, +m[2]||0, m.length>3 ? +m[3] : 1]; };
+  const поверх = (пер, зад) => { const a = пер[3];
+    return [0,1,2].map(i => пер[i]*a + зад[i]*(1-a)).concat([1]); };
+  const яркость = c => { const l = c.slice(0,3).map(v => { v/=255;
+      return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); });
+    return 0.2126*l[0] + 0.7152*l[1] + 0.0722*l[2]; };
+  const контраст = (пер, зад) => { const a = яркость(поверх(пер, зад)),
+    b = яркость(зад);
+    return +(((Math.max(a,b)+0.05)/(Math.min(a,b)+0.05))).toFixed(2); };
+  /* ПОДЛОЖКА ИЩЕТСЯ ВВЕРХ ПО ДЕРЕВУ до первого непрозрачного предка:
+     у самой кнопки `background` часто `rgba(...,0)`, и контраст к нему
+     вышел бы делением на собственный цвет */
+  const подложка = (э) => { let у = э;
+    while (у) { const ц = разбор(getComputedStyle(у).backgroundColor);
+      if (ц[3] > 0.99) return ц; у = у.parentElement; }
+    return [10, 11, 13, 1]; };
+
+  const поиск  = п('.apt-search');
+  const ассист = п('#apt-ai-open');
+  const вручную = п('.apt-add');
+  const кружок = п('#apt-circle-open');
+
+  /* ЗАЗОР — от правого края поиска до левого края САМОЙ ЛЕВОЙ
+     из видимых кнопок, и только если они в ОДНОЙ строке: на узкой
+     ширине кнопки уходят под поиск, и «зазор» там не про пустоту */
+  const кп = кор(поиск);
+  const кнопки = [ассист, вручную, кружок].filter(видно).map(кор);
+  let зазор = null, вОднойСтроке = null;
+  if (кп && кнопки.length) {
+    const слева = Math.min.apply(null, кнопки.map(к => к.л));
+    вОднойСтроке = кнопки.every(к => к.в < кп.н && к.н > кп.в);
+    зазор = вОднойСтроке ? слева - кп.п : null;
+  }
+
+  /* ГАБАРИТ КРУЖКА против ПОДПИСАННЫХ СОСЕДЕЙ — вопрос C.1.
+     Высота, а не площадь: в ряду органы равняются по высоте,
+     и «меньше соседних» человек видит именно так */
+  const кк = кор(кружок), ка = кор(ассист), кв = кор(вручную);
+  const св = [ка, кв].filter(Boolean).map(к => к.вы);
+
+  let знЦвет = null, знКонтраст = null, знРазмер = null, рамка = null;
+  let подпись = null;
+  if (кружок) {
+    const с_ = getComputedStyle(кружок);
+    const зад = подложка(кружок.parentElement || document.body);
+    знЦвет = с_.color;
+    знКонтраст = контраст(разбор(с_.color), зад);
+    рамка = {ширина: с_.borderTopWidth, цвет: с_.borderTopColor,
+             контраст: контраст(разбор(с_.borderTopColor), зад)};
+    const svg = кружок.querySelector('svg');
+    if (svg) { const к = svg.getBoundingClientRect();
+      знРазмер = Math.round(к.width) + 'x' + Math.round(к.height); }
+    подпись = (кружок.textContent || '').trim();
+  }
+
+  /* ГДЕ ОНИ СТОЯТ — в шапке или в строке поиска. Отвечает на B.1
+     прямо, а не через координаты */
+  const вШапке = (э) => !!(э && э.closest('.apt-head'));
+  const вСтроке = (э) => !!(э && э.closest('.apt-bar'));
+
+  return {
+    зазор: зазор, вОднойСтроке: вОднойСтроке,
+    поиск: кп,
+    места: {
+      ассистент: вШапке(ассист) ? 'шапка' : (вСтроке(ассист) ? 'строка' : '?'),
+      вручную:   вШапке(вручную) ? 'шапка' : (вСтроке(вручную) ? 'строка' : '?'),
+      участники: вШапке(кружок) ? 'шапка' : (вСтроке(кружок) ? 'строка' : '?')},
+    кружок: {коробка: кк, высотаСоседей: св,
+             разницаВысот: (кк && св.length) ? Math.max.apply(null,
+               св.map(в => Math.abs(в - кк.вы))) : null,
+             значок: знРазмер, цвет: знЦвет, контраст: знКонтраст,
+             рамка: рамка, подпись: подпись},
+    строкаВысота: (() => { const б = п('.apt-bar'); return б ?
+      Math.round(б.getBoundingClientRect().height) : null; })(),
+    /* ЗНАЧКИ ТРЁХ КНОПОК ОБЯЗАНЫ БЫТЬ ОДНОГО РАЗМЕРА: разнобой здесь
+       и есть «выглядит как случайно попавший символ» */
+    значки: [ассист, вручную, кружок].map(э => { if (!э) return null;
+      const s = э.querySelector('svg'); if (!s) return null;
+      const к = s.getBoundingClientRect();
+      return Math.round(к.width) + 'x' + Math.round(к.height); }),
+    /* ЗА КРАЙ ЭКРАНА НИЧЕГО НЕ УЕЗЖАЕТ. Ровно этот замер поймал
+       2026-08-26 третью кнопку, стоявшую на 406 при окне 390 */
+    заКраем: Array.from(document.querySelectorAll('.apt-bar *'))
+      .filter(э => э.getBoundingClientRect().right > window.innerWidth + 1)
+      .length,
+    гориз: document.documentElement.scrollWidth > window.innerWidth + 1,
+  };
+}"""
+
+# ── ЗАМЕР D: высота панели на каждой из четырёх вкладок ───────────────
+#
+# МЕРИТСЯ КОРОБКА ОКНА, а не содержимое: прыгает на глазах именно она.
+# Вкладки переключаются ТЕМ ЖЕ обработчиком, что у человека, —
+# нажатием по кнопке: подставить `hidden` руками значило бы мерить
+# состояние, в которое экран никто не приводил.
+ВЫСОТЫ_ВКЛАДОК = r"""async () => {
+  const сон = (мс) => new Promise(r => setTimeout(r, мс));
+  const окно = document.querySelector('#apt-circle .modal-box') ||
+               document.querySelector('#apt-circle .modal') ||
+               document.querySelector('#apt-circle > *');
+  const итог = {};
+  const кнопки = Array.from(
+    document.querySelectorAll('#apt-circle [data-ctab]'));
+  for (const к of кнопки) {
+    к.click();
+    await сон(150);
+    const пан = document.querySelector('.apt-circle');
+    const пкор = пан ? пан.getBoundingClientRect() : null;
+    const окор = окно ? окно.getBoundingClientRect() : null;
+    /* ПРОКРУТКА — отдельным числом: вкладка «Лента» обязана
+       прокручиваться ВНУТРИ, не меняя габарит окна */
+    const тело = document.querySelector('#apt-circle .modal-body') ||
+                 (пан ? пан.parentElement : null);
+    /* ПРОКРУТОК ДВЕ, И ОНИ ОТВЕЧАЮТ НА РАЗНЫЕ ВОПРОСЫ. Своя —
+       рослая вкладка листается ВНУТРИ СЕБЯ, так и надо. Тела окна —
+       вкладка переросла окно и потащила за собой ВСЕ ОСТАЛЬНЫЕ:
+       по короткой пришлось бы листать пустоту. Первая версия мерила
+       только вторую и печатала одно число там, где их два. */
+    const вкл = document.querySelector(
+      '[data-cpane="' + к.dataset.ctab + '"]');
+    итог[к.dataset.ctab] = {
+      панель: пкор ? Math.round(пкор.height) : null,
+      окно: окор ? Math.round(окор.height) : null,
+      прокрутка: тело ? Math.max(0,
+        Math.round(тело.scrollHeight - тело.clientHeight)) : null,
+      своя: вкл ? Math.max(0,
+        Math.round(вкл.scrollHeight - вкл.clientHeight)) : null,
+      строк: document.querySelectorAll(
+        '[data-cpane="' + к.dataset.ctab + '"] li').length,
+    };
+  }
+  /* вернуть на первую вкладку, чтобы следующий замер начинался
+     с того же состояния */
+  if (кнопки.length) { кнопки[0].click(); await сон(80); }
+  return итог;
+}"""
+
+
+def _ленту_набить(сколько):
+    """Набить ленту строками — D.4 иначе не задаётся вовсе.
+
+    На стенде лента короткая (две-три строки), и «высоты совпали»
+    на ней вышло бы про случай, в котором совпасть им нечему.
+    Вопрос D.4 — что будет, когда одна вкладка ПЕРЕРАСТЁТ окно.
+
+    Строки кладутся ПРЯМО В БАЗУ, а не действиями: восемьдесят
+    списаний через интерфейс — работа не про то, а вопрос тут
+    к раскладке, а не к пути записи.
+    """
+    import sqlite3
+    from database import DB_PATH
+    c = sqlite3.connect(DB_PATH)
+    try:
+        круг = c.execute("SELECT id FROM medkit_circles").fetchone()
+        участник = c.execute(
+            "SELECT user_id FROM medkit_members LIMIT 1").fetchone()
+        if not круг or not участник:
+            return 0
+        for i in range(сколько):
+            c.execute("INSERT INTO medkit_events "
+                      "(circle_id, user_id, kind, name, created_at) "
+                      "VALUES (?, ?, 'take', ?, datetime('now'))",
+                      (круг[0], участник[0], "проба ленты %d" % i))
+        c.commit()
+        return c.execute("SELECT COUNT(*) FROM medkit_events").fetchone()[0]
+    finally:
+        c.close()
+
+
+async def прогон_круга():
+    from playwright.async_api import async_playwright
+    итог = {}
+    async with async_playwright() as p:
+        b = await p.chromium.launch()
+        for ширина in ШИРИНЫ:
+            сенсор = ширина < 800
+            ctx = await b.new_context(
+                viewport={"width": ширина,
+                          "height": 900 if not сенсор else 844},
+                has_touch=сенсор, is_mobile=сенсор, device_scale_factor=1)
+            pg = await ctx.new_page()
+            await _войти(pg)
+            await pg.goto(БАЗА + "/medkit", wait_until="networkidle")
+            await pg.add_style_tag(
+                content="html, * { scroll-behavior: auto !important }")
+            await pg.wait_for_timeout(400)
+            д = {"строка": await pg.evaluate(СТРОКА_УПРАВЛЕНИЯ)}
+            # ПАНЕЛЬ ОТКРЫВАЕТСЯ ТЕМ ЖЕ ВЫЗОВОМ, ЧТО У ЧЕЛОВЕКА
+            await pg.evaluate("() => аптКругОткрыть()")
+            await pg.wait_for_timeout(700)
+            д["вкладки"] = await pg.evaluate(ВЫСОТЫ_ВКЛАДОК)
+            итог[ширина] = д
+            await ctx.close()
+        await b.close()
+    return итог
+
+
+def печать_круга(итог):
+    print("СТРОКА УПРАВЛЕНИЯ И ПАНЕЛЬ УЧАСТНИКОВ (BACKLOG №184)")
+    print("=" * 72)
+    for ширина, д in итог.items():
+        с, в = д["строка"], д["вкладки"]
+        print()
+        print("── %d ──" % ширина)
+        м = с["места"]
+        print("  B.1  где стоят: ассистент=%s вручную=%s участники=%s"
+              % (м["ассистент"], м["вручную"], м["участники"]))
+        print("  B.3  пустота между поиском и кнопками: %s px "
+              "(в одной строке: %s)"
+              % ("—" if с["зазор"] is None else с["зазор"], с["вОднойСтроке"]))
+        к = с["кружок"]
+        кор = к["коробка"] or {}
+        print("  C.1  участники: коробка %sx%s, высота соседей %s, "
+              "расхождение %s px"
+              % (кор.get("ш"), кор.get("вы"), к["высотаСоседей"],
+                 к["разницаВысот"]))
+        print("       значок %s, контраст к подложке %s (порог 3.0), "
+              "рамка %s / контраст %s"
+              % (к["значок"], к["контраст"],
+                 (к["рамка"] or {}).get("ширина"),
+                 (к["рамка"] or {}).get("контраст")))
+        print("  C.2  подпись у кнопки: %r" % (к["подпись"] or ""))
+        высоты = [(и, з["окно"]) for и, з in в.items()]
+        числа = [з for _, з in высоты if з]
+        разброс = (max(числа) - min(числа)) if числа else None
+        print("  D.3  высоты окна по вкладкам: %s"
+              % ", ".join("%s=%s" % (и, з) for и, з in высоты))
+        print("       РАЗБРОС %s px  (после правки обязан быть 0)" % разброс)
+        for и, з in в.items():
+            print("       %-8s строк %-3s внутри вкладки %s px, "
+                  "тело окна %s px"
+                  % (и, з["строк"], з.get("своя"), з["прокрутка"]))
+        print("  D.4  прокрутку заводит ТОЛЬКО рослая вкладка: тело окна "
+              "листается на %s px (обязан быть 0)"
+              % max((з["прокрутка"] or 0) for з in в.values()))
+        print("  C.1  значки трёх кнопок: %s   за краем экрана %s, "
+              "горизонтальная прокрутка %s"
+              % (", ".join(str(з) for з in с["значки"]),
+                 с["заКраем"], с["гориз"]))
+
+
 async def прогон():
     from playwright.async_api import async_playwright
     итог = {}
@@ -795,6 +1148,27 @@ def удалить_всё():
 def main():
     if КОНТРОЛЬ:
         asyncio.run(контроль())
+        return 0
+    if КРУГ:
+        # КРУГ ЗАВОДИТСЯ НАСТОЯЩИМ ПУТЁМ и убирается в `finally`:
+        # оставленный круг превратил бы следующий снимок аптечки
+        # в снимок ОБЩЕЙ, и пиксельный диф назвал бы находкой мусор
+        # чужой пробы (§6.0.3, шестая причина неповторимости)
+        print("РЕЖИМ --круг: на стенде заводится общая аптечка "
+              "на двоих. Сказано ДО прогона, а не после.")
+        наш = _круг_завести()
+        try:
+            print("\n### ЛЕНТА КОРОТКАЯ — обычное состояние стенда")
+            печать_круга(asyncio.run(прогон_круга()))
+            # D.4: ОДНА ВКЛАДКА ПЕРЕРАСТАЕТ ОКНО. Без этого прохода
+            # «высоты совпали» относится к случаю, в котором совпасть
+            # им нечему
+            всего = _ленту_набить(80)
+            print("\n### ЛЕНТА ДЛИННАЯ — строк событий в базе: %s" % всего)
+            печать_круга(asyncio.run(прогон_круга()))
+        finally:
+            if наш:
+                _круг_убрать()
         return 0
     if ПУСТОЕ:
         print("РЕЖИМ --пустое: стенд будет ОПУСТОШЁН (все позиции аптечки "
