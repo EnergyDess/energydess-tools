@@ -306,7 +306,11 @@
     var angles = Object.keys(wkBodyPhotoFiles);
     var msg = $('#wkPhotoMsg');
     if (!angles.length) { msg.textContent = 'Выберите хотя бы одно фото'; return; }
-    var today = new Date().toISOString().slice(0, 10);
+    // ДЕНЬ ПРИХОДИТ С СЕРВЕРА, в поясе пользователя (§5.0.6).
+    // `new Date().toISOString()` считал его в UTC: снимок, загруженный
+    // ночью в UTC+3, уезжал вчерашним числом. Разбор — у роута
+    // `/workout/profile` в main.py (BACKLOG №174).
+    var today = {{ wk_today | tojson }};
     var requests = angles.map(function (angle) {
       var fd = new FormData();
       fd.append('file', wkBodyPhotoFiles[angle]);

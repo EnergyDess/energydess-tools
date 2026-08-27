@@ -8459,6 +8459,18 @@ async def workout_profile_page(request: Request, user=Depends(get_current_user),
     return templates.TemplateResponse(request=request, name="workout_profile.html", context={
         "user": user,
         "equipment_options": _workout_equipment_checklist(db),
+        # ДЕНЬ СЧИТАЕТ СЕРВЕР, В ПОЯСЕ ПОЛЬЗОВАТЕЛЯ (§5.0.6).
+        #
+        # Здесь его считал БРАУЗЕР — `new Date().toISOString()`, то есть
+        # в UTC, — и фото прогресса, загруженное владельцем (UTC+3)
+        # между 00:00 и 02:59 по местному, ложилось ВЧЕРАШНИМ числом.
+        # Признака ошибки никакого: снимок сохраняется, подпись «Сохранено
+        # за …» показывает ту же неверную дату, что ушла на сервер.
+        #
+        # Тот же эндпоинт (`/nutrition/api/body-photo`) зовёт и дневник,
+        # и там это починено 2026-08-17 — правка легла на один путь,
+        # а второй такой же остался (BACKLOG №174, §6.0.7).
+        "wk_today": _сегодня(user).strftime("%Y-%m-%d"),
     })
 
 
