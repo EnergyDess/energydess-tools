@@ -2545,6 +2545,11 @@ D.1). Здесь стоял `значок('help-circle')`, а он несёт В
                       gap: var(--space-4); padding: var(--space-7) var(--space-5); }
 .empty-state-block  { display: flex; flex-direction: column; align-items: center;
                       gap: var(--space-3); padding: var(--space-6) var(--space-4); }
+.empty-state-xl     { gap: var(--space-6); padding: var(--space-8) var(--space-5); }
+.empty-state-xl .empty-state-icon     { width: 96px; height: 96px; }
+.empty-state-xl .empty-state-icon svg { width: 40px; height: 40px; }
+.empty-state-xl .empty-state-title    { font-size: var(--text-body-lg); }
+.empty-state-xl .empty-state-sub      { max-width: 24rem; font-size: var(--text-body-sm); }
 .empty-state-block .empty-state-icon     { width: 40px; height: 40px;
                                            border-radius: var(--radius-md); }
 .empty-state-block .empty-state-icon svg { width: 20px; height: 20px; }
@@ -2557,6 +2562,20 @@ D.1). Здесь стоял `значок('help-circle')`, а он несёт В
 .empty-state-title, .empty-state h3 { font-size: var(--text-body); font-weight: 600; color: var(--text); }
 .empty-state-sub,   .empty-state p  { font-size: var(--text-caption); color: var(--text-2); max-width: 280px; }
 ```
+
+**Форм четыре, и `.empty-state-xl` — ступень ПОВЕРХ hero.** Она нужна
+там, где поле задано НЕ этим блоком: в панели участников аптечки
+высота ряда равна самой рослой вкладке (ленте), и короткая получает
+от неё 600 px. Замер 2026-08-28 до правки: содержимое пустого
+состояния 138 px из 540, то есть блок терялся в поле вчетверо больше
+себя — плитка 64 и две строки подписи. С `xl` — плитка 96, знак 40,
+зазор 32, подпись на ступень крупнее и шире на треть: 214 px, и пустота
+над блоком стала меньше самого блока (163 против 214).
+
+**Правкой самого `hero` это не лечится**, и это §6.0.8: он стоит ещё
+на шести экранах, где поле обычное, и плитка 96 посреди списка
+читалась бы вывеской.
+
 
 **ЧЕТВЁРТАЯ ФОРМА — `.empty-state-block`, заведена 2026-08-26**
 (`BACKLOG.md`, задача 176, блок B). Роль своя и от трёх прежних

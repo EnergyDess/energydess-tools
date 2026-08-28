@@ -173,7 +173,7 @@
        про ленту и про выход — теперь стоят в подсказке над вкладками:
        прочитать их надо один раз. #}
     {% else %}
-    <div class="empty-state empty-state-hero">
+    <div class="empty-state empty-state-hero empty-state-xl">
       <span class="empty-state-icon">{{ значок('users') }}</span>
       <p class="empty-state-title">Аптечка личная</p>
       {# ОДНО ПРЕДЛОЖЕНИЕ, ОСТАЛЬНОЕ ПОД ЗНАЧКОМ «?» (BACKLOG №190,
@@ -249,7 +249,7 @@
     {% endif %}
 
     {% if not полученные and not отправленные %}
-    <div class="empty-state empty-state-hero">
+    <div class="empty-state empty-state-hero empty-state-xl">
       <span class="empty-state-icon">{{ значок('mail') }}</span>
       <p class="empty-state-title">Приглашений нет</p>
       <p class="empty-state-sub">Ни отправленных, ни полученных.</p>
@@ -260,14 +260,14 @@
   {# ── ЛЕНТА ИЗМЕНЕНИЙ ───────────────────────────────────────────── #}
   <div class="apt-circle-pane is-off" data-cpane="feed">
     {% if not общая %}
-    <div class="empty-state empty-state-hero">
+    <div class="empty-state empty-state-hero empty-state-xl">
       <span class="empty-state-icon">{{ значок('history') }}</span>
       <p class="empty-state-title">Лента бывает у общей аптечки</p>
       <p class="empty-state-sub">В личной записывать нечего: все
         действия в списке — ваши.</p>
     </div>
     {% elif not лента %}
-    <div class="empty-state empty-state-hero">
+    <div class="empty-state empty-state-hero empty-state-xl">
       <span class="empty-state-icon">{{ значок('history') }}</span>
       <p class="empty-state-title">Пока ничего не менялось</p>
       <p class="empty-state-sub">Здесь появится, кто что завёл, списал
@@ -320,7 +320,7 @@
        выравнивания подряд: значок с заголовком по центру, а строка
        под ними — прижатая влево на 78ch. Сказать надо то же самое,
        и место у этого одно. #}
-    <div class="empty-state empty-state-hero">
+    <div class="empty-state empty-state-hero empty-state-xl">
       <span class="empty-state-icon">{{ значок('lock') }}</span>
       <p class="empty-state-title">Никто не заблокирован</p>
       {# ТО ЖЕ, ЧТО В B.3: три предложения подряд, а нужно одно.
