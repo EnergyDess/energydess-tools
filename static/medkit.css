@@ -936,6 +936,19 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 .apt-err { margin: 0; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
 .apt-err[hidden] { display: none; }
 .apt-err-retry { flex: none; }
+/* ── ЕЩЁ ОДНА УПАКОВКА (BACKLOG №189, блок B) ───────────────────────
+   Отдельной строкой НАД подвалом формы, а не кнопкой в его ряду:
+   в подвале стоят «Отмена» и «Сохранить» — решения про ЭТУ карточку,
+   а здесь заводится ДРУГАЯ. Пояснение обязательно и стоит под кнопкой:
+   что именно перенесётся, человек обязан узнать ДО нажатия, а не
+   обнаружить в полях после. */
+.apt-more-pack {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.apt-more-pack .data-note { margin-top: var(--space-2); }
+
 .apt-foot {
   display: flex;
   justify-content: flex-end;
@@ -1871,6 +1884,21 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 .apt-circle-pane.is-off { visibility: hidden; pointer-events: none; }
 .apt-circle-invite { display: flex; gap: var(--space-3); align-items: center; }
 .apt-circle-invite .input-wrap { flex: 1 1 auto; min-width: 0; }
+/* ФОРМА ВНУТРИ ПУСТОГО СОСТОЯНИЯ (BACKLOG №189, A.5). В личной аптечке
+   поле приглашения — это ДЕЙСТВИЕ пустого состояния, и живёт оно внутри
+   него. `.empty-state-block` центрирует детей флексом, то есть форма
+   получила бы ширину по содержимому и разъехалась бы с заголовком;
+   потолок берёт ту же величину, что и подпись рядом с ней, чтобы блок
+   читался одной колонкой.
+
+   СУБЪЕКТ СЕЛЕКТОРА — СВОЙ КЛАСС, а не системный `.empty-state-block`:
+   объявлена раскладка ЭКЗЕМПЛЯРА внутри своего родителя, компонент
+   не тронут (§6.0.2). */
+.empty-state-block > .apt-circle-invite {
+  width: 100%;
+  max-width: 26rem;
+  margin-top: var(--space-2);
+}
 @media (max-width: 560px) {
   .apt-circle-invite { flex-direction: column; align-items: stretch; }
 }
