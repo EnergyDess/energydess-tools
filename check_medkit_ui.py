@@ -1486,22 +1486,41 @@ async def _пройти_скан(pg, о):
     окно = await pg.evaluate("""() => {
       const о = document.getElementById('apt-scan');
       const в = document.getElementById('apt-scan-view');
+      /* СВОЕЙ РАМКИ У ОКНА БОЛЬШЕ НЕТ (BACKLOG №190, D.5): область
+         чтения рисует библиотека своими уголками, и второй
+         прямоугольник рядом с ними расходился бы при первой правке
+         `qrbox`. Спрашивается теперь ОБРАТНОЕ — что её нет ни одной. */
       const рамка = document.querySelector('#apt-scan .scan-overlay');
-      const обёртка = document.querySelector('#apt-scan .scan-wrap');
-      const rr = рамка ? рамка.getBoundingClientRect() : null;
-      const ro = обёртка ? обёртка.getBoundingClientRect() : null;
       return {
         открыто: !!(о && о.classList.contains('open')),
         библиотека: !!window.Html5Qrcode,
         видео: !!(в && в.querySelector('video')),
-        рамкаВнутри: (rr && ro)
-          ? (rr.right <= ro.right + 1 && rr.left >= ro.left - 1) : null,
+        своейРамки: !!рамка,
       };
     }""")
     о.шаг("окно-сканера-открылось", bool(окно.get("открыто")), repr(окно))
     о.шаг("видоискатель-запустился",
           bool(окно.get("библиотека") and окно.get("видео")), repr(окно))
-    о.шаг("рамка-не-вылезла", окно.get("рамкаВнутри") is True, repr(окно))
+    о.шаг("своей-рамки-нет", окно.get("своейРамки") is False, repr(окно))
+    # РАМКА БИБЛИОТЕКИ СОВПАДАЕТ С КАДРОМ (BACKLOG №190, D.5).
+    #
+    # Пока сверху лежала наша голубая, расхождение пряталось за ней.
+    # Замер до правки: обёртка 506×506, ВИДЕО 506×380 (камера отдаёт
+    # 4:3), рамка библиотеки 506×506 — её нижние уголки лежали
+    # на ЧЁРНОМ ПОЛЕ под кадром, то есть обещали область больше
+    # видимой. Спрашивается ВЫСОТА ВИДЕО против высоты обёртки:
+    # рамку библиотека рисует по обёртке, и совпасть они могут
+    # только так.
+    кадр = await pg.evaluate("""() => {
+      const о = document.querySelector('#apt-scan .scan-wrap');
+      const в = document.querySelector('#apt-scan-view video');
+      if (!о || !в) return null;
+      const ко = о.getBoundingClientRect(), кв = в.getBoundingClientRect();
+      return {обёртка: Math.round(ко.height), видео: Math.round(кв.height),
+              разница: Math.round(ко.height - кв.height)};
+    }""")
+    о.шаг("кадр-заполняет-видоискатель",
+          bool(кадр) and abs(кадр["разница"]) <= 1, repr(кадр))
 
     # ── 3. ЗНАКОМЫЙ КОД → ПОДСТАНОВКА ИЗ СВОЕЙ БАЗЫ
     #      Результат берётся С ЭКРАНА И ИЗ ФОРМЫ, а не из ответа сервера
@@ -1583,9 +1602,16 @@ async def _пройти_скан(pg, о):
                 .map(э => э.id)};
     }""")
     чужой["текст"] = сказано
+    # ТЕКСТ ПРОВЕРЯЕТСЯ ПО ГЛАВНОМУ УТВЕРЖДЕНИЮ, А НЕ ПО ЛЮБОМУ СЛОВУ.
+    # Прежде искалось «ещё не было» — фраза из сообщения, которое
+    # ОБЕЩАЛО подстановку при следующей покупке (BACKLOG №190, D.4).
+    # Обещание верное и НЕ ПРО СЕЙЧАС, и владелец его снял: теперь
+    # сообщение говорит, что по коду препарат не опознаётся, и зовёт
+    # снять упаковку. Спрашивается именно это.
     о.шаг("незнакомый-код-запомнен",
           чужой["код"] == "00000000000017"
-          and "ещё не было" in сказано, repr(чужой)[:260])
+          and "не узнать" in сказано
+          and "фотограф" in сказано.lower(), repr(чужой)[:260])
     # КАРТОЧКА ПУСТА, КРОМЕ КОДА: подставлять нечего, препарат новый
     о.шаг("незнакомый-код-НЕ-выдумал-карточку",
           чужой["имя"] == "" and чужой["помечено"] == ["apt-f-code"],
@@ -1612,6 +1638,89 @@ async def _пройти_скан(pg, о):
       return р.length ? (р[р.length - 1].textContent || '') : '';
     }""")
     о.шаг("шум-отвергнут", "не похоже на код" in шум, repr(шум)[:160])
+
+    # ── 7. КНОПКА СКАНЕРА В КАРТОЧКЕ (BACKLOG №190, D.1) ────────────
+    #
+    # ОРГАН СЧИТАЕТСЯ ЖИВЫМ, ТОЛЬКО ЕСЛИ ДО НЕГО ДОТЯГИВАЕТСЯ НАЖАТИЕ,
+    # а не если он есть в дереве (§6.3). Форма открывается тем же
+    # путём, что у человека.
+    await pg.reload(wait_until="networkidle")
+    await pg.evaluate("() => аптОткрытьФорму()")
+    await pg.wait_for_timeout(700)
+    # ДО ОРГАНА НАДО ДОКРУТИТЬ, КАК ЭТО ДЕЛАЕТ ЧЕЛОВЕК. Поле кода
+    # лежит ниже сгиба формы: без прокрутки `elementFromPoint`
+    # возвращает лист модалки, и проба объявила бы находкой то, что
+    # находкой не является. Замер: кнопка на y=861 при теле 765 px
+    await pg.evaluate("() => { const к = document.getElementById("
+                      "'apt-scan-field'); if (к) к.scrollIntoView("
+                      "{block: 'center'}); }")
+    await pg.wait_for_timeout(300)
+    в_форме = await pg.evaluate("""() => {
+      const к = document.getElementById('apt-scan-field');
+      if (!к) return {есть: false};
+      const р = к.getBoundingClientRect();
+      const т = document.elementFromPoint(р.left + р.width / 2,
+                                          р.top + р.height / 2);
+      const поле = document.getElementById('apt-f-code');
+      const пр = поле.getBoundingClientRect();
+      return {есть: true,
+              видна: р.width > 0 && р.height > 0,
+              достаём: !!(т && (т === к || к.contains(т))),
+              вОднойСтроке: Math.abs(р.top - пр.top) < 20};
+    }""")
+    о.шаг("сканер-стоит-у-поля-кода",
+          bool(в_форме.get("есть") and в_форме.get("видна")
+               and в_форме.get("достаём") and в_форме.get("вОднойСтроке")),
+          repr(в_форме))
+    # КОД ИЗ ФОРМЫ ЛОЖИТСЯ В ПОЛЕ, А НЕ УВОДИТ В ЧАТ (D.1)
+    await pg.evaluate("() => аптСканОткрыть('поле')")
+    await pg.wait_for_timeout(600)
+    await pg.evaluate("(к) => аптСканПрочитан(к)", СКАН_КОД_ЗНАКОМЫЙ)
+    await pg.wait_for_timeout(1500)
+    из_поля = await pg.evaluate("""() => ({
+      код: document.getElementById('apt-f-code').value,
+      имя: document.getElementById('apt-f-name').value,
+      панель: !!document.querySelector('.apt-ai.open'),
+      помечено: [...document.querySelectorAll('.apt-form .apt-in-ai')]
+                 .map(э => э.id),
+    })""")
+    о.шаг("код-из-формы-лёг-в-поле",
+          из_поля["код"] == "04601234567890", repr(из_поля))
+    # ФОРМУ НЕ ПЕРЕПИСЫВАЕМ: человек уже что-то в неё внёс
+    о.шаг("найденная-пачка-не-переписала-форму",
+          из_поля["имя"] == "", repr(из_поля["имя"]))
+    о.шаг("панель-ассистента-не-открылась",
+          из_поля["панель"] is False, repr(из_поля["панель"]))
+    о.шаг("подставленный-код-помечен",
+          "apt-f-code" in (из_поля["помечено"] or []),
+          repr(из_поля["помечено"]))
+
+    # ── 8. ОТМЕНА ФОРМЫ НЕ ОСТАВЛЯЕТ ЛОЖНОГО «ПЕРЕНЁС» (D.3) ────────
+    #
+    # СПРАШИВАЕТСЯ ПОСЛЕДНЯЯ РЕПЛИКА, А НЕ НАЛИЧИЕ НОВОЙ: до правки
+    # последней оставалась «Перенёс в карточку — проверьте и сохраните»
+    # про карточку, которой нет. Это §6.0 наизнанку.
+    await pg.reload(wait_until="networkidle")
+    await _лента_успокоилась(pg)
+    await pg.evaluate("(к) => аптСканПрочитан(к)", СКАН_КОД_ЗНАКОМЫЙ)
+    await pg.wait_for_timeout(1500)
+    await pg.evaluate("() => аптАИВФорму()")
+    await pg.wait_for_timeout(700)
+    перенёс = await pg.evaluate("""() => {
+      const р = [...document.querySelectorAll('#apt-ai-log .apt-ai-msg-ai')];
+      return р.length ? (р[р.length - 1].textContent || '') : '';
+    }""")
+    await pg.evaluate("() => закрыть_модалку('apt-form')")
+    await pg.wait_for_timeout(600)
+    после_отмены = await pg.evaluate("""() => {
+      const р = [...document.querySelectorAll('#apt-ai-log .apt-ai-msg-ai')];
+      return р.length ? (р[р.length - 1].textContent || '') : '';
+    }""")
+    о.шаг("после-переноса-сказано-перенёс",
+          "Перенёс" in перенёс, repr(перенёс)[:120])
+    о.шаг("отмена-НЕ-оставила-ложного-перенёс",
+          "не сохранил" in после_отмены and после_отмены != перенёс,
+          repr(после_отмены)[:160])
 
 
 # ПОДЛОГИ РЕЖИМА. Кладутся В СТРАНИЦУ, кода экрана не трогают.

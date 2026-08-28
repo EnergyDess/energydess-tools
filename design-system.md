@@ -2925,11 +2925,19 @@ D.1). Здесь стоял `значок('help-circle')`, а он несёт В
 
 ```html
 <div class="scan-wrap">
-  <div id="apt-scan-view" class="scan-view"></div>
-  <div class="scan-overlay scan-overlay-sq"></div>
-  <button class="scan-torch-btn" id="apt-scan-torch" type="button"></button>
+  <div id="nut-scan-view" class="scan-view"></div>
+  <div class="scan-overlay"></div>
+  <button class="scan-torch-btn" id="nut-scan-torch" type="button"></button>
 </div>
 ```
+
+**РАМКИ У АПТЕЧКИ НЕТ ВОВСЕ — с 2026-08-28** (BACKLOG №190, D.5).
+Там ловят DataMatrix, и библиотека рисует по своей области чтения
+белые уголки: наша рамка была вторым источником одной величины
+и расходилась бы с ними при первой правке `qrbox`. Вариант
+`.scan-overlay-sq`, который подгонял её под уголки, удалён вместе
+с последним потребителем. У дневника рамка остаётся: там полосы
+EAN-13, область вытянутая, и рисунок под неё верен.
 
 **РАМКА И КНОПКА ЛЕЖАТ РЯДОМ С КОНТЕЙНЕРОМ, А НЕ ВНУТРИ НЕГО.**
 Html5Qrcode ОЧИЩАЕТ содержимое своего контейнера при запуске — всё,
