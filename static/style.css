@@ -3074,14 +3074,48 @@ textarea::placeholder, input::placeholder { color: var(--text-faint); }
   text-transform: none;
   letter-spacing: normal;
   text-align: left;
+  /* ── ЗАКРЫТАЯ ПОДСКАЗКА НЕ УЧАСТВУЕТ В РАСКЛАДКЕ (BACKLOG №196, B) ──
+
+     ЗДЕСЬ СТОЯЛО `visibility: hidden`, и этого НЕ ХВАТАЕТ: скрытый так
+     блок ПО-ПРЕЖНЕМУ размещается. Подсказка — `absolute` шириной
+     24rem внутри `.hint` шириной 23 px, значит она торчит вправо
+     на 385 px, а абсолютный потомок в scrollWidth прокручиваемого
+     предка ВХОДИТ.
+
+     ЗАМЕР 2026-08-29, панель участников, все четыре вкладки:
+     `.modal-body` — clientWidth 858 при scrollWidth 1227 на 2560
+     и 390 при 656 на 390. То есть горизонтальная полоса прокрутки
+     и пустая область справа, на которые жаловался владелец.
+
+     «ПРОКРУТКА ИСЧЕЗАЕТ САМА» — ТОЖЕ ОБЪЯСНЕНО ЭТИМ, и объяснение
+     проверяемое: `ui.js` при ОТКРЫТИИ ставит подсказке инлайновый
+     `position: fixed` и обратно его не снимает. Проведи курсор
+     по кнопке «?» один раз — и блок перестаёт быть абсолютным
+     потомком, а прокрутка пропадает до перезагрузки.
+
+     `display`, А НЕ `width: 0`: скрипт меряет `offsetWidth` подсказки,
+     чтобы её разместить, — но меряет уже ПОСЛЕ того, как повесил
+     `is-open` (`открыть` добавляет класс до `разместить`), то есть
+     на раскрытом состоянии. Обнуление ширины в закрытом ему
+     не мешает, а вот `width: 0` пришлось бы отменять и это был бы
+     второй источник одной величины.
+
+     ПЛАВНОСТЬ СОХРАНЕНА: `transition-behavior: allow-discrete` плюс
+     `@starting-style` дают тот же проявляющийся переход там, где
+     браузер это умеет, и мгновенное появление там, где нет.
+     Появление подсказки при этом не «анимация ради анимации» —
+     мгновенно возникающий поверх текста блок читается как сбой. */
+  display: none;
   opacity: 0;
-  visibility: hidden;
   transform: translateY(-0.25rem);
   transition: opacity var(--dur-base) var(--ease),
               transform var(--dur-base) var(--ease),
-              visibility var(--dur-base) var(--ease);
+              display var(--dur-base) var(--ease) allow-discrete;
 }
-.hint.is-open > .hint-pop { opacity: 1; visibility: visible; transform: none; }
+.hint.is-open > .hint-pop { display: block; opacity: 1; transform: none; }
+@starting-style {
+  .hint.is-open > .hint-pop { opacity: 0; transform: translateY(-0.25rem); }
+}
 @media (hover: hover) {
   .hint-btn:hover { color: var(--text); border-color: var(--tool-accent, var(--accent-brand)); }
 }

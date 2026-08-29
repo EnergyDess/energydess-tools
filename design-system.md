@@ -2380,13 +2380,28 @@ Escape не закрывал ни одну из двенадцати (обраб
             background: var(--surface-2); border: 1px solid var(--border);
             border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
             font-size: var(--text-caption); text-transform: none; letter-spacing: normal;
-            opacity: 0; visibility: hidden; transform: translateY(-0.25rem); }
-.hint.is-open > .hint-pop { opacity: 1; visibility: visible; transform: none; }
+            display: none; opacity: 0; transform: translateY(-0.25rem); }
+.hint.is-open > .hint-pop { display: block; opacity: 1; transform: none; }
 @media (hover: hover) { .hint-btn:hover { color: var(--text); } }
 .hint-h { display: block; margin-bottom: var(--space-2); color: var(--text); font-weight: 600; }
 .hint-steps { display: block; margin: var(--space-2) 0; color: var(--text); }
 .hint-pop-right { left: auto; right: 0; }
 ```
+
+**ЗАКРЫТАЯ ПОДСКАЗКА УБИРАЕТСЯ `display`, А НЕ `visibility`** —
+BACKLOG №196, блок B. `visibility: hidden` блок не убирает
+из РАСКЛАДКИ: подсказка — `absolute` шириной 24rem внутри `.hint`
+шириной 23 px, и абсолютный потомок входит в `scrollWidth`
+прокручиваемого предка. Замер в панели участников аптечки:
+у тела панели `clientWidth` 858 при `scrollWidth` 1227 на 2560
+и 390 при 656 на 390 — горизонтальная полоса прокрутки и пустая
+область справа, на всех четырёх вкладках сразу.
+
+Плавность при этом сохранена: `transition-behavior: allow-discrete`
+плюс `@starting-style` дают тот же проявляющийся переход там, где
+браузер это умеет, и мгновенное появление там, где нет. Мгновенно
+возникающий поверх текста блок читается как сбой, поэтому переход
+здесь не украшение.
 
 ```html
 <span class="hint">
