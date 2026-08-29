@@ -523,6 +523,7 @@ async def _войти(pg):
 СКАЧКИ = "--скачки" in sys.argv
 # Блок A задачи 197: ряд ввода панели
 ПОЛЕ = "--поле" in sys.argv
+ШТОРКА = "--шторка" in sys.argv
 
 СОСЕД = ("neighbour@local.dev", "Neighbour-Local-2026")
 
@@ -1669,6 +1670,146 @@ def удалить_всё():
 }"""
 
 
+# ═════════════════════════════════════════════════════════════════════
+# ШТОРКА СПОСОБА ПРИЁМА И ПОЛЕ ПОИСКА (BACKLOG №199, блок E)
+# ═════════════════════════════════════════════════════════════════════
+#
+# Спрашивается НЕ «красиво ли», а два числа, по которым владелец
+# и опознал дефект: РАЗБРОС ШИРИН кнопок в ряду и РАЗНИЦА ОТСТУПОВ
+# лупы и крестика. Оба выражаются числом, и оба до правки не были
+# равны нулю.
+ЗАМЕР_ШТОРКИ = """() => {
+  const тело = document.getElementById('apt-doses-body');
+  if (!тело) return {ошибка: 'окна нет'};
+  const ряды = [...тело.querySelectorAll('.apt-doses-acts')];
+  const кнопки = [...тело.querySelectorAll('.apt-doses-acts .btn')];
+  const w = кнопки.map(к => Math.round(к.getBoundingClientRect().width));
+  const низ = тело.getBoundingClientRect().bottom;
+  const последняя = кнопки.length
+    ? Math.round(низ - кнопки[кнопки.length - 1].getBoundingClientRect().bottom)
+    : null;
+  const левые = кнопки.map(к => Math.round(к.getBoundingClientRect().left));
+  return {
+    рядов: ряды.length,
+    кнопок: кнопки.length,
+    подписи: кнопки.map(к => к.textContent.trim()),
+    ширины: w,
+    разброс: w.length ? Math.max(...w) - Math.min(...w) : 0,
+    левыеРазные: new Set(левые).size,
+    подПоследней: последняя,
+    высотаТела: Math.round(тело.getBoundingClientRect().height),
+  };
+}"""
+
+ЗАМЕР_ПОИСКА = """() => {
+  const поле = document.getElementById('apt-q');
+  const лупа = document.querySelector('.apt-search .apt-search-ico');
+  const крест = document.getElementById('apt-q-clear');
+  if (!поле) return {ошибка: 'поля нет'};
+  const п = поле.getBoundingClientRect();
+  const л = лупа ? лупа.getBoundingClientRect() : null;
+  /* МЕРЯЕТСЯ ЗНАЧОК, А НЕ КОРОБКА КНОПКИ: у лупы коробка и есть
+     значок, а крестик сидит внутри кнопки по центру — сравнение
+     коробок дало бы 0 px там, где глаз видит 16. */
+  const кс = крест ? (крест.querySelector('svg') || крест) : null;
+  const к = (крест && !крест.hidden) ? кс.getBoundingClientRect() : null;
+  const свой = !!крест;
+  return {
+    свойКрестик: свой,
+    виденПриТексте: !!к,
+    отступСлева: л ? Math.round(л.left - п.left) : null,
+    отступСправа: к ? Math.round(п.right - к.right) : null,
+    размерЛупы: л ? [Math.round(л.width), Math.round(л.height)] : null,
+    размерКрестика: к ? [Math.round(к.width), Math.round(к.height)] : null,
+  };
+}"""
+
+
+async def прогон_шторки():
+    """E.1 и E.2 — ряд кнопок окна и крестик поиска на каждой ширине."""
+    from playwright.async_api import async_playwright
+    итог = {}
+    async with async_playwright() as pw:
+        бр = await pw.chromium.launch()
+        for ш in ШИРИНЫ:
+            ctx = await бр.new_context(
+                viewport={"width": ш, "height": 900 if ш > 500 else 780},
+                device_scale_factor=1, has_touch=(ш <= 500),
+                is_mobile=(ш <= 500))
+            pg = await ctx.new_page()
+            await _войти(pg)
+            await pg.goto(БАЗА + "/medkit", wait_until="networkidle")
+            # ПОЛЕ ПОИСКА: крестик виден только при непустом запросе,
+            # поэтому набирается ТЕМ ЖЕ путём, что у человека
+            await pg.fill("#apt-q", "цет")
+            await pg.dispatch_event("#apt-q", "input")
+            await pg.wait_for_timeout(200)
+            поиск = await pg.evaluate(ЗАМЕР_ПОИСКА)
+            await pg.fill("#apt-q", "")
+            await pg.dispatch_event("#apt-q", "input")
+            # ШТОРКА: два состояния — схема ЕСТЬ и схемы НЕТ. Набор
+            # кнопок у них разный, и весь дефект в том, что ряд обязан
+            # выглядеть одинаково при любом их числе
+            состояния = {}
+            # СОСТОЯНИЕ ОПОЗНАЁТСЯ ПО ФАКТУ, А НЕ ПО ДАННЫМ СТРАНИЦЫ.
+            # `АПТ_ПОЗИЦИИ` объявлен через `let`, а `let` свойства
+            # `window` не создаёт вовсе (§5.8, контроль задачи 181),
+            # и признака в разметке карточки нет. Поэтому окно
+            # ОТКРЫВАЕТСЯ, и состояние читается с экрана — по тому же
+            # блоку выдержки, который видит человек.
+            ид_все = await pg.evaluate(
+                "() => [...document.querySelectorAll('[data-doses]')]"
+                ".map(к => к.dataset.doses)")
+            for ид in ид_все[:8]:
+                await pg.evaluate("(id) => аптДозыОткрыть(id)", str(ид))
+                await pg.wait_for_timeout(350)
+                есть = await pg.evaluate(
+                    "() => !!document.querySelector('#apt-doses-body "
+                    ".apt-doses-text, #apt-doses-body .apt-doses-blocks')")
+                метка = "схема есть" if есть else "схемы нет"
+                if метка not in состояния:
+                    состояния[метка] = await pg.evaluate(ЗАМЕР_ШТОРКИ)
+                await pg.keyboard.press("Escape")
+                await pg.wait_for_timeout(150)
+                if len(состояния) == 2:
+                    break
+            итог[ш] = {"поиск": поиск, "шторка": состояния}
+            await ctx.close()
+        await бр.close()
+    return итог
+
+
+def печать_шторки(итог):
+    print("=" * 76)
+    print("ШТОРКА СПОСОБА ПРИЁМА И ПОЛЕ ПОИСКА — блок E")
+    print("=" * 76)
+    for ш, д in итог.items():
+        п = д["поиск"]
+        print(chr(10) + "### %s px" % ш)
+        if "ошибка" in п:
+            print("   ПОИСК: %s" % п["ошибка"])
+        else:
+            print("   ПОИСК: крестик свой=%s, виден при тексте=%s"
+                  % (п["свойКрестик"], п["виденПриТексте"]))
+            print("      отступ слева (лупа) %s px, справа (крестик) %s px"
+                  " — разница %s"
+                  % (п["отступСлева"], п["отступСправа"],
+                     abs((п["отступСлева"] or 0) - (п["отступСправа"] or 0))
+                     if п["отступСправа"] is not None else "крестика нет"))
+            print("      размер лупы %s, крестика %s"
+                  % (п["размерЛупы"], п["размерКрестика"]))
+        for метка, ш_ in д["шторка"].items():
+            if "ошибка" in ш_:
+                print("   ШТОРКА [%s]: %s" % (метка, ш_["ошибка"]))
+                continue
+            print("   ШТОРКА [%s]: рядов %s, кнопок %s %s"
+                  % (метка, ш_["рядов"], ш_["кнопок"], ш_["подписи"]))
+            print("      ширины %s — РАЗБРОС %s px; разных левых краёв %s"
+                  % (ш_["ширины"], ш_["разброс"], ш_["левыеРазные"]))
+            print("      под последней кнопкой %s px из %s px тела"
+                  % (ш_["подПоследней"], ш_["высотаТела"]))
+
+
 async def прогон_поля():
     """Ряд ввода панели на каждой ширине: пустым и с вставленной фразой."""
     from playwright.async_api import async_playwright
@@ -1725,6 +1866,9 @@ def печать_поля(итог):
 
 
 def main():
+    if ШТОРКА:
+        печать_шторки(asyncio.run(прогон_шторки()))
+        return 0
     if ПОЛЕ:
         печать_поля(asyncio.run(прогон_поля()))
         return 0

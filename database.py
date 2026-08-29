@@ -1031,6 +1031,19 @@ class MedkitItem(Base):
     # шло бы по префиксу, и правка формулировки молча выключила бы
     # кнопку повтора либо вернула её туда, где повтор бесполезен
     dosage_miss_kind = Column(String(32), nullable=True)
+    # КАК СПРАВОЧНИК НАЗЫВАЕТ ДЕЙСТВУЮЩЕЕ ВЕЩЕСТВО (BACKLOG №199, B.1).
+    #
+    # Отдельным полем, а не подстановкой в `substance`: то, что человек
+    # переписал с упаковки, наш код не переписывает НИКОГДА. Здесь
+    # лежит ПРЕДЛОЖЕНИЕ, и вписывает его человек одним нажатием.
+    #
+    # Заводится ровно в одном исходе: имя, форма и пролонг сошлись,
+    # а вещество названо иначе. Замер по аптечке владельца — две
+    # позиции: «Солодки корней экстракт густой» против «солодка»,
+    # «D-биотин» против «биотин». Совет «впишите так же» был в тексте
+    # отказа и раньше, но выполнять его приходилось руками, а рядом
+    # лежала кнопка «вписать схему с упаковки» — и человек выбирал её.
+    dosage_hint_substance = Column(String(200), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
@@ -1431,6 +1444,8 @@ def migrate_db():
         "ALTER TABLE medkit_items ADD COLUMN dosage_miss TEXT",
         "ALTER TABLE medkit_items ADD COLUMN dosage_miss_at DATETIME",
         "ALTER TABLE medkit_items ADD COLUMN dosage_miss_kind VARCHAR(32)",
+        # BACKLOG №199, B.1: как справочник называет действующее вещество
+        "ALTER TABLE medkit_items ADD COLUMN dosage_hint_substance VARCHAR(200)",
         # Список покупок (BACKLOG №178, блок B). Таблица заводится
         # `create_all`, здесь её нет; строка оставлена как отметка
         # о том, что колонок к существующим таблицам блок не добавил
