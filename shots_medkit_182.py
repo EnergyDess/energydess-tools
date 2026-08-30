@@ -210,17 +210,26 @@ async def кадры(ширина, pw):
                 path=str(КУДА / ("13-карточка-чужая-%d.png" % ширина)),
                 animations="disabled")
             print("   13-карточка-чужая-%d.png" % ширина)
-        # ГРУППА ИЗ ПАЧЕК РАЗНЫХ ВЛАДЕЛЬЦЕВ (D.6) — раскрытая:
-        # ради неё и заведён совпадающий препарат у соседа
-        груп = await pg.query_selector(".apt-card details.apt-packs")
-        if груп:
-            await груп.evaluate("e => e.open = true")
-            await pg.wait_for_timeout(200)
-            карточка = await груп.evaluate_handle("e => e.closest('.apt-card')")
-            await карточка.as_element().screenshot(
-                path=str(КУДА / ("14-группа-двух-владельцев-%d.png" % ширина)),
-                animations="disabled")
-            print("   14-группа-двух-владельцев-%d.png" % ширина)
+        # ГРУППА ИЗ ПАЧЕК РАЗНЫХ ВЛАДЕЛЬЦЕВ (D.6): ради неё и заведён
+        # совпадающий препарат у соседа.
+        #
+        # СНИМАЕТСЯ ОКНО, А НЕ РАСКРЫТАЯ КАРТОЧКА — BACKLOG №209:
+        # список упаковок уехал из карточки в модалку, и `<details>`
+        # там больше нет. Прежний селектор находил бы НОЛЬ и печатал
+        # молчание вместо кадра.
+        метка = await pg.query_selector(".apt-stack[data-packs]")
+        if метка:
+            await метка.click()
+            await pg.wait_for_timeout(450)
+            окно = await pg.query_selector("#apt-packs-win .modal-sh")
+            if окно:
+                await окно.screenshot(
+                    path=str(КУДА / ("14-группа-двух-владельцев-%d.png"
+                                     % ширина)),
+                    animations="disabled")
+                print("   14-группа-двух-владельцев-%d.png" % ширина)
+            await pg.evaluate("() => закрыть_модалку('apt-packs-win')")
+            await pg.wait_for_timeout(250)
     finally:
         _прибрать()
         await br.close()

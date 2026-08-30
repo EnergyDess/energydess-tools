@@ -2225,7 +2225,7 @@ def печать_поля(итог):
     const имя = (к.querySelector('.apt-name, .apt-title, h3, b') || {}).textContent || '';
     return {имя: имя.trim().slice(0, 22),
             приём: !!к.querySelector('[data-take], .apt-take'),
-            группа: !!к.querySelector('.apt-pack, .apt-packs'),
+            группа: !!к.querySelector('.apt-stack[data-packs]'),
             фото: !!к.querySelector('.apt-ph, img'),
             вещество: ((к.querySelector('.apt-sub') || {}).textContent || '').trim().length,
             строк: Math.round(к.getBoundingClientRect().height)};

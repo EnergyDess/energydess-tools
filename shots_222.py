@@ -113,7 +113,9 @@ async def прогон():
 
             # ── РЯД КАРТОЧЕК: свёрнутый и раскрытый ─────────────────
             await _снять(стр, "карточки-свёрнуто", ш)
-            сум = стр.locator(".apt-packs summary").first
+            # СПИСОК УЕХАЛ В ОКНО (BACKLOG №209): раскрывает его
+            # МЕТКА «N упак.», а `<details>` в карточке больше нет
+            сум = стр.locator(".apt-stack[data-packs]").first
             if await сум.count():
                 await сум.click()
                 await стр.wait_for_timeout(500)
