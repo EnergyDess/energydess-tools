@@ -524,6 +524,7 @@ async def _войти(pg):
 # Блок A задачи 197: ряд ввода панели
 ПОЛЕ = "--поле" in sys.argv
 ШТОРКА = "--шторка" in sys.argv
+РЯД = "--ряд" in sys.argv
 
 СОСЕД = ("neighbour@local.dev", "Neighbour-Local-2026")
 
@@ -1865,7 +1866,100 @@ def печать_поля(итог):
                  max(0, ф["содержимое"] - ф["коробка"])))
 
 
+
+# ═══════════════════════════════════════════════════════════════════
+# РЯД КАРТОЧЕК: НА ОДНОМ ЛИ УРОВНЕ ПОЛОСКА ОСТАТКА И РЯД ДЕЙСТВИЙ
+# ═══════════════════════════════════════════════════════════════════
+#
+# BACKLOG №209. Заход 201 свёл ряд кнопок 388 -> 0, а полоску остатка
+# и срок только 294 -> 102 и остаток вынес владельцу: он равен высоте
+# органов, которых у соседа НЕТ ПО СУЩЕСТВУ — кнопки приёма (её
+# не бывает у тюбика и у позиции без числа) и строки упаковок (она
+# только у группы).
+#
+# МЕРЯЕМ СМЕЩЕНИЕ ВНУТРИ РЯДА, А НЕ ВЫСОТУ КАРТОЧКИ. Карточки одной
+# высоты с задачи 175 (`align-items: stretch`), и высота о разъезде
+# не говорит ничего: подвал может стоять на разном уровне при равной
+# коробке. Спрашивается `top` каждого элемента ОТНОСИТЕЛЬНО верха
+# своей карточки — тогда числа сравнимы между соседями.
+РЯД_ЗАМЕР = r"""
+() => {
+  const карт = [...document.querySelectorAll('.apt-card')];
+  if (!карт.length) return null;
+  const ряды = {};
+  карт.forEach(к => {
+    const r = к.getBoundingClientRect();
+    const ключ = Math.round(r.top / 4);
+    (ряды[ключ] = ряды[ключ] || []).push(к);
+  });
+  const мера = (к, сел) => {
+    const э = к.querySelector(сел);
+    if (!э) return null;
+    const a = э.getBoundingClientRect(), b = к.getBoundingClientRect();
+    return Math.round((a.top - b.top) * 10) / 10;
+  };
+  const из = {};
+  for (const части of [['полоска', '.apt-meter, .meter'],
+                       ['действия', '.apt-acts'],
+                       ['срок', '.apt-exp']]) {
+    let макс = 0, где = '';
+    for (const ключ of Object.keys(ряды)) {
+      const строка = ряды[ключ];
+      if (строка.length < 2) continue;
+      const ч = строка.map(к => мера(к, части[1])).filter(x => x !== null);
+      if (ч.length < 2) continue;
+      const д = Math.max.apply(null, ч) - Math.min.apply(null, ч);
+      if (д > макс) { макс = д; где = строка.length + ' карточки в ряду'; }
+    }
+    из[части[0]] = {разъезд: Math.round(макс * 10) / 10, где: где};
+  }
+  из.карточек = карт.length;
+  из.рядов = Object.keys(ряды).filter(k => ряды[k].length > 1).length;
+  return из;
+}
+"""
+
+
+async def прогон_ряда():
+    from playwright.async_api import async_playwright
+    из = {}
+    async with async_playwright() as p:
+        бр = await p.chromium.launch()
+        for ш in ШИРИНЫ:
+            кон = await бр.new_context(viewport={"width": ш, "height": 1000})
+            стр = await кон.new_page()
+            await _войти(стр)
+            await стр.goto(БАЗА + "/medkit", wait_until="load", timeout=60000)
+            await стр.wait_for_timeout(1200)
+            из[ш] = await стр.evaluate(РЯД_ЗАМЕР)
+            await кон.close()
+        await бр.close()
+    return из
+
+
+def печать_ряда(из):
+    print("=" * 74)
+    print("РЯД КАРТОЧЕК: НА ОДНОМ ЛИ УРОВНЕ ПОДВАЛ У СОСЕДЕЙ (BACKLOG №209)")
+    print("=" * 74)
+    print("  мера: `top` элемента ОТНОСИТЕЛЬНО верха своей карточки —")
+    print("        высота карточки о разъезде не говорит ничего,")
+    print("        подвал стоит на разном уровне при равной коробке")
+    print()
+    for ш, з in из.items():
+        if not з:
+            print("  %-6d карточек нет" % ш); continue
+        print("  %-6d карточек %d, рядов по 2+ карточки %d"
+              % (ш, з["карточек"], з["рядов"]))
+        for имя in ("полоска", "действия", "срок"):
+            ч = з.get(имя) or {}
+            print("      %-9s разъезд %6.1f px  %s"
+                  % (имя, ч.get("разъезд", 0), ч.get("где", "ряда из 2+ нет")))
+
+
 def main():
+    if РЯД:
+        печать_ряда(asyncio.run(прогон_ряда()))
+        return 0
     if ШТОРКА:
         печать_шторки(asyncio.run(прогон_шторки()))
         return 0
