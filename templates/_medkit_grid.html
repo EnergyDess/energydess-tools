@@ -286,7 +286,15 @@
             </span>
             <span class="apt-pack-v">{{ пачка.состояние_подпись }}</span>
             {# ДЕЙСТВИЯ У КАЖДОЙ ПАЧКИ СВОИ (D.2): списать можно
-               с конкретной, а не только с ближайшей по сроку #}
+               с конкретной, а не только с ближайшей по сроку.
+
+               АТРИБУТЫ ЗДЕСЬ СВОИ — `data-edit-pack`, а не `data-edit`
+               (задача 211). Пока имя было общим с карточкой, обработчик
+               не мог их различить и искал запись в `АПТ_ПОЗИЦИИ`,
+               где лежат СВОДКИ групп: id первой пачки находился
+               и открывал форму с СУММОЙ обеих, id второй не находился
+               вовсе и открывал ПУСТУЮ. Различать по вложенности было бы
+               догадкой; отдельное имя — фактом. #}
             <span class="apt-pack-acts">
               {% if пачка.состояние != 'expired' and пачка.подпись_приёма %}
               <button class="btn-icon btn-icon-sm tap-44" type="button"
@@ -297,11 +305,11 @@
                 {{ значок('minus') }}</button>
               {% endif %}
               <button class="btn-icon btn-icon-sm tap-44" type="button"
-                      data-edit="{{ пачка.id }}"
+                      data-edit-pack="{{ пачка.id }}"
                       aria-label="Правка упаковки {{ loop.index }}: {{ пачка.name }}"
                       title="Правка">{{ значок('pencil') }}</button>
               <button class="btn-icon btn-icon-sm btn-icon-danger tap-44"
-                      type="button" data-del="{{ пачка.id }}"
+                      type="button" data-del-pack="{{ пачка.id }}"
                       aria-label="Удалить упаковку {{ loop.index }}: {{ пачка.name }}"
                       title="Удалить">{{ значок('trash-2') }}</button>
             </span>

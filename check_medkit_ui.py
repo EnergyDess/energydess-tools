@@ -334,6 +334,18 @@ DB = os.environ.get("DB_PATH", "app.db")
         "  });"
         "  setInterval(перевесить, 200); перевесить(); });",
         "группа-списывает-с-ближайшего"),
+    # Третий возвращает дефект задачи 211: карандаш у пачки снова ищет
+    # запись в списке КАРТОЧЕК. Там лежат сводки групп, поэтому id
+    # первой пачки находит сумму, а id второй не находит НИЧЕГО —
+    # форма открывается пустой. Замер на живой группе: 14 из 20
+    # и 7 из 20 при сводке 21 из 40.
+    "правка-пачки-берёт-сводку": (
+        "document.addEventListener('DOMContentLoaded', () => {"
+        "  window.__подмена = setInterval(() => {"
+        "    if (typeof аптПачка !== 'function') return;"
+        "    window.аптПачка = (id) => АПТ_ПОЗИЦИИ.find(п => п.id === +id) || null;"
+        "  }, 150); });",
+        "карандаш-пачки-её-числа"),
     "дозы-без-окна": (
         # Кнопка способа приёма есть, а окно не открывает: ровно тот
         # безымянный орган, который увёл владельца на чужой сайт
@@ -638,6 +650,23 @@ DB = os.environ.get("DB_PATH", "app.db")
 # Каждое выражение — асинхронная стрелка, возвращающая СРАВНИМОЕ
 # значение. Контроль требует, чтобы чистое и подложное разошлись.
 ДОКАЗАТЕЛЬСТВА = {
+    # ── ДОКАЗАТЕЛЬСТВО ПОДЛОГА BACKLOG №211 ─────────────────────────
+    #
+    # Спрашиваем то, что подлог собирался подменить: ЧТО ОТДАЁТ
+    # `аптПачка` для id ВТОРОЙ упаковки. Чисто — её собственную запись;
+    # с подлогом — `null`, потому что подменённая ищет в списке
+    # КАРТОЧЕК, где второй пачки нет отдельной строкой. Вердикт шага
+    # про это молчит: пустая форма и форма с чужими числами выглядят
+    # одинаково «плохо», а нам нужно знать, что сломали именно поиск.
+    "правка-пачки-берёт-сводку": (
+        "() => { const г = АПТ_ПОЗИЦИИ.find(п => п['группа']"
+        "          && п['группа'].length > 1);"
+        "  if (!г) return 'группы из двух упаковок нет';"
+        "  const вторая = г['группа'][1];"
+        "  const н = аптПачка(вторая.id);"
+        "  return 'аптПачка(' + вторая.id + ') -> '"
+        "       + (н ? ('остаток ' + н.qty_left) : 'null'); }",
+        "что отдаёт поиск пачки для id ВТОРОЙ упаковки"),
     # ── ДОКАЗАТЕЛЬСТВА ПОДЛОГОВ BACKLOG №193 ────────────────────────
     #
     # Оба мерят СОСТОЯНИЕ, а не вердикт: подлог, не состоявшийся молча,
@@ -4598,7 +4627,7 @@ async def _группы_насквозь(pg, о):
     живые = []
     for i in (1, 2):
         ж = await pg.evaluate(
-            ЖИВОЙ, ".apt-pack:nth-child(%d) [data-edit]" % i)
+            ЖИВОЙ, ".apt-pack:nth-child(%d) [data-edit-pack]" % i)
         if not ж.get("живой"):
             живые.append("пачка %d: %s" % (i, ж.get("причина")))
     о.шаг("до-каждой-пачки-дотянуться", not живые,
@@ -4622,6 +4651,81 @@ async def _группы_насквозь(pg, о):
           сменились == [ближайшая[0]],
           "ближайший срок %s (id %d), списалось с %s"
           % (ближайшая[1], ближайшая[0], сменились or "ни с одной"))
+
+    # ── D.5: КАРАНДАШ У ПАЧКИ ПРАВИТ ЭТУ ПАЧКУ (BACKLOG №211) ──────
+    #
+    # Дефект был двойной и оба раза молчащий: id первой пачки находил
+    # СВОДКУ группы и открывал форму с суммой, id второй не находил
+    # ничего и открывал ПУСТУЮ. Раздельный учёт упаковок терял смысл —
+    # сказать, из какой пачки принял, было нечем.
+    await pg.evaluate("() => { const d = document.querySelector('details.apt-packs');"
+                      "         if (d) d.open = true; }")
+    await pg.wait_for_timeout(300)
+    пачки = await pg.evaluate("""() => {
+      const г = АПТ_ПОЗИЦИИ.find(п => п['группа'] && п['группа'].length > 1);
+      return г ? г['группа'].map(x => [x.id, String(x.qty_left ?? ''),
+                                       String(x.qty_total ?? '')]) : [];
+    }""")
+    сошлось, разбор = 0, []
+    for н, (pid, ql, qt) in enumerate(пачки, 1):
+        есть = await pg.evaluate("(id) => !!document.querySelector"
+                                 "('[data-edit-pack=\"'+id+'\"]')", pid)
+        if not есть:
+            разбор.append("у пачки %d нет карандаша" % н); continue
+        await pg.evaluate("(id) => document.querySelector"
+                          "('[data-edit-pack=\"'+id+'\"]').click()", pid)
+        await pg.wait_for_timeout(350)
+        в = await pg.evaluate("""() => ({
+          left: document.getElementById('apt-f-left').value,
+          total: document.getElementById('apt-f-total').value,
+          имя: document.getElementById('apt-f-name').value})""")
+        ок = в["left"] == ql and в["total"] == qt and bool(в["имя"])
+        сошлось += 1 if ок else 0
+        разбор.append("пачка %d: в форме %s из %s, у неё %s из %s%s"
+                      % (н, в["left"] or "пусто", в["total"] or "пусто", ql, qt,
+                         "" if ок else "  <- НЕ ЕЁ"))
+        await pg.evaluate("() => закрыть_модалку('apt-form')")
+        await pg.wait_for_timeout(250)
+    о.шаг("карандаш-пачки-её-числа", bool(пачки) and сошлось == len(пачки),
+          "; ".join(разбор) or "группы из двух упаковок на стенде нет")
+
+    # Карточка группы правит ОБЩИЕ свойства: количества у неё не свои,
+    # это сумма, и записать сумму некуда
+    карточка = await pg.evaluate("""() => {
+      const г = АПТ_ПОЗИЦИИ.find(п => п['группа'] && п['группа'].length > 1);
+      return г ? г.id : null; }""")
+    if карточка:
+        await pg.evaluate("(id) => document.querySelector"
+                          "('.apt-card [data-edit=\"'+id+'\"]').click()", карточка)
+        await pg.wait_for_timeout(350)
+        реж = await pg.evaluate("""() => ({
+          left: document.getElementById('apt-f-left').disabled,
+          total: document.getElementById('apt-f-total').disabled,
+          exp: document.getElementById('apt-f-exp').disabled,
+          имя: document.getElementById('apt-f-name').disabled,
+          нота: !document.getElementById('apt-f-packnote').hidden})""")
+        о.шаг("правка-группы-гасит-числа-пачки",
+              реж["left"] and реж["total"] and реж["exp"]
+              and not реж["имя"] and реж["нота"],
+              "погашены осталось=%s было=%s срок=%s; имя правится=%s; пояснение=%s"
+              % (реж["left"], реж["total"], реж["exp"], not реж["имя"], реж["нота"]))
+        await pg.evaluate("() => закрыть_модалку('apt-form')")
+        await pg.wait_for_timeout(250)
+
+    # Подпись списания НАЗЫВАЕТ упаковку: молчаливый выбор из двух
+    # пачек недопустим, человек не может сказать, из какой принял
+    if пачки:
+        д = await pg.evaluate("""async (id) => {
+          const r = await fetch('/medkit/api/items/'+id+'/take', {method:'POST'});
+          return await r.json(); }""", пачки[0][0])
+        ф = д.get("фраза") or ""
+        о.шаг("списание-называет-упаковку", "упаковка" in ф, ф or "фразы нет")
+        await pg.evaluate("""async (a) => { await fetch(
+            '/medkit/api/items/'+a.id+'/restore', {method:'POST',
+             headers:{'Content-Type':'application/json'},
+             body: JSON.stringify({было:a.b, было_вскрыто:a.v||''})}); }""",
+            {"id": пачки[0][0], "b": д.get("было"),
+             "v": д.get("было_вскрыто") or ""})
 
     # ── D.4: ПРЕДЛОЖЕНИЕ ЗАВЕСТИ ВТОРУЮ УПАКОВКУ ───────────────────
     await pg.evaluate("() => аптОткрытьФорму()")

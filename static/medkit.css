@@ -2393,3 +2393,12 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
    состояния, а не набором флагов. */
 .apt-scan-hint { margin: var(--space-3) 0 0; text-align: center; }
 .apt-scan-hint-bad { color: var(--error); }
+
+/* ПОЛЯ ПАЧКИ, ПОГАШЕННЫЕ ПРИ ПРАВКЕ ГРУППЫ (задача 211, D.3).
+   Гасим, а не прячем: скрытое поле читается как «такого у позиции
+   нет», а оно есть — просто принадлежит упаковке, а не препарату.
+   Приглушается ВСЯ группа поля вместе с подписью: приглушённое поле
+   при яркой подписи читается как «не заполнено», а не «не здесь». */
+.apt-f-off { opacity: .45; }
+.apt-f-off .input { cursor: not-allowed; }
+.apt-packnote { margin-bottom: var(--space-4); }
