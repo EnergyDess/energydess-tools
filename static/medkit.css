@@ -777,6 +777,23 @@
 .apt-pack-warn { background: var(--warning); }
 .apt-pack-bad { background: var(--error); }
 .apt-pack-t { flex: 1; min-width: 0; }
+
+/* НА УЗКОЙ СТРОКА ПАЧКИ ЛОЖИТСЯ В ДВЕ (BACKLOG №209, блок B).
+
+   Снимок 390 после переезда списка в окно: текст «Упаковка 1 ·
+   Таблетки · 30 из 50 · Полка в ванной» ломался на ЧЕТЫРЕ строки,
+   потому что справа от него стояли и срок, и три кнопки. Ширины
+   на всё это в 358 px нет.
+
+   Перенос, а не сокращение текста: место и остаток — то, ради чего
+   окно и открывают, и резать их значило бы отобрать ответ. */
+@media (max-width: 640px) {
+  .apt-pack { flex-wrap: wrap; row-gap: var(--space-2); }
+  .apt-pack-t { flex: 1 1 100%; order: 1; }
+  .apt-pack-dot { order: 0; }
+  .apt-pack-v { order: 2; flex: 1; }
+  .apt-pack-acts { order: 3; }
+}
 .apt-pack-v { color: var(--text-faint); white-space: nowrap; }
 .apt-pack-acts { display: flex; gap: var(--space-1); flex: 0 0 auto; }
 /* Тот же довод, что у ряда действий карточки: доборный слой 44 у кнопки
