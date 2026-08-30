@@ -1,4 +1,4 @@
-"""СНИМКИ ЗАХОДА 209 — ДЛЯ ПРИЁМКИ ВЛАДЕЛЬЦЕМ.
+"""СНИМКИ ЗАХОДА 223 — ДЛЯ ПРИЁМКИ ВЛАДЕЛЬЦЕМ.
 
 НЕ ПРОВЕРКА: кода «правильно» у неё нет, кадры смотрит человек.
 Код возврата всегда 0.
@@ -38,7 +38,7 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 БАЗА = os.environ.get("MEDKIT_BASE", "http://127.0.0.1:8899")
 ПОЧТА = "screenshot@local.dev"
 ПАРОЛЬ = "Screenshot-Local-2026"
-КУДА = Path("review_screenshots") / "medkit-209"
+КУДА = Path("review_screenshots") / "medkit-223"
 ШИРИНЫ = [2560, 390]
 
 
