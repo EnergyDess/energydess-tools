@@ -250,7 +250,7 @@
          очерёдность, и разойтись с сортировкой оно могло бы молча. #}
       <button class="btn btn-secondary apt-take" type="button"
               data-take="{{ п.id }}"
-              {% if not п.qty_left %}disabled
+              {% if not п.qty_списания %}disabled
                  title="Ничего не осталось — правьте карточку"{% endif %}>
         {{ значок('minus') }} {{ п.подпись_приёма }}
       </button>
