@@ -1899,20 +1899,36 @@ def печать_поля(итог):
     const a = э.getBoundingClientRect(), b = к.getBoundingClientRect();
     return Math.round((a.top - b.top) * 10) / 10;
   };
+  // ЧТО ЗА КАРТОЧКА — по её признакам, а не по номеру: состав ряда
+  // на 2560 и на 1920 разный, и «третья слева» ничего не значит.
+  const про = (к) => {
+    const имя = (к.querySelector('.apt-name, .apt-title, h3, b') || {}).textContent || '';
+    return {имя: имя.trim().slice(0, 22),
+            приём: !!к.querySelector('[data-take], .apt-take'),
+            группа: !!к.querySelector('.apt-pack, .apt-packs'),
+            фото: !!к.querySelector('.apt-ph, img'),
+            вещество: ((к.querySelector('.apt-sub') || {}).textContent || '').trim().length,
+            строк: Math.round(к.getBoundingClientRect().height)};
+  };
   const из = {};
   for (const части of [['полоска', '.apt-meter, .meter'],
                        ['действия', '.apt-acts'],
                        ['срок', '.apt-exp']]) {
-    let макс = 0, где = '';
+    let макс = 0, где = '', состав = [];
     for (const ключ of Object.keys(ряды)) {
       const строка = ряды[ключ];
       if (строка.length < 2) continue;
-      const ч = строка.map(к => мера(к, части[1])).filter(x => x !== null);
-      if (ч.length < 2) continue;
-      const д = Math.max.apply(null, ч) - Math.min.apply(null, ч);
-      if (д > макс) { макс = д; где = строка.length + ' карточки в ряду'; }
+      const ч = строка.map(к => мера(к, части[1]));
+      const годн = ч.filter(x => x !== null);
+      if (годн.length < 2) continue;
+      const д = Math.max.apply(null, годн) - Math.min.apply(null, годн);
+      if (д > макс) {
+        макс = д; где = строка.length + ' карточки в ряду';
+        состав = строка.map((к, i) => Object.assign({top: ч[i]}, про(к)));
+      }
     }
-    из[части[0]] = {разъезд: Math.round(макс * 10) / 10, где: где};
+    из[части[0]] = {разъезд: Math.round(макс * 10) / 10, где: где,
+                    состав: состав};
   }
   из.карточек = карт.length;
   из.рядов = Object.keys(ряды).filter(k => ряды[k].length > 1).length;
@@ -1951,10 +1967,25 @@ def печать_ряда(из):
             print("  %-6d карточек нет" % ш); continue
         print("  %-6d карточек %d, рядов по 2+ карточки %d"
               % (ш, з["карточек"], з["рядов"]))
+        if not з["рядов"]:
+            # «МЕРИТЬ НЕЧЕГО» И «ВСЁ РОВНО» ОБЯЗАНЫ РАЗЛИЧАТЬСЯ.
+            # Прежде здесь печаталось «разъезд 0.0 px» — тот же ноль,
+            # что у выровненного ряда, и по выводу их было не отличить
+            # (§6.0.1). На 390 карточки идут В СТОЛБИК, соседа справа
+            # нет ни у одной, и разъезда не бывает ПО ПОСТРОЕНИЮ.
+            print("      РЯДА ИЗ 2+ КАРТОЧЕК НЕТ — они в столбик,")
+            print("      разъезда не бывает по построению, а не «ровно».")
+            continue
         for имя in ("полоска", "действия", "срок"):
             ч = з.get(имя) or {}
             print("      %-9s разъезд %6.1f px  %s"
                   % (имя, ч.get("разъезд", 0), ч.get("где", "ряда из 2+ нет")))
+            for к in (ч.get("состав") or []):
+                print("           top=%-7s %-24s приём=%-5s группа=%-5s"
+                      " фото=%-5s вещество=%d зн."
+                      % (к.get("top"), к.get("имя", "")[:24],
+                         к.get("приём"), к.get("группа"), к.get("фото"),
+                         к.get("вещество", 0)))
 
 
 

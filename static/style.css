@@ -1121,7 +1121,7 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
    Ширина ограничена: строка читается, а не тянется через весь монитор.
    Отбивку сверху компонент задаёт сам — он всегда стоит ПОД чем-то. */
 .data-note {
-  max-width: 78ch;
+  max-width: 47.58em;   /* было 78ch — см. комментарий у .footer-desc */
   margin-top: var(--space-3);
   color: var(--text-2);
   font-size: var(--text-body-sm);
@@ -2196,9 +2196,28 @@ img.avatar { object-fit: cover; padding: 0; }
   font-size: var(--text-body-lg); font-weight: 800;
   color: var(--text); letter-spacing: -0.02em;
 }
+/* ШИРИНА ЧИТАЕМОЙ СТРОКИ — В `em`, А НЕ В `ch`. Задача 217.
+
+   `ch` это ширина глифа «0» ТЕКУЩЕГО шрифта, то есть величина,
+   зависящая от гарнитуры. Замер 2026-08-31: 1ch у Manrope 0.6100em,
+   у запасного лица Arial 0.5678em (−6.9 %), у Roboto 0.5000em
+   (−18.0 %). Пока шрифт едет, блок с `max-width: 78ch` УЖЕ на эти
+   проценты, а по приезде скачком расширяется: `.data-note`
+   на 2560 давала 706 → 758 px, `.footer-desc` 267 → 286 px — самые
+   крупные горизонтальные сдвиги во всём проекте.
+
+   Подгонкой `size-adjust` это НЕ лечится: она выровнена по СРЕДНЕЙ
+   ширине живого текста (остаток 0.46 %), а `ch` меряет ОДИН глиф,
+   и у него расхождение на порядок больше.
+
+   Пересчёт сделан по Manrope: 1ch = 0.61em, и в устоявшемся
+   состоянии ширина не изменилась ни на пиксель (замер ниже
+   в отчёте задачи). Смысл величины сохранён — это по-прежнему
+   «столько-то знаков в строке», просто посчитанных один раз
+   и не зависящих от того, какой шрифт сейчас на экране. */
 .footer-desc {
   font-size: var(--text-caption); color: var(--text-2);
-  line-height: 1.65; max-width: 34ch; margin-bottom: var(--space-4);
+  line-height: 1.65; max-width: 20.74em;   /* было 34ch */ margin-bottom: var(--space-4);
 }
 .footer-contacts { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
 .footer-contacts a { display: inline-flex; align-items: center; gap: var(--space-2); }
@@ -2302,7 +2321,7 @@ img.avatar { object-fit: cover; padding: 0; }
      варианта его число колонок повторяется здесь, а не наследуется */
   .site-footer-grid-guest { grid-template-columns: repeat(2, 1fr); }
   .footer-about { grid-column: 1 / -1; }
-  .footer-desc { max-width: 52ch; }
+  .footer-desc { max-width: 31.72em; }   /* было 52ch */
 }
 @media (max-width: 640px) {
   .site-footer { padding: var(--space-7) var(--space-4) var(--space-5); }
