@@ -2208,6 +2208,35 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 .apt-circle-tabsrow .apt-circle-tabs { padding-right: var(--space-6); }
 .apt-circle-tabs { margin-bottom: var(--space-4); }
 
+/* НА УЗКОЙ ШИРИНЕ ЗНАК ВОЗВРАЩАЕТСЯ В СВОЮ СТРОКУ, И ЭТО НЕ ОТКАТ,
+   А ЦЕНА, НАЗВАННАЯ ЗАМЕРОМ.
+
+   Ряд вкладок на 390 не помещается и ПРОКРУЧИВАЕТСЯ вбок (замер:
+   scrollWidth − clientWidth = 188 px). Знак, лежащий поверх правого
+   края, накрывает при этом вкладку «Лента»: `elementFromPoint`
+   в её центре возвращает НЕ ЕЁ, то есть до вкладки не дотянуться
+   пальцем — §6.3, орган считается живым только тогда, когда до него
+   доходит нажатие.
+
+   Найдено ГЛАЗОМ на снимке приёмки, а не меркой: замер краёв
+   и прокрутки говорил «совпало» — он спрашивал про ГЕОМЕТРИЮ,
+   а не про доступность. Вопрос добавлен в `check_medkit_look --круг`
+   тем же заходом.
+
+   Экономия 31 px по вертикали недоступной вкладки не стоит. */
+@media (max-width: 560px) {
+  /* КОЛОНКА С `order`, А НЕ ПРОСТО `static`: знак стоял НАД рядом
+     до правки, и вернуть надо ровно прежнее — в разметке он теперь
+     идёт ПОСЛЕ ряда (там это нужно, чтобы Tab шёл сперва по вкладкам). */
+  .apt-circle-tabsrow { position: static; display: flex;
+                        flex-direction: column; }
+  .apt-circle-help { order: -1; }
+  .apt-circle-help { position: static; height: auto;
+                     justify-content: flex-end;
+                     margin-bottom: var(--space-2); }
+  .apt-circle-tabsrow .apt-circle-tabs { padding-right: 0; }
+}
+
 /* ── ВЫСОТА ПАНЕЛИ НЕ ПРЫГАЕТ (BACKLOG №184, блок D) ────────────────
 
    ЗАМЕР ДО ПРАВКИ, четыре вкладки одной и той же панели:
