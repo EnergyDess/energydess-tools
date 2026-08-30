@@ -153,6 +153,19 @@ class User(Base):
     # Часовой пояс в формате IANA (Europe/Moscow). NULL — не выбран,
     # интерфейс подставит определённый браузером
     timezone = Column(String, nullable=True)
+    # ПОЛ — ТОЛЬКО ДЛЯ СОГЛАСОВАНИЯ ТЕКСТА ПО РОДУ (BACKLOG №215, G.6).
+    # 'm' | 'f' | NULL. NULL — УМОЛЧАНИЕ И ЗАКОННОЕ СОСТОЯНИЕ: тогда
+    # формулировки нейтральны («Списать 1 таблетку» вместо «Принял»).
+    # Угадывать по имени нельзя — это ошибка вслух и в лицо, и проект
+    # уже принял это решение в ленте общей аптечки, где глаголов
+    # с родом нет ни одного (§5.8, тест
+    # test_в_текстах_ленты_нет_глаголов_с_родом).
+    #
+    # НЕ анкета и не медицинский признак: пол для расчётов состава тела
+    # живёт отдельно, в `nutrition_profiles.sex`, и к этому полю
+    # отношения не имеет. Два поля потому, что вопросы разные: там
+    # «по какой формуле считать», здесь «как обратиться».
+    gender = Column(String, nullable=True)
     # Время последней смены пароля. Попадает в JWT и сверяется при каждом
     # запросе: токен, выданный до смены, перестаёт действовать. Без этого
     # сброс пароля не отбирал доступ у того, кто увёл аккаунт
@@ -1436,6 +1449,7 @@ def migrate_db():
         "ALTER TABLE cover_letters ADD COLUMN analysis_error TEXT",
         "ALTER TABLE users ADD COLUMN avatar_updated_at DATETIME",
         "ALTER TABLE users ADD COLUMN timezone VARCHAR",
+        "ALTER TABLE users ADD COLUMN gender VARCHAR",
         "ALTER TABLE users ADD COLUMN password_changed_at DATETIME",
         "ALTER TABLE scale_connections ADD COLUMN encrypted_app_token TEXT",
         "ALTER TABLE scale_connections ADD COLUMN encrypted_zepp_user_id TEXT",

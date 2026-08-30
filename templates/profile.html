@@ -113,6 +113,31 @@
         {{ значок('chevron-down', 'select-arrow') }}
       </div>
     </div>
+    {# ОБРАЩЕНИЕ — ТОЛЬКО ПРО ФОРМУЛИРОВКУ, И ЭТО СКАЗАНО ВСЛУХ
+       (BACKLOG №215, G.6). Прежде подпись кнопки приёма в аптечке
+       была «Принял» у всех, а участников круга двое.
+
+       «НЕ УКАЗАН» — РАВНОПРАВНЫЙ ВЫБОР, а не пропуск: он и стоит
+       умолчанием, и тогда все формулировки нейтральны. Угадывать
+       по имени нельзя — это ошибка вслух и в лицо; ровно поэтому
+       в ленте общей аптечки глаголов с родом нет ни одного. #}
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Обращение</div>
+        <div class="setting-sub">Влияет только на формулировки:
+          «Принял», «Приняла» или нейтральное «Списать».</div>
+      </div>
+      <div class="segmented" id="gender-seg" role="group"
+           aria-label="Как обращаться">
+        <button type="button" class="segmented-btn{{ ' active' if not user.gender }}"
+                data-gender="">Не указан</button>
+        <button type="button" class="segmented-btn{{ ' active' if user.gender == 'm' }}"
+                data-gender="m">Мужской</button>
+        <button type="button" class="segmented-btn{{ ' active' if user.gender == 'f' }}"
+                data-gender="f">Женский</button>
+      </div>
+    </div>
+
     <p class="profile-hint tz-warning">
       После смены пояса записи прошлых дней могут показываться в соседних сутках.
       Данные не теряются — меняется только граница дня.
@@ -402,7 +427,9 @@ const статусСохранения = document.getElementById('save-status');
 function естьИзменения() {
   const имя = document.getElementById('display-name-input').value.trim();
   const пояс = document.getElementById('tz-select').value;
-  return имя !== исходно.имя || пояс !== исходно.пояс
+  const пол = (document.querySelector('#gender-seg .segmented-btn.active')
+               || {}).dataset?.gender ?? '';
+  return имя !== исходно.имя || пояс !== исходно.пояс || пол !== исходно.пол
          || выбранныйФайл !== null || аватарУдалить;
 }
 
@@ -439,6 +466,21 @@ document.getElementById('tz-auto').textContent =
 if (авто && [...tzSelect.options].some(o => o.value === авто)) tzSelect.value = авто;
 {% endif %}
 исходно.пояс = tzSelect.value;
+
+// ── Обращение (пол) ──
+const полРяд = document.getElementById('gender-seg');
+исходно.пол = (полРяд.querySelector('.segmented-btn.active') || {}).dataset?.gender ?? '';
+полРяд.addEventListener('click', (e) => {
+  const б = e.target.closest('[data-gender]');
+  if (!б) return;
+  полРяд.querySelectorAll('.segmented-btn').forEach(x => x.classList.remove('active'));
+  б.classList.add('active');
+  markDirty();
+});
+function выбранныйПол() {
+  const а = полРяд.querySelector('.segmented-btn.active');
+  return а ? а.dataset.gender : '';
+}
 
 // ── Аватар: файл выбран, но ещё не отправлен ──
 async function pickAvatar(input) {
@@ -512,6 +554,15 @@ async function saveSettings() {
         body: JSON.stringify({timezone: пояс}),
       });
       if (r.ok) исходно.пояс = пояс; else сбои.push('часовой пояс');
+    }
+
+    const пол = выбранныйПол();
+    if (пол !== исходно.пол) {
+      const r = await fetch('/api/gender', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({gender: пол}),
+      });
+      if (r.ok) исходно.пол = пол; else сбои.push('обращение');
     }
 
     if (выбранныйФайл) {

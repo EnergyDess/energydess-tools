@@ -1838,10 +1838,21 @@ def main() -> int:
             u.password_hash = hash_password(PASSWORD)
             u.is_admin = True
             u.is_verified = True
+            # ПОЛ СТАВИТСЯ И СУЩЕСТВУЮЩЕМУ. Первая версия проставляла
+            # его только в ветке СОЗДАНИЯ, и на живом стенде (где
+            # аккаунты уже есть) он оставался пустым — то есть seed
+            # печатал бы про состояние, которого не завёл.
+            u.gender = "m"
             print(f"Пароль сброшен: {EMAIL}")
         else:
+            # ПОЛ У ОБОИХ АККАУНТОВ И РАЗНЫЙ — иначе состояние
+            # «Приняла» не снимается и не проверяется ни одним заходом
+            # (§8.0: у каждого экрана обязан быть случай «данные есть,
+            # сопутствующего признака нет», и оба значения тоже).
+            # Третье состояние — «не указан» — ставится в проходе,
+            # оно же умолчание базы.
             u = User(email=EMAIL, password_hash=hash_password(PASSWORD),
-                     is_admin=True, is_verified=True,
+                     is_admin=True, is_verified=True, gender="m",
                      display_name="Денис (съёмка)", created_at=datetime.utcnow())
             db.add(u)
             db.flush()
@@ -1865,9 +1876,10 @@ def main() -> int:
             сосед.password_hash = hash_password(PASSWORD_СОСЕД)
             сосед.is_verified = True
             сосед.is_admin = False
+            сосед.gender = "f"
             print(f"Пароль сброшен: {EMAIL_СОСЕД}")
         else:
-            сосед = User(email=EMAIL_СОСЕД,
+            сосед = User(email=EMAIL_СОСЕД, gender="f",
                          password_hash=hash_password(PASSWORD_СОСЕД),
                          is_admin=False, is_verified=True,
                          display_name="Зина", created_at=datetime.utcnow())
