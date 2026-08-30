@@ -5350,7 +5350,8 @@ BACKLOG №184, блок D.
 ```css
 :root {
   /* Fonts */
-  --font: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font: 'Manrope', 'Manrope Fallback', 'Manrope Fallback Android',
+          -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Surfaces */

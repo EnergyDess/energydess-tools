@@ -1,0 +1,4 @@
+Manrope и JetBrains Mono распространяются по SIL Open Font License 1.1.
+Текст лицензии ниже. Файлы получены с fonts.gstatic.com 2026-08-30.
+
+https://openfontlicense.org/
