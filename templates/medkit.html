@@ -2388,6 +2388,15 @@ function аптАИОтвет(тело) {
   const блок = document.createElement('div');
   блок.className = 'apt-ai-find';
 
+  /* РАЗБИВКА ПО КАТЕГОРИЯМ ВЛАДЕЛЬЦА — только у типа «выбор»
+     (BACKLOG №204). Приходит ГОТОВОЙ с сервера: категории проставил
+     сам владелец, это данные карточки, а не наша классификация
+     препаратов. Пустая разбивка означает «делить не на что» —
+     одна куча заголовка не требует. */
+  const поГруппе = {};
+  (тело['разбивка'] || []).forEach(г =>
+    (г['ids'] || []).forEach(ид => { поГруппе[ид] = г['имя']; }));
+
   const куча = (позиции, вид, шапка) => {
     if (!позиции || !позиции.length) return;
     if (шапка) {
@@ -2396,7 +2405,16 @@ function аптАИОтвет(тело) {
       ш.textContent = шапка;
       блок.appendChild(ш);
     }
+    let группа = null;
     позиции.forEach(п => {
+      const своя = поГруппе[п['id']];
+      if (своя && своя !== группа) {
+        группа = своя;
+        const г = document.createElement('p');
+        г.className = 'apt-ai-find-h apt-ai-find-h-cat';
+        г.textContent = своя;
+        блок.appendChild(г);
+      }
       const стр = document.createElement('div');
       стр.className = 'apt-ai-item apt-ai-item-' + вид;
       const т = document.createElement('p');

@@ -1641,6 +1641,11 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 /* Заголовок кучи просроченного — тем же тоном, что бейдж срока
    на карточке: одно состояние, один цвет на весь инструмент */
 .apt-ai-find-h-bad { color: var(--error); }
+/* ЗАГОЛОВОК КАТЕГОРИИ ВЛАДЕЛЬЦА в разборе «что из этого выбрать»
+   (BACKLOG №204). Отличается от кучи состояния ВЕСОМ, а не цветом:
+   цвет здесь занят состоянием срока, и третий тон читался бы как
+   третье состояние, которого нет */
+.apt-ai-find-h-cat { font-weight: 600; color: var(--text); }
 .apt-ai-item {
   background: var(--surface-1);
   border: 1px solid var(--border);
