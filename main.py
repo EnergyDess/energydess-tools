@@ -43,6 +43,7 @@ from pydantic import BaseModel
 from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, BackgroundTasks, Cookie
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
+import mimetypes
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import (JSONResponse, RedirectResponse, FileResponse,
                                PlainTextResponse, Response)
@@ -90,6 +91,19 @@ def _getaddrinfo_ipv4_only(host, *args, **kwargs):
 socket.getaddrinfo = _getaddrinfo_ipv4_only
 
 app = FastAPI(title="EnergyDess Tools")
+# ТИП СОДЕРЖИМОГО ДЛЯ ШРИФТОВ — BACKLOG №158, найдено ЗАМЕРОМ НА ПРОДЕ.
+# `mimetypes` из стандартной библиотеки про `.woff2` не знает вовсе
+# (`guess_type('x.woff2')` -> `(None, None)`), и `StaticFiles` отдавал
+# их как `application/octet-stream`. Предзагрузка при этом объявляет
+# `type="font/woff2"`, то есть заявленный и фактический тип расходятся:
+# браузер такое обычно прощает, но preload может не совпасть
+# с настоящим запросом — а совпадение и есть весь смысл предзагрузки.
+#
+# Регистрируется ДО монтирования: `StaticFiles` спрашивает `mimetypes`
+# на каждый ответ, и порядок тут не украшение.
+mimetypes.add_type("font/woff2", ".woff2")
+mimetypes.add_type("font/woff", ".woff")
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
