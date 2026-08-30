@@ -52,20 +52,35 @@ import json, os, sys, time
 # ПОДМЕНА ГАРНИТУРЫ — то же, что делает браузер по приезде шрифта.
 # Меряем ИМЕННО ЭТОТ переход, а не всё, что случилось за секунду
 # после загрузки: догрузка данных к шрифту отношения не имеет.
-ПОДМЕНА = """(async () => {
+# ПОДМЕНЯЮТСЯ ОБЕ ГАРНИТУРЫ, А НЕ ОДНА (BACKLOG №209, блок C).
+#
+# ЗДЕСЬ ГРУЗИЛСЯ ТОЛЬКО MANROPE, и это было слепое пятно ровно там,
+# куда показал владелец: даты годности на карточках аптечки набраны
+# МОНОШИРИННЫМ (`--font-mono`), и его подмену проба не видела ВОВСЕ.
+# «Дрожания нет» у неё означало «дрожания Manrope нет».
+#
+# Семейство выбирается параметром: чтобы сказать, СКОЛЬКО стоит именно
+# моноширинный, надо уметь подменить его ОДИН.
+ПОДМЕНА = """(async (какие) => {
   // Шрифт приезжает ИМЕННО СЕЙЧАС: до этого его запросы отбиты,
   // и страница нарисована запасной гарнитурой — то самое состояние,
   // которое человек видит первые сотни миллисекунд при пустом кеше.
-  const кир = new FontFace('Manrope',
-    "url('/static/fonts/manrope-cyrillic.woff2')", {weight: '400 800'});
-  const лат = new FontFace('Manrope',
-    "url('/static/fonts/manrope-latin.woff2')", {weight: '400 800'});
-  await Promise.all([кир.load(), лат.load()]);
-  document.fonts.add(кир); document.fonts.add(лат);
+  const файлы = {
+    'Manrope': ['/static/fonts/manrope-cyrillic.woff2',
+                '/static/fonts/manrope-latin.woff2'],
+    'JetBrains Mono': ['/static/fonts/jetbrains-mono-cyrillic.woff2',
+                       '/static/fonts/jetbrains-mono-latin.woff2']};
+  const лица = [];
+  for (const семья of какие)
+    for (const адрес of файлы[семья])
+      лица.push(new FontFace(семья, "url('" + адрес + "')",
+                             {weight: '400 800'}));
+  await Promise.all(лица.map(л => л.load()));
+  лица.forEach(л => document.fonts.add(л));
   await document.fonts.ready;
   document.body.offsetHeight;
   return document.fonts.size;
-})()"""
+})"""
 
 
 ЗАМЕР = """
@@ -167,7 +182,14 @@ def _сессия(бр):
               "document.head.appendChild(s);})")
 
 
-def прогон(прежний=False, контроль=False, вернуть_ch=False):
+# КАКИЕ ГАРНИТУРЫ ПОДМЕНЯТЬ. Переменной, а не ключом: обычный прогон
+# обязан мерить ОБЕ (иначе он слеп к моноширинному, разбор у `ПОДМЕНА`),
+# а вопрос «сколько стоит ОДИН моноширинный» задаётся отдельно
+СЕМЬИ_ОБЕ = ["Manrope", "JetBrains Mono"]
+
+
+def прогон(прежний=False, контроль=False, вернуть_ch=False,
+           семьи=None):
     from playwright.sync_api import sync_playwright
     итог, всего_дв, всего_cls = [], 0, 0.0
     with sync_playwright() as p:
@@ -228,7 +250,7 @@ def прогон(прежний=False, контроль=False, вернуть_ch
                     # перехват снимаем: иначе отбитым окажется и тот
                     # запрос, которым мы шрифт и подсовываем
                     стр.unroute("**/static/fonts/**")
-                    стр.evaluate(ПОДМЕНА)
+                    стр.evaluate(ПОДМЕНА, семьи or СЕМЬИ_ОБЕ)
                     стр.wait_for_timeout(500)
                 после = стр.evaluate("window.__snap()")
                 cls = стр.evaluate("window.__cls") or 0.0
@@ -289,10 +311,58 @@ def прогон(прежний=False, контроль=False, вернуть_ch
 })"""
 
 
-def метрики():
+# ТО ЖЕ САМОЕ ДЛЯ МОНОШИРИННОГО — BACKLOG №209, блок C.4.
+#
+# У `--font-mono` запасной гарнитуры с подогнанными метриками НЕТ
+# ВОВСЕ: объявлено `'JetBrains Mono', monospace`. Замер `--узлы`
+# показал, что весь остаточный сдвиг срока годности и строки почты
+# даёт именно он, и лечится это тем же, чем лечился Manrope, —
+# подогнанным запасным лицом, а не отказом от шрифта.
+#
+# СЧИТАЕТСЯ ТОЛЬКО ПО ТЕМ УЗЛАМ, КОТОРЫЕ ИМ И НАБРАНЫ: моноширинным
+# в проекте набраны короткие подписи, и мерить по всему тексту
+# значило бы усреднить отношение с текстом, которого этот шрифт
+# не касается.
+ШИРИНЫ_МОНО = """(async (лицо) => {
+  const кир = new FontFace('JBW', "url('/static/fonts/jetbrains-mono-cyrillic.woff2')", {weight:'400 500'});
+  const лат = new FontFace('JBW', "url('/static/fonts/jetbrains-mono-latin.woff2')", {weight:'400 500'});
+  await Promise.all([кир.load(), лат.load()]);
+  document.fonts.add(кир); document.fonts.add(лат);
+  await document.fonts.ready;
+  const куски = [];
+  document.querySelectorAll('body *').forEach(э => {
+    if (э.children.length) return;
+    const cs = getComputedStyle(э);
+    if (cs.fontFamily.indexOf('JetBrains Mono') < 0) return;
+    const s = (э.textContent || '').trim();
+    if (s.length > 1) куски.push([s, cs.fontWeight, cs.fontSize]);
+  });
+  if (!куски.length) return {знаков: 0, строк: 0, основной: 0, запасной: 0};
+  const м = document.createElement('span');
+  м.style.cssText = 'position:absolute;left:-9999px;top:0;white-space:pre;';
+  document.body.appendChild(м);
+  const мерь = (сем) => {
+    let s = 0;
+    for (const [txt, w, fs] of куски) {
+      м.style.fontFamily = сем; м.style.fontWeight = w; м.style.fontSize = fs;
+      м.textContent = txt; s += м.getBoundingClientRect().width;
+    }
+    return s;
+  };
+  const основной = мерь("'JBW'");
+  const запасной = мерь(лицо);
+  м.remove();
+  return {знаков: куски.reduce((a,[s])=>a+s.length,0), строк: куски.length,
+          основной: основной, запасной: запасной};
+})"""
+
+
+def метрики(моно=False):
     """Отношение ширин на живом тексте — по каждому ЛИЦУ запаса."""
     from playwright.sync_api import sync_playwright
-    лица = [("Arial", "Windows/macOS/Linux"), ("Roboto", "Android")]
+    лица = ([("Consolas", "Windows"), ("monospace", "прочие")] if моно
+            else [("Arial", "Windows/macOS/Linux"), ("Roboto", "Android")])
+    сколько = ШИРИНЫ_МОНО if моно else ШИРИНЫ_ТЕКСТА
     итог = {}
     with sync_playwright() as p:
         бр = p.chromium.launch()
@@ -309,17 +379,21 @@ def метрики():
                     стр.wait_for_load_state("networkidle", timeout=15000)
                 except Exception:
                     pass
-                r = стр.evaluate(ШИРИНЫ_ТЕКСТА, "'%s'" % имя_лица)
+                лицо_css = ("monospace" if имя_лица == "monospace"
+                            else "'%s'" % имя_лица)
+                r = стр.evaluate(сколько, лицо_css)
                 о += r["основной"]; з += r["запасной"]; знаков += r["знаков"]
                 кон.close()
             итог[имя_лица] = (о, з, знаков, где)
         бр.close()
-    print("МЕТРИКИ ШИРИНЫ НА ЖИВОМ ТЕКСТЕ (пять экранов, ширина 1440)")
-    print("  %-8s %-22s %9s %11s %11s %9s" %
-          ("лицо", "платформа", "знаков", "Manrope,px", "запасной,px", "size-adj"))
+    print("МЕТРИКИ ШИРИНЫ НА ЖИВОМ ТЕКСТЕ (пять экранов, ширина 1440)%s"
+          % (" — МОНОШИРИННЫЙ" if моно else ""))
+    print("  %-10s %-22s %9s %11s %11s %9s" %
+          ("лицо", "платформа", "знаков",
+           "моно,px" if моно else "Manrope,px", "запасной,px", "size-adj"))
     for лицо, (о, з, знаков, где) in итог.items():
         нужно = 100.0 * о / з if з else 0.0
-        print("  %-8s %-22s %9d %11.0f %11.0f %8.2f%%" %
+        print("  %-10s %-22s %9d %11.0f %11.0f %8.2f%%" %
               (лицо, где, знаков, о, з, нужно))
     print()
     print("size-adjust = ширина(Manrope) / ширина(голый системный) — при нём")
@@ -364,9 +438,134 @@ def печать(итог, всего_дв, всего_cls, заголовок):
     return всего_дв
 
 
+# ═════════════════════════════════════════════════════════════════════
+# РЕЖИМ --узлы: МАКСИМУМ СДВИГА У НАЗВАННЫХ ВЛАДЕЛЬЦЕМ ЭЛЕМЕНТОВ
+# ═════════════════════════════════════════════════════════════════════
+#
+# BACKLOG №209, блок C.3. Владелец назвал ТРИ места, где дрожание
+# осталось: срок годности на карточке аптечки, ряд чипов категорий
+# и строка почты в профиле. Общее число сдвинутых элементов на этот
+# вопрос не отвечает: оно про страницу целиком, а спрашивают про три
+# конкретных узла.
+#
+# СПРАШИВАЕТСЯ МАКСИМУМ, А НЕ КОЛИЧЕСТВО. Замер задачи 203 показал:
+# количество почти не меняется, пока максимум падает вчетверо, —
+# то есть по количеству правку не увидеть вовсе.
+УЗЛЫ = [
+    ("/medkit", "срок годности", ".apt-badges, .apt-badge"),
+    ("/medkit", "чипы категорий", "#apt-chips .chip"),
+    ("/profile", "строка почты", ".setting-value"),
+]
+
+
+def узлы(семьи=None):
+    from playwright.sync_api import sync_playwright
+    заголовок = ("ОБЕ ГАРНИТУРЫ" if семьи is None
+                 else " + ".join(семьи))
+    print("=" * 74)
+    print("СДВИГ У НАЗВАННЫХ ЭЛЕМЕНТОВ. Подменяем: %s" % заголовок)
+    print("=" * 74)
+    with sync_playwright() as p:
+        бр = p.chromium.launch()
+        сессия = _сессия(бр)
+        for ш in ШИРИНЫ:
+            for путь, имя, селектор in УЗЛЫ:
+                кон = бр.new_context(viewport={"width": ш, "height": 900},
+                                     storage_state=сессия)
+                стр = кон.new_page()
+                стр.route("**/static/fonts/**", lambda r: r.abort())
+                стр.goto(БАЗА + путь, wait_until="domcontentloaded",
+                         timeout=45000)
+                try:
+                    стр.wait_for_load_state("networkidle", timeout=15000)
+                except Exception:
+                    pass
+                стр.wait_for_timeout(700)
+                снять = ("(с) => [...document.querySelectorAll(с)]"
+                         ".map(э => { const r = э.getBoundingClientRect();"
+                         "  return [r.x, r.y, r.width, r.height]; })")
+                до = стр.evaluate(снять, селектор)
+                стр.unroute("**/static/fonts/**")
+                стр.evaluate(ПОДМЕНА, семьи or СЕМЬИ_ОБЕ)
+                стр.wait_for_timeout(500)
+                после = стр.evaluate(снять, селектор)
+                # СМЕНА СТРОКИ СЧИТАЕТСЯ ОТДЕЛЬНО, и без этого число врёт
+                # ПО СУЩЕСТВУ. У ряда с переносом любое изменение ширины
+                # сдвигает точку переноса, и чип на её границе уезжает
+                # на другую строку — это сотни пикселей по горизонтали
+                # у ОДНОГО узла. Читать это как «строка дрожит на 1600 px»
+                # неверно: остальные стоят на месте.
+                макс, переносов = 0.0, 0
+                for а, б_ in zip(до, после):
+                    макс = max(макс, max(abs(б_[i] - а[i]) for i in range(4)))
+                    if abs(б_[1] - а[1]) > а[3] / 2:
+                        переносов += 1
+                print("  %-6d %-14s %-30s узлов %3d, МАКСИМУМ %6.1f px%s"
+                      % (ш, имя, селектор[:30], len(до), макс,
+                         "" if not переносов
+                         else "  (сменили СТРОКУ: %d)" % переносов))
+                кон.close()
+        бр.close()
+    return 0
+
+
+# ═════════════════════════════════════════════════════════════════════
+# РЕЖИМ --приезд: КОГДА КАЖДЫЙ ФАЙЛ ШРИФТА ДОЕЗЖАЕТ ДО БРАУЗЕРА
+# ═════════════════════════════════════════════════════════════════════
+#
+# Предзагрузка не меняет того, НАСКОЛЬКО двигается страница по приезде
+# шрифта, — она меняет, КОГДА он приезжает. Значит и мерить надо время,
+# а не сдвиг: сдвиг у файла один и тот же, предзагружен он или нет.
+#
+# СЕТЬ ЗАМЕДЛЯЕТСЯ ЧЕРЕЗ CDP, а не через route: перехват маршрута сам
+# меняет порядок запросов, и замер отвечал бы про поведение харнессы
+# (тот же урок, что у check_nav_flash).
+ПРИЕЗД_ЭКРАНЫ = [("/medkit", "аптечка"), ("/profile", "профиль")]
+
+
+def приезд():
+    from playwright.sync_api import sync_playwright
+    print("=" * 74)
+    print("КОГДА ДОЕЗЖАЕТ КАЖДЫЙ ФАЙЛ ШРИФТА (400 кбит/с, задержка 150 мс)")
+    print("=" * 74)
+    with sync_playwright() as p:
+        бр = p.chromium.launch()
+        сессия = _сессия(бр)
+        for путь, имя in ПРИЕЗД_ЭКРАНЫ:
+            кон = бр.new_context(viewport={"width": 1280, "height": 900},
+                                 storage_state=сессия)
+            стр = кон.new_page()
+            кл = кон.new_cdp_session(стр)
+            кл.send("Network.enable")
+            кл.send("Network.emulateNetworkConditions", {
+                "offline": False, "latency": 150,
+                "downloadThroughput": 400 * 1024 // 8,
+                "uploadThroughput": 400 * 1024 // 8})
+            стр.goto(БАЗА + путь, wait_until="load", timeout=120000)
+            стр.wait_for_timeout(2500)
+            строки = стр.evaluate(
+                "() => performance.getEntriesByType('resource')"
+                "  .filter(r => r.name.indexOf('/static/fonts/') > -1)"
+                "  .map(r => [r.name.split('/').pop(), Math.round(r.responseEnd)])")
+            print("  %s:" % имя)
+            for файл, мс in sorted(строки, key=lambda x: x[1]):
+                print("      %-34s %6d мс" % (файл, мс))
+            if not строки:
+                print("      НИ ОДНОГО ФАЙЛА — шрифт не запрашивался вовсе")
+            кон.close()
+        бр.close()
+    return 0
+
+
 if __name__ == "__main__":
+    if "--узлы" in sys.argv:
+        сем = (["JetBrains Mono"] if "--моно" in sys.argv
+               else (["Manrope"] if "--основной" in sys.argv else None))
+        sys.exit(узлы(сем))
+    if "--приезд" in sys.argv:
+        sys.exit(приезд())
     if "--метрики" in sys.argv:
-        sys.exit(метрики())
+        sys.exit(метрики(моно="--моно" in sys.argv))
     if "--контроль-ch" in sys.argv:
         # доказательство объявлено ИМЕНЕМ — см. доказать_подлог ниже
         # ДОКАЗАТЕЛЬСТВО ПОДЛОГА отдельно от вердикта (§6.0.3):

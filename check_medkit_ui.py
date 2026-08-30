@@ -310,7 +310,14 @@ DB = os.environ.get("DB_PATH", "app.db")
     # вернулось бы первой же правкой отдачи списка.
     "группы-нет": (
         "document.addEventListener('DOMContentLoaded', () => {"
-        "  const рвать = () => document.querySelectorAll('.apt-packs')"
+        # СЕЛЕКТОР ПЕРЕЕХАЛ — BACKLOG №209, блок B. ПРЕЖНИЙ был
+        # `.apt-packs` (тот `<details>`, что стоял в карточке).
+        # НОВЫЙ — `.apt-packs-src`: список уехал в окно, а в карточке
+        # лежит скрытым источником. ПОЧЕМУ ПРЕЖНИЙ СТАЛ НЕГОДЕН:
+        # узла с таким классом на странице больше нет, подлог был бы
+        # ПУСТОЙ ОПЕРАЦИЕЙ, и контроль печатал бы «проба слепа»
+        # про исправную пробу (§6.0.3).
+        "  const рвать = () => document.querySelectorAll('.apt-packs-src')"
         "    .forEach(п => {"
         "      const карт = п.closest('.apt-card');"
         "      const метка = карт && карт.querySelector('.apt-stack');"
@@ -326,7 +333,7 @@ DB = os.environ.get("DB_PATH", "app.db")
     "группа-списывает-с-дальнего": (
         "document.addEventListener('DOMContentLoaded', () => {"
         "  const перевесить = () => document.querySelectorAll("
-        "      '.apt-card:has(.apt-packs)').forEach(карт => {"
+        "      '.apt-card:has(.apt-packs-src)').forEach(карт => {"
         "    const б = карт.querySelector('.apt-take');"
         "    const пачки = [...карт.querySelectorAll('.apt-pack [data-take]')];"
         "    if (!б || пачки.length < 2) return;"
@@ -924,7 +931,7 @@ DB = os.environ.get("DB_PATH", "app.db")
         "  }"
         "  аптПрименитьСетку(т);"
         "  await new Promise(r => setTimeout(r, 900));"
-        "  const n = document.querySelectorAll('.apt-packs').length;"
+        "  const n = document.querySelectorAll('.apt-packs-src').length;"
         "  for (const п of АПТ_ПОЗИЦИИ.filter(x => x.name === 'ДокПроба'))"
         "    await fetch('/medkit/api/items/' + п.id, {method: 'DELETE'});"
         "  return n; }",
@@ -4606,28 +4613,51 @@ async def _группы_насквозь(pg, о):
           "на плашке %r (сроки пачек 02.2029 и 11.2027)"
           % (сводка.get("срок") or ""))
 
-    # ── D.2: раскрытие живое и до пачек дотягивается нажатие ────────
+    # ── D.2: ОКНО УПАКОВОК ОТКРЫВАЕТСЯ МЕТКОЙ ──────────────────────
+    #
+    # ПРЕЖНЯЯ ФОРМУЛИРОВКА ШАГА: «раскрытие `<details>` внутри карточки
+    # меняет `open` с false на true».
+    # НОВАЯ: «нажатие по метке «N упак.» открывает ОКНО, и список пачек
+    # оказывается в нём».
+    # ПОЧЕМУ ПРЕЖНЯЯ СТАЛА НЕГОДНОЙ: `<details>` в карточке больше нет
+    # — список уехал в окно (BACKLOG №209, блок B), и прежний шаг падал
+    # бы на исправном коде.
+    #
+    # ОРГАН СЧИТАЕТСЯ ЖИВЫМ ПО НАЖАТИЮ, а не по наличию в дереве:
+    # метку проверяет `ЖИВОЙ` тем же способом, что и остальные органы.
+    ж_метка = await pg.evaluate(ЖИВОЙ, ".apt-stack[data-packs]")
+    о.шаг("метка-упаковок-живая", bool(ж_метка.get("живой")),
+          ж_метка.get("причина") or "до метки «N упак.» дотягивается нажатие")
     раскрытие = await pg.evaluate("""(м) => {
       const к = [...document.querySelectorAll('.apt-card')].find(к =>
         к.querySelector('.apt-name').textContent.trim() === м);
-      const d = к && к.querySelector('.apt-packs');
-      if (!d) return null;
-      const было = d.open;
-      d.querySelector('summary').click();
-      return {было: было, стало: d.open,
-              подпись: d.querySelector('.apt-packs-hide').textContent.trim()};
+      const метка = к && к.querySelector('.apt-stack[data-packs]');
+      if (!метка) return null;
+      const было = document.querySelectorAll('#apt-packs-body .apt-pack').length;
+      метка.click();
+      const окно = document.getElementById('apt-packs-win');
+      return {было: было,
+              стало: document.querySelectorAll('#apt-packs-body .apt-pack').length,
+              открыто: !!(окно && окно.classList.contains('open')),
+              заголовок: (document.getElementById('apt-packs-title')
+                          || {}).textContent || ''};
     }""", МЕТКА)
-    о.шаг("группа-раскрывается",
-          bool(раскрытие) and раскрытие["было"] is False
-          and раскрытие["стало"] is True,
-          "было %s → стало %s, подпись %r"
+    о.шаг("окно-упаковок-открывается",
+          bool(раскрытие) and раскрытие["открыто"]
+          and раскрытие["было"] == 0 and раскрытие["стало"] >= 2,
+          "строк в окне %s → %s, открыто %s, заголовок %r"
           % (раскрытие and раскрытие["было"], раскрытие and раскрытие["стало"],
-             раскрытие and раскрытие["подпись"]))
+             раскрытие and раскрытие["открыто"],
+             (раскрытие or {}).get("заголовок", "")[:40]))
     await pg.wait_for_timeout(250)
     живые = []
     for i in (1, 2):
+        # СЕЛЕКТОР ПРИВЯЗАН К ОКНУ, а не глобальный. Глобальный брал
+        # ПЕРВЫЙ `.apt-pack` в документе, и с появлением ВТОРОЙ группы
+        # на стенде (§8.0, seed) им стала СКРЫТАЯ строка чужой карточки:
+        # шаг печатал «нулевой размер» на исправном коде
         ж = await pg.evaluate(
-            ЖИВОЙ, ".apt-pack:nth-child(%d) [data-edit-pack]" % i)
+            ЖИВОЙ, "#apt-packs-body .apt-pack:nth-child(%d) [data-edit-pack]" % i)
         if not ж.get("живой"):
             живые.append("пачка %d: %s" % (i, ж.get("причина")))
     о.шаг("до-каждой-пачки-дотянуться", not живые,
@@ -4658,8 +4688,8 @@ async def _группы_насквозь(pg, о):
     # СВОДКУ группы и открывал форму с суммой, id второй не находил
     # ничего и открывал ПУСТУЮ. Раздельный учёт упаковок терял смысл —
     # сказать, из какой пачки принял, было нечем.
-    await pg.evaluate("() => { const d = document.querySelector('details.apt-packs');"
-                      "         if (d) d.open = true; }")
+    # ОКНО УЖЕ ОТКРЫТО ШАГОМ ВЫШЕ. Прежде здесь раскрывался `<details>`
+    # в карточке; его больше нет (BACKLOG №209, блок B)
     await pg.wait_for_timeout(300)
     пачки = await pg.evaluate("""() => {
       const г = АПТ_ПОЗИЦИИ.find(п => п['группа'] && п['группа'].length > 1);
@@ -4688,6 +4718,28 @@ async def _группы_насквозь(pg, о):
         await pg.wait_for_timeout(250)
     о.шаг("карандаш-пачки-её-числа", bool(пачки) and сошлось == len(пачки),
           "; ".join(разбор) or "группы из двух упаковок на стенде нет")
+
+    # ── ОКНО УПАКОВОК ЗАКРЫВАЕТСЯ, И ЭТО НЕ УБОРКА, А ШАГ ───────────
+    #
+    # Открытое окно перекрывает страницу, и следующие шаги прохода
+    # кликали БЫ ПО ЗАТЕМНЕНИЮ: первый прогон после переезда списка
+    # в окно висел на «Это другая упаковка» по 30 секунд и падал.
+    # Спрашивается ЗАОДНО и то, ради чего окно вообще пересобрано:
+    # список вернулся В КАРТОЧКУ, а не исчез.
+    await pg.evaluate("() => закрыть_модалку('apt-packs-win')")
+    await pg.wait_for_timeout(300)
+    вернулся = await pg.evaluate("""() => ({
+      в_окне: document.querySelectorAll('#apt-packs-body .apt-pack').length,
+      в_карточке: document.querySelectorAll(
+        '.apt-packs-src .apt-pack').length,
+      открыто: !!(document.getElementById('apt-packs-win') || {})
+                 .classList.contains('open')})""")
+    о.шаг("окно-упаковок-вернуло-список-в-карточку",
+          вернулся["в_окне"] == 0 and вернулся["в_карточке"] >= 2
+          and not вернулся["открыто"],
+          "в окне %s, в карточке %s, окно открыто %s"
+          % (вернулся["в_окне"], вернулся["в_карточке"],
+             вернулся["открыто"]))
 
     # Карточка группы правит ОБЩИЕ свойства: количества у неё не свои,
     # это сумма, и записать сумму некуда
@@ -4843,6 +4895,17 @@ async def _формы_насквозь(pg, о):
             continue
         слово = опр.склонение(доза, опр.ЕДИНИЦЫ[ед]["слово"])
         ждём = ("Принял %s %s" % (опр.число(доза), слово)).strip()
+        # ПАЧКА ВНУТРИ ГРУППЫ СВОЕЙ КАРТОЧКИ НЕ ИМЕЕТ, и это не дефект:
+        # карточка одна на группу и несёт id ПЕРВОЙ пачки (§5.8, D).
+        # Её подпись проверяет раздел группы; здесь такую пачку
+        # пропускаем, иначе шаг объявлял бы находкой сведение упаковок,
+        # ради которого группы и заведены
+        в_группе = await pg.evaluate(
+            "(id) => АПТ_ПОЗИЦИИ.some(п => (п['группа'] || [])"
+            "  .some(x => String(x.id) === id) && String(п.id) !== id)",
+            str(ид))
+        if в_группе:
+            continue
         на_экране = await pg.evaluate(
             "(id) => { const к = document.querySelector("
             "'.apt-card[data-id=\"' + id + '\"] .apt-take');"

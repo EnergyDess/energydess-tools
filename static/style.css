@@ -262,12 +262,40 @@
   line-gap-override: 0%;
 }
 
+/* ЗАПАСНОЙ ДЛЯ МОНОШИРИННОГО — BACKLOG N209, блок C.4.
+
+   У `--font-mono` подогнанного запаса НЕ БЫЛО ВОВСЕ: стояло
+   `'JetBrains Mono', monospace`. Пока подмену мерили только
+   у Manrope, это было невидимо ПО ПОСТРОЕНИЮ - проба грузила
+   одну гарнитуру из двух.
+
+   ЗАМЕР (py check_font_shift.py --узлы --моно), максимум сдвига:
+   срок годности 17.3 px, строка почты 13.9 px, и у обоих
+   от Manrope - НОЛЬ. То есть весь остаток давал именно он.
+
+   ЧИСЛО ПОСЧИТАНО ПО ТЕМ УЗЛАМ, КОТОРЫЕ ИМ И НАБРАНЫ, а не по
+   всему тексту: моноширинным набраны короткие подписи, и среднее
+   по странице отвечало бы про текст, которого он не касается.
+   На 916 знаках живого текста системный моноширинный У́ЖЕ основного
+   на 9.11 % - и Consolas, и голый monospace дали одно и то же
+   отношение до второго знака, поэтому лицо здесь ОДНО.
+
+   ЛИЦА ДВА У MANROPE, потому что Arial и Roboto расходятся на 8 %;
+   у моноширинных такого расхождения замер не показал, и заводить
+   второе лицо значило бы выдумать член множества, которого нет. */
+@font-face {
+  font-family: 'JetBrains Mono Fallback';
+  src: local('Consolas'), local('DejaVu Sans Mono'), local('Menlo'),
+       local('Liberation Mono'), local('Courier New');
+  size-adjust: 109.11%;
+}
+
 
 :root {
   /* Fonts */
   --font: 'Manrope', 'Manrope Fallback', 'Manrope Fallback Android',
           -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-mono: 'JetBrains Mono', 'JetBrains Mono Fallback', monospace;
 
   /* Surfaces — лесенка, шаги ощутимы глазом */
   --surface-0: #0A0B0D;

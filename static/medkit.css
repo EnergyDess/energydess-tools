@@ -711,6 +711,15 @@
   color: var(--text);
   font-size: var(--text-caption);
   font-weight: 600;
+  /* МЕТКА СТАЛА КНОПКОЙ (BACKLOG №209, блок B) — она открывает окно
+     упаковок. Родные поля кнопки снимаются здесь, а не подбираются
+     заново: подложка, радиус и кегль у неё уже свои */
+  font-family: inherit;
+  line-height: 1.2;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .apt-stack:hover { border-color: var(--tool-accent); }
 }
 .apt-stack svg { width: 13px; height: 13px; }
 /* У группы без фото метка становится обычной строкой карточки:
@@ -723,57 +732,40 @@
   color: var(--text-2);
 }
 
-/* СПИСОК ПАЧЕК. `<details>` вместо своего тумблера: раскрытие
-   с клавиатуры, состояние в разметке и ни строки скрипта. */
-.apt-packs { margin-top: var(--space-2); }
-.apt-packs-sum {
-  cursor: pointer;
-  list-style: none;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-faint);
-  font-size: var(--text-caption);
-  padding: var(--space-1) 0;
-}
-.apt-packs-sum::-webkit-details-marker { display: none; }
-/* Треугольник рисуем сами: родной маркер в разных браузерах разный,
-   а `list-style: none` выше его и так снял */
-.apt-packs-sum::before {
-  content: "";
-  width: 0;
-  height: 0;
-  border-left: 5px solid currentColor;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  transition: transform var(--dur-fast) var(--ease);
-}
-.apt-packs[open] .apt-packs-sum::before { transform: rotate(90deg); }
-@media (hover: hover) {
-  .apt-packs-sum:hover { color: var(--text-2); }
-}
-.apt-packs-sum:focus-visible { color: var(--text-2); }
-/* Подпись меняет РАЗМЕТКА, а не скрипт: два места, решающих одно
-   и то же, разошлись бы молча. И не псевдоэлемент с отрицательным
-   отступом — тот держался на длине слова и наезжал на треугольник
-   (замер на снимке 1920). */
-.apt-packs .apt-packs-hide { display: none; }
-.apt-packs[open] .apt-packs-show { display: none; }
-.apt-packs[open] .apt-packs-hide { display: inline; }
+/* СПИСОК ПАЧЕК ЖИВЁТ В ОКНЕ (BACKLOG №209, блок B).
+
+   ЗДЕСЬ СТОЯЛИ ПРАВИЛА `<details>` — своей подписи, треугольника
+   и двух состояний раскрытия. Раскрытие внутри карточки удалено:
+   пока хоть одна карточка в ряду умеет расти, пустое место появляется
+   у всех остальных, а ряд кнопок уезжает.
+
+   Разметка списка осталась серверной и лежит в карточке СКРЫТОЙ;
+   окно её показывает. Прятать нечем, кроме `hidden`: атрибут объявлен
+   `display: none !important` одним правилом на весь проект. */
 .apt-packs-list {
   list-style: none;
-  margin: var(--space-1) 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  /* В КАРТОЧКЕ БЫЛО `--space-2`: там список ужимался под соседей.
+     В окне соседей нет, и строка с тремя органами управления
+     на зазоре в 8px читается сплошной лентой */
+  gap: var(--space-3);
 }
 .apt-pack {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--text-caption);
+  /* КЕГЛЬ ПОДПИСИ БЫЛ ВЕРЕН В КАРТОЧКЕ и неверен в окне: там строка
+     стояла мелким приложением к карточке, здесь она — содержимое
+     окна, ради которого его и открыли */
+  font-size: var(--text-body-sm);
   color: var(--text-2);
+  padding: var(--space-2);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
 }
 .apt-pack-dot {
   width: 6px;

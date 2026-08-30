@@ -100,7 +100,7 @@ affordance. На углублении выключенный тумблер ст
 ```css
 :root {
   --font:      'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', 'DM Mono', monospace;
+  --font-mono: 'JetBrains Mono', 'JetBrains Mono Fallback', monospace;
 
   --text:       #E8ECF8;   /* основной */
   --text-2:     #AEB8D4;   /* вторичный — ЕДИНЫЙ токен */
@@ -5352,7 +5352,7 @@ BACKLOG №184, блок D.
   /* Fonts */
   --font: 'Manrope', 'Manrope Fallback', 'Manrope Fallback Android',
           -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-mono: 'JetBrains Mono', 'JetBrains Mono Fallback', monospace;
 
   /* Surfaces */
   --surface-0: #0A0B0D;
