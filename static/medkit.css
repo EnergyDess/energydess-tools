@@ -356,6 +356,26 @@
    это незаполненное поле, а не ошибка. Своим классом РЯДОМ
    с `.apt-mnn`, а не переопределением её (§6.0.2). */
 .apt-mnn-none { color: var(--text-faint); }
+/* ── ПОКАЗАНИЕ И ФАКТЫ В ОТВЕТЕ АССИСТЕНТА (BACKLOG №227) ──────────
+   Показание — ДОСЛОВНАЯ выдержка из чужого справочника, и вид у неё
+   должен отличаться от нашей подписи: у той роль «что это за пачка»,
+   у этой — «вот цитата». Отличают ЛЕВАЯ ЛИНЕЙКА и метка перед
+   текстом, а не цвет: цветом уже различаются тон состояния куч. */
+.apt-ai-item-ind {
+  color: var(--text-2);
+  font-size: var(--text-caption);
+  line-height: 1.5;
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border);
+}
+.apt-ai-item-ind-tag { color: var(--text-faint); }
+/* Факты из базы — тем же приглушённым, что остальная мета карточки */
+.apt-ai-item-note {
+  color: var(--text-faint);
+  font-size: var(--text-caption);
+  margin: var(--space-1) 0 0;
+}
 .apt-meta {
   color: var(--text-faint);
   font-size: var(--text-caption);

@@ -1005,6 +1005,21 @@ class MedkitItem(Base):
     dosage_source = Column(String, nullable=True)   # имя справочника
     dosage_url = Column(String, nullable=True)      # страница ЭТОГО препарата
     dosage_fetched_at = Column(DateTime, nullable=True)
+    # ── ПОКАЗАНИЯ: «ОТ ЧЕГО ЭТО» ─────────────────────────────────────
+    #
+    # BACKLOG №227, блок A. СВОИХ `source`/`url`/`fetched_at` У НИХ НЕТ,
+    # и это не экономия: показания берутся С ТОЙ ЖЕ СТРАНИЦЫ, которую
+    # уже выбрало сопоставление под схему приёма — тот же препарат,
+    # тот же выпуск, та же дозировка. Заведи мы вторую тройку полей,
+    # у одной карточки появилось бы ДВА адреса источника, и разойтись
+    # они могли бы только молча.
+    #
+    # Отсюда же следует, что колонки заполняются и чистятся ВМЕСТЕ
+    # с `dosage_*` (`_апт_записать_итог_доз`, `_апт_забыть_дозы`):
+    # показания, пережившие смену препарата в карточке, говорили бы
+    # «от чего это» про прежнюю пачку.
+    indications_text = Column(Text, nullable=True)
+    indications_blocks = Column(Text, nullable=True)
     # ── СВОЯ СХЕМА С УПАКОВКИ ────────────────────────────────────────
     #
     # BACKLOG №177, блок A. ОТДЕЛЬНАЯ КОЛОНКА, А НЕ `dosage_text`,
@@ -1495,6 +1510,9 @@ def migrate_db():
         "ALTER TABLE medkit_items ADD COLUMN dosage_miss_kind VARCHAR(32)",
         # BACKLOG №199, B.1: как справочник называет действующее вещество
         "ALTER TABLE medkit_items ADD COLUMN dosage_hint_substance VARCHAR(200)",
+        # BACKLOG №227, блок A: показания с ТОЙ ЖЕ страницы, что схема
+        "ALTER TABLE medkit_items ADD COLUMN indications_text TEXT",
+        "ALTER TABLE medkit_items ADD COLUMN indications_blocks TEXT",
         # Список покупок (BACKLOG №178, блок B). Таблица заводится
         # `create_all`, здесь её нет; строка оставлена как отметка
         # о том, что колонок к существующим таблицам блок не добавил
