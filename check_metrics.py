@@ -207,9 +207,26 @@ def ряд_стенда(запускать: bool):
         print('    %-4s %-24s …' % (номер, m.group(1)), end='', flush=True)
         начало = time.monotonic()
         try:
-            код = str(subprocess.run([sys.executable, m.group(1)],
-                                     capture_output=True,
-                                     timeout=СТЕНД_ПОТОЛОК).returncode)
+            п = subprocess.run([sys.executable, m.group(1)],
+                               capture_output=True, text=True,
+                               errors="replace", timeout=СТЕНД_ПОТОЛОК)
+            код = str(п.returncode)
+            # ПРИЧИНА ПЕЧАТАЕТСЯ, А НЕ ГЛОТАЕТСЯ (BACKLOG №229, F.1).
+            #
+            # `capture_output=True` прячет и вывод, и трассу: проба,
+            # упавшая исключением, отдаёт ряду ЧИСЛО, неотличимое
+            # от «нашла находки». Заход 228 записал `check_tab_state`
+            # упавшей в пакетном прогоне и не смог сказать чем —
+            # именно потому, что причина сюда не доезжала.
+            #
+            # Печатается ХВОСТ stderr, а не весь: у проверки, честно
+            # нашедшей находки, он пуст, и строка не появится вовсе.
+            хвост = [с for с in (п.stderr or "").strip().splitlines()
+                     if с.strip()]
+            if код != "0" and хвост:
+                print(chr(10) + "        причина (хвост stderr):", flush=True)
+                for с in хвост[-4:]:
+                    print("          %s" % с[:160], flush=True)
         except subprocess.TimeoutExpired:
             # ОТДЕЛЬНЫЙ ИСХОД, А НЕ КОД. «Не успела» и «нашла находки» —
             # разные утверждения, и слить их в единицу значило бы
