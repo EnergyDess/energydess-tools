@@ -343,6 +343,13 @@ html.assistant-mode, html.assistant-mode body {
 }
 .ring-fill.over { stroke: #ef4444; filter: drop-shadow(0 0 6px rgba(239,68,68,.4)); }
 .ring-center { position: absolute; text-align: center; }
+/* КЕГЛЬ ЧИСЛА В КОЛЬЦЕ — ЧИСЛОМ, И ЭТО РЕШЕНИЕ ВЛАДЕЛЬЦА (задача 96,
+   BACKLOG №229, D.1). Замер 2026-09-01: здесь 26.4px на 390 и 44.6px
+   на 2560 — второе даёт `--nut-u` (§2.3), а не эта строка. Ближайшая
+   ступень `--text-h1` объявлена через `clamp` и растёт САМА: 28px
+   на 390, 51px на 2560. Поставь её сюда — размер стал бы расти
+   с окном ДВУМЯ способами разом, и десктопная раскладка раздела
+   перестала бы им управлять. Перевод не «ещё не сделан», он ВРЕДЕН. */
 .ring-remain {
   font-size: 1.65rem; font-weight: 800; line-height: 1; font-family: var(--font);
   font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
@@ -582,6 +589,12 @@ html.assistant-mode, html.assistant-mode body {
 /* Ноль калорий акцентом читался как достижение: у пустого приёма
    цифра ничего не сообщает и подсвечивать её незачем */
 .meal-kcal.is-zero { color: var(--text-2); }
+/* КЕГЛЬ ЗНАКА «+» — МЕТРИКА КОМПОНЕНТА, А НЕ СТУПЕНЬ ТЕКСТА
+   (BACKLOG №229, D.1). 1.2rem задаёт РАЗМЕР ГЛИФА внутри коробки
+   30x30px, и подбирается он под неё, а не под шкалу читаемого
+   текста: `--text-*` отвечает на вопрос «каким кеглем набран текст»,
+   а здесь текста нет вовсе. Ступени под значок в системе нет и быть
+   не должно — у системных `.btn-icon` размер значка задан так же. */
 .meal-add {
   width: 1.875rem; height: 1.875rem; border-radius: 0.5rem;
   background: var(--tool-accent-dim); border: 1px solid color-mix(in srgb, var(--tool-accent) 20%, transparent);
@@ -1263,6 +1276,13 @@ html.assistant-mode, html.assistant-mode body {
    а системный `.chip`: отклик на наведение и нажатие у него свой.
    Расхождение вида: радиус 8 → 999 (пилюля), подложка --surface-sunken →
    --surface-2, вес 600 → 500. Своих правил у класса не осталось. */
+/* КЕГЛЬ ИТОГА В ОКНЕ ПОРЦИИ — ЧИСЛОМ, по той же причине, что
+   у `.ring-remain` выше (BACKLOG №229, D.1). Замер: 23.2px на 390
+   и 24.6px на 2560. Ближайшая ступень `--text-h2` даёт 22px на 390
+   (сдвиг 1.2px, терпимо) и 34px на 2560 — то есть в полтора раза
+   больше нужного. Ступени шкалы объявлены `clamp`, и роста с окном
+   у этого числа быть не должно: оно стоит в модальном окне
+   фиксированной ширины. */
 .calc-kcal   { font-size: 1.45rem; font-weight: 800; color: var(--tool-accent); font-family: var(--font); }
 .calc-macros { font-size: var(--text-caption); color: var(--text-2); font-weight: 600; margin-top: var(--space-1); }
 .add-btn {
@@ -1560,6 +1580,11 @@ html.assistant-mode, html.assistant-mode body {
    .mini-ring-stack и .mini-ring-center удалены вместе с прежней обёрткой
    кольца: их роль (позиционирование числа по центру) взяли .hd-ring
    и .hd-ring-c в блоке «История» выше. */
+/* КЕГЛЬ ЧИСЛА В КОЛЬЦЕ ДНЯ — ЧИСЛОМ (BACKLOG №229, D.1). Замер:
+   20px на 390, 34px на 2560 — второе снова от `--nut-u`. Ближайшая
+   ступень `--text-h3` даёт 18px и 25.5px: на узкой ширине мельче
+   нужного, на широкой спорит с десктопной единицей раздела.
+   Та же развилка, что у `.ring-remain`, и тот же вывод. */
 .hist-kcal-val { font-size: 1.25rem; font-weight: 800; }
 
 /* ── Профиль: пояснения, сообщения, ряды действий ── */

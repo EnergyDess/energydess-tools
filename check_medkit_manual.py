@@ -175,8 +175,13 @@ def доказать_пишет_в_ручную(m):
         dosage_blocks = dosage_fetched_at = None
         dosage_miss = dosage_miss_at = dosage_miss_kind = None
         dosage_hint_substance = None
+        indications_text = indications_blocks = None
     п = П()
-    m._апт_записать_итог_доз(п, ("ЧУЖОЕ", "http://x", None), "")
+    # КОРТЕЖ ПЯТИЧЛЕННЫЙ С BACKLOG №227: показания приезжают ТЕМ ЖЕ
+    # кортежем, что схема. Трёхчленный ронял контроль `ValueError`,
+    # и он НЕ ПРОГОНЯЛСЯ вовсе — а «зелёная» проба без пройденного
+    # контроля не значит ничего (§6.0.3). Нашёл прогон, не чтение.
+    m._апт_записать_итог_доз(п, ("ЧУЖОЕ", "http://x", None, None, None), "")
     return п.own_dosage_text
 
 
@@ -188,7 +193,7 @@ def подлог_ручная_за_найденную(m):
     def порченая(поз, итог, причина, вид="", подсказка=""):
         своя = (getattr(поз, "own_dosage_text", None) or "").strip()
         if своя and not итог:
-            родная(поз, (своя, "http://подлог", None), "")
+            родная(поз, (своя, "http://подлог", None, None, None), "")
             return
         родная(поз, итог, причина, вид, подсказка)
     m._апт_записать_итог_доз = порченая
@@ -202,6 +207,7 @@ def доказать_ручная_за_найденную(m):
         dosage_blocks = dosage_fetched_at = None
         dosage_miss = dosage_miss_at = dosage_miss_kind = None
         dosage_hint_substance = None
+        indications_text = indications_blocks = None
     п = П()
     m._апт_записать_итог_доз(п, None, "нет такого выпуска")
     return п.dosage_text

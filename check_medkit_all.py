@@ -87,6 +87,13 @@ class Поз:
         self.dosage_miss = д.get("dosage_miss")
         self.dosage_miss_kind = д.get("dosage_miss_kind")
         self.dosage_source = д.get("dosage_source")
+        # ХРАНИМОЕ СОСТОЯНИЕ ПОКАЗАНИЙ (BACKLOG №229, A.5). Без
+        # этих двух полей замер отвечал только про ПУТЬ («сколько
+        # извлеклось бы»), а вопрос «сколько лежит в базе» задать
+        # было нечем — ровно то, чем и жил боевой дефект: путь
+        # давал показания у 13 позиций, база хранила 0.
+        self.indications_text = д.get("indications_text")
+        self.indications_blocks = д.get("indications_blocks")
 
 
 def включить_кеш():
@@ -120,7 +127,10 @@ def позиции(путь):
                      "own_dosage_text": p.own_dosage_text,
                      "dosage_miss": p.dosage_miss,
                      "dosage_miss_kind": p.dosage_miss_kind,
-                     "dosage_source": p.dosage_source}) for p in из]
+                     "dosage_source": p.dosage_source,
+                     "indications_text": p.indications_text,
+                     "indications_blocks": p.indications_blocks})
+                for p in из]
     finally:
         db.close()
 
@@ -233,6 +243,39 @@ def состояние(из):
     print("   схема ВНЕСЕНА РУКАМИ (own_dosage)   %d" % len(свои))
     print("   и то и другое                       %d" % len(оба))
     print("   НИ ОДНОЙ схемы                      %d" % len(ни))
+    # ── A.5: СХЕМА ВЗЯТА, А ПОКАЗАНИЙ В БАЗЕ НЕТ ────────────────────
+    #
+    # ПОДОЗРИТЕЛЬНОЕ СОСТОЯНИЕ, И ОНО ОБЯЗАНО БЫТЬ ЧИСЛОМ, а не
+    # подразумеваться. Показания приезжают С ТОЙ ЖЕ страницы, что
+    # схема: взяли схему — значит страница разобрана, и пустые
+    # показания при ней означают одно из двух, и эти два надо
+    # РАЗЛИЧАТЬ (иначе экран скажет про чужую страницу неправду):
+    #
+    #   не спрашивали ни разу  → чинится перепроверкой, число обязано
+    #                            дойти до нуля
+    #   спросили, раздела нет  → законно, раздел показаний
+    #                            на странице необязателен
+    #
+    # ЗАМЕР НА БОЕВОЙ БАЗЕ 2026-09-01, ДО ПРАВКИ: со схемой 10,
+    # с показаниями 0, «не спрашивали» 10 из 10. Ноль тут законен,
+    # но он обязан быть ДОКАЗАН, а не предполагаться (§6.0.1).
+    с_пок = [п for п in из if (п.indications_text or "").strip()]
+    не_спрашивали = [п for п in спр
+                     if not (п.indications_text or "").strip()
+                     and п.indications_blocks is None]
+    спросили_нет = [п for п in спр
+                    if not (п.indications_text or "").strip()
+                    and п.indications_blocks is not None]
+    print()
+    print("   ПОКАЗАНИЯ В БАЗЕ («от чего это»):")
+    print("      показания записаны               %d" % len(с_пок))
+    print("      схема есть, показаний НЕТ:")
+    print("         НЕ СПРАШИВАЛИ ни разу         %d   <- чинит перепроверка"
+          % len(не_спрашивали))
+    print("         спросили, раздела нет         %d   (законно)"
+          % len(спросили_нет))
+    for п in не_спрашивали:
+        print("            %s" % " ".join((п.name or "").split())[:40])
     print()
     print("   внесённые руками:")
     for п in свои:
