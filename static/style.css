@@ -2572,6 +2572,19 @@ img.avatar { object-fit: cover; padding: 0; }
   text-decoration: none;
   font-family: var(--font);
   letter-spacing: 0.01em;
+  /* ССЫЛКА И КНОПКА ОДНОГО РОСТА (BACKLOG №231, закрыта №232 F.4).
+
+     `<button>` берёт `line-height: normal` из стиля браузера,
+     а `<a class="btn">` НАСЛЕДУЕТ межстрочный тела (24 px при кегле
+     15) — и вырастает. Замер: 47 px против 50, расхождение 3.0 px.
+     Видно только там, где кнопка и ссылка стоят В ОДНОМ РЯДУ; до
+     задачи 229 таких мест не было.
+
+     ОПАСЕНИЕ «ПРАВКА МЕНЯЕТ ВЫСОТУ КАЖДОЙ КНОПКИ ПРОЕКТА» СНЯТО
+     ЗАМЕРОМ: у `<button>` `normal` и так, значит для него это
+     ПУСТАЯ ОПЕРАЦИЯ. Меняется ровно то, что межстрочный наследовало,
+     — то есть ссылки. Проверено `check_regress` по всему проекту. */
+  line-height: normal;
   transition: transform var(--dur-fast) var(--ease),
               background var(--dur-fast) var(--ease),
               border-color var(--dur-fast) var(--ease),
