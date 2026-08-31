@@ -67,11 +67,24 @@ def расставить_источники():
 
 
 async def войти(pg):
-    await pg.goto(БАЗА + "/login", wait_until="networkidle")
-    await pg.fill("#email", ПОЧТА)
-    await pg.fill("#password", ПАРОЛЬ)
+    """Селекторы — ПО ИМЕНИ ПОЛЯ, как у `check_medkit_ui._войти`.
+
+    Первая версия искала `#email`, которого в форме нет вовсе, и падала
+    по таймауту в 30 с. Второго способа входа тут заводить нечего: он
+    один на все пробы, и расхождение видно только в день прогона.
+    """
+    await pg.goto(БАЗА + "/login", wait_until="domcontentloaded")
+    await pg.fill("input[name=email]", ПОЧТА)
+    await pg.fill("input[name=password]", ПАРОЛЬ)
+    if await pg.query_selector(".cf-turnstile"):
+        for _ in range(60):
+            if await pg.evaluate("() => { const t = document.querySelector("
+                                 "'[name=\"cf-turnstile-response\"]');"
+                                 " return t && t.value; }"):
+                break
+            await pg.wait_for_timeout(500)
     await pg.click("button[type=submit]")
-    await pg.wait_for_url(lambda u: "/login" not in u, timeout=15000)
+    await pg.wait_for_load_state("networkidle")
 
 
 async def main():
