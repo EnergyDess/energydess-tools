@@ -1520,7 +1520,51 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   display: flex; flex-direction: column;
   align-items: flex-start; gap: var(--space-3);
 }
-.apt-recheck-note { margin: 0; color: var(--text-2); font-size: var(--text-sm); }
+/* ХОД ОБХОДА. РОВНО ДВЕ СТРОКИ ВСЕГДА (BACKLOG №232, C.1).
+
+   ЗАМЕР ДО ПРАВКИ: строка состояния переходила с одной строки на две,
+   когда попадалось длинное название, — лист окна рос на 25.6…27.2 px,
+   а КНОПКА под рукой у человека уезжала на 12.8…25.6 px вверх (окно
+   центрировано, и половина прироста уходит наверх). Три ширины из трёх.
+
+   РЕЗЕРВ, А НЕ ПОДБОР ВЫСОТЫ: `min-height` в `lh` считает браузер
+   от фактического межстрочного этого же элемента. Число в пикселях
+   тут разъехалось бы с кеглем при первой же правке `--text-sm`,
+   и разъехалось бы молча.
+
+   ВТОРАЯ ПОЛОВИНА — В РАЗМЕТКЕ: счёт и название лежат в РАЗНЫХ
+   строках, и название не переносится (`apt-recheck-what`). Одного
+   резерва не хватило бы: имя вчетверо длиннее ушло бы на третью
+   строку, и окно поехало бы снова. */
+.apt-recheck-note {
+  margin: 0; color: var(--text-2); font-size: var(--text-sm);
+  min-height: 2lh; align-self: stretch;
+}
+/* НАЗВАНИЕ — ОДНА СТРОКА С МНОГОТОЧИЕМ. Обрезка тут честнее переноса:
+   имя показано ради «где мы сейчас идём», а не ради чтения целиком */
+.apt-recheck-what {
+  display: block; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ИТОГ СО СПИСКОМ ИЗМЕНЁННЫХ ПОЗИЦИЙ (BACKLOG №232, C.2).
+
+   «Схема нашлась у 10» при 34 карточках не отвечает на единственный
+   вопрос, ради которого владелец жал кнопку: КАКИЕ ИМЕННО. Список
+   с переходом на карточку — ответ; прокрутка у него своя, иначе
+   двадцать имён вытолкнули бы кнопку за край окна. */
+.apt-recheck-found { margin: 0; align-self: stretch; }
+.apt-recheck-group { margin: 0 0 var(--space-3); }
+.apt-recheck-group:last-child { margin-bottom: 0; }
+.apt-recheck-head {
+  margin: 0 0 var(--space-2); color: var(--text-2);
+  font-size: var(--text-sm); font-weight: 600;
+}
+.apt-recheck-list {
+  margin: 0; padding: 0; list-style: none;
+  display: flex; flex-wrap: wrap; gap: var(--space-2);
+  max-height: 9rem; overflow-y: auto;
+}
 
 /* ОБЕЩАНИЕ ПРО РУЧНЫЕ ЗАПИСИ (BACKLOG №201, A.3) — НАД кнопкой:
    стоя под ней, оно прочитывалось бы уже после нажатия. */
