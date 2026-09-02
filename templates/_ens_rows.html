@@ -1,0 +1,36 @@
+{#- СТРОКИ КАТАЛОГА СЕТОВ — ЕДИНСТВЕННЫЙ ПОСТРОИТЕЛЬ, И ЭТО СЕРВЕР.
+
+     BACKLOG №161. До 2026-09-02 таблицу строил СКРИПТ: в разметке
+     стоял пустой `<tbody>`, и содержимое появлялось после загрузки
+     и разбора `СЕТЫ`. Соседние три раздела админки серверные
+     (`{% raw %}{% for %}{% endraw %}` там есть, здесь их было НОЛЬ), и ровно на этом
+     экране `check_nav_flash` ловил ПУСТОЙ КАДР при переходе
+     `products -> enshrouded`: старая страница ушла, новая ещё
+     не построена скриптом.
+
+     Тот же приём, что у сетки карточек аптечки (`_medkit_grid.html`)
+     и по той же причине: два построителя разошлись бы МОЛЧА,
+     а первый кадр приезжал бы пустым (§6.0.15).
+
+     ОТБОР И ПОИСК РАЗМЕТКИ НЕ СТРОЯТ — они прячут уже нарисованное
+     по атрибутам `data-cat` и `data-find`, как это делает аптечка.
+     Строку поиска собирает СЕРВЕР: иначе браузеру пришлось бы знать,
+     по каким полям искать, и список этих полей жил бы вторым
+     экземпляром. -#}
+{% for с in sets %}
+<tr data-id="{{ с.id }}" data-cat="{{ с.crafter }}"
+    data-find="{{ (с.id ~ ' ' ~ (с.name_ru or '') ~ ' ' ~ (с.name_en or '')) | lower }}">
+  <td>{% if с.img %}<button class="ens-a-thumbwrap" type="button" data-zoom
+        aria-label="Увеличить картинку сета «{{ с.name_ru }}»"
+        ><img class="ens-a-thumb" src="{{ с.img }}" alt="" loading="lazy"></button>
+      {%- else %}<span class="ens-a-none">нет</span>{% endif %}</td>
+  <td><code class="ens-a-id">{{ с.id }}</code></td>
+  <td>{{ с.name_ru }}<br><span class="ens-a-en">{{ с.name_en }}</span></td>
+  <td>{{ подпись_категории(с.crafter) }}</td>
+  <td>{{ с.lvl if с.lvl is not none else '—' }}</td>
+  <td>{{ состав_словами(с) }}</td>
+  <td>{{ с.marks or 0 }}</td>
+  <td><button class="btn-secondary ens-a-edit" type="button"
+              onclick="открыть('{{ с.id }}')">Править</button></td>
+</tr>
+{% endfor %}

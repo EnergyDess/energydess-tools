@@ -311,7 +311,10 @@
 
 /* Мой зал — чек-лист оборудования */
 .wk-eq-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-5); gap: var(--space-3); flex-wrap: wrap; }
-.wk-eq-count { color: var(--text-2); font-size: var(--text-caption); font-family: var(--font-mono); }
+/* Счётчик инвентаря и подпись подхода — одна роль: моно-число
+   вторичным тоном (BACKLOG №126). Порядок объявлений у них
+   различался, множество свойств — нет. */
+.wk-eq-count, .wk-set-label { color: var(--text-2); font-size: var(--text-caption); font-family: var(--font-mono); }
 .wk-home-btn {
   background: var(--surface-2); border: 1px solid var(--border);
   color: var(--text); padding: var(--space-3) var(--space-4);
@@ -585,7 +588,9 @@
 .wk-skip-btn.done { color: var(--status-skipped); border-color: var(--status-skipped); }
 .wk-skip-panel { display: none; background: var(--surface-3); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-4); }
 .wk-skip-panel.show { display: block; }
-.wk-skip-panel-title { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-3); }
+/* Заголовок панели пропуска и заголовок подбора альтернативы —
+   одна роль: подпись над рядом вариантов (BACKLOG №126). */
+.wk-skip-panel-title, .wk-alt-picker-title { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-3); }
 .wk-skip-reasons { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .wk-skip-reason-btn {
   background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
@@ -655,7 +660,6 @@
   border-radius: var(--radius-sm); padding: var(--space-4);
 }
 .wk-alt-picker.show { display: block; }
-.wk-alt-picker-title { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-3); }
 .wk-alt-options { display: flex; gap: var(--space-3); flex-wrap: wrap; }
 .wk-alt-option { display: flex; align-items: center; gap: var(--space-3); background: var(--surface-3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-3); cursor: pointer; transition: all 0.2s; flex: 1; min-width: 200px; }
 @media (hover: hover) {
@@ -744,7 +748,6 @@
 .wk-set-rows { display: flex; flex-direction: column; gap: var(--space-2); }
 .wk-set-row { display: grid; grid-template-columns: 64px 1fr 20px 1fr; align-items: center; gap: var(--space-3); }
 .wk-set-row-single { grid-template-columns: 64px 1fr; }
-.wk-set-label { font-family: var(--font-mono); color: var(--text-2); font-size: var(--text-caption); }
 .wk-set-sep { text-align: center; color: var(--text-faint); }
 .wk-set-input {
   width: 100%; background: var(--surface-2); border: 1.5px solid var(--border);

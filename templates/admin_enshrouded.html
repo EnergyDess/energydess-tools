@@ -35,7 +35,7 @@
             <th>Отметки</th><th></th>
           </tr>
         </thead>
-        <tbody id="ens-rows"></tbody>
+        <tbody id="ens-rows">{% include "_ens_rows.html" %}</tbody>
       </table>
     </div>
     <p class="empty-state admin-empty" id="ens-empty" hidden>Под текущий отбор не попал ни один сет</p>
@@ -152,30 +152,38 @@ function подпись(видно, счёт) {
 function отобрать() {
   const q = (document.getElementById('admin-q').value || '').trim().toLowerCase();
   const cat = отбор_кат === 'all' ? '' : отбор_кат;
-  const видно = СЕТЫ.filter(с =>
-    (!cat || с.crafter === cat) &&
-    (!q || с.id.toLowerCase().includes(q) ||
-           (с.name_ru || '').toLowerCase().includes(q) ||
-           (с.name_en || '').toLowerCase().includes(q)));
-  document.getElementById('ens-empty').hidden = видно.length > 0;
-  document.getElementById('ens-table').hidden = видно.length === 0;
-  подпись(видно.length, пересчитать_чипы());
-  document.getElementById('ens-rows').innerHTML = видно.map(с => `
-    <tr data-id="${esc(с.id)}">
-      <td>${с.img ? `<button class="ens-a-thumbwrap" type="button" data-zoom
-                       aria-label="Увеличить картинку сета «${esc(с.name_ru)}»"
-                       ><img class="ens-a-thumb" src="${esc(с.img)}" alt=""></button>`
-                  : '<span class="ens-a-none">нет</span>'}</td>
-      <td><code class="ens-a-id">${esc(с.id)}</code></td>
-      <td>${esc(с.name_ru)}<br><span class="ens-a-en">${esc(с.name_en)}</span></td>
-      <td>${esc(покат(с.crafter))}</td>
-      <td>${с.lvl ?? '—'}</td>
-      <td>${esc(составСловами(с))}</td>
-      <td>${с.marks || 0}</td>
-      <td><button class="btn-secondary ens-a-edit" type="button"
-                  onclick="открыть('${esc(с.id)}')">Править</button></td>
-    </tr>`).join('');
+  // ПРЯЧЕТ УЖЕ НАРИСОВАННОЕ, А НЕ СТРОИТ ЗАНОВО (BACKLOG №161).
+  // Строки собирает сервер партиалом `_ens_rows.html`; здесь только
+  // отбор по атрибутам, которые он же и проставил. Второй построитель
+  // разошёлся бы с первым молча (§6.0.15).
+  let видно = 0;
+  for (const tr of document.querySelectorAll('#ens-rows tr')) {
+    const свой = (!cat || tr.dataset.cat === cat) &&
+                 (!q || (tr.dataset.find || '').includes(q));
+    tr.hidden = !свой;
+    if (свой) видно++;
+  }
+  document.getElementById('ens-empty').hidden = видно > 0;
+  document.getElementById('ens-table').hidden = видно === 0;
+  подпись(видно, пересчитать_чипы());
   if (window.lucide) window.lucide.createIcons();
+}
+
+/* ПЕРЕРИСОВКА ПОСЛЕ ПРАВКИ — ТЕМ ЖЕ ПОСТРОИТЕЛЕМ, что рисовал первый
+   кадр: сервер отдаёт готовую разметку строк. Собери их скрипт —
+   построителей стало бы двое (§6.0.15). Отказ НАЗЫВАЕТСЯ, а не
+   проглатывается: молча оставленная старая таблица выглядела бы так,
+   будто правка не сохранилась. */
+async function перерисовать() {
+  try {
+    const о = await fetch('/admin/api/enshrouded/rows');
+    if (!о.ok) throw new Error('HTTP ' + о.status);
+    document.getElementById('ens-rows').innerHTML = await о.text();
+  } catch (e) {
+    console.warn('[enshrouded] строки не перерисованы:', e);
+    сказать('Таблица не обновилась: ' + e.message + '. Обновите страницу.', 'error');
+  }
+  отобрать();
 }
 
 function открыть(id) {
@@ -308,7 +316,7 @@ async function сохранить() {
   if (!о.ok) return сказать(д.error || `Сервер ответил ${о.status}`, 'error');
   const и = СЕТЫ.findIndex(с => с.id === д.set.id);
   if (и >= 0) СЕТЫ[и] = д.set; else СЕТЫ.push(д.set);
-  отобрать();
+  перерисовать();
   const созданный = д.created;
   правим = д.set;
 
@@ -353,7 +361,7 @@ async function отправитьКартинку() {
   const прев = document.getElementById('f-prev');
   if (прев) прев.outerHTML =
     `<img class="ens-a-prev" id="f-prev" src="${esc(д.img)}" alt="">`;
-  отобрать();
+  перерисовать();
   return {ok: true, текст: `Из «${д.src}»: было ${д.was[0]}×${д.was[1]}, ` +
                            `стало ${д.now[0]}×${д.now[1]}, ${Math.round(д.bytes / 1024)} КБ.`};
 }
@@ -401,7 +409,7 @@ document.getElementById('ens-del-go').addEventListener('click', async () => {
   const и = СЕТЫ.findIndex(с => с.id === удаляем);
   if (и >= 0) СЕТЫ.splice(и, 1);
   удаляем = null; правим = null;
-  отобрать();
+  перерисовать();
   window.закрыть_модалку('ens-edit');
 });
 
@@ -413,7 +421,7 @@ document.getElementById('ens-del-go').addEventListener('click', async () => {
 
 document.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => {
   отбор_кат = b.dataset.pick;
-  отобрать();
+  перерисовать();
 }));
 document.getElementById('admin-q').addEventListener('input', отобрать);
 

@@ -671,7 +671,10 @@ html.assistant-mode, html.assistant-mode body {
 }
 .food-item:last-child { border-bottom: none; }
 .food-info { flex: 1; min-width: 0; }
-.food-name { font-size: var(--text-caption); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Название блюда в дневнике и название находки в поиске — одна
+   роль: имя в одну строку с многоточием (BACKLOG №126).
+   Десктопные кегли у них РАЗНЫЕ и остались своими ниже. */
+.food-name, .r-name { font-size: var(--text-caption); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .food-sub  { font-size: var(--text-caption); color: var(--text); font-weight: 700; margin-top: 0.0625rem; }
 .food-kcal { font-size: var(--text-caption); color: var(--tool-accent); font-weight: 600; white-space: nowrap; }
 /* BACKLOG №113. Было: свой крестик 26×26 с розовой заливкой и рамкой
@@ -779,7 +782,6 @@ html.assistant-mode, html.assistant-mode body {
   .r-item:hover { background: var(--surface-2); border-color: var(--border-strong); }
 }
 .r-info { flex: 1; min-width: 0; }
-.r-name  { font-size: var(--text-caption); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* «бренд не указан» — это отсутствие данных, а не название. Курсив отделяет
    его от настоящих брендов в соседних строках; цвет тот же --text-2, своего
    серого не заводим */
@@ -1056,7 +1058,9 @@ html.assistant-mode, html.assistant-mode body {
    осознанно, десктопный размер — в единице раздела (задача 79). */
 .wt-big  { font-size: 2.8rem; font-weight: 800; line-height: 1; font-family: var(--font); }
 .wt-unit { font-size: var(--text-body-lg); color: var(--text-2); font-weight: 600; }
-.wt-sub  { font-size: var(--text-caption); color: var(--text-2); font-weight: 600; margin-top: var(--space-1); }
+/* Подпись под числом веса и строка макросов под калорийностью —
+   одна роль: вторичное уточнение под главным числом (BACKLOG №126). */
+.wt-sub, .calc-macros { font-size: var(--text-caption); color: var(--text-2); font-weight: 600; margin-top: var(--space-1); }
 .wt-prog { margin-top: var(--space-3); }
 .wt-prog-lbl { display: flex; justify-content: space-between; font-size: var(--text-caption); color: var(--text-2); font-weight: 600; margin-bottom: var(--space-1); }
 /* Дорожка и заливка — системные `.meter .meter-edge` и `.meter-fill`.
@@ -1284,7 +1288,6 @@ html.assistant-mode, html.assistant-mode body {
    у этого числа быть не должно: оно стоит в модальном окне
    фиксированной ширины. */
 .calc-kcal   { font-size: 1.45rem; font-weight: 800; color: var(--tool-accent); font-family: var(--font); }
-.calc-macros { font-size: var(--text-caption); color: var(--text-2); font-weight: 600; margin-top: var(--space-1); }
 .add-btn {
   width: 100%; height: 3rem; border-radius: 0.8125rem; border: none;
   /* тёмная надпись: белая на зелёном 2.54, --surface-0 — 7.76 */

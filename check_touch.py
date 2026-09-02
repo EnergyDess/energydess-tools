@@ -118,23 +118,50 @@ import check_hover as ch     # noqa: E402
           "summary, [role=button], [role=tab], [role=switch], [onclick], "
           "label[for]")
 
+# ── ВИДИМ ЛИ ЭЛЕМЕНТ: СПРАШИВАЕМ БРАУЗЕР, А НЕ ОБХОДИМ ПРЕДКОВ ───────
+#
+# BACKLOG №198. Ручной обход предков по display / visibility / opacity
+# ЗАКРЫТЫЙ `<details>` не видит: его содержимое остаётся разложенным —
+# у кнопок внутри есть и размер, и `offsetParent`, и все три свойства
+# в порядке. Замер на /medkit, ширина 390: органов внутри закрытого
+# `<details>` — 14, ручной признак числил ВИДИМЫМИ 8, а нажатие
+# не дотягивалось ни до одного.
+#
+# ДИАГНОЗ ПОСТАНОВКИ («Chrome прячет их через content-visibility»)
+# ЗАМЕРОМ НЕ ПОДТВЕРДИЛСЯ: у всех четырнадцати вычисленный
+# `content-visibility` равен `visible`, и признак по нему не поймал бы
+# ничего. Прячет их РОДНОЕ правило закрытого `<details>`, и назвать
+# его умеет только сам браузер.
+#
+# `Element.checkVisibility()` — этот ответ и есть. Три опции
+# обязательны: без них он смотрит только `display` и
+# `content-visibility`, то есть перестал бы ловить `opacity: 0`
+# на предке — а это ровно тот случай, ради которого обход предков
+# и заводился (закрытая модалка, 12 ложных находок).
+#
+# ПРИЗНАК ОДИН НА ДВА ПОТРЕБИТЕЛЯ — основной замер и подпроход
+# `--соседи`. До этой правки он был написан ДВАЖДЫ; две копии
+# разошлись бы молча (§6.0.7).
+ВИДИМ_JS = r"""
+  const видим = el => {
+    // Атрибут спрашивается отдельно и НЕ избыточен: `checkVisibility`
+    // видит его через `display: none`, который ставит наш же CSS
+    // (`[hidden]{display:none!important}`), — то есть через правило,
+    // которое можно снять. Признак не должен зависеть от того,
+    // доехала ли таблица стилей.
+    for (let у = el; у && у.nodeType === 1; у = у.parentElement) {
+      if (у.hasAttribute && у.hasAttribute('hidden')) return false;
+    }
+    return el.checkVisibility({opacityProperty: true,
+                              visibilityProperty: true,
+                              contentVisibilityAuto: true});
+  };
+"""
+
 ЗАМЕР = r"""
 (арг) => {
   const МИН = арг.мин, СЕЛ = арг.сел;
-  // ПРОЗРАЧНОСТЬ ЭФФЕКТИВНАЯ, ПО ЦЕПОЧКЕ ПРЕДКОВ. Закрытая модалка
-  // остаётся разложенной: у её кнопок есть и размер, и `visibility:
-  // visible`, — невидимой её делает `opacity: 0` НА ПРЕДКЕ. Первая
-  // версия смотрела только на сам элемент и дала 12 находок из воздуха
-  // (`.btn-secondary` 292×48 «перекрыт»), то есть половину вывода.
-  const видим = el => {
-    for (let у = el; у && у.nodeType === 1; у = у.parentElement) {
-      const s = getComputedStyle(у);
-      if (s.display === 'none' || s.visibility === 'hidden' || +s.opacity === 0)
-        return false;
-      if (у.hasAttribute && у.hasAttribute('hidden')) return false;
-    }
-    return true;
-  };
+  """ + ВИДИМ_JS + r"""
   const наш = (el, x, y) => {
     const t = document.elementFromPoint(x, y);
     return !!t && (t === el || el.contains(t));
@@ -459,22 +486,17 @@ def соседи():
     список = []
     ПРОБА = r"""
       (СЕЛ) => {
-        const видим = el => {
-          for (let у = el; у && у.nodeType === 1; у = у.parentElement) {
-            const s = getComputedStyle(у);
-            if (s.display === 'none' || s.visibility === 'hidden' || +s.opacity === 0) return false;
-            if (у.hasAttribute && у.hasAttribute('hidden')) return false;
-          }
-          const r = el.getBoundingClientRect();
-          return r.width > 0 && r.height > 0;
-        };
+        """ + ВИДИМ_JS + r"""
+        const видим_и_есть = el => видим(el) &&
+          el.getBoundingClientRect().width > 0 &&
+          el.getBoundingClientRect().height > 0;
         const имя = el => el.tagName.toLowerCase() +
           (el.className && String(el.className).trim()
              ? '.' + String(el.className).trim().split(/\s+/)[0] : '');
         let всего = 0; const украдено = [];
         for (const el of document.querySelectorAll(СЕЛ)) {
           if (el.disabled || el.closest('[inert]')) continue;
-          if (!видим(el)) continue;
+          if (!видим_и_есть(el)) continue;
           // ТЕ ЖЕ ТРИ ИСКЛЮЧЕНИЯ, что в основном проходе. Без них число
           // нечитаемо: 29 «краж» из 1158 при НУЛЕ настоящих — строчные
           // ссылки, закреплённая обвязка и собственная подпись флажка.
@@ -544,6 +566,86 @@ def соседи():
     return 1 if краж else 0
 
 
+def контроль_закрытого_details():
+    """ДВЕ ПОЛОВИНЫ, И ОБЕ ОБЯЗАТЕЛЬНЫ (BACKLOG №198).
+
+    Орган внутри ЗАКРЫТОГО `<details>` до нажатия недостижим — значит
+    считать его органом нельзя: он приезжает в вывод как «ПЕРЕКРЫТ
+    0×0», то есть ложной находкой. Замер до правки: на /medkit таких
+    органов 14, прежний признак числил видимыми 8, дотянуться нельзя
+    было ни до одного.
+
+    ОДНОЙ ПОЛОВИНЫ НЕ ХВАТАЕТ. «Внутри закрытого — ноль» проходит
+    и у пробы, которая слепа ко ВСЕМУ содержимому `<details>`; поэтому
+    вторая половина открывает тот же самый блок и требует, чтобы те же
+    органы стали видны. Признак берётся ТОТ ЖЕ (`ВИДИМ_JS`), а не
+    его копия: копия разошлась бы с боевым молча (§6.0.7).
+
+    ДИАГНОЗ ПОСТАНОВКИ ЗАМЕРОМ НЕ ПОДТВЕРЖДЁН, и это записано рядом
+    с признаком: `content-visibility` у всех четырнадцати равен
+    `visible`. Прячет их родное правило закрытого `<details>`,
+    и назвать его умеет только `checkVisibility()`.
+    """
+    from playwright.sync_api import sync_playwright
+    import check_hover as ch
+    СЧЁТ = r"""
+      (арг) => {
+        """ + ВИДИМ_JS + r"""
+        const сел = арг;
+        let видимых = 0, всего = 0, дотянулось = 0;
+        for (const d of document.querySelectorAll('details')) {
+          for (const o of d.querySelectorAll(сел)) {
+            if (o.tagName === 'SUMMARY') continue;
+            всего++;
+            if (!видим(o)) continue;
+            видимых++;
+            const r = o.getBoundingClientRect();
+            const t = document.elementFromPoint(
+                Math.round(r.left + r.width / 2),
+                Math.round(r.top + r.height / 2));
+            if (t && (t === o || o.contains(t))) дотянулось++;
+          }
+        }
+        return {всего, видимых, дотянулось};
+      }"""
+    print("")
+    print("ТРЕТИЙ КОНТРОЛЬ: ОРГАН ВНУТРИ <details> (BACKLOG №198)")
+    with sync_playwright() as pw:
+        б = pw.chromium.launch()
+        ctx = б.new_context(viewport={"width": 390, "height": 844},
+                            has_touch=True, is_mobile=True)
+        стр = ctx.new_page()
+        ch._войти(стр)
+        стр.goto(ch.БАЗА + "/medkit", wait_until="domcontentloaded")
+        стр.wait_for_timeout(1200)
+        закр = стр.evaluate(СЧЁТ, ОРГАНЫ)
+        # РАСКРЫТИЕ И ЗАМЕР — РАЗНЫМИ ВЫЗОВАМИ, С ПАУЗОЙ. Первая
+        # версия делала и то и другое в одном `evaluate`, и вторая
+        # половина ПРОВАЛИВАЛАСЬ на исправном признаке: раскладка
+        # ещё не пересчитана, `checkVisibility` отвечает про прежнее
+        # состояние. Поймал это сам контроль, а не чтение, — и это
+        # ровно то, ради чего он написан.
+        стр.evaluate("() => { for (const d of "
+                     "document.querySelectorAll('details')) d.open = true; }")
+        стр.wait_for_timeout(500)
+        откр = стр.evaluate(СЧЁТ, ОРГАНЫ)
+        б.close()
+    print("  ЗАКРЫТ:  органов в <details> %d, признак считает видимыми %d, "
+          "дотянулось нажатием %d" % (закр["всего"], закр["видимых"],
+                                      закр["дотянулось"]))
+    print("  РАСКРЫТ: органов в <details> %d, признак считает видимыми %d, "
+          "дотянулось нажатием %d" % (откр["всего"], откр["видимых"],
+                                      откр["дотянулось"]))
+    первая = закр["всего"] > 0 and закр["видимых"] == 0
+    вторая = откр["видимых"] > 0
+    print("  половина 1 (в закрытом не считаем): %s"
+          % ("ПРОЙДЕНА" if первая else "ПРОВАЛЕНА"))
+    print("  половина 2 (в раскрытом считаем):   %s"
+          % ("ПРОЙДЕНА" if вторая else "ПРОВАЛЕНА — проба слепа ко всему "
+             "содержимому <details>, и первая половина ничего не значит"))
+    return первая and вторая
+
+
 def контроль():
     """Подлог обязан быть назван. «Находок 0» без этого не значит ничего."""
     # Контроль идёт по ОДНОМУ экрану — дневнику: на нём есть и `.btn-icon`
@@ -578,6 +680,7 @@ def контроль():
         ок = ок and выросло
     if несостоявшихся:
         print("ПОДЛОГОВ, КОТОРЫЕ НЕ СОСТОЯЛИСЬ: %d" % несостоявшихся)
+    ок = контроль_закрытого_details() and ок
     print("КОНТРОЛЬ ПРОЙДЕН" if ок else "КОНТРОЛЬ ПРОВАЛЕН")
     return 0 if ок else 1
 

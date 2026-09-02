@@ -631,11 +631,11 @@
     rep_range: 'Начинайте с минимума с комфортным весом. Когда сможете сделать максимум во всех подходах — в следующий раз добавьте вес и вернитесь к минимуму. Так растёт сила.',
     progression: 'На сколько кг увеличивать вес, когда текущий станет лёгким. Система подберёт автоматически под ваше оборудование.',
     focus_zones: 'Выберите только то, что реально отстаёт. Если хотите развиваться равномерно — пропустите этот шаг.',
-    set_status: 'Не переживай, если не осилил — это просто данные. Система учитывает реальные результаты и не сбрасывает прогресс.',
+    set_status: 'Не переживайте, если не получилось, — это просто данные. Система учитывает реальные результаты и не сбрасывает прогресс.',
     cooldown: 'Лёгкое завершение тренировки. Помогает плавно снизить пульс и уменьшить крепатуру на следующий день.',
     chat: 'Чат с ассистентом появится на следующем этапе.',
     light_day: 'Отметьте, если сегодня тренировались через силу или вполовину обычной нагрузки. Такой день не учитывается при расчёте прибавки веса — система не подумает, что вы ослабли.',
-    alternative: 'Оба упражнения работают на одни мышцы — выбирай что удобнее сегодня.',
+    alternative: 'Оба упражнения работают на одни мышцы — выбирайте что удобнее сегодня.',
   };
   function tipBtn(key) {
     return '<button type="button" class="wk-tip-btn tap-44" data-tip="' + TIPS[key] + '">?</button>';
@@ -671,7 +671,7 @@
     barbell: 'штанга', 'e-z curl bar': 'EZ-гриф', dumbbell: 'гантели', kettlebells: 'гири',
     machine: 'тренажёр', cable: 'тренажёр',
   };
-  var SKIP_REASON_LABELS = { tired: 'Устал', no_time: 'Нет времени', sick: 'Болею', gym_closed: 'Зал закрыт' };
+  var SKIP_REASON_LABELS = { tired: {{ wk_причина_усталости | tojson }}, no_time: 'Нет времени', sick: 'Болею', gym_closed: 'Зал закрыт' };
 
   function muscleList(list) {
     return (list || []).map(function (m) { return MUSCLE_RU[m] || m; }).join(', ');
@@ -1460,8 +1460,8 @@
   function chatChangesList(changes) {
     return (changes || []).map(function (c) {
       if (c.restored) {
-        var w = c.suggested_weight ? ' (начни ~' + c.suggested_weight + ' кг, не с прежнего рабочего)' : ' (начните с заметно сниженной нагрузки)';
-        return '<li>' + c.day + ': вернул ' + c.to + w + '</li>';
+        var w = c.suggested_weight ? ' (начните ~' + c.suggested_weight + ' кг, не с прежнего рабочего)' : ' (начните с заметно сниженной нагрузки)';
+        return '<li>' + c.day + ': возвращено ' + c.to + w + '</li>';
       }
       return c.removed
         ? '<li>' + c.day + ': ' + c.from + ' — убрано, безопасной замены не нашлось</li>'
@@ -1486,7 +1486,7 @@
     var el = document.createElement('div');
     el.className = 'wk-chat-result';
     if (result.type === 'swap_exercise') {
-      el.innerHTML = '<i data-lucide="circle-check"></i> Заменил на сегодня: <strong>' + result.from + '</strong> → <strong>' + result.to + '</strong>';
+      el.innerHTML = '<i data-lucide="circle-check"></i> Заменено на сегодня: <strong>' + result.from + '</strong> → <strong>' + result.to + '</strong>';
       reloadProgramAfterPatch();
     } else if (result.type === 'set_pain_zone') {
       var list = chatChangesList(result.changes);
@@ -1507,7 +1507,7 @@
       el.innerHTML = '<i data-lucide="circle-check"></i> Акцент теперь на: <strong>' + result.zones.join(', ') + '</strong>. Учтётся при следующей генерации/обновлении программы.';
     } else if (result.type === 'remove_equipment') {
       var list2 = chatChangesList(result.changes);
-      el.innerHTML = '<i data-lucide="circle-check"></i> Убрал «' + result.cluster + '» из «Моего зала».' +
+      el.innerHTML = '<i data-lucide="circle-check"></i> Убрано «' + result.cluster + '» из «Моего зала».' +
         (list2 ? '<div>Изменения в программе:</div><ul class="wk-chat-result-list">' + list2 + '</ul>' + chatDayCountsLine(result.changes, result.day_counts) : '');
       reloadProgramAfterPatch();
     } else if (result.type === 'shorten_today') {
