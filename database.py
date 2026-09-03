@@ -1094,6 +1094,31 @@ class MedkitItem(Base):
     # отказа и раньше, но выполнять его приходилось руками, а рядом
     # лежала кнопка «вписать схему с упаковки» — и человек выбирал её.
     dosage_hint_substance = Column(String(200), nullable=True)
+    # ═══════════════════════════════════════════════════════════════
+    # КАК СПРАВОЧНИК НАЗЫВАЕТ ФОРМУ ВЫПУСКА (BACKLOG №239, блок B)
+    #
+    # ДВЕ КОЛОНКИ, А НЕ ОДНА, и это не избыточность:
+    #
+    #   `dosage_hint_form`      — КОД нашей формы, выведенный из слова
+    #                             справочника. NULL, когда слово
+    #                             указывает на несколько форм сразу
+    #                             («порошок» — и sachet, и powder):
+    #                             выбрать за человека нечем
+    #   `dosage_hint_form_word` — САМО СЛОВО справочника, ДОСЛОВНО.
+    #                             Заполняется и тогда, когда код вывести
+    #                             не удалось: человеку надо показать,
+    #                             что написано у источника, а не наш
+    #                             пересказ (§5.8, D.1)
+    #
+    # Хранится ПРЕДЛОЖЕНИЕ, а не значение: в `form` наш код не пишет
+    # никогда — пишет человек нажатием. Тот же довод, что у вещества.
+    dosage_hint_form = Column(String(20), nullable=True)
+    dosage_hint_form_word = Column(String(120), nullable=True)
+    # ОТКУДА ВЗЯЛАСЬ ФОРМА — как `substance_src` (BACKLOG №234, A.3).
+    # Коды те же (`medkit_defs.ИСТОЧНИК_ВЕЩЕСТВА`): происхождение
+    # значения — один вопрос на все поля, и второго словаря под него
+    # заводить нельзя (§6.0.7)
+    form_src = Column(String(20), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
@@ -1532,6 +1557,10 @@ def migrate_db():
         "ALTER TABLE medkit_items ADD COLUMN dosage_miss_kind VARCHAR(32)",
         # BACKLOG №199, B.1: как справочник называет действующее вещество
         "ALTER TABLE medkit_items ADD COLUMN dosage_hint_substance VARCHAR(200)",
+        # BACKLOG №239, блок B: подсказка формы и происхождение формы
+        "ALTER TABLE medkit_items ADD COLUMN dosage_hint_form VARCHAR(20)",
+        "ALTER TABLE medkit_items ADD COLUMN dosage_hint_form_word VARCHAR(120)",
+        "ALTER TABLE medkit_items ADD COLUMN form_src VARCHAR(20)",
         # BACKLOG №227, блок A: показания с ТОЙ ЖЕ страницы, что схема
         "ALTER TABLE medkit_items ADD COLUMN indications_text TEXT",
         "ALTER TABLE medkit_items ADD COLUMN indications_blocks TEXT",

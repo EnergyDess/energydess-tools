@@ -2941,3 +2941,86 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 .apt-take-gap { margin-top: auto; width: 100%; justify-content: center;
                 line-height: normal; }
 .apt-take-gap svg { width: 15px; height: 15px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   ПРЕДЛОЖЕНИЯ ИЗ СПРАВОЧНИКА (BACKLOG №239, блок B)
+   ═══════════════════════════════════════════════════════════════════
+
+   Строка «что у нас → что подставится» плюс кнопка. Показывается
+   в окне способа приёма, ДО нажатия: правка карточки владельца
+   не должна происходить втёмную (B.2).
+
+   СВОИ КЛАССЫ, А НЕ ПЕРЕОПРЕДЕЛЕНИЕ СИСТЕМНЫХ. Кнопка внутри —
+   системная `.btn .btn-secondary .btn-sm`, и ни одного её свойства
+   тут не объявляется: субъект каждого правила ниже — страничное имя
+   (§6.0.2, проверка 1). */
+.apt-ref-head {
+  margin-top: var(--space-4);
+}
+
+.apt-ref-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.apt-ref-field {
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+/* ПАРА ЗНАЧЕНИЙ РАСТЯГИВАЕТСЯ, кнопка — нет: при длинном названии
+   вещества переносится строка, а не уезжает кнопка */
+.apt-ref-pair {
+  flex: 1 1 12rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* ПРЕЖНЕЕ ЗНАЧЕНИЕ ПРИГЛУШЕНО, НО НЕ ЗАЧЁРКНУТО: зачёркивание
+   означало бы, что оно уже отменено, а решение ещё не принято */
+.apt-ref-was {
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+
+.apt-ref-arrow {
+  color: var(--text-faint);
+  flex: none;
+}
+
+.apt-ref-new {
+  color: var(--text);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* СЛОВО ИСТОЧНИКА ДОСЛОВНО — своей строкой на всю ширину блока,
+   потому что формулировки справочника бывают длиннее нашей подписи
+   («раствор для местного и наружного применения») */
+.apt-ref-src {
+  flex: 1 1 100%;
+  font-size: var(--text-caption);
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+
+/* ОТКУДА ВЗЯЛОСЬ ЗНАЧЕНИЕ ПОЛЯ — подпись под ним (BACKLOG №239, B.3).
+   Тот же кегль и тон, что у подписи источника вещества на карточке:
+   вопрос один и тот же, и два разных вида читались бы как два разных
+   утверждения. */
+.apt-src-note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-faint);
+}
