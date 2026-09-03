@@ -1525,6 +1525,12 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   .apt-bar-act {
     display: grid; grid-template-columns: 1fr 1fr;
     justify-content: stretch;
+    /* СТРОКИ РАВНОЙ ВЫСОТЫ. Без этого «AI-ассистент» переносится
+       на две строки и делает свой ряд выше: замер мерки облика дал
+       кнопку участников 50 px при соседях 66 — расхождение 16 px
+       у четырёх кнопок, которые человек читает как один ряд.
+       Нашла это МЕРКА после правки, а не чтение. */
+    grid-auto-rows: 1fr;
   }
   .apt-bar-act .btn { justify-content: center; min-width: 0; }
   .apt-row-2, .apt-row-3 { grid-template-columns: 1fr; }
