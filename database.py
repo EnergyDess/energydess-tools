@@ -953,7 +953,17 @@ class MedkitItem(Base):
     # в строке, а не подставляется умолчанием формы при каждом чтении.
     substance_src = Column(String(20), nullable=True)
     form = Column(String, nullable=False)          # id из medkit_defs.ФОРМЫ
+    # ЕДИНИЦА ПРИЁМА, А НЕ ЕДИНИЦА ОБЪЁМА (BACKLOG №238, A.1). В ней же
+    # ведутся `qty_left`/`qty_total` и `dose`: капли считаются каплями,
+    # спрей — дозами, сироп — миллилитрами либо мерными ложками.
     unit = Column(String, nullable=False)          # id из medkit_defs.ЕДИНИЦЫ
+    # ОБЪЁМ УПАКОВКИ — СПРАВОЧНО, В СЧЁТЕ НЕ УЧАСТВУЕТ. «Во флаконе
+    # 10 мл» рядом с «350 капель»: связи между ними нет и не заводится
+    # (разбор — `medkit_defs.ЕДИНИЦЫ_ОБЪЁМА`). Пусто у подавляющего
+    # большинства позиций, и это нормальное состояние: у блистера
+    # таблеток объёма не бывает вовсе
+    volume = Column(Float, nullable=True)
+    volume_unit = Column(String(4), nullable=True)   # ml | g
     qty_left = Column(Float, nullable=True)
     qty_total = Column(Float, nullable=True)
     scale = Column(String, nullable=True)          # full/half/low у тюбика
@@ -1530,6 +1540,13 @@ def migrate_db():
         # ЧЕСТНЫЙ ответ: заполнить их задним числом нечем, а выдать
         # за прочитанные значило бы соврать в том самом поле
         "ALTER TABLE medkit_items ADD COLUMN substance_src VARCHAR(20)",
+        # BACKLOG №238, A.1: объём упаковки отдельно от единицы приёма.
+        # Существующие строки остаются NULL, и это ВЕРНО: у блистера
+        # объёма нет вовсе, а у флакона его никто не спрашивал —
+        # выдумать его задним числом нечем, и число в миллилитрах,
+        # взятое из воздуха, стояло бы на карточке как факт
+        "ALTER TABLE medkit_items ADD COLUMN volume FLOAT",
+        "ALTER TABLE medkit_items ADD COLUMN volume_unit VARCHAR(4)",
         # Список покупок (BACKLOG №178, блок B). Таблица заводится
         # `create_all`, здесь её нет; строка оставлена как отметка
         # о том, что колонок к существующим таблицам блок не добавил
