@@ -88,23 +88,47 @@ async def кадры(pw, ширина):
     # ── 1. КАРТОЧКА ЖИДКОСТИ С ЕДИНИЦЕЙ ПРИЁМА ──────────────────────
     await pg.goto(БАЗА + "/medkit", wait_until="networkidle")
     await pg.wait_for_timeout(900)
+    # КАРТОЧКА ИЩЕТСЯ ПО ФАКТУ ОБЪЁМА, и не любая: нужна та, где
+    # единицы РАЗНЫЕ («кап» против «мл»), — на ней и видно, что объём
+    # не участвует в счёте. У сиропа приписки нет вовсе, и такой кадр
+    # ответил бы не на тот вопрос
     ид = await pg.evaluate("""() => {
       const карт = [...document.querySelectorAll('.apt-card')];
-      const с = карт.find(к => /во флаконе/.test(
+      const с = карт.find(к => /кап · во флаконе/.test(
+        (к.querySelector('.apt-qty-cap') || {}).textContent || ''))
+        || карт.find(к => /во флаконе/.test(
         (к.querySelector('.apt-qty-cap') || {}).textContent || ''));
       if (!с) return null;
       с.scrollIntoView({block: 'center'});
-      return с.dataset.id || 'есть';
+      с.setAttribute('data-кадр', '1');
+      return (с.querySelector('.apt-qty-cap') || {}).textContent || 'есть';
     }""")
-    print("  [%d] карточка с объёмом: %s" % (ширина, ид or "НЕ НАЙДЕНА"))
+    print("  [%d] карточка с объёмом: %s"
+          % (ширина, (ид or "НЕ НАЙДЕНА").strip()))
     await pg.wait_for_timeout(400)
-    await pg.screenshot(path="%s/238-карточка-жидкость-%d.png" % (КУДА, ширина))
+    # СНИМАЕТСЯ САМА КАРТОЧКА, А НЕ ЭКРАН. Первый прогон показал,
+    # почему: `scrollIntoView` привёл к нужной карточке, а в кадр
+    # попала соседняя — экран шире одной карточки, и что на нём
+    # окажется, решает раскладка, а не прицел
+    карточка = await pg.query_selector("[data-кадр]")
+    if карточка:
+        await карточка.screenshot(
+            path="%s/238-карточка-жидкость-%d.png" % (КУДА, ширина))
+    else:
+        await pg.screenshot(
+            path="%s/238-карточка-жидкость-%d.png" % (КУДА, ширина))
 
     # ── 3. РЯД КНОПОК (главный кадр E.2 — на 390) ───────────────────
-    await pg.evaluate("() => document.querySelector('.apt-bar')"
-                      "?.scrollIntoView({block: 'center'})")
-    await pg.wait_for_timeout(300)
-    await pg.screenshot(path="%s/238-ряд-кнопок-%d.png" % (КУДА, ширина))
+    #
+    # СНИМАЕТСЯ САМ РЯД, а не экран: первый прогон дал кадр, на котором
+    # ряда нет вовсе — страница уехала прокруткой предыдущего шага,
+    # и что попадёт в кадр, решала раскладка, а не прицел. Та же
+    # ошибка, что с карточкой, и в том же скрипте
+    ряд = await pg.query_selector(".apt-bar")
+    if ряд:
+        await ряд.scroll_into_view_if_needed()
+        await pg.wait_for_timeout(300)
+        await ряд.screenshot(path="%s/238-ряд-кнопок-%d.png" % (КУДА, ширина))
 
     # ── 4. ОКНО ПРАВКИ ПОВЕРХ ФОНА ──────────────────────────────────
     ред = await pg.query_selector("[data-edit]")
