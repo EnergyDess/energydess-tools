@@ -3040,12 +3040,45 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
    в карточке, пропорция объявлена: без неё приехавший снимок
    толкал бы ленту вниз (§6.0.15, задача 222). */
 .apt-ai-item-ph {
-  float: right;
+  display: block;
   width: 4rem;
   aspect-ratio: 4 / 3;
   object-fit: cover;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  margin: 0 0 var(--space-2) var(--space-3);
   background: var(--surface-2);
+}
+/* ── ПЛИТКА — КНОПКА, А НЕ КАРТИНКА (BACKLOG №245, C.2) ───────────
+   Снимок раскрывается на весь экран тем же системным просмотрщиком,
+   что у карточки в сетке. Обёртка сброшена до «не выглядит кнопкой»:
+   рамку и радиус рисует сама картинка, а обтекание переехало сюда —
+   плавающим теперь становится орган, а не его содержимое. */
+.apt-ai-item-phbtn {
+  float: right;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  margin: 0 0 var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+}
+@media (hover: hover) {
+  .apt-ai-item-phbtn:hover .apt-ai-item-ph { border-color: var(--border-strong); }
+}
+/* СКОЛЬКО УПАКОВОК СВЕРНУЛОСЬ В КАРТОЧКУ (B.4) — системный `.chip`,
+   здесь только его место в строке */
+.apt-ai-item-packs { margin-top: var(--space-2); }
+/* ── ЦИТАТА ПОД ИМЕНЕМ ГРУППЫ (BACKLOG №245, B.1) ─────────────────
+   Тот же вид, что у показания под карточкой: левая линейка и метка
+   перед текстом. Это НЕ повтор — цитата относится ко всей группе
+   и доказывает, что группу вывели из текста справочника, а не
+   из памяти модели. */
+.apt-ai-find-q {
+  color: var(--text-2);
+  font-size: var(--text-caption);
+  line-height: 1.5;
+  margin: var(--space-1) 0 var(--space-2);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border);
 }

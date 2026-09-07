@@ -10,6 +10,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --remote-only
+      # ОТПЕЧАТОК КОММИТА ВПЕКАЕТСЯ В ОБРАЗ (BACKLOG №245, E.5):
+      # `.git/` в образ не едет, и без этого `/version` на проде
+      # отвечал «unknown», а ось коммита в `check_deploy.py`
+      # была слепа с первого дня.
+      - run: flyctl deploy --remote-only --build-arg GIT_COMMIT=${{ github.sha }}
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

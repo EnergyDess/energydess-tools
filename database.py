@@ -1064,6 +1064,28 @@ class MedkitItem(Base):
     # справочник про эту пачку знает меньше, чем её упаковка.
     own_dosage_text = Column(Text, nullable=True)
     own_dosage_at = Column(DateTime, nullable=True)
+    # ── СВОЁ «ОТ ЧЕГО» С ВКЛАДЫША ────────────────────────────────────
+    #
+    # BACKLOG №245, блок D. ТА ЖЕ ТРОЙКА, ЧТО У СХЕМЫ, только про
+    # показания:
+    #
+    #   `indications_text`      что пишет СПРАВОЧНИК, дословно, с датой
+    #   `own_indications_text`  что напечатано НА ЭТОМ вкладыше,
+    #                           переписал человек
+    #
+    # ЗАЧЕМ ОТДЕЛЬНАЯ КОЛОНКА. Схему приёма вписать руками было можно
+    # с задачи 177, показания — нельзя ничем: у владельца лежит коробка
+    # с вкладышем, а внести оттуда «от чего» некуда. Цена не в удобстве:
+    # позиция без показаний НЕ ПОПАДАЕТ В ГРУППЫ ответа ассистента
+    # по построению (§5.8, блок B), то есть выпадает из ответа целиком.
+    # Замер по боевой базе на 2026-09-07: показаний нет у 37 позиций
+    # из 77.
+    #
+    # СВОЯ ЗАПИСЬ ГЛАВНЕЕ СПРАВОЧНИКА, и это свойство КОДА: перепроверка
+    # и подстановка работают с колонками `indications_*`, своей
+    # не касаются вовсе, и на это стоит проба.
+    own_indications_text = Column(Text, nullable=True)
+    own_indications_at = Column(DateTime, nullable=True)
     # ── ПОЧЕМУ СПРАВОЧНИК НИЧЕГО НЕ ДАЛ ──────────────────────────────
     #
     # BACKLOG №177, блок B.3. Причина ЗАПОМИНАЕТСЯ, потому что поиск
@@ -1552,6 +1574,9 @@ def migrate_db():
         # BACKLOG №177: своя схема с упаковки и причина отказа справочника
         "ALTER TABLE medkit_items ADD COLUMN own_dosage_text TEXT",
         "ALTER TABLE medkit_items ADD COLUMN own_dosage_at DATETIME",
+        # BACKLOG №245, блок D: своё «от чего» с вкладыша
+        "ALTER TABLE medkit_items ADD COLUMN own_indications_text TEXT",
+        "ALTER TABLE medkit_items ADD COLUMN own_indications_at DATETIME",
         "ALTER TABLE medkit_items ADD COLUMN dosage_miss TEXT",
         "ALTER TABLE medkit_items ADD COLUMN dosage_miss_at DATETIME",
         "ALTER TABLE medkit_items ADD COLUMN dosage_miss_kind VARCHAR(32)",
