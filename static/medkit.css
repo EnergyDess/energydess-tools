@@ -3024,3 +3024,28 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   font-size: var(--text-caption);
   color: var(--text-faint);
 }
+
+/* ── КАТЕГОРИЯ НЕ ВЫБРАНА (BACKLOG №244, C.3) ─────────────────────
+   Не ошибка, а названное последствие: позиция без категории
+   не находится ни одним чипом и не попадает в ответ ассистента
+   по категории. Тон янтарный — тот же, каким раздел говорит
+   «истекает»: это предупреждение, а не отказ. */
+.apt-nocat {
+  margin-top: var(--space-2);
+  color: var(--warning);
+}
+
+/* ── ФОТО УПАКОВКИ В ОТВЕТЕ АССИСТЕНТА (BACKLOG №244, D.5) ────────
+   Владелец узнаёт пачку по виду коробки. Размер — как у плитки
+   в карточке, пропорция объявлена: без неё приехавший снимок
+   толкал бы ленту вниз (§6.0.15, задача 222). */
+.apt-ai-item-ph {
+  float: right;
+  width: 4rem;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  margin: 0 0 var(--space-2) var(--space-3);
+  background: var(--surface-2);
+}
