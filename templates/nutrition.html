@@ -2858,9 +2858,13 @@ const fmtDur = голосДлит;
 
 async function sendVoiceMessage(mode, targetId, blob, duration, audioUrl, bars) {
   if (mode === 'field') {
-    const text = await transcribeBlob(blob);
+    const итог = await transcribeBlob(blob);
+    const text = итог.текст;
     URL.revokeObjectURL(audioUrl);
-    if (!text) { toast('Не удалось распознать речь', false); return; }
+    /* ТЕКСТ СБОЯ ПРИХОДИТ С СЕРВЕРА (BACKLOG №246, F): прежде тут
+       стояла одна фраза на все исходы, и семь текстов задачи 128
+       до человека не доезжали */
+    if (!text) { toast(голосСказать(итог), false); return; }
     const inp = document.getElementById(targetId);
     inp.value = (inp.value ? inp.value.trim()+' ' : '') + text;
     inp.focus();
@@ -2877,11 +2881,17 @@ async function sendVoiceMessage(mode, targetId, blob, duration, audioUrl, bars) 
   S.chatHistory.push(msg);
   S.chatHistory.push({role:'assistant', content:'...'});
   renderChat();
-  const text = await transcribeBlob(blob);
+  const итог2 = await transcribeBlob(blob);
+  const text = итог2.текст;
   msg.transcribing = false;
   msg.content = text;
   if (!text && !attachment) {
-    S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content:'Не удалось распознать голосовое сообщение. Попробуйте ещё раз.'};
+    /* ТРЕТИЙ ПОТРЕБИТЕЛЬ ТОГО ЖЕ РАСПОЗНАВАНИЯ (BACKLOG №246, F).
+       Найден грепом после починки двух первых — ровно тот случай,
+       ради которого §6.0.7 требует греп на второе место. Фраза тоже
+       была одна на все исходы, и текст сбоя с сервера сюда
+       не доезжал. */
+    S.chatHistory[S.chatHistory.length-1] = {role:'assistant', content: голосСказать(итог2)};
     renderChat();
     return;
   }
