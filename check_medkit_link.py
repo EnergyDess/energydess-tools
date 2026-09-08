@@ -122,7 +122,7 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     ("Видаль", "https://www.vidal.ru/search?t=all&q=%s"),
     ("РЛС", "https://www.rlsnet.ru/search_result.htm?word=%s"),
 ]
-ЕСТЬ = ["ибупрофен", "парацетамол", "лоратадин"]
+ЕСТЬ = ["ибупрофен", "дротаверин", "лоратадин"]
 БЕССМЫСЛИЦА = "ЖЖЖЫЫЫXQZ"
 
 РЕЕСТР = [
