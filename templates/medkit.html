@@ -3106,7 +3106,10 @@ function аптАИОтвет(тело) {
     к.className = 'apt-ai-diff';
     const ш = document.createElement('p');
     ш.className = 'apt-ai-diff-h';
-    ш.textContent = 'Чем эти пачки различаются';
+    /* ШАПКА ПРИХОДИТ С СЕРВЕРА: она же проходит там признак следа
+       дозировки вместе с остальными подставленными текстами, и вторая
+       копия в разметке разошлась бы с ним молча (§6.0.7) */
+    ш.textContent = тело['различия_шапка'] || 'Чем эти пачки различаются';
     к.appendChild(ш);
     const сп = document.createElement('ul');
     сп.className = 'apt-ai-diff-list';
