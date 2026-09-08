@@ -1903,7 +1903,20 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 .apt-ai-find-h-cat { font-weight: 600; color: var(--text); }
 .apt-ai-item {
   background: var(--surface-1);
-  border: 1px solid var(--border);
+  /* ── ГРАНИЦА КАРТОЧКИ ОТВЕТА (BACKLOG №246, E.1) ───────────────
+
+     ЗАМЕР 2026-09-08, контраст к подложке пузыря (--surface-2):
+     фон карточки 1.13, рамка `--border` **1.27**, тогда как WCAG
+     1.4.11 просит 3.0 для контура компонента. Владелец назвал это
+     «карточки сливаются в полосу», и назвал по делу — хотя рамка
+     и зазоры на месте, видно их на грани.
+
+     `--border-strong` даёт **1.55** (+22 %), и это ПОТОЛОК
+     существующих токенов: сильнее — только заводить новый, а новых
+     токенов без обсуждения проект не заводит (§6). Три остальных
+     фона проверены и хуже либо равны: `--surface-0` 1.22,
+     `--surface-3` 1.18, `--surface-2` 1.00. */
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   padding: var(--space-3);
   display: flex;
@@ -3214,3 +3227,43 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   margin-top: var(--space-2);
 }
 .apt-ai-item-acts .apt-ai-item-btn { align-self: auto; }
+
+/* ── БЛОК РАЗЛИЧИЙ СПИСКОМ, А НЕ ПОЛОТНОМ (BACKLOG №246, E.2) ─────
+
+   «Чем эти пачки различаются» приезжало ОДНОЙ СТРОКОЙ внутри реплики:
+   пункты через перевод строки, без маркеров и без отбивки, — и тонуло
+   в тексте над ним. Теперь сервер отдаёт их СПИСКОМ, а не склеенной
+   строкой, и склейка на клиенте не заводится: два места, собирающие
+   один текст, разошлись бы молча (§6.0.7). */
+.apt-ai-diff {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+}
+.apt-ai-diff-h {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--text);
+}
+.apt-ai-diff-list {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-caption);
+  line-height: 1.5;
+  color: var(--text-2);
+}
+/* ── КНОПКА ПЕРЕПРОВЕРКИ ЗАНИМАЕТ ШИРИНУ ОКНА (№246, E.3) ─────────
+
+   ЗАМЕР 2026-09-08: кнопка 276 px при теле окна 506 (54 %), слева 0,
+   СПРАВА 231 px пустоты — «прижата влево, справа пусто». Ниже неё
+   стоит раздел долгов во всю ширину, и кнопка на его фоне читалась
+   недоделанной строкой, а не главным действием окна.
+
+   Своим классом рядом с системным `.btn .btn-primary`, а не
+   переопределением его: это раскладка ЭКЗЕМПЛЯРА (§6.0.2). */
+#apt-recheck-btn { width: 100%; }

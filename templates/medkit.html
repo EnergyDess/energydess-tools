@@ -3091,6 +3091,33 @@ function аптАИОтвет(тело) {
     о.textContent = тело['оговорка'];
     блок.appendChild(о);
   }
+  /* ── РАЗЛИЧИЯ СПИСКОМ (BACKLOG №246, E.2) ────────────────────────
+
+     Приезжали пунктами внутри текста реплики — полотно без маркеров
+     и без отбивки, тонувшее в абзаце над ним. Содержимое приходит
+     С СЕРВЕРА готовым списком; склейки в строку здесь не заводится,
+     иначе один текст собирали бы два места (§6.0.7).
+
+     БЛОК ПОСЛЕ КАРТОЧЕК, а не перед: порядок частей назван задачей
+     204 — сперва ответ на заданный вопрос, потом различия. */
+  const разл = тело['различия'] || [];
+  if (разл.length) {
+    const к = document.createElement('div');
+    к.className = 'apt-ai-diff';
+    const ш = document.createElement('p');
+    ш.className = 'apt-ai-diff-h';
+    ш.textContent = 'Чем эти пачки различаются';
+    к.appendChild(ш);
+    const сп = document.createElement('ul');
+    сп.className = 'apt-ai-diff-list';
+    for (const с of разл) {
+      const li = document.createElement('li');
+      li.textContent = с;
+      сп.appendChild(li);
+    }
+    к.appendChild(сп);
+    блок.appendChild(к);
+  }
   аптАИСказать('ai', вступление, блок);
 }
 
