@@ -3082,3 +3082,84 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   padding-left: var(--space-3);
   border-left: 2px solid var(--border);
 }
+
+/* ══ СПИСОК ДОЛГОВ АПТЕЧКИ (BACKLOG №246, блок B) ══════════════════
+
+   Раздел окна перепроверки: строка на карточку, в строке — плитка
+   фото, название и чипы «чего не хватает». Своих цветов и кеглей
+   здесь нет ни одного: чип системный (`.chip .chip-dashed`), плитка
+   повторяет плитку карточки, отступы — ступени шкалы. */
+.apt-debt {
+  align-self: stretch;
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.apt-debt-h {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-body);
+  font-weight: 600;
+  color: var(--text);
+}
+.apt-debt-sub {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-caption);
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.apt-debt-list { display: grid; gap: var(--space-3); }
+.apt-debt-row-item {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+/* ПЛИТКА СТОИТ ВСЕГДА, даже когда фото нет: без неё строки без
+   снимка съезжали бы влево, и ряд читался бы как два разных списка */
+.apt-debt-ph {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.apt-debt-ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.apt-debt-txt { min-width: 0; flex: 1 1 auto; }
+.apt-debt-name {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.apt-debt-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.apt-debt-ask { margin-top: var(--space-4); }
+/* ── ПРЕДЛОЖЕНИЕ КАТЕГОРИИ ПО ПОКАЗАНИЯМ (B.4) ───────────────────
+   Цитата оформлена ровно как цитата группы в ответе ассистента:
+   левая линейка и приглушённый текст. Это одна и та же вещь —
+   дословный кусок показаний, доказывающий, что предложение выведено
+   из текста, а не из памяти модели. */
+.apt-debt-offer { margin-top: var(--space-3); display: grid; gap: var(--space-3); }
+.apt-offer {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.apt-offer-h {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--text);
+}
+.apt-offer-q {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border);
+  font-size: var(--text-caption);
+  line-height: 1.5;
+  color: var(--text-2);
+}
