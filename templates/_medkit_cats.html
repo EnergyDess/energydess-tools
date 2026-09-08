@@ -1,0 +1,58 @@
+{# КАТЕГОРИИ АПТЕЧКИ — ОДИН ПОСТРОИТЕЛЬ НА ТРИ МЕСТА (BACKLOG №247, D.1)
+
+   ЗАЧЕМ ЗАВЕДЁН. Заведение категории кончалось `location.reload()`,
+   и человека, правившего карточку, ВЫБРАСЫВАЛО В СПИСОК аптечки:
+   всё набранное и не сохранённое пропадало. Это потеря данных,
+   а не косметика — заводить категорию посреди заполнения карточки
+   обычный ход.
+
+   ПОЧЕМУ ТАМ СТОЯЛА ПЕРЕЗАГРУЗКА, СКАЗАНО У НЕЁ ЖЕ: «категория нужна
+   в окне категорий, в чипах отбора И в чипах формы, и три дорисовки
+   разошлись бы при первой же правке одной из них». Довод верный
+   (§6.0.7) — и лечится он не перезагрузкой, а ОДНИМ ПОСТРОИТЕЛЕМ:
+   ровно тот приём, которым живут сетка карточек (`_medkit_grid.html`)
+   и список покупок (`_medkit_buy.html`). Потребителей у него два —
+   первый кадр страницы и `/medkit/api/cats` после заведения либо
+   удаления категории.
+
+   ТРИ МАКРОСА, А НЕ ОДИН С ВЕТКОЙ: разметка у мест разная по существу
+   (чип со счётчиком, чип выбора, строка со сносом), и ветка внутри
+   одного макроса была бы тем же перечнем из трёх, только спрятанным. #}
+
+{% macro чипы_отбора(категории, счёт, значок) %}
+  <button type="button" class="chip tap-44 active" data-pick="all">
+    Все <span class="chip-n" data-n="all">{{ счёт.all }}</span></button>
+  {% for к in категории %}
+    {# Ни одного `hidden`: ряд категорий постоянен, разбор в medkit.html #}
+    <button type="button" class="chip tap-44" data-pick="{{ к.id }}">
+      {{ к.name }} <span class="chip-n" data-n="{{ к.id }}">{{ счёт.get(к.id|string, 0) }}</span></button>
+  {% endfor %}
+  <button type="button" class="chip chip-danger tap-44" data-pick="expired"
+          {% if not счёт.expired %}hidden{% endif %}>
+    Просрочено <span class="chip-n" data-n="expired">{{ счёт.expired }}</span></button>
+  <button type="button" class="chip chip-dashed tap-44" data-cats-open>
+    {{ значок('plus') }} Категория</button>
+{% endmacro %}
+
+{% macro чипы_формы(категории, значок) %}
+  {% for к in категории %}
+  <button type="button" class="chip tap-44" data-cat="{{ к.id }}">{{ к.name }}</button>
+  {% endfor %}
+  <button type="button" class="chip chip-dashed tap-44" data-cats-open>
+    {{ значок('plus') }} Своя</button>
+{% endmacro %}
+
+{% macro строки_окна(категории, значок) %}
+  {% for к in категории %}
+  <li class="apt-cat-item" data-cat-row="{{ к.id }}">
+    <span class="apt-cat-name">{{ к.name }}</span>
+    {% if к.user_id %}
+    <button class="btn-icon btn-icon-sm btn-icon-danger tap-44" type="button"
+            data-cat-del="{{ к.id }}" aria-label="Удалить категорию {{ к.name }}"
+            title="Удалить">{{ значок('trash-2') }}</button>
+    {% else %}
+    <span class="apt-cat-base">базовая</span>
+    {% endif %}
+  </li>
+  {% endfor %}
+{% endmacro %}
