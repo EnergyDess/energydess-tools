@@ -3163,3 +3163,13 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   line-height: 1.5;
   color: var(--text-2);
 }
+/* РЯД ДЕЙСТВИЙ В СТРОКЕ ОТВЕТА (BACKLOG №246, C.3). Кнопок стало две —
+   «Приём» открывает окно схемы, вторая списывает дозу, — и без ряда
+   они вставали бы одна под другой, растягивая строку вдвое. */
+.apt-ai-item-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.apt-ai-item-acts .apt-ai-item-btn { align-self: auto; }
