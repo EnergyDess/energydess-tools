@@ -764,6 +764,59 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
 .btn-primary:active { transform: scale(1); }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
+/* ── ТИХИЙ АКЦЕНТ: заливка есть, громкости нет (заход 250, блок B) ─────
+   `design-system.md` §2.1
+
+   ЗАЧЕМ ТРЕТЬЯ СТУПЕНЬ, КОГДА ЕСТЬ ДВЕ. Между `.btn-primary` (сплошная
+   заливка) и `.btn-secondary` (одна рамка) нет ничего, и это заметно
+   ровно там, где главная кнопка повторяется НА КАЖДОЙ КАРТОЧКЕ СЕТКИ:
+   восемь-шестнадцать сплошных плиток акцента образуют стену одного
+   цвета, выделять внутри неё становится нечего, а фотографии упаковок
+   перестают быть главным на экране.
+
+   ПАРА ЦВЕТОВ НЕ ВЫДУМАНА И НЕ НОВА: `--tool-accent-dim` под заливку
+   плюс `--tool-accent` под текст — ровно то сочетание, которым уже
+   живут `.avatar-tint-*` и наведение вторичной кнопки. Новых токенов
+   этот вариант не заводит ни одного.
+
+   ЧЕМ ОН ОТЛИЧАЕТСЯ ОТ НАВЕДЁННОЙ `.btn-secondary`, у которой фон
+   тот же. Тремя вещами разом, и все три видны в покое: у вторичной
+   надпись `--text` и вес 500 против акцентной надписи и веса 600
+   здесь; у вторичной есть рамка `--border-strong`, здесь её нет —
+   заливка сама очерчивает орган; и вторичная приходит в это состояние
+   ТОЛЬКО под курсором, то есть на сенсорном экране не приходит вовсе.
+
+   НАВЕДЕНИЕ УСИЛИВАЕТ ЗАЛИВКУ, А НЕ МЕНЯЕТ ЦВЕТ НАДПИСИ: правило §1.4
+   требует, чтобы контраст надписи ВЫРОС, а не просто изменился, —
+   а `--tool-accent-dim` темнее фона карточки, значит подъём доли
+   акцента поднимает и контраст к акцентной надписи. */
+.btn-soft {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: var(--tool-accent-dim, var(--accent-brand-dim));
+  color: var(--tool-accent, var(--accent-brand));
+  font-family: var(--font);
+  font-weight: 600;
+  font-size: var(--text-body);
+  padding: var(--space-3) var(--space-5);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-decoration: none;
+  min-height: 40px;
+  transition: background var(--dur-fast) var(--ease);
+}
+@media (hover: hover) {
+  .btn-soft:hover {
+    background: color-mix(in srgb,
+                var(--tool-accent, var(--accent-brand)) 26%, transparent);
+  }
+}
+.btn-soft:active { opacity: 0.85; }
+.btn-soft:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* Два независимых модификатора размера и свечения. Разделены намеренно:
    на лендинге они нужны в разных сочетаниях — у кнопки в hero своё
    свечение, но не свой размер (рядом стоит .btn-signature высотой 40px,
