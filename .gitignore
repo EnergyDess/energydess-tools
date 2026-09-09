@@ -87,3 +87,4 @@ review_screenshots/
 # в историю навсегда — ровно та ловушка, на которой однажды
 # попались спутники базы `app.db-wal` и `app.db-shm`.
 .dosage_cache/
+.main_before_control.bak
