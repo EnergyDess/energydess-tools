@@ -54,7 +54,7 @@
        …содержимое…
      {% endcall %}{% endraw %}
 #}
-{% macro modal(id, title='', title_id='', variant='', chrome=true, icon='', icon_tone='') %}
+{% macro modal(id, title='', title_id='', variant='', chrome=true, icon='', icon_tone='', head_slot='') %}
 {% set tid = title_id or id ~ '-title' %}
 {% set icon_lucide = icon and icon.isascii() and icon.replace('-', '').isalnum() %}
 <div class="modal-ov {{ variant }}" id="{{ id }}"
@@ -69,6 +69,18 @@
       </span>
       {%- endif %}
       <span class="modal-title" id="{{ tid }}">{{ title }}</span>
+      {#- НЕОБЯЗАТЕЛЬНЫЙ СЛОТ В ШАПКЕ (заход 249, F1).
+
+          Пустой по умолчанию: окно, которое его не передало, получает
+          разметку БАЙТ В БАЙТ прежнюю — то есть 29 окон проекта
+          правка не трогает (§6.0.8, облик не меняется).
+
+          Заведён затем, что панели участников нужен знак справки
+          В СТРОКЕ ЗАГОЛОВКА, а не своим этажом: на 390 у неё было
+          три этажа шапки на 232 px. Позиционировать знак абсолютно
+          относительно листа значило бы вписать высоту шапки числом,
+          а она растёт с корневым кеглем. #}
+      {%- if head_slot %}<span class="modal-head-slot">{{ head_slot }}</span>{% endif %}
       <button class="modal-x" type="button" data-modal-close aria-label="Закрыть">×</button>
     </div>
     {% else %}
