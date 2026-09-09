@@ -25,7 +25,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8",
 ПОЧТА = "screenshot@local.dev"
 ПАРОЛЬ = "Screenshot-Local-2026"
 КУДА = "review_screenshots"
-ШИРИНЫ = (2560, 1920)
+ШИРИНЫ = (2560, 1920, 390)
 
 
 async def _войти(pg):
@@ -52,7 +52,9 @@ async def главное():
     async with async_playwright() as p:
         бр = await p.chromium.launch()
         for ш in ШИРИНЫ:
-            ктх = await бр.new_context(viewport={"width": ш, "height": 1200})
+            ктх = await бр.new_context(viewport={"width": ш, "height": 900},
+                                       has_touch=(ш == 390),
+                                       is_mobile=(ш == 390))
             pg = await ктх.new_page()
             await _войти(pg)
             await pg.goto(БАЗА + "/medkit", wait_until="networkidle")
@@ -85,6 +87,20 @@ async def главное():
                 имя3 = "%s/249-карточка-крупно-%d.png" % (КУДА, ш)
                 await живая.screenshot(path=имя3)
                 сняли.append(имя3)
+            # ── ОКНО ПЕРЕПРОВЕРКИ, НИЗ (блок E) ─────────────────
+            #
+            # Прокручивается ДОНИЗУ: вопрос блока — что под последней
+            # кнопкой, и на неприкрученном окне его не задать вовсе
+            await pg.click("#apt-recheck-open")
+            await pg.wait_for_timeout(2500)
+            await pg.evaluate(
+                "() => { const т = document.querySelector("
+                "'#apt-recheck-win .modal-body');"
+                " if (т) т.scrollTop = т.scrollHeight; }")
+            await pg.wait_for_timeout(400)
+            имя4 = "%s/249-перепроверка-низ-%d.png" % (КУДА, ш)
+            await pg.screenshot(path=имя4)
+            сняли.append(имя4)
             await ктх.close()
         await бр.close()
 
