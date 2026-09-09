@@ -4963,7 +4963,7 @@ async def _группы_насквозь(pg, о):
       return {карточек: 1,
               остаток: (к.querySelector('.apt-qty-cap')||{}).textContent || '',
               метка: ((к.querySelector('.apt-stack')||{}).textContent||'').trim(),
-              срок: (к.querySelector('.apt-badge')||{}).textContent.trim(),
+              срок: ((к.querySelector('.apt-exp')||{}).textContent||'').trim(),
               пачек: к.querySelectorAll('.apt-pack').length,
               take: (к.querySelector('.apt-take')||{}).dataset
                       ? +к.querySelector('.apt-take').dataset.take : null};
