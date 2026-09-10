@@ -913,6 +913,28 @@
      Замер контраста к подложке карточки — в отчёте захода. */
   color: var(--text-2);
 }
+/* ── СОСЕДИ ПРИЁМА — ПРИЗРАЧНЫЕ (задача 251, блок D) ───────────────
+
+   Заход 250 сделал кнопку приёма ТИХОЙ: доля акцентного пикселя
+   в сетке упала с 9.01 % до 0.17 %. Тише стало правильно, и громкость
+   акценту НЕ возвращается — но приём перестал быть заметно главнее
+   соседей: у «Изменить» и «Инструкции» была та же рамка, что
+   у остальных вторичных кнопок проекта, и три кнопки читались
+   как равные.
+
+   Лечится ПОНИЖЕНИЕМ СОСЕДЕЙ, а не повышением акцента: `.btn-ghost` —
+   третий уровень компонентной базы, без обрамления. Иерархия
+   становится трёхступенчатой в ОДНОМ ряду: заливка (приём) — голая
+   подпись (изменить, инструкция) — красная обводка (удаление).
+
+   КОРЗИНА НЕ ГАСИТСЯ и остаётся `.btn-danger`: это единственное
+   НЕОБРАТИМОЕ действие на карточке, и обрамление у него — не
+   украшение, а предупреждение.
+
+   ОБЛАСТЬ НАЖАТИЯ НЕ УМЕНЬШАЕТСЯ: `.btn-ghost` объявляет тот же
+   вертикальный паддинг, что `.btn-sm` у соседей, а высоту ряда держит
+   `align-items: stretch` выше. Проверяется `py check_touch.py`. */
+
 /* ОПАСНОЕ ДЕЙСТВИЕ КРАСИТСЯ СВОИМ КЛАССОМ, А НЕ СИСТЕМНЫМ В СЕЛЕКТОРЕ.
    `.btn-danger` уже даёт `--error`, но `.apt-act` объявлен ПОЗЖЕ (страничный
    файл грузится после системного) и при равной специфичности (0,1,0)
@@ -1613,10 +1635,143 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 /* ── Форма ─────────────────────────────────────────────────────── */
 .apt-form { display: flex; flex-direction: column; gap: var(--space-3); }
 .apt-row { display: grid; gap: var(--space-3); }
+.apt-row-1 { grid-template-columns: minmax(0, 1fr); }
 .apt-row-2 { grid-template-columns: 1fr 1fr; }
 .apt-row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .apt-row .form-group { margin: 0; min-width: 0; }
 .apt-row .form-group[hidden] { display: none; }
+
+/* ── РЯД БЕЗ ВИДИМОГО СОДЕРЖИМОГО СХЛОПЫВАЕТСЯ (задача 251, B1) ────
+
+   Поля «Считать в» и «Во флаконе» показываются признаком ФОРМЫ
+   ВЫПУСКА, и у таблеток нет ни одного. Пустой ряд без этого правила
+   всё равно съедал бы `gap` — то есть форма таблеток была бы
+   на двенадцать пикселей выше формы сиропа без единой причины.
+
+   `:has()` спрашивает ровно то, что нужно: «есть ли внутри хоть один
+   не спрятанный ребёнок». Перечислять здесь имена полей значило бы
+   завести перечень, который отстанет от разметки молча (§6.0.7). */
+.apt-row:not(:has(> *:not([hidden]))) { display: none; }
+
+/* ── ГРУППА ПОЛЕЙ (задача 251, B3) ────────────────────────────────
+
+   Пятнадцать полей шли одним потоком без единого заголовка: форма
+   читалась как анкета неизвестной длины, и понять, сколько ещё
+   осталось, можно было только прокрутив её до конца.
+
+   КЕГЛЬ ЗАГОЛОВКА — `--text-caption` (13 px), а не запрошенные
+   постановкой 11: глобальный `CLAUDE.md` называет 0.8125rem
+   АБСОЛЮТНЫМ минимумом, и опускать под него нельзя даже подпись.
+   Отличается заголовок группы от подписи поля не размером, а линией
+   под собой и воздухом над. */
+.apt-fs { display: flex; flex-direction: column; gap: var(--space-3); }
+.apt-fs + .apt-fs { margin-top: var(--space-5); }
+.apt-fs-t {
+  margin: 0;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-strong);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+/* ── СВЁРНУТОЕ «ДОПОЛНИТЕЛЬНО» (задача 251, B10) ──────────────────
+   Пять полей, которые заполняют не всегда. `<details>` даёт родное
+   сворачивание — клавиатура и программа чтения знают его без нашего
+   участия, и второй реализации заводить не надо. */
+.apt-extra { gap: 0; }
+.apt-extra[open] { gap: var(--space-3); }
+.apt-extra-t {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  cursor: pointer;
+  list-style: none;
+}
+.apt-extra-t::-webkit-details-marker { display: none; }
+/* Стрелка — своя, потому что родной маркер в разных браузерах разный,
+   а строка обязана выглядеть одинаково рядом с заголовками групп */
+.apt-extra-t::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg) translate(-1px, -1px);
+  transition: transform .15s ease;
+  flex: 0 0 auto;
+}
+.apt-extra[open] .apt-extra-t::before {
+  transform: rotate(45deg) translate(-2px, -2px);
+}
+.apt-extra-t > span:first-of-type { flex: 1; min-width: 0; }
+/* СЧЁТЧИК — ЕДИНСТВЕННЫЙ СПОСОБ ОТЛИЧИТЬ ПУСТОЕ ОТ ЗАПОЛНЕННОГО
+   у свёрнутого блока. Без него человек, правящий карточку со снимком
+   и заметкой, не узнал бы о них, не раскрыв его */
+.apt-extra-n {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-faint);
+  letter-spacing: 0;
+  text-transform: none;
+  flex: 0 0 auto;
+}
+@media (hover: hover) {
+  .apt-extra-t:hover { color: var(--text); }
+}
+
+/* ── КАТЕГОРИИ: СВЁРНУТО ОДНОЙ СТРОКОЙ (задача 251, B7) ───────────
+
+   ВТОРОГО СПИСКА НЕТ: прячутся невыбранные чипы того же ряда.
+   Собери свёрнутый вид скрипт — построителей стало бы два, и разошлись
+   бы они молча (§6.0.7, довод шапки `_medkit_cats.html`).
+
+   Блок РАСТЁТ ВНИЗ, всплывающего меню поверх формы нет: раскрытое
+   поверх закрывало бы соседние поля, а категорию выбирают, глядя
+   на название препарата. */
+.apt-cats-fold .apt-chips { margin-bottom: 0; }
+.apt-cats-fold:not(.open) .apt-chips [data-cat]:not(.active) { display: none; }
+.apt-cats-fold:not(.open) .apt-chips [data-cats-open] { display: none; }
+/* ── СВЁРНУТО И ПУСТО — КОРОБКИ НЕТ ВОВСЕ ─────────────────────────
+   `.apt-chips` — общий класс с подложкой и рамкой, и у свёрнутого
+   ряда без единой выбранной категории он рисовал ПУСТОЙ
+   ПРЯМОУГОЛЬНИК, неотличимый от поля ввода. Нашёл СНИМОК приёмки,
+   а не чтение: правило написано, выглядит верным, а на экране
+   коробка, в которую хочется что-то вписать.
+
+   `:has()` спрашивает ровно то, что нужно: есть ли внутри выбранный
+   чип. Перечислять здесь нечего — вопрос про СОСТОЯНИЕ, а не
+   про имена. */
+.apt-cats-fold:not(.open) .apt-chips:not(:has([data-cat].active)) {
+  border-color: transparent;
+  background: none;
+  padding: 0;
+  min-height: 0;
+}
+.apt-cats-more {
+  align-self: flex-start;
+  margin-top: var(--space-2);
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: var(--text-caption);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media (hover: hover) {
+  .apt-cats-more:hover { color: var(--tool-accent); }
+}
+/* Пустая строка выбранного не должна схлопываться в ноль: пока
+   не выбрано ничего, ряд пуст, и кнопка прыгала бы вверх на его
+   высоту при первом же выборе */
+.apt-cats-fold:not(.open) .apt-chips:empty,
+.apt-cats-fold:not(.open) .apt-chips { min-height: 1.9em; }
+.apt-cats-fold.open .apt-chips { min-height: 0; }
 
 .apt-hint {
   color: var(--text-faint);
@@ -1644,6 +1799,23 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
    выше и у `.ds-arrow` на `.btn-icon` в полоске дней дневника. */
 .apt-num-in { padding-right: var(--space-7); }
 
+/* ── ЧИСЛО И ЕДИНИЦА В ОДНУ СТРОКУ (задача 251, B5) ───────────────
+   `<select>` — блочный элемент, и внутри `.apt-num` он вставал ПОД
+   полем, занимая вторую строку ряда и раздвигая соседей. Единица —
+   размерность вводимого числа, и место ей рядом с числом.
+
+   Ширина единицы — по содержимому: «мл» и «капли» разной длины,
+   а доля от ряда сделала бы поле числа то у́же, то шире соседнего
+   поля в том же ряду. */
+.apt-num-pair { display: flex; gap: var(--space-2); align-items: center; }
+.apt-num-pair .input:first-child { flex: 1 1 auto; min-width: 0; }
+.apt-num-pair .apt-vol-unit { flex: 0 0 auto; width: auto; min-width: 4.2em; }
+
+/* ── ДАТЫ МОНОШИРИННЫМ (задача 251, B9) ──────────────────────────
+   Дата — число, и читают её как число: цифры одной ширины не пляшут
+   при смене значения. Тот же довод, что у остатка на карточке. */
+.apt-date { font-family: var(--font-mono); }
+
 .apt-place { display: flex; gap: var(--space-2); align-items: center; }
 .apt-place .select { flex: 1; min-width: 0; }
 .apt-place-new {
@@ -1655,14 +1827,30 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 
 .apt-form-cats { margin-bottom: 0; }
 
+/* ОДНА ПОДСКАЗКА НА ГРУППУ, А НЕ ПОД КАЖДЫМ ПОЛЕМ (задача 251, B4).
+   Подсказки разной длины стояли в ячейках ряда и раздвигали его
+   неравномерно: под «Осталось» три строки, под «Было в упаковке» —
+   ни одной, и низ ряда шёл ступенькой. */
+.apt-hint-wide { margin-top: 0; }
+
+/* ПОДСКАЗКА ПРО ВЕЩЕСТВО — ТОЛЬКО В ЗАВЕДЕНИИ (задача 251, B13).
+   В правке поле уже заполнено, и объяснение «без этой строки легко
+   купить третью пачку» висит там впустую, приводя в пример чужой
+   препарат. Признак — класс на ФОРМЕ, один на всю неё. */
+.apt-form-edit .apt-hint-new { display: none; }
+
 /* Ряд фото: превью плюс КНОПКА, а не поле во всю ширину (замер и разбор
    у самого блока в шаблоне). Кнопка занимает столько, сколько занимает
    её подпись, — `flex` ей не нужен */
 .apt-photo-row { display: flex; gap: var(--space-3); align-items: center; }
+/* ПРЕВЬЮ КРУПНОЕ (задача 251, B11). Было 96×54 — по такому кадру
+   не разглядеть, та ли это пачка, а смотрят на него ровно за этим.
+   Квадрат, а не 16/9: упаковку снимают и вертикально, и горизонтально,
+   и широкая рамка обрезала бы вертикальный снимок сильнее всего. */
 .apt-photo-prev {
   position: relative;
   width: 96px;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 1 / 1;
   border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--surface-3);
@@ -1719,18 +1907,41 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
    а здесь заводится ДРУГАЯ. Пояснение обязательно и стоит под кнопкой:
    что именно перенесётся, человек обязан узнать ДО нажатия, а не
    обнаружить в полях после. */
+/* ── «ЕЩЁ УПАКОВКА» ПЕРЕЕХАЛА В ПОДВАЛ (задача 251, B12) ──────────
+   Была отдельным блоком над подвалом с объяснением на четыре строки.
+   Объяснение читают ОДИН раз, а место оно занимало всегда; теперь оно
+   в системной подсказке `.hint` (§2.19), которая открывается
+   и наведением, и нажатием — на телефоне первого нет. */
 .apt-more-pack {
-  margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
 }
-.apt-more-pack .data-note { margin-top: var(--space-2); }
+.apt-more-pack[hidden] { display: none; }
 
 .apt-foot {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: var(--space-3);
   margin-top: var(--space-4);
+}
+/* Кнопка «К упаковкам» тоже слева — она про возврат, а не про запись.
+
+   ОТЖИМАЕТ ДЕЙСТВИЯ ВПРАВО ПОСЛЕДНИЙ ЛЕВЫЙ, а не первый. Первая
+   версия ставила `margin-right: auto` обоим и гасила его у второго
+   селектором `#apt-back-packs ~ .apt-more-pack` — а тот действует
+   ВНЕ ЗАВИСИМОСТИ ОТ ВИДИМОСТИ соседа: `#apt-back-packs` лежит
+   в разметке всегда, просто скрытый. Отказ немой: правило написано,
+   выглядит верным, а «Ещё упаковка» уезжала вправо к «Сохранить».
+   Поймал СНИМОК приёмки, а не чтение.
+
+   `:has()` спрашивает ровно то, что нужно: есть ли слева видимый
+   сосед. Нет — отжимаю я; есть — отжимает он. */
+.apt-foot #apt-back-packs:not([hidden]) { margin-right: auto; }
+.apt-foot .apt-more-pack { margin-right: auto; }
+.apt-foot:has(#apt-back-packs:not([hidden])) .apt-more-pack {
+  margin-right: 0;
 }
 
 .apt-del-name {
@@ -1855,8 +2066,13 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   .apt-bar-act .btn { justify-content: center; min-width: 0; }
   .apt-row-2, .apt-row-3 { grid-template-columns: 1fr; }
   .apt-legend { gap: var(--space-3); flex-direction: column; }
-  .apt-foot { flex-direction: column-reverse; }
+  .apt-foot { flex-direction: column-reverse; align-items: stretch; }
   .apt-foot .btn { width: 100%; justify-content: center; }
+  /* НА УЗКОМ ПОДВАЛ СТОЛБИКОМ, и «Ещё упаковка» с подсказкой —
+     одной строкой: `margin-right: auto` в столбике не значит ничего,
+     а кнопка обязана занимать ту же ширину, что соседи */
+  .apt-more-pack { display: flex; margin-right: 0; }
+  .apt-more-pack .btn { flex: 1; }
 }
 
 

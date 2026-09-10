@@ -452,7 +452,7 @@
          но правила у него не было ни одного — шесть кнопок носили имя,
          которое ничего не значило. Заведён в системе тем же заходом. #}
       <div class="apt-acts">
-        <button class="btn btn-secondary btn-sm apt-act" type="button"
+        <button class="btn btn-ghost btn-sm apt-act" type="button"
                 data-edit="{{ п.id }}" aria-label="Правка: {{ п.name }}">
           {{ значок('pencil') }} Изменить</button>
         {# КНОПКА «ПРИЁМ» ЕСТЬ И У ПРОСРОЧЕННОГО — решение владельца
@@ -469,7 +469,7 @@
            (условие выше по файлу): списывать то, что надо унести
            из дома, незачем. Отличие между двумя кнопками ровно в этом:
            одна ЧИТАЕТ, вторая МЕНЯЕТ. #}
-        <button class="btn btn-secondary btn-sm apt-act" type="button"
+        <button class="btn btn-ghost btn-sm apt-act" type="button"
                 data-doses="{{ п.id }}"
                 aria-label="Инструкция: {{ п.name }}">
           {# «ИНСТРУКЦИЯ», А НЕ «ПРИЁМ» (заход 249, C1). Кнопка
