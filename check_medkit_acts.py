@@ -66,6 +66,16 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8",
 # не то, что печатает.
 ПОДЛОГ = """
   .apt-card .apt-acts > .apt-act:first-child { flex-grow: 1.02 !important; }
+  /* БЛОК B наизнанку: соседи приёма в строке упаковки снова
+     прямоугольные и без обводки — ровно то, что было до правки.
+     Мерка обязана назвать ОБА признака; молчание означало бы,
+     что она сравнивает не то, что печатает. */
+  #apt-packs-body .apt-pack-icon {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    border-color: transparent !important;
+    border-width: 0 !important;
+  }
 """
 
 ЗАМЕР = """() => {
@@ -119,6 +129,48 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8",
 }"""
 
 
+# ── СТРОКА УПАКОВКИ В ОКНЕ (BACKLOG №262, блок B) ─────────────────
+#
+# ВТОРОЙ РЯД ТЕХ ЖЕ ТРЁХ РОЛЕЙ: приём, правка, удаление. Мерка та же
+# по существу, поэтому живёт здесь, а не в новом файле: два инструмента
+# с одним вопросом разошлись бы в ответе молча (§6.0.7).
+#
+# СТРОКА БЕРЁТСЯ ИЗ ОКНА, А НЕ ИЗ КАРТОЧКИ. Список упаковок лежит
+# в карточке СКРЫТЫМ и переносится в окно при открытии — селектор без
+# `#apt-packs-body` берёт скрытую копию и отвечает `0 x 0`. Поймано
+# на себе: первая версия замера так и печатала, и «область нажатия
+# перекрыта» выходило у всех трёх органов.
+ЗАМЕР_ПАЧКИ = """() => {
+  const li = [...document.querySelectorAll('#apt-packs-body li.apt-pack')];
+  const описать = (э) => {
+    if (!э) return null;
+    const r = э.getBoundingClientRect();
+    const з = э.querySelector('svg');
+    const зр = з ? з.getBoundingClientRect() : null;
+    const s = getComputedStyle(э);
+    return {ш: Math.round(r.width * 10) / 10,
+            в: Math.round(r.height * 10) / 10,
+            значок: зр ? Math.round(зр.width * 10) / 10 : null,
+            рамка: parseFloat(s.borderTopWidth) || 0,
+            подпись: (э.textContent || '').trim().slice(0, 22)};
+  };
+  return li.map(l => {
+    const ряд = l.querySelector('.apt-pack-acts');
+    const кн = ряд ? [...ряд.querySelectorAll('button')] : [];
+    /* РЯДОВ СЧИТАЕТСЯ ПО РАЗНЫМ `top`, а не по высоте: перенос —
+       это когда кнопки встали на РАЗНЫЕ строки, и высота ряда
+       о нём не говорит (она растёт и от одного рослого органа) */
+    const строк = new Set(кн.map(b => Math.round(
+        b.getBoundingClientRect().top))).size;
+    return {высота: Math.round(l.getBoundingClientRect().height * 10) / 10,
+            рядов: строк || 1,
+            приём: описать(l.querySelector('[data-take]')),
+            правка: описать(l.querySelector('[data-edit-pack]')),
+            корзина: описать(l.querySelector('[data-del-pack]'))};
+  });
+}"""
+
+
 async def _войти(pg):
     await pg.goto(БАЗА + "/login", wait_until="domcontentloaded")
     await pg.fill("input[name=email]", ПОЧТА)
@@ -158,7 +210,22 @@ async def прогон(подлог=False):
             карточки = await pg.evaluate(ЗАМЕР)
             обл = await pg.evaluate(
                 ОБЛАСТЬ, ".apt-card .apt-acts .apt-act-dead")
-            итог[ш] = {"карточки": карточки, "область": обл}
+            # ── ОКНО УПАКОВОК ───────────────────────────────────────
+            кид = await pg.evaluate(
+                "() => { const s = document.querySelector('.apt-packs-src');"
+                "        return s ? s.id.replace('apt-packs-','') : null; }")
+            пачки, обл_п = [], {}
+            if кид:
+                await pg.click("[data-packs='%s']" % кид)
+                await pg.wait_for_timeout(700)
+                пачки = await pg.evaluate(ЗАМЕР_ПАЧКИ)
+                for имя, сел in (("правка", "[data-edit-pack]"),
+                                 ("корзина", "[data-del-pack]"),
+                                 ("приём", "[data-take]")):
+                    обл_п[имя] = await pg.evaluate(
+                        ОБЛАСТЬ, "#apt-packs-body .apt-pack " + сел)
+            итог[ш] = {"карточки": карточки, "область": обл,
+                       "пачки": пачки, "область_пачки": обл_п}
             await ктх.close()
         await бр.close()
     return итог
@@ -219,6 +286,61 @@ def разбор(итог, метка):
                 находок += 1
         else:
             print(f"   область нажатия: {о}")
+
+        # ── СТРОКА УПАКОВКИ (блок B) ────────────────────────────────
+        пачки = д.get("пачки") or []
+        if not пачки:
+            print("   упаковок: НЕТ ГРУППЫ ИЗ НЕСКОЛЬКИХ ПАЧЕК (§8.0)")
+            continue
+        п = пачки[0]
+        print(f"   ── строка упаковки (пачек {len(пачки)},"
+              f" высота строки {п['высота']}) ──")
+        for имя in ("приём", "правка", "корзина"):
+            б = п[имя]
+            if not б:
+                print(f"      {имя:<8} НЕТ")
+                continue
+            print(f"      {имя:<8} {б['ш']:>6} x {б['в']:<6} значок"
+                  f" {б['значок']:<5} рамка {б['рамка']}")
+        # КВАДРАТНОСТЬ — У ОБОИХ СОСЕДЕЙ, а не у одной корзины:
+        # правка и удаление тут одного рода (значок без подписи),
+        # и спросить у одной значило бы половину вопроса
+        for имя in ("правка", "корзина"):
+            б = п[имя]
+            if not б:
+                continue
+            р = round(abs(б["ш"] - б["в"]), 1)
+            кв = р <= 1.5
+            print(f"      {имя} КВАДРАТ: {'да' if кв else 'НЕТ'}"
+                  f"  (|{б['ш']} - {б['в']}| = {р})")
+            if not кв:
+                находок += 1
+            # РАМКА У ВСЕХ ТРЁХ: без неё значок читается как подпись,
+            # а не как кнопка (замер до правки — 0 px у обоих соседей)
+            if not б["рамка"]:
+                print(f"      {имя}: РАМКИ НЕТ")
+                находок += 1
+        # СОРАЗМЕРНОСТЬ ПРИЁМУ (B.3) — по ВЫСОТЕ: ширина у подписанной
+        # кнопки своя по построению, а вот рост обязан совпасть
+        if п["приём"]:
+            р = round(abs(п["правка"]["в"] - п["приём"]["в"]), 1)
+            print(f"      рост соседей vs приём: расхождение {р} px")
+            if р > 1.5:
+                находок += 1
+        переносы = [x["рядов"] for x in пачки if x["рядов"] > 1]
+        print(f"      перенос ряда: {len(переносы)} строк из {len(пачки)}")
+        if переносы:
+            находок += 1
+        for имя, о2 in (д.get("область_пачки") or {}).items():
+            if not о2 or о2.get("перекрыт"):
+                print(f"      область {имя}: {о2}")
+                continue
+            мало = о2["ширина"] < 44 or о2["высота"] < 44
+            вердикт = ("МЕНЬШЕ 44" if мало else "ok") if сенсор else                       "(мышь: минимум не спрашивается)"
+            print(f"      область {имя}: {о2['ширина']}x{о2['высота']}"
+                  f"  (видимая {о2['видимая_ш']}x{о2['видимая_в']}) {вердикт}")
+            if мало and сенсор:
+                находок += 1
     print("")
     print(f"НАХОДОК: {находок}")
     return находок
