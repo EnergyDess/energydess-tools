@@ -1744,6 +1744,7 @@ def migrate_db():
     _migrate_users_autoincrement(conn)
     _migrate_zepp_token_encryption(conn)
     _migrate_drop_image_data(conn)
+    _migrate_drop_volume(conn)
     _migrate_forget_zepp_password(conn)
     _migrate_scale_data_host(conn)
     _migrate_muscle_mass(conn)
@@ -2157,6 +2158,56 @@ def _migrate_drop_image_data(conn) -> int:
             print(f"[migrate] {таблица}.image_data удалена")
         except Exception as e:
             print(f"[migrate] {таблица}.image_data не удалена: {type(e).__name__}: {e}")
+    return удалено
+
+
+def _migrate_drop_volume(conn) -> int:
+    """Убирает `volume` / `volume_unit` у позиций аптечки.
+
+    Задача 257, блок C — решение владельца. Поле «Во флаконе» убрано
+    из формы задачей 253, читать его перестали (`py check_volume_refs.py`
+    печатает 0 мест), новых значений вводить неоткуда.
+
+    ЗДЕСЬ СТОЯЛО ОБРАТНОЕ РЕШЕНИЕ, И ОНО ОТМЕНЕНО ВЛАДЕЛЬЦЕМ. Задача
+    253 колонки НЕ дропала, и довод был верный: замер «0 из 77» был
+    снят ПРОШЛЫМ заходом, а поле с тех пор ещё показывалось
+    четырнадцати позициям; свежей копии боевой базы у того захода
+    не было, а обходить прод запрещено (§5.8). Теперь копия снята,
+    и ОБА числа перепроверены на ней заново: заполнено 0 из 77,
+    мест чтения 0.
+
+    ЗАСЛОН ОСТАЁТСЯ НЕСУЩИМ, а не декоративным. Удаление необратимо,
+    и цена ошибки несимметрична: пустая колонка не стоит ничего,
+    стёртое значение владельца не вернуть ничем. Поэтому дроп идёт
+    ТОЛЬКО при нуле непустых значений, а отказ ГОВОРИТ ВСЛУХ —
+    молчаливый пропуск был бы неотличим от выполненной миграции
+    (§6.0.1). Тот же приём, что у `_migrate_drop_image_data` выше.
+
+    Доказано подлогом: значение, проставленное в ОДНУ строку копии,
+    поднимает счётчик с 0 до 1, и дроп не состоится.
+    """
+    колонки = {r[1] for r in conn.execute("PRAGMA table_info(medkit_items)")}
+    цель = [к for к in ("volume", "volume_unit") if к in колонки]
+    if not цель:
+        return 0
+    осталось = conn.execute(
+        "SELECT COUNT(*) FROM medkit_items WHERE "
+        + " OR ".join("%s IS NOT NULL AND %s <> ''" % (к, к) for к in цель)
+    ).fetchone()[0]
+    if осталось:
+        print(f"[migrate] medkit_items.volume НЕ удалена: непустых записей "
+              f"{осталось} — значение владельца стирать нельзя")
+        return 0
+    удалено = 0
+    for к in цель:
+        try:
+            conn.execute("ALTER TABLE medkit_items DROP COLUMN %s" % к)
+            conn.commit()
+            удалено += 1
+            print(f"[migrate] medkit_items.{к} удалена")
+        except Exception as e:
+            print(f"[migrate] medkit_items.{к} не удалена: "
+                  f"{type(e).__name__}: {e}")
     return удалено
 
 
