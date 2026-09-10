@@ -755,7 +755,7 @@
       '<div class="wk-swap-indicator"></div>' +
       '<div class="wk-stuck-nudge"></div>' +
       '<div class="wk-alt-picker"></div>' +
-      '<div class="wk-progress-chart-panel"></div>';
+      '<div class="wk-progress-chart-panel" data-refresh="wkГрафикПеречитать"></div>';
   }
 
   function applyCardDisplay(card, d) {
@@ -901,7 +901,11 @@
           '</div>' +
           '<div class="wk-day-summary">' + totalCount + ' упражнен' + (totalCount === 1 ? 'ие' : (totalCount >= 2 && totalCount <= 4 ? 'ия' : 'ий')) + statusBadge + '</div>' +
         '</div>' +
-        '<div class="wk-day-body">' +
+        // ДЕНЬ ПЕРЕЧИТЫВАЕТ СВОИ ПОДХОДЫ ПРИ КАЖДОМ РАСКРЫТИИ
+        // (BACKLOG №263): «Прошлый раз» и «личный максимум» приезжали
+        // с первой загрузкой страницы и не обновлялись даже после
+        // собственной записи подхода в соседней вкладке.
+        '<div class="wk-day-body" data-refresh="wkДеньПеречитать">' +
           '<div class="wk-day-actions">' +
             '<label class="wk-light-toggle"><input type="checkbox" class="wk-light-checkbox">Лёгкий день' + tipBtn('light_day') + '</label>' +
             '<button type="button" class="wk-complete-btn">Завершить тренировку</button>' +
@@ -1807,13 +1811,21 @@
 
 
   function toggleProgressChart(card) {
+    // ОТКРЫТЬ И ЗАКРЫТЬ — ВСЁ, ЧТО ЗДЕСЬ ОСТАЛОСЬ. Загрузку зовёт слой
+    // перечитывания по факту появления панели (BACKLOG №263): здесь
+    // стоял заслон `if (panel.dataset.loaded === …) return`, из-за
+    // которого график, однажды нарисованный, не менялся до перезагрузки
+    // страницы — даже после записи нового подхода этим же человеком.
     var panel = $('.wk-progress-chart-panel', card);
     if (panel.classList.contains('show')) { panel.classList.remove('show'); return; }
     panel.classList.add('show');
-    if (panel.dataset.loaded === card.dataset.exerciseId) return;
-    panel.dataset.loaded = card.dataset.exerciseId;
+  }
+
+  function drawProgressChart(panel) {
+    var card = panel.closest('.wk-ex-card');
+    if (!card) return;
     panel.innerHTML = '<div class="empty-state empty-state-inline wk-progress-chart-empty">Загружаем…</div>';
-    fetch('/workout/api/exercise-progress?exercise_id=' + encodeURIComponent(card.dataset.exerciseId))
+    return fetch('/workout/api/exercise-progress?exercise_id=' + encodeURIComponent(card.dataset.exerciseId))
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data.points || data.points.length < 2) {
@@ -1905,6 +1917,22 @@
       setTimeout(function () { loadOrGenerateProgram(); }, 2400);
     });
   }
+
+  // ── ПАНЕЛИ ЭТОЙ СТРАНИЦЫ — СЛОЮ ПЕРЕЧИТЫВАНИЯ (BACKLOG №263) ──
+  //
+  // ВЫСТАВЛЯЮТСЯ ЧЕРЕЗ `window.имя = функция`, а не объявляются глобально:
+  // весь скрипт страницы лежит в ОДНОМ замыкании (строка 303), и снаружи
+  // его функции не видны вовсе. Присваивание работает при любом порядке
+  // загрузки — слой ищет имя в момент открытия панели, а не при старте.
+  //
+  // Ловушка проверки 30 тут ровно та же, что с `АПТ_ПОЗИЦИИ`: `function`
+  // на верхнем уровне классического скрипта попадает в `window` сама,
+  // а всё, что внутри замыкания, — нет.
+  window.wkДеньПеречитать = function (эл) {
+    var день = эл.closest('.wk-prog-day');
+    if (день) loadDayState(день.dataset.dayId);
+  };
+  window.wkГрафикПеречитать = function (эл) { return drawProgressChart(эл); };
 
   // Анкета проходится один раз — если профиль уже заполнен, сразу
   // показываем финальный экран (редактирование — отдельно, в настройках)

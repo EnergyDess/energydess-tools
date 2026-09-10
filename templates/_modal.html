@@ -54,11 +54,21 @@
        …содержимое…
      {% endcall %}{% endraw %}
 #}
-{% macro modal(id, title='', title_id='', variant='', chrome=true, icon='', icon_tone='', head_slot='') %}
+{# ПАРАМЕТР `refresh` — ПЕРЕЧИТЫВАНИЕ ПРИ ОТКРЫТИИ (BACKLOG №263).
+
+   Окно, объявившее имя функции, перечитывает свои данные каждый раз,
+   когда его открыли: за этим следит `static/panel-refresh.js`, слой
+   из общего хвоста страницы. Одно слово в вызове макроса — и модалка
+   больше не показывает то, что приехало с первой загрузкой страницы.
+
+   Пустой по умолчанию: окно, которое параметра не передало, получает
+   разметку БАЙТ В БАЙТ прежнюю (§6.0.8). #}
+{% macro modal(id, title='', title_id='', variant='', chrome=true, icon='', icon_tone='', head_slot='', refresh='') %}
 {% set tid = title_id or id ~ '-title' %}
 {% set icon_lucide = icon and icon.isascii() and icon.replace('-', '').isalnum() %}
 <div class="modal-ov {{ variant }}" id="{{ id }}"
-     role="dialog" aria-modal="true" aria-labelledby="{{ tid }}" inert>
+     role="dialog" aria-modal="true" aria-labelledby="{{ tid }}"
+     {% if refresh %}data-refresh="{{ refresh }}"{% endif %} inert>
   <div class="modal-sh" tabindex="-1">
     {% if chrome %}
     <div class="modal-drag"></div>

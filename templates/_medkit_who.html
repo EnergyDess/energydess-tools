@@ -24,8 +24,12 @@
    с первым молча. #}
 {% import '_person_avatar.html' as ав %}
 
+{# ПЕРЕЧИТЫВАЕТСЯ ПРИ КАЖДОМ РАСКРЫТИИ (BACKLOG №263). Список рисовался
+   один раз, в первом кадре страницы, и не пересобирался НИКОГДА:
+   человек, вошедший в круг сегодня, не появлялся в выборе до
+   перезагрузки. Следит за этим слой `static/panel-refresh.js`. #}
 {% macro выбор(участники, значок) %}
-<div class="apt-who-pick" id="apt-who-pick" hidden>
+<div class="apt-who-pick" id="apt-who-pick" data-refresh="аптКтоПеречитать" hidden>
   {% if участники | length > 3 %}
   <input class="input input-sm apt-who-q" id="apt-who-q" type="search"
          placeholder="Имя участника" aria-label="Поиск участника">

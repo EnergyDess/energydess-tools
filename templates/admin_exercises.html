@@ -136,14 +136,17 @@ function cardHtml(e) {
   if (e.mechanic) metaParts.push(escHtml(e.mechanic));
 
   // ТЕКСТА ТЕХНИКИ В `e` НЕТ — только признак `has_instructions`
-  // (BACKLOG №159). Блок рисуется пустым, текст приезжает при первом
-  // нажатии и остаётся в `техникаКеш`.
+  // (BACKLOG №159). Блок рисуется пустым, текст приезжает при КАЖДОМ
+  // раскрытии — за этим следит слой перечитывания панелей (№263).
+  // Кеша тут больше нет: он держал текст до перезагрузки страницы,
+  // и правка техники в базе на открытом экране не показывалась вовсе.
   const hasInstructions = !!e.has_instructions;
   const instructionsBtn = hasInstructions
     ? `<button class="ex-btn ex-btn-howto" onclick="toggleInstructions('${escHtml(e.id)}')">Показать технику</button>`
     : '';
   const instructionsBlock = hasInstructions
-    ? `<div class="ex-instructions" id="instructions-${escHtml(e.id)}"></div>`
+    ? `<div class="ex-instructions" id="instructions-${escHtml(e.id)}"
+             data-refresh="техникуПеречитать"></div>`
     : '';
 
   return `
@@ -295,8 +298,9 @@ function toggleReplace(id) {
   }
 }
 
-// Техника, уже приехавшая с сервера. Ключ — id упражнения.
-const техникаКеш = {};
+// ПЕРЕЧИТЫВАНИЕМ ВЕДАЕТ СЛОЙ (`panel-refresh.js`, BACKLOG №263).
+// Здесь лежал `техникаКеш` — словарь «id → уже приехавший текст», из-за
+// которого раскрытый однажды блок не менялся до перезагрузки страницы.
 
 async function toggleInstructions(id) {
   const block = document.getElementById('instructions-' + id);
@@ -305,14 +309,12 @@ async function toggleInstructions(id) {
   // Закрываем — сети не трогаем.
   if (block.classList.contains('open')) { block.classList.remove('open'); return; }
 
-  if (техникаКеш[id]) {
-    block.innerHTML = техникаКеш[id];
-    block.classList.add('open');
-    return;
-  }
-
-  block.innerHTML = '<p class="ex-howto-wait">Загружаем технику…</p>';
   block.classList.add('open');
+}
+
+async function техникуПеречитать(block) {
+  const id = block.id.replace(/^instructions-/, '');
+  block.innerHTML = '<p class="ex-howto-wait">Загружаем технику…</p>';
   try {
     const r = await fetch('/admin/api/exercise/' + encodeURIComponent(id) + '/instructions');
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -322,10 +324,9 @@ async function toggleInstructions(id) {
     // по признаку `has_instructions`; пустой ответ на ней означает,
     // что признак разошёлся с данными, — и это надо видеть, а не
     // получать пустой раскрытый блок (§6.0.1).
-    техникаКеш[id] = шаги.length
+    block.innerHTML = шаги.length
       ? '<ol>' + шаги.map(s => '<li>' + escHtml(s) + '</li>').join('') + '</ol>'
       : '<p class="ex-howto-wait">Техника у этого упражнения не записана.</p>';
-    block.innerHTML = техникаКеш[id];
   } catch (e) {
     block.innerHTML = '<p class="ex-howto-wait">Не удалось загрузить технику ('
       + escHtml(String(e.message || e)) + '). Нажмите ещё раз.</p>';
