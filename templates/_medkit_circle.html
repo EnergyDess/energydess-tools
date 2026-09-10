@@ -269,12 +269,26 @@
       {% set ns.день = с.день %}
       <li class="apt-feed-day">{{ с.подпись_дня }}</li>
       {% endif %}
-      <li class="apt-feed-item">
+      <li class="apt-feed-item" data-event="{{ с.id }}">
         {{ ав.лицо(с.кто) }}
         <span class="apt-feed-t">
           <span class="apt-feed-txt">{{ с.текст }}</span>
           {% if с.детали %}<span class="apt-feed-d">{{ с.детали }}</span>{% endif %}
         </span>
+        {# КАРАНДАШ ТОЛЬКО У ПРИЁМА (BACKLOG №260, D.1). Признак приходит
+           ПОЛЕМ С СЕРВЕРА, а не разбором вида события здесь: тот же
+           вопрос решает эндпоинт правки, и второе правило «что можно
+           поправить» разошлось бы с первым молча — карандаш стоял бы
+           у строки, которую сервер править отказывается (§6.0.7).
+
+           У правки карточки его нет по смыслу: «за кого» там
+           не существует, менять нечего. #}
+        {% if с.правится %}
+        <button class="btn-icon btn-icon-sm tap-44 apt-feed-edit" type="button"
+                data-event-who="{{ с.id }}" data-who-now="{{ с.за_кого.id }}"
+                aria-label="Поправить, за кого записан приём"
+                title="За кого записано">{{ значок('pencil') }}</button>
+        {% endif %}
         <span class="apt-feed-time">{{ с.время }}</span>
       </li>
       {% endfor %}

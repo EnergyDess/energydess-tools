@@ -3894,9 +3894,25 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--surface-2);
-  overflow: hidden;
+  /* ═══ `overflow: hidden` ЗДЕСЬ СТОЯЛ И ОБРЕЗАЛ ДОБОРНЫЙ СЛОЙ ═══
+     BACKLOG №259. Плитка 48x36 — ниже сенсорного минимума 44,
+     и `.tap-44` ей дописали; слой `::after` при этом не появлялся
+     НИ НА ПИКСЕЛЬ: обрезка по коробке срезала его целиком. Правило
+     написано, класс на месте, область как была 48x36 — §6.0
+     в чистом виде.
+
+     ТОТ ЖЕ УРОК, ЧТО У ЧИПОВ ОТБОРА (задача 151): там `overflow-x:
+     auto` делал `overflow-y` тоже `auto` и срезал ровно так же.
+
+     ОБРЕЗКА НУЖНА КАРТИНКЕ, А НЕ КНОПКЕ, — и переехала на неё:
+     `border-radius: inherit` у `img` даёт то же скругление, а слой
+     свободно свисает за коробку. */
+  overflow: visible;
 }
-.apt-debt-ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.apt-debt-ph img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  border-radius: inherit;
+}
 .apt-debt-txt { min-width: 0; flex: 1 1 auto; }
 .apt-debt-name {
   margin: 0 0 var(--space-2);
@@ -4015,3 +4031,177 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
    Своим классом рядом с системным `.btn .btn-primary`, а не
    переопределением его: это раскладка ЭКЗЕМПЛЯРА (§6.0.2). */
 #apt-recheck-btn { width: 100%; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   «ЗА КОГО» — ВЫБОР УЧАСТНИКА (BACKLOG №260, блоки B, C, D)
+   ═══════════════════════════════════════════════════════════════════
+
+   ОДИН НАБОР ПРАВИЛ НА ТРИ МЕСТА. Список переезжает между гнёздами
+   (окно упаковок, полоса подтверждения, строка ленты), и три копии
+   оформления разошлись бы при первой же правке — плашка участника
+   в ленте перестала бы совпадать с плашкой в окне, а увидеть это
+   можно было бы, только открыв оба места подряд (§6.0.7). */
+.apt-for {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.apt-for-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.apt-for-lbl {
+  font-size: var(--text-caption);
+  color: var(--text-2);
+  flex: 0 0 auto;
+}
+.apt-for-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--text-body-sm);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+@media (hover: hover) {
+  .apt-for-btn:hover { border-color: var(--border-strong); }
+}
+/* ОТМЕЧЕНО ЗА ДРУГОГО — ВИДНО В ПОКОЕ, а не только по раскрытии.
+   Это состояние, в котором следующее нажатие уйдёт не себе,
+   и признак его обязан стоять на самой кнопке: человек смотрит
+   на список пачек, а не на подпись над ним. */
+.apt-for.is-other .apt-for-btn {
+  border-color: var(--tool-accent);
+  color: var(--tool-accent);
+}
+.apt-for-face { display: inline-flex; }
+.apt-for-caret { display: inline-flex; color: var(--text-faint); }
+.apt-for-caret svg { width: 16px; height: 16px; }
+/* ГНЕЗДО — ТО, ЧТО ПЛАВНО МЕНЯЕТ ВЫСОТУ. `overflow: hidden` нужен
+   ровно на время перехода, ровно по той же причине, что у `.apt-fold`:
+   без него плашки вылезают за назначенную высоту и блок моргает. */
+.apt-for-slot { overflow: hidden; }
+.apt-for-slot.apt-fold-go { transition: height var(--dur-base) var(--ease); }
+@media (prefers-reduced-motion: reduce) {
+  .apt-for-slot.apt-fold-go { transition: none; }
+}
+
+.apt-who-pick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.apt-who-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  /* ПОТОЛОК НА СЛУЧАЙ БОЛЬШОГО КРУГА: список внутри окна, и десяток
+     участников вытолкнул бы кнопки окна за нижний край экрана */
+  max-height: 220px;
+  overflow-y: auto;
+}
+.apt-who-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: var(--space-2);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--text-body-sm);
+  text-align: left;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .apt-who-opt:hover { background: var(--surface-3); }
+}
+.apt-who-n { flex: 1; min-width: 0; }
+/* ГАЛОЧКА ЗАНИМАЕТ МЕСТО ВСЕГДА, а не появляется у выбранного:
+   иначе строки съезжали бы вбок при смене выбора — то самое
+   дёрганье, которое лечила задача 255. */
+.apt-who-tick { display: inline-flex; visibility: hidden; color: var(--tool-accent); }
+.apt-who-tick svg { width: 16px; height: 16px; }
+.apt-who-opt.is-on { border-color: var(--tool-accent); }
+.apt-who-opt.is-on .apt-who-tick { visibility: visible; }
+
+/* ── СТРОКА УПАКОВКИ: ДВЕ СТРОКИ ВМЕСТО ОДНОЙ (B.2) ───────────────── */
+.apt-pack-h { display: block; color: var(--text); }
+.apt-pack-sub {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: 2px;
+  font-size: var(--text-caption);
+  color: var(--text-faint);
+}
+/* СРОК — МОНОШИРИННЫМ, как всякое число и дата в проекте: столбик
+   сроков у нескольких пачек читается сравнением, а пропорциональный
+   шрифт сравнивать мешает */
+.apt-pack-sub .apt-pack-v { font-family: var(--font-mono); }
+.apt-pack-ok-t { color: var(--success); }
+.apt-pack-warn-t { color: var(--warning); }
+.apt-pack-bad-t { color: var(--error); }
+/* ПОДПИСАННАЯ КНОПКА ПРИЁМА (B.1). Значок остаётся: он делает
+   действие узнаваемым с одного взгляда, а подпись отвечает на вопрос
+   «сколько спишется», который у значка ответа не имеет. */
+.apt-pack-take { gap: var(--space-2); white-space: nowrap; }
+.apt-pack-take svg { width: 16px; height: 16px; }
+/* НА УЗКОЙ ПОДПИСЬ УХОДИТ. Ширины 358 px на две строки текста, срок
+   и три органа управления не хватает — замер задачи 223; там кнопка
+   возвращается к прежнему виду значка, и это единственное место,
+   где так делается. */
+@media (max-width: 560px) {
+  .apt-pack-take-t { display: none; }
+}
+
+/* ── ПОЛОСА ПОДТВЕРЖДЕНИЯ: ЗНАЧОК, ДВЕ СТРОКИ, ВЫБОР (C.1, C.2) ────
+   ПОЛОСА ОБРАТНОГО ОТСЧЁТА НЕ ТРОГАЕТСЯ. Она объявлена в `style.css`
+   через `.undo-bar::after` и питается переменной `--undo-window`
+   из скрипта; здесь меняется только СОДЕРЖИМОЕ полосы. Тронь мы
+   `::after` — и владелец потерял бы то, ради чего просил её сохранить:
+   сколько осталось на отмену. */
+.undo-bar { flex-wrap: wrap; }
+.undo-bar-ok { display: inline-flex; color: var(--success); flex: 0 0 auto; }
+.undo-bar-ok svg { width: 20px; height: 20px; }
+.undo-bar-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.undo-bar-for {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-caption);
+  color: var(--text-2);
+}
+/* ЛИЦО В ПОЛОСЕ — СИСТЕМНОГО РАЗМЕРА (`.avatar-sm`, 28px), и своего
+   здесь не объявляется. Первая версия ужимала его до 20px вместе
+   с кеглем буквы — то есть страница меняла ВИД системного компонента,
+   и `py check_metrics.py` назвал это долгом первого числа ряда
+   в тот же прогон. Строка полосы мелкая, но 28px в неё влезают:
+   высота ряда считается по самому рослому, а рослее там кнопки. */
+.undo-bar-for-face { display: inline-flex; }
+/* ГНЕЗДО ВЫБОРА ЗАНИМАЕТ ВСЮ ШИРИНУ ПОЛОСЫ: список плашек рядом
+   с кнопками не помещается никуда, а перенос строки в flex-контейнере
+   без этого правила разорвал бы ряд кнопок пополам. */
+.undo-bar-pick { flex: 1 0 100%; }
+.undo-bar-pick .apt-who-pick { margin-top: var(--space-2); }
