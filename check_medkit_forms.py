@@ -229,10 +229,11 @@ async def главное():
                   % (п["id"], ФОРМА_РУС.get(п["form"], п["form"])))
     if not кап:
         print("  единица объёма стоит вместо единицы приёма: 0")
+    ЛОЖКИ = ("spoon_tsp", "spoon_tbsp")  # задача 255: «spoon» разведена на две
     без_объёма = sum(1 for п in поз
-                     if п["unit"] in ("drop", "dose", "spoon")
+                     if п["unit"] in ("drop", "dose") + ЛОЖКИ
                      and not п["volume"])
-    считают = sum(1 for п in поз if п["unit"] in ("drop", "dose", "spoon"))
+    считают = sum(1 for п in поз if п["unit"] in ("drop", "dose") + ЛОЖКИ)
     print("  считают каплями/дозами/ложками: %d, из них объём упаковки "
           "НЕ записан: %d" % (считают, без_объёма))
     print()
