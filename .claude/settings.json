@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py \"$CLAUDE_PROJECT_DIR/check_shell_names.py\" --hook",
+            "timeout": 20,
+            "statusMessage": "Проверка 34: имена переменных оболочки"
+          }
+        ]
+      }
+    ]
+  }
+}
