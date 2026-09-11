@@ -174,13 +174,60 @@ class Проход:
           Object.defineProperty(HTMLTableRowElement.prototype, 'hidden',
             {configurable: true, get() { return false; }, set(v) {}});
         }""",
+    # ── ТРИ ОТБОРА ЗАДАЧИ 268 ────────────────────────────────────────
+    # Слушатель на `document` в фазе ЗАХВАТА срабатывает раньше слушателя
+    # самого органа и гасит событие: отбор о действии не узнаёт, а орган
+    # при этом жив, виден и нажимается. Ровно этот случай шаг с `>= 0`
+    # пропускал — он печатал ok и на пустом, и на несуженном списке.
+    "поиск молчит": """
+        if (location.pathname === '/admin/users') {
+          document.addEventListener('input', e => {
+            if (e.target && e.target.id === 'admin-q') e.stopImmediatePropagation();
+          }, true);
+        }""",
+    "отбор статуса молчит": """
+        if (location.pathname === '/admin/exercises') {
+          document.addEventListener('click', e => {
+            if (e.target && e.target.closest && e.target.closest('[data-pick]'))
+              e.stopImmediatePropagation();
+          }, true);
+        }""",
+    "группа мышц молчит": """
+        if (location.pathname === '/admin/exercises') {
+          document.addEventListener('change', e => {
+            if (e.target && e.target.id === 'filter-muscle') e.stopImmediatePropagation();
+          }, true);
+        }""",
+    # ── ОТКАЗ ОТ УДАЛЕНИЯ ПРОДУКТА (задача 270, контроль на НОВОЙ
+    # формулировке): «Отмена» сама жмёт «Удалить». Подлог настоящий —
+    # на стенде уходит продукт; после контроля стенд пересевается.
+    "отмена удаляет": """
+        if (location.pathname === '/admin/products') {
+          addEventListener('DOMContentLoaded', () => {
+            const к = document.querySelector('#food-del .btn-secondary[data-modal-close]');
+            if (к) к.addEventListener('click',
+              () => document.getElementById('food-del-go').click());
+          });
+        }""",
 }
 ЧЕЙ_ШАГ = {
     "мёртвый чип": ("Пользователи", "чип «Без доступа» — орган живой"),
     "тумблер молчит": ("Пользователи", "доступ записался в базу"),
     "удаление без вопроса": ("Продукты", "окно подтверждения открылось"),
     "отбор не прячет": ("Enshrouded", "отбор по категории сузил каталог"),
+    "поиск молчит": ("Пользователи", "поиск по почте отобрал"),
+    "отбор статуса молчит": ("Упражнения", "отбор по статусу перерисовал сетку"),
+    "группа мышц молчит": ("Упражнения", "список групп мышц отобрал"),
+    "отмена удаляет": ("Продукты", "отмена НИЧЕГО не удалила"),
 }
+
+
+# «ИЗ N ПОДОШЕДШИХ» — ЧИСЛО, КОТОРОЕ НАСЧИТАЛ ОТБОР СПРАВОЧНИКА, а не
+# число карточек: карточек на странице не больше `PAGE_SIZE`, и «30 из 30»
+# неотличимо от «30 из 873»
+ПОДОШЛО = ("() => { const м = /из (\\d+) подошедших/.exec("
+           "(document.getElementById('note') || {}).textContent || '');"
+           " return м ? +м[1] : -1; }")
 
 
 def _вход(стр, cdp, сенсор):
@@ -227,22 +274,62 @@ def раздел_пользователи(стр, п):
 
     стр.click('[data-pick="all"]')
     стр.wait_for_timeout(300)
-    стр.fill("#admin-q", "screenshot")
+    # ПОИСК СВЕРЯЕТСЯ С БАЗОЙ, А НЕ С НУЛЁМ (BACKLOG №268). Здесь стояло
+    # `найдено >= 0` по запросу «screenshot» — и это был ноль ПО ПОСТРОЕНИЮ:
+    # таблица показывает всех, КРОМЕ вошедшего, а вошёл сам screenshot.
+    # Шаг мерил пустоту и печатал ok. Запрос теперь — начало адреса ПЕРВОЙ
+    # строки, то есть заведомо непустое подмножество; ожидаемое число — из
+    # базы без вошедшего; каждая видимая строка обязана запрос содержать.
+    всего_строк = стр.evaluate(
+        "() => document.querySelectorAll('#rows tr:not([hidden])').length")
+    запрос = стр.evaluate(
+        "() => { const r = document.querySelector('#rows tr');"
+        " return r ? (r.dataset.email || '').split('@')[0] : ''; }")
+    ожидается = _бд(
+        "SELECT COUNT(*) FROM users WHERE instr(lower(email), ?) > 0"
+        " AND lower(email) <> lower(?)", (запрос.lower(), ch.ПОЧТА))[0][0]
+    стр.fill("#admin-q", запрос)
     стр.wait_for_timeout(400)
-    найдено = стр.evaluate("() => document.querySelectorAll('#rows tr:not([hidden])').length")
-    п.шаг("поиск по почте отобрал", найдено >= 0, "строк %d" % найдено)
+    почты = стр.evaluate("() => [...document.querySelectorAll("
+                         "'#rows tr:not([hidden])')].map(r => r.dataset.email || '')")
+    чужие = [а for а in почты if запрос.lower() not in а.lower()]
+    п.шаг("поиск по почте отобрал",
+          bool(запрос) and 0 < len(почты) == ожидается < всего_строк and not чужие,
+          "«%s»: строк %d из %d, в базе подходит %d%s"
+          % (запрос, len(почты), всего_строк, ожидается,
+             "; не содержат запроса: %s" % чужие if чужие else ""))
     стр.fill("#admin-q", "")
     стр.wait_for_timeout(300)
 
     # ── ГЛАВНОЕ ДЕЙСТВИЕ РАЗДЕЛА: выдать и отобрать доступ ───────────────
-    д = стр.evaluate("""() => {
+    # ДОСТУП СЧИТАЕТСЯ ПО ПАРЕ «ЧЕЛОВЕК, ИНСТРУМЕНТ» ДО И ПОСЛЕ НАЖАТИЯ
+    # (BACKLOG №267). Здесь спрашивалось «есть ли у человека ХОТЬ ОДНА
+    # строка доступа» и сравнивалось с нулём: сид общей аптечки выдаёт
+    # соседу доступ к аптечке, одна строка у него есть до всякого нажатия,
+    # и подлог «тумблер молчит» проходил шаг с «строк 1». А при уже
+    # включённом тумблере шаг был `True` без единой сверки.
+    д = стр.evaluate(r"""() => {
         const r = document.querySelector('#rows tr:not([hidden])');
         if (!r) return null;
         const c = r.querySelector('input[type=checkbox]');
-        return {почта: r.dataset.email, был: c.checked};
+        const м = /toggleAccess\(\s*\d+\s*,\s*'([^']+)'/.exec(
+            c.getAttribute('onchange') || '');
+        return {почта: r.dataset.email, был: c.checked, инструмент: м ? м[1] : ''};
     }""")
     if not д:
         return п.шаг("тумблер доступа", False, "в таблице нет ни одной строки")
+    uid = _бд("SELECT id FROM users WHERE email=?", (д["почта"],))
+    if not uid or not д["инструмент"]:
+        return п.шаг("доступ записался в базу", False,
+                     "сверять не с чем: человек %s, инструмент %r"
+                     % ("есть" if uid else "НЕ НАЙДЕН в базе", д["инструмент"]))
+    uid = uid[0][0]
+
+    def строк_доступа():
+        return _бд("SELECT COUNT(*) FROM tool_access WHERE user_id=? AND tool_id=?",
+                   (uid, д["инструмент"]))[0][0]
+
+    до = строк_доступа()
     # ОРГАН — ПОДПИСЬ `.toggle`, а не сам `<input>`: у системного тумблера
     # флажок спрятан по построению (0x0), нажимают дорожку. Спроси мы
     # про input — проба объявила бы находкой исправный компонент.
@@ -250,17 +337,18 @@ def раздел_пользователи(стр, п):
             "#rows tr:not([hidden]) .toggle")
     стр.click("#rows tr:not([hidden]) .toggle", timeout=8000)
     стр.wait_for_timeout(900)
-    uid = _бд("SELECT id FROM users WHERE email=?", (д["почта"],))
-    есть = _бд("SELECT COUNT(*) FROM tool_access WHERE user_id=?",
-               (uid[0][0],))[0][0] if uid else -1
-    ждём_больше = not д["был"]
-    п.шаг("доступ записался в базу",
-          (есть > 0) if ждём_больше else True,
-          "у %s строк доступа %d (было отмечено: %s)"
-          % (д["почта"], есть, д["был"]))
-    # Вернуть как было — проба не должна оставлять следа.
+    после = строк_доступа()
+    ждём = 0 if д["был"] else 1
+    п.шаг("доступ записался в базу", после == ждём and после != до,
+          "у %s строк доступа к «%s»: до %d, после %d, ждём %d (было отмечено: %s)"
+          % (д["почта"], д["инструмент"], до, после, ждём, д["был"]))
+    # Вернуть как было — проба не должна оставлять следа, И ЭТО ПРОВЕРЯЕТСЯ
     стр.click("#rows tr:not([hidden]) .toggle", timeout=8000)
     стр.wait_for_timeout(900)
+    вернулось = строк_доступа()
+    п.шаг("проба вернула доступ как был", вернулось == до,
+          "строк доступа к «%s»: было %d, после возврата %d"
+          % (д["инструмент"], до, вернулось))
 
 
 def раздел_продукты(стр, п):
@@ -330,7 +418,16 @@ def раздел_продукты(стр, п):
     п.шаг("вопрос называет, ЧТО удаляется", len(текст.strip()) > 10,
           текст.strip()[:60])
     if открыто:
-        стр.click("#food-del [data-modal-close]")
+        # «ОТМЕНА», А НЕ ПЕРВЫЙ ОРГАН ЗАКРЫТИЯ (§6.0.3, четыре пункта; BACKLOG №270).
+        #   ПРЕЖНЯЯ ФОРМУЛИРОВКА: `#food-del [data-modal-close]` — первым
+        #     таким органом стоит крестик шапки.
+        #   НОВАЯ: `#food-del .btn-secondary[data-modal-close]` — «Отмена»,
+        #     тот же селектор, что у соседней пробы каталога (задача 266).
+        #   ПОЧЕМУ ПРЕЖНЯЯ СТАЛА НЕГОДНОЙ: крестик шапки на сенсорной ширине
+        #     скрыт с задачи 189 (окно закрывают жестом), клик ждал 30 с
+        #     и ронял раздел — отказ от удаления на 390 не проверялся ни разу.
+        #   ОТРИЦАТЕЛЬНЫЙ КОНТРОЛЬ НА НОВОЙ: подлог «отмена удаляет».
+        стр.click("#food-del .btn-secondary[data-modal-close]")
         стр.wait_for_timeout(600)
     всего_после = _бд("SELECT COUNT(*) FROM custom_foods")[0][0]
     п.шаг("отмена НИЧЕГО не удалила", всего_до == всего_после,
@@ -348,20 +445,60 @@ def раздел_упражнения(стр, п):
     п.орган(стр, "список оборудования — орган живой", "#filter-equipment")
     п.орган(стр, "поле поиска — орган живой", "#admin-q")
 
+    # ДВА ОТБОРА СВЕРЯЮТСЯ С ЧИСЛОМ, А НЕ С НУЛЁМ (BACKLOG №268): здесь
+    # стояло `стало >= 0` и `после_мышц >= 0`, истинное и на пустой сетке,
+    # и на НЕСУЖЕННОЙ. Карточек на странице не больше `PAGE_SIZE`, поэтому
+    # спрашивается ещё и «из N подошедших» подписи — иначе 30 из 873
+    # неотличимо от 30 из 85.
+    стр_размер = стр.evaluate("() => PAGE_SIZE")
     было = стр.evaluate("() => document.querySelectorAll('.ex-card').length")
     стр.click('[data-pick="unchecked"]')
     стр.wait_for_timeout(600)
     стало = стр.evaluate("() => document.querySelectorAll('.ex-card').length")
-    п.шаг("отбор по статусу перерисовал сетку", стало >= 0,
-          "карточек %d -> %d" % (было, стало))
+    подошло = стр.evaluate(ПОДОШЛО)
+    значков = стр.evaluate(
+        "() => document.querySelectorAll('.ex-card .ex-card-badge').length")
+    в_базе = _бд("SELECT COUNT(*) FROM exercises"
+                 " WHERE COALESCE(video_status, 'unchecked') = 'unchecked'")[0][0]
+    п.шаг("отбор по статусу перерисовал сетку",
+          в_базе > 0 and подошло == в_базе and стало == min(стр_размер, в_базе)
+          and значков == 0,
+          "карточек %d -> %d, подошло по подписи %d, в базе «не проверено» %d,"
+          " со значком другого статуса %d" % (было, стало, подошло, в_базе, значков))
 
-    стр.select_option("#filter-muscle", index=1)
-    стр.wait_for_timeout(600)
-    после_мышц = стр.evaluate("() => document.querySelectorAll('.ex-card').length")
-    п.шаг("список групп мышц отобрал", после_мышц >= 0,
-          "карточек %d" % после_мышц)
-    стр.select_option("#filter-muscle", "all")
-    стр.wait_for_timeout(500)
+    # ГРУППА — ТА, ГДЕ «НЕ ПРОВЕРЕННЫХ» БОЛЬШЕ ВСЕГО: первая по списку бывает
+    # пустой, и «0 из 0» выглядело бы как работающий отбор. Число считается
+    # по данным страницы мимо отбора — вопрос про отбор, а не про выгрузку
+    группа = стр.evaluate("""() => {
+        const счёт = {};
+        EXERCISES.forEach(e => {
+          if ((e.video_status || 'unchecked') === 'unchecked' && e.muscle_group)
+            счёт[e.muscle_group] = (счёт[e.muscle_group] || 0) + 1; });
+        const лучшая = Object.entries(счёт).sort((a, b) => b[1] - a[1])[0];
+        if (!лучшая) return null;
+        const о = [...document.querySelectorAll('#filter-muscle option')]
+          .find(o => o.value === лучшая[0]);
+        return {ключ: лучшая[0], ждём: лучшая[1], подпись: о ? о.textContent.trim() : ''};
+    }""")
+    if not группа:
+        п.шаг("список групп мышц отобрал", False,
+              "ни одной группы с «не проверенными» — отбирать нечем")
+    else:
+        стр.select_option("#filter-muscle", группа["ключ"])
+        стр.wait_for_timeout(600)
+        после_мышц = стр.evaluate("() => document.querySelectorAll('.ex-card').length")
+        подошло_м = стр.evaluate(ПОДОШЛО)
+        чужих = стр.evaluate(
+            "(м) => [...document.querySelectorAll('.ex-card-meta')]"
+            ".filter(e => !e.textContent.trim().startsWith(м)).length",
+            группа["подпись"])
+        п.шаг("список групп мышц отобрал",
+              подошло_м == группа["ждём"] > 0
+              and после_мышц == min(стр_размер, группа["ждём"]) and чужих == 0,
+              "«%s»: карточек %d, подошло по подписи %d, ждём %d, из чужой группы %d"
+              % (группа["подпись"], после_мышц, подошло_м, группа["ждём"], чужих))
+        стр.select_option("#filter-muscle", "all")
+        стр.wait_for_timeout(500)
 
     примечание = стр.evaluate("() => document.getElementById('note').textContent.trim()")
     п.шаг("строка-объяснение непуста", len(примечание) > 40,
@@ -535,7 +672,57 @@ def прогон(ширина, высота, сенсор, подлог=None):
         return 'после «Кузнец» видно строк: '
              + trs.filter(tr => tr.checkVisibility()).length + ' из ' + trs.length;
       }""", "сколько строк каталога видно после чипа «Кузнец»"),
+    # ТРИ ОТБОРА 268: мерится ТО, ЧТО ОТБОР ДЕЛАЕТ С ЭКРАНОМ, мимо шага
+    "поиск молчит": ("/admin/users", """
+      async () => {
+        const r = document.querySelector('#rows tr');
+        const запрос = r ? (r.dataset.email || '').split('@')[0] : '';
+        const q = document.getElementById('admin-q');
+        q.value = запрос;
+        q.dispatchEvent(new Event('input', {bubbles: true}));
+        await new Promise(r => setTimeout(r, 300));
+        return 'видно строк после «' + запрос + '»: '
+             + document.querySelectorAll('#rows tr:not([hidden])').length;
+      }""", "сколько строк видно после ввода в поиск"),
+    "отбор статуса молчит": ("/admin/exercises", """
+      async () => {
+        const ч = document.querySelector('[data-pick="unchecked"]');
+        if (!ч) return 'чипа «Не проверено» нет';
+        ч.click();
+        await new Promise(r => setTimeout(r, 400));
+        return 'чип «Не проверено» выбран: ' + ч.classList.contains('active');
+      }""", "стал ли чип «Не проверено» выбранным после нажатия"),
+    "группа мышц молчит": ("/admin/exercises", """
+      async () => {
+        const с = document.getElementById('filter-muscle');
+        с.value = с.options[1].value;
+        с.dispatchEvent(new Event('change', {bubbles: true}));
+        await new Promise(r => setTimeout(r, 400));
+        return 'подпись называет группу мышц: '
+             + document.getElementById('note').textContent.includes('группа мышц');
+      }""", "назвала ли подпись выбранную группу мышц"),
+    # ОБРАБОТЧИК СО СТОРОНЫ СТРАНИЦЫ НЕ ВИДЕН: `addEventListener` не заводит
+    # ни атрибута, ни свойства, и выражение ответило бы одинаково до подлога
+    # и после. Число спрашивается у CDP — тот же приём, что у соседней пробы
+    "отмена удаляет": ("/admin/products",
+                       "CDP:#food-del .btn-secondary[data-modal-close]",
+                       "сколько обработчиков click висит на «Отмене»"),
 }
+
+
+def _обработчиков(стр, кон, селектор):
+    """Обработчики click на элементе — у CDP (изнутри страницы их не видно)."""
+    cdp = кон.new_cdp_session(стр)
+    cdp.send("DOM.enable")
+    cdp.send("Runtime.enable")
+    итог = cdp.send("Runtime.evaluate",
+                    {"expression": "document.querySelector('%s')" % селектор})
+    объект = итог.get("result", {}).get("objectId")
+    if not объект:
+        return "элемента %s в дереве нет" % селектор
+    сп = cdp.send("DOMDebugger.getEventListeners", {"objectId": объект})
+    return "обработчиков click: %d" % len(
+        [л for л in сп.get("listeners", []) if л.get("type") == "click"])
 
 
 def доказать_подлог(имя):
@@ -556,7 +743,10 @@ def доказать_подлог(имя):
             _вход(стр, cdp, False)
             стр.goto(БАЗА + путь, wait_until="domcontentloaded", timeout=60000)
             стр.wait_for_timeout(2500)
-            ответы.append(стр.evaluate(выражение))
+            if выражение.startswith("CDP:"):
+                ответы.append(_обработчиков(стр, к, выражение[4:]))
+            else:
+                ответы.append(стр.evaluate(выражение))
             к.close()
         бр.close()
     return ответы[0], ответы[1], что
