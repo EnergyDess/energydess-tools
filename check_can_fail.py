@@ -29,7 +29,26 @@ OK и тогда, когда замер не состоялся вовсе. Эт
   · условие шага повторяет условие ОБЪЕМЛЮЩЕГО `if` (или один из его
     сомножителей `and`): внутри ветки оно истинно по построению.
 
+ВТОРОЙ И ТРЕТИЙ КЛАСС — С ЗАХОДА 292 (задача 286). Шаг, у которого вход
+для падения ЕСТЬ, но который печатает OK, не измерив ничего:
+  · ПУСТОЙ СБОР — условие истинно на пустой коллекции (`not X`, `X == 0`,
+    `len(X) == 0`, `X == []`, `all(…)`, `not any(…)`), а коллекция —
+    сбор: генератор, `len`/`sum`/`filter`, пустой список, пополняемый
+    дальше, либо `evaluate` со сбором внутри JS (`querySelectorAll`,
+    `.filter(`, `.push(`, `.map(`). Ноль собранного — ноль замера;
+  · УСЛОВНЫЙ — `или`, у которого есть ветвь без замера: сравнение одних
+    лишь параметров функции и констант (`ширина < 800`) либо `X is None`.
+Оба снимаются КЛЮЧОМ у вызова, а не перечнем: `собрано=N` — число
+собранного, и при нуле шаг обязан стать ПРОПУСКОМ; `отрицание="причина"`
+— шаг проверяет отсутствие, и пустота тут и есть успех. `собрано=`
+литералом не засчитывается: `собрано=1` — та же константа True.
+
 ГРАНИЦА — НАЗВАНА, А НЕ ЗАБЫТА:
+  · коллекция из поля словаря (`итог["ложных"] == 0`) и из `evaluate`
+    с JS в переменной не распознаётся как сбор — берутся только те, что
+    видны в тексте вызова;
+  · «или» двух замеров, из которых один — отказ («"Сеть" in итог»),
+    по тексту неотличим от двух законных формулировок одного исхода;
   · условие, истинное из-за ДАННЫХ стенда (`было_в_базе == 'approved'`
     при единственной одобренной карточке), текстом не выводится —
     вход, при котором шаг падает, существует, просто стенд его не даёт;
@@ -51,6 +70,17 @@ OK и тогда, когда замер не состоялся вовсе. Эт
     py check_can_fail.py --все        плюс ВСЕ вызовы с вердиктом
     py check_can_fail.py --файл X     только один файл
     py check_can_fail.py --контроль   подлоги в памяти, диск не трогается
+    py check_can_fail.py --пустой-замер   у каждого шага с `собрано=` все
+                                      входы пусты: настоящий `шаг` пробы
+                                      обязан записать ПРОПУСК
+
+ПУСТОЙ ЗАМЕР — ПОДЛОГ НА ТОЙ САМОЙ СТРОКЕ, А НЕ НА ПРИДУМАННОЙ. Выражения
+условия и `собрано=` берутся из дерева файла и вычисляются с ПУСТЫМ
+значением каждого имени (длина 0, ложь, ноль, пустой обход); вызывается
+НАСТОЯЩИЙ `шаг` пробы (функция модуля либо метод класса), и в его `шаги`
+обязан лечь ПРОПУСК. Рядом печатается, чем было бы то же условие без
+`собрано=`: OK на пустом — ровно та неправда, которую ключ снимает.
+Браузера режим не поднимает: он проверяет проводку строки, а не экран.
 """
 import ast
 import glob
@@ -65,9 +95,17 @@ sys.stdout.reconfigure(encoding="utf-8")
 # (файл, имя шага) -> (задача, мест на момент записи). Пополняется
 # ТОЛЬКО тем же коммитом, что заводит задачу в BACKLOG.md.
 ДОЛГ = {
-    # мерка обхода справочника печатает число позиций с обеими записями
-    # и итогом ставит литерал True — упасть шагу нечем
-    ("check_medkit_manual.py", "обе-записи-живут-рядом"): (286, 1),
+}
+# ДОЛГ ВТОРОГО И ТРЕТЬЕГО КЛАССА — ПО ФАЙЛУ, С ЧИСЛОМ МЕСТ (заход 292).
+# Файл -> (задача, мест «пустой сбор», мест «условный»). Стало больше — находка
+ДОЛГ_КЛАССОВ = {
+    # заход 292 взял два файла, названные задачей 286; эти шесть не начаты
+    "check_admin_ui.py": (293, 1, 0),
+    "check_ens_admin_ui.py": (293, 3, 0),
+    "check_exercises_ui.py": (293, 1, 0),
+    "check_medkit_form.py": (293, 1, 0),
+    "check_medkit_who.py": (293, 3, 0),
+    "check_medkit_circle.py": (293, 7, 1),
 }
 
 
@@ -81,6 +119,21 @@ def _родители(дерево):
         for ребёнок in ast.iter_child_nodes(у):
             р[ребёнок] = у
     return р
+
+
+ФОРМЫ_СБОРА_JS = ("querySelectorAll", ".filter(", ".push(", ".map(")
+СБОР_ВЫЗОВЫ = ("len", "sum", "list", "set", "sorted", "filter")
+
+
+def _строка_js(выр):
+    if isinstance(выр, ast.Constant) and isinstance(выр.value, str):
+        return выр.value
+    if isinstance(выр, ast.JoinedStr):
+        return "".join(ч.value for ч in выр.values
+                       if isinstance(ч, ast.Constant) and isinstance(ч.value, str))
+    if isinstance(выр, ast.BinOp) and isinstance(выр.op, (ast.Add, ast.Mod)):
+        return _строка_js(выр.left) + _строка_js(выр.right)
+    return ""
 
 
 class Разбор:
@@ -219,6 +272,78 @@ class Разбор:
             return self.всегда(у.operand, функция, глубина + 1)
         return False, ""
 
+    # ── ВТОРОЙ КЛАСС: ПУСТОЙ СБОР ──
+    def сбор(self, у, функция, глубина=0):
+        if глубина > 8:
+            return False
+        if isinstance(у, ast.Await):
+            у = у.value
+        if isinstance(у, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+            return True
+        if isinstance(у, ast.List) and not у.elts:
+            return True
+        if isinstance(у, ast.Call):
+            имя = у.func.id if isinstance(у.func, ast.Name) else (
+                у.func.attr if isinstance(у.func, ast.Attribute) else "")
+            if имя in СБОР_ВЫЗОВЫ:
+                return True
+            if имя in ("evaluate", "eval_on_selector_all") and у.args and any(
+                    ф in _строка_js(у.args[0]) for ф in ФОРМЫ_СБОРА_JS):
+                return True
+            return False
+        if isinstance(у, ast.Name):
+            значения = self.присваивания(у.id, функция)
+            return bool(значения) and any(
+                self.сбор(з, функция, глубина + 1) for з in значения)
+        return False
+
+    def пустой_сбор(self, у, функция):
+        """Причина, если условие истинно на пустом сборе; иначе пусто."""
+        if isinstance(у, ast.UnaryOp) and isinstance(у.op, ast.Not):
+            о = у.operand
+            if isinstance(о, ast.Call) and isinstance(о.func, ast.Name) \
+                    and о.func.id == "any":
+                return "not any(…) истинно на пустом"
+            if isinstance(о, ast.Call) and isinstance(о.func, ast.Name) \
+                    and о.func.id == "len" and о.args:
+                о = о.args[0]
+            return "not X при пустом сборе" if self.сбор(о, функция) else ""
+        if isinstance(у, ast.Call) and isinstance(у.func, ast.Name) \
+                and у.func.id == "all":
+            return "all(…) истинно на пустом"
+        if isinstance(у, ast.Compare) and len(у.ops) == 1:
+            л, оп, пр = у.left, у.ops[0], у.comparators[0]
+            if isinstance(оп, (ast.Eq, ast.LtE)) and isinstance(пр, ast.Constant) \
+                    and пр.value == 0 and not isinstance(пр.value, bool):
+                if isinstance(л, ast.Call) and isinstance(л.func, ast.Name) \
+                        and л.func.id in ("len", "sum"):
+                    return "длина сбора == 0"
+                return "X == 0 при пустом сборе" if self.сбор(л, функция) else ""
+            if isinstance(оп, ast.Eq) and isinstance(
+                    пр, (ast.List, ast.Tuple, ast.Set)) and not пр.elts:
+                return "X == [] при пустом сборе" if self.сбор(л, функция) else ""
+        return ""
+
+    # ── ТРЕТИЙ КЛАСС: УСЛОВНЫЙ ──
+    def условный(self, у, функция):
+        if not (isinstance(у, ast.BoolOp) and isinstance(у.op, ast.Or)):
+            return ""
+        параметры = set()
+        if isinstance(функция, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            а = функция.args
+            параметры = {п.arg for п in а.posonlyargs + а.args + а.kwonlyargs}
+        for ветвь in у.values:
+            if isinstance(ветвь, ast.Compare) and len(ветвь.ops) == 1 and \
+                    isinstance(ветвь.ops[0], ast.Is) and \
+                    isinstance(ветвь.comparators[0], ast.Constant) and \
+                    ветвь.comparators[0].value is None:
+                return "ветвь «%s» засчитывает несостоявшийся замер" % ast.unparse(ветвь)
+            if isinstance(ветвь, ast.Compare):
+                имена = [н.id for н in ast.walk(ветвь) if isinstance(н, ast.Name)]
+                if имена and all(и in параметры for и in имена):
+                    return "ветвь «%s» не зависит от замера" % ast.unparse(ветвь)
+        return ""
+
     def повтор_условия_if(self, вызов, условие):
         """Условие шага повторяет условие объемлющего if."""
         д = _дамп(условие)
@@ -295,7 +420,24 @@ def разобрать_текст(текст, файл="<память>"):
             причина = р.повтор_условия_if(у, условие)
             и = bool(причина)
         ложь = р.никогда(условие, функция)[0]
-        вызовы.append([у.lineno, имя, и, причина, ast.unparse(условие)[:70], ложь])
+        ключи = {k.arg: k.value for k in у.keywords}
+        класс = "строгий" if и else ""
+        if not и:
+            собрано = ключи.get("собрано")
+            отрицание = ключи.get("отрицание")
+            законно = (собрано is not None and not isinstance(собрано, ast.Constant)) \
+                or (isinstance(отрицание, ast.Constant) and отрицание.value)
+            if not законно:
+                п = р.пустой_сбор(условие, функция)
+                if п:
+                    класс, причина = "пустой сбор", п
+                else:
+                    п = р.условный(условие, функция)
+                    if п:
+                        класс, причина = "условный", п
+            if собрано is not None and isinstance(собрано, ast.Constant):
+                класс, причина = "пустой сбор", "собрано= литералом"
+        вызовы.append([у.lineno, имя, и, причина, ast.unparse(условие)[:70], ложь, класс])
     # ИСХОД ПРОВЕРЕННОГО ПРЕДУСЛОВИЯ — НЕ БОЛЕЗНЬ. Форма
     #   if not поз: шаг(X, False, 'нет'); return
     #   шаг(X, True, 'есть')
@@ -308,7 +450,8 @@ def разобрать_текст(текст, файл="<память>"):
         if в[2] and в[1] in с_ложью:
             в[2] = False
             в[3] = "исход предусловия: у шага есть пара с False"
-    return sorted(tuple(в[:5]) for в in вызовы)
+            в[6] = ""
+    return sorted(tuple(в[:5]) + (в[6],) for в in вызовы)
 
 
 def файлы_проб():
@@ -347,13 +490,34 @@ def _контроль():
         ("ОБРАТНЫЙ: может упасть", "def ф(x):\n    о.шаг('а', x > 1)\n", False),
         ("ОБРАТНЫЙ: имя из двух веток",
          "def ф(x):\n    ок = True\n    if x: ок = x.z\n    о.шаг('а', ок)\n", False),
-        ("ОБРАТНЫЙ: or без истинной ветви",
-         "def ф(x, w):\n    о.шаг('а', x or w < 800)\n", False),
+        # ЗАХОД 292: здесь стояло `x or w < 800` с `w` ПАРАМЕТРОМ — после
+        # заведения третьего класса это ровно «условный» шаг, и контроль
+        # объявлял бы находкой то, что признак ловит по делу. Ветвь с
+        # замером (`w` присвоен внутри функции) — законная пара исходов
+        ("ОБРАТНЫЙ: or без истинной ветви, обе ветви — замер",
+         "def ф(x, pg):\n    w = pg.h\n    о.шаг('а', x or w < 800)\n", False),
         ("ОБРАТНЫЙ: условие шага уже условия if",
          "def ф(x):\n    if x:\n        о.шаг('а', x.y)\n", False),
         ("ОБРАТНЫЙ: исход предусловия с парой False",
          "def ф(x):\n    if not x:\n        о.шаг('а', False)\n        return\n"
          "    о.шаг('а', True)\n", False),
+        ("ПУСТОЙ СБОР: not X из генератора",
+         "def ф(x):\n    плохие = [у for у in x if у]\n    о.шаг('а', not плохие)\n", True),
+        ("ПУСТОЙ СБОР: X == 0 из evaluate со сбором",
+         "async def ф(pg):\n    н = await pg.evaluate(\"() => document.querySelectorAll('a').length\")\n"
+         "    о.шаг('а', н == 0)\n", True),
+        ("ПУСТОЙ СБОР: all(…)", "def ф(x):\n    о.шаг('а', all(у for у in x))\n", True),
+        ("ПУСТОЙ СБОР: собрано= литералом",
+         "def ф(x):\n    п = [у for у in x]\n    о.шаг('а', not п, собрано=1)\n", True),
+        ("ОБРАТНЫЙ: собрано= названо",
+         "def ф(x):\n    п = [у for у in x if у]\n    о.шаг('а', not п, собрано=len(x))\n", False),
+        ("ОБРАТНЫЙ: отрицание с причиной",
+         "def ф(x):\n    п = [у for у in x]\n    о.шаг('а', not п, отрицание='окна нет')\n", False),
+        ("ОБРАТНЫЙ: not X не из сбора",
+         "async def ф(pg):\n    т = await pg.evaluate('() => !!window.а')\n    о.шаг('а', not т)\n", False),
+        ("УСЛОВНЫЙ: ветвь по параметру",
+         "def ф(x, ширина):\n    о.шаг('а', x.y or ширина < 800)\n", True),
+        ("УСЛОВНЫЙ: X is None", "def ф(x):\n    о.шаг('а', x.y is None or x.y > 1)\n", True),
         ("True на месте несостоявшегося замера",
          "def ф(x):\n    if x:\n        о.шаг('а', x.y > 1)\n    else:\n"
          "        о.шаг('а', True, 'замер не состоялся')\n", True),
@@ -364,7 +528,7 @@ def _контроль():
         # ЛЮБОЕ место, а не первое по строке: первая версия контроля
         # брала `вызовы[0]` и на случае «True на месте замера» смотрела
         # САМ ЗАМЕР — печатала «может» про место, где True и не стоял
-        места = [в for в in (вызовы or []) if в[2]]
+        места = [в for в in (вызовы or []) if в[2] or в[5]]
         нашёл = bool(места)
         верно = нашёл == ждём
         плохо += 0 if верно else 1
@@ -384,10 +548,95 @@ def _контроль():
     return 1 if плохо else 0
 
 
+class _Пусто:
+    """Пустое значение любого вида: длина 0, ложь, ноль, пустой обход."""
+    def __len__(self): return 0
+    def __iter__(self): return iter(())
+    def __bool__(self): return False
+    def __int__(self): return 0
+    def __index__(self): return 0
+    def __float__(self): return 0.0
+    def __str__(self): return ""
+    def __format__(self, спек): return ""
+    def __eq__(self, x): return isinstance(x, _Пусто) or x in (0, "", None) or x == []
+    def __ne__(self, x): return not self.__eq__(x)
+    def __hash__(self): return 0
+    def __lt__(self, x): return False
+    __gt__ = __le__ = __ge__ = __lt__
+    # АРИФМЕТИКА ДАЁТ НОЛЬ: `собрано=ручных(до) + ручных(после)` уронил
+    # первый прогон режима `TypeError` — сумма пустых обязана быть пустой
+    def __add__(self, x): return 0
+    __radd__ = __sub__ = __rsub__ = __mul__ = __rmul__ = __add__
+    def __getitem__(self, к): return self
+    def __call__(self, *а, **к): return self
+    def __getattr__(self, к):
+        if к.startswith("__"):
+            raise AttributeError(к)
+        return self
+
+
+class _Имена(dict):
+    """Пространство имён, где любое неизвестное имя — пустое."""
+    def __missing__(self, к):
+        import builtins
+        return getattr(builtins, к) if hasattr(builtins, к) else _Пусто()
+
+
+def _пустой_замер():
+    import importlib.util
+    плохо, всего = 0, 0
+    for путь in файлы_проб():
+        файл = os.path.basename(путь)
+        текст = open(путь, encoding="utf-8").read()
+        if "собрано=" not in текст or файл == "check_can_fail.py":
+            continue
+        дерево = ast.parse(текст)
+        if not _сигнатуры(дерево):
+            continue
+        спек = importlib.util.spec_from_file_location("_проба_" + файл[:-3], путь)
+        мод = importlib.util.module_from_spec(спек)
+        спек.loader.exec_module(мод)
+        отчёт_класс = next((з for з in vars(мод).values() if isinstance(з, type)
+                            and callable(getattr(з, "шаг", None))), None)
+        вызовов = пропусков = было_ок = 0
+        for у in ast.walk(дерево):
+            if not (isinstance(у, ast.Call) and (getattr(у.func, "id", None) == "шаг"
+                                                 or getattr(у.func, "attr", None) == "шаг")):
+                continue
+            ключи = {k.arg: k.value for k in у.keywords}
+            if "собрано" not in ключи or len(у.args) < 2:
+                continue
+            вызовов += 1
+            имена = _Имена()
+            условие = eval(compile(ast.Expression(у.args[1]), файл, "eval"), {"__builtins__": __import__("builtins")}, имена)
+            собрано = eval(compile(ast.Expression(ключи["собрано"]), файл, "eval"), {"__builtins__": __import__("builtins")}, имена)
+            было_ок += 1 if условие else 0
+            if отчёт_класс is not None:
+                о = отчёт_класс()
+                о.шаг("пустой-замер", условие, "", собрано=собрано)
+                легло = о.шаги[-1][1] if о.шаги else "НИЧЕГО"
+            else:
+                мод.шаги.clear()
+                мод.шаг("пустой-замер", условие, "", собрано=собрано)
+                легло = мод.шаги[-1][1] if мод.шаги else "НИЧЕГО"
+            if легло is None:
+                пропусков += 1
+            else:
+                плохо += 1
+                print("  НЕ ПРОПУСК %s:%d — легло %r" % (файл, у.lineno, легло))
+        всего += вызовов
+        print("%-26s шагов с собрано= %d: на пустом ПРОПУСК %d · то же условие без "
+              "ключа дало бы OK %d" % (файл, вызовов, пропусков, было_ок))
+    print("ПУСТОЙ ЗАМЕР: шагов %d, не ПРОПУСК %d" % (всего, плохо))
+    return 2 if not всего else (1 if плохо else 0)
+
+
 def main():
     арг = sys.argv[1:]
     if "--контроль" in арг:
         return _контроль()
+    if "--пустой-замер" in арг:
+        return _пустой_замер()
     только = арг[арг.index("--файл") + 1] if "--файл" in арг else None
     все = "--все" in арг
 
@@ -400,11 +649,28 @@ def main():
         return 2
 
     новые, долг = [], []
+    классы_всего = {"пустой сбор": 0, "условный": 0}
     for файл, вызовы in итог.items():
         не_могут = [в for в in вызовы if в[2]]
         имён = len({в[1] for в in вызовы})
-        print("%-26s вызовов %3d (имён %3d), не могут упасть %d" % (
-            файл, len(вызовы), имён, len(не_могут)))
+        пустых = [в for в in вызовы if в[5] == "пустой сбор"]
+        условных = [в for в in вызовы if в[5] == "условный"]
+        классы_всего["пустой сбор"] += len(пустых)
+        классы_всего["условный"] += len(условных)
+        print("%-26s вызовов %3d (имён %3d), не могут упасть %d · пустой сбор %d · "
+              "условных %d" % (файл, len(вызовы), имён, len(не_могут),
+                               len(пустых), len(условных)))
+        задача, долг_пустых, долг_условных = ДОЛГ_КЛАССОВ.get(файл, (None, 0, 0))
+        for класс, места, предел in (("пустой сбор", пустых, долг_пустых),
+                                     ("условный", условных, долг_условных)):
+            if not места:
+                continue
+            if len(места) <= предел:
+                долг.append((файл, класс, [(м[0], м[1], True, м[3], м[4]) for м in места],
+                             задача))
+            else:
+                новые.append((файл, класс, [(м[0], м[1], True, м[3], м[4]) for м in места],
+                              " ВЫРОСЛО" if предел else ""))
         по_имени = {}
         for в in не_могут:
             по_имени.setdefault(в[1], []).append(в)
@@ -416,14 +682,16 @@ def main():
                 метка = " ВЫРОСЛО" if ключ in ДОЛГ else ""
                 новые.append((файл, имя, места, метка))
         if все:
-            for строка, имя, и, причина, усл in вызовы:
+            for строка, имя, и, причина, усл, _к in вызовы:
                 print("    %5d  %-8s %s  [%s]%s" % (
                     строка, "НЕ МОЖЕТ" if и else "может", имя, усл,
                     ("  — " + причина) if и else ""))
     print()
-    print("ВСЕГО вызовов шага %d, не могут упасть %d (новых мест %d, долг %d)" % (
-        всего, sum(1 for в in итог.values() for x in в if x[2]),
-        sum(len(н[2]) for н in новые), sum(len(д[2]) for д in долг)))
+    print("ВСЕГО вызовов шага %d, не могут упасть %d · пустой сбор %d · условных %d "
+          "(новых мест %d, долг %d)" % (
+              всего, sum(1 for в in итог.values() for x in в if x[2]),
+              классы_всего["пустой сбор"], классы_всего["условный"],
+              sum(len(н[2]) for н in новые), sum(len(д[2]) for д in долг)))
     if долг:
         print()
         print("ДОЛГ (известен, заведён задачей — в код возврата не идёт):")
@@ -433,7 +701,8 @@ def main():
         print()
         print("НАХОДКИ:")
         for файл, имя, места, метка in новые:
-            for строка, _, _, причина, усл in места:
+            for м in места:
+                строка, причина, усл = м[0], м[3], м[4]
                 print("  %s:%d  «%s»%s — %s  [%s]" % (
                     файл, строка, имя, метка, причина, усл))
     return 1 if новые else 0
