@@ -3971,6 +3971,30 @@ function аптАИОтвет(тело) {
 
      БЛОК ПОСЛЕ КАРТОЧЕК, а не перед: порядок частей назван задачей
      204 — сперва ответ на заданный вопрос, потом различия. */
+  /* ── ЧТО В ПОКАЗАНИЯХ КАЖДОЙ КАРТОЧКИ (BACKLOG №282) ─────────────
+     Прежде текст «что из этого выбрать» обещал показания «выше, дословно
+     из справочника» у всех сразу — а у половины пачек там запись
+     владельца с вкладыша, у двух ничего. Пункты собирает СЕРВЕР по факту
+     каждой карточки; здесь только список. Тот же вид, что у различий
+     ниже: второй компонент «список под ответом» не заводится. */
+  const пок = тело['показания_карточек'] || [];
+  if (пок.length) {
+    const к = document.createElement('div');
+    к.className = 'apt-ai-diff';
+    const ш = document.createElement('p');
+    ш.className = 'apt-ai-diff-h';
+    ш.textContent = тело['показания_шапка'] || '';
+    к.appendChild(ш);
+    const сп = document.createElement('ul');
+    сп.className = 'apt-ai-diff-list';
+    for (const с of пок) {
+      const li = document.createElement('li');
+      li.textContent = с;
+      сп.appendChild(li);
+    }
+    к.appendChild(сп);
+    блок.appendChild(к);
+  }
   const разл = тело['различия'] || [];
   if (разл.length) {
     const к = document.createElement('div');
