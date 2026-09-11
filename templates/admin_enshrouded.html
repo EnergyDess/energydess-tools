@@ -44,7 +44,11 @@
   <p class="data-note" id="note"></p>
 </div>
 
-{% call m.modal('ens-edit', 'Сет', icon='shield') %}
+{# ШИРОКОЕ ОКНО (`modal-ov-wide`, design-system.md §2.25) — BACKLOG №266,
+   блок C. В 540 px поля шли одной колонкой, и содержимое занимало
+   1082–1144 px при потолке листа 936: форму из девяти органов
+   приходилось прокручивать. #}
+{% call m.modal('ens-edit', 'Сет', icon='shield', variant='modal-ov-wide') %}
   <div id="ens-body"></div>
 {% endcall %}
 
@@ -194,92 +198,120 @@ function открыть(id) {
   const набор = (с.pieces && с.pieces.length) ? с.pieces : СЛОТЫ.map(k => k.id);
   document.getElementById('ens-edit-title').textContent =
     правим ? `Сет «${с.name_ru}»` : 'Новый сет';
+  /* ФОРМА — ЧЕТЫРЕ БЛОКА, ДВЕ КОЛОНКИ (BACKLOG №266, блок C).
+
+     ПОЯСНЕНИЯ СЖАТЫ ДО СТРОКИ, А ОБОСНОВАНИЯ УЕХАЛИ В ДОКУМЕНТАЦИЮ,
+     а не выброшены: почему уровень не выводится из предметов и почему
+     у «Мира» его не видно — CLAUDE.md §5.6; почему картинка ужимается
+     до потолка и лежит на томе — §5.7. Замер до правки: строк пояснений
+     15 в заведении и 18 в правке на 2560 — больше, чем самих полей.
+
+     ПРЕДУПРЕЖДЕНИЕ У ИДЕНТИФИКАТОРА ОСТАЛОСЬ НА ВИДУ и в подсказку
+     по наведению не спрятано: это защита от немого отказа —
+     переименование осиротило бы отметки молча (§5.7). Число отметок —
+     из базы: сервер кладёт его в `СЕТЫ[i].marks` при загрузке экрана
+     и заново после каждого сохранения (`_енш_отметок`).
+
+     ОТДЕЛЬНОЙ КНОПКИ «ЗАГРУЗИТЬ» НЕТ. Путь у картинки один: выбрать
+     файл либо вставить ссылку, затем «Сохранить». Картинка, выбранная
+     до первого сохранения, уезжает сразу за созданием сета — замер
+     задачи 266 (A3): `zz_ui_file` заведён файлом, картинка легла;
+     прятать блок в форме создания поэтому незачем. */
+  const отм = с.marks || 0;
   document.getElementById('ens-body').innerHTML = `
     <div id="ens-msg"></div>
 
-    <div class="ens-a-field">
-      <label class="field-label" for="f-id">Идентификатор</label>
-      <input class="input" id="f-id" value="${esc(с.id)}" ${правим ? 'disabled' : ''}
-             placeholder="bs_fur" autocomplete="off">
-      <p class="ens-a-note">${правим
-        ? 'Не меняется: на него ссылаются отметки пользователей — их сейчас '
-          + (с.marks || 0) + '. Переименование стёрло бы их молча.'
-        : 'Латиница, цифры и подчёркивание. Станет именем файла картинки.'}</p>
-    </div>
-
-    <div class="ens-a-field">
-      <label class="field-label" for="f-ru">Название по-русски</label>
-      <input class="input" id="f-ru" value="${esc(с.name_ru)}" autocomplete="off">
-    </div>
-    <div class="ens-a-field">
-      <label class="field-label" for="f-en">Название по-английски</label>
-      <input class="input" id="f-en" value="${esc(с.name_en)}" autocomplete="off">
-    </div>
-
-    <div class="ens-a-two">
-      <div class="ens-a-field">
-        <label class="field-label" for="f-cat">Категория</label>
-        <select class="select" id="f-cat">
-          ${КАТЕГОРИИ.map(k =>
-            `<option value="${k.id}"${k.id === с.crafter ? ' selected' : ''}>${esc(k.label)}</option>`).join('')}
-        </select>
-      </div>
-      <div class="ens-a-field">
-        <label class="field-label" for="f-lvl">Уровень</label>
-        <input class="input" id="f-lvl" type="number" min="1" max="200"
-               value="${с.lvl ?? ''}" placeholder="пусто">
-        <p class="ens-a-note">Вводится руками: из уровней найденных предметов
-          он не выводится — замер по 18 сетам «Мира» показал, что ни минимум,
-          ни максимум, ни среднее его не воспроизводят.
-          <br>У категории «Мир» подпись уровня в разделе не показывается
-          (решение 2026-08-23), но поле хранится и сверено с вики —
-          менять его тут можно.</p>
+    <div class="ens-a-sect">
+      <div class="ens-a-grid">
+        <div class="ens-a-field ens-a-span">
+          <label class="field-label" for="f-id">Идентификатор</label>
+          <input class="input" id="f-id" value="${esc(с.id)}" ${правим ? 'disabled' : ''}
+                 placeholder="bs_fur" autocomplete="off">
+          <p class="ens-a-note">${правим
+            ? 'Не меняется — на него ' + отметокСловами(отм)
+            : 'Латиница, цифры и подчёркивание — станет именем файла картинки'}</p>
+        </div>
+        <div class="ens-a-field">
+          <label class="field-label" for="f-ru">Название по-русски</label>
+          <input class="input" id="f-ru" value="${esc(с.name_ru)}" autocomplete="off">
+        </div>
+        <div class="ens-a-field">
+          <label class="field-label" for="f-en">Название по-английски</label>
+          <input class="input" id="f-en" value="${esc(с.name_en)}" autocomplete="off">
+        </div>
       </div>
     </div>
 
-    <div class="ens-a-field">
-      <span class="field-label">Состав</span>
-      <div class="ens-a-slots">
-        ${СЛОТЫ.map(k => `
-          <label class="ens-a-chk">
-            <input type="checkbox" class="f-piece" value="${k.id}"
-                   ${!свой && набор.includes(k.id) ? 'checked' : ''} ${свой ? 'disabled' : ''}> ${esc(k.label)}
-          </label>`).join('')}
+    <div class="ens-a-sect">
+      <p class="ens-a-sect-t">Классификация</p>
+      <div class="ens-a-grid">
+        <div class="ens-a-field">
+          <label class="field-label" for="f-cat">Категория</label>
+          <select class="select" id="f-cat">
+            ${КАТЕГОРИИ.map(k =>
+              `<option value="${k.id}"${k.id === с.crafter ? ' selected' : ''}>${esc(k.label)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="ens-a-field">
+          <label class="field-label" for="f-lvl">Уровень</label>
+          <input class="input" id="f-lvl" type="number" min="1" max="200"
+                 value="${с.lvl ?? ''}" placeholder="пусто">
+          <p class="ens-a-note">Вводится руками, из предметов не выводится</p>
+        </div>
       </div>
-      ${свой ? `<p class="ens-a-note">У этого сета СВОИ слоты со своими подписями
-         (${с.custom.map(k => esc(k.label)).join(', ')}), и обычный состав
-         к нему не применяется. Здесь он показан, чтобы не выглядел
-         потерянным; правится он пока разговором.</p>` : ''}
     </div>
 
-    <div class="ens-a-field">
-      <span class="field-label">Картинка</span>
+    <div class="ens-a-sect">
+      <p class="ens-a-sect-t" id="f-pieces-t">Состав</p>
+      <div class="ens-a-pieces" role="group" aria-labelledby="f-pieces-t">
+        ${СЛОТЫ.map(k => {
+          const вкл = !свой && набор.includes(k.id);
+          return `<button type="button" class="chip chip-outline tap-44 ens-a-piece${вкл ? ' active' : ''}"
+                          data-piece="${k.id}" aria-pressed="${вкл}" ${свой ? 'disabled' : ''}
+                          onclick="плашка(this)"><i data-lucide="check"></i>${esc(k.label)}</button>`;
+        }).join('')}
+      </div>
+      ${свой ? `<p class="ens-a-note">Свои слоты (${с.custom.map(k => esc(k.label)).join(', ')})
+                — обычный состав к ним не применяется, правятся разговором</p>` : ''}
+    </div>
+
+    <div class="ens-a-sect">
+      <p class="ens-a-sect-t">Картинка</p>
       <div class="ens-a-img">
         ${с.img ? `<img class="ens-a-prev" id="f-prev" src="${esc(с.img)}" alt="">`
                 : '<div class="ens-a-prev ens-a-none" id="f-prev">нет картинки</div>'}
         <div class="ens-a-imgctl">
           <input type="file" id="f-file" accept="image/*" class="input" onchange="выбрана()">
-          <div class="ens-a-url">
-            <input class="input" id="f-url" placeholder="Ссылка на картинку" autocomplete="off">
-            <button class="btn-secondary ens-a-up" type="button" id="f-up"
-                    onclick="загрузить()">Загрузить</button>
-          </div>
-          <p class="ens-a-note" id="f-imgnote">${правим
-            ? `Ужимается до ${ПОТОЛОК[0]}×${ПОТОЛОК[1]} — размер самого крупного
-               места показа с запасом на плотность экрана. Кладётся на том,
-               а не в статику: иначе исчезнет со следующей выкаткой.`
-            : `Выберите файл или вставьте ссылку — картинка встанет на место
-               сразу после сохранения. Ужимается до ${ПОТОЛОК[0]}×${ПОТОЛОК[1]}.`}</p>
+          <input class="input" id="f-url" placeholder="или ссылка на картинку" autocomplete="off">
+          <p class="ens-a-note" id="f-imgnote">Ужимается до ${ПОТОЛОК[0]}×${ПОТОЛОК[1]}. Применится при сохранении</p>
         </div>
       </div>
     </div>
 
-    <div class="ens-a-actions">
-      ${правим ? `<button class="btn-danger ens-a-del" type="button"
+    <div class="ens-a-foot">
+      ${правим ? `<button class="btn-danger" type="button"
                           onclick="спроситьУдаление()">Удалить сет</button>` : ''}
-      <button class="btn-primary" type="button" onclick="сохранить()">Сохранить</button>
+      <button class="btn-primary ens-a-save" type="button" onclick="сохранить()">Сохранить</button>
     </div>`;
+  if (window.lucide) window.lucide.createIcons();
   window.открыть_модалку('ens-edit');
+}
+
+/* «На него ссылаются 20 отметок пользователей». Склонение — здесь,
+   а не в тексте: число берётся из базы и бывает любым. */
+function отметокСловами(n) {
+  const д = n % 10, с = n % 100;
+  if (д === 1 && с !== 11) return `ссылается ${n} отметка пользователя`;
+  if (д >= 2 && д <= 4 && (с < 12 || с > 14)) return `ссылаются ${n} отметки пользователей`;
+  return `ссылаются ${n} отметок пользователей`;
+}
+
+/* Плашка состава — переключатель. Состояние в классе и в `aria-pressed`:
+   первое видит глаз, второе программа чтения. */
+function плашка(b) {
+  const вкл = !b.classList.contains('active');
+  b.classList.toggle('active', вкл);
+  b.setAttribute('aria-pressed', String(вкл));
 }
 
 function сказать(текст, вид) {
@@ -295,7 +327,7 @@ function выбрана() {
   if (!файл) return;
   const прев = document.getElementById('f-prev');
   прев.outerHTML = `<img class="ens-a-prev" id="f-prev" src="${URL.createObjectURL(файл)}" alt="">`;
-  if (!правим) сказать(`Картинка «${файл.name}» встанет на место после сохранения.`, 'accent');
+  сказать(`Картинка «${файл.name}» применится при сохранении.`, 'accent');
 }
 
 async function сохранить() {
@@ -306,7 +338,7 @@ async function сохранить() {
     name_en: document.getElementById('f-en').value.trim(),
     crafter: document.getElementById('f-cat').value,
     lvl: document.getElementById('f-lvl').value,
-    pieces: свой ? null : [...document.querySelectorAll('.f-piece:checked')].map(e => e.value),
+    pieces: свой ? null : [...document.querySelectorAll('.ens-a-piece.active')].map(e => e.dataset.piece),
     custom: свой ? правим.custom : null,
   };
   const о = await fetch('/admin/api/enshrouded/set', {
@@ -339,9 +371,10 @@ async function сохранить() {
   сказать(созданный ? 'Сет заведён.' : 'Сохранено.', 'success');
 }
 
-/* Отправка картинки. ОДНА на оба пути — кнопку «Загрузить» у готового
-   сета и догрузку сразу после создания. Второй реализации нет: разойдясь,
-   они дали бы разный разбор ответа на одном и том же адресе. */
+/* Отправка картинки. Зовёт её ТОЛЬКО «Сохранить» — и у нового сета,
+   и у готового. Отдельной кнопки «Загрузить» с 2026-09-11 нет
+   (BACKLOG №266, C5): у картинки был второй путь сохранения, и какая
+   из двух кнопок что сохраняет, приходилось угадывать. */
 async function отправитьКартинку() {
   const файл = document.getElementById('f-file').files[0];
   const ссылка = document.getElementById('f-url').value.trim();
@@ -361,23 +394,14 @@ async function отправитьКартинку() {
   const прев = document.getElementById('f-prev');
   if (прев) прев.outerHTML =
     `<img class="ens-a-prev" id="f-prev" src="${esc(д.img)}" alt="">`;
+  /* Поля очищаются: иначе следующее «Сохранить» у того же сета
+     отправило бы ту же картинку ещё раз — путь один, и он обязан
+     различать «картинку выбрали» и «картинку уже приложили». */
+  document.getElementById('f-file').value = '';
+  document.getElementById('f-url').value = '';
   перерисовать();
   return {ok: true, текст: `Из «${д.src}»: было ${д.was[0]}×${д.was[1]}, ` +
                            `стало ${д.now[0]}×${д.now[1]}, ${Math.round(д.bytes / 1024)} КБ.`};
-}
-
-async function загрузить() {
-  if (!правим) {
-    // Сохранение утащит картинку с собой само — просить нажать «Загрузить»
-    // ещё раз незачем.
-    return сохранить();
-  }
-  const кн = document.getElementById('f-up');
-  кн.disabled = true;
-  const итог = await отправитьКартинку();
-  кн.disabled = false;
-  сказать((итог.ok ? 'Загружено. ' : 'Не загрузилось: ') + итог.текст,
-          итог.ok ? 'success' : 'error');
 }
 
 /* ── Удаление: вопрос ВСЕГДА, и с числом ────────────────────────────

@@ -945,39 +945,83 @@
 .ens-a-note { line-height: 1.5; margin-top: var(--space-2); }
 .ens-a-none { color: var(--text-faint); font-size: var(--text-caption); }
 .ens-a-edit { padding: var(--space-1) var(--space-3); }
-.ens-a-field { margin-bottom: var(--space-4); }
-.ens-a-two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
-.ens-a-slots { display: flex; gap: var(--space-3); flex-wrap: wrap; }
-.ens-a-chk { display: flex; align-items: center; gap: var(--space-2);
-             font-size: var(--text-body-sm); color: var(--text-2); }
+/* ── ОКНО СЕТА: ЧЕТЫРЕ БЛОКА, ДВЕ КОЛОНКИ (BACKLOG №266, блок C) ────
+   Блоки разделены ЛИНИЕЙ МЕЖДУ СОБОЙ, а не линией под заголовком:
+   первый блок (идентификатор и названия) заголовка не имеет, и линия
+   под заголовком оставила бы его без границы. Поэтому это НЕ форма
+   групп аптечки (`.apt-fs-t` — прописной моно с чертой под собой,
+   в `medkit.css`, который админка не подключает): общее у них только
+   токены.
+
+   Заголовок блока — строчный, приглушённый, мельче подписи-капители
+   поля по весу восприятия: подписи полей набраны прописным моно
+   с разрядкой, и заголовок того же вида спорил бы с ними. */
+.ens-a-sect + .ens-a-sect {
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
+}
+.ens-a-sect-t {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+  color: var(--text-2);
+}
+/* Колонки РАВНЫЕ по построению (`minmax(0, 1fr)`): при голом `1fr`
+   длинное значение в поле раздвинуло бы свою колонку за счёт соседней. */
+.ens-a-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+              gap: var(--space-4); }
+.ens-a-span { grid-column: 1 / -1; }
+.ens-a-field { min-width: 0; }
+/* Плашки состава: системный `.chip` с `.active`; галочка видна только
+   у выбранной. На сенсорном экране доборный слой `.tap-44` свисает
+   у чипа высотой 28 на 8 px вверх и вниз, и при зазоре рядов 8 нижний
+   ряд отъедал бы у верхнего — отсюда 16 (тот же урок, что у чипов
+   аптечки, BACKLOG №162). */
+.ens-a-pieces { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.ens-a-piece svg { width: 14px; height: 14px; }
+.ens-a-piece:not(.active) svg { display: none; }
+@media (pointer: coarse) { .ens-a-pieces { row-gap: var(--space-4); } }
 .ens-a-img { display: flex; gap: var(--space-4); align-items: flex-start; }
 .ens-a-prev { width: 180px; height: 128px; object-fit: contain; flex: none;
               background: var(--surface-sunken); border: 1px solid var(--border);
               border-radius: var(--radius-sm); display: flex;
               align-items: center; justify-content: center; }
 .ens-a-imgctl { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
-/* ПОЛЕ НЕ УЖЕ ЧИТАЕМОГО МИНИМУМА, КНОПКА УСТУПАЕТ МЕСТО. Ряд
-   переносится: пока в контейнере хватает на 14rem поля плюс кнопку,
-   они стоят рядом, не хватает — кнопка уходит под поле, и поле
-   получает всю ширину.
+/* Ряд «поле ссылки + кнопка Загрузить» УДАЛЁН 2026-09-11 вместе
+   с кнопкой (BACKLOG №266, C5): поле ссылки стоит само, во всю ширину
+   колонки. Прежний ряд на 390 ещё и раздувал поле до ~220 px по высоте:
+   `flex: 1 1 14rem` в столбцовом ряду становился высотой. */
 
-   Чинится КЛАСС, а не строка (§6.0.7). Прежний `flex: 1` отдавал
-   полю остаток после кнопки: в колонке 310px это 173px, внутри
-   139px — а подсказка «…или ссылка на картинку» просила 189px
-   и обрезалась на «…или ссылка на к». Подобрать текст покороче
-   значило бы починить ЭТУ подсказку и оставить следующую
-   обрезаться молча. */
-.ens-a-url { display: flex; gap: var(--space-2); flex-wrap: wrap; }
-.ens-a-url .input { flex: 1 1 14rem; min-width: 0; }
-/* ОПАСНОЕ ДЕЙСТВИЕ РАЗВЕДЕНО С СОХРАНЕНИЕМ — решение владельца
-   2026-08-23. Стояли они вплотную (зазор 12px, замер), а последствия
-   у них противоположные: одно правит, второе стирает безвозвратно.
-   `margin-right: auto` уводит «Удалить» к левому краю ряда, то есть
-   промахнуться мимо «Сохранить» в его сторону нельзя — между ними
-   оказывается вся ширина окна, а не одна ступень шкалы. */
+/* ПОДВАЛ ОКНА СЕТА НА ПОДЛОЖКЕ — BACKLOG №266, C7. Липкий: кнопки
+   видны, где бы ни была прокрутка формы. Та же механика, что у подвала
+   формы аптечки (`.apt-form .apt-foot`): отрицательные поля на паддинг
+   тела окна (16 px по бокам, 4 px снизу), чтобы подложка дошла до краёв
+   листа, и собственный паддинг, возвращающий кнопкам воздух.
+
+   ОПАСНОЕ ДЕЙСТВИЕ РАЗВЕДЕНО С СОХРАНЕНИЕМ — решение владельца
+   2026-08-23, и теперь НА ВСЕХ ШИРИНАХ. `margin-right: auto` уводит
+   «Удалить» к левому краю ряда. Прежде на узком экране ряд ломался
+   в столбец (`column-reverse`), и замер 2026-09-11 на 390 дал «Удалить
+   сет» ПРЯМО ПОД «Сохранить» — между ними ступень шкалы, то есть ровно
+   то соседство, которое решение и снимало. Своим классом, а не
+   `.ens-a-actions`: тот ряд живёт ещё в окне подтверждения удаления,
+   где кнопки — ответ на один вопрос и разводить их незачем. */
+.ens-a-foot {
+  position: sticky;
+  bottom: calc(var(--space-1) * -1);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-5) calc(var(--space-4) * -1) calc(var(--space-1) * -1);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-1);
+  border-top: 1px solid var(--border);
+}
+.ens-a-save { margin-left: auto; }
 .ens-a-actions { display: flex; justify-content: flex-end; gap: var(--space-3);
                  margin-top: var(--space-5); flex-wrap: wrap; }
-.ens-a-del { margin-right: auto; }
 /* В окне подтверждения обе кнопки — ответ на один вопрос, разводить
    их незачем: там опасное действие и есть предмет разговора. */
 .ens-a-actions-danger { justify-content: flex-end; }
@@ -988,17 +1032,9 @@
 .admin-modal-actions { display: flex; justify-content: flex-end;
                        gap: var(--space-3); margin-top: var(--space-5);
                        flex-wrap: wrap; }
-/* Кнопка загрузки не сжимается: подпись «Загрузить» в один ряд
-   с полем ссылки иначе переносится по буквам на узком окне. */
-.ens-a-up { flex: none; white-space: nowrap; }
 @media (max-width: 640px) {
-  .ens-a-two { grid-template-columns: 1fr; }
+  .ens-a-grid { grid-template-columns: minmax(0, 1fr); }
   .ens-a-img { flex-direction: column; }
   .ens-a-prev { width: 100%; }
-  /* На узком окне ряд «поле + кнопка» ломается в столбик: на 390
-     поле ссылки внутри ряда получало 139px под подсказку шириной
-     189px — она обрезалась на «…или ссылка на к». */
-  .ens-a-url { flex-direction: column; align-items: stretch; }
-  .ens-a-del { margin-right: 0; width: 100%; }
   .ens-a-actions { flex-direction: column-reverse; }
 }
