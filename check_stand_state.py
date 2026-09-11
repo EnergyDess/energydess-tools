@@ -196,7 +196,34 @@ def опись(c):
         if лишние:
             находки.append(("enshrouded_sets", len(лишние),
                             "вне семени: " + ", ".join(лишние[:5])))
+
+    # 6. ЧУЖОЕ ЗНАЧЕНИЕ, А НЕ ЧУЖАЯ СТРОКА (заход 290, остаток задачи 284).
+    #
+    #    Статус упражнения на стенде ВЫВОДИТСЯ из ролика: seed модерации
+    #    не заводит, ролика нет — «no_video», ролик есть — «unchecked»
+    #    (та же миграция в `database.py`). «Одобрено» либо «неверно» —
+    #    след пробы, нажавшей кнопку модерации: проба админки однажды
+    #    оставила «approved» при пустом ролике, и опись этого не видела —
+    #    она искала чужие СТРОКИ, а строка была своя. Замер до правки:
+    #    подложенный статус — код 0, «ЧУЖОГО НЕТ».
+    #
+    #    ГРАНИЦА: подменённый САМ РОЛИК из ролика не выводится — сверяется
+    #    только статус при данном ролике.
+    if "video_status" in колонки(c, "exercises"):
+        n = c.execute(ЗАПРОС_СТАТУСОВ.replace("SELECT id", "SELECT COUNT(*)")
+                      ).fetchone()[0]
+        if n:
+            находки.append(("exercises.video_status", n,
+                            "статус не выводится из ролика (след модерации)"))
     return находки, свои, True
+
+
+# ВЫВОДИМЫЙ СТАТУС — ОДНИМ ЗАПРОСОМ на опись и на приведение: два текста
+# одного условия разошлись бы молча (§6.0.7)
+ВЫВОД_СТАТУСА = ("CASE WHEN youtube_id IS NULL OR youtube_id = '' "
+                 "THEN 'no_video' ELSE 'unchecked' END")
+ЗАПРОС_СТАТУСОВ = ("SELECT id FROM exercises WHERE video_status IS NULL "
+                   "OR video_status <> " + ВЫВОД_СТАТУСА)
 
 
 def привести(путь, свои):
@@ -238,9 +265,11 @@ def привести(путь, свои):
     for sid in лишние:
         c.execute("DELETE FROM enshrouded_slots WHERE set_id = ?", (sid,))
         c.execute("DELETE FROM enshrouded_sets WHERE id = ?", (sid,))
+    статусов = c.execute("UPDATE exercises SET video_status = %s WHERE id IN (%s)"
+                         % (ВЫВОД_СТАТУСА, ЗАПРОС_СТАТУСОВ)).rowcount
     c.commit()
     c.close()
-    return len(чужие), len(лишние), сирот
+    return len(чужие), len(лишние), сирот, статусов
 
 
 def прогон(показывать=True):
@@ -282,9 +311,9 @@ def main():
         return 0
     if "--привести" in sys.argv:
         print()
-        людей, сетов, сирот = привести(путь_базы(), свои)
-        print("УБРАНО: аккаунтов %d, сирот %d, сетов вне семени %d"
-              % (людей, сирот, сетов))
+        людей, сетов, сирот, статусов = привести(путь_базы(), свои)
+        print("УБРАНО: аккаунтов %d, сирот %d, сетов вне семени %d, "
+              "статусов упражнений возвращено %d" % (людей, сирот, сетов, статусов))
         код2, ост, _ = прогон(показывать=False)
         print("ПОСЛЕ ПРИВЕДЕНИЯ: %s"
               % ("чужого нет" if код2 == 0 else "ОСТАЛОСЬ %s" % (ост,)))
@@ -305,6 +334,7 @@ def main():
 ДОКАЗАТЕЛЬСТВА = {
     "чужой-аккаунт": "SELECT COUNT(*) FROM users",
     "чужой-сет": "SELECT COUNT(*) FROM enshrouded_sets",
+    "чужой-статус": "SELECT COUNT(*) FROM exercises WHERE video_status = 'approved'",
 }
 
 
@@ -331,6 +361,15 @@ def доказать_подлог(путь, запрос):
      "pieces, custom, sort_order) "
      "VALUES ('zz_control','Контроль','Control','world',1,'[]',0,999)",
      "DELETE FROM enshrouded_sets WHERE id = 'zz_control'"),
+    # ЧУЖОЕ ЗНАЧЕНИЕ СВОЕЙ СТРОКИ — ровно то, что оставила проба админки
+    # (задача 284): «одобрено» при пустом ролике. Строк не прибавляется,
+    # поэтому доказательство считает сами одобренные
+    ("чужой-статус",
+     "UPDATE exercises SET video_status = 'approved' WHERE id = (SELECT MIN(id) "
+     "FROM exercises WHERE (youtube_id IS NULL OR youtube_id = '') "
+     "AND video_status = 'no_video')",
+     "UPDATE exercises SET video_status = 'no_video' WHERE video_status = "
+     "'approved' AND (youtube_id IS NULL OR youtube_id = '')"),
 )
 
 
