@@ -77,6 +77,7 @@ import main                                              # noqa: E402
 import medkit_dosage as дозы                             # noqa: E402
 import medkit_defs as опр                                # noqa: E402
 import check_medkit_all as всё                           # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 ФОРМА_РУС = {ф["id"]: ф["имя"] for ф in опр.ФОРМЫ}
 

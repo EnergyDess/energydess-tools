@@ -69,6 +69,7 @@ os.environ.setdefault("DB_PATH", "app.db")
 
 import medkit_dosage as дозы            # noqa: E402
 import medkit_sources as источники      # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 КЕШ = os.getenv("MEDKIT_CACHE", ".dosage_cache")
 

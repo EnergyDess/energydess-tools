@@ -46,6 +46,7 @@ os.environ.setdefault("DB_PATH", os.path.abspath("test_medkit.db"))
 os.environ.setdefault("MEDKIT_DOSAGE_ITEM_TIMEOUT", "3")
 
 import main as M
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 
 # ─────────────────────────────────────────────────────────────────────

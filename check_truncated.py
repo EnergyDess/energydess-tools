@@ -32,6 +32,7 @@ import os
 import re
 import sqlite3
 import sys
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 # Консоль Windows по умолчанию cp1251 — вывод скрипта превращается в кашу
 # и читается ровно никак. На проде (Linux, UTF-8) строка ничего не меняет.

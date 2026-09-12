@@ -97,6 +97,7 @@
 там срез, который читается без браузера и без поднятого приложения.
 """
 import argparse
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 import io
 import os
 import re

@@ -33,6 +33,7 @@ from playwright.async_api import async_playwright     # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import medkit_defs as опр                             # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 БАЗА = os.getenv("HOVER_BASE", "http://127.0.0.1:8899")
 DB = os.getenv("DB_PATH", "./app.db")

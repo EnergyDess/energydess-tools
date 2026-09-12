@@ -60,6 +60,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("DB_PATH", "app.db")
 
 import check_hover as ch     # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 # ВЫВОД В UTF-8: без этого печать знака вне cp1251 роняет пробу
 # `UnicodeEncodeError` при ЛЮБОМ перенаправлении (`> файл`,
@@ -67,7 +68,9 @@ import check_hover as ch     # noqa: E402
 # её не в консоль. Найдено проверкой 35 (BACKLOG №307).
 sys.stdout.reconfigure(encoding="utf-8")
 
-БАЗА = os.environ.get("STAND", os.environ.get("СТЕНД", "http://127.0.0.1:8899"))
+# ИМЯ ОДНО И ЛАТИНИЦЕЙ (§6.0): кириллический запасной вариант
+# оболочке недоступен, а второе имя одной величины расходится молча.
+БАЗА = os.environ.get("STAND", "http://127.0.0.1:8899")
 
 # ОКНО НАБЛЮДЕНИЯ. 500 мс — не круглое число, а верхняя оценка: подпись
 # поиска подставляет скрипт с `defer`, то есть после разбора разметки,

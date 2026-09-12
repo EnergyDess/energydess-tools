@@ -41,6 +41,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import make_local_user as _сид                     # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 БАЗА = os.environ.get("ENS_ADMIN_BASE", "http://127.0.0.1:8899")
 БД = os.environ.get("DB_PATH") or os.path.join(

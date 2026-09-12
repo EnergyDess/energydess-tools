@@ -19,6 +19,7 @@
 Пишет в базу стенда только переписку (чистит её перед открытием панели).
 """
 import asyncio
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 import os
 import re
 import sys

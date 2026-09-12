@@ -90,6 +90,7 @@ import ast
 import re
 import sys
 import pathlib
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 # ВЫВОД В UTF-8: без этого печать знака вне cp1251 роняет пробу
 # `UnicodeEncodeError` при ЛЮБОМ перенаправлении (`> файл`,
@@ -333,6 +334,12 @@ sys.stdout.reconfigure(encoding="utf-8")
     'effects.js': 'то же имя без каталога — design-system.md §11',
     'theme.js': 'то же имя без каталога — design-system.md §11',
     'THEME-workout.md': 'никогда не существовал, ссылку удалили (CLAUDE.md §3)',
+    'sitecustomize.py': 'НЕ ЗАВОДИЛСЯ НАРОЧНО: замер 2026-09-12 показал, '
+                        'что файл с таким именем в корне проекта '
+                        'интерпретатором не подхватывается — каталог '
+                        'скрипта попадает в sys.path уже после импорта '
+                        'site. Назван в CLAUDE.md §3 и §7 как отвергнутый '
+                        'способ подключить слой probe_guard (BACKLOG №308)',
     'exercises_data.json': 'переименован в exercises_seed.json (CLAUDE.md §11)',
     'app.db.new': 'временное имя при заливке базы, CLAUDE.md §9',
     'style.css': 'короткое имя static/style.css, путь проверяется отдельно',

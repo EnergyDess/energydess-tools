@@ -111,6 +111,7 @@ import tempfile
 sys.stdout.reconfigure(encoding='utf-8')
 
 import check_backlog as бэклог   # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 ДОКУМЕНТ = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'CLAUDE.md')
 

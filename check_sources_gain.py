@@ -47,6 +47,7 @@ HTTP 503. Копия базы снимается и увозится, прого
 """
 
 import asyncio
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 import os
 import sys
 

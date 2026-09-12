@@ -65,6 +65,7 @@ import shutil
 import sqlite3
 import sys
 import tempfile
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 # reconfigure, а НЕ новый TextIOWrapper: `check_medkit_all` при импорте
 # заворачивает stdout ещё раз, и наша обёртка, потеряв ссылку, закрывает

@@ -27,6 +27,7 @@ import sys
 from pathlib import Path
 
 from playwright.async_api import async_playwright
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # `reconfigure`, А НЕ ПОДМЕНА `sys.stdout` НОВОЙ ОБЁРТКОЙ. Импорт

@@ -59,6 +59,7 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 
 import check_hover as ch     # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 МИНИМУМ = 44        # глобальный CLAUDE.md §5, тач-таргет
 ПЛОЩАДЬ = МИНИМУМ * МИНИМУМ

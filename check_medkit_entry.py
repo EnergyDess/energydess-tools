@@ -59,6 +59,7 @@ os.environ.setdefault("DB_PATH", "./app.db")
 
 import main as M                                    # noqa: E402
 import medkit_defs as _опр                          # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 
 # ══════════════════════════════════════════════════════════════════════

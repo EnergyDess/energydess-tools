@@ -31,6 +31,7 @@
 import io
 import os
 import sys
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 # `reconfigure`, А НЕ ПОДМЕНА ОБЁРТКИ, и это записанная ловушка (§3,
 # `shots_medkit_223`): подменённая обёртка уходит в сборку мусора

@@ -59,6 +59,7 @@
 """
 
 import html
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 import io
 import re
 import ssl

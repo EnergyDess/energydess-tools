@@ -51,6 +51,7 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 
 import project_lists as списки
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 КОРЕНЬ = pathlib.Path(__file__).parent
 

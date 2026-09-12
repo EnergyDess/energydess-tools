@@ -35,6 +35,7 @@ import io
 import pathlib
 import re
 import sys
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 КОРЕНЬ = pathlib.Path(__file__).parent
 ДОКУМЕНТ = КОРЕНЬ / 'CLAUDE.md'

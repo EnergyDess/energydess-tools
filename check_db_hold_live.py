@@ -31,6 +31,7 @@
     py check_db_hold.py --живьём --контроль
 """
 import http.server
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 import io
 import json
 import os

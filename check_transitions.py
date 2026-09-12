@@ -39,6 +39,7 @@ import ast
 import io
 import os
 import sys
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 ИНСТРУМЕНТОВКА = {
     "requestAnimationFrame": "покадровый сэмплер в странице",

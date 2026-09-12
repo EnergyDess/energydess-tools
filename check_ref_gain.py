@@ -52,6 +52,7 @@ os.environ.setdefault("DB_PATH", "app.db")
 
 import medkit_defs as опр                                # noqa: E402
 import main                                              # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 НАБОР = "medkit_new_batch.json"
 

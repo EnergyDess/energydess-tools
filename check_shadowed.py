@@ -55,6 +55,7 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 
 import project_lists as pl     # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 СОСТОЯНИЯ = (":hover", ":focus-visible", ":focus", ":active")
 

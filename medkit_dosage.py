@@ -60,6 +60,7 @@ BACKLOG №172, блок D. Разбор и замеры — `check_medkit_dosag
 
 import html
 import re
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 # ── ИСТОЧНИК ─────────────────────────────────────────────────────────
 #

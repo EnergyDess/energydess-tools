@@ -66,6 +66,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 import check_docs                      # noqa: E402  — разбор по языкам
 import check_ids                       # noqa: E402  — признак раскладки
 import project_lists as списки         # noqa: E402  — список демо-страниц
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 МИН_ОБЪЯВЛЕНИЙ = 3
 

@@ -31,6 +31,7 @@ import os
 import sqlite3
 import sys
 from datetime import datetime, timezone
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 # Каталог намеренно не в корне и не рядом с exercises_seed.json: два файла
 # про упражнения в одном месте однажды перепутают, и импорт устаревшего

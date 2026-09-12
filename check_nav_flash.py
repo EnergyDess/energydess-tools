@@ -78,6 +78,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import check_hover as ch   # noqa: E402  — вход, отбор ширин, адрес стенда
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 БАЗА = ch.БАЗА
 

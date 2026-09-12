@@ -55,6 +55,7 @@ import io
 import os
 import re
 import sys
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 

@@ -67,6 +67,7 @@ import urllib.parse
 import httpx
 
 import medkit_dosage as _дозы
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 # КОНСОЛЬ WINDOWS — cp1251, И БЕЗ ЭТОГО ПРОБА ПАДАЛА `UnicodeEncodeError`
 # на собственной рамке из `═`. Отказ при этом не молчал, но и вердикта

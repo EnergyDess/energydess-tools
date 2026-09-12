@@ -66,6 +66,7 @@ import sys
 import time
 
 import httpx
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 # ВЫВОД В UTF-8: без этого печать знака вне cp1251 роняет пробу
 # `UnicodeEncodeError` при ЛЮБОМ перенаправлении (`> файл`,

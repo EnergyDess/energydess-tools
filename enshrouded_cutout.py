@@ -40,6 +40,7 @@
     py enshrouded_cutout.py --куда <каталог> --список   # что вообще без альфы
 """
 import os
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 import sqlite3
 import sys
 import time

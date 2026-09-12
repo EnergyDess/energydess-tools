@@ -93,6 +93,7 @@ import sys
 import time
 
 import httpx
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 # КОНСОЛЬ РАЗРАБОТЧИКА — cp1251, И ЗНАК УМНОЖЕНИЯ ЕЁ РОНЯЕТ.
 # Замер 2026-09-03: `py check_sources_geo.py` падал

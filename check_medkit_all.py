@@ -56,6 +56,7 @@
     py check_medkit_all.py --из dump.json --формы   # блок D: чужая форма
 """
 import asyncio
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 import hashlib
 import io
 import json

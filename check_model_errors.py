@@ -32,6 +32,7 @@ BACKLOG №128. До 2026-08-21 в двух местах стояла КОНСТ
 """
 
 import http.server
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 import io
 import json
 import os

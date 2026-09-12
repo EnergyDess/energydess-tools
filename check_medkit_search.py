@@ -44,6 +44,7 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 os.environ.setdefault("DB_PATH", "app.db")
 
 import medkit_defs as опр                                # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 # Запросы по умолчанию — четыре формы, названные постановкой E.3:
 # одна буква, часть слова, слово целиком, слово из вещества

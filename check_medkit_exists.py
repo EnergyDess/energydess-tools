@@ -53,6 +53,7 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace",
 import httpx
 
 import medkit_dosage as md
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 # ОПЕЧАТКА В ОДНУ БУКВУ — отдельный вопрос письма. Не выдумка
 # и не настоящее имя; что с ней происходит, печатается числом.

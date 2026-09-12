@@ -34,6 +34,7 @@ from playwright.sync_api import sync_playwright   # noqa: E402
 # ничего не делает — кадры вышли бы гостевыми, а подпись
 # под ними осталась бы прежней (§6.0).
 import check_hover as H                           # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 БАЗА = os.environ.get("HOVER_BASE", "http://127.0.0.1:8899")
 КУДА = os.path.join(os.path.dirname(os.path.abspath(__file__)),

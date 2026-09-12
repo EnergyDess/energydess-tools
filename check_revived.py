@@ -68,6 +68,7 @@ import sys
 sys.stdout.reconfigure(encoding='utf-8')
 
 import check_docs as док   # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 # Файлы, которые в `ИЗВЕСТНЫЕ_ФАЙЛЫ` лежат НЕ как удалённые, а потому,
 # что проход D спотыкается о форму их имени. Существуют законно.

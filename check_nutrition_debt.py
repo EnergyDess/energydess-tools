@@ -70,6 +70,7 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 
 import project_lists as списки
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 CSS = "static/nutrition.css"
 ШАБЛОН = "templates/nutrition.html"

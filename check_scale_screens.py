@@ -38,6 +38,7 @@
     py check_scale_screens.py
 """
 import os
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 import sys
 
 sys.stdout.reconfigure(encoding="utf-8")

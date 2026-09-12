@@ -34,6 +34,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 from database import (check_privacy_coverage, PRIVACY_MENTIONS,  # noqa: E402
                       PRIVACY_NOT_PERSONAL, Base)
 from main import STATIC_PAGES                                    # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 политика = STATIC_PAGES.get("privacy", {}).get("content") or ""
 if not политика:

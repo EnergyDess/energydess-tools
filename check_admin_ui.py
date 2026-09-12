@@ -56,6 +56,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("DB_PATH", "app.db")
 
 import check_hover as ch     # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 # ВЫВОД В UTF-8: без этого печать знака вне cp1251 роняет пробу
 # `UnicodeEncodeError` при ЛЮБОМ перенаправлении (`> файл`,
@@ -63,7 +64,11 @@ import check_hover as ch     # noqa: E402
 # её не в консоль. Найдено проверкой 35 (BACKLOG №307).
 sys.stdout.reconfigure(encoding="utf-8")
 
-БАЗА = os.environ.get("СТЕНД", "http://127.0.0.1:8899")
+# ИМЯ ЛАТИНИЦЕЙ — §6.0. Кириллическое `СТЕНД=…` оболочка присвоить
+# не может вовсе: это «command not found», а адрес молча остаётся
+# умолчанием — то есть проба идёт не на тот стенд и об этом не
+# говорит ни словом. Сторожит проверка 34 (BACKLOG №310).
+БАЗА = os.environ.get("STAND", "http://127.0.0.1:8899")
 ФАЙЛ_БД = os.environ.get("DB_PATH", "app.db")
 
 # Живость органа — тем же способом, каким её видит палец: точка в центре

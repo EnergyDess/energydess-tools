@@ -50,6 +50,7 @@ Range.getBoundingClientRect — это то, что видит глаз.
     py check_ens_width.py --колонок 5 # отрицательный контроль мерки зазоров
 """
 import os, sys, json, statistics
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 sys.stdout.reconfigure(encoding="utf-8")
 

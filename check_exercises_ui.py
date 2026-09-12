@@ -50,6 +50,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import check_hover as ch     # noqa: E402
 from playwright.sync_api import sync_playwright   # noqa: E402
+import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
 
 БАЗА_ДАННЫХ = os.environ.get("DB_PATH", "app.db")
 ПУТЬ = "/admin/exercises"
