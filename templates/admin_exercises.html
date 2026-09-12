@@ -26,7 +26,7 @@
      Чипы взяли СТАТУС: там пять значений, они взаимоисключающие и это
      главная ось работы на экране. #}
   {% call ah.head('Упражнения', 'Проверка видео для ' ~ total ~ ' упражнений программы тренировок',
-                  отбор, 'Поиск по названию', 'Поиск') %}
+                  отбор, 'Поиск') %}
     <select class="select input-sm" id="filter-muscle" aria-label="Группа мышц">
       <option value="all">Все группы мышц</option>
       {% for key, label in muscle_groups.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
