@@ -71,6 +71,12 @@ import main                                              # noqa: E402
 import medkit_dosage as дозы                             # noqa: E402
 import medkit_defs as опр                                # noqa: E402
 
+# ВЫВОД В UTF-8: без этого печать знака вне cp1251 роняет пробу
+# `UnicodeEncodeError` при ЛЮБОМ перенаправлении (`> файл`,
+# конвейер, `capture_output`) — то есть у всякого, кто запустит
+# её не в консоль. Найдено проверкой 35 (BACKLOG №307).
+sys.stdout.reconfigure(encoding="utf-8")
+
 КЕШ = os.getenv("MEDKIT_CACHE", ".dosage_cache")
 
 

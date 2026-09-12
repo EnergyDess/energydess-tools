@@ -34,6 +34,12 @@ import sys
 
 from playwright.sync_api import sync_playwright
 
+# ВЫВОД В UTF-8: без этого печать знака вне cp1251 роняет пробу
+# `UnicodeEncodeError` при ЛЮБОМ перенаправлении (`> файл`,
+# конвейер, `capture_output`) — то есть у всякого, кто запустит
+# её не в консоль. Найдено проверкой 35 (BACKLOG №307).
+sys.stdout.reconfigure(encoding="utf-8")
+
 БАЗА = os.environ.get("HOVER_BASE", "http://127.0.0.1:8899")
 МЕТКА = "после"
 КУДА = os.environ.get("SHOTS_DIR", "C:/Temp/claude/shots187")

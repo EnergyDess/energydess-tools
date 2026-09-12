@@ -91,6 +91,12 @@ import re
 import sys
 import pathlib
 
+# ВЫВОД В UTF-8: без этого печать знака вне cp1251 роняет пробу
+# `UnicodeEncodeError` при ЛЮБОМ перенаправлении (`> файл`,
+# конвейер, `capture_output`) — то есть у всякого, кто запустит
+# её не в консоль. Найдено проверкой 35 (BACKLOG №307).
+sys.stdout.reconfigure(encoding="utf-8")
+
 КОРЕНЬ = pathlib.Path(__file__).parent
 ДОКУМЕНТЫ = ('design-system.md', 'CLAUDE.md')
 

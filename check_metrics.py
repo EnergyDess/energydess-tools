@@ -74,7 +74,12 @@ def _прочитать(путь):
 # `check_ids.py`. Добавили проверку в §6.0.2 — она появилась в ряду,
 # править этот файл для этого не нужно.
 
-СКРИПТ = re.compile(r'^py\s+(\S+\.py)$')
+# КЛЮЧИ У КОМАНДЫ РЯДА РАЗБИРАЮТСЯ, А НЕ ЛОМАЮТ ЕЁ. Прежний образец
+# требовал строку РОВНО `py файл.py`, и команда с ключом
+# (`py check_probe_start.py --быстро`) считалась ГРЕПОМ: ряд печатал
+# число СТРОК ВЫВОДА вместо кода возврата — 74 там, где код 0.
+# Отказ немой: число выглядело числом находок.
+СКРИПТ = re.compile(r'^py\s+(\S+\.py)((?:\s+\S+)*)$')
 
 
 def ряд_проверок():
@@ -108,9 +113,25 @@ def ряд_проверок():
         if not m:
             continue
         try:
-            код = subprocess.run(
-                [sys.executable, m.group(1)],
-                capture_output=True, timeout=300).returncode
+            п = subprocess.run(
+                [sys.executable, m.group(1)] + m.group(2).split(),
+                capture_output=True, timeout=300)
+            код = п.returncode
+            # УПАВШАЯ ПРОБА — НЕ ЧИСЛО (BACKLOG №307). Проба, вылетевшая
+            # трассой, отдаёт ряду `1`, неотличимую от «нашла одну
+            # находку». Ровно так `check_medkit_names --названо` пролежал
+            # мёртвым десять дней: два захода подряд читали числа
+            # от проверки, которая не запускалась (задача 305).
+            #
+            # «Красное» и «не запускалось» обязаны различаться — тот же
+            # довод, по которому код 2 печатается словом «НЕ ПРОВЕРЕНО».
+            хвост = (п.stderr or b"").decode("utf-8", "replace")
+            if "Traceback (most recent call last)" in хвост or re.search(
+                    r"^(SyntaxError|IndentationError|TabError)", хвост, re.M):
+                последняя = [с for с in хвост.strip().splitlines() if с.strip()]
+                значения[номер] = "УПАЛА: %s" % (
+                    последняя[-1].strip()[:60] if последняя else "трасса")
+                continue
             # КОД 2 — «ПРОВЕРКА НЕ СОСТОЯЛАСЬ», И ОН НЕ ЧИСЛО (BACKLOG №246).
             #
             # Проверка 26 без копии боевой базы отвечает «спросить нечем»
@@ -126,6 +147,15 @@ def ряд_проверок():
             # при обрыве по потолку. Привычный ненулевой остаток опаснее
             # самого остатка (§6.0.2, разбор первого числа).
             значения[номер] = 'НЕ ПРОВЕРЕНО' if код == 2 else str(код)
+            # ОТМЕТКА ОБ УСПЕШНОМ ПРОГОНЕ — В ОБЩИЙ ЖУРНАЛ (BACKLOG
+            # №307, A4). Пишет ТОТ, КТО ПРОГНАЛ: «когда проба
+            # прогонялась в последний раз» — свойство прогона, а не
+            # файла на диске. Печатает `py check_probe_start.py --журнал`.
+            try:
+                import check_probe_start as _пуск
+                _пуск.отметить(m.group(1))
+            except Exception:
+                pass
         except (OSError, subprocess.SubprocessError) as e:
             значения[номер] = 'не запустился: %s' % e
     return значения, порядок
@@ -222,10 +252,19 @@ def ряд_стенда(запускать: bool):
         print('    %-4s %-24s …' % (номер, m.group(1)), end='', flush=True)
         начало = time.monotonic()
         try:
-            п = subprocess.run([sys.executable, m.group(1)],
+            п = subprocess.run([sys.executable, m.group(1)]
+                               + m.group(2).split(),
                                capture_output=True, text=True,
                                errors="replace", timeout=СТЕНД_ПОТОЛОК)
             код = str(п.returncode)
+            # УПАВШАЯ ПРОБА — НЕ ЧИСЛО, тот же довод, что в ряду выше
+            if ("Traceback (most recent call last)" in (п.stderr or "")
+                    or re.search(r"^(SyntaxError|IndentationError|TabError)",
+                                 п.stderr or "", re.M)):
+                строки = [с for с in (п.stderr or "").strip().splitlines()
+                          if с.strip()]
+                код = "УПАЛА: %s" % (строки[-1].strip()[:60]
+                                     if строки else "трасса")
             # ПРИЧИНА ПЕЧАТАЕТСЯ, А НЕ ГЛОТАЕТСЯ (BACKLOG №229, F.1).
             #
             # `capture_output=True` прячет и вывод, и трассу: проба,

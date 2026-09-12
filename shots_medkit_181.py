@@ -40,6 +40,12 @@ from pathlib import Path
 
 from playwright.async_api import async_playwright
 
+# ВЫВОД В UTF-8: без этого печать знака вне cp1251 роняет пробу
+# `UnicodeEncodeError` при ЛЮБОМ перенаправлении (`> файл`,
+# конвейер, `capture_output`) — то есть у всякого, кто запустит
+# её не в консоль. Найдено проверкой 35 (BACKLOG №307).
+sys.stdout.reconfigure(encoding="utf-8")
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 БАЗА = os.environ.get("MEDKIT_BASE", "http://127.0.0.1:8899")
@@ -49,7 +55,7 @@ DB = os.environ.get("DB_PATH", "app.db")
 КУДА = Path("review_screenshots") / "medkit-181"
 ШИРИНЫ = [2560, 390]
 
-ПРЕПАРАТ Б = "Препарат Б"
+ПРЕПАРАТ_Б = "Препарат Б"
 СИРОП = "Препарат В сироп"
 МЕТКА_ПОКУПОК = "проба 181"
 
@@ -83,7 +89,7 @@ def _в_базу(запрос, параметры=()):
 
 
 def _прибрать():
-    for имя in (ПРЕПАРАТ Б, СИРОП):
+    for имя in (ПРЕПАРАТ_Б, СИРОП):
         _в_базу("DELETE FROM medkit_items WHERE name = ?", (имя,))
     _в_базу("DELETE FROM medkit_buy_items WHERE name LIKE ?",
             ("%" + МЕТКА_ПОКУПОК + "%",))
@@ -192,8 +198,8 @@ def _поставить_состояние(ид, вид, текст):
 async def кадры(pg, ширина):
     print(" ── кадры на %d ──" % ширина)
 
-    # ── 1 · ПРЕПАРАТ Б: ТОТ САМЫЙ КАДР БЛОКА A ────────────────────────
-    ид_н = await _завести(pg, ПРЕПАРАТ Б, "Тримебутин, 200 мг",
+    # ── 1 · ПРЕПАРАТ_Б: ТОТ САМЫЙ КАДР БЛОКА A ────────────────────────
+    ид_н = await _завести(pg, ПРЕПАРАТ_Б, "Тримебутин, 200 мг",
                           "tablet", "tablet", 1)
     if ид_н:
         await _окно(pg, ид_н, "okno-preparat_b", ширина)

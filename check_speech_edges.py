@@ -28,6 +28,12 @@ import wave
 
 import httpx
 
+# ВЫВОД В UTF-8: без этого печать знака вне cp1251 роняет пробу
+# `UnicodeEncodeError` при ЛЮБОМ перенаправлении (`> файл`,
+# конвейер, `capture_output`) — то есть у всякого, кто запустит
+# её не в консоль. Найдено проверкой 35 (BACKLOG №307).
+sys.stdout.reconfigure(encoding="utf-8")
+
 БАЗА = os.getenv("HOVER_BASE", "http://127.0.0.1:8899")
 ПОЧТА = os.getenv("STAND_EMAIL", "screenshot@local.dev")
 ПАРОЛЬ = os.getenv("STAND_PASSWORD", "Screenshot-Local-2026")

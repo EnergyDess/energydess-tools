@@ -30,6 +30,12 @@ import shutil
 import sys
 from datetime import datetime, timedelta
 
+# ВЫВОД В UTF-8: без этого печать знака вне cp1251 роняет пробу
+# `UnicodeEncodeError` при ЛЮБОМ перенаправлении (`> файл`,
+# конвейер, `capture_output`) — то есть у всякого, кто запустит
+# её не в консоль. Найдено проверкой 35 (BACKLOG №307).
+sys.stdout.reconfigure(encoding="utf-8")
+
 EMAIL = "screenshot@local.dev"
 PASSWORD = "Screenshot-Local-2026"   # тот же, что записан в CLAUDE.md §8.2
 

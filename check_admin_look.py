@@ -33,6 +33,12 @@ os.environ.setdefault("DB_PATH", "app.db")
 
 import check_hover as ch     # noqa: E402
 
+# ВЫВОД В UTF-8: без этого печать знака вне cp1251 роняет пробу
+# `UnicodeEncodeError` при ЛЮБОМ перенаправлении (`> файл`,
+# конвейер, `capture_output`) — то есть у всякого, кто запустит
+# её не в консоль. Найдено проверкой 35 (BACKLOG №307).
+sys.stdout.reconfigure(encoding="utf-8")
+
 БАЗА = os.environ.get("STAND", "http://127.0.0.1:8899")
 
 # ОЖИДАНИЯ. Числа выведены замером, а не назначены:

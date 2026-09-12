@@ -11,6 +11,13 @@
 """
 import os
 import sqlite3
+import sys
+
+# ВЫВОД В UTF-8: без этого печать знака вне cp1251 роняет пробу
+# `UnicodeEncodeError` при ЛЮБОМ перенаправлении (`> файл`,
+# конвейер, `capture_output`) — то есть у всякого, кто запустит
+# её не в консоль. Найдено проверкой 35 (BACKLOG №307).
+sys.stdout.reconfigure(encoding="utf-8")
 
 БД = os.getenv("DB_PATH", "/data/app.db")
 c = sqlite3.connect("file:%s?mode=ro" % БД, uri=True)
