@@ -31,6 +31,8 @@
 
     py check_medkit_archive.py
     py check_medkit_archive.py --контроль
+    py check_medkit_archive.py --экран             # видимый блок, засеянный архив
+    py check_medkit_archive.py --экран --контроль  # подлог в страницу
 """
 import io
 import json
@@ -70,9 +72,22 @@ if "/data/" in ФАЙЛ.replace(chr(92), "/"):
 шагов = 0
 
 
-def шаг(имя, ок, подробно=""):
-    global плохих, шагов
+пропусков = 0
+
+
+def шаг(имя, ок, подробно="", собрано=None):
+    """`собрано` — сколько записей засеянного архива было под шагом.
+    Ноль — ПРОПУСК, а не OK: «не предлагается» на пустом архиве истинно
+    по построению и не говорит ничего (задача 293, §6.0.1)."""
+    global плохих, шагов, пропусков
     шагов += 1
+    if собрано is not None and собрано == 0:
+        пропусков += 1
+        # что шаг напечатал бы без ключа — чтобы «зелёный на пустом»
+        # был виден числом, а не выводом из рассуждения
+        print("   ПРОПУСК %s  — архив стенда пуст, спросить нечем "
+              "(без ключа было бы %s)" % (имя, "OK" if ок else "ПЛОХО"))
+        return
     if not ок:
         плохих += 1
     print("   %s %s%s" % ("OK  " if ок else "ПЛОХО", имя,
@@ -280,6 +295,146 @@ def прогон():
         "ими пачки и отличаются")
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# ЭКРАН: ВИДИМЫЙ БЛОК НА ЗАСЕЯННОМ АРХИВЕ (BACKLOG №317, заход 320)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Прогон выше спрашивает ЭНДПОИНТ и свою же запись. Блок «Такую упаковку
+# вы уже заводили», который видит человек, не проверял НИКТО: ни одна
+# проба не открывала форму и не смотрела, показан ли он (§6.3, мерка
+# меряет видимое). До задачи 317 и смотреть было не на чем — архив
+# стенда был пуст.
+#
+# Путь ЧЕЛОВЕКА: кнопка «Вручную», поля формы, уход фокуса — тот же
+# `blur`, от которого страница спрашивает архив. Видимость — у самого
+# блока `checkVisibility` с опциями (у `[hidden]` он честно false).
+# ГОЛОВНОЙ браузер (§6.0.3).
+#
+# СЛУЧАИ ПАРАМИ «ЕСТЬ / НЕТ»: без обратного «блока нет» неотличимо
+# от «блок не показывается вовсе».
+ЭКРАН_СЛУЧАИ = (
+    # (имя шага, поля формы, ждём блок, что обязано быть в тексте)
+    ("та-же-пачка-ДРУГОЕ-КОЛИЧЕСТВО-предлагается",
+     dict(name="Пенталгин", form="tablet", dose="1", total="10"), True,
+     "Пенталгин"),
+    ("по-GTIN-без-названия-предлагается",
+     dict(code="04607000000026"), True, "Пенталгин"),
+    ("полная-связка-предлагается", dict(name="Имодиум", form="capsule",
+                                        dose="2"), True, "Имодиум"),
+    ("ДРУГАЯ-РАЗОВАЯ-ДОЗА-не-предлагается",
+     dict(name="Имодиум", form="capsule", dose="1"), False, ""),
+    ("ДРУГАЯ-ФОРМА-не-предлагается",
+     dict(name="Имодиум", form="tablet", dose="2"), False, ""),
+    ("ДВЕ-СИЛЫ-ВЕЩЕСТВА-без-вещества-не-предлагается",
+     dict(name="Кетонал", form="tablet", dose="1"), False, ""),
+    ("СИЛА-ВЕЩЕСТВА-названа-предлагается",
+     dict(name="Кетонал", form="tablet", dose="1", sub="Кетопрофен, 150 мг"),
+     True, "Кетонал"),
+)
+# ПОДЛОГ В СТРАНИЦУ — блок не показывается никогда. Ломает ровно звено
+# «ответ сервера → видимый блок»; сервер не тронут.
+ПОДЛОГ_ЭКРАНА = (
+    "document.addEventListener('DOMContentLoaded', () => {"
+    " window.аптИскатьВАрхиве = async function () {"
+    "  /*ПОДЛОГ-317*/ document.getElementById('apt-arch').hidden = true; };"
+    "});")
+
+
+def засеяно():
+    c = база()
+    н = c.execute("SELECT COUNT(*) FROM medkit_archive a JOIN users u "
+                  "ON u.id = a.user_id WHERE u.email = ?", (ПОЧТА,)).fetchone()[0]
+    c.close()
+    return н
+
+
+async def _экран_прогон(подлог=False):
+    from playwright.async_api import async_playwright
+    собрано = засеяно()
+    print("=" * 72)
+    print("АРХИВ НА ЭКРАНЕ: записей архива у аккаунта стенда %d%s"
+          % (собрано, " · ПОДЛОГ В СТРАНИЦЕ" if подлог else ""))
+    print("=" * 72)
+    доказано = None
+    async with async_playwright() as p:
+        бр = await p.chromium.launch(headless=False)
+        ктх = await бр.new_context(viewport={"width": 1920, "height": 1100})
+        if подлог:
+            await ктх.add_init_script(ПОДЛОГ_ЭКРАНА)
+        pg = await ктх.new_page()
+        await pg.goto(БАЗА + "/login", wait_until="domcontentloaded")
+        await pg.fill("input[name=email]", ПОЧТА)
+        await pg.fill("input[name=password]", ПАРОЛЬ)
+        await pg.click("button[type=submit]")
+        await pg.wait_for_load_state("networkidle")
+        if "/login" in pg.url:
+            raise SystemExit("ВХОД НЕ СОСТОЯЛСЯ — мерить нечего")
+        for имя, поля, ждём, в_тексте in ЭКРАН_СЛУЧАИ:
+            await pg.goto(БАЗА + "/medkit", wait_until="networkidle")
+            if подлог and доказано is None:
+                доказано = await pg.evaluate(
+                    "() => String(window.аптИскатьВАрхиве).includes('ПОДЛОГ-317')")
+            await pg.click("#apt-add-manual")
+            await pg.wait_for_selector("#apt-f-name", state="visible")
+            if "form" in поля:
+                await pg.select_option("#apt-f-form", поля["form"])
+            for ключ, ид in (("name", "#apt-f-name"), ("sub", "#apt-f-sub"),
+                             ("dose", "#apt-f-dose"), ("total", "#apt-f-total")):
+                if ключ in поля:
+                    await pg.fill(ид, поля[ключ])
+            if "code" in поля:
+                # код лежит в свёрнутом «Дополнительно» — раскрываем, как человек
+                if not await pg.evaluate(
+                        "() => document.getElementById('apt-f-code')"
+                        ".checkVisibility()"):
+                    await pg.evaluate(
+                        "() => { const d = document.getElementById('apt-f-code')"
+                        ".closest('details'); if (d) d.open = true; }")
+                await pg.fill("#apt-f-code", поля["code"])
+            await pg.wait_for_load_state("networkidle")
+            # ПОСЛЕДНИЙ уход фокуса — со всеми полями сразу
+            поле = "#apt-f-code" if "code" in поля else "#apt-f-name"
+            запросов = []
+            pg.on("request", lambda r: запросов.append(1)
+                  if "/medkit/api/archive-match" in r.url else None)
+            await pg.focus(поле)
+            await pg.evaluate("() => document.activeElement.blur()")
+            # ОТВЕТ НЕ ОБЯЗАТЕЛЕН: страница, не спросившая архив, — тоже
+            # исход, и назвать его обязан ШАГ, а не упавшее ожидание
+            for _ in range(40):
+                if запросов:
+                    break
+                await pg.wait_for_timeout(50)
+            await pg.wait_for_load_state("networkidle")
+            await pg.wait_for_timeout(150)
+            виден, текст = await pg.evaluate(
+                "() => { const б = document.getElementById('apt-arch');"
+                " return [б.checkVisibility({checkOpacity: true,"
+                " checkVisibilityCSS: true}),"
+                " document.getElementById('apt-arch-text').textContent]; }")
+            ок = (виден == ждём) and (not ждём or в_тексте in текст)
+            шаг(имя, ок, "запросов к архиву %d, блок %s (ждём %s)%s" % (
+                len(запросов),
+                "ВИДЕН" if виден else "скрыт", "виден" if ждём else "скрыт",
+                ", текст «%s»" % текст[:60] if виден else ""), собрано=собрано)
+            if имя.startswith("та-же-пачка") and виден and ждём:
+                await pg.click("#apt-arch button")
+                вещество = await pg.input_value("#apt-f-sub")
+                шаг("заполнить-по-ней-перенесло-вещество",
+                    вещество == "Напроксен + дротаверин + кофеин",
+                    "в поле «%s»" % вещество, собрано=собрано)
+        await бр.close()
+    if подлог:
+        print("   ДОКАЗАТЕЛЬСТВО ПОДЛОГА: функция в странице подменена — %s"
+              % доказано)
+    return доказано
+
+
+def экран(подлог=False):
+    import asyncio
+    return asyncio.run(_экран_прогон(подлог))
+
+
 def контроль():
     """ПОДЛОГ: правило строгости ослаблено — сверка только по имени.
 
@@ -337,6 +492,14 @@ def вернуть():
 if __name__ == "__main__":
     if "--вернуть" in sys.argv:
         sys.exit(вернуть())
+    if "--экран" in sys.argv:
+        доказано = экран(подлог=КОНТРОЛЬ)
+        print()
+        print("ШАГОВ %d, ПЛОХИХ %d, ПРОПУСКОВ %d" % (шагов, плохих, пропусков))
+        if КОНТРОЛЬ:
+            # контроль экрана: подлог обязан СОСТОЯТЬСЯ и быть НАЙДЕН
+            sys.exit(0 if (доказано and плохих) else 1)
+        sys.exit(1 if плохих else (2 if пропусков else 0))
     if КОНТРОЛЬ:
         sys.exit(контроль())
     прогон()

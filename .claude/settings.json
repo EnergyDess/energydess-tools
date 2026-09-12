@@ -2,11 +2,11 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "^(?!(?:Read|Edit|Write|Glob|Grep|NotebookEdit|Agent|Skill|ToolSearch|TodoWrite|WebFetch|WebSearch|Artifact|AskUserQuestion|ListAgents|ReportFindings|ScheduleWakeup|Workflow|TaskOutput|TaskStop|SendMessage|SendUserFile|CronCreate|CronDelete|CronList|EnterPlanMode|ExitPlanMode|EnterWorktree|ExitWorktree|PushNotification|RemoteTrigger|DesignSync)$)",
         "hooks": [
           {
             "type": "command",
-            "command": "py \"$CLAUDE_PROJECT_DIR/check_shell_names.py\" --hook",
+            "command": "py \"$CLAUDE_PROJECT_DIR/check_shell_names.py\" --hook; rc=$?; if [ \"$rc\" -ne 0 ] && [ \"$rc\" -ne 2 ]; then echo \"ПРОВЕРКА 34 НЕ ОТРАБОТАЛА (код $rc): хук упал, команда НЕ запущена. Чините check_shell_names.py инструментом Edit.\" >&2; exit 2; fi; exit \"$rc\"",
             "timeout": 20,
             "statusMessage": "Проверка 34: имена переменных оболочки"
           }
