@@ -1,7 +1,7 @@
 {# ПАНЕЛЬ РАЗДЕЛОВ АДМИНКИ. Подключать ПЕРЕД .admin-wrap, а не внутри
    (BACKLOG №150): это отдельная навигационная полоса во всю ширину
    экрана со своей подложкой, а не строка внутри страницы.
-   Параметр `active` — 'users' | 'products' | 'exercises' | 'enshrouded'.
+   Параметр `active` — 'users' | 'products' | 'exercises' | 'enshrouded' | 'landing'.
 
    ДО 2026-08-23 ряд стоял ВНУТРИ .admin-wrap и был прозрачным: замер
    на 2560 — фон `rgba(0, 0, 0, 0)` при фоне страницы `rgb(10,11,13)`,
@@ -34,5 +34,6 @@
     <a href="/admin/products"   class="tab-btn {{ 'active' if active == 'products' }}">{{ значок('apple') }}Продукты</a>
     <a href="/admin/exercises"  class="tab-btn {{ 'active' if active == 'exercises' }}">{{ значок('dumbbell') }}Упражнения</a>
     <a href="/admin/enshrouded" class="tab-btn {{ 'active' if active == 'enshrouded' }}">{{ значок('shield') }}Enshrouded</a>
+    <a href="/admin/landing"    class="tab-btn {{ 'active' if active == 'landing' }}">{{ значок('layout-grid') }}Главная</a>
 </nav>
 </div>

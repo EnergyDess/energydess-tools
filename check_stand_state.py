@@ -216,7 +216,50 @@ def опись(c):
         if n:
             находки.append(("exercises.video_status", n,
                             "статус не выводится из ролика (след модерации)"))
+
+    # 7. МЕСТА ГЛАВНОЙ ВНЕ СЕМЕНИ (BACKLOG №325). Панель загрузки пишет
+    #    строку и файл на том; проба, загрузившая файл и не убравшая его,
+    #    оставила бы стенд с заполненным местом, которого seed не заводит.
+    #    Два вида, как у людей: СТРОКА вне семени и ФАЙЛ без строки
+    #    (сирота на томе — его не покажет ни одна страница и не уберёт
+    #    ни одна уборка).
+    try:
+        строки = [r[0] for r in c.execute("SELECT slot_id FROM landing_media")]
+    except sqlite3.OperationalError:
+        строки = []
+    семя_гл = семя_главной()
+    лишние_гл = [с for с in строки if с not in семя_гл]
+    if лишние_гл:
+        находки.append(("landing_media", len(лишние_гл),
+                        "места вне семени: " + ", ".join(лишние_гл[:5])))
+    сироты_гл = сироты_тома(c)
+    if сироты_гл:
+        находки.append(("landing (том)", len(сироты_гл),
+                        "файлы без строки: " + ", ".join(сироты_гл[:3])))
     return находки, свои, True
+
+
+def семя_главной():
+    """Места, которые заводит seed. ИМПОРТОМ, а не копией списка."""
+    import make_local_user as m
+    return set(m.СЕМЯ_ГЛАВНОЙ)
+
+
+def каталог_главной():
+    return os.path.join(os.path.dirname(os.path.abspath(путь_базы())), "landing")
+
+
+def сироты_тома(c):
+    """Файлы в каталоге мест, на которые не указывает ни одна строка."""
+    к = каталог_главной()
+    if not os.path.isdir(к):
+        return []
+    try:
+        живые = {"%s-%s.%s" % r for r in
+                 c.execute("SELECT slot_id, version, ext FROM landing_media")}
+    except sqlite3.OperationalError:
+        живые = set()
+    return sorted(f for f in os.listdir(к) if f not in живые)
 
 
 # ВЫВОДИМЫЙ СТАТУС — ОДНИМ ЗАПРОСОМ на опись и на приведение: два текста
@@ -269,8 +312,19 @@ def привести(путь, свои):
     статусов = c.execute("UPDATE exercises SET video_status = %s WHERE id IN (%s)"
                          % (ВЫВОД_СТАТУСА, ЗАПРОС_СТАТУСОВ)).rowcount
     c.commit()
+    # Места главной вне семени — строка и файл вместе, потом сироты тома.
+    try:
+        вне = [r for r in c.execute("SELECT slot_id, version, ext FROM landing_media")
+               if r[0] not in семя_главной()]
+    except sqlite3.OperationalError:
+        вне = []
+    for slot_id, _в, _е in вне:
+        c.execute("DELETE FROM landing_media WHERE slot_id = ?", (slot_id,))
+    c.commit()
+    for имя in сироты_тома(c):
+        os.remove(os.path.join(каталог_главной(), имя))
     c.close()
-    return len(чужие), len(лишние), сирот, статусов
+    return len(чужие), len(лишние) + len(вне), сирот, статусов
 
 
 def прогон(показывать=True):
@@ -313,7 +367,7 @@ def main():
     if "--привести" in sys.argv:
         print()
         людей, сетов, сирот, статусов = привести(путь_базы(), свои)
-        print("УБРАНО: аккаунтов %d, сирот %d, сетов вне семени %d, "
+        print("УБРАНО: аккаунтов %d, сирот %d, сетов и мест главной вне семени %d, "
               "статусов упражнений возвращено %d" % (людей, сирот, сетов, статусов))
         код2, ост, _ = прогон(показывать=False)
         print("ПОСЛЕ ПРИВЕДЕНИЯ: %s"

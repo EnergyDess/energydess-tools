@@ -70,10 +70,13 @@ from database import (get_db, init_db, migrate_db, DB_PATH, SessionLocal, User, 
                       MedkitArchive,
                       MedkitCircle, MedkitMember, MedkitInvite,
                       MedkitBlock, MedkitEvent, RefRequestDay,
-                      MedkitBuyItem,
+                      MedkitBuyItem, LandingMedia,
                       MEDIA_KINDS as _медиа_виды,
                       delete_user_cascade)
 import medkit_defs as _апт_опр
+import landing_defs as _лнд
+import landing_store as _лнд_хран
+import landing_media as _лнд_медиа
 import medkit_dosage as _апт_дозы
 import medkit_sources as _апт_ист
 from auth import (hash_password, verify_password, create_token, get_current_user,
@@ -4132,6 +4135,237 @@ async def admin_enshrouded_image(set_id: str, request: Request,
                          "was": list(было), "now": list(стало),
                          "bytes": размер, "ext": ext,
                          "img": _енш_адрес(сет)})
+
+
+# ══ МЕСТА МЕДИА НОВОЙ ГЛАВНОЙ (BACKLOG №325) ══════════════════════════
+#
+# Двадцать шесть фиксированных мест (`landing_defs`), файлы на ТОМЕ
+# (`landing_store`), разбор и сжатие — `landing_media`. Здесь только
+# обвязка: права, поток, запись в базу и порядок «новый файл лёг →
+# строка записана → старый удалён».
+#
+# ПОЧЕМУ ТОМ. Замер 2026-09-13 на боевой машине: файл в `/app` и `/tmp`
+# после выкатки ПРОПАЛ, в `/data` — ВЫЖИЛ (заход 325, блок A2).
+
+
+def _лнд_размер(n):
+    if n is None:
+        return None
+    if n >= 1024 ** 3:
+        return "%.1f ГБ" % (n / 1024 ** 3)
+    if n >= 1024 * 1024:
+        return "%.1f МБ" % (n / 1024 / 1024)
+    return "%d КБ" % max(1, round(n / 1024))
+
+
+def _лнд_место_наружу(место, запись, user=None):
+    """Место для шаблона: описание плюс что в нём лежит.
+
+    ОДНА СБОРКА на панель и на страницу: разойдись они, панель показала бы
+    одно, а лендинг другое, и узнать об этом можно было бы только сличив
+    две страницы (§6.0.7)."""
+    д = dict(место)
+    if запись is None:
+        д["file"] = None
+        return д
+    д["file"] = {
+        "src": _лнд_хран.адрес(запись.slot_id, запись.version, запись.ext),
+        "kind": запись.kind, "ext": запись.ext,
+        "bytes": запись.bytes, "size": _лнд_размер(запись.bytes),
+        "original_size": _лнд_размер(запись.original_bytes),
+        "original_name": запись.original_name,
+        "width": запись.width, "height": запись.height,
+        "duration": запись.duration_sec, "alpha": bool(запись.has_alpha),
+        "uploaded": (_момент_в_поясе(запись.uploaded_at, user)
+                     if user is not None else None),
+    }
+    return д
+
+
+def лнд_места(db, user=None):
+    """Все 26 мест в порядке описания, с тем, что в них лежит."""
+    записи = {з.slot_id: з for з in db.query(LandingMedia).all()}
+    return [_лнд_место_наружу(м, записи.get(м["id"]), user) for м in _лнд.МЕСТА]
+
+
+def _лнд_сводка(места):
+    занято = sum(м["file"]["bytes"] for м in места if м["file"])
+    всего, свободно = _лнд_хран.место()
+    return {"filled": sum(1 for м in места if м["file"]), "total": len(места),
+            "used": _лнд_размер(занято) or "0 КБ", "free": _лнд_размер(свободно),
+            "disk_total": _лнд_размер(всего)}
+
+
+@app.get("/admin/landing")
+async def admin_landing_page(request: Request, user=Depends(get_current_user),
+                             db: Session = Depends(get_db)):
+    if not _admin_guard(user):
+        return RedirectResponse("/", status_code=302)
+    места = лнд_места(db, user)
+    по_секциям = [{"id": с, "label": имя,
+                   "slots": [м for м in места if м["section"] == с]}
+                  for с, имя in _лнд.СЕКЦИИ]
+    пустых = sum(1 for м in места if not м["file"])
+    return templates.TemplateResponse(
+        request=request, name="admin_landing.html",
+        context={"user": user, "sections": по_секциям,
+                 "сводка": _лнд_сводка(места),
+                 # Чипы отбора: «Все», по одному на секцию и «Пустые».
+                 # Секций четыре и множество закрыто описанием мест.
+                 "отбор": ([{"id": "all", "label": "Все", "n": len(места)}] +
+                           [{"id": с["id"], "label": с["label"], "n": len(с["slots"])}
+                            for с in по_секциям] +
+                           [{"id": "empty", "label": "Пустые", "n": пустых}]),
+                 "пределы": _лнд})
+
+
+def _лнд_принять(slot_id, поток, имя):
+    """Копирует загрузку во временный файл, разбирает, сжимает и кладёт
+    на том. СИНХРОННО — зовётся только через `_в_потоке`.
+
+    Возвращает ('ok', сведения, предупреждения, имя_файла)
+    либо ('отказ', текст, код)."""
+    import shutil as _shutil
+    import tempfile as _tempfile
+    место = _лнд.ПО_ID[slot_id]
+    потолок = (_лнд.ВИДЕО_ПОТОЛОК_МБ if место["kind"] == _лнд.ВИДЕО
+               else _лнд.КАРТИНКА_ПОТОЛОК_МБ) * 1024 * 1024
+    каталог = _tempfile.mkdtemp(prefix="landing-up-")
+    готовый = None
+    try:
+        временный = os.path.join(каталог, "in")
+        скопировано = 0
+        # КОПИЯ КУСКАМИ С ОСТАНОВКОЙ НА ПОТОЛКЕ: файл в сотни мегабайт
+        # не читается в память целиком — у машины 512 МБ на всё (§5.8).
+        with open(временный, "wb") as вых:
+            while True:
+                кус = поток.read(1 << 20)
+                if not кус:
+                    break
+                скопировано += len(кус)
+                if скопировано > потолок:
+                    return ("отказ", "Файл больше %d МБ — не принят"
+                            % (потолок // 1024 // 1024), 413)
+                вых.write(кус)
+        try:
+            готовый, сведения, предупреждения = _лнд_медиа.обработать(
+                slot_id, временный, имя)
+        except _лнд_медиа.ОтказЗагрузки as e:
+            return ("отказ", e.текст, e.код)
+        _, свободно = _лнд_хран.место()
+        запас = _лнд.ТОМ_ЗАПАС_МБ * 1024 * 1024
+        if свободно - сведения["bytes"] < запас:
+            return ("отказ", "На томе свободно %s, а загрузка оставила бы меньше "
+                    "запаса %d МБ — не принят" % (_лнд_размер(свободно),
+                                                   _лнд.ТОМ_ЗАПАС_МБ), 507)
+        новое = _лнд_хран.имя_файла(slot_id, сведения["version"], сведения["ext"])
+        _лнд_хран.положить(готовый, новое)
+        return ("ok", сведения, предупреждения, новое)
+    finally:
+        _shutil.rmtree(каталог, ignore_errors=True)
+        if готовый:
+            _shutil.rmtree(os.path.dirname(готовый), ignore_errors=True)
+
+
+@app.post("/admin/api/landing/{slot_id}")
+async def admin_landing_upload(slot_id: str, request: Request,
+                               file: UploadFile = File(None),
+                               user=Depends(get_current_user),
+                               db: Session = Depends(get_db)):
+    """Заменяет содержимое места. Прежний файл удаляется ПОСЛЕ записи
+    новой строки — иначе том засорился бы за месяц (D3), а при обратном
+    порядке между удалением и записью адрес вёл бы в пустоту."""
+    if not _admin_guard(user):
+        return JSONResponse({"error": "Нет прав"}, status_code=403)
+    место = _лнд.ПО_ID.get(slot_id)
+    if место is None:
+        return JSONResponse({"error": "Такого места на странице нет"}, status_code=404)
+    if file is None or not file.filename:
+        return JSONResponse({"error": "Файл не приложен"}, status_code=400)
+
+    итог = await _в_потоке(db, _лнд_принять, slot_id, file.file, file.filename)
+    if итог[0] != "ok":
+        print("[landing] %s: отказ %s — %s" % (slot_id, итог[2], итог[1]))
+        return JSONResponse({"error": итог[1]}, status_code=итог[2])
+    _, сведения, предупреждения, новое = итог
+
+    # Строка ПЕРЕСПРАШИВАЕТСЯ: `_в_потоке` отдал соединение, объекты
+    # отцеплены, и запись в прочитанное раньше до базы не доехала бы (§6.0.5).
+    запись = db.query(LandingMedia).filter(LandingMedia.slot_id == slot_id).first()
+    прежнее = (_лнд_хран.имя_файла(запись.slot_id, запись.version, запись.ext)
+               if запись else None)
+    if запись is None:
+        запись = LandingMedia(slot_id=slot_id)
+        db.add(запись)
+    for поле in ("kind", "ext", "version", "bytes", "width", "height",
+                 "duration_sec", "has_alpha", "original_name", "original_bytes"):
+        setattr(запись, поле, сведения[поле])
+    запись.uploaded_at = datetime.utcnow()
+    try:
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        _лнд_хран.удалить(новое)
+        raise
+    if прежнее and прежнее != новое:
+        _лнд_хран.удалить(прежнее)
+    print("[landing] %s: %s -> %s, %sx%s, %s с, пик памяти ffmpeg %s МБ%s" % (
+        slot_id, _лнд_размер(сведения["original_bytes"]), _лнд_размер(сведения["bytes"]),
+        сведения["width"], сведения["height"], сведения["duration_sec"],
+        сведения["peak_mb"], ("; предупреждения: " + "; ".join(предупреждения))
+        if предупреждения else ""))
+    места = лнд_места(db, user)
+    карточка = templates.get_template("_landing_card.html").render(
+        м=next(м for м in места if м["id"] == slot_id))
+    return JSONResponse({"ok": True, "warnings": предупреждения,
+                         "was": _лнд_размер(сведения["original_bytes"]),
+                         "now": _лнд_размер(сведения["bytes"]),
+                         "card": карточка, "summary": _лнд_сводка(места)})
+
+
+@app.delete("/admin/api/landing/{slot_id}")
+async def admin_landing_clear(slot_id: str, user=Depends(get_current_user),
+                              db: Session = Depends(get_db)):
+    """Возвращает место к заглушке: строка и файл уходят вместе."""
+    if not _admin_guard(user):
+        return JSONResponse({"error": "Нет прав"}, status_code=403)
+    if slot_id not in _лнд.ПО_ID:
+        return JSONResponse({"error": "Такого места на странице нет"}, status_code=404)
+    запись = db.query(LandingMedia).filter(LandingMedia.slot_id == slot_id).first()
+    if запись is None:
+        return JSONResponse({"error": "Место уже пустое"}, status_code=404)
+    имя = _лнд_хран.имя_файла(запись.slot_id, запись.version, запись.ext)
+    db.delete(запись)
+    db.commit()
+    _лнд_хран.удалить(имя)
+    места = лнд_места(db, user)
+    карточка = templates.get_template("_landing_card.html").render(
+        м=next(м for м in места if м["id"] == slot_id))
+    return JSONResponse({"ok": True, "card": карточка, "summary": _лнд_сводка(места)})
+
+
+@app.get("/landing-media/{name}")
+async def landing_media_file(name: str, db: Session = Depends(get_db)):
+    """Файл места главной. ОТКРЫТ ВСЕМ: главная — страница для гостя.
+
+    Имя несёт версию, поэтому `immutable`: по этому адресу содержимое
+    больше не изменится по построению (§2.2). Отдаёт только файл,
+    на который указывает ТЕКУЩАЯ строка места, — старая версия после
+    замены даёт 404, а не вчерашний ролик."""
+    м = _лнд_хран.ИМЯ_ФАЙЛА.match(name)
+    if not м:
+        return JSONResponse({"error": "Нет такого файла"}, status_code=404)
+    slot_id, версия, ext = м.groups()
+    запись = db.query(LandingMedia).filter(LandingMedia.slot_id == slot_id).first()
+    if запись is None or запись.version != версия or запись.ext != ext:
+        return JSONResponse({"error": "Нет такого файла"}, status_code=404)
+    путь = _лнд_хран.путь(name)
+    if not os.path.exists(путь):
+        print("[landing] %s: строка есть, файла на томе нет — %s" % (slot_id, name))
+        return JSONResponse({"error": "Нет такого файла"}, status_code=404)
+    return FileResponse(путь, media_type="video/mp4" if ext == "mp4" else "image/webp",
+                        headers={"Cache-Control": "public, max-age=%d, immutable"
+                                 % СТАТИКА_ГОД})
 
 
 @app.get("/api/enshrouded/state")

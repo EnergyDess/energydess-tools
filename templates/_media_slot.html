@@ -1,0 +1,41 @@
+{# МЕСТО МЕДИА ГЛАВНОЙ — ЕДИНСТВЕННЫЙ ПОСТРОИТЕЛЬ (BACKLOG №325, блок C).
+
+   Потребителей два: превью в панели загрузки `/admin/landing` и сама
+   новая главная (следующее письмо). Построитель ОДИН по той же причине,
+   что у сетки аптечки: разойдись они, панель показала бы одно, а лендинг
+   другое, и заметить это можно было бы только сличив две страницы.
+
+   РАЗМЕР ЗАДАЁТ МЕСТО, А НЕ ФАЙЛ. Коробка держит `aspect-ratio` места
+   (`--slot-ratio` из `landing_defs`), содержимое ложится в неё
+   `object-fit`. Отсюда два свойства разом:
+     · заглушка ровно того размера, что будущий файл, — загрузка
+       раскладку не двигает (C3);
+     · файл другого соотношения сторон место не растягивает — он
+       обрезается (`cover`) либо вписывается (`contain` у декора).
+
+   ЗАГЛУШКА — СОСТОЯНИЕ «ЕЩЁ НЕ ЗАГРУЖЕНО», А НЕ ПОЛОМКА (C2). Ни значка
+   ошибки, ни красного, ни битой картинки браузера: тёмная поверхность,
+   пунктирная рамка и подпись места. Пустое место — законный вид страницы,
+   пока ролики не смонтированы.
+
+   CSS-переменная в `style=` законна по §6.0.2 (проверка 3b пропускает
+   инлайн, целиком состоящий из custom property): это данные для стиля,
+   записать их в CSS нечем — соотношение своё у каждого места. #}
+{% macro slot(м) %}
+<div class="media-slot{% if м.fit == 'contain' %} media-slot-contain{% endif %}"
+     style="--slot-ratio: {{ м.ratio }}"
+     data-slot="{{ м.id }}" data-filled="{{ 'yes' if м.file else 'no' }}">
+  {% if м.file and м.file.kind == 'video' %}
+  <video class="media-slot-media" src="{{ м.file.src }}" muted loop playsinline autoplay
+         preload="metadata" aria-label="{{ м.label }}"></video>
+  {% elif м.file %}
+  <img class="media-slot-media" src="{{ м.file.src }}" alt="{{ '' if м.alpha else м.label }}"
+       loading="lazy" decoding="async" width="{{ м.file.width }}" height="{{ м.file.height }}">
+  {% else %}
+  <div class="media-slot-empty">
+    <span class="media-slot-label">{{ м.label }}</span>
+    <span class="media-slot-kind">{{ 'видео' if м.kind == 'video' else 'картинка' }} · {{ м.ratio | replace(' ', '') }}</span>
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}

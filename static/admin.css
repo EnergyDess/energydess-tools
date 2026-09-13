@@ -1183,3 +1183,47 @@
      базис дорожки числом) ушли вместе с расходом — BACKLOG №315. */
   .admin-foot { flex-direction: column; align-items: stretch; }
 }
+
+
+/* ── РАЗДЕЛ «ГЛАВНАЯ»: МЕСТА МЕДИА (BACKLOG №325, блок D) ──────────────
+   Секции идут в порядке страницы, внутри — карточки мест сеткой.
+   Ширина колонки у ленты шире: там ролики 16:9, и в узкой карточке
+   превью ролика читается хуже, чем картинка 4:3. */
+.landing-section { margin-top: var(--space-6); }
+.landing-section-title {
+  display: flex; align-items: baseline; gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-body-sm); font-weight: 600;
+}
+.landing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
+  gap: var(--space-4);
+}
+.landing-grid-feed { grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr)); }
+.landing-card {
+  display: flex; flex-direction: column;
+  padding: var(--space-3);
+  gap: var(--space-3);
+}
+.landing-card-body { display: flex; flex-direction: column; gap: var(--space-1); }
+.landing-card-title { margin: 0; font-weight: 600; font-size: var(--text-body-sm); }
+.landing-card-meta {
+  display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3);
+  margin: 0; font-size: var(--text-caption); color: var(--text-2);
+}
+.landing-card-sub { margin: 0; font-size: var(--text-caption); color: var(--text-2); }
+.landing-card-n { font-family: var(--font-mono); color: var(--text); }
+.landing-card-acts {
+  display: flex; flex-wrap: wrap; gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.landing-card-msg { margin: var(--space-1) 0 0; font-size: var(--text-caption); color: var(--text-2); }
+.landing-card-msg[data-tone="error"] { color: var(--error); }
+.landing-card-msg[data-tone="warning"] { color: var(--warning); }
+.landing-card-msg[data-tone="success"] { color: var(--success); }
+.landing-del-actions {
+  display: flex; justify-content: flex-end; gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+.admin-foot-side { flex: 0 0 auto; margin: 0; }

@@ -37,12 +37,23 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 БАЗА = os.environ.get("STAND", "http://127.0.0.1:8899")
 
-РАЗДЕЛЫ = [
-    ("/admin/users", "Пользователи"),
-    ("/admin/products", "Продукты"),
-    ("/admin/exercises", "Упражнения"),
-    ("/admin/enshrouded", "Enshrouded"),
-]
+# РАЗДЕЛЫ ВЫВОДЯТСЯ ИЗ ПАНЕЛИ РАЗДЕЛОВ, а не перечисляются (BACKLOG
+# №325). Здесь стоял перечень из четырёх строк; пятый раздел («Главная»)
+# под пробу не попал бы вовсе, и она печатала бы «разбег 0» про четыре
+# раздела из пяти. Источник — та же разметка, по которой ходит человек:
+# `templates/_admin_subnav.html`, ссылки `href="/admin/…"` с подписью.
+def разделы_из_панели():
+    import re
+    путь = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "templates", "_admin_subnav.html")
+    текст = open(путь, encoding="utf-8").read()
+    найдено = re.findall(r'href="(/admin/[a-z]+)"[^>]*>\s*\{\{[^}]*\}\}\s*([^<]+?)\s*</a>', текст)
+    if not найдено:
+        raise RuntimeError("в _admin_subnav.html не найдено ни одного раздела — разбор ослеп")
+    return найдено
+
+
+РАЗДЕЛЫ = разделы_из_панели()
 
 ШИРИНЫ = [2560, 1920, 390]
 

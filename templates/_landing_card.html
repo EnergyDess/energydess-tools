@@ -1,0 +1,40 @@
+{# КАРТОЧКА МЕСТА В ПАНЕЛИ ЗАГРУЗКИ (BACKLOG №325, блок D2).
+
+   Рисует её ОДНО место: первый кадр страницы и ответ загрузки либо
+   очистки (сервер отдаёт готовую разметку, браузер подставляет). Второго
+   построителя в скрипте нет — тот же приём, что у строк каталога
+   Enshrouded и сетки аптечки. #}
+{% import '_media_slot.html' as ms %}
+<article class="card card-static landing-card" data-card="{{ м.id }}" data-section="{{ м.section }}"
+         data-filled="{{ 'yes' if м.file else 'no' }}"
+         data-find="{{ (м.label ~ ' ' ~ м.id) | lower }}">
+  {{ ms.slot(м) }}
+  <div class="landing-card-body">
+    <p class="landing-card-title">{{ м.label }}</p>
+    {% if м.file %}
+    <p class="landing-card-meta">
+      <span class="landing-card-n">{{ м.file.width }}×{{ м.file.height }}</span>
+      {% if м.file.duration %}<span class="landing-card-n">{{ '%.1f' | format(м.file.duration) }} с</span>{% endif %}
+      <span class="landing-card-n">{{ м.file.size }}</span>
+      {% if м.file.alpha %}<span>прозрачность</span>{% endif %}
+    </p>
+    <p class="landing-card-sub">было {{ м.file.original_size }} · загружено {{ м.file.uploaded }}</p>
+    {% else %}
+    <p class="landing-card-meta"><span>пусто</span></p>
+    <p class="landing-card-sub">ждёт {{ 'ролик' if м.kind == 'video' else 'картинку' }}{{ ' с прозрачностью' if м.alpha }}</p>
+    {% endif %}
+    <div class="landing-card-acts">
+      <button type="button" class="btn btn-secondary btn-sm" data-choose="{{ м.id }}">
+        {{ значок('upload') }}{{ 'Заменить' if м.file else 'Загрузить' }}
+      </button>
+      {% if м.file %}
+      <button type="button" class="btn btn-ghost btn-sm" data-clear="{{ м.id }}">
+        {{ значок('trash-2') }}Убрать
+      </button>
+      {% endif %}
+      <input type="file" class="landing-card-file" hidden data-upload="{{ м.id }}"
+             accept="{{ 'video/*' if м.kind == 'video' else 'image/png,image/jpeg,image/webp' }}">
+    </div>
+    <p class="landing-card-msg" data-msg hidden></p>
+  </div>
+</article>

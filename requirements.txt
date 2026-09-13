@@ -17,3 +17,6 @@ Pillow
 # в Europe/Moscow). В python:3.12-slim и на Windows системной базы нет,
 # и ZoneInfo падает с ZoneInfoNotFoundError прямо на импорте модуля.
 tzdata
+# Статический ffmpeg с libx264 для сжатия роликов главной (BACKLOG №325).
+# В python:3.12-slim ffmpeg нет, а apt тянет сотни мегабайт; колесо — 29 МБ.
+imageio-ffmpeg

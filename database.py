@@ -1479,6 +1479,39 @@ class MedkitBlock(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class LandingMedia(Base):
+    """ЧТО ЛЕЖИТ В МЕСТЕ МЕДИА НОВОЙ ГЛАВНОЙ (BACKLOG №325, блок B3).
+
+    ОДНА СТРОКА НА МЕСТО, КЛЮЧ — ОПОЗНАВАТЕЛЬ МЕСТА из `landing_defs`.
+    Места не заводятся строками: их двадцать шесть и они описаны кодом.
+    Нет строки — место ПУСТОЕ, и страница рисует заглушку (блок C).
+
+    САМ ФАЙЛ — НА ТОМЕ, и путь к нему знает только `landing_store`.
+    Здесь сведения: род, расширение, версия (8 знаков sha256 содержимого,
+    она же в имени файла и в адресе), вес, размеры, длительность у ролика,
+    плюс исходные имя и вес — чтобы панель могла сказать «было → стало».
+
+    ПЕРСОНАЛЬНЫМИ ДАННЫМИ НЕ ЯВЛЯЕТСЯ: это содержимое страницы владельца,
+    одинаковое для всех, ни `user_id`, ни привязки к человеку
+    (`PRIVACY_NOT_PERSONAL`). Появится колонка «кто загрузил» — таблица
+    перестанет быть общей, и её придётся завести в каскад и в политику.
+    """
+
+    __tablename__ = "landing_media"
+    slot_id = Column(String, primary_key=True)
+    kind = Column(String, nullable=False)
+    ext = Column(String, nullable=False)
+    version = Column(String, nullable=False)
+    bytes = Column(Integer, nullable=False)
+    width = Column(Integer, nullable=True)
+    height = Column(Integer, nullable=True)
+    duration_sec = Column(Float, nullable=True)
+    has_alpha = Column(Boolean, nullable=True)
+    original_name = Column(String, nullable=True)
+    original_bytes = Column(Integer, nullable=True)
+    uploaded_at = Column(DateTime, nullable=False)
+
+
 class RefRequestDay(Base):
     """СКОЛЬКО РАЗ ЗА СУТКИ МЫ СХОДИЛИ В ЧУЖОЙ СПРАВОЧНИК.
 
@@ -2549,6 +2582,9 @@ PRIVACY_NOT_PERSONAL = {
     # хост и число. Разбор и предупреждение на будущее — у самой
     # модели `RefRequestDay`.
     "ref_requests": "счётчик обращений к справочнику: сутки, хост и число",
+    # Места медиа новой главной (BACKLOG №325). Содержимое страницы
+    # владельца — ролики и картинки лендинга, одинаковые для всех.
+    "landing_media": "места медиа главной страницы, одинаковые для всех",
 }
 
 

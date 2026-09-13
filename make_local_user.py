@@ -2040,6 +2040,66 @@ def _сид_круга(db, я, сосед, гость, спамер, база) -
                 MedkitBuyItem.bought_on == сегодня).count()}
 
 
+# МЕСТА МЕДИА ГЛАВНОЙ (BACKLOG №325, §8.0). Три места из двадцати шести
+# и РАЗНЫХ родов: ролик ленты, фото проекта и декор с прозрачностью.
+# Остальные двадцать три остаются пустыми НАМЕРЕННО — у панели два
+# состояния места, «файл есть» и «заглушка», и на стенде обязаны быть оба.
+#
+# ФАЙЛЫ ИДУТ ТЕМ ЖЕ ПУТЁМ, ЧТО У ПАНЕЛИ (`landing_media.обработать`
+# и `landing_store.положить`): положенный мимо сжатия файл показал бы
+# на стенде то, чего панель не производит никогда.
+СЕМЯ_ГЛАВНОЙ = ("feed-1-1", "project-1-a", "decor-tl")
+
+
+def _сид_главной(db) -> dict:
+    import shutil
+    import subprocess
+    import tempfile
+    from PIL import Image, ImageDraw
+    import landing_media as лм
+    import landing_store as лх
+    from database import LandingMedia
+
+    каталог = tempfile.mkdtemp(prefix="seed-landing-")
+    итог = {"мест": 0, "пропущено": 0}
+    try:
+        ролик = os.path.join(каталог, "feed.mp4")
+        subprocess.run([лм.ffmpeg(), "-hide_banner", "-loglevel", "error", "-y",
+                        "-f", "lavfi", "-i", "testsrc2=size=1280x720:rate=30",
+                        "-t", "4", "-c:v", "libx264", "-crf", "20", ролик],
+                       check=True, timeout=120)
+        фото = os.path.join(каталог, "project.jpg")
+        im = Image.new("RGB", (1600, 1200), (38, 44, 72))
+        ImageDraw.Draw(im).rectangle((200, 200, 1400, 1000), fill=(90, 120, 190))
+        im.save(фото, quality=90)
+        декор = os.path.join(каталог, "decor.png")
+        im = Image.new("RGBA", (1200, 1200), (0, 0, 0, 0))
+        ImageDraw.Draw(im).ellipse((150, 150, 1050, 1050), fill=(230, 140, 60, 255))
+        im.save(декор)
+
+        for место, файл in zip(СЕМЯ_ГЛАВНОЙ, (ролик, фото, декор)):
+            запись = db.query(LandingMedia).filter(LandingMedia.slot_id == место).first()
+            if запись and os.path.exists(лх.путь(лх.имя_файла(место, запись.version, запись.ext))):
+                итог["пропущено"] += 1
+                continue
+            готовый, св, _ = лм.обработать(место, файл, os.path.basename(файл))
+            имя = лх.имя_файла(место, св["version"], св["ext"])
+            лх.положить(готовый, имя)
+            if запись is None:
+                запись = LandingMedia(slot_id=место)
+                db.add(запись)
+            for поле in ("kind", "ext", "version", "bytes", "width", "height",
+                         "duration_sec", "has_alpha", "original_name", "original_bytes"):
+                setattr(запись, поле, св[поле])
+            запись.uploaded_at = datetime.utcnow()
+            итог["мест"] += 1
+        db.flush()
+        итог["в_базе"] = db.query(LandingMedia).count()
+    finally:
+        shutil.rmtree(каталог, ignore_errors=True)
+    return итог
+
+
 def _сид_доступа(db, user_id: int) -> int:
     """Открытые инструменты в `tool_access`.
 
@@ -2835,6 +2895,7 @@ def main() -> int:
         else:
             круг = _сид_круга(db, u, сосед, гость, спамер, база)
         енш = _сид_enshrouded(db, u.id)
+        главная = _сид_главной(db)
 
         db.commit()
         # Привязка весов — вместе с остальными данными: экран, состояние
@@ -3005,6 +3066,8 @@ def main() -> int:
               f"частично {енш['частично']} · отмеченных слотов {енш['слотов']} · "
               f"редкостей в базе {енш['редкостей']} из 5 · слотов с дубликатами "
               f"{енш['дублей']}")
+        print(f"Главная: заведено мест {главная['мест']}, уже были {главная['пропущено']}, "
+              f"в базе {главная['в_базе']} из 26 — остальные пустые, заглушкой")
         print(f"Всё отсчитано от {база.isoformat()} — «сегодня» у данных "
               f"заморожено на этой дате.")
         print(f"Пароль: {PASSWORD}")

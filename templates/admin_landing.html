@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% set meta_title = 'Главная — Админ' %}
+  {% include '_meta.html' %}
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ st('style.css') }}">
+  <link rel="stylesheet" href="{{ st('admin.css') }}">
+</head>
+<body class="has-site-header page-column">
+
+{% import '_admin_head.html' as ah %}
+{% import '_modal.html' as m %}
+{% include '_admin_nav.html' %}
+
+{% set active = 'landing' %}
+{% include '_admin_subnav.html' %}
+
+{# ПЯТЫЙ РАЗДЕЛ АДМИНКИ — МЕСТА МЕДИА НОВОЙ ГЛАВНОЙ (BACKLOG №325).
+
+   Полоса отбора и подвал — ОБЩИЕ макросы `_admin_head.html`, своих
+   здесь нет ни строки: ради этого заход 314 и свёл их в один файл.
+
+   МЕСТ ДВАДЦАТЬ ШЕСТЬ, И ОНИ НЕ ДОБАВЛЯЮТСЯ ОТСЮДА. Решение владельца:
+   фиксированные места вместо свободного списка, чтобы замена файла
+   не двигала раскладку. Панель меняет только содержимое места. #}
+<div class="admin-wrap page-fill">
+
+  {{ ah.head('Главная', 'Ролики и картинки новой главной — по местам, заданным раскладкой',
+             отбор, 'Поиск') }}
+
+  {% for с in sections %}
+  <section class="landing-section" data-section-block="{{ с.id }}">
+    <h2 class="landing-section-title">{{ с.label }} <span class="landing-card-n">{{ с.slots | length }}</span></h2>
+    <div class="landing-grid landing-grid-{{ с.id }}">
+      {% for м in с.slots %}{% include '_landing_card.html' %}{% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+  <p class="empty-state admin-empty" id="empty" hidden>Под текущий отбор не попало ни одно место</p>
+
+  {% call ah.foot() %}
+  <p class="data-note admin-foot-side" id="volume">
+    Том: занято местами <b class="admin-foot-n" id="vol-used">{{ сводка.used }}</b>,
+    свободно <b class="admin-foot-n" id="vol-free">{{ сводка.free }}</b>
+    из <b class="admin-foot-n">{{ сводка.disk_total }}</b>
+  </p>
+  {% endcall %}
+</div>
+
+{% call m.modal('landing-del', 'Убрать файл?', icon='alert-triangle', icon_tone='warning') %}
+  <p id="landing-del-text"></p>
+  <div class="landing-del-actions">
+    <button class="btn-secondary" type="button" data-modal-close>Отмена</button>
+    <button class="btn-danger" type="button" id="landing-del-go">Убрать</button>
+  </div>
+{% endcall %}
+
+<div class="toast" id="toast"></div>
+<script src="{{ st('modal.js') }}"></script>
+
+<script>
+const ВСЕГО = {{ сводка.total }};
+let ЗАПОЛНЕНО = {{ сводка.filled }};
+const state = {pick: 'all', q: ''};
+let убираем = null;
+
+function показатьТост(текст) {
+  const т = document.getElementById('toast');
+  т.textContent = текст;
+  т.classList.add('show');
+  setTimeout(() => т.classList.remove('show'), 4000);
+}
+
+/* СООБЩЕНИЕ В КАРТОЧКЕ, А НЕ ТОЛЬКО ТОСТОМ. Отказ и предупреждение
+   с числом должны оставаться рядом с местом, к которому относятся:
+   тост через четыре секунды исчезает, а человек мог смотреть в другую
+   сторону — и отказ стал бы молчаливым (§6.0). */
+function сказатьВКарточке(карточка, текст, тон) {
+  const п = карточка.querySelector('[data-msg]');
+  п.textContent = текст;
+  п.dataset.tone = тон;
+  п.hidden = !текст;
+}
+
+function отобрать() {
+  const s = state.q.trim().toLowerCase();
+  let видно = 0;
+  document.querySelectorAll('[data-card]').forEach(к => {
+    const ок = (state.pick === 'all'
+                || (state.pick === 'empty' ? к.dataset.filled === 'no'
+                                           : к.dataset.section === state.pick))
+            && (!s || к.dataset.find.includes(s));
+    к.hidden = !ок;
+    if (ок) видно++;
+  });
+  document.querySelectorAll('[data-section-block]').forEach(б => {
+    б.hidden = !б.querySelector('[data-card]:not([hidden])');
+  });
+  document.getElementById('empty').hidden = видно > 0;
+  подпись(видно);
+}
+
+function подпись(видно) {
+  const нота = нотаОчистить();
+  нота.append(нотаПункт('Показано ', нотаЧисло(видно), ' из ', нотаЧисло(ВСЕГО)));
+  нота.append(нотаПункт('заполнено ', нотаЧисло(ЗАПОЛНЕНО)));
+  нота.append(нотаПункт('ролик сжимается в mp4 без звука, картинка — в webp'));
+  нота.append(нотаВажно('замена удаляет прежний файл'));
+}
+
+function заменитьКарточку(slot, html, сводка) {
+  const старая = document.querySelector(`[data-card="${slot}"]`);
+  const обёртка = document.createElement('div');
+  обёртка.innerHTML = html.trim();
+  const новая = обёртка.firstElementChild;
+  старая.replaceWith(новая);
+  if (сводка) {
+    ЗАПОЛНЕНО = сводка.filled;
+    document.getElementById('vol-used').textContent = сводка.used;
+    document.getElementById('vol-free').textContent = сводка.free;
+    const чип = document.querySelector('[data-pick="empty"] .chip-n');
+    if (чип) чип.textContent = ВСЕГО - сводка.filled;
+  }
+  отобрать();
+  return новая;
+}
+
+async function загрузить(slot, файл) {
+  const карточка = document.querySelector(`[data-card="${slot}"]`);
+  const кнопка = карточка.querySelector('[data-choose]');
+  const подписьКнопки = кнопка.lastChild.textContent;
+  кнопка.disabled = true;
+  кнопка.lastChild.textContent = 'Загружаю и сжимаю…';
+  сказатьВКарточке(карточка, '', '');
+  const форма = new FormData();
+  форма.append('file', файл);
+  let о, д;
+  try {
+    о = await fetch(`/admin/api/landing/${slot}`, {method: 'POST', body: форма});
+    д = await о.json().catch(() => ({}));
+  } catch (e) {
+    кнопка.disabled = false;
+    кнопка.lastChild.textContent = подписьКнопки;
+    return сказатьВКарточке(карточка, 'Связь оборвалась, файл не загружен', 'error');
+  }
+  if (!о.ok) {
+    кнопка.disabled = false;
+    кнопка.lastChild.textContent = подписьКнопки;
+    return сказатьВКарточке(карточка, д.error || `Сервер ответил ${о.status}, файл не принят`, 'error');
+  }
+  const новая = заменитьКарточку(slot, д.card, д.summary);
+  const итог = `Загружено: было ${д.was}, стало ${д.now}`;
+  if (д.warnings && д.warnings.length) {
+    сказатьВКарточке(новая, итог + '. ' + д.warnings.join('. '), 'warning');
+  } else {
+    сказатьВКарточке(новая, итог, 'success');
+  }
+  показатьТост(итог);
+}
+
+document.addEventListener('click', e => {
+  const выбрать = e.target.closest('[data-choose]');
+  if (выбрать) {
+    document.querySelector(`[data-upload="${выбрать.dataset.choose}"]`).click();
+    return;
+  }
+  const убрать = e.target.closest('[data-clear]');
+  if (убрать) {
+    убираем = убрать.dataset.clear;
+    const к = document.querySelector(`[data-card="${убираем}"]`);
+    document.getElementById('landing-del-text').textContent =
+      'Место «' + к.querySelector('.landing-card-title').textContent +
+      '» станет пустым, файл удалится с тома. Вернуть его можно только новой загрузкой.';
+    window.открыть_модалку('landing-del');
+  }
+});
+
+document.addEventListener('change', e => {
+  const поле = e.target.closest('[data-upload]');
+  if (!поле || !поле.files.length) return;
+  загрузить(поле.dataset.upload, поле.files[0]);
+});
+
+document.getElementById('landing-del-go').addEventListener('click', async () => {
+  if (!убираем) return;
+  const о = await fetch(`/admin/api/landing/${убираем}`, {method: 'DELETE'});
+  const д = await о.json().catch(() => ({}));
+  window.закрыть_модалку('landing-del');
+  if (!о.ok) return показатьТост(д.error || `Сервер ответил ${о.status}`);
+  заменитьКарточку(убираем, д.card, д.summary);
+  показатьТост('Место стало пустым');
+  убираем = null;
+});
+
+document.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-pick]').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  state.pick = b.dataset.pick;
+  отобрать();
+}));
+document.getElementById('admin-q').addEventListener('input', function () {
+  state.q = this.value; отобрать();
+});
+
+отобрать();
+</script>
+
+{% include '_page_end.html' %}
+</body>
+</html>
