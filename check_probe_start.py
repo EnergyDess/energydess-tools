@@ -503,9 +503,8 @@ def _стенд_виновники():
                 до = _стенд_счёт(копия)
                 путь, флаг = задание
                 try:
-                    subprocess.run([sys.executable, путь] + ([флаг] if флаг else []),
-                                   capture_output=True, text=True, errors="replace",
-                                   timeout=ПОТОЛОК, env=env, cwd=КОРЕНЬ)
+                    _запуск([sys.executable, путь] + ([флаг] if флаг else []),
+                            env, ПОТОЛОК)
                 except subprocess.TimeoutExpired:
                     pass
                 после = _стенд_счёт(копия)
@@ -516,14 +515,61 @@ def _стенд_виновники():
     return итог
 
 
+def _гасить_дерево(п):
+    """Гасит процесс ВМЕСТЕ С ДЕТЬМИ.
+
+    ЗАЧЕМ (заход 333, задача 332). `subprocess.run(timeout=…)` убивает
+    только саму пробу, а поднятый ею `uvicorn main:app` остаётся жить —
+    на Windows внуки при смерти родителя не гаснут. После полного прогона
+    таких сирот было ВОСЕМЬ, и один из них (`check_db_hold --живьём`,
+    порт 8917) сидел на НАСТОЯЩЕМ `app.db` стенда и принимал запросы
+    следующих прогонов: переписка стенда пропадала мимо `DB_PATH`, и на
+    копии «виновник не повторял». Сторож стенда назвал это убылью без
+    виновника — ровно так он и был найден."""
+    if п.poll() is not None:
+        return
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/T", "/F", "/PID", str(п.pid)],
+                       capture_output=True)
+    else:
+        import signal
+        try:
+            os.killpg(os.getpgid(п.pid), signal.SIGKILL)
+        except (OSError, ProcessLookupError):
+            п.kill()
+    try:
+        п.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        п.kill()
+
+
+class _Итог:
+    def __init__(self, returncode, stdout, stderr):
+        self.returncode, self.stdout, self.stderr = returncode, stdout, stderr
+
+
+def _запуск(команда, env, потолок):
+    """Как `subprocess.run`, но на потолке гасится всё дерево.
+    Бросает `subprocess.TimeoutExpired`."""
+    доп = {} if os.name == "nt" else {"start_new_session": True}
+    п = subprocess.Popen(команда, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         stdin=subprocess.DEVNULL, text=True, errors="replace",
+                         env=env, cwd=КОРЕНЬ, **доп)
+    try:
+        вывод, ошибки = п.communicate(timeout=потолок)
+    except subprocess.TimeoutExpired:
+        _гасить_дерево(п)
+        п.communicate()
+        raise
+    return _Итог(п.returncode, вывод, ошибки)
+
+
 def прогнать(путь, флаг=None):
     """(вид, подробность, секунды) — один запуск."""
     команда = [sys.executable, путь] + ([флаг] if флаг else [])
     начало = time.monotonic()
     try:
-        п = subprocess.run(команда, capture_output=True, text=True,
-                           errors="replace", timeout=ПОТОЛОК,
-                           env=_окружение(), cwd=КОРЕНЬ)
+        п = _запуск(команда, _окружение(), ПОТОЛОК)
     except subprocess.TimeoutExpired:
         return "НЕ УСПЕЛА", "потолок %d с" % ПОТОЛОК, time.monotonic() - начало
     except OSError as e:
@@ -644,6 +690,23 @@ def прогон(быстро=False, тихо=False):
     for з in один_за_другим:
         путь, флаг, вид, подр, сек = один(з)
         итог.setdefault(вид, []).append((путь, флаг, подр, сек))
+    # УБЫЛЬ, ВЕРНУВШАЯСЯ К КОНЦУ ПРОГОНА, — НЕ НАХОДКА. Проба вправе
+    # распустить посеянное и вернуть его в `finally` (так устроены
+    # `check_medkit_circle` и `--ступени`); сторож при этом видит убыль
+    # между сверками. Находка — либо подтверждена на копии, либо
+    # не вернулась: иначе исправная проба давала бы код 1
+    _стенд["не_вернулось"] = []
+    if _стенд["база"] is not None and _стенд["убыль"]:
+        try:
+            конец = _стенд_счёт(_стенд["база"])
+            было = {}
+            for _, _, новая in _стенд["убыль"]:
+                for к, (n, _) in новая.items():
+                    было.setdefault(к, n)
+            _стенд["не_вернулось"] = sorted(к for к, n in было.items()
+                                            if конец.get(к, 0) < n)
+        except Exception:
+            _стенд["не_вернулось"] = ["(не спрошено: сверка в конце упала)"]
     if _стенд["убыль"]:
         if not тихо:
             print("  СТОРОЖ СТЕНДА: убыль посева %d раз — подтверждаю "
@@ -724,9 +787,13 @@ def напечатать(итог):
         print(chr(10) + "  НАХОДКИ — проба унесла посев стенда (повторено на копии):")
         for путь, флаг, подр, _ in испорт:
             print("    %-34s %-18s %s" % (путь, флаг or "(без ключей)", подр))
-    if _стенд["убыль"] and not испорт:
-        print(chr(10) + "  НАХОДКА — убыль посева была, виновник на копии "
-              "не повторил (пишет мимо DB_PATH?):")
+    не_вернулось = _стенд.get("не_вернулось") or []
+    if _стенд["убыль"] and not испорт and not не_вернулось:
+        print(chr(10) + "  СПРАВКА — убыль посева была и к концу прогона ВЕРНУЛАСЬ "
+              "(проба распускает и возвращает); не находка")
+    if не_вернулось and not испорт:
+        print(chr(10) + "  НАХОДКА — убыль посева НЕ ВЕРНУЛАСЬ, виновник на копии "
+              "не повторил (пишет мимо DB_PATH?): " + ", ".join(не_вернулось[:4]))
         for путь, флаг, подр, _ in без_вин[:20]:
             print("    %-34s %-18s %s" % (путь, флаг or "(без ключей)", подр))
     if свои:
@@ -746,7 +813,7 @@ def напечатать(итог):
             print("    %-34s %-18s %s" % (путь, флаг or "(без ключей)", подр))
         if len(внеш) > 60:
             print("    … ещё %d" % (len(внеш) - 60))
-    убыль = bool(_стенд["убыль"])
+    убыль = bool(испорт) or bool(не_вернулось)
     return 1 if (свои or мусор or нет_слоя or убыль) else 0
 
 

@@ -300,6 +300,39 @@ async def прогон(ширина, id_сиропа):
             _прибрать_сироп()
 
 
+def _снять_своё():
+    """Строки аккаунта, которые трогает кадр: покупки и переписка аптечки.
+
+    `_прибрать` удаляет ВСЕ покупки и всю переписку аптечки аккаунта —
+    а посев их заводит, и проба уносила посеянное со стенда (заход 333,
+    сторож стенда проверки 35: покупок 5 → 2). Возвращаются В ТОЧНОСТИ
+    те строки, что были, с теми же id."""
+    conn = sqlite3.connect(DB)
+    try:
+        u = "(SELECT id FROM users WHERE email = ?)"
+        return {
+            "medkit_buy_items": conn.execute(
+                "SELECT * FROM medkit_buy_items WHERE user_id = " + u, (ПОЧТА,)).fetchall(),
+            "chat_messages": conn.execute(
+                "SELECT * FROM chat_messages WHERE tool = 'medkit' AND user_id = "
+                + u, (ПОЧТА,)).fetchall(),
+        }
+    finally:
+        conn.close()
+
+
+def _вернуть_своё(снимок):
+    conn = sqlite3.connect(DB)
+    try:
+        for таблица, строки in снимок.items():
+            for строка in строки:
+                conn.execute("INSERT OR REPLACE INTO %s VALUES (%s)"
+                             % (таблица, ",".join("?" * len(строка))), строка)
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def main():
     р = argparse.ArgumentParser()
     р.add_argument("--ширина", type=int)
@@ -307,15 +340,19 @@ def main():
     ширины = [a.ширина] if a.ширина else ШИРИНЫ
     print("СНИМКИ ЗАХОДА 178 -> %s" % КУДА)
     print("Состояние кадра заводится САМО и убирается в конце.")
-    _завести_состояние()
-    print("Заведено: 4 строки покупок, 3 реплики. Сироп заводится "
-          "в прогоне — через приложение, ради фонового поиска схемы.")
+    снимок = _снять_своё()
     try:
+        _завести_состояние()
+        print("Заведено: 4 строки покупок, 3 реплики. Сироп заводится "
+              "в прогоне — через приложение, ради фонового поиска схемы.")
         for ш in ширины:
             asyncio.run(прогон(ш, None))
     finally:
         _прибрать()
-        print("Пробные записи убраны.")
+        _вернуть_своё(снимок)
+        print("Пробные записи убраны, прежние строки покупок и переписки "
+              "возвращены (%d и %d)." % (len(снимок["medkit_buy_items"]),
+                                        len(снимок["chat_messages"])))
     return 0
 
 
