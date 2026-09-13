@@ -251,6 +251,215 @@ def _гейт_путь_исключён(путь: str) -> bool:
             or путь.startswith(ГЕЙТ_ИСКЛЮЧЕНИЯ_ПРЕФИКС))
 
 
+# ── ЗАСЛОН ТЕЛА ЗАПРОСА: ПРАВА И ВЕС ДО ПЕРВОГО БАЙТА (задача 327) ─────────
+#
+# `UploadFile` в параметрах обработчика FastAPI разбирает ДО тела функции,
+# то есть до строки `if not user`. Часть формы больше мегабайта Starlette
+# пишет во временный файл машины. Замер 2026-09-13 (`check_upload_guard.py`):
+# гость, приславший 8 МБ, получал 401/403 на 10 местах приёма файла из 11 —
+# и все 8 МБ перед этим ложились на диск. Права проверялись, но ПОСЛЕ записи.
+#
+# ЛЕЧИТСЯ ОДНИМ ЗАСЛОНОМ, А НЕ ПРАВКОЙ КАЖДОГО ОБРАБОТЧИКА. Маршрут,
+# принимающий файл, объявляет декоратором `приём_файла` ДВЕ вещи: кто
+# вправе слать и сколько. Заслон спрашивает их ДО чтения тела:
+# нет прав — отказ без единого прочитанного байта; Content-Length больше
+# предела — 413 без единого байта; длины нет — поток обрывается у предела.
+# Проверки внутри обработчиков остаются: заслон — пол, а не замена.
+#
+# МАРШРУТ БЕЗ ОБЪЯВЛЕНИЯ получает предел ТЕЛО_БЕЗ_ФАЙЛА — порог, с которого
+# Starlette пишет часть формы на диск. Меньше него тело целиком живёт
+# в памяти, значит на диск не попадает НИЧЕГО по построению, как бы
+# ни был собран запрос. Забытое объявление даёт громкий 413, а не дыру,
+# и сторожит его тест `tests/test_upload_guard.py`.
+import inspect as _inspect
+import starlette.formparsers as _формы
+from starlette.requests import HTTPConnection as _Соединение
+from starlette.routing import Match as _Совпадение
+
+ПРИЁМ_АТРИБУТ = "__приём_файла__"
+ТЕЛО_БЕЗ_ФАЙЛА = _формы.MultiPartParser.spool_max_size
+
+
+def приём_файла(права, предел):
+    """Объявление места приёма файла.
+
+    права  — `(user, db, path_params) -> None | (код, текст)`;
+    предел — `(path_params) -> байт` для самого файла. К нему заслон
+             прибавляет ТЕЛО_БЕЗ_ФАЙЛА на обвязку формы и соседние поля.
+    Кладётся ПОД `@app.post`: FastAPI хранит в маршруте ту же функцию."""
+    def обёртка(ф):
+        setattr(ф, ПРИЁМ_АТРИБУТ, (права, предел))
+        return ф
+    return обёртка
+
+
+def _право_вошёл(текст):
+    return lambda user, db, пп: None if user else (401, текст)
+
+
+def _право_админ(user, db, пп):
+    return None if _admin_guard(user) else (403, "Нет прав")
+
+
+def _право_инструмент(инструмент, текст_гостя, код_гостя, текст):
+    def проверка(user, db, пп):
+        if not user:
+            return (код_гостя, текст_гостя)
+        return None if user_has_access(user, инструмент, db) else (403, текст)
+    return проверка
+
+
+def _право_голос(user, db, пп):
+    return None if user and _голос_разрешён(user, db) else (403, "Нет доступа")
+
+
+def _право_позиция_аптечки(user, db, пп):
+    if not user:
+        return (401, "Нужно войти")
+    try:
+        ид = int(пп.get("item_id"))
+    except (TypeError, ValueError):
+        return (404, "Не найдено")
+    return None if _апт_позиция(db, user, ид) else (404, "Не найдено")
+
+
+def _объявление_приёма(scope):
+    """(объявление | None, path_params) маршрута, который исполнит запрос."""
+    for маршрут in app.router.routes:
+        совпало, дочернее = маршрут.matches(scope)
+        if совпало == _Совпадение.FULL:
+            return (getattr(getattr(маршрут, "endpoint", None), ПРИЁМ_АТРИБУТ, None),
+                    дочернее.get("path_params", {}))
+    return None, {}
+
+
+def _права_до_тела(объявление, scope, пп):
+    """None — можно читать тело; (код, текст) — отказ. Одна короткая сессия
+    базы, закрытая ДО чтения тела: соединение не держится на время загрузки."""
+    кука = _Соединение(scope).cookies.get("access_token")
+    db = SessionLocal()
+    try:
+        user = get_current_user(кука, db) if кука else None
+        return объявление[0](user, db, пп)
+    finally:
+        db.close()
+
+
+def _предел_тела(объявление, пп):
+    """Байт на всё тело запроса. None — без предела (так его снимает подлог)."""
+    if объявление is None:
+        return ТЕЛО_БЕЗ_ФАЙЛА
+    return int(объявление[1](пп)) + ТЕЛО_БЕЗ_ФАЙЛА
+
+
+def _текст_предела(объявление, предел):
+    if объявление is None:
+        return "Тело запроса больше %d КБ — не принято" % (предел // 1024)
+    return "Файл больше %d МБ — не принят" % ((предел - ТЕЛО_БЕЗ_ФАЙЛА) // 1024 // 1024)
+
+
+async def _заслон_отказ(send, код, текст):
+    тело = _json.dumps({"error": текст}, ensure_ascii=False).encode("utf-8")
+    await send({"type": "http.response.start", "status": код,
+                "headers": [(b"content-type", b"application/json; charset=utf-8"),
+                            (b"content-length", str(len(тело)).encode()),
+                            (b"connection", b"close")]})
+    await send({"type": "http.response.body", "body": тело})
+
+
+class ЗаслонТела:
+    """Чистое ASGI, а не `@app.middleware`: тело идёт потоком мимо него,
+    и отказать можно, не прочитав из сокета ни байта."""
+
+    МЕТОДЫ = {"POST", "PUT", "PATCH"}
+
+    def __init__(self, app_):
+        self.app = app_
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope["method"] not in self.МЕТОДЫ:
+            return await self.app(scope, receive, send)
+        объявление, пп = _объявление_приёма(scope)
+        if объявление is not None:
+            отказ = _права_до_тела(объявление, scope, пп)
+            if отказ:
+                return await _заслон_отказ(send, *отказ)
+        предел = _предел_тела(объявление, пп)
+        if предел is None:
+            return await self.app(scope, receive, send)
+        длина = dict(scope["headers"]).get(b"content-length")
+        try:
+            длина = int(длина) if длина is not None else None
+        except ValueError:
+            длина = None
+        if длина is not None and длина > предел:
+            print("[заслон] 413 %s %s — Content-Length %d при пределе %d, тело не читалось"
+                  % (scope["method"], scope["path"], длина, предел))
+            return await _заслон_отказ(send, 413, _текст_предела(объявление, предел))
+
+        # Длины нет (поток частями) либо она врёт: считаем по ходу. У предела
+        # приложению отдаётся «клиент ушёл» — разбор формы останавливается,
+        # и отказ говорим сами.
+        прочитано, превышен, начат = 0, False, False
+
+        async def приём():
+            nonlocal прочитано, превышен
+            if превышен:
+                return {"type": "http.disconnect"}
+            сообщение = await receive()
+            if сообщение["type"] == "http.request":
+                прочитано += len(сообщение.get("body", b""))
+                if прочитано > предел:
+                    превышен = True
+                    return {"type": "http.disconnect"}
+            return сообщение
+
+        async def отправка(сообщение):
+            nonlocal начат
+            if превышен:
+                return
+            if сообщение["type"] == "http.response.start":
+                начат = True
+            await send(сообщение)
+
+        try:
+            await self.app(scope, приём, отправка)
+        except Exception:
+            if not превышен:
+                raise
+        if превышен and not начат:
+            print("[заслон] 413 %s %s — поток без длины оборван на %d байт при пределе %d"
+                  % (scope["method"], scope["path"], прочитано, предел))
+            await _заслон_отказ(send, 413, _текст_предела(объявление, предел))
+
+
+# ОБОРВАННАЯ ЗАГРУЗКА НЕ ОСТАВЛЯЕТ ФАЙЛ. Starlette закрывает временные
+# файлы формы только на ошибке РАЗБОРА (`MultiPartException`); на обрыве
+# клиента летит `ClientDisconnect`, и файл живёт, пока его не соберёт
+# сборщик циклов. Замер 2026-09-13: загрузка, оборванная на 4 МБ, через
+# 3 секунды оставляла во временном каталоге файл на 4 МБ.
+#
+# Имя `_files_to_close_on_error` — внутреннее у Starlette. Пропадёт при
+# обновлении — упадём на старте громко, а не начнём молча терять место.
+_исходный_разбор_формы = _формы.MultiPartParser.parse
+if "_files_to_close_on_error" not in _inspect.getsource(_формы.MultiPartParser.__init__):
+    raise RuntimeError("Starlette сменила устройство разбора формы: уборка "
+                       "временных файлов на обрыве загрузки не сработает (задача 327)")
+
+
+async def _разбор_формы_с_уборкой(self):
+    try:
+        return await _исходный_разбор_формы(self)
+    except BaseException:
+        for файл in list(self._files_to_close_on_error):
+            файл.close()
+        raise
+
+
+_формы.MultiPartParser.parse = _разбор_формы_с_уборкой
+app.add_middleware(ЗаслонТела)
+
+
 @app.middleware("http")
 async def гейт_подтверждения_почты(request: Request, call_next):
     """Непроверенный аккаунт ничего не записывает. Один заслон на всё."""
@@ -407,6 +616,12 @@ VISION_IMAGE_MAX_MB = float(os.getenv("VISION_IMAGE_MAX_MB", "5"))
 # тяжёлый случай (108 Мпикс) это 10 МБ; 20 МБ не отвергнут ни одну
 # настоящую фотографию и закрывают приём произвольного объёма
 PHOTO_MAX_UPLOAD_MB = float(os.getenv("PHOTO_MAX_UPLOAD_MB", "20"))
+# ПОТОЛКИ, КОТОРЫХ НЕ БЫЛО ВОВСЕ (задача 327): резюме и запись голоса
+# принимались любого объёма. Числа — ОЦЕНКА, а не замер: резюме PDF/DOCX
+# на порядок легче 10 МБ; у голоса ориентир — предел 25 МБ на аудиофайл
+# у распознавания речи OpenAI, запись дольше не распознается всё равно.
+RESUME_MAX_UPLOAD_MB = float(os.getenv("RESUME_MAX_UPLOAD_MB", "10"))
+VOICE_MAX_UPLOAD_MB = float(os.getenv("VOICE_MAX_UPLOAD_MB", "25"))
 FOOD_MAX_TOKENS     = int(os.getenv("FOOD_MAX_TOKENS",     "300"))   # КБЖУ одного продукта, JSON из 5 чисел
 TRANSLATE_MAX_TOKENS = int(os.getenv("TRANSLATE_MAX_TOKENS", "200"))  # перевод слов запроса, JSON из пар
 MEDKIT_MAX_TOKENS   = int(os.getenv("MEDKIT_MAX_TOKENS",   "900"))   # карточка аптечки, JSON из 8 полей плюс вопрос
@@ -4051,6 +4266,7 @@ def _енш_обработать(сырое, set_id):
 
 
 @app.post("/admin/api/enshrouded/set/{set_id}/image")
+@приём_файла(_право_админ, lambda пп: ENS_MAX_UPLOAD)
 async def admin_enshrouded_image(set_id: str, request: Request,
                                  file: UploadFile = File(None),
                                  url: str = Form(None),
@@ -4219,6 +4435,16 @@ async def admin_landing_page(request: Request, user=Depends(get_current_user),
                  "пределы": _лнд})
 
 
+def _лнд_потолок_места(slot_id):
+    """Байт на файл места; у незнакомого места — больший из двух, отказ
+    по имени места скажет сам обработчик."""
+    место = _лнд.ПО_ID.get(slot_id)
+    мб = (max(_лнд.ВИДЕО_ПОТОЛОК_МБ, _лнд.КАРТИНКА_ПОТОЛОК_МБ) if место is None
+          else _лнд.ВИДЕО_ПОТОЛОК_МБ if место["kind"] == _лнд.ВИДЕО
+          else _лнд.КАРТИНКА_ПОТОЛОК_МБ)
+    return мб * 1024 * 1024
+
+
 def _лнд_принять(slot_id, поток, имя):
     """Копирует загрузку во временный файл, разбирает, сжимает и кладёт
     на том. СИНХРОННО — зовётся только через `_в_потоке`.
@@ -4227,9 +4453,7 @@ def _лнд_принять(slot_id, поток, имя):
     либо ('отказ', текст, код)."""
     import shutil as _shutil
     import tempfile as _tempfile
-    место = _лнд.ПО_ID[slot_id]
-    потолок = (_лнд.ВИДЕО_ПОТОЛОК_МБ if место["kind"] == _лнд.ВИДЕО
-               else _лнд.КАРТИНКА_ПОТОЛОК_МБ) * 1024 * 1024
+    потолок = _лнд_потолок_места(slot_id)
     каталог = _tempfile.mkdtemp(prefix="landing-up-")
     готовый = None
     try:
@@ -4268,6 +4492,7 @@ def _лнд_принять(slot_id, поток, имя):
 
 
 @app.post("/admin/api/landing/{slot_id}")
+@приём_файла(_право_админ, lambda пп: _лнд_потолок_места(пп.get("slot_id")))
 async def admin_landing_upload(slot_id: str, request: Request,
                                file: UploadFile = File(None),
                                user=Depends(get_current_user),
@@ -5367,6 +5592,7 @@ async def delete_hh_profile(user=Depends(get_current_user), db: Session = Depend
 # ── API: загрузка файла резюме ────────────────────────────────────────────────
 
 @app.post("/api/upload-resume")
+@приём_файла(_право_вошёл("Не авторизован"), lambda пп: RESUME_MAX_UPLOAD_MB * 1024 * 1024)
 async def upload_resume_file(
     file: UploadFile = File(...),
     user=Depends(get_current_user),
@@ -8466,6 +8692,7 @@ BODY_PHOTO_ANGLES = {"front", "side", "back"}
 
 
 @app.post("/nutrition/api/body-photo")
+@приём_файла(_право_вошёл("Не авторизован"), lambda пп: PHOTO_MAX_UPLOAD_MB * 1024 * 1024)
 async def upload_body_photo(file: UploadFile = File(...), angle: str = Form(...), date: str = Form(...),
                              user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
@@ -8751,6 +8978,8 @@ async def nut_ai_chat_log_foods(request: Request, user=Depends(get_current_user)
 # ── Nutrition: AI photo ───────────────────────────────────────────────────────
 
 @app.post("/nutrition/api/ai-photo")
+@приём_файла(_право_инструмент("nutrition", "Нет доступа", 403, "Нет доступа"),
+            lambda пп: PHOTO_MAX_UPLOAD_MB * 1024 * 1024)
 async def nut_ai_photo(file: UploadFile = File(...), description: str = Form(""),
                        user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user or not user_has_access(user, "nutrition", db):
@@ -8778,6 +9007,8 @@ async def nut_ai_photo(file: UploadFile = File(...), description: str = Form("")
 
 
 @app.post("/nutrition/api/ai-chat-photo")
+@приём_файла(_право_инструмент("nutrition", "Нет доступа", 403, "Нет доступа"),
+            lambda пп: PHOTO_MAX_UPLOAD_MB * 1024 * 1024)
 async def nut_ai_chat_photo(file: UploadFile = File(...), message: str = Form(""), date: str = Form(...),
                             user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user or not user_has_access(user, "nutrition", db):
@@ -8876,6 +9107,7 @@ def _голос_разрешён(user, db) -> bool:
 
 
 @app.post("/nutrition/api/transcribe")
+@приём_файла(_право_голос, lambda пп: VOICE_MAX_UPLOAD_MB * 1024 * 1024)
 async def nut_transcribe(file: UploadFile = File(...),
                           user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user or not _голос_разрешён(user, db):
@@ -10867,6 +11099,7 @@ async def workout_chat(request: Request, user=Depends(get_current_user), db: Ses
 
 
 @app.post("/workout/api/chat-photo")
+@приём_файла(_право_вошёл("Не авторизован"), lambda пп: PHOTO_MAX_UPLOAD_MB * 1024 * 1024)
 async def workout_chat_photo(file: UploadFile = File(...), message: str = Form(""),
                               user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
@@ -11303,6 +11536,7 @@ def _process_avatar(raw: bytes, user_id: int) -> str | None:
 
 
 @app.post("/api/avatar")
+@приём_файла(_право_вошёл("Нужно войти"), lambda пп: AVATAR_MAX_BYTES)
 async def upload_avatar(file: UploadFile = File(...),
                         user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
@@ -21520,6 +21754,8 @@ async def medkit_leave(request: Request, user=Depends(get_current_user),
 
 
 @app.post("/medkit/api/assist")
+@приём_файла(_право_инструмент("medkit", "Нужно войти", 401, "Инструмент не открыт"),
+            lambda пп: PHOTO_MAX_UPLOAD_MB * 1024 * 1024)
 async def medkit_assist(request: Request,
                         user=Depends(get_current_user),
                         db: Session = Depends(get_db)):
@@ -22806,6 +23042,7 @@ def _апт_ужать(содержимое: bytes) -> bytes:
 
 
 @app.post("/medkit/api/items/{item_id}/photo")
+@приём_файла(_право_позиция_аптечки, lambda пп: АПТ_МАКС_ФОТО)
 async def medkit_photo(item_id: int, request: Request,
                        file: UploadFile = File(...),
                        user=Depends(get_current_user),
