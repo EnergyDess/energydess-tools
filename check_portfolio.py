@@ -15,6 +15,7 @@
   py check_portfolio.py --экран     # B: первый экран
   py check_portfolio.py --лента     # C: бегущая лента работ
   py check_portfolio.py --о-себе    # D: о себе
+  py check_portfolio.py --инструменты   # E: инструменты
   ... --контроль                     # подлог звена: B — сдвиг портрета,
                                      #   C — ролики грузятся сразу
   py check_portfolio.py --лента --контроль-плавности   # C: рывок ряда
@@ -742,6 +743,134 @@ def о_себе(контроль=False):
             бр.close()
 
 
+# ══ E. ИНСТРУМЕНТЫ ════════════════════════════════════════════════════
+
+СНИМОК_МАКЕТА = r"""(i) => {
+  const м = document.querySelectorAll('[data-pf-anim]')[i];
+  if (!м) return null;
+  const знаки = [...м.querySelectorAll('.pf-t')];
+  const видно = знаки.filter(з => getComputedStyle(з).visibility !== 'hidden').length;
+  const счёт = [...м.querySelectorAll('[data-count-to]')].map(э => [э.textContent.trim(), э.dataset.countTo]);
+  const полосы = [...м.querySelectorAll('.pf-bar-fill')].map(э =>
+    [new DOMMatrix(getComputedStyle(э).transform).a, parseFloat(getComputedStyle(э).getPropertyValue('--pf-fill'))]);
+  const кольца = [...м.querySelectorAll('.pf-ring-fill')].map(э =>
+    // Вычисленное значение приходит строкой `calc(20px)`: голый
+    // parseFloat дал бы NaN, а NaN не равен сам себе (первая версия
+    // пробы на этом объявила кольцо неготовым).
+    [parseFloat(getComputedStyle(э).strokeDashoffset.replace(/[^0-9.\-]/g, '')),
+     parseFloat(getComputedStyle(э.closest('.pf-mock-ring')).getPropertyValue('--pf-fill'))]);
+  const галочки = [...м.querySelectorAll('.pf-chk')].map(э => parseFloat(getComputedStyle(э).opacity));
+  return {имя: м.closest('.pf-tool').querySelector('.pf-tool-h').textContent.trim(),
+          состояние: м.dataset.pfState || '', знаков: знаки.length, видно, счёт, полосы, кольца, галочки,
+          анимаций: м.getAnimations({subtree: true}).filter(а => а.playState === 'running').length};
+}"""
+
+
+def _конечный(с):
+    """Снимок в КОНЕЧНОМ состоянии, записанном в разметке."""
+    return (с["видно"] == с["знаков"]
+            and all(т == ц for т, ц in с["счёт"])
+            and all(abs(м - ц) < 0.01 for м, ц in с["полосы"])
+            and all(abs(д - (100 - ц * 100)) < 0.6 for д, ц in с["кольца"])
+            and all(г > 0.99 for г in с["галочки"]))
+
+
+def _начальный(с):
+    """Снимок в НАЧАЛЕ: ни одного знака, счётчики 0, полоски пусты."""
+    return (с["видно"] == 0
+            and all(т == "0" for т, _ in с["счёт"])
+            and all(м < 0.01 for м, _ in с["полосы"])
+            and all(д > 99.4 for д, _ in с["кольца"])
+            and all(г < 0.01 for г in с["галочки"]))
+
+
+def _ключ(с):
+    return (с["видно"], tuple(т for т, _ in с["счёт"]), tuple(round(м, 2) for м, _ in с["полосы"]),
+            tuple(round(д, 1) for д, _ in с["кольца"]), tuple(round(г, 2) for г in с["галочки"]))
+
+
+# ПОДЛОГ ЗВЕНА «ЗАПУСК ОЖИВЛЕНИЯ»: наблюдатель пропускает интерфейс
+# HH-ассистента — он остаётся в начале навсегда.
+ПОДЛОГ_ЗАПУСК = r"""(() => {
+  const было = IntersectionObserver.prototype.observe;
+  window.__пропущено = 0;
+  IntersectionObserver.prototype.observe = function (э) {
+    if (э && э.dataset && э.dataset.pfAnim === 'hh') { window.__пропущено++; return; }
+    return было.call(this, э);
+  };
+})();"""
+
+
+def инструменты(контроль=False):
+    from playwright.sync_api import sync_playwright
+    print("E. ИНСТРУМЕНТЫ — гостем, головной браузер, стенд %s%s" % (
+        БАЗА, " · ПОДЛОГ: запуск оживления HH-ассистента сломан" if контроль else ""))
+    with sync_playwright() as p:
+        бр = p.chromium.launch(headless=False)
+        try:
+            for ш, в, сенсор in ШИРИНЫ:
+                print("\n  ── %d×%d%s" % (ш, в, " (сенсор)" if сенсор else ""))
+                к = _контекст(бр, ш, в, сенсор)
+                if контроль:
+                    к.add_init_script(ПОДЛОГ_ЗАПУСК)
+                с = к.new_page()
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                с.wait_for_timeout(500)
+                список = с.evaluate("""() => [...document.querySelectorAll('.pf-tool')].map(л => ({
+                    н: (л.querySelector('.pf-tool-n') || {}).textContent,
+                    имя: (л.querySelector('.pf-tool-h') || {}).textContent,
+                    макет: !!л.querySelector('[data-pf-anim]')}))""")
+                шаг("инструментов в списке 5, у каждого номер, название и интерфейс",
+                    len(список) == 5 and all(л["н"] and л["имя"] and л["макет"] for л in список),
+                    ", ".join("%s %s" % (л["н"], л["имя"]) for л in список), собрано=len(список))
+                if контроль:
+                    print("  доказательство подлога: наблюдение пропущено у %d интерфейсов" %
+                          с.evaluate("() => window.__пропущено"))
+                for i in range(len(список)):
+                    # СВОЯ ЗАГРУЗКА НА КАЖДЫЙ ИНТЕРФЕЙС: соседний мог начать
+                    # играть, пока проба стояла у предыдущего, и начало его
+                    # было бы не увидеть.
+                    с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                    с.wait_for_timeout(300)
+                    нач = с.evaluate(СНИМОК_МАКЕТА, i)
+                    с.evaluate("""(i) => document.querySelectorAll('[data-pf-anim]')[i]
+                                  .scrollIntoView({block: 'center', behavior: 'instant'})""", i)
+                    кадры = []
+                    for _ in range(80):
+                        кадр = с.evaluate(СНИМОК_МАКЕТА, i)
+                        кадры.append(кадр)
+                        if кадр["состояние"] == "done":
+                            break
+                        с.wait_for_timeout(100)
+                    кон = кадры[-1]
+                    с.wait_for_timeout(3000)
+                    позже = с.evaluate(СНИМОК_МАКЕТА, i)
+                    промежуточных = len({_ключ(к_) for к_ in кадры})
+                    шаг("%s: оживает при доезде — из начала в конец" % нач["имя"],
+                        _начальный(нач) and кон["состояние"] == "done" and _конечный(кон) and промежуточных > 2,
+                        "в начале %s, в конце %s (%s), разных кадров %d" % (
+                            "да" if _начальный(нач) else "нет", "да" if _конечный(кон) else "нет",
+                            кон["состояние"] or "без состояния", промежуточных))
+                    шаг("%s: один проход — через 3 с ничего не движется" % нач["имя"],
+                        _ключ(позже) == _ключ(кон) and позже["анимаций"] == 0 and _конечный(позже),
+                        "снимок совпал: %s, анимаций идёт %d" % (
+                            "да" if _ключ(позже) == _ключ(кон) else "нет", позже["анимаций"]))
+                к.close()
+
+                к = _контекст(бр, ш, в, сенсор, движение="reduce")
+                с = к.new_page()
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                с.wait_for_timeout(400)
+                снимки = [с.evaluate(СНИМОК_МАКЕТА, i) for i in range(len(список))]
+                готовых = [сн["имя"] for сн in снимки if сн and _конечный(сн)]
+                шаг("«уменьшить движение»: все интерфейсы в конечном состоянии без прокрутки",
+                    len(готовых) == len(снимки),
+                    "готовых %d из %d" % (len(готовых), len(снимки)), собрано=len(снимки))
+                к.close()
+        finally:
+            бр.close()
+
+
 def main():
     арг = sys.argv[1:]
     if "--экран" in арг:
@@ -750,6 +879,8 @@ def main():
         лента(контроль="--контроль" in арг, рывок="--контроль-плавности" in арг)
     elif "--о-себе" in арг:
         о_себе(контроль="--контроль" in арг)
+    elif "--инструменты" in арг:
+        инструменты(контроль="--контроль" in арг)
     else:
         print(__doc__)
         return 2

@@ -84,276 +84,127 @@
     </div>
   </section>
 
-  <hr class="divider divider-sec">
+  <!-- ── Инструменты ── -->
+  {# НУМЕРОВАННЫЙ СПИСОК РАБОТ (блок E). Напротив каждого — поддельный
+     интерфейс РАЗМЕТКОЙ, не видео и не картинкой. Разметка несёт
+     КОНЕЧНОЕ состояние: без скрипта и при «уменьшить движение» интерфейс
+     показан готовым. Скрипт отводит его в начало и проигрывает ОДИН раз
+     при доезде (`data-pf-anim`): печать (`.pf-t`), счётчики
+     (`data-count-to`), полоски (`--pf-fill` 0..1), галочки (`.pf-chk`).
+     Цвета — токены акцента раздела, литералов нет. #}
+  {% macro печать(текст) -%}
+    {%- for знак in текст -%}<span class="pf-t">{{ знак }}</span>{%- endfor -%}
+  {%- endmacro %}
+  <section class="pf-tools" aria-labelledby="pf-tools-h">
+    <h2 id="pf-tools-h" class="pf-grad pf-sec-h">Инструменты</h2>
+    <ol class="pf-tool-list">
 
-  <!-- ── S2: Инструменты 2×2 ── -->
-  <section class="sec">
-    <div class="sec-head reveal">
-      <span class="eyebrow">Что внутри</span>
-      <h2 class="sec-h2">Инструменты, которые работают на вас</h2>
-    </div>
-    <div class="features-grid">
-      <div class="card tool-card tool-hh reveal">
-        <div class="tool-card-icon">{{ значок('briefcase') }}</div>
-        <span class="eyebrow">Карьера</span>
-        <h3 class="tool-card-title">HH-ассистент</h3>
-        <p class="tool-card-desc">Готовит сопроводительное письмо за 15 секунд: вставьте ссылку на вакансию или её текст — получите письмо под ваше резюме и требования работодателя.</p>
-      </div>
-      <div class="card tool-card tool-enshrouded reveal" style="--n: 1">
-        <div class="tool-card-icon">{{ значок('shield') }}</div>
-        <span class="eyebrow">Игры · Enshrouded</span>
-        <h3 class="tool-card-title">Enshrouded</h3>
-        <p class="tool-card-desc">Трекер доспехов: отмечайте собранные сеты, редкость и уровни предметов.</p>
-      </div>
-      <div class="card tool-card tool-workout reveal" style="--n: 2">
-        <div class="tool-card-icon">{{ значок('dumbbell') }}</div>
-        <span class="eyebrow">Тренировки</span>
-        <h3 class="tool-card-title">Программа тренировок</h3>
-        <p class="tool-card-desc">Персональный план под цели, уровень и доступное оборудование. Прогрессия нагрузок и трекинг весов.</p>
-      </div>
-      <div class="card tool-card tool-nutrition reveal" style="--n: 3">
-        <div class="tool-card-icon">{{ значок('salad') }}</div>
-        <span class="eyebrow">Питание</span>
-        <h3 class="tool-card-title">Дневник питания</h3>
-        <p class="tool-card-desc">Дневник еды с подсчётом КБЖУ и штрих-код сканером. Трекер веса и AI-анализ рациона.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── S3: Возможности ── -->
-  <section class="details">
-    <div class="sec-head reveal">
-      <span class="eyebrow">Возможности</span>
-      <h2 class="sec-h2">Посмотрите, что умеет каждый инструмент</h2>
-    </div>
-
-    <!-- Блок 1: HH — текст слева, мокап справа -->
-    <div class="detail-block detail-hh">
-      <div class="detail-text reveal">
-        <p class="detail-label">{{ значок('briefcase') }} Карьера</p>
-        <h3 class="detail-h3">Сопроводительное письмо за 15 секунд</h3>
-        <p class="detail-desc">Вставьте текст вакансии или ссылку — AI прочитает требования и напишет письмо под ваше резюме. Никаких шаблонов, только конкретика под каждого работодателя.</p>
-        <ul class="detail-features">
-          <li><span class="chk">✓</span>Анализирует требования вакансии автоматически</li>
-          <li><span class="chk">✓</span>Адаптирует под ваше резюме из профиля</li>
-          <li><span class="chk">✓</span>Работает с любого сайта с вакансиями</li>
-        </ul>
-      </div>
-      <div class="detail-mock reveal">
-        <div class="mock-card">
-          <svg viewBox="0 0 420 270" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="420" height="270" fill="#0d0f1d"/>
-            <rect width="420" height="42" fill="#141520"/>
-            <rect width="420" height="1.5" fill="url(#hh1)"/>
-            <circle cx="20" cy="21" r="4" fill="#4F8FFF" fill-opacity=".9"/>
-            <circle cx="33" cy="21" r="4" fill="#4F8FFF" fill-opacity=".45"/>
-            <circle cx="46" cy="21" r="4" fill="#4F8FFF" fill-opacity=".2"/>
-            <text x="60" y="25" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#aeb8d4" font-weight="500" letter-spacing=".05em">HH-АССИСТЕНТ</text>
-            <!-- пузырь ответа -->
-            <rect x="16" y="53" width="388" height="152" rx="10" fill="#141520" stroke="#1E2030" stroke-width="1"/>
-            <rect x="26" y="63" width="28" height="16" rx="4" fill="rgba(79,143,255,.25)"/>
-            <text x="40" y="75" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#4F8FFF" font-weight="700" text-anchor="middle">AI</text>
-            <rect x="26" y="87"  width="272" height="6.5" rx="3" fill="#1E2030"/>
-            <rect x="26" y="99"  width="252" height="6.5" rx="3" fill="#1E2030"/>
-            <rect x="26" y="111" width="264" height="6.5" rx="3" fill="#1E2030"/>
-            <rect x="26" y="123" width="240" height="6.5" rx="3" fill="#1E2030"/>
-            <rect x="26" y="135" width="260" height="6.5" rx="3" fill="#1E2030"/>
-            <rect x="26" y="147" width="210" height="6.5" rx="3" fill="#1E2030"/>
-            <rect x="218" y="165" width="92" height="21" rx="5" fill="rgba(79,143,255,.15)" stroke="rgba(79,143,255,.32)" stroke-width="1"/>
-            <text x="264" y="179.5" font-family="system-ui,sans-serif" font-size="9" fill="#4F8FFF" font-weight="600" text-anchor="middle">Скопировать</text>
-            <!-- поле ввода -->
-            <rect x="16" y="216" width="316" height="38" rx="8" fill="#141520" stroke="#1E2030" stroke-width="1"/>
-            <text x="28" y="239" font-family="system-ui,sans-serif" font-size="10.5" fill="#3a4060">Ссылка на вакансию или её текст...</text>
-            <rect x="340" y="216" width="64" height="38" rx="8" fill="#4F8FFF"/>
-            <text x="372" y="239.5" font-family="system-ui,sans-serif" font-size="15" fill="white" font-weight="700" text-anchor="middle">→</text>
-            <defs>
-              <linearGradient id="hh1" x1="0" y1="0" x2="420" y2="0">
-                <stop offset="0%" stop-color="transparent"/><stop offset="50%" stop-color="#4F8FFF"/><stop offset="100%" stop-color="transparent"/>
-              </linearGradient>
-            </defs>
-          </svg>
+      <li class="pf-tool" style="--pf-acc: var(--accent-hh); --pf-acc-dim: var(--accent-hh-dim)">
+        <span class="pf-tool-n" aria-hidden="true">01</span>
+        <div class="pf-tool-text">
+          <h3 class="pf-tool-h">HH-ассистент</h3>
+          <p class="pf-tool-desc">Готовит сопроводительное письмо за 15 секунд: вставьте ссылку на вакансию или её текст — получите письмо под ваше резюме и требования работодателя. Никаких шаблонов, только конкретика под каждого работодателя.</p>
         </div>
-      </div>
-    </div>
-
-    <!-- Блок 2: Тренировки — мокап слева, текст справа -->
-    <div class="detail-block flip detail-wk">
-      <div class="detail-text reveal">
-        <p class="detail-label">{{ значок('dumbbell') }} Тренировки</p>
-        <h3 class="detail-h3">Личный тренер, который знает ваши данные</h3>
-        <p class="detail-desc">Генерирует программу под ваши цели, уровень и оборудование зала. Следит за прогрессией весов, предлагает замены и корректирует при болях или пропусках.</p>
-        <ul class="detail-features">
-          <li><span class="chk">✓</span>Авто-прогрессия: предлагает поднять вес, когда вы готовы</li>
-          <li><span class="chk">✓</span>База 873 упражнений с техникой и видео</li>
-          <li><span class="chk">✓</span>AI-ассистент меняет программу под вас</li>
-        </ul>
-      </div>
-      <div class="detail-mock reveal">
-        <div class="mock-card">
-          <svg viewBox="0 0 420 270" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="420" height="270" fill="#0d0f1d"/>
-            <rect width="420" height="42" fill="#141520"/>
-            <rect width="420" height="1.5" fill="url(#wk1)"/>
-            <circle cx="20" cy="21" r="4" fill="#F59E0B" fill-opacity=".9"/>
-            <circle cx="33" cy="21" r="4" fill="#F59E0B" fill-opacity=".45"/>
-            <circle cx="46" cy="21" r="4" fill="#F59E0B" fill-opacity=".2"/>
-            <text x="60" y="25" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#aeb8d4" font-weight="500" letter-spacing=".05em">ДЕНЬ 1 · ГРУДЬ &amp; ТРИЦЕПС</text>
-            <rect x="16" y="53" width="388" height="44" rx="8" fill="#141520" stroke="#1E2030" stroke-width="1"/>
-            <text x="28" y="71" font-family="system-ui,sans-serif" font-size="12" fill="#e8ecf8" font-weight="700">Жим штанги лёжа</text>
-            <text x="28" y="86" font-family="system-ui,sans-serif" font-size="9.5" fill="#4a5578">Грудь · Передние дельты · Трицепс</text>
-            <rect x="16" y="106" width="388" height="34" rx="7" fill="#141520" stroke="#1E2030" stroke-width="1"/>
-            <text x="28" y="127" font-family="system-ui,sans-serif" font-size="10" fill="#4a5578">Подход 1</text>
-            <rect x="162" y="112" width="64" height="22" rx="5" fill="#1E2030" stroke="#2A2C45" stroke-width="1"/>
-            <text x="194" y="127" font-family="system-ui,sans-serif" font-size="11" fill="#aeb8d4" text-anchor="middle">8</text>
-            <text x="234" y="127" font-family="system-ui,sans-serif" font-size="11" fill="#2a3050" text-anchor="middle">×</text>
-            <rect x="250" y="112" width="80" height="22" rx="5" fill="#1E2030" stroke="#2A2C45" stroke-width="1"/>
-            <text x="290" y="127" font-family="system-ui,sans-serif" font-size="11" fill="#aeb8d4" text-anchor="middle">60 кг</text>
-            <rect x="16" y="147" width="388" height="34" rx="7" fill="#141520" stroke="#1E2030" stroke-width="1"/>
-            <text x="28" y="168" font-family="system-ui,sans-serif" font-size="10" fill="#4a5578">Подход 2</text>
-            <rect x="162" y="153" width="64" height="22" rx="5" fill="#1E2030" stroke="#2A2C45" stroke-width="1"/>
-            <text x="194" y="168" font-family="system-ui,sans-serif" font-size="11" fill="#aeb8d4" text-anchor="middle">8</text>
-            <text x="234" y="168" font-family="system-ui,sans-serif" font-size="11" fill="#2a3050" text-anchor="middle">×</text>
-            <rect x="250" y="153" width="80" height="22" rx="5" fill="#1E2030" stroke="#2A2C45" stroke-width="1"/>
-            <text x="290" y="168" font-family="system-ui,sans-serif" font-size="11" fill="#4a5578" text-anchor="middle">кг</text>
-            <rect x="16" y="188" width="388" height="34" rx="7" fill="#141520" stroke="#1E2030" stroke-width="1"/>
-            <text x="28" y="209" font-family="system-ui,sans-serif" font-size="10" fill="#4a5578">Подход 3</text>
-            <rect x="162" y="194" width="64" height="22" rx="5" fill="#1E2030" stroke="#2A2C45" stroke-width="1"/>
-            <rect x="250" y="194" width="80" height="22" rx="5" fill="#1E2030" stroke="#2A2C45" stroke-width="1"/>
-            <rect x="16" y="232" width="388" height="24" rx="7" fill="rgba(245,158,11,.1)" stroke="rgba(245,158,11,.22)" stroke-width="1"/>
-            <text x="210" y="248" font-family="system-ui,sans-serif" font-size="11" fill="#F59E0B" font-weight="600" text-anchor="middle">Записать подход</text>
-            <defs>
-              <linearGradient id="wk1" x1="0" y1="0" x2="420" y2="0">
-                <stop offset="0%" stop-color="transparent"/><stop offset="50%" stop-color="#F59E0B"/><stop offset="100%" stop-color="transparent"/>
-              </linearGradient>
-            </defs>
-          </svg>
+        <div class="pf-mock" data-pf-anim="hh" aria-hidden="true">
+          <div class="pf-mock-bar"><i></i><i></i><i></i><span>HH-АССИСТЕНТ</span></div>
+          <div class="pf-mock-body">
+            <div class="pf-mock-bubble">
+              <span class="pf-mock-tag">AI</span>
+              <p class="pf-mock-letter">{{ печать("Здравствуйте! Меня заинтересовала вакансия видеомонтажёра. Пять лет монтирую рекламу и шоу, работаю в Premiere и After Effects, последний год собираю ролики с нейросетями.") }}</p>
+            </div>
+            <div class="pf-mock-input"><span>Ссылка на вакансию или её текст…</span><b>→</b></div>
+          </div>
         </div>
-      </div>
-    </div>
+      </li>
 
-    <!-- Блок 3: Питание — текст слева, мокап справа -->
-    <div class="detail-block detail-nutr">
-      <div class="detail-text reveal">
-        <p class="detail-label">{{ значок('salad') }} Питание</p>
-        <h3 class="detail-h3">Счётчик калорий, который не надоедает</h3>
-        <p class="detail-desc">Добавляйте еду по штрих-коду или названию, следите за КБЖУ. AI-нутрициолог анализирует рацион и даёт конкретные рекомендации. Синхронизируется с программой тренировок.</p>
-        <ul class="detail-features">
-          <li><span class="chk">✓</span>Сканер штрих-кода — добавьте продукт за секунду</li>
-          <li><span class="chk">✓</span>Трекер веса тела с графиком</li>
-          <li><span class="chk">✓</span>AI анализирует питание под ваши цели</li>
-        </ul>
-      </div>
-      <div class="detail-mock reveal">
-        <div class="mock-card">
-          <svg viewBox="0 0 420 270" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="420" height="270" fill="#0d0f1d"/>
-            <rect width="420" height="42" fill="#141520"/>
-            <rect width="420" height="1.5" fill="url(#nu1)"/>
-            <circle cx="20" cy="21" r="4" fill="#10B981" fill-opacity=".9"/>
-            <circle cx="33" cy="21" r="4" fill="#10B981" fill-opacity=".45"/>
-            <circle cx="46" cy="21" r="4" fill="#10B981" fill-opacity=".2"/>
-            <text x="60" y="25" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#aeb8d4" font-weight="500" letter-spacing=".05em">ДНЕВНИК ПИТАНИЯ</text>
-            <circle cx="106" cy="158" r="60" stroke="#1E2030" stroke-width="18" fill="none"/>
-            <circle cx="106" cy="158" r="60" stroke="#10B981" stroke-width="18" fill="none"
-              stroke-dasharray="283 377" stroke-dashoffset="94" stroke-linecap="round"/>
-            <text x="106" y="152" font-family="system-ui,sans-serif" font-size="19" fill="#e8ecf8" font-weight="800" text-anchor="middle">1 750</text>
-            <text x="106" y="168" font-family="system-ui,sans-serif" font-size="9.5" fill="#4a5578" text-anchor="middle">/ 2 200 ккал</text>
-            <text x="196" y="72" font-family="system-ui,sans-serif" font-size="9.5" fill="#7a83a0">Белки</text>
-            <text x="400" y="72" font-family="system-ui,sans-serif" font-size="9.5" fill="#e8ecf8" font-weight="600" text-anchor="end">118 г</text>
-            <rect x="196" y="77" width="204" height="6" rx="3" fill="#1E2030"/>
-            <rect x="196" y="77" width="140" height="6" rx="3" fill="#10B981"/>
-            <text x="196" y="102" font-family="system-ui,sans-serif" font-size="9.5" fill="#7a83a0">Жиры</text>
-            <text x="400" y="102" font-family="system-ui,sans-serif" font-size="9.5" fill="#e8ecf8" font-weight="600" text-anchor="end">62 г</text>
-            <rect x="196" y="107" width="204" height="6" rx="3" fill="#1E2030"/>
-            <rect x="196" y="107" width="95"  height="6" rx="3" fill="#10B981" fill-opacity=".7"/>
-            <text x="196" y="132" font-family="system-ui,sans-serif" font-size="9.5" fill="#7a83a0">Углеводы</text>
-            <text x="400" y="132" font-family="system-ui,sans-serif" font-size="9.5" fill="#e8ecf8" font-weight="600" text-anchor="end">195 г</text>
-            <rect x="196" y="137" width="204" height="6" rx="3" fill="#1E2030"/>
-            <rect x="196" y="137" width="172" height="6" rx="3" fill="#10B981" fill-opacity=".45"/>
-            <rect x="196" y="154" width="204" height="28" rx="7" fill="#141520" stroke="#1E2030" stroke-width="1"/>
-            <text x="207" y="172" font-family="system-ui,sans-serif" font-size="10.5" fill="#aeb8d4">Завтрак</text>
-            <text x="390" y="172" font-family="system-ui,sans-serif" font-size="9.5" fill="#4a5578" text-anchor="end">486 ккал</text>
-            <rect x="196" y="188" width="204" height="28" rx="7" fill="#141520" stroke="#1E2030" stroke-width="1"/>
-            <text x="207" y="206" font-family="system-ui,sans-serif" font-size="10.5" fill="#aeb8d4">Обед</text>
-            <text x="390" y="206" font-family="system-ui,sans-serif" font-size="9.5" fill="#4a5578" text-anchor="end">712 ккал</text>
-            <rect x="196" y="224" width="204" height="28" rx="7" fill="rgba(16,185,129,.08)" stroke="rgba(16,185,129,.22)" stroke-width="1"/>
-            <text x="298" y="242" font-family="system-ui,sans-serif" font-size="10.5" fill="#10B981" font-weight="600" text-anchor="middle">+ Добавить приём</text>
-            <defs>
-              <linearGradient id="nu1" x1="0" y1="0" x2="420" y2="0">
-                <stop offset="0%" stop-color="transparent"/><stop offset="50%" stop-color="#10B981"/><stop offset="100%" stop-color="transparent"/>
-              </linearGradient>
-            </defs>
-          </svg>
+      <li class="pf-tool" style="--pf-acc: var(--accent-workout); --pf-acc-dim: var(--accent-workout-dim)">
+        <span class="pf-tool-n" aria-hidden="true">02</span>
+        <div class="pf-tool-text">
+          <h3 class="pf-tool-h">Программа тренировок</h3>
+          <p class="pf-tool-desc">Генерирует программу под ваши цели, уровень и оборудование зала. Следит за прогрессией весов, предлагает замены и корректирует при болях или пропусках.</p>
         </div>
-      </div>
-    </div>
+        <div class="pf-mock" data-pf-anim="workout" aria-hidden="true">
+          <div class="pf-mock-bar"><i></i><i></i><i></i><span>ДЕНЬ 1 · ГРУДЬ И ТРИЦЕПС</span></div>
+          <div class="pf-mock-body">
+            <p class="pf-mock-title">Жим штанги лёжа <small>грудь · дельты · трицепс</small></p>
+            {% for н, кг in ((1, 60), (2, 60), (3, 62)) %}
+            <div class="pf-mock-set">
+              <span>Подход {{ н }}</span>
+              <span class="pf-mock-cell">8</span>
+              <span class="pf-mock-cell"><b data-count-to="{{ кг }}">{{ кг }}</b> кг</span>
+              <span class="pf-chk" style="--n: {{ н }}">{{ значок('check') }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </li>
 
-    <!-- Блок 4: Enshrouded — мокап слева, текст справа -->
-    <div class="detail-block flip detail-ens">
-      <div class="detail-text reveal">
-        <p class="detail-label">{{ значок('shield') }} Игры · Enshrouded</p>
-        <h3 class="detail-h3">Трекер доспехов для Enshrouded</h3>
-        <p class="detail-desc">Отмечайте собранные сеты брони, следите за редкостью и уровнями предметов. Планируйте следующий крафт и не теряйте прогресс.</p>
-        <ul class="detail-features">
-          <li><span class="chk">✓</span>Все сеты и категории предметов</li>
-          <li><span class="chk">✓</span>Счётчик собранных предметов</li>
-          <li><span class="chk">✓</span>Фильтры по классу и редкости</li>
-        </ul>
-      </div>
-      <div class="detail-mock reveal">
-        <div class="mock-card">
-          <svg viewBox="0 0 420 270" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="420" height="270" fill="#0d0f1d"/>
-            <rect width="420" height="42" fill="#141520"/>
-            <rect width="420" height="1.5" fill="url(#en1)"/>
-            <circle cx="20" cy="21" r="4" fill="#D97706" fill-opacity=".9"/>
-            <circle cx="33" cy="21" r="4" fill="#D97706" fill-opacity=".45"/>
-            <circle cx="46" cy="21" r="4" fill="#D97706" fill-opacity=".2"/>
-            <text x="60" y="25" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#aeb8d4" font-weight="500" letter-spacing=".05em">КОЛЛЕКЦИЯ</text>
-            <rect x="304" y="12" width="100" height="18" rx="5" fill="rgba(217,119,6,.14)" stroke="rgba(217,119,6,.28)" stroke-width="1"/>
-            <text x="354" y="24.5" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#D97706" font-weight="600" text-anchor="middle">12 / 24</text>
-            <rect x="14" y="52" width="122" height="98" rx="8" fill="#141520" stroke="rgba(217,119,6,.38)" stroke-width="1.5"/>
-            <rect x="14" y="52" width="122" height="98" rx="8" fill="rgba(217,119,6,.03)"/>
-            <text x="75" y="92"  font-family="system-ui,sans-serif" font-size="22" text-anchor="middle">🛡</text>
-            <text x="75" y="112" font-family="system-ui,sans-serif" font-size="9"   fill="#c7a060" text-anchor="middle" font-weight="500">Щит воина</text>
-            <text x="75" y="125" font-family="system-ui,sans-serif" font-size="8"   fill="#7a6040" text-anchor="middle">Редкий</text>
-            <rect x="96" y="57" width="32" height="14" rx="4" fill="rgba(217,119,6,.2)"/>
-            <text x="112" y="68" font-family="system-ui,sans-serif" font-size="8.5" fill="#D97706" text-anchor="middle" font-weight="700">✓</text>
-            <rect x="148" y="52" width="122" height="98" rx="8" fill="#141520" stroke="rgba(217,119,6,.38)" stroke-width="1.5"/>
-            <rect x="148" y="52" width="122" height="98" rx="8" fill="rgba(217,119,6,.03)"/>
-            <text x="209" y="92"  font-family="system-ui,sans-serif" font-size="22" text-anchor="middle">⚔️</text>
-            <text x="209" y="112" font-family="system-ui,sans-serif" font-size="9"   fill="#c7a060" text-anchor="middle" font-weight="500">Меч крови</text>
-            <text x="209" y="125" font-family="system-ui,sans-serif" font-size="8"   fill="#7a6040" text-anchor="middle">Эпический</text>
-            <rect x="230" y="57" width="32" height="14" rx="4" fill="rgba(217,119,6,.2)"/>
-            <text x="246" y="68" font-family="system-ui,sans-serif" font-size="8.5" fill="#D97706" text-anchor="middle" font-weight="700">✓</text>
-            <rect x="282" y="52" width="122" height="98" rx="8" fill="#141520" stroke="rgba(199,211,234,.07)" stroke-width="1"/>
-            <text x="343" y="92"  font-family="system-ui,sans-serif" font-size="22" text-anchor="middle" opacity=".3">🪖</text>
-            <text x="343" y="112" font-family="system-ui,sans-serif" font-size="9"   fill="#2a3258" text-anchor="middle" font-weight="500">Шлем тени</text>
-            <text x="343" y="125" font-family="system-ui,sans-serif" font-size="8"   fill="#1e2540" text-anchor="middle">Легендарный</text>
-            <rect x="14" y="162" width="122" height="98" rx="8" fill="#141520" stroke="rgba(217,119,6,.38)" stroke-width="1.5"/>
-            <rect x="14" y="162" width="122" height="98" rx="8" fill="rgba(217,119,6,.03)"/>
-            <text x="75" y="202" font-family="system-ui,sans-serif" font-size="22" text-anchor="middle">🏹</text>
-            <text x="75" y="222" font-family="system-ui,sans-serif" font-size="9"   fill="#c7a060" text-anchor="middle" font-weight="500">Лук охотника</text>
-            <text x="75" y="235" font-family="system-ui,sans-serif" font-size="8"   fill="#7a6040" text-anchor="middle">Обычный</text>
-            <rect x="96" y="167" width="32" height="14" rx="4" fill="rgba(217,119,6,.2)"/>
-            <text x="112" y="178" font-family="system-ui,sans-serif" font-size="8.5" fill="#D97706" text-anchor="middle" font-weight="700">✓</text>
-            <rect x="148" y="162" width="122" height="98" rx="8" fill="#141520" stroke="rgba(199,211,234,.07)" stroke-width="1"/>
-            <text x="209" y="202" font-family="system-ui,sans-serif" font-size="22" text-anchor="middle" opacity=".3">🔮</text>
-            <text x="209" y="222" font-family="system-ui,sans-serif" font-size="9"   fill="#2a3258" text-anchor="middle" font-weight="500">Посох мага</text>
-            <text x="209" y="235" font-family="system-ui,sans-serif" font-size="8"   fill="#1e2540" text-anchor="middle">Редкий</text>
-            <rect x="282" y="162" width="122" height="98" rx="8" fill="#141520" stroke="rgba(199,211,234,.07)" stroke-width="1"/>
-            <text x="343" y="202" font-family="system-ui,sans-serif" font-size="22" text-anchor="middle" opacity=".3">💎</text>
-            <text x="343" y="222" font-family="system-ui,sans-serif" font-size="9"   fill="#2a3258" text-anchor="middle" font-weight="500">Кольцо силы</text>
-            <text x="343" y="235" font-family="system-ui,sans-serif" font-size="8"   fill="#1e2540" text-anchor="middle">Эпический</text>
-            <defs>
-              <linearGradient id="en1" x1="0" y1="0" x2="420" y2="0">
-                <stop offset="0%" stop-color="transparent"/><stop offset="50%" stop-color="#D97706"/><stop offset="100%" stop-color="transparent"/>
-              </linearGradient>
-            </defs>
-          </svg>
+      <li class="pf-tool" style="--pf-acc: var(--accent-nutrition); --pf-acc-dim: var(--accent-nutrition-dim)">
+        <span class="pf-tool-n" aria-hidden="true">03</span>
+        <div class="pf-tool-text">
+          <h3 class="pf-tool-h">Дневник питания</h3>
+          <p class="pf-tool-desc">Добавляйте еду по штрих-коду или названию, следите за КБЖУ. AI-нутрициолог анализирует рацион и даёт конкретные рекомендации. Синхронизируется с программой тренировок.</p>
         </div>
-      </div>
-    </div>
+        <div class="pf-mock" data-pf-anim="nutrition" aria-hidden="true">
+          <div class="pf-mock-bar"><i></i><i></i><i></i><span>ДНЕВНИК ПИТАНИЯ</span></div>
+          <div class="pf-mock-body pf-mock-split">
+            <div class="pf-mock-ring" style="--pf-fill: 0.8">
+              <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="50" pathLength="100"/><circle class="pf-ring-fill" cx="60" cy="60" r="50" pathLength="100"/></svg>
+              <p><b data-count-to="1750">1750</b><small>из 2200 ккал</small></p>
+            </div>
+            <div class="pf-mock-macros">
+              {% for имя, г, доля in (("Белки", 118, 0.69), ("Жиры", 62, 0.47), ("Углеводы", 195, 0.84)) %}
+              <div class="pf-mock-macro">
+                <span>{{ имя }}</span><span><b data-count-to="{{ г }}">{{ г }}</b> г</span>
+                <div class="pf-bar"><div class="pf-bar-fill" style="--pf-fill: {{ доля }}"></div></div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </li>
+
+      <li class="pf-tool" style="--pf-acc: var(--accent-enshrouded); --pf-acc-dim: var(--accent-enshrouded-dim)">
+        <span class="pf-tool-n" aria-hidden="true">04</span>
+        <div class="pf-tool-text">
+          <h3 class="pf-tool-h">Enshrouded</h3>
+          <p class="pf-tool-desc">Трекер доспехов: отмечайте собранные сеты брони, следите за редкостью и уровнями предметов. Планируйте следующий крафт и не теряйте прогресс.</p>
+        </div>
+        <div class="pf-mock" data-pf-anim="enshrouded" aria-hidden="true">
+          <div class="pf-mock-bar"><i></i><i></i><i></i><span>КОЛЛЕКЦИЯ</span><em><b data-count-to="12">12</b> / 24</em></div>
+          <div class="pf-mock-body pf-mock-grid">
+            {% for имя, есть in (("Шлем", 1), ("Нагрудник", 1), ("Перчатки", 0), ("Поножи", 1), ("Сапоги", 1), ("Кольцо", 0)) %}
+            <div class="pf-mock-item{{ ' pf-mock-item-on' if есть }}">
+              {{ значок('shield') }}<span>{{ имя }}</span>
+              {% if есть %}<span class="pf-chk" style="--n: {{ loop.index }}">{{ значок('check') }}</span>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </li>
+
+      <li class="pf-tool" style="--pf-acc: var(--accent-medkit); --pf-acc-dim: var(--accent-medkit-dim)">
+        <span class="pf-tool-n" aria-hidden="true">05</span>
+        <div class="pf-tool-text">
+          <h3 class="pf-tool-h">Аптечка</h3>
+          <p class="pf-tool-desc">Домашняя аптечка: что есть, сколько осталось и не истёк ли срок. Упаковку можно завести по фото, общий список ведётся на всю семью, а закончившееся само просится в список покупок.</p>
+        </div>
+        <div class="pf-mock" data-pf-anim="medkit" aria-hidden="true">
+          <div class="pf-mock-bar"><i></i><i></i><i></i><span>АПТЕЧКА</span></div>
+          <div class="pf-mock-body">
+            {% for имя, доля, штук, срок in (("Жаропонижающее · таблетки", 0.6, 12, "годен до 05.2028"), ("Капли для глаз", 0.25, 5, "истекает через 20 дней"), ("Пластырь", 0.9, 18, "годен до 11.2029")) %}
+            <div class="pf-mock-med">
+              <p>{{ имя }}<small>{{ срок }}</small></p>
+              <span><b data-count-to="{{ штук }}">{{ штук }}</b> шт</span>
+              <div class="pf-bar"><div class="pf-bar-fill" style="--pf-fill: {{ доля }}"></div></div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </li>
+
+    </ol>
+    <p class="pf-tools-join">Инструменты открываются после <a href="/register">регистрации</a>.</p>
   </section>
 
   <!-- ── S4: CTA ── -->

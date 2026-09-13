@@ -15,17 +15,6 @@ body::before {
   z-index: 1;
 }
 
-/* ── Общее ──────────────────────────────────────────────────────────────── */
-.sec { padding: var(--space-9) var(--space-5); max-width: 1100px; margin: 0 auto; }
-.sec-head { text-align: center; margin-bottom: var(--space-7); }
-.sec-head .eyebrow { display: inline-block; margin-bottom: var(--space-4); }
-.sec-h2 {
-  font-size: var(--text-h2);
-  font-weight: 700;
-  color: var(--text-strong);
-  text-align: center;
-}
-
 /* ── Первый экран портфолио (заход 334, блок B) ────────────────────────────
    РОВНО ЭКРАН ВМЕСТЕ С ШАПКОЙ. Шапка прилипает и стоит в потоке, поэтому
    остаток экрана под ней браузер за нас не посчитает: 64px вычитается
@@ -245,101 +234,207 @@ body::before {
   .pf-ch { color: var(--text-strong); transition: none; }
 }
 
-/* Разделитель между секциями лендинга: системный .divider во всю ширину,
-   но обрезанный по ширине текстовых блоков (.details тоже 1100px).
-   Свой класс, а не переопределение .divider — компонент общий.
-   Вертикальный отступ снят намеренно: его дают паддинги соседних .sec,
-   а собственные --space-8 сверху и снизу добавили бы к ним ещё 144px. */
-.divider-sec { margin: 0 auto; max-width: 1100px; }
-
-/* ── Карточки инструментов 2×2 ──────────────────────────────────────────── */
-.features-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-5);
+/* ── Заголовок секции портфолио ────────────────────────────────────────────── */
+.pf-sec-h {
+  margin: 0 0 var(--space-7);
+  font-size: var(--text-h1);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
 }
-/* Сама карточка — общий компонент .tool-card из style.css. Категорийная
-   метка на ней тоже ничего своего не требует: .eyebrow задаёт и кегль
-   (--text-mono), и цвет (--tool-accent, который карточке приносит класс
-   .tool-*). Здесь стояло правило ровно из этих двух объявлений — то есть
-   копия компонента, повторявшая его дословно. */
 
-/* ── Блоки возможностей ─────────────────────────────────────────────────── */
-.details { padding: var(--space-6) var(--space-5) var(--space-9); max-width: 1100px; margin: 0 auto; }
-.detail-block {
+/* ── Инструменты (заход 334, блок E) ──────────────────────────────────────────
+   Нумерованный список: номер, текст, оживлённый интерфейс. Строки разделены
+   волосяной линией. Интерфейс — разметка на токенах акцента раздела
+   (`--pf-acc`, `--pf-acc-dim` приходят со строки списка). */
+.pf-tools {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: var(--space-10) var(--space-6);
+}
+.pf-tool-list { list-style: none; margin: 0; padding: 0; border-bottom: 1px solid var(--border-hairline); }
+.pf-tool {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-8);
-  align-items: center;
+  grid-template-columns: minmax(4rem, 8rem) minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: var(--space-7);
+  align-items: start;
   padding: var(--space-8) 0;
   border-top: 1px solid var(--border-hairline);
 }
-.detail-block:last-child { border-bottom: 1px solid var(--border-hairline); }
-.detail-block.flip .detail-mock { order: -1; }
-
-.detail-hh   { --blk: var(--accent-hh);         --blk-dim: var(--accent-hh-dim); }
-.detail-wk   { --blk: var(--accent-workout);    --blk-dim: var(--accent-workout-dim); }
-.detail-nutr { --blk: var(--accent-nutrition);  --blk-dim: var(--accent-nutrition-dim); }
-.detail-ens  { --blk: var(--accent-enshrouded); --blk-dim: var(--accent-enshrouded-dim); }
-
-.detail-label {
+.pf-tool-n {
+  align-self: start;
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-size: clamp(2.5rem, 5vw, 5rem);
   font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: var(--space-4);
-  color: var(--blk);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  line-height: 1;
+  color: var(--text-faint);
 }
-.detail-label svg { width: 16px; height: 16px; stroke-width: 1.5; }
-.detail-h3 {
+.pf-tool-h {
+  margin: 0 0 var(--space-4);
   font-size: var(--text-h2);
   font-weight: 700;
   line-height: 1.15;
+  letter-spacing: -0.02em;
   color: var(--text-strong);
-  margin-bottom: var(--space-4);
 }
-.detail-desc {
-  font-size: var(--text-body);
-  color: var(--text-2);
-  line-height: 1.7;
-  margin-bottom: var(--space-5);
-}
-.detail-features { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-3); }
-.detail-features li {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  font-size: var(--text-body-sm);
-  color: var(--text-2);
-  line-height: 1.55;
-}
-.chk {
-  flex-shrink: 0;
-  width: 18px; height: 18px;
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.65rem;
-  font-weight: 700;
-  margin-top: 1px;
-  background: var(--blk-dim);
-  color: var(--blk);
-}
+.pf-tool-desc { margin: 0; max-width: 36rem; font-size: var(--text-body); line-height: 1.6; color: var(--text-2); }
+.pf-tools-join { margin: var(--space-6) 0 0; font-size: var(--text-body); color: var(--text-2); }
+.pf-tools-join a { color: var(--text-strong); }
 
-.detail-mock { position: relative; }
-.mock-card {
-  background: var(--surface-1);
+/* Каркас поддельного интерфейса: карточка на ступень выше фона и граница. */
+.pf-mock {
+  aspect-ratio: 14 / 9;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-lg);
+  background: var(--surface-1);
+  font-size: var(--text-body-sm);
+  color: var(--text-2);
 }
-.mock-card svg { display: block; width: 100%; height: auto; }
+.pf-mock-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-hairline);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  letter-spacing: 0.06em;
+}
+.pf-mock-bar i {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--pf-acc);
+}
+.pf-mock-bar i + i { opacity: 0.45; }
+.pf-mock-bar i + i + i { opacity: 0.2; }
+.pf-mock-bar span { margin-left: var(--space-2); }
+.pf-mock-bar em { margin-left: auto; font-style: normal; color: var(--pf-acc); }
+.pf-mock-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+.pf-mock-bubble {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.pf-mock-tag {
+  display: inline-block;
+  margin-bottom: var(--space-2);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--pf-acc-dim);
+  color: var(--pf-acc);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: 700;
+}
+.pf-mock-letter { margin: 0; line-height: 1.55; color: var(--text); }
+.pf-mock-input {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-left: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-faint);
+}
+.pf-mock-input span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pf-mock-input b {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--pf-acc);
+  color: var(--surface-0);
+}
+.pf-mock-title { margin: 0; font-weight: 700; color: var(--text-strong); }
+.pf-mock-title small { display: block; font-weight: 400; color: var(--text-faint); font-size: var(--text-caption); }
+.pf-mock-set {
+  display: grid;
+  grid-template-columns: 1fr 3rem 5rem 1.5rem;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.pf-mock-cell { text-align: center; color: var(--text); font-variant-numeric: tabular-nums; }
+.pf-chk { display: inline-flex; justify-content: center; color: var(--pf-acc); }
+.pf-chk svg { width: 16px; height: 16px; }
+.pf-mock-split { flex-direction: row; align-items: center; gap: var(--space-5); }
+.pf-mock-ring { position: relative; width: 42%; flex: none; }
+.pf-mock-ring svg { display: block; width: 100%; height: auto; transform: rotate(-90deg); }
+.pf-mock-ring circle { fill: none; stroke: var(--surface-2); stroke-width: 12; }
+.pf-mock-ring .pf-ring-fill {
+  stroke: var(--pf-acc);
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: calc(100 - var(--pf-fill-now, var(--pf-fill)) * 100);
+}
+.pf-mock-ring p {
+  position: absolute; inset: 0;
+  margin: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.pf-mock-ring b { font-size: var(--text-h3); color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.pf-mock-ring small { font-size: var(--text-caption); color: var(--text-faint); }
+.pf-mock-macros { flex: 1; display: flex; flex-direction: column; gap: var(--space-4); }
+.pf-mock-macro { display: grid; grid-template-columns: 1fr auto; gap: var(--space-1) var(--space-3); }
+.pf-mock-macro b, .pf-mock-med b { color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.pf-bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.pf-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--pf-acc);
+  transform-origin: left center;
+  transform: scaleX(var(--pf-fill-now, var(--pf-fill)));
+}
+.pf-mock-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+.pf-mock-item {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--text-faint);
+}
+.pf-mock-item svg { width: 22px; height: 22px; }
+.pf-mock-item-on { border-color: var(--pf-acc); color: var(--text); }
+.pf-mock-item-on svg { color: var(--pf-acc); }
+.pf-mock-item .pf-chk { position: absolute; top: var(--space-1); right: var(--space-2); }
+.pf-mock-med { display: grid; grid-template-columns: 1fr auto; gap: var(--space-1) var(--space-3); align-items: end; }
+.pf-mock-med p { margin: 0; color: var(--text); }
+.pf-mock-med small { display: block; font-size: var(--text-caption); color: var(--text-faint); }
+
+/* СОСТОЯНИЕ «В НАЧАЛЕ» ставит скрипт (`pf-idle`), и только тем интерфейсам,
+   которых нет в окне при загрузке. Проигрыш — снятие класса: переходы
+   ведут к конечному состоянию, которое записано в разметке. */
+.pf-mock .pf-bar-fill, .pf-mock .pf-ring-fill { transition: transform 900ms var(--ease-out), stroke-dashoffset 900ms var(--ease-out); }
+.pf-mock .pf-chk { transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out); transition-delay: calc(var(--n, 0) * 220ms); }
+.pf-mock.pf-idle .pf-bar-fill, .pf-mock.pf-idle .pf-ring-fill { --pf-fill-now: 0; }
+.pf-mock.pf-idle .pf-chk { opacity: 0; transform: scale(0.6); transition-delay: 0ms; }
+.pf-t.pf-t-off { visibility: hidden; }
+
+@media (max-width: 900px) {
+  .pf-tools { padding: var(--space-9) var(--space-4); }
+  .pf-tool { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); padding: var(--space-7) 0; }
+  .pf-mock { aspect-ratio: auto; min-height: 16rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pf-mock .pf-bar-fill, .pf-mock .pf-ring-fill, .pf-mock .pf-chk { transition: none; }
+}
 
 /* ── CTA ────────────────────────────────────────────────────────────────── */
 .cta {
@@ -356,26 +451,7 @@ body::before {
 .cta .cta-sub { color: var(--text-2); font-size: var(--text-body-sm); margin-bottom: var(--space-6); }
 /* Финальный CTA — .btn-lg .btn-glow в разметке (style.css) */
 
-/* Лесенка появления карточек — ручка --n системного .reveal,
-   номер позиции стоит в разметке (style.css). Три правила
-   `.features-grid .reveal:nth-child(N)` жили здесь и меняли
-   системному классу вид. */
-
 /* ── Адаптив ────────────────────────────────────────────────────────────── */
-@media (max-width: 768px) {
-  .detail-block { grid-template-columns: 1fr; gap: var(--space-6); padding: var(--space-7) 0; }
-  .detail-mock { order: -1 !important; }
-  .detail-text { order: 1 !important; }
-}
 @media (max-width: 640px) {
-  .hero { padding: var(--space-8) var(--space-4) var(--space-7); }
-  .hero-btns { flex-direction: column; align-items: stretch; }
-  /* BACKLOG: правило снято 2026-08-21 — оба свойства уже объявлены самими
-     компонентами (.btn-primary и .btn-signature: display:inline-flex,
-     justify-content:center), а text-align приходит от .hero. Замер
-     подстановкой: ширина, высота и обе величины совпадают до знака. */
-  .sec { padding: var(--space-7) var(--space-4); }
-  .features-grid { grid-template-columns: 1fr; gap: var(--space-4); }
-  .details { padding: var(--space-5) var(--space-4) var(--space-7); }
   .cta { padding: var(--space-8) var(--space-4); }
 }
