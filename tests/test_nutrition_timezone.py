@@ -27,7 +27,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-os.environ["DB_PATH"] = str(Path(tempfile.gettempdir()) / "hh_tests_поясa.db")
+os.environ["DB_PATH"] = str(Path(tempfile.gettempdir()) / "hh_tests_пояса.db")
 
 import main            # noqa: E402
 

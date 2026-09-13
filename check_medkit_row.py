@@ -265,10 +265,10 @@ def k_get(к, имя):
     акцент: (кн.find(к => к.classList.contains('btn-primary')) || {})
               .textContent || '',
     подписи: кн.map(к => (к.textContent || '').trim().slice(0, 26)),
-    ширины: kн_ширины(кн, рр),
+    ширины: кн_ширины(кн, рр),
     переносов: кн.filter(к => R(к).height > 60).length,
   };
-  function kн_ширины(кн, рр) {
+  function кн_ширины(кн, рр) {
     return кн.map(к => Math.round(R(к).width / рр.width * 100));
   }
 }"""

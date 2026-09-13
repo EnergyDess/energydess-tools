@@ -1321,8 +1321,8 @@ async def _ход_на_подсказке(pg, сенсор):
       }).observe(h, {attributes: true, attributeFilter: ['class']});
     });
   };
-  setInterval(пуск, 300); pуск_сразу();
-  function pуск_сразу() { try { пуск(); } catch (e) {} }
+  setInterval(пуск, 300); пуск_сразу();
+  function пуск_сразу() { try { пуск(); } catch (e) {} }
 })();
 """
 

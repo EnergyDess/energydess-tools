@@ -56,6 +56,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import check_hover as ch     # noqa: E402
 import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
+import stand_fresh  # noqa: E402  свежесть посева (BACKLOG №322)
 
 # ПЕРЕЧНЯ ЭКРАНОВ ЗДЕСЬ БОЛЬШЕ НЕТ — 2026-08-22.
 #
@@ -333,6 +334,11 @@ def контроль():
 
 
 if __name__ == "__main__":
+    # ДАННЫЕ ОТСТАЛИ ОТ СУТОК — ПРОПУСК, А НЕ ЗАМЕР (BACKLOG №322).
+    # Замер 2026-09-13 на посеве, состаренном на сутки: целей 2585 -> 2542,
+    # код 0 — охват сузился молча (§8.0).
+    if stand_fresh.пропуск_если_отстали('сцены проверки 22'):
+        sys.exit(2)
     if "--база" in sys.argv:
         ch.БАЗА = sys.argv[sys.argv.index("--база") + 1]
     if "--контроль" in sys.argv:

@@ -88,7 +88,7 @@ async def войти(pg):
   if (!т) return null;
   const было = т.clientWidth;
   const проб = document.createElement('div');
-  proбHeight(проб);
+  пробHeight(проб);
   т.appendChild(проб);
   const стало = т.clientWidth;
   проб.remove();
@@ -96,7 +96,7 @@ async def войти(pg):
           разница: Math.round(было - стало),
           прокрутка_была: т.scrollHeight > т.clientHeight + 1,
           резерв: getComputedStyle(т).scrollbarGutter};
-  function proбHeight(э) { э.style.cssText = 'height:4000px'; }
+  function пробHeight(э) { э.style.cssText = 'height:4000px'; }
 }"""
 
 
