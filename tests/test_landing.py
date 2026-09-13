@@ -156,3 +156,12 @@ def test_замена_удаляет_прежний_файл_и_посторон
     assert простой.delete("/admin/api/landing/decor-bl").status_code == 403
     assert админ.delete("/admin/api/landing/decor-bl").status_code == 200
     assert os.listdir(лх.КАТАЛОГ) == []
+
+
+def test_ролик_сверх_потолка_разрешения_отказ_с_числом(файлы, monkeypatch):
+    """Потолок 1920 — замер памяти на машине прода (landing_defs). Здесь
+    он занижен до 320, чтобы не гнать 4K в тесте: звено то же самое."""
+    monkeypatch.setattr(ld, "ВИДЕО_ПОТОЛОК_СТОРОНА", 320)
+    with pytest.raises(лм.ОтказЗагрузки) as e:
+        лм.обработать("feed-1-1", файлы["ролик"], "r.mp4")
+    assert e.value.код == 413 and "640x480" in e.value.текст and "320" in e.value.текст
