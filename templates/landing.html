@@ -27,7 +27,7 @@
      кнопка, портрет. Номер шага — `--n`, шаг задаёт landing.css. #}
   <section class="pf-hero" aria-label="Первый экран">
     <h1 class="pf-hero-title pf-enter" style="--n: 1">
-      <span class="pf-grad">Денис Кащеев</span>
+      <span class="pf-grad pf-hero-name">Денис Кащеев</span>
       <span class="pf-hero-role">видео и AI-инструменты</span>
     </h1>
     <div class="pf-hero-mid">
@@ -61,6 +61,27 @@
       </div>
     </div>
     {% endfor %}
+  </section>
+
+  <!-- ── О себе ── -->
+  {# ТЕКСТ ПРОЯВЛЯЕТСЯ ПОСИМВОЛЬНО ОТ ПРОКРУТКИ (D2). Спаны по знаку рисует
+     СЕРВЕР, а не скрипт: разбей текст скрипт после загрузки — первый кадр
+     показал бы абзац целиком, и на глазах он бы потускнел (§6.0.15).
+     Пробел — свой спан, поэтому переносы идут между словами, а не внутри.
+     Приглушённый цвет — `--text-faint`, он читается и без скрипта. #}
+  {% set о_себе = "Больше десяти лет в видеопроизводстве: федеральное телевидение, киберспорт, реклама, образовательные проекты. Последние годы — AI-видео и собственные инструменты, которые я проектирую, проверяю и довожу до рабочего состояния сам. Если нужен человек, который доводит до конца, — напишите." %}
+  <section class="pf-about" aria-labelledby="pf-about-h">
+    <div class="pf-decor pf-decor-tl pf-side" data-side="l" style="--n: 0">{{ ms.slot(места['decor-tl']) }}</div>
+    <div class="pf-decor pf-decor-bl pf-side" data-side="l" style="--n: 2">{{ ms.slot(места['decor-bl']) }}</div>
+    <div class="pf-decor pf-decor-tr pf-side" data-side="r" style="--n: 1">{{ ms.slot(места['decor-tr']) }}</div>
+    <div class="pf-decor pf-decor-br pf-side" data-side="r" style="--n: 3">{{ ms.slot(места['decor-br']) }}</div>
+    <div class="pf-about-body">
+      <h2 id="pf-about-h" class="pf-grad pf-about-h">Обо мне</h2>
+      <p class="pf-about-text" aria-label="{{ о_себе }}">
+        {%- for знак in о_себе -%}<span class="pf-ch" aria-hidden="true">{{ знак }}</span>{%- endfor -%}
+      </p>
+      <a href="mailto:pr@energydess.ru" class="btn-primary btn-lg pf-about-cta">Связаться</a>
+    </div>
   </section>
 
   <hr class="divider divider-sec">

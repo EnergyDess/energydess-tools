@@ -19,10 +19,52 @@
 (function () {
   'use strict';
 
+  var тихо = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  /* О СЕБЕ (блок D)
+     · Знаки абзаца зажигаются от прокрутки: начинается, когда верх текста
+       дошёл до 85% окна, кончается, когда низ дошёл до 40%. Функция
+       положения, а не времени: откатил прокрутку — знаки гаснут обратно.
+     · Декор выезжает с боков при доезде секции, один раз.
+     · «Уменьшить движение»: всё зажжено и на месте сразу. */
+  var абзац = document.querySelector('.pf-about-text');
+  if (абзац) {
+    var знаки = Array.prototype.slice.call(абзац.querySelectorAll('.pf-ch'));
+    var зажжено = -1;
+    var зажечь = function () {
+      var сколько = знаки.length;
+      if (!тихо.matches) {
+        var к = абзац.getBoundingClientRect();
+        var vh = window.innerHeight;
+        var доля = (0.85 * vh - к.top) / (0.45 * vh + к.height);
+        сколько = Math.round(Math.min(1, Math.max(0, доля)) * знаки.length);
+      }
+      if (сколько === зажжено) return;
+      for (var i = 0; i < знаки.length; i++) знаки[i].classList.toggle('pf-on', i < сколько);
+      зажжено = сколько;
+    };
+    зажечь();
+    window.addEventListener('scroll', зажечь, { passive: true });
+    window.addEventListener('resize', зажечь);
+    if (тихо.addEventListener) тихо.addEventListener('change', зажечь);
+  }
+  var бока = Array.prototype.slice.call(document.querySelectorAll('.pf-side'));
+  if (бока.length) {
+    if (тихо.matches || !('IntersectionObserver' in window)) {
+      бока.forEach(function (э) { э.classList.add('pf-in'); });
+    } else {
+      var наблюдатель_боков = new IntersectionObserver(function (записи) {
+        записи.forEach(function (з) {
+          if (з.isIntersecting) { з.target.classList.add('pf-in'); наблюдатель_боков.unobserve(з.target); }
+        });
+      }, { threshold: 0.2 });
+      бока.forEach(function (э) { наблюдатель_боков.observe(э); });
+    }
+  }
+
   var лента = document.querySelector('.pf-feed');
   if (!лента) return;
 
-  var тихо = window.matchMedia('(prefers-reduced-motion: reduce)');
   var ряды = Array.prototype.slice.call(лента.querySelectorAll('.pf-feed-row'));
   var набор = 0;          // ширина одного набора вместе с зазором после него
   var доехала = false;

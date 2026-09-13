@@ -14,6 +14,7 @@
 
   py check_portfolio.py --экран     # B: первый экран
   py check_portfolio.py --лента     # C: бегущая лента работ
+  py check_portfolio.py --о-себе    # D: о себе
   ... --контроль                     # подлог звена: B — сдвиг портрета,
                                      #   C — ролики грузятся сразу
   py check_portfolio.py --лента --контроль-плавности   # C: рывок ряда
@@ -106,7 +107,7 @@ def _контекст(браузер, ширина, высота, сенсор, 
     }
   }
   // СЛОВО НЕ РВЁТСЯ: у каждого слова имени ровно одна строка.
-  const имя = q('.pf-grad');
+  const имя = q('.pf-hero .pf-grad');
   const слова = [];
   const т = имя.firstChild;
   let поз = 0;
@@ -164,7 +165,7 @@ def _градиент_виден(стр):
     """Пиксели снимка имени: у серого края яркость букв ниже, чем у
     светлого. Спрашивается то, что видит глаз, а не значение свойства."""
     from PIL import Image
-    png = стр.locator(".pf-grad").screenshot()
+    png = стр.locator(".pf-hero .pf-grad").screenshot()
     im = Image.open(io.BytesIO(png)).convert("L")
     w, h = im.size
     пикс = im.load()
@@ -549,12 +550,206 @@ def лента(контроль=False, рывок=False):
             бр.close()
 
 
+# ══ D. О СЕБЕ ═════════════════════════════════════════════════════════
+
+ЗАМЕР_О_СЕБЕ = r"""() => {
+  const сек = document.querySelector('.pf-about');
+  if (!сек) return null;
+  const пр = e => { const b = e.getBoundingClientRect();
+    return {x: b.left, y: b.top + scrollY, w: b.width, h: b.height, r: b.right, b: b.bottom + scrollY}; };
+  const тело = document.querySelector('.pf-about-body');
+  const полный = getComputedStyle(document.documentElement).getPropertyValue('--text-strong').trim();
+  // Цвет «полного» знака берётся с эталонного узла, а не из токена: токен
+  // приходит строкой #FFFFFF, а вычисленный цвет — rgb(...).
+  const эталон = document.createElement('span');
+  эталон.style.color = полный; document.body.appendChild(эталон);
+  const цвет_полного = getComputedStyle(эталон).color; эталон.remove();
+  const знаки = [...сек.querySelectorAll('.pf-ch')];
+  const полных = знаки.filter(з => getComputedStyle(з).color === цвет_полного).length;
+  const декор = [...сек.querySelectorAll('.pf-decor')].map(д => {
+    const м = д.querySelector('.media-slot');
+    const подпись = м.querySelector('.media-slot-empty');
+    let обрезано = false;
+    if (подпись) {
+      const км = м.getBoundingClientRect();
+      for (const т of подпись.querySelectorAll('span')) {
+        const д2 = document.createRange(); д2.selectNodeContents(т);
+        for (const к of д2.getClientRects()) {
+          if (к.width && (к.left < км.left - 0.5 || к.right > км.right + 0.5 ||
+                          к.top < км.top - 0.5 || к.bottom > км.bottom + 0.5)) обрезано = true;
+        }
+        if (т.scrollWidth > т.clientWidth + 1) обрезано = true;
+      }
+    }
+    return {класс: [...д.classList].find(к => /^pf-decor-/.test(к)), место: пр(м),
+            заполнено: м.dataset.filled, пусто: !!подпись, обрезано,
+            видимость: parseFloat(getComputedStyle(д).opacity),
+            сдвиг: new DOMMatrix(getComputedStyle(д).transform).m41,
+            сторона: д.dataset.side};
+  });
+  return {vw: document.documentElement.clientWidth, vh: innerHeight, сек: пр(сек),
+          тело: пр(тело), текст: пр(сек.querySelector('.pf-about-text')),
+          знаков: знаки.length, полных, декор};
+}"""
+
+ШИРИНЫ_О_СЕБЕ = ШИРИНЫ + [(1101, 900, False)]
+
+
+def _пересекаются(а, б):
+    return not (а["r"] <= б["x"] or б["r"] <= а["x"] or а["b"] <= б["y"] or б["b"] <= а["y"])
+
+
+def _место(стр_админа, slot, действие, файл=None, тип="image/png"):
+    if действие == "положить":
+        with open(файл, "rb") as ф:
+            ответ = стр_админа.request.post(
+                БАЗА + "/admin/api/landing/" + slot,
+                multipart={"file": {"name": os.path.basename(файл), "mimeType": тип, "buffer": ф.read()}},
+                timeout=240000)
+    else:
+        ответ = стр_админа.request.delete(БАЗА + "/admin/api/landing/" + slot)
+    return ответ.status
+
+
+def _к_тексту(стр, доля_окна):
+    """Прокрутка так, чтобы верх абзаца встал на `доля_окна` высоты окна."""
+    стр.evaluate("""(д) => { const т = document.querySelector('.pf-about-text');
+      const y = т.getBoundingClientRect().top + scrollY - innerHeight * д;
+      window.scrollTo(0, Math.max(0, y)); }""", доля_окна)
+    стр.wait_for_timeout(600)
+
+
+def о_себе(контроль=False):
+    from PIL import Image, ImageDraw
+    from playwright.sync_api import sync_playwright
+    print("D. О СЕБЕ — гостем, головной браузер, стенд %s" % БАЗА)
+    каталог = tempfile.mkdtemp(prefix="pf_")
+    файл = os.path.join(каталог, "decor.png")
+    im = Image.new("RGBA", (900, 900), (0, 0, 0, 0))
+    ImageDraw.Draw(im).ellipse((150, 150, 750, 750), fill=(90, 200, 170, 255))
+    im.save(файл)
+
+    with sync_playwright() as p:
+        бр = p.chromium.launch(headless=False)
+        админ = бр.new_context()
+        ад = админ.new_page()
+        _войти(ад, *АДМИН)
+        положили = False
+        try:
+            полные = {}
+            for ш, в, сенсор in ШИРИНЫ_О_СЕБЕ:
+                print("\n  ── %d×%d%s" % (ш, в, " (сенсор)" if сенсор else ""))
+                к = _контекст(бр, ш, в, сенсор)
+                с = к.new_page()
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                if контроль:
+                    # ПОДЛОГ ЗВЕНЬЕВ «НА ТЕКСТЕ» И «ОБРЕЗАНО»: колонка во всю
+                    # ширину и декор 5rem — ровно первая версия раскладки.
+                    с.add_style_tag(content=".pf-about-body{max-width:none!important}"
+                                    ".pf-decor{width:5rem!important}")
+                с.wait_for_timeout(600)
+                до = с.evaluate(ЗАМЕР_О_СЕБЕ)
+                if до is None:
+                    шаг("секция «О себе» есть", False, "нет .pf-about")
+                    к.close()
+                    continue
+                print("  высота секции %.0f px" % до["сек"]["h"])
+                # до доезда: знаки приглушены, декор спрятан и сдвинут наружу
+                наружу = [д for д in до["декор"]
+                          if д["видимость"] < 0.01 and (д["сдвиг"] < 0 if д["сторона"] == "l" else д["сдвиг"] > 0)]
+                шаг("до доезда декор спрятан и отведён в свою сторону", len(наружу) == len(до["декор"]),
+                    "объектов %d, спрятаны наружу %d" % (len(до["декор"]), len(наружу)), собрано=len(до["декор"]))
+                _к_тексту(с, 1.0)
+                ноль = с.evaluate(ЗАМЕР_О_СЕБЕ)["полных"]
+                _к_тексту(с, 0.55)
+                середина = с.evaluate(ЗАМЕР_О_СЕБЕ)["полных"]
+                _к_тексту(с, -1.0)
+                после = с.evaluate(ЗАМЕР_О_СЕБЕ)
+                шаг("текст проявляется посимвольно по мере прокрутки",
+                    ноль == 0 and 0 < середина < после["знаков"] and после["полных"] == после["знаков"],
+                    "полных знаков: у нижнего края %d, посередине %d, выше %d из %d" % (
+                        ноль, середина, после["полных"], после["знаков"]), собрано=после["знаков"])
+                с.wait_for_timeout(1200)
+                после = с.evaluate(ЗАМЕР_О_СЕБЕ)
+                выехали = [д for д in после["декор"] if д["видимость"] > 0.99 and abs(д["сдвиг"]) < 0.5]
+                шаг("декор выехал и встал на место", len(выехали) == len(после["декор"]),
+                    "объектов %d, на месте %d" % (len(после["декор"]), len(выехали)), собрано=len(после["декор"]))
+                на_тексте = [д["класс"] for д in после["декор"] if _пересекаются(д["место"], после["тело"])]
+                шаг("декор не лежит на тексте и кнопке", not на_тексте,
+                    "пересекают колонку: %s" % (на_тексте or "нет"), собрано=len(после["декор"]))
+                пустых = [д for д in после["декор"] if д["пусто"]]
+                обрезанных = [д["класс"] for д in пустых if д["обрезано"]]
+                шаг("подпись пустого места декора не обрезана", not обрезанных,
+                    "пустых %d, обрезанных %s" % (len(пустых), обрезанных or 0), собрано=len(пустых))
+                полные[(ш, в)] = после
+                к.close()
+
+                к = _контекст(бр, ш, в, сенсор, движение="reduce")
+                с = к.new_page()
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                с.wait_for_timeout(400)
+                т = с.evaluate(ЗАМЕР_О_СЕБЕ)
+                видны = [д for д in т["декор"] if д["видимость"] > 0.99 and abs(д["сдвиг"]) < 0.5]
+                шаг("«уменьшить движение»: текст целиком и декор на месте сразу, без прокрутки",
+                    т["полных"] == т["знаков"] and len(видны) == len(т["декор"]),
+                    "полных знаков %d из %d, декора на месте %d из %d" % (
+                        т["полных"], т["знаков"], len(видны), len(т["декор"])), собрано=т["знаков"])
+                к.close()
+
+            # ── ПОДЛОГ: один декор положен и убран ──
+            print("\n  ── подлог: декор «правый низ» положен, затем убран")
+            было = next((д["заполнено"] for д in полные.get((1920, 1080), {}).get("декор", [])
+                         if д["класс"] == "pf-decor-br"), None)
+            if было != "no":
+                шаг("правый нижний декор пуст — подлог можно провести", False,
+                    "место заполнено (%s): чужой файл не трогаем" % было)
+                return
+            код = _место(ад, "decor-br", "положить", файл)
+            положили = код == 200
+            шаг("декор положен боевой загрузкой", положили, "HTTP %s" % код)
+
+            def замер(ш, в, сенсор, подлог_css=None):
+                к = _контекст(бр, ш, в, сенсор, движение="reduce")
+                с = к.new_page()
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                if подлог_css:
+                    с.add_style_tag(content=подлог_css)
+                с.wait_for_timeout(400)
+                з = с.evaluate(ЗАМЕР_О_СЕБЕ)
+                к.close()
+                return з
+            с_файлом = {(ш, в): замер(ш, в, сн) for ш, в, сн in ШИРИНЫ_О_СЕБЕ}
+            код = _место(ад, "decor-br", "убрать")
+            if код == 200:
+                положили = False
+            шаг("декор убран из хранилища", код == 200, "HTTP %s" % код)
+            for ш, в, сенсор in ШИРИНЫ_О_СЕБЕ:
+                пустой = замер(ш, в, сенсор,
+                               ".pf-decor-br{position:static!important}" if контроль else None)
+                полный = с_файлом[(ш, в)]
+                пд = {д["класс"]: д for д in полный["декор"]}
+                сд = {д["класс"]: д for д in пустой["декор"]}
+                сдвиг = max([abs(пд[к_]["место"][о] - сд[к_]["место"][о])
+                             for к_ in пд if к_ != "pf-decor-br" for о in ("x", "y", "w", "h")] +
+                            [abs(полный["тело"][о] - пустой["тело"][о]) for о in ("x", "y", "w", "h")])
+                шаг("%d×%d: декор убран — заглушка встала, остальные три и текст не сдвинулись" % (ш, в),
+                    сд["pf-decor-br"]["заполнено"] == "no" and сд["pf-decor-br"]["пусто"] and сдвиг <= 0.5,
+                    "доказательство: заполнено %s→%s; сдвиг соседей %.2f px" % (
+                        пд["pf-decor-br"]["заполнено"], сд["pf-decor-br"]["заполнено"], сдвиг))
+        finally:
+            if положили:
+                print("  уборка: декор снят — HTTP %s" % _место(ад, "decor-br", "убрать"))
+            бр.close()
+
+
 def main():
     арг = sys.argv[1:]
     if "--экран" in арг:
         экран(контроль_сдвига="--контроль" in арг)
     elif "--лента" in арг:
         лента(контроль="--контроль" in арг, рывок="--контроль-плавности" in арг)
+    elif "--о-себе" in арг:
+        о_себе(контроль="--контроль" in арг)
     else:
         print(__doc__)
         return 2

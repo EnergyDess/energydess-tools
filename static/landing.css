@@ -74,7 +74,6 @@ body::before {
    страницы выше 4.5 и на крупном кегле. */
 .pf-grad {
   display: block;
-  font-size: clamp(3.5rem, 13vw, 22rem);
   background: linear-gradient(90deg, var(--text-faint) 0%, var(--text-strong) 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -83,6 +82,7 @@ body::before {
   overflow-wrap: normal;
   hyphens: manual;
 }
+.pf-hero-name { font-size: clamp(3.5rem, 13vw, 22rem); }
 .pf-hero-role {
   display: block;
   margin-top: var(--space-3);
@@ -119,7 +119,7 @@ body::before {
 @media (max-width: 600px) {
   .pf-hero { padding: var(--space-5) var(--space-4) var(--space-6); gap: var(--space-4); }
   /* На узком имя встаёт в две строки крупнее, а не в одну мелкую. */
-  .pf-grad { font-size: clamp(3rem, 19vw, 6rem); }
+  .pf-hero-name { font-size: clamp(3rem, 19vw, 6rem); }
   .pf-hero-cta { width: 100%; }
 }
 
@@ -172,6 +172,78 @@ body::before {
 }
 .pf-feed-set { display: flex; gap: var(--space-4); }
 .pf-feed-item { flex: none; width: clamp(16rem, 26vw, 34rem); }
+
+/* ── О себе (заход 334, блок D) ─────────────────────────────────────────────
+   Текст по центру колонкой читаемой ширины, четыре декоративных объекта
+   по углам секции. Декор вне потока: он не двигает текст ни появлением,
+   ни заменой файла, ни пустым местом. */
+.pf-about {
+  position: relative;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: var(--space-10) var(--space-6);
+  /* выезд правого декора на 3rem наружу не должен расширять страницу */
+  overflow-x: clip;
+}
+.pf-about-body {
+  position: relative;
+  z-index: 1;
+  max-width: 44rem;
+  margin: 0 auto;
+  text-align: center;
+}
+.pf-about-h {
+  margin: 0 0 var(--space-6);
+  font-size: var(--text-h1);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+.pf-about-text {
+  margin: 0 0 var(--space-7);
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+/* Знак приглушён, пока до него не дошла прокрутка; `pf-on` ставит скрипт.
+   Переход только цвета — ширина знака не меняется, строка не прыгает. */
+.pf-ch { color: var(--text-faint); transition: color var(--dur-base) var(--ease-out); }
+.pf-ch.pf-on { color: var(--text-strong); }
+
+.pf-decor {
+  position: absolute;
+  width: clamp(6rem, 13vw, 16rem);
+}
+.pf-decor-tl { top: var(--space-7); left: var(--space-6); }
+.pf-decor-bl { bottom: var(--space-7); left: var(--space-6); }
+.pf-decor-tr { top: var(--space-7); right: var(--space-6); }
+.pf-decor-br { bottom: var(--space-7); right: var(--space-6); }
+/* ПОЯВЛЕНИЕ С БОКОВ (D3): левые выезжают слева, правые справа, по очереди.
+   `pf-in` ставит скрипт при доезде; при «уменьшить движение» — сразу. */
+.pf-side {
+  opacity: 0;
+  transform: translateX(calc(var(--pf-from, -1) * 3rem));
+  transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+  transition-delay: calc(var(--n, 0) * 80ms);
+}
+.pf-side[data-side="r"] { --pf-from: 1; }
+.pf-side.pf-in { opacity: 1; transform: none; }
+@media (max-width: 1100px) {
+  /* На узком углы уходят в ряд над текстом и под ним: сбоку от колонки
+     в 44rem места нет (ниже ~1100 px декор лёг бы на буквы), а меньше
+     8rem заглушка обрезала бы подпись места. */
+  .pf-about { padding: calc(var(--space-7) + 8rem + var(--space-6)) var(--space-4); }
+  .pf-decor { width: 8rem; }
+  .pf-decor-tl, .pf-decor-tr { top: var(--space-5); }
+  .pf-decor-bl, .pf-decor-br { bottom: var(--space-5); }
+  .pf-decor-tl, .pf-decor-bl { left: var(--space-4); }
+  .pf-decor-tr, .pf-decor-br { right: var(--space-4); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pf-side { opacity: 1; transform: none; transition: none; }
+  .pf-ch { color: var(--text-strong); transition: none; }
+}
 
 /* Разделитель между секциями лендинга: системный .divider во всю ширину,
    но обрезанный по ширине текстовых блоков (.details тоже 1100px).
