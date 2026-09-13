@@ -41,7 +41,9 @@
 
     py check_stand_state.py              # опись; код 1, если есть чужое
     py check_stand_state.py --привести   # убрать чужое и перепроверить
-    py check_stand_state.py --контроль   # подлог с доказательством
+    py check_stand_state.py --контроль   # подлоги с доказательством
+    py check_stand_state.py --эталон     # снять эталон посева (зовёт --seed)
+    py check_stand_state.py --покрытие   # что опись спрашивает, по сущностям
 """
 
 import io
@@ -239,6 +241,172 @@ def опись(c):
     return находки, свои, True
 
 
+# ══════════════════════════════════════════════════════════════════════
+# ПРОПАЖА ПОСЕЯННОГО (BACKLOG №332)
+# ══════════════════════════════════════════════════════════════════════
+#
+# ЗАЧЕМ. Всё выше спрашивает одну сторону — не появилось ли ЛИШНЕЕ.
+# Замер 2026-09-13: полный прогон проверки 35 унёс у стенда ВСЕ позиции
+# аптечки (38 → 0), а опись напечатала «ЧУЖОГО НЕТ — стенд в известном
+# виде», код 0. Пустой стенд под видом известного — немой отказ
+# в самом инструменте, на который опираются все замеры приёмки.
+#
+# ЭТАЛОН СНИМАЕТСЯ В МОМЕНТ ПОСЕВА, А НЕ ВЫВОДИТСЯ ИЗ КОДА SEED. Прочитать
+# «что заводит seed» из 3000 строк нечем, а вписанное число разошлось бы
+# с посевом при первой его правке (§6.0.4). `make_local_user.py --seed`
+# последним действием зовёт `записать_эталон`, и файл лежит РЯДОМ С БАЗОЙ:
+# эталон другой базы о этой не говорит ничего.
+#
+# СЧИТАЕТСЯ ВИДИМОЕ ЧЕЛОВЕКУ: строки аккаунтов seed по каждой таблице
+# схемы и ФАЙЛЫ, на которые эти строки ссылаются. Строка есть, а файла
+# нет — на экране пустая плитка, и это такая же пропажа. Пути к файлам
+# записаны ЗДЕСЬ, а не взяты у `main`: мерка не берёт данные у
+# проверяемого кода. Разойдись схема хранения — опись назовёт пропажу,
+# и это честнее, чем согласиться с кодом.
+#
+# ГРАНИЦА, И ОНА НАЗВАНА. Спрашивается «стало МЕНЬШЕ». Не видны:
+# строка, заменённая другой (удалили одну, добавили одну), изменённое
+# ЗНАЧЕНИЕ посеянной строки (остаток, срок) и прирост своих строк
+# (проба дописала реплику). Журналы из `ЖУРНАЛЫ` не спрашиваются —
+# там убывание законно (ленивая уборка по сроку), кроме справочника
+# упражнений: его число семенем задано.
+
+ЭТАЛОН_ИМЯ = "stand_seed_ref.json"
+
+# Файлы, на которые ссылаются строки: (таблица, вид каталога media).
+МЕДИА_СТРОК = (("chat_messages", "chat"), ("body_photos", "body"),
+               ("medkit_items", "medkit"))
+
+
+def путь_эталона(путь):
+    return os.path.join(os.path.dirname(os.path.abspath(путь)), ЭТАЛОН_ИМЯ)
+
+
+def посев_счёт(c, путь):
+    """{ключ: число} — видимое состояние посева. Ключ «таблица|почта»."""
+    import database as d
+
+    адреса = sorted(адреса_семени())
+    ид = dict(c.execute(
+        "SELECT id, email FROM users WHERE email IN (%s)"
+        % ",".join("?" * len(адреса)), tuple(адреса)).fetchall())
+    сч = {}
+    for e in ид.values():
+        сч["users|" + e] = 1
+    if not ид:
+        return сч
+    в_списке = ",".join(str(i) for i in sorted(ид))
+
+    def по_владельцу(таблица, запрос):
+        for uid, n in c.execute(запрос):
+            if uid in ид:
+                сч["%s|%s" % (таблица, ид[uid])] = n
+
+    for т in d.USER_TABLES:
+        if т in ЖУРНАЛЫ:
+            continue
+        try:
+            есть = колонки(c, т)
+        except sqlite3.OperationalError:
+            continue
+        if "user_id" in есть:
+            по_владельцу(т, 'SELECT user_id, COUNT(*) FROM "%s" WHERE user_id '
+                            "IN (%s) GROUP BY user_id" % (т, в_списке))
+    for т, кол in d.ВСТРЕЧНЫЕ_ССЫЛКИ:
+        try:
+            if кол not in колонки(c, т):
+                continue
+        except sqlite3.OperationalError:
+            continue
+        по_владельцу("%s.%s" % (т, кол),
+                     'SELECT %s, COUNT(*) FROM "%s" WHERE %s IN (%s) GROUP BY %s'
+                     % (кол, т, кол, в_списке, кол))
+    for ребёнок, ключ, родитель, ключ2, дед in d.CHILD_TABLES:
+        try:
+            колонки(c, ребёнок)
+        except sqlite3.OperationalError:
+            continue
+        if дед:
+            з = ('SELECT g.user_id, COUNT(*) FROM "%s" r JOIN "%s" p ON r.%s = p.id '
+                 'JOIN "%s" g ON p.%s = g.id WHERE g.user_id IN (%s) '
+                 "GROUP BY g.user_id" % (ребёнок, родитель, ключ, дед, ключ2, в_списке))
+        else:
+            з = ('SELECT p.user_id, COUNT(*) FROM "%s" r JOIN "%s" p ON r.%s = p.id '
+                 "WHERE p.user_id IN (%s) GROUP BY p.user_id"
+                 % (ребёнок, родитель, ключ, в_списке))
+        по_владельцу(ребёнок, з)
+
+    # ОБЩИЕ СПРАВОЧНИКИ: столько, сколько задаёт семя
+    семя = семя_сетов()
+    if семя is not None:
+        сч["enshrouded_sets|семя"] = sum(
+            1 for r in c.execute("SELECT id FROM enshrouded_sets") if r[0] in семя)
+    сч["exercises|всего"] = c.execute("SELECT COUNT(*) FROM exercises").fetchone()[0]
+    try:
+        места = c.execute("SELECT slot_id, version, ext FROM landing_media").fetchall()
+    except sqlite3.OperationalError:
+        места = []
+    семя_гл = семя_главной()
+    кат = os.path.dirname(os.path.abspath(путь))
+    сч["landing_media|семя"] = sum(1 for r in места if r[0] in семя_гл)
+    сч["файлы строк landing|семя"] = sum(
+        1 for s, v, e in места if s in семя_гл
+        and os.path.isfile(os.path.join(кат, "landing", "%s-%s.%s" % (s, v, e))))
+
+    # ФАЙЛЫ СТРОК: аватар по отметке времени, медиа по токену
+    for uid, e in ид.items():
+        отм = c.execute("SELECT avatar_updated_at FROM users WHERE id = ?",
+                        (uid,)).fetchone()[0]
+        if отм:
+            сч["файлы строк avatars|" + e] = int(os.path.isfile(
+                os.path.join(кат, "avatars", "%d.png" % uid)))
+    for т, вид in МЕДИА_СТРОК:
+        try:
+            if "image_path" not in колонки(c, т):
+                continue
+        except sqlite3.OperationalError:
+            continue
+        for uid, токен in c.execute(
+                'SELECT user_id, image_path FROM "%s" WHERE image_path IS NOT NULL '
+                "AND image_path <> '' AND user_id IN (%s)" % (т, в_списке)):
+            if os.path.isfile(os.path.join(кат, "media", вид, str(uid), токен + ".jpg")):
+                к = "файлы строк media/%s|%s" % (вид, ид[uid])
+                сч[к] = сч.get(к, 0) + 1
+    return {к: n for к, n in сч.items() if n}
+
+
+def записать_эталон(путь=None):
+    """Снять эталон посева. Зовётся последним действием `--seed`."""
+    путь = путь or путь_базы()
+    c = sqlite3.connect("file:%s?mode=ro" % путь, uri=True)
+    try:
+        сч = посев_счёт(c, путь)
+    finally:
+        c.close()
+    import time
+    io.open(путь_эталона(путь), "w", encoding="utf-8").write(json.dumps(
+        {"база": os.path.abspath(путь), "снят": time.strftime("%Y-%m-%d %H:%M:%S"),
+         "счёт": сч}, ensure_ascii=False, indent=1, sort_keys=True))
+    return сч
+
+
+def прочитать_эталон(путь):
+    try:
+        return json.loads(io.open(путь_эталона(путь), encoding="utf-8").read())
+    except (OSError, ValueError):
+        return None
+
+
+def пропажа(c, путь):
+    """([(ключ, было, стало)], эталон|None). None — спросить нечем."""
+    эт = прочитать_эталон(путь)
+    if not эт:
+        return [], None
+    сейчас = посев_счёт(c, путь)
+    return ([(к, n, сейчас.get(к, 0)) for к, n in sorted(эт["счёт"].items())
+             if сейчас.get(к, 0) < n], эт)
+
+
 def семя_главной():
     """Места, которые заводит seed. ИМПОРТОМ, а не копией списка."""
     import make_local_user as m
@@ -335,7 +503,15 @@ def прогон(показывать=True):
         return 2, [], set()
     c = sqlite3.connect("file:%s?mode=ro" % путь, uri=True)
     находки, свои, есть = опись(c)
+    пропало, эталон = пропажа(c, путь) if есть else ([], None)
     c.close()
+    # ПРОПАЖА — ТАКАЯ ЖЕ НАХОДКА, КАК ЛИШНЕЕ: в тот же список и в тот же
+    # код возврата. Отдельный флаг «а ещё пропало» читали бы как примечание
+    if есть:
+        for к, было, стало in пропало:
+            т, _, чей = к.partition("|")
+            находки.append((т, было - стало, "ПРОПАЛО посеянное (%s): было %d, стало %d"
+                            % (чей, было, стало)))
     if not есть:
         if показывать:
             print("СПРОСИТЬ НЕЧЕМ: ни одного аккаунта seed в базе.")
@@ -347,18 +523,88 @@ def прогон(показывать=True):
         print("аккаунтов seed: %d (%s)"
               % (len(свои), ", ".join(str(i) for i in sorted(свои))))
         print()
-        if находки:
+        лишн = [з for з in находки if not з[2].startswith("ПРОПАЛО")]
+        проп = [з for з in находки if з[2].startswith("ПРОПАЛО")]
+        if лишн:
             print("ЧУЖОЕ (не заводит seed, не убирают ни --drop, ни --seed):")
-            for т, n, что in находки:
+            for т, n, что in лишн:
                 print("  %-32s %6d  %s" % (т, n, что))
-            print()
-            print("строк чужих: %d" % sum(n for _, n, _ in находки))
+            print("строк чужих: %d" % sum(n for _, n, _ in лишн))
         else:
-            print("ЧУЖОГО НЕТ — стенд в известном виде.")
+            print("ЧУЖОГО НЕТ.")
+        if эталон is None:
+            print("ПРОПАЖУ СПРОСИТЬ НЕЧЕМ: эталона посева нет (%s)." % ЭТАЛОН_ИМЯ)
+            print("  Это НЕ «ничего не пропало». Пересейте: py make_local_user.py --seed")
+        elif проп:
+            print("ПРОПАЛО ПОСЕЯННОЕ (эталон %s; приведение это не лечит — "
+                  "пересейте):" % эталон["снят"])
+            for т, n, что in проп:
+                print("  %-32s %6d  %s" % (т, n, что))
+        else:
+            print("ПОСЕЯННОЕ НА МЕСТЕ: ключей эталона %d, убыло 0 (эталон %s)."
+                  % (len(эталон["счёт"]), эталон["снят"]))
+        if not находки and эталон is not None:
+            print("СТЕНД В ИЗВЕСТНОМ ВИДЕ — лишнего нет, пропажи нет.")
+    if есть and эталон is None and not находки:
+        return 2, находки, свои
     return (1 if находки else 0), находки, свои
 
 
+def покрытие():
+    """ЧТО ОПИСЬ СПРАШИВАЕТ — по каждой сущности стенда, в обе стороны.
+
+    Сущности ВЫВОДЯТСЯ: все таблицы схемы плюс каталоги файлов рядом
+    с базой. Перечня «что проверять» здесь нет — только ответ по каждой.
+    """
+    import database as d
+    путь = путь_базы()
+    c = sqlite3.connect("file:%s?mode=ro" % путь, uri=True)
+    таблицы = sorted(r[0] for r in c.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name NOT LIKE 'sqlite_%'"))
+    эт = прочитать_эталон(путь)
+    ключи_эт = {к.partition("|")[0] for к in (эт or {}).get("счёт", {})}
+    c.close()
+    с_хозяином = (set(d.USER_TABLES) | {т for т, _ in d.ВСТРЕЧНЫЕ_ССЫЛКИ}
+                  | {х[0] for х in d.CHILD_TABLES})
+    лишнее_общее = {"users", "enshrouded_sets", "exercises", "landing_media"}
+    строки = []
+    for т in таблицы:
+        лишн = т not in ЖУРНАЛЫ and (т in с_хозяином or т in лишнее_общее) \
+            or т == "exercises"
+        проп = (т not in ЖУРНАЛЫ or т == "exercises") and (
+            т in с_хозяином or т in лишнее_общее)
+        причина = ЖУРНАЛЫ.get(т, "") if т != "exercises" else ""
+        строки.append((т, лишн, проп, т in ключи_эт, причина))
+    for кат, лишн in (("файлы строк landing", True), ("файлы строк avatars", False),
+                      ("файлы строк media/*", False), ("файлы enshrouded (том)", False),
+                      ("файлы previews", False)):
+        проп = кат in ("файлы строк landing", "файлы строк avatars", "файлы строк media/*")
+        причина = ("кеш кадров, не посев" if "previews" in кат else
+                   "загрузки экрана каталога, seed их не заводит"
+                   if "enshrouded" in кат else "")
+        в_эт = any(к.startswith(кат.replace("/*", "")) for к in ключи_эт)
+        строки.append((кат, лишн, проп, в_эт, причина))
+    print("ПОКРЫТИЕ ОПИСИ: сущностей %d" % len(строки))
+    print("  %-28s %-7s %-8s %-10s %s" % ("сущность", "лишнее", "пропажа",
+                                         "в эталоне", "почему нет"))
+    for т, л, п, в, прич in строки:
+        print("  %-28s %-7s %-8s %-10s %s" % (т, "да" if л else "НЕТ",
+                                             "да" if п else "НЕТ",
+                                             "да" if в else "-", прич))
+    print("  лишнее спрашивается у %d из %d, пропажа — у %d из %d"
+          % (sum(1 for з in строки if з[1]), len(строки),
+             sum(1 for з in строки if з[2]), len(строки)))
+    return 0
+
+
 def main():
+    if "--эталон" in sys.argv:
+        сч = записать_эталон()
+        print("ЭТАЛОН ПОСЕВА снят: ключей %d, %s" % (len(сч), путь_эталона(путь_базы())))
+        return 0
+    if "--покрытие" in sys.argv:
+        return покрытие()
     код, находки, свои = прогон()
     if код == 2:
         return 2
@@ -370,11 +616,17 @@ def main():
         print("УБРАНО: аккаунтов %d, сирот %d, сетов и мест главной вне семени %d, "
               "статусов упражнений возвращено %d" % (людей, сирот, сетов, статусов))
         код2, ост, _ = прогон(показывать=False)
+        проп = [з for з in ост if з[2].startswith("ПРОПАЛО")]
         print("ПОСЛЕ ПРИВЕДЕНИЯ: %s"
               % ("чужого нет" if код2 == 0 else "ОСТАЛОСЬ %s" % (ост,)))
+        if проп:
+            print("  Пропажу приведение не возвращает: py make_local_user.py --seed")
         return 0 if код2 == 0 else 1
     print()
-    print("убрать: py check_stand_state.py --привести")
+    if any(not з[2].startswith("ПРОПАЛО") for з in находки):
+        print("убрать чужое: py check_stand_state.py --привести")
+    if any(з[2].startswith("ПРОПАЛО") for з in находки):
+        print("вернуть посеянное: py make_local_user.py --seed")
     return 1
 
 
@@ -390,7 +642,15 @@ def main():
     "чужой-аккаунт": "SELECT COUNT(*) FROM users",
     "чужой-сет": "SELECT COUNT(*) FROM enshrouded_sets",
     "чужой-статус": "SELECT COUNT(*) FROM exercises WHERE video_status = 'approved'",
+    # ПОДЛОГ ОБРАТНЫЙ ПРЕЖНИМ ТРЁМ: строк становится МЕНЬШЕ. Считаются
+    # позиции аптечки аккаунтов seed прямо в базе, а не через `посев_счёт`
+    # описи — иначе доказательство и вердикт были бы одной функцией
+    "пропажа-аптечки": ("SELECT COUNT(*) FROM medkit_items WHERE user_id IN "
+                        "(SELECT id FROM users WHERE email LIKE '%@local.dev')"),
 }
+
+# Сдвиг числа строк, который обязан дать подлог
+ОЖИДАНИЕ = {"пропажа-аптечки": -1}
 
 
 def доказать_подлог(путь, запрос):
@@ -425,6 +685,18 @@ def доказать_подлог(путь, запрос):
      "AND video_status = 'no_video')",
      "UPDATE exercises SET video_status = 'no_video' WHERE video_status = "
      "'approved' AND (youtube_id IS NULL OR youtube_id = '')"),
+    # ПОСЕЯННАЯ ПОЗИЦИЯ УНЕСЕНА — ровно то, что сделал `--очистить`, только
+    # одной строкой. Возвращается ТА ЖЕ строка с тем же id: копия берётся
+    # в свою таблицу в той же базе ДО удаления. Категории позиции не
+    # трогаются — после возврата они снова ссылаются на живую строку.
+    ("пропажа-аптечки",
+     ["DROP TABLE IF EXISTS zz_control_item",
+      "CREATE TABLE zz_control_item AS SELECT * FROM medkit_items WHERE id = "
+      "(SELECT MIN(id) FROM medkit_items WHERE user_id IN "
+      "(SELECT id FROM users WHERE email LIKE '%@local.dev'))",
+      "DELETE FROM medkit_items WHERE id IN (SELECT id FROM zz_control_item)"],
+     ["INSERT INTO medkit_items SELECT * FROM zz_control_item",
+      "DROP TABLE zz_control_item"]),
 )
 
 
@@ -444,7 +716,8 @@ def контроль():
         до = доказать_подлог(путь, ДОКАЗАТЕЛЬСТВА[имя])
         c = sqlite3.connect(путь)
         try:
-            c.execute(вставка)
+            for з in (вставка if isinstance(вставка, list) else [вставка]):
+                c.execute(з)
             c.commit()
         except sqlite3.OperationalError as e:
             print("  %-16s ПОДЛОГ НЕ СОСТОЯЛСЯ: %s" % (имя, e))
@@ -453,11 +726,15 @@ def контроль():
             continue
         c.close()
         после = доказать_подлог(путь, ДОКАЗАТЕЛЬСТВА[имя])
-        состоялся = после == до + 1
-        к, _, _ = прогон(показывать=False)
-        нашла = к == 1
+        состоялся = после == до + ОЖИДАНИЕ.get(имя, 1)
+        к, наход, _ = прогон(показывать=False)
+        # НАЙТИ ОБЯЗАНА СВОЁ: подлог пропажи назван пропажей, лишнего —
+        # лишним. Иначе «нашла» могло бы значить «нашла что-то другое»
+        пропажа_названа = any(з[2].startswith("ПРОПАЛО") for з in наход)
+        нашла = к == 1 and (пропажа_названа == (имя in ОЖИДАНИЕ))
         c = sqlite3.connect(путь)
-        c.execute(чистка)
+        for з in (чистка if isinstance(чистка, list) else [чистка]):
+            c.execute(з)
         c.commit()
         c.close()
         вернулось = доказать_подлог(путь, ДОКАЗАТЕЛЬСТВА[имя])

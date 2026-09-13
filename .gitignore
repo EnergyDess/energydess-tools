@@ -94,3 +94,7 @@ review_screenshots/
 .dosage_cache/
 .main_before_control.bak
 .probe_runs.json
+
+# ЭТАЛОН ПОСЕВА СТЕНДА (BACKLOG №332): снимается `make_local_user.py --seed`
+# рядом с базой. Свойство конкретной локальной базы, а не исходный код.
+stand_seed_ref.json

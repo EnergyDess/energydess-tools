@@ -2341,6 +2341,11 @@ def main() -> int:
                 return 0
             отчёт = delete_user_cascade(u.id)
             print(f"Удалён {EMAIL}: {отчёт}")
+            # Эталон удалённого посева о стенде больше не говорит ничего
+            import check_stand_state
+            эт = check_stand_state.путь_эталона(путь)
+            if os.path.exists(эт):
+                os.remove(эт)
             return 0
 
         if нп:
@@ -3071,6 +3076,15 @@ def main() -> int:
         print(f"Всё отсчитано от {база.isoformat()} — «сегодня» у данных "
               f"заморожено на этой дате.")
         print(f"Пароль: {PASSWORD}")
+        # ЭТАЛОН ПОСЕВА — ПОСЛЕДНИМ ДЕЙСТВИЕМ (BACKLOG №332). По нему опись
+        # стенда спрашивает ПРОПАЖУ посеянного, а не только лишнее. Снимается
+        # после commit и после всех дописей выше: эталон, снятый раньше,
+        # объявил бы пропажей то, что посев ещё не успел положить.
+        db.commit()
+        import check_stand_state
+        эталон = check_stand_state.записать_эталон(путь)
+        print(f"Эталон посева снят: ключей {len(эталон)} "
+              f"({check_stand_state.ЭТАЛОН_ИМЯ} рядом с базой)")
         return 0
     finally:
         db.close()
