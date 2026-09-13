@@ -207,12 +207,57 @@
     <p class="pf-tools-join">Инструменты открываются после <a href="/register">регистрации</a>.</p>
   </section>
 
-  <!-- ── S4: CTA ── -->
-  <section class="cta">
-    <h2 class="reveal">Готовы попробовать?</h2>
-    <p class="cta-tagline reveal">Все инструменты в одном аккаунте. Бесплатно.</p>
-    <p class="cta-sub reveal">Регистрация занимает 30 секунд. Доступ по приглашению.</p>
-    <a href="/register" class="btn-primary btn-lg btn-glow reveal">Создать аккаунт →</a>
+  <!-- ── Проекты ── -->
+  {# ТРИ КАРТОЧКИ СТОПКОЙ (блок F). Каждая прилипает под шапкой, следующая
+     наезжает на предыдущую, а предыдущая слегка уменьшается — масштаб
+     пишет скрипт от прокрутки. При «уменьшить движение» и на узком экране
+     карточки идут обычным списком.
+     НАЗВАНИЯ И ССЫЛКИ — ЗАГОТОВКИ ВЛАДЕЛЬЦА. У проекта без ссылки кнопка
+     не притворяется рабочей: вместо неё подпись «ссылка появится», иначе
+     кнопка обещала бы действие, которого нет. #}
+  {% set проекты = [
+      {'n': '01', 'kind': 'монтаж', 'title': 'Шоурил', 'url': None},
+      {'n': '02', 'kind': 'AI-видео', 'title': 'AI-сериалы', 'url': None},
+      {'n': '03', 'kind': 'инструменты', 'title': 'EnergyDess', 'url': '#pf-tools-h'},
+  ] %}
+  <section class="pf-projects" aria-labelledby="pf-projects-h">
+    <h2 id="pf-projects-h" class="pf-grad pf-sec-h">Проекты</h2>
+    <div class="pf-proj-stack">
+      {% for п in проекты %}
+      <article class="pf-proj" style="--n: {{ loop.index0 }}">
+        <div class="pf-proj-card">
+          <header class="pf-proj-head">
+            <span class="pf-proj-n" aria-hidden="true">{{ п.n }}</span>
+            <div class="pf-proj-name">
+              <p class="pf-proj-kind">{{ п.kind }}</p>
+              <h3 class="pf-proj-title">{{ п.title }}</h3>
+            </div>
+            {% if п.url %}
+            <a href="{{ п.url }}" class="btn-secondary pf-proj-go">Смотреть</a>
+            {% else %}
+            <span class="pf-proj-soon">ссылка появится</span>
+            {% endif %}
+          </header>
+          {% set номер = loop.index %}
+          <div class="pf-proj-grid">
+            {% for буква in ('a', 'b', 'c') %}
+            <div class="pf-proj-{{ буква }}">{{ ms.slot(места['project-%d-%s' % (номер, буква)]) }}</div>
+            {% endfor %}
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- ── Связаться ── -->
+  <section class="pf-final" aria-labelledby="pf-final-h">
+    <h2 id="pf-final-h" class="pf-grad pf-sec-h">Давайте поработаем</h2>
+    <p class="pf-final-sub">Напишите — отвечу. Инструменты открываются после регистрации.</p>
+    <div class="pf-final-btns">
+      <a href="mailto:pr@energydess.ru" class="btn-primary btn-lg">Связаться</a>
+      <a href="/register" class="btn-secondary btn-lg">Зарегистрироваться</a>
+    </div>
   </section>
 
 </main>

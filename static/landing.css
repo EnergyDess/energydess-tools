@@ -436,22 +436,94 @@ body::before {
   .pf-mock .pf-bar-fill, .pf-mock .pf-ring-fill, .pf-mock .pf-chk { transition: none; }
 }
 
-/* ── CTA ────────────────────────────────────────────────────────────────── */
-.cta {
-  text-align: center;
-  padding: var(--space-9) var(--space-5) var(--space-10);
+/* ── Проекты (заход 334, блок F) ────────────────────────────────────────────
+   СТОПКА НА `position: sticky`. Карточка прилипает под шапкой (64px —
+   место внесено в design-system.md §4.1) с отступом на ступень за каждую
+   предыдущую: край нижней карточки остаётся виден. Масштаб приходит
+   от скрипта переменной `--pf-scale` на внутреннюю коробку — сама
+   прилипающая коробка не масштабируется, иначе сдвинулась бы её граница
+   прилипания. */
+.pf-projects {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: var(--space-10) var(--space-6);
 }
-.cta h2 {
-  font-size: var(--text-h1);
-  font-weight: 800;
-  margin-bottom: var(--space-3);
-  color: var(--text-strong);
+.pf-proj {
+  position: sticky;
+  top: calc(64px + var(--space-5) + var(--n, 0) * var(--space-4));
+  margin-bottom: var(--space-8);
 }
-.cta .cta-tagline { font-size: var(--text-body-lg); font-weight: 600; color: var(--text); margin-bottom: var(--space-2); }
-.cta .cta-sub { color: var(--text-2); font-size: var(--text-body-sm); margin-bottom: var(--space-6); }
-/* Финальный CTA — .btn-lg .btn-glow в разметке (style.css) */
+.pf-proj:last-child { margin-bottom: 0; }
+.pf-proj-card {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  transform: scale(var(--pf-scale, 1));
+  transform-origin: top center;
+}
+.pf-proj-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-5);
+  align-items: center;
+}
+.pf-proj-n {
+  font-family: var(--font-mono);
+  font-size: clamp(2rem, 4vw, 4rem);
+  line-height: 1;
+  color: var(--text-faint);
+}
+.pf-proj-kind {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.pf-proj-title { margin: 0; font-size: var(--text-h2); font-weight: 700; letter-spacing: -0.02em; color: var(--text-strong); }
+.pf-proj-soon { font-size: var(--text-body-sm); color: var(--text-faint); }
+/* Сетка из трёх: две 4:3 столбцом слева, одна 3:4 справа на обе строки.
+   Колонки 8fr : 9fr — при таком делении столбец из двух 4:3 и одна 3:4
+   одной высоты с точностью до зазора. */
+.pf-proj-grid {
+  display: grid;
+  grid-template-columns: 8fr 9fr;
+  grid-template-rows: auto auto;
+  gap: var(--space-4);
+  align-items: start;
+}
+.pf-proj-c { grid-column: 2; grid-row: 1 / span 2; }
+/* КАРТОЧКА ОБЯЗАНА ВЛЕЗАТЬ В ОКНО, иначе следующая наедет на её низ раньше,
+   чем человек его увидит. Высота сетки ≈ 0.71 её ширины, поэтому ширина
+   ограничена от высоты окна: окно минус шапка и 14rem на заголовок
+   карточки, поля и отступ стопки у третьей карточки. Первая версия брала
+   12rem, и на 1920 карточка в 979 px не влезала в 976 и 960 px под
+   второй и третьей прилипшей (замер пробы). */
+.pf-proj-grid { width: min(100%, calc((100svh - 64px - 14rem) * 1.41)); margin-inline: auto; }
 
-/* ── Адаптив ────────────────────────────────────────────────────────────── */
-@media (max-width: 640px) {
-  .cta { padding: var(--space-8) var(--space-4); }
+/* ── Связаться ────────────────────────────────────────────────────────────── */
+.pf-final {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+}
+.pf-final .pf-sec-h { margin-bottom: var(--space-4); }
+.pf-final-sub { margin: 0 auto var(--space-7); max-width: 36rem; font-size: var(--text-body-lg); color: var(--text-2); }
+.pf-final-btns { display: flex; flex-wrap: wrap; gap: var(--space-4); justify-content: center; }
+
+@media (max-width: 600px) {
+  .pf-projects, .pf-final { padding: var(--space-9) var(--space-4); }
+  .pf-proj-card { padding: var(--space-4); }
+  .pf-proj-head { grid-template-columns: auto minmax(0, 1fr); }
+  .pf-proj-go, .pf-proj-soon { grid-column: 1 / -1; }
+  .pf-final-btns > * { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pf-proj { position: static; }
+  .pf-proj-card { transform: none; }
 }

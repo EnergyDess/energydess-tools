@@ -16,6 +16,7 @@
   py check_portfolio.py --лента     # C: бегущая лента работ
   py check_portfolio.py --о-себе    # D: о себе
   py check_portfolio.py --инструменты   # E: инструменты
+  py check_portfolio.py --проекты   # F: проекты и подвал
   ... --контроль                     # подлог звена: B — сдвиг портрета,
                                      #   C — ролики грузятся сразу
   py check_portfolio.py --лента --контроль-плавности   # C: рывок ряда
@@ -871,6 +872,161 @@ def инструменты(контроль=False):
             бр.close()
 
 
+# ══ F. ПРОЕКТЫ И ПОДВАЛ ═══════════════════════════════════════════════
+
+ЗАМЕР_ПРОЕКТОВ = r"""() => {
+  const карточки = [...document.querySelectorAll('.pf-proj')];
+  if (!карточки.length) return null;
+  const пр = e => { const b = e.getBoundingClientRect();
+    return {x: b.left, y: b.top, w: b.width, h: b.height, r: b.right, b: b.bottom}; };
+  return {vh: innerHeight, vw: document.documentElement.clientWidth, scrollY,
+    карточки: карточки.map(к => {
+      const коробка = к.firstElementChild;
+      const места = {};
+      for (const б of ['a', 'b', 'c']) {
+        const м = к.querySelector('.pf-proj-' + б + ' .media-slot');
+        места[б] = м ? Object.assign(пр(м), {заполнено: м.dataset.filled}) : null;
+      }
+      const стиль = getComputedStyle(к);
+      return {n: (к.querySelector('.pf-proj-n') || {}).textContent,
+              род: (к.querySelector('.pf-proj-kind') || {}).textContent,
+              имя: (к.querySelector('.pf-proj-title') || {}).textContent,
+              кнопка: !!к.querySelector('.pf-proj-go, .pf-proj-soon'),
+              прилипание: стиль.position, верх_прилипания: parseFloat(стиль.top),
+              коробка: пр(к), карточка: пр(коробка),
+              масштаб: коробка.getBoundingClientRect().width / коробка.offsetWidth,
+              места};
+    }),
+    кнопки: [...document.querySelectorAll('.pf-final-btns a')].map(а => Object.assign(пр(а),
+            {href: а.getAttribute('href'), текст: а.textContent.trim()}))};
+}"""
+
+
+def проекты(контроль=False):
+    from PIL import Image
+    from playwright.sync_api import sync_playwright
+    print("F. ПРОЕКТЫ И ПОДВАЛ — гостем, головной браузер, стенд %s" % БАЗА)
+    каталог = tempfile.mkdtemp(prefix="pf_")
+    файл = os.path.join(каталог, "proj.png")
+    Image.new("RGB", (1600, 1200), (160, 110, 70)).save(файл)
+
+    with sync_playwright() as p:
+        бр = p.chromium.launch(headless=False)
+        админ = бр.new_context()
+        ад = админ.new_page()
+        _войти(ад, *АДМИН)
+        положили = False
+        try:
+            пустые = {}
+            for ш, в, сенсор in ШИРИНЫ:
+                print("\n  ── %d×%d%s" % (ш, в, " (сенсор)" if сенсор else ""))
+                к = _контекст(бр, ш, в, сенсор)
+                с = к.new_page()
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                if контроль:
+                    # ПОДЛОГ ЗВЕНА «УМЕНЬШЕНИЕ»: масштаб карточки снят.
+                    с.add_style_tag(content=".pf-proj-card{transform:none!important}")
+                с.wait_for_timeout(500)
+                з = с.evaluate(ЗАМЕР_ПРОЕКТОВ)
+                if з is None:
+                    шаг("секция проектов есть", False, "нет .pf-proj")
+                    к.close()
+                    continue
+                полных = [кр for кр in з["карточки"]
+                          if кр["n"] and кр["род"] and кр["имя"] and кр["кнопка"] and all(з_ for з_ in кр["места"].values())]
+                шаг("карточек 3: номер, род работы, название, кнопка, три картинки",
+                    len(з["карточки"]) == 3 and len(полных) == 3,
+                    ", ".join("%s %s" % (кр["n"], кр["имя"]) for кр in з["карточки"]), собрано=len(з["карточки"]))
+                сетка = [кр["имя"] for кр in з["карточки"]
+                         if кр["места"]["c"]["x"] >= кр["места"]["a"]["r"] and кр["места"]["c"]["x"] >= кр["места"]["b"]["r"]
+                         and кр["места"]["b"]["y"] >= кр["места"]["a"]["b"]
+                         and кр["места"]["c"]["r"] <= кр["карточка"]["r"] + 0.5 and кр["места"]["b"]["b"] <= кр["карточка"]["b"] + 0.5]
+                шаг("в карточке две картинки слева столбцом, высокая справа", len(сетка) == len(з["карточки"]),
+                    "по сетке %d из %d" % (len(сетка), len(з["карточки"])), собрано=len(з["карточки"]))
+                влезают = [кр["имя"] for кр in з["карточки"] if кр["коробка"]["h"] <= в - кр["верх_прилипания"]]
+                шаг("карточка влезает в окно под шапкой — прилипшую видно целиком",
+                    len(влезают) == len(з["карточки"]),
+                    "высота карточек %s при месте %s" % (
+                        [round(кр["коробка"]["h"]) for кр in з["карточки"]],
+                        [round(в - кр["верх_прилипания"]) for кр in з["карточки"]]), собрано=len(з["карточки"]))
+                # стопка: вторая наехала на первую на 40% высоты первой
+                с.evaluate("""() => { const а = [...document.querySelectorAll('.pf-proj')];
+                  const y = а[1].getBoundingClientRect().top + scrollY - (а[0].getBoundingClientRect().height * 0.6
+                            + parseFloat(getComputedStyle(а[0]).top));
+                  window.scrollTo({top: y, behavior: 'instant'}); }""")
+                с.wait_for_timeout(500)
+                ст = с.evaluate(ЗАМЕР_ПРОЕКТОВ)
+                п0, п1 = ст["карточки"][0], ст["карточки"][1]
+                наезд = п0["коробка"]["b"] - п1["коробка"]["y"]
+                шаг("стопка: первая прилипла, вторая наехала, первая уменьшилась",
+                    п0["прилипание"] == "sticky" and abs(п0["коробка"]["y"] - п0["верх_прилипания"]) <= 1
+                    and наезд > 1 and п0["масштаб"] < 0.995 and п1["масштаб"] > 0.999,
+                    "верх первой %.0f при прилипании %.0f, наезд %.0f px, масштаб первой %.3f, второй %.3f" % (
+                        п0["коробка"]["y"], п0["верх_прилипания"], наезд, п0["масштаб"], п1["масштаб"]))
+                кн = з["кнопки"]
+                ряд = len(кн) == 2 and (abs(кн[0]["y"] - кн[1]["y"]) < 1 if ш > 600 else кн[1]["y"] >= кн[0]["b"])
+                шаг("подвал: «Связаться» и «Зарегистрироваться» рядом (на узком — столбцом)",
+                    len(кн) == 2 and кн[0]["href"].startswith("mailto:") and кн[1]["href"] == "/register" and ряд,
+                    " | ".join("%s → %s" % (к_["текст"], к_["href"]) for к_ in кн), собрано=len(кн))
+                пустые[(ш, в)] = з
+                к.close()
+
+                к = _контекст(бр, ш, в, сенсор, движение="reduce")
+                с = к.new_page()
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                с.evaluate("""() => window.scrollTo({top: document.querySelectorAll('.pf-proj')[1].offsetTop - innerHeight / 3, behavior: 'instant'})""")
+                с.wait_for_timeout(500)
+                т = с.evaluate(ЗАМЕР_ПРОЕКТОВ)
+                наездов = sum(1 for а, б in zip(т["карточки"], т["карточки"][1:]) if а["коробка"]["b"] > б["коробка"]["y"] + 0.5)
+                шаг("«уменьшить движение»: карточки подряд, без прилипания и масштаба",
+                    all(кр["прилипание"] != "sticky" and abs(кр["масштаб"] - 1) < 0.001 for кр in т["карточки"]) and наездов == 0,
+                    "прилипают %d, масштаб %s, наездов %d" % (
+                        sum(1 for кр in т["карточки"] if кр["прилипание"] == "sticky"),
+                        ["%.3f" % кр["масштаб"] for кр in т["карточки"]], наездов), собрано=len(т["карточки"]))
+                к.close()
+
+            print("\n  ── подлог: картинка «Проект 2 · справа» положена, затем убрана")
+            было = пустые.get((1920, 1080), {}).get("карточки", [{}, {}])[1].get("места", {}).get("c", {}).get("заполнено")
+            if было != "no":
+                шаг("место проекта 2 справа пусто — подлог можно провести", False,
+                    "место заполнено (%s): чужой файл не трогаем" % было)
+                return
+            код = _место(ад, "project-2-c", "положить", файл)
+            положили = код == 200
+            шаг("картинка положена боевой загрузкой", положили, "HTTP %s" % код)
+
+            def замер(ш, в, сенсор, css=None):
+                к = _контекст(бр, ш, в, сенсор, движение="reduce")
+                с = к.new_page()
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                if css:
+                    с.add_style_tag(content=css)
+                с.wait_for_timeout(400)
+                з = с.evaluate(ЗАМЕР_ПРОЕКТОВ)
+                к.close()
+                return з
+            с_файлом = {(ш, в): замер(ш, в, сн) for ш, в, сн in ШИРИНЫ}
+            код = _место(ад, "project-2-c", "убрать")
+            if код == 200:
+                положили = False
+            шаг("картинка убрана из хранилища", код == 200, "HTTP %s" % код)
+            for ш, в, сенсор in ШИРИНЫ:
+                пусто = замер(ш, в, сенсор,
+                              ".pf-proj-c .media-slot{aspect-ratio:auto!important}" if контроль else None)
+                полно = с_файлом[(ш, в)]
+                а, б = полно["карточки"][1], пусто["карточки"][1]
+                сдвиг = max([abs(а["коробка"][о] - б["коробка"][о]) for о in ("x", "y", "w", "h")] +
+                            [abs(а["места"][м][о] - б["места"][м][о]) for м in "abc" for о in ("x", "y", "w", "h")])
+                шаг("%d×%d: картинка убрана — заглушка встала, карточка не поехала" % (ш, в),
+                    б["места"]["c"]["заполнено"] == "no" and сдвиг <= 0.5,
+                    "доказательство: заполнено %s→%s; сдвиг %.2f px" % (
+                        а["места"]["c"]["заполнено"], б["места"]["c"]["заполнено"], сдвиг))
+        finally:
+            if положили:
+                print("  уборка: картинка снята — HTTP %s" % _место(ад, "project-2-c", "убрать"))
+            бр.close()
+
+
 def main():
     арг = sys.argv[1:]
     if "--экран" in арг:
@@ -881,6 +1037,8 @@ def main():
         о_себе(контроль="--контроль" in арг)
     elif "--инструменты" in арг:
         инструменты(контроль="--контроль" in арг)
+    elif "--проекты" in арг:
+        проекты(контроль="--контроль" in арг)
     else:
         print(__doc__)
         return 2

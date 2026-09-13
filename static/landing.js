@@ -126,6 +126,31 @@
     макеты.forEach(function (м) { м.setAttribute('data-pf-state', 'done'); });
   }
 
+  /* ПРОЕКТЫ (блок F): карточка, на которую наезжает следующая, уменьшается
+     до 0.94 — пропорционально тому, какую часть её закрыла следующая.
+     Прилипание делает CSS; здесь только масштаб, и пишется он в событии
+     прокрутки, как у ленты. «Уменьшить движение» — масштаба нет. */
+  var карточки = Array.prototype.slice.call(document.querySelectorAll('.pf-proj'));
+  if (карточки.length > 1) {
+    var сжать = function () {
+      for (var i = 0; i < карточки.length; i++) {
+        var коробка = карточки[i].firstElementChild;
+        if (тихо.matches || i === карточки.length - 1) {
+          коробка.style.removeProperty('--pf-scale');
+          continue;
+        }
+        var к = карточки[i].getBoundingClientRect();
+        var след = карточки[i + 1].getBoundingClientRect();
+        var доля = Math.min(1, Math.max(0, (к.bottom - след.top) / к.height));
+        коробка.style.setProperty('--pf-scale', (1 - 0.06 * доля).toFixed(4));
+      }
+    };
+    сжать();
+    window.addEventListener('scroll', сжать, { passive: true });
+    window.addEventListener('resize', сжать);
+    if (тихо.addEventListener) тихо.addEventListener('change', сжать);
+  }
+
   var лента = document.querySelector('.pf-feed');
   if (!лента) return;
 
