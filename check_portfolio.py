@@ -14,6 +14,9 @@
 
   py check_portfolio.py --экран     # B: первый экран
   py check_portfolio.py --лента     # C: бегущая лента работ
+  ... --контроль                     # подлог звена: B — сдвиг портрета,
+                                     #   C — ролики грузятся сразу
+  py check_portfolio.py --лента --контроль-плавности   # C: рывок ряда
 
 МЕРКА НЕ БЕРЁТ ДАННЫЕ У ПРОВЕРЯЕМОГО КОДА: ни `landing_defs`, ни шаблон
 не читаются — только живое дерево, пиксели снимка и сеть браузера.
@@ -313,10 +316,245 @@ def экран(контроль_сдвига=False):
             бр.close()
 
 
+# ══ C. БЕГУЩАЯ ЛЕНТА ══════════════════════════════════════════════════
+
+ЛЕНТА_СОСТОЯНИЕ = r"""() => {
+  const лента = document.querySelector('.pf-feed');
+  if (!лента) return null;
+  const vw = document.documentElement.clientWidth;
+  const ряды = [...лента.querySelectorAll('.pf-feed-row')].map(р => {
+    const д = р.firstElementChild, к = д.getBoundingClientRect();
+    return {знак: Number(р.dataset.feedDir), лево: к.left, право: к.right,
+            сдвиг: new DOMMatrix(getComputedStyle(д).transform).m41};
+  });
+  const коробки = [...лента.querySelectorAll('.media-slot')].map(м => {
+    const к = м.getBoundingClientRect(); return [к.width, к.height, м.dataset.filled]; });
+  const ролики = [...лента.querySelectorAll('video')].map(в => ({
+    src: !!в.getAttribute('src'), играет: !в.paused, время: в.currentTime,
+    готов: в.readyState}));
+  return {vw, scrollY, ряды, коробки, ролики};
+}"""
+
+# Сэмплер кадров: пока идёт прокрутка, КАЖДЫЙ кадр пишет сдвиг рядов
+# и положение прокрутки; плюс сумма сдвигов раскладки (layout-shift).
+СЭМПЛЕР_ЛЕНТЫ = r"""() => {
+  window.__кадры = []; window.__сдвиги = 0;
+  new PerformanceObserver(с => { for (const з of с.getEntries()) window.__сдвиги += з.value; })
+    .observe({type: 'layout-shift', buffered: false});
+  const тик = () => {
+    const ряды = [...document.querySelectorAll('.pf-feed-row')].map(р => {
+      const д = р.firstElementChild, к = д.getBoundingClientRect();
+      return [new DOMMatrix(getComputedStyle(д).transform).m41, к.left, к.right];
+    });
+    const к = document.querySelector('.pf-feed').getBoundingClientRect();
+    window.__кадры.push({y: scrollY, ряды, верх: к.top, низ: к.bottom, vh: innerHeight});
+    if (window.__кадры.length < 100000) requestAnimationFrame(тик);
+  };
+  requestAnimationFrame(тик);
+}"""
+
+# ПОДЛОГ ЗВЕНА «ЛЕНИВАЯ ЗАГРУЗКА»: адреса роликов подставляются сразу
+# после разбора документа — ровно то, от чего блок C3 защищает.
+ПОДЛОГ_ЖАДНО = r"""document.addEventListener('DOMContentLoaded', () => {
+  for (const в of document.querySelectorAll('.pf-feed video[data-src]')) {
+    в.preload = 'auto'; в.setAttribute('src', в.getAttribute('data-src'));
+  }
+});"""
+
+
+# ПОДЛОГ ЗВЕНА «ПЛАВНОСТЬ»: каждое пятое событие прокрутки ряд получает
+# лишние 12 px. Слушатель ставится ПОСЛЕ страничного (по `load`), иначе
+# страничный перезаписал бы сдвиг и подлог не состоялся бы. Доказательство —
+# счётчик применённых рывков, а не вердикт пробы.
+ПОДЛОГ_РЫВОК = r"""window.__рывков = 0;
+window.addEventListener('load', () => {
+  let n = 0;
+  window.addEventListener('scroll', () => {
+    if (++n % 5) return;
+    for (const д of document.querySelectorAll('.pf-feed-track')) {
+      const v = parseFloat(д.style.getPropertyValue('--pf-shift')) || 0;
+      д.style.setProperty('--pf-shift', (v + 12) + 'px');
+    }
+    window.__рывков++;
+  }, {passive: true});
+});"""
+
+
+def _сеть(стр):
+    """Счёт байт и запросов роликов ленты — по сети браузера (CDP)."""
+    cdp = стр.context.new_cdp_session(стр)
+    cdp.send("Network.enable")
+    счёт = {"байт": 0, "роликов": 0}
+
+    def при_ответе(с):
+        адрес = с.get("response", {}).get("url", "")
+        if "/landing-media/" in адрес and ".mp4" in адрес:
+            счёт["роликов"] += 1
+
+    def при_конце(с):
+        счёт["байт"] += int(с.get("encodedDataLength", 0))
+    cdp.on("Network.responseReceived", при_ответе)
+    cdp.on("Network.loadingFinished", при_конце)
+    return счёт
+
+
+def _прокрутить(стр, ш, в, шагов):
+    стр.mouse.move(ш // 2, в // 2)
+    for _ in range(шагов):
+        стр.mouse.wheel(0, 60)
+        стр.wait_for_timeout(16)
+    стр.wait_for_timeout(2500)
+
+
+def лента(контроль=False, рывок=False):
+    from playwright.sync_api import sync_playwright
+    print("C. БЕГУЩАЯ ЛЕНТА — гостем, головной браузер, стенд %s%s" % (
+        БАЗА, " · ПОДЛОГ: адреса роликов сразу" if контроль else ""))
+    with sync_playwright() as p:
+        бр = p.chromium.launch(headless=False)
+        try:
+            for ш, в, сенсор in ШИРИНЫ:
+                print("\n  ── %d×%d%s" % (ш, в, " (сенсор)" if сенсор else ""))
+                к = _контекст(бр, ш, в, сенсор)
+                if контроль:
+                    к.add_init_script(ПОДЛОГ_ЖАДНО)
+                if рывок:
+                    к.add_init_script(ПОДЛОГ_РЫВОК)
+                с = к.new_page()
+                сеть = _сеть(с)
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                с.wait_for_timeout(1500)
+                до = с.evaluate(ЛЕНТА_СОСТОЯНИЕ)
+                if до is None:
+                    шаг("лента есть на странице", False, "нет .pf-feed")
+                    к.close()
+                    continue
+                байт_до, роликов_до = сеть["байт"], сеть["роликов"]
+                заполненных = sum(1 for б in до["коробки"] if б[2] == "yes")
+                с_адресом_до = sum(1 for р in до["ролики"] if р["src"])
+                шаг("в первом экране ролики ленты не грузятся",
+                    роликов_до == 0 and с_адресом_до == 0,
+                    "запросов роликов %d, роликов с адресом %d из %d; скачано всего %d КБ" % (
+                        роликов_до, с_адресом_до, len(до["ролики"]), байт_до // 1024),
+                    собрано=len(до["ролики"]))
+
+                размеры = {(round(б[0], 1), round(б[1], 1)) for б in до["коробки"]}
+                шаг("места ленты одного размера, пустые и заполненные",
+                    len(размеры) == 1,
+                    "коробок %d (заполненных %d), разных размеров %d: %s" % (
+                        len(до["коробки"]), заполненных, len(размеры), sorted(размеры)[:3]),
+                    собрано=len(до["коробки"]))
+
+                с.evaluate(СЭМПЛЕР_ЛЕНТЫ)
+                верх = с.evaluate("() => document.querySelector('.pf-feed').getBoundingClientRect().top + scrollY")
+                высота = с.evaluate("() => document.querySelector('.pf-feed').offsetHeight")
+                цель = int(верх + высота / 2 - в / 2)
+                шагов = max(10, цель // 60)
+                _прокрутить(с, ш, в, шагов)
+                после = с.evaluate(ЛЕНТА_СОСТОЯНИЕ)
+                кадры = с.evaluate("() => window.__кадры")
+                сдвиги_раскладки = с.evaluate("() => window.__сдвиги")
+                байт_после, роликов_после = сеть["байт"], сеть["роликов"]
+                шаг("доехали до ленты — ролики начали грузиться",
+                    роликов_после > 0,
+                    "запросов роликов %d → %d; скачано %d КБ → %d КБ" % (
+                        роликов_до, роликов_после, байт_до // 1024, байт_после // 1024),
+                    собрано=заполненных)
+                с_файлом = [р for р in после["ролики"] if р["src"]]
+                играют = [р for р in с_файлом if р["играет"] and р["время"] > 0.2]
+                шаг("ролики играют сами, без нажатия", len(играют) == len(с_файлом),
+                    "с файлом %d, играют %d" % (len(с_файлом), len(играют)), собрано=len(с_файлом))
+                кнопок = с.evaluate("() => document.querySelectorAll('.pf-feed video[controls], .pf-feed button').length")
+                шаг("в ленте нет плееров и кнопок", кнопок == 0, "органов %d" % кнопок)
+
+                ходы = [р["сдвиг"] - до["ряды"][i]["сдвиг"] for i, р in enumerate(после["ряды"])]
+                шаг("верхний ряд едет вправо, нижний влево",
+                    len(ходы) == 2 and ходы[0] > 1 and ходы[1] < -1,
+                    "прокрутка %d px: верхний %s px, нижний %s px" % (
+                        после["scrollY"] - до["scrollY"],
+                        ("%+.1f" % ходы[0]) if ходы else "-",
+                        ("%+.1f" % ходы[1]) if len(ходы) > 1 else "-"),
+                    собрано=len(ходы))
+
+                # ПЛАВНОСТЬ — ОТКЛОНЕНИЕ ОТ ПРЯМОЙ «сдвиг ряда ↔ прокрутка». Лента
+                # едет от прокрутки, значит в кадрах, где секция в окне, сдвиг
+                # лежит на прямой. Рывок — кадр, ушедший с неё. Отклонение
+                # берётся меньшее из двух: к прокрутке этого кадра и прошлого —
+                # сэмплер и обновление ленты стоят в одном кадре в разном
+                # порядке, задержка на кадр законна. Прямую мерка строит сама
+                # по кадрам, формулу из кода не берёт.
+                видимые = [i for i, кд in enumerate(кадры) if кд["верх"] < кд["vh"] and кд["низ"] > 0]
+                худшее = 0.0
+                скорости = []
+                без_прокрутки = 0
+                for р in range(len(после["ряды"])):
+                    точки = [(кадры[i]["y"], кадры[i]["ряды"][р][0], i) for i in видимые if i > 0]
+                    if len(точки) < 3:
+                        continue
+                    n = len(точки)
+                    sy = sum(x for x, _, _ in точки); ss = sum(s for _, s, _ in точки)
+                    sxx = sum(x * x for x, _, _ in точки); sxs = sum(x * s for x, s, _ in точки)
+                    знам = n * sxx - sy * sy
+                    if not знам:
+                        continue
+                    k = (n * sxs - sy * ss) / знам
+                    c = (ss - k * sy) / n
+                    скорости.append(k)
+                    for y, s, i in точки:
+                        откл = min(abs(s - (c + k * y)), abs(s - (c + k * кадры[i - 1]["y"])))
+                        худшее = max(худшее, откл)
+                for a_, b_ in zip(кадры, кадры[1:]):
+                    if a_["y"] == b_["y"] and any(abs(b_["ряды"][р][0] - a_["ряды"][р][0]) > 0.5
+                                                  for р in range(len(b_["ряды"]))):
+                        без_прокрутки += 1
+                дыр = sum(1 for кд in кадры for _сд, лево, право in кд["ряды"]
+                          if лево > 0.5 or право < после["vw"] - 0.5)
+                if рывок:
+                    print("  доказательство подлога: применено рывков %d" % с.evaluate("() => window.__рывков"))
+                шаг("бег плавный: сдвиг ряда идёт за прокруткой без рывков",
+                    скорости and худшее <= 2.0 and без_прокрутки == 0,
+                    "кадров в окне %d, скорость ряда %s от прокрутки, худшее отклонение %.1f px, ход без прокрутки %d" % (
+                        len(видимые), ["%.2f" % abs(k) for k in скорости], худшее, без_прокрутки),
+                    собрано=len(видимые))
+                шаг("лента бесшовна: ряд перекрывает окно в каждом кадре", дыр == 0,
+                    "кадров с краем ряда внутри окна %d" % дыр, собрано=len(кадры))
+                шаг("раскладка при беге не дёргается", сдвиги_раскладки < 0.001,
+                    "сумма сдвигов раскладки %.4f" % сдвиги_раскладки)
+                к.close()
+
+                к = _контекст(бр, ш, в, сенсор, движение="reduce")
+                if контроль:
+                    к.add_init_script(ПОДЛОГ_ЖАДНО)
+                с = к.new_page()
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                с.wait_for_timeout(800)
+                до_т = с.evaluate(ЛЕНТА_СОСТОЯНИЕ)
+                _прокрутить(с, ш, в, шагов)
+                после_т = с.evaluate(ЛЕНТА_СОСТОЯНИЕ)
+                ход_т = [abs(после_т["ряды"][i]["сдвиг"] - до_т["ряды"][i]["сдвиг"])
+                         for i in range(len(до_т["ряды"]))]
+                шаг("«уменьшить движение»: лента стоит, выключено — едет",
+                    max(ход_т) < 0.5 and min(abs(х) for х in ходы) > 1,
+                    "ход рядов: движение включено %s px, уменьшено %s px" % (
+                        ["%.1f" % abs(х) for х in ходы], ["%.1f" % х for х in ход_т]),
+                    собрано=min(len(ход_т), len(ходы)))
+                с_файлом = [р for р in после_т["ролики"] if р["src"]]
+                стоят = [р for р in с_файлом if not р["играет"] and р["готов"] >= 2]
+                шаг("«уменьшить движение»: ролики не играют, первый кадр показан",
+                    len(стоят) == len(с_файлом),
+                    "с файлом %d, стоят с кадром %d" % (len(с_файлом), len(стоят)),
+                    собрано=len(с_файлом))
+                к.close()
+        finally:
+            бр.close()
+
+
 def main():
     арг = sys.argv[1:]
     if "--экран" in арг:
         экран(контроль_сдвига="--контроль" in арг)
+    elif "--лента" in арг:
+        лента(контроль="--контроль" in арг, рывок="--контроль-плавности" in арг)
     else:
         print(__doc__)
         return 2

@@ -21,11 +21,19 @@
    CSS-переменная в `style=` законна по §6.0.2 (проверка 3b пропускает
    инлайн, целиком состоящий из custom property): это данные для стиля,
    записать их в CSS нечем — соотношение своё у каждого места. #}
-{% macro slot(м) %}
+{# `lazy` — ЛЕНТА ГЛАВНОЙ (заход 334, блок C3). Ролик не получает `src`
+   до доезда до экрана: адрес лежит в `data-src`, подставляет его
+   `static/landing.js`. Без этого первый заход на страницу тянул бы
+   двенадцать роликов разом, пока человек смотрит первый экран.
+   По умолчанию выключен — разметка панели `/admin/landing` прежняя. #}
+{% macro slot(м, lazy=False) %}
 <div class="media-slot{% if м.fit == 'contain' %} media-slot-contain{% endif %}"
      style="--slot-ratio: {{ м.ratio }}"
      data-slot="{{ м.id }}" data-filled="{{ 'yes' if м.file else 'no' }}">
-  {% if м.file and м.file.kind == 'video' %}
+  {% if м.file and м.file.kind == 'video' and lazy %}
+  <video class="media-slot-media" data-src="{{ м.file.src }}" muted loop playsinline
+         preload="none" aria-label="{{ м.label }}"></video>
+  {% elif м.file and м.file.kind == 'video' %}
   <video class="media-slot-media" src="{{ м.file.src }}" muted loop playsinline autoplay
          preload="metadata" aria-label="{{ м.label }}"></video>
   {% elif м.file %}

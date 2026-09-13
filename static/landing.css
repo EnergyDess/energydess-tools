@@ -151,6 +151,28 @@ body::before {
   .pf-enter, .site-header-pf { animation: none; }
 }
 
+/* ── Бегущая лента работ (заход 334, блок C) ─────────────────────────────────
+   Сдвиг ряда пишет скрипт переменной `--pf-shift` на дорожку: только
+   `transform`, раскладка при беге не пересчитывается вовсе. Ширина места
+   от окна, но в пределах: на 390 ролик не меньше 16rem, на 2560 не шире
+   34rem. Лента во всю ширину окна — поле по бокам здесь не нужно, ряд
+   уходит за край намеренно. */
+.pf-feed {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-9) 0;
+  overflow: hidden;
+}
+.pf-feed-track {
+  display: flex;
+  gap: var(--space-4);
+  width: max-content;
+  transform: translate3d(var(--pf-shift, 0px), 0, 0);
+  will-change: transform;
+}
+.pf-feed-set { display: flex; gap: var(--space-4); }
+.pf-feed-item { flex: none; width: clamp(16rem, 26vw, 34rem); }
+
 /* Разделитель между секциями лендинга: системный .divider во всю ширину,
    но обрезанный по ширине текстовых блоков (.details тоже 1100px).
    Свой класс, а не переопределение .divider — компонент общий.

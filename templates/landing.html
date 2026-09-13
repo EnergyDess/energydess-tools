@@ -41,6 +41,28 @@
     </div>
   </section>
 
+  <!-- ── Бегущая лента работ ── -->
+  {# Два ряда по шесть мест. Ряды едут от ПРОКРУТКИ СТРАНИЦЫ, а не сами:
+     верхний вправо, нижний влево (`data-feed-dir`). Каждый ряд повторён
+     трижды — это ПОВТОР ТЕХ ЖЕ ФАЙЛОВ, а не новые места: лента бесшовна
+     при любом сдвиге. Повторы скрыты от программ чтения — читать одно
+     и то же трижды незачем. Ролики без `src` до доезда (`lazy`). #}
+  <section class="pf-feed" aria-label="Работы">
+    {% for ряд in (1, 2) %}
+    <div class="pf-feed-row" data-feed-dir="{{ 1 if ряд == 1 else -1 }}">
+      <div class="pf-feed-track">
+        {% for повтор in range(3) %}
+        <div class="pf-feed-set"{% if повтор %} aria-hidden="true"{% endif %}>
+          {% for н in range(1, 7) %}
+          <div class="pf-feed-item">{{ ms.slot(места['feed-%d-%d' % (ряд, н)], lazy=True) }}</div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+
   <hr class="divider divider-sec">
 
   <!-- ── S2: Инструменты 2×2 ── -->
@@ -324,6 +346,7 @@
 </main>
 
 
+<script src="{{ st('landing.js') }}" defer></script>
 {% include '_page_end.html' %}
 </body>
 </html>
