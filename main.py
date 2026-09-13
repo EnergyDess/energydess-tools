@@ -2387,7 +2387,12 @@ async def demo_program_page(request: Request, slug: str):
 @app.get("/")
 async def index(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
-        return templates.TemplateResponse(request=request, name="landing.html")
+        # ГОСТЕВАЯ ГЛАВНАЯ — ПОРТФОЛИО (заход 334). Места медиа собирает
+        # та же `лнд_места`, что и панель `/admin/landing`: одна сборка
+        # на оба экрана, иначе панель показала бы одно, а страница другое.
+        места = {м["id"]: м for м in лнд_места(db)}
+        return templates.TemplateResponse(request=request, name="landing.html",
+                                          context={"места": места})
 
     tools_with_access = [
         {**t, "has_access": user_has_access(user, t["id"], db)}

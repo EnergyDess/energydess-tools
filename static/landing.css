@@ -26,16 +26,27 @@ body::before {
   text-align: center;
 }
 
-/* ── Hero ───────────────────────────────────────────────────────────────── */
-.hero {
-  padding: var(--space-10) var(--space-5) var(--space-9);
-  text-align: center;
+/* ── Первый экран портфолио (заход 334, блок B) ────────────────────────────
+   РОВНО ЭКРАН ВМЕСТЕ С ШАПКОЙ. Шапка прилипает и стоит в потоке, поэтому
+   остаток экрана под ней браузер за нас не посчитает: 64px вычитается
+   числом, и это место внесено в таблицу design-system.md §4.1.
+   `svh`, а не `vh`: на телефоне адресная строка то есть, то нет, и `vh`
+   дал бы первый экран выше видимого — ровно «прокрутку внутри».
+
+   Сетка в три строки: заголовок, портрет, низ. Портрет занимает остаток
+   (`minmax(0, 1fr)`) и считает ширину ОТ ВЫСОТЫ через соотношение места —
+   поэтому первый экран влезает в окно любой высоты, а не выпирает. */
+.pf-hero {
   position: relative;
-  max-width: 1100px;
-  margin: 0 auto;
+  height: calc(100svh - 64px);
+  min-height: 34rem;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-6) var(--space-7);
 }
-/* Мягкий радиальный glow за H1 — статичный */
-.hero::before {
+/* Мягкий радиальный glow за заголовком — статичный (design-system.md §9) */
+.pf-hero::before {
   content: '';
   position: absolute;
   top: 30%;
@@ -49,31 +60,96 @@ body::before {
   pointer-events: none;
   z-index: -1;
 }
-.hero .eyebrow { display: inline-block; margin-bottom: var(--space-5); }
-.hero h1 {
-  font-size: var(--text-display);
+.pf-hero-title {
+  margin: 0;
+  text-align: center;
   font-weight: 800;
-  line-height: 1.05;
-  color: var(--text-strong);
-  text-shadow: 0 0 40px rgba(255,255,255,0.15);
-  margin-bottom: var(--space-5);
+  line-height: 0.92;
+  letter-spacing: -0.03em;
 }
-.hero-sub {
-  font-size: var(--text-body-lg);
+/* ГРАДИЕНТ ТЕКСТА — ИСКЛЮЧЕНИЕ, НАЗВАННОЕ В design-system.md §0. Письмо
+   владельца просит заголовок «от серого к светлому». Цвета при этом
+   ТОЛЬКО из лесенки текста — никакого цветного градиента, которым
+   запрет §0 и был заведён. Серый край — `--text-faint`, контраст к фону
+   страницы выше 4.5 и на крупном кегле. */
+.pf-grad {
+  display: block;
+  font-size: clamp(3.5rem, 13vw, 22rem);
+  background: linear-gradient(90deg, var(--text-faint) 0%, var(--text-strong) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* Имя не рвётся посреди слова: перенос возможен только между словами. */
+  overflow-wrap: normal;
+  hyphens: manual;
+}
+.pf-hero-role {
+  display: block;
+  margin-top: var(--space-3);
+  font-size: var(--text-h2);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
   color: var(--text-2);
-  max-width: 520px;
-  margin: 0 auto var(--space-6);
-  line-height: 1.7;
 }
-.hero-btns {
+.pf-hero-mid {
+  min-height: 0;
   display: flex;
-  gap: var(--space-3);
   justify-content: center;
-  align-items: center;
+}
+.pf-hero-portrait {
+  height: 100%;
+  max-width: 100%;
+  aspect-ratio: var(--pf-ratio, 4 / 5);
+}
+.pf-hero-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-5);
   flex-wrap: wrap;
 }
-/* Свечение кнопки в hero — класс .btn-glow в разметке (style.css).
-   Размер не меняем: рядом .btn-signature высотой 40px, ряд обязан быть ровным */
+.pf-hero-line {
+  margin: 0;
+  max-width: 36rem;
+  font-size: var(--text-body-lg);
+  line-height: 1.6;
+  color: var(--text-2);
+}
+@media (max-width: 600px) {
+  .pf-hero { padding: var(--space-5) var(--space-4) var(--space-6); gap: var(--space-4); }
+  /* На узком имя встаёт в две строки крупнее, а не в одну мелкую. */
+  .pf-grad { font-size: clamp(3rem, 19vw, 6rem); }
+  .pf-hero-cta { width: 100%; }
+}
+
+/* Имя в шапке — два слова, и на 390 без запрета они вставали в две строки:
+   замер пробы «строк 2». Свой класс на подписи, системный `.header-logo`
+   не тронут. */
+.pf-header-name { white-space: nowrap; }
+/* С именем вместо знака шапка на 390 шире окна за вычетом поля: правая
+   кнопка стояла в 9px от края (замер пробы). Боковой паддинг кнопок
+   на узком — на ступень меньше. */
+@media (max-width: 420px) {
+  .pf-header-btn { padding-inline: var(--space-3); }
+}
+
+/* ПОЯВЛЕНИЕ СВЕРХУ ВНИЗ (B5): шапка, заголовок, строка, кнопка, портрет.
+   Номер шага приезжает из разметки `--n` — та же ручка, что у `.reveal`.
+   Шаг 80ms и длительность `--dur-slow` — из правил движения проекта. */
+.pf-enter, .site-header-pf {
+  animation: pf-enter var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(var(--n, 0) * 80ms);
+}
+@keyframes pf-enter {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: none; }
+}
+/* Общий блок в style.css гасит длительность, но не ЗАДЕРЖКУ: с `both`
+   элемент простоял бы невидимым до 320ms. Здесь анимации нет вовсе. */
+@media (prefers-reduced-motion: reduce) {
+  .pf-enter, .site-header-pf { animation: none; }
+}
 
 /* Разделитель между секциями лендинга: системный .divider во всю ширину,
    но обрезанный по ширине текстовых блоков (.details тоже 1100px).

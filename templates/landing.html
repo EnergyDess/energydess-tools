@@ -8,30 +8,36 @@
   <link rel="stylesheet" href="{{ st('style.css') }}">
   <link rel="stylesheet" href="{{ st('landing.css') }}">
 </head>
+{# ГОСТЕВАЯ ГЛАВНАЯ — ПОРТФОЛИО (заход 334).
+   Реальный посетитель — работодатель по ссылке из отклика, а не человек,
+   которого надо уговорить зарегистрироваться. Инструменты перестают быть
+   товаром и становятся работами. Порядок секций — письмо владельца:
+   первый экран, лента работ, о себе, инструменты, проекты, связь.
+   Медиа — из мест `landing_defs` через ОДИН построитель `_media_slot`. #}
+{% import '_media_slot.html' as ms %}
+{% set header_name = 'Денис Кащеев' %}
 <body class="has-site-header">
 
 {% include '_header.html' %}
 
 <main>
 
-  <!-- ── S1: Hero ── -->
-  <section class="hero">
-    <span class="eyebrow">Personal AI Tools</span>
-    <h1>Инструменты<br>для умной жизни</h1>
-    <p class="hero-sub">AI-помощники, которые берут на себя рутину — от поиска работы до здорового образа жизни. Всё в одном месте, под ваши данные.</p>
-    <div class="hero-btns">
-      <a href="/register" class="btn-primary btn-glow">Начать бесплатно →</a>
-      {# Бегущая рамка (<svg class="signature-border">) удалена 2026-08-11,
-         BACKLOG №54. Дуга длиной 40px из периметра 432px в любой момент
-         времени видна не рамкой, а короткой синей чертой у края кнопки —
-         на скриншоте она читается как случайный элемент, а не как
-         оформление. Ссылка осталась ссылкой. #}
-      <a href="/login" class="btn-signature">
-        <span>Уже есть аккаунт</span>
-      </a>
-      {# Ссылка на /demo убрана: страница тестового задания закрыта от
-         случайного захода и от поисковой выдачи (noindex в самом шаблоне).
-         Роут работает — показать её можно прямой ссылкой. #}
+  <!-- ── Первый экран ── -->
+  {# Появление сверху вниз: шапка (класс от флага), заголовок, строка,
+     кнопка, портрет. Номер шага — `--n`, шаг задаёт landing.css. #}
+  <section class="pf-hero" aria-label="Первый экран">
+    <h1 class="pf-hero-title pf-enter" style="--n: 1">
+      <span class="pf-grad">Денис Кащеев</span>
+      <span class="pf-hero-role">видео и AI-инструменты</span>
+    </h1>
+    <div class="pf-hero-mid">
+      <div class="pf-hero-portrait pf-enter" style="--n: 4; --pf-ratio: {{ места['portrait'].ratio }}">
+        {{ ms.slot(места['portrait']) }}
+      </div>
+    </div>
+    <div class="pf-hero-foot">
+      <p class="pf-hero-line pf-enter" style="--n: 2">Больше десяти лет в видеопроизводстве. Сейчас — AI-видео и собственные инструменты.</p>
+      <a href="mailto:pr@energydess.ru" class="btn-primary btn-lg pf-hero-cta pf-enter" style="--n: 3">Связаться</a>
     </div>
   </section>
 
