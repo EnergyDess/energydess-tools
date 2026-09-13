@@ -4534,8 +4534,12 @@ async def admin_landing_upload(slot_id: str, request: Request,
         raise
     if прежнее and прежнее != новое:
         _лнд_хран.удалить(прежнее)
-    print("[landing] %s: %s -> %s, %sx%s, %s с, пик памяти ffmpeg %s МБ%s" % (
+    print("[landing] %s: %s -> %s (сжатый %s, %s), %sx%s, %s с, пик памяти ffmpeg %s МБ%s" % (
         slot_id, _лнд_размер(сведения["original_bytes"]), _лнд_размер(сведения["bytes"]),
+        _лнд_размер(сведения.get("compressed_bytes") or 0),
+        "положен ИСХОДНЫЙ" if сведения.get("kept_original")
+        else "положен сжатый" + (" — исходник не годен: %s" % сведения["original_skip"]
+                                 if сведения.get("original_skip") else ""),
         сведения["width"], сведения["height"], сведения["duration_sec"],
         сведения["peak_mb"], ("; предупреждения: " + "; ".join(предупреждения))
         if предупреждения else ""))
@@ -4545,6 +4549,8 @@ async def admin_landing_upload(slot_id: str, request: Request,
     return JSONResponse({"ok": True, "warnings": предупреждения,
                          "was": _лнд_размер(сведения["original_bytes"]),
                          "now": _лнд_размер(сведения["bytes"]),
+                         "kept_original": сведения.get("kept_original", False),
+                         "compressed": _лнд_размер(сведения.get("compressed_bytes") or 0),
                          "card": карточка, "summary": _лнд_сводка(места)})
 
 
@@ -4588,7 +4594,7 @@ async def landing_media_file(name: str, db: Session = Depends(get_db)):
     if not os.path.exists(путь):
         print("[landing] %s: строка есть, файла на томе нет — %s" % (slot_id, name))
         return JSONResponse({"error": "Нет такого файла"}, status_code=404)
-    return FileResponse(путь, media_type="video/mp4" if ext == "mp4" else "image/webp",
+    return FileResponse(путь, media_type=_лнд_хран.ТИП[ext],
                         headers={"Cache-Control": "public, max-age=%d, immutable"
                                  % СТАТИКА_ГОД})
 

@@ -140,3 +140,7 @@
   <meta name="twitter:title" content="{{ _full_title }}">
   <meta name="twitter:description" content="{{ _desc }}">
   <meta name="twitter:image" content="{{ _image }}">
+  {# ВЫБРАННЫЙ ЭЛЕМЕНТ ПРОКРУЧИВАЕМОЙ ЛЕНТЫ ВИДЕН (BACKLOG №326). В <head>,
+     а не в хвосте: наблюдатель ставится до разбора разметки, и поправка
+     прокрутки успевает до первого кадра. Разбор — в самом файле. #}
+  <script src="{{ st('ribbon-active.js') }}"></script>

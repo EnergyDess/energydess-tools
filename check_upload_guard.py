@@ -56,7 +56,7 @@ except ImportError:
     pass
 
 КОРЕНЬ = os.path.dirname(os.path.abspath(__file__))
-ПОРТ = 8894
+ПОРТ = None  # назначает поднять()
 МБ = 1024 * 1024
 
 
@@ -89,9 +89,12 @@ def места_из_кода():
 def подставить(путь, база):
     с = sqlite3.connect(база)
     try:
-        сет = с.execute("select id from enshrouded_sets limit 1").fetchone()[0]
-        поз = с.execute("select m.id from medkit_items m join users u on u.id=m.user_id "
-                        "where u.email='screenshot@local.dev' limit 1").fetchone()[0]
+        # Номер в пути нужен ТОЛЬКО чтобы маршрут совпал: права спрашиваются
+        # до поиска записи. Стенд без сетов или позиций (его опустошают пробы
+        # режима --пустое) не повод падать трассой — берётся заведомый номер.
+        сет = (с.execute("select id from enshrouded_sets limit 1").fetchone() or ["x"])[0]
+        поз = (с.execute("select m.id from medkit_items m join users u on u.id=m.user_id "
+                         "where u.email='screenshot@local.dev' limit 1").fetchone() or [1])[0]
     finally:
         с.close()
     return (путь.replace("{slot_id}", "feed-1-1").replace("{set_id}", str(сет))
@@ -125,6 +128,13 @@ class Весы(threading.Thread):
 
 
 def поднять(база, врем, подлог=None):
+    # ПОРТ СВОБОДНЫЙ, А НЕ ВПИСАННЫЙ: две копии пробы (прогон и контроль
+    # в `check_probe_start`) иначе делили бы один порт, и вторая падала бы
+    # «стенд не поднялся» на исправном коде.
+    global ПОРТ
+    with socket.socket() as с:
+        с.bind(("127.0.0.1", 0))
+        ПОРТ = с.getsockname()[1]
     env = dict(os.environ)
     env.update({"DB_PATH": база, "PYTHONIOENCODING": "utf-8",
                 "TEMP": врем, "TMP": врем, "TMPDIR": врем})
@@ -209,6 +219,15 @@ def загрузить(путь, кука, байт, длина=True, оборв
         с.settimeout(10)
         с.sendall(("\r\n".join(заголовки) + "\r\n\r\n").encode())
         послать(голова)
+        # ДОСРОЧНЫЙ ОТВЕТ ЖДЁТСЯ ДО ТЕЛА. Сервер, отказавший по правам,
+        # отвечает и закрывает соединение; кусок, досланный следом, получает
+        # сброс, а сброс на Windows стирает непрочитанный ответ — проба
+        # печатала «код None» при исправном отказе (прогон ряда 2026-09-13).
+        с.settimeout(0.05)
+        конец_ожидания = time.time() + 0.5
+        while статус is None and time.time() < конец_ожидания:
+            if прочесть() == b"":
+                break
         с.settimeout(0.001)
         кусок = b"\0" * (256 * 1024)
         while отправлено < байт:

@@ -64,7 +64,9 @@ def разобрать_ролик(путь):
                        capture_output=True, text=True, encoding="utf-8",
                        errors="replace", timeout=60)
     вывод = п.stderr
-    итог = {"format": None, "duration": None, "width": None, "height": None}
+    итог = {"format": None, "duration": None, "width": None, "height": None,
+            "codec": None, "pix_fmt": None, "fps": None,
+            "audio": bool(re.search(r"Stream #0:\d+[^\n]*: Audio:", вывод))}
     м = re.search(r"Input #0, ([^ ]+), from", вывод)
     if м:
         итог["format"] = м.group(1).rstrip(",")
@@ -77,6 +79,30 @@ def разобрать_ролик(путь):
     м = re.search(r"Stream #0:\d+[^\n]*?: Video: [^\n]*?(\d{2,5})x(\d{2,5})", вывод)
     if м:
         итог["width"], итог["height"] = int(м.group(1)), int(м.group(2))
+    строка = re.search(r"Stream #0:\d+[^\n]*?: Video: ([^\n]*)", вывод)
+    if строка:
+        видео = строка.group(1)
+        м = re.match(r"(\w+)", видео)
+        итог["codec"] = м.group(1) if м else None
+        # Формат пикселей — первое слово после кодека, стоящее в списке через
+        # запятую верхнего уровня: «h264 (High) (avc1 / …), yuv420p(tv, …), 640x360».
+        глубина, кусок, куски = 0, "", []
+        for з in видео:
+            if з == "(":
+                глубина += 1
+            elif з == ")":
+                глубина -= 1
+            if з == "," and глубина == 0:
+                куски.append(кусок.strip())
+                кусок = ""
+            else:
+                кусок += з
+        куски.append(кусок.strip())
+        if len(куски) > 1:
+            м = re.match(r"(\w+)", куски[1])
+            итог["pix_fmt"] = м.group(1) if м else None
+        м = re.search(r"(\d+(?:\.\d+)?) fps", видео)
+        итог["fps"] = float(м.group(1)) if м else None
     return итог
 
 
@@ -205,6 +231,74 @@ def сжать_картинку(вход, выход, место):
         return im.width, im.height, альфа
 
 
+# ═══ МЕНЬШИЙ ИЗ ДВУХ: СЖАТЫЙ ИЛИ ИСХОДНЫЙ (BACKLOG №328) ═══════════════
+#
+# Пересжатие не всегда уменьшает файл. Замер 2026-09-13: прозрачный PNG
+# 9 КБ → webp 12 КБ; уже сжатый ролик 640 на 360, crf 30, 927 КБ → 1.0 МБ.
+# Кладётся МЕНЬШИЙ — но исходник допускается к сравнению, ТОЛЬКО если
+# страница покажет его так же, как сжатый, и он не несёт лишнего наружу.
+# Главная — публичная страница, и метаданные исходника (координаты
+# в EXIF снимка, имя автора в XMP, теги ролика) уехали бы к любому гостю.
+#
+# ЗВУК НЕ СРАВНИВАЕТСЯ (C3). Место под ролик беззвучное; исходник со звуком
+# и сжатый без звука — разные вещи, и выбрать исходник значило бы отдать
+# гостю звук. Такой исходник к сравнению не допускается, кладётся сжатый,
+# даже если он тяжелее.
+
+КАРТИНКА_ФОРМАТЫ = {"PNG": "png", "JPEG": "jpg", "WEBP": "webp"}
+_МЕТАДАННЫЕ_КАРТИНКИ = ("exif", "xmp", "XML:com.adobe.xmp", "comment", "photoshop")
+
+
+def исходник_картинки(путь, место):
+    """(ext, ширина, высота, альфа) — если исходник годен лечь как есть;
+    иначе (None, причина)."""
+    предел = ld.КАРТИНКА_ДЛИННАЯ_СТОРОНА[место["section"]]
+    with Image.open(путь) as im:
+        ext = КАРТИНКА_ФОРМАТЫ.get(im.format)
+        if ext is None:
+            return None, "формат %s страница не показывает как есть" % im.format
+        if getattr(im, "n_frames", 1) > 1:
+            return None, "в файле больше одного кадра"
+        if max(im.size) > предел:
+            return None, "сторона %d больше предела %d" % (max(im.size), предел)
+        лишнее = [к for к in _МЕТАДАННЫЕ_КАРТИНКИ if im.info.get(к)]
+        if getattr(im, "text", None):
+            лишнее.append("text")
+        if лишнее:
+            return None, "в файле метаданные (%s)" % ", ".join(лишнее)
+        прозрачна = im.mode in ("RGBA", "LA", "PA") or "transparency" in im.info
+        альфа = прозрачна and _есть_прозрачность(im.convert("RGBA"))
+        return (ext, im.width, im.height, альфа), None
+
+
+def исходник_ролика(разбор):
+    """None — годен; иначе причина. Годен тот, что уже в формате места."""
+    if "mp4" not in (разбор["format"] or ""):
+        return "контейнер %s, а место отдаёт mp4" % разбор["format"]
+    if разбор["codec"] != "h264":
+        return "кодек %s, а место отдаёт H.264" % разбор["codec"]
+    if разбор["pix_fmt"] != "yuv420p":
+        return "пиксели %s, а браузеру нужен yuv420p" % разбор["pix_fmt"]
+    if разбор["audio"]:
+        return "в исходнике звук, а место беззвучное"
+    if max(разбор["width"], разбор["height"]) > ld.ВИДЕО_ДЛИННАЯ_СТОРОНА:
+        return "сторона больше %d" % ld.ВИДЕО_ДЛИННАЯ_СТОРОНА
+    if (разбор["fps"] or 999) > 30:
+        return "частота %s кадров, а место отдаёт до 30" % разбор["fps"]
+    return None
+
+
+def переупаковать_ролик(вход, выход):
+    """Те же потоки без перекодирования: без метаданных, `faststart`.
+    Это и есть «исходный» для сравнения — байты кадров исходника,
+    а тегов и звука в нём нет."""
+    п = subprocess.run([ffmpeg(), "-hide_banner", "-nostdin", "-y", "-i", вход,
+                        "-map", "0:v:0", "-c", "copy", "-an", "-sn", "-dn",
+                        "-map_metadata", "-1", "-movflags", "+faststart", выход],
+                       capture_output=True, timeout=120)
+    return п.returncode == 0 and os.path.exists(выход)
+
+
 def обработать(место_id, временный, исходное_имя):
     """Готовит файл для места. Возвращает (путь_готового, сведения, предупреждения).
 
@@ -246,6 +340,19 @@ def обработать(место_id, временный, исходное_и�
         if сведения["duration_sec"] > ld.ВИДЕО_ПЕТЛЯ_СЕК:
             предупреждения.append("Петля идёт %.1f с — разумная до %d с"
                                   % (сведения["duration_sec"], ld.ВИДЕО_ПЕТЛЯ_СЕК))
+        сжатый_вес = os.path.getsize(готовый)
+        причина = исходник_ролика(разбор)
+        сведения["compressed_bytes"] = сжатый_вес
+        сведения["kept_original"] = False
+        if причина is None:
+            переупакован = os.path.join(каталог, "orig.mp4")
+            if переупаковать_ролик(временный, переупакован) \
+                    and os.path.getsize(переупакован) < сжатый_вес:
+                готовый = переупакован
+                сведения["kept_original"] = True
+                сведения["width"], сведения["height"] = разбор["width"], разбор["height"]
+                сведения["duration_sec"] = round(разбор["duration"], 2)
+        сведения["original_skip"] = причина
         вес = os.path.getsize(готовый)
         if вес > ld.ВИДЕО_ИТОГ_МБ * 1024 * 1024:
             предупреждения.append("После сжатия %.1f МБ — для ленты разумно до %d МБ"
@@ -268,7 +375,23 @@ def обработать(место_id, временный, исходное_и�
                                 % type(e).__name__, 400)
         сведения = {"kind": ld.КАРТИНКА, "ext": "webp", "width": ш, "height": в,
                     "duration_sec": None, "has_alpha": альфа, "peak_mb": None}
-        if место["alpha"] and not альфа:
+        сжатый_вес = os.path.getsize(готовый)
+        сведения["compressed_bytes"] = сжатый_вес
+        сведения["kept_original"] = False
+        try:
+            годен, причина = исходник_картинки(временный, место)
+        except (OSError, ValueError, Image.DecompressionBombError) as e:
+            годен, причина = None, type(e).__name__
+        if годен and исходный_вес < сжатый_вес:
+            ext, ш, в, альфа = годен
+            готовый = os.path.join(каталог, "orig." + ext)
+            with open(временный, "rb") as вх, open(готовый, "wb") as вых:
+                for кус in iter(lambda: вх.read(1 << 20), b""):
+                    вых.write(кус)
+            сведения.update({"ext": ext, "width": ш, "height": в, "has_alpha": альфа,
+                             "kept_original": True})
+        сведения["original_skip"] = причина
+        if место["alpha"] and not сведения["has_alpha"]:
             предупреждения.append("У декоративного объекта нет прозрачности — "
                                   "на тёмном фоне будет виден прямоугольник")
         вес = os.path.getsize(готовый)
