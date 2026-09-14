@@ -22,8 +22,8 @@
    текстом и выделяется, копирование и `mailto:` — внутри как пути, а не
    как единственный путь. Кнопку копирования показывает скрипт: без него
    она не сработала бы, а обещала бы. #}
-{% macro связь(место, класс='', стиль='') %}
-<details class="pf-contact pf-contact-{{ место }}{{ ' ' + класс if класс }}" data-pf-contact{% if стиль %} style="{{ стиль }}"{% endif %}>
+{% macro связь(место, класс='', шаг=None) %}
+<details class="pf-contact pf-contact-{{ место }}{{ ' ' + класс if класс }}" data-pf-contact{% if шаг is not none %} style="--n: {{ шаг }}"{% endif %}>
   <summary class="btn-primary btn-lg pf-contact-btn">Связаться</summary>
   <div class="pf-contact-pop">
     <p class="pf-contact-label">Почта</p>
@@ -63,7 +63,7 @@
     </div>
     <div class="pf-hero-foot">
       <p class="pf-hero-line pf-enter" style="--n: 2">Больше десяти лет в видеопроизводстве. Сейчас — AI-видео и собственные инструменты.</p>
-      {{ связь('hero', 'pf-hero-cta pf-enter', '--n: 3') }}
+      {{ связь('hero', 'pf-hero-cta pf-enter', 3) }}
     </div>
   </section>
 
