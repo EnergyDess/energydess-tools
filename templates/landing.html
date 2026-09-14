@@ -93,9 +93,11 @@
   {# НУМЕРОВАННЫЙ СПИСОК РАБОТ (блок E). Напротив каждого — поддельный
      интерфейс РАЗМЕТКОЙ, не видео и не картинкой. Разметка несёт
      КОНЕЧНОЕ состояние: без скрипта и при «уменьшить движение» интерфейс
-     показан готовым. Скрипт отводит его в начало и проигрывает ОДИН раз
-     при доезде (`data-pf-anim`): печать (`.pf-t`), счётчики
-     (`data-count-to`), полоски (`--pf-fill` 0..1), галочки (`.pf-chk`).
+     показан готовым. Скрипт отводит его в начало и проигрывает при доезде
+     (`data-pf-anim`) — ОДИН раз за въезд, и заново при каждом новом
+     въезде (заход 339, D3): печать (`.pf-t`), счётчики (`data-count-to`),
+     полоски (`--pf-fill` 0..1), галочки (`.pf-chk`), шаги по очереди
+     (`data-pf-step`, заход 339, D2) и счёт собранного (`data-pf-tally`).
      Цвета — токены акцента раздела, литералов нет. #}
   {% macro печать(текст) -%}
     {%- for знак in текст -%}<span class="pf-t">{{ знак }}</span>{%- endfor -%}
@@ -133,11 +135,11 @@
           <div class="pf-mock-body">
             <p class="pf-mock-title">Жим штанги лёжа <small>грудь · дельты · трицепс</small></p>
             {% for н, кг in ((1, 60), (2, 60), (3, 62)) %}
-            <div class="pf-mock-set">
+            <div class="pf-mock-set" data-pf-step="{{ н }}">
               <span>Подход {{ н }}</span>
               <span class="pf-mock-cell">8</span>
               <span class="pf-mock-cell"><b data-count-to="{{ кг }}">{{ кг }}</b> кг</span>
-              <span class="pf-chk" style="--n: {{ н }}">{{ значок('check') }}</span>
+              <span class="pf-chk">{{ значок('check') }}</span>
             </div>
             {% endfor %}
           </div>
@@ -176,12 +178,14 @@
           <p class="pf-tool-desc">Трекер доспехов: отмечайте собранные сеты брони, следите за редкостью и уровнями предметов. Планируйте следующий крафт и не теряйте прогресс.</p>
         </div>
         <div class="pf-mock" data-pf-anim="enshrouded" aria-hidden="true">
-          <div class="pf-mock-bar"><i></i><i></i><i></i><span>КОЛЛЕКЦИЯ</span><em><b data-count-to="12">12</b> / 24</em></div>
+          <div class="pf-mock-bar"><i></i><i></i><i></i><span>КОЛЛЕКЦИЯ</span><em><b data-pf-tally data-count-from="8">12</b> / 24</em></div>
           <div class="pf-mock-body pf-mock-grid">
+            {% set собрано = namespace(n=0) %}
             {% for имя, есть in (("Шлем", 1), ("Нагрудник", 1), ("Перчатки", 0), ("Поножи", 1), ("Сапоги", 1), ("Кольцо", 0)) %}
-            <div class="pf-mock-item{{ ' pf-mock-item-on' if есть }}">
+            {% if есть %}{% set собрано.n = собрано.n + 1 %}{% endif %}
+            <div class="pf-mock-item{{ ' pf-mock-item-on' if есть }}"{% if есть %} data-pf-step="{{ собрано.n }}"{% endif %}>
               {{ значок('shield') }}<span>{{ имя }}</span>
-              {% if есть %}<span class="pf-chk" style="--n: {{ loop.index }}">{{ значок('check') }}</span>{% endif %}
+              {% if есть %}<span class="pf-chk">{{ значок('check') }}</span>{% endif %}
             </div>
             {% endfor %}
           </div>

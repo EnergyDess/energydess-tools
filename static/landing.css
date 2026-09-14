@@ -468,13 +468,39 @@ body::before {
 .pf-mock.pf-idle .pf-chk { opacity: 0; transform: scale(0.6); transition-delay: 0ms; }
 .pf-t.pf-t-off { visibility: hidden; }
 
+/* ШАГИ ПО ОЧЕРЕДИ (заход 339, блок D2). Замер: у тренировок и Enshrouded
+   от начала к концу менялось 0.3% и 0.1% площади макета — анимация была,
+   но глазом не читалась: счётчик в мелкой подписи и галочки в 16 px.
+   Теперь меняется сам предмет. `pf-wait` ставит скрипт каждому шагу
+   в начале и снимает по одному; без скрипта класса нет — вид конечный. */
+.pf-mock-set, .pf-mock-item {
+  transition: background-color var(--dur-slow) var(--ease-out),
+              border-color var(--dur-slow) var(--ease-out), color var(--dur-slow) var(--ease-out);
+}
+.pf-mock-cell { transition: color var(--dur-base) var(--ease-out); }
+/* Выполненный подход и собранный предмет — рамкой и заливкой акцента. */
+.pf-mock-set { border-color: var(--pf-acc); }
+.pf-mock-item-on { background: var(--pf-acc-dim); }
+/* Начало подхода: строка пустая — значения не видны, рамка обычная. */
+.pf-mock .pf-mock-set.pf-wait { border-color: var(--border); background: var(--surface-1); }
+.pf-mock .pf-mock-set.pf-wait .pf-mock-cell { color: transparent; }
+/* Начало предмета: вид несобранного. */
+.pf-mock .pf-mock-item.pf-wait { border-color: var(--border); background: var(--surface-2); color: var(--text-faint); }
+.pf-mock .pf-mock-item.pf-wait svg { color: currentColor; }
+/* Галочка шага встаёт чуть позже самого шага. */
+.pf-mock [data-pf-step] .pf-chk { transition-delay: 250ms; }
+.pf-mock .pf-wait .pf-chk { opacity: 0; transform: scale(0.6); transition-delay: 0ms; }
+/* Возврат в начало при уходе из окна — мгновенный (заход 339, D3). */
+.pf-mock.pf-snap, .pf-mock.pf-snap * { transition: none !important; }
+
 @media (max-width: 900px) {
   .pf-tools { padding: var(--space-9) var(--space-4); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
   .pf-tool { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); padding: var(--space-7) 0; }
   .pf-mock { aspect-ratio: auto; min-height: 16rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pf-mock .pf-bar-fill, .pf-mock .pf-ring-fill, .pf-mock .pf-chk { transition: none; }
+  .pf-mock .pf-bar-fill, .pf-mock .pf-ring-fill, .pf-mock .pf-chk,
+  .pf-mock-set, .pf-mock-item, .pf-mock-cell { transition: none; }
 }
 
 /* ── Проекты (заход 334, блок F) ────────────────────────────────────────────

@@ -75,9 +75,9 @@
   }
 
   /* О СЕБЕ (блок D)
-     · Знаки абзаца зажигаются от прокрутки: начинается, когда верх текста
-       дошёл до 85% окна, кончается, когда низ дошёл до 40%. Функция
-       положения, а не времени: откатил прокрутку — знаки гаснут обратно.
+     · Знаки абзаца зажигаются от прокрутки (границы — ниже, у
+       `доля_проявления`). Функция положения, а не времени: откатил
+       прокрутку — знаки гаснут обратно.
      · Декор выезжает с боков при доезде секции, один раз.
      · «Уменьшить движение»: всё зажжено и на месте сразу. */
   var абзац = document.querySelector('.pf-about-text');
@@ -132,64 +132,117 @@
     }
   }
 
-  /* ИНСТРУМЕНТЫ (блок E)
+  /* ИНСТРУМЕНТЫ (блок E; заход 339, блоки D2–D5)
      · Разметка несёт КОНЕЧНОЕ состояние. В начало (`pf-idle`) отводятся
-       только интерфейсы, которых нет в окне при загрузке: отведи скрипт
-       видимый — человек увидел бы готовое, потом пустое (§6.0.15).
-     · Проигрыш ОДИН раз при доезде: печать знаков, счётчики, полоски,
-       галочки. Конец отмечается `data-pf-state="done"`, и больше
-       интерфейс не двигается.
+       только интерфейсы, которых нет в окне: отведи скрипт видимый —
+       человек увидел бы готовое, потом пустое (§6.0.15).
+     · ОДИН проход за въезд: печать знаков, счётчики, полоски, галочки,
+       шаги по очереди (`data-pf-step`) и счёт собранного (`data-pf-tally`).
+       Конец отмечается `data-pf-state="done"`, и пока блок в окне, он стоит.
+     · ПОВТОР ПРИ ВОЗВРАТЕ (D3). Здесь стояло «один раз за загрузку»: блок
+       отыгрывал и больше не двигался никогда. Теперь блок, ЦЕЛИКОМ ушедший
+       из окна, возвращается в начало — невидимо, его не видно — и при
+       следующем въезде сверху или снизу играет снова. Это не цикл: в окне
+       он проигрывает один раз и стоит.
+     · Запуск по мере въезда (D5): играют только те, что доехали; таймеры
+       и кадры у ушедшего снимаются вместе с возвратом в начало.
      · «Уменьшить движение»: ничего не отводится, всё готово сразу. */
   var макеты = Array.prototype.slice.call(document.querySelectorAll('[data-pf-anim]'));
   if (макеты.length && !тихо.matches && 'IntersectionObserver' in window) {
+    var ШАГ_МС = 450;          // шаги подходов и предметов идут через столько
+    var СЧЁТ_МС = 900;         // счётчики без шага
+    var СЧЁТ_ШАГА_МС = 600;    // счётчик внутри шага
     var в_окне = function (э) {
       var к = э.getBoundingClientRect();
       return к.bottom > 0 && к.top < window.innerHeight;
     };
-    var счётчики = function (м) {
-      return Array.prototype.slice.call(м.querySelectorAll('[data-count-to]'));
+    var все = function (м, сел) { return Array.prototype.slice.call(м.querySelectorAll(сел)); };
+    var от = function (э) { return Number(э.getAttribute('data-count-from')) || 0; };
+    var посчитать = function (м, э, длительность, поколение) {
+      var цель = Number(э.getAttribute('data-count-to'));
+      var с = от(э);
+      var начало = null;
+      var тик = function (сейчас) {
+        if (м.__поколение !== поколение) return;
+        if (начало === null) начало = сейчас;
+        var доля = Math.min(1, (сейчас - начало) / длительность);
+        э.textContent = String(Math.round(с + (цель - с) * (1 - Math.pow(1 - доля, 3))));
+        if (доля < 1) requestAnimationFrame(тик);
+      };
+      requestAnimationFrame(тик);
+    };
+    var счёт_собранного = function (м) {
+      var готовых = все(м, '[data-pf-step]').filter(function (ш) { return !ш.classList.contains('pf-wait'); }).length;
+      все(м, '[data-pf-tally]').forEach(function (э) { э.textContent = String(от(э) + готовых); });
+    };
+    var в_начало = function (м) {
+      м.__поколение = (м.__поколение || 0) + 1;
+      (м.__таймеры || []).forEach(clearTimeout);
+      м.__таймеры = [];
+      if (м.__печать) { clearInterval(м.__печать); м.__печать = null; }
+      // ВОЗВРАТ МГНОВЕННЫЙ: без переходов полоски и галочки ехали бы назад
+      // 400–900 мс, и быстрый возврат в окно застал бы их на полпути.
+      м.classList.add('pf-snap');
+      м.classList.add('pf-idle');
+      все(м, '.pf-t').forEach(function (з) { з.classList.add('pf-t-off'); });
+      все(м, '[data-count-to]').forEach(function (э) { э.textContent = String(от(э)); });
+      все(м, '[data-pf-step]').forEach(function (ш) { ш.classList.add('pf-wait'); });
+      счёт_собранного(м);
+      м.setAttribute('data-pf-state', 'idle');
+      void м.offsetWidth;   // применить начало без переходов
+      м.classList.remove('pf-snap');
     };
     var проиграть = function (м) {
       if (м.getAttribute('data-pf-state') !== 'idle') return;
       м.setAttribute('data-pf-state', 'play');
+      м.__прогонов = (м.__прогонов || 0) + 1;
+      var поколение = м.__поколение;
       var знаки = м.querySelectorAll('.pf-t');
       var шаг_печати = 22;
       var i = 0;
-      var печать = знаки.length ? setInterval(function () {
-        if (i < знаки.length) знаки[i++].classList.remove('pf-t-off');
-        if (i >= знаки.length) clearInterval(печать);
-      }, шаг_печати) : null;
-      var цели = счётчики(м);
-      var начало = performance.now();
-      var длительность = 900;
-      var тик = function (сейчас) {
-        var доля = Math.min(1, (сейчас - начало) / длительность);
-        var плавно = 1 - Math.pow(1 - доля, 3);
-        цели.forEach(function (э) {
-          э.textContent = String(Math.round(Number(э.getAttribute('data-count-to')) * плавно));
-        });
-        if (доля < 1) requestAnimationFrame(тик);
-      };
-      requestAnimationFrame(function (сейчас) {
-        начало = сейчас;
+      if (знаки.length) {
+        м.__печать = setInterval(function () {
+          if (i < знаки.length) знаки[i++].classList.remove('pf-t-off');
+          if (i >= знаки.length) { clearInterval(м.__печать); м.__печать = null; }
+        }, шаг_печати);
+      }
+      requestAnimationFrame(function () {
+        if (м.__поколение !== поколение) return;
         м.classList.remove('pf-idle');
-        тик(сейчас);
+      });
+      все(м, '[data-count-to]').forEach(function (э) {
+        if (!э.closest('[data-pf-step]')) посчитать(м, э, СЧЁТ_МС, поколение);
+      });
+      var шаги = все(м, '[data-pf-step]');
+      var последний = 0;
+      шаги.forEach(function (ш) {
+        var н = Number(ш.getAttribute('data-pf-step')) || 1;
+        последний = Math.max(последний, н);
+        м.__таймеры.push(setTimeout(function () {
+          ш.classList.remove('pf-wait');
+          все(ш, '[data-count-to]').forEach(function (э) { посчитать(м, э, СЧЁТ_ШАГА_МС, поколение); });
+          счёт_собранного(м);
+        }, н * ШАГ_МС));
       });
       var галочек = м.querySelectorAll('.pf-chk').length;
-      var конец = Math.max(знаки.length * шаг_печати, длительность, галочек * 220 + 400) + 200;
-      setTimeout(function () { м.setAttribute('data-pf-state', 'done'); }, конец);
+      var конец = Math.max(знаки.length * шаг_печати, СЧЁТ_МС, галочек * 220 + 400,
+                           последний ? последний * ШАГ_МС + СЧЁТ_ШАГА_МС + 400 : 0) + 200;
+      м.__таймеры.push(setTimeout(function () { м.setAttribute('data-pf-state', 'done'); }, конец));
     };
     var наблюдатель_макетов = new IntersectionObserver(function (записи) {
       записи.forEach(function (з) {
-        if (з.isIntersecting) { наблюдатель_макетов.unobserve(з.target); проиграть(з.target); }
+        var м = з.target;
+        if (з.isIntersecting && з.intersectionRatio >= 0.35) {
+          проиграть(м);
+        } else if (!з.isIntersecting && м.getAttribute('data-pf-state') !== 'idle') {
+          в_начало(м);   // ушёл из окна целиком: при возврате сыграет снова
+        }
       });
-    }, { threshold: 0.35 });
+    }, { threshold: [0, 0.35] });
     макеты.forEach(function (м) {
-      if (в_окне(м)) { м.setAttribute('data-pf-state', 'done'); return; }
-      м.classList.add('pf-idle');
-      Array.prototype.forEach.call(м.querySelectorAll('.pf-t'), function (з) { з.classList.add('pf-t-off'); });
-      счётчики(м).forEach(function (э) { э.textContent = '0'; });
-      м.setAttribute('data-pf-state', 'idle');
+      м.__таймеры = [];
+      if (в_окне(м)) м.setAttribute('data-pf-state', 'done');
+      else в_начало(м);
       наблюдатель_макетов.observe(м);
     });
   } else {

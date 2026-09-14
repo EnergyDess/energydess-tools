@@ -19,6 +19,7 @@
   py check_portfolio.py --проекты   # F: проекты и подвал
   py check_portfolio.py --экран --контроль-магнита  # подлог ввода магнита (339, A4)
   py check_portfolio.py --о-себе --контроль-доли    # подлог расчёта доли (339, B)
+  py check_portfolio.py --инструменты --контроль-повтора  # подлог повтора (339, D3)
   ... --контроль                     # подлог звена: B — сдвиг портрета,
                                      #   C — ролики грузятся сразу
   py check_portfolio.py --лента --контроль-плавности   # C: рывок ряда
@@ -866,8 +867,21 @@ def о_себе(контроль=False, контроль_доли=False):
     [parseFloat(getComputedStyle(э).strokeDashoffset.replace(/[^0-9.\-]/g, '')),
      parseFloat(getComputedStyle(э.closest('.pf-mock-ring')).getPropertyValue('--pf-fill'))]);
   const галочки = [...м.querySelectorAll('.pf-chk')].map(э => parseFloat(getComputedStyle(э).opacity));
+  // ШАГИ (заход 339, D2) — по ВИДИМОМУ: рамка шага окрашена акцентом.
+  // Цвет акцента берётся с эталонного узла в самом макете, не из класса.
+  const эталон = document.createElement('span');
+  эталон.style.color = 'var(--pf-acc)'; м.appendChild(эталон);
+  const акцент = getComputedStyle(эталон).color; эталон.remove();
+  const шаги = [...м.querySelectorAll('[data-pf-step]')];
+  const шагов_готово = шаги.filter(ш => getComputedStyle(ш).borderTopColor === акцент).length;
+  // Счёт собранного: число в подписи и сколько шагов в разметке.
+  const счёт_собранного = [...м.querySelectorAll('[data-pf-tally]')].map(э =>
+    [э.textContent.trim(), String((Number(э.dataset.countFrom) || 0) + шаги.length), String(Number(э.dataset.countFrom) || 0)]);
+  const к = м.getBoundingClientRect();
   return {имя: м.closest('.pf-tool').querySelector('.pf-tool-h').textContent.trim(),
           состояние: м.dataset.pfState || '', знаков: знаки.length, видно, счёт, полосы, кольца, галочки,
+          шагов: шаги.length, шагов_готово, счёт_собранного,
+          в_окне: к.bottom > 0 && к.top < innerHeight,
           анимаций: м.getAnimations({subtree: true}).filter(а => а.playState === 'running').length};
 }"""
 
@@ -878,21 +892,26 @@ def _конечный(с):
             and all(т == ц for т, ц in с["счёт"])
             and all(abs(м - ц) < 0.01 for м, ц in с["полосы"])
             and all(abs(д - (100 - ц * 100)) < 0.6 for д, ц in с["кольца"])
-            and all(г > 0.99 for г in с["галочки"]))
+            and all(г > 0.99 for г in с["галочки"])
+            and с["шагов_готово"] == с["шагов"]
+            and all(т == ц for т, ц, _ in с["счёт_собранного"]))
 
 
 def _начальный(с):
-    """Снимок в НАЧАЛЕ: ни одного знака, счётчики 0, полоски пусты."""
+    """Снимок в НАЧАЛЕ: ни одного знака, счётчики с начала, полоски пусты."""
     return (с["видно"] == 0
             and all(т == "0" for т, _ in с["счёт"])
             and all(м < 0.01 for м, _ in с["полосы"])
             and all(д > 99.4 for д, _ in с["кольца"])
-            and all(г < 0.01 for г in с["галочки"]))
+            and all(г < 0.01 for г in с["галочки"])
+            and с["шагов_готово"] == 0
+            and all(т == н for т, _, н in с["счёт_собранного"]))
 
 
 def _ключ(с):
     return (с["видно"], tuple(т for т, _ in с["счёт"]), tuple(round(м, 2) for м, _ in с["полосы"]),
-            tuple(round(д, 1) for д, _ in с["кольца"]), tuple(round(г, 2) for г in с["галочки"]))
+            tuple(round(д, 1) for д, _ in с["кольца"]), tuple(round(г, 2) for г in с["галочки"]),
+            с["шагов_готово"], tuple(т for т, _, _ in с["счёт_собранного"]))
 
 
 # ПОДЛОГ ЗВЕНА «ЗАПУСК ОЖИВЛЕНИЯ»: наблюдатель пропускает интерфейс
@@ -906,11 +925,73 @@ def _ключ(с):
   };
 })();"""
 
+# ПОДЛОГ ЗВЕНА «ПОВТОР» (заход 339, D3): в отдаваемый скрипт вставляется
+# пропуск возврата в начало у ОДНОГО интерфейса — тренировок. Запуск
+# у него и у остальных четырёх остаётся прежним.
+ПОДЛОГ_ПОВТОР = ("в_начало(м);   // ушёл из окна целиком",
+                 "if (м.dataset.pfAnim !== 'workout') в_начало(м);   // ушёл из окна целиком")
 
-def инструменты(контроль=False):
+ЗАМЕР_СЕКЦИИ = r"""() => {
+  const rgb = s => { const m = s.match(/rgba?\(([^)]+)\)/); const v = m[1].split(',').map(parseFloat);
+    return {r: v[0], g: v[1], b: v[2], a: v.length > 3 ? v[3] : 1}; };
+  const lum = c => { const f = x => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+    return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+  const mix = (t, b) => ({r: t.r * t.a + b.r * (1 - t.a), g: t.g * t.a + b.g * (1 - t.a), b: t.b * t.a + b.b * (1 - t.a), a: 1});
+  const фон_тела = rgb(getComputedStyle(document.body).backgroundColor);
+  const фон = э => { const слои = []; for (let x = э; x; x = x.parentElement) {
+      const c = rgb(getComputedStyle(x).backgroundColor); if (c.a > 0) слои.push(c); if (c.a >= 1) break; }
+    let итог = фон_тела; for (const c of слои.reverse()) итог = mix(c, итог); return итог; };
+  const сек = document.querySelector('.pf-tools');
+  if (!сек) return null;
+  const hex = c => '#' + [c.r, c.g, c.b].map(x => Math.round(x).toString(16).padStart(2, '0')).join('');
+  const вне = {мин: 99, ниже: 0, всего: 0}, внутри = {мин: 99, всего: 0};
+  const обход = document.createTreeWalker(сек, NodeFilter.SHOW_TEXT);
+  const видели = new Set(); let узел;
+  while ((узел = обход.nextNode())) {
+    if (!узел.textContent.trim()) continue;
+    const э = узел.parentElement; if (видели.has(э)) continue; видели.add(э);
+    const cs = getComputedStyle(э);
+    if (cs.visibility === 'hidden' || !э.getClientRects().length || э.closest('.pf-grad')) continue;
+    const ф = фон(э), ц = mix(rgb(cs.color), ф);
+    const l1 = lum(ц), l2 = lum(ф), k = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+    const px = parseFloat(cs.fontSize), крупный = px >= 24 || (parseInt(cs.fontWeight) >= 700 && px >= 18.66);
+    if (э.closest('.pf-mock')) { внутри.всего++; внутри.мин = Math.min(внутри.мин, k); }
+    else { вне.всего++; вне.мин = Math.min(вне.мин, k); if (k < (крупный ? 3 : 4.5)) вне.ниже++; }
+  }
+  return {страница: hex(фон_тела), секция: hex(фон(сек)), радиус: parseFloat(getComputedStyle(сек).borderTopLeftRadius),
+          вне, внутри};
+}"""
+
+# До правки захода 339 минимум внутри макетов был 4.12 — метка «AI»
+# на своей заливке. Правка C не имела права опустить его.
+МАКЕТЫ_КОНТРАСТ_БЫЛО = 4.12
+
+
+def _въехать(с, i, откуда):
+    """Увести интерфейс целиком из окна (выше либо ниже) и вернуть в центр."""
+    с.evaluate("""([i, откуда]) => { const м = document.querySelectorAll('[data-pf-anim]')[i];
+        const к = м.getBoundingClientRect(), y = к.top + scrollY;
+        window.scrollTo(0, откуда === 'сверху' ? y + к.height + 40 : y - innerHeight - к.height - 40); }""",
+               [i, откуда])
+    с.wait_for_timeout(500)
+    вне = с.evaluate(СНИМОК_МАКЕТА, i)
+    с.evaluate("""(i) => document.querySelectorAll('[data-pf-anim]')[i]
+                  .scrollIntoView({block: 'center', behavior: 'instant'})""", i)
+    кадры = []
+    for _ in range(90):
+        кадр = с.evaluate(СНИМОК_МАКЕТА, i)
+        кадры.append(кадр)
+        if кадр["состояние"] == "done":
+            break
+        с.wait_for_timeout(100)
+    return вне, кадры
+
+
+def инструменты(контроль=False, контроль_повтора=False):
     from playwright.sync_api import sync_playwright
-    print("E. ИНСТРУМЕНТЫ — гостем, головной браузер, стенд %s%s" % (
-        БАЗА, " · ПОДЛОГ: запуск оживления HH-ассистента сломан" if контроль else ""))
+    print("E. ИНСТРУМЕНТЫ — гостем, головной браузер, стенд %s%s%s" % (
+        БАЗА, " · ПОДЛОГ: запуск оживления HH-ассистента сломан" if контроль else "",
+        " · ПОДЛОГ: повтор у программы тренировок сломан" if контроль_повтора else ""))
     with sync_playwright() as p:
         бр = p.chromium.launch(headless=False)
         try:
@@ -920,8 +1001,18 @@ def инструменты(контроль=False):
                 if контроль:
                     к.add_init_script(ПОДЛОГ_ЗАПУСК)
                 с = к.new_page()
+                замен = {"n": None}
+                if контроль_повтора:
+                    def _подменить(маршрут):
+                        тело = маршрут.fetch().text()
+                        замен["n"] = тело.count(ПОДЛОГ_ПОВТОР[0])
+                        маршрут.fulfill(body=тело.replace(*ПОДЛОГ_ПОВТОР),
+                                        headers={"content-type": "application/javascript"})
+                    с.route("**/static/landing.js*", _подменить)
                 с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
                 с.wait_for_timeout(500)
+                if контроль_повтора:
+                    print("  доказательство подлога: замен в скрипте %s (обязано быть 1)" % замен["n"])
                 список = с.evaluate("""() => [...document.querySelectorAll('.pf-tool')].map(л => ({
                     н: (л.querySelector('.pf-tool-n') || {}).textContent,
                     имя: (л.querySelector('.pf-tool-h') || {}).textContent,
@@ -932,35 +1023,89 @@ def инструменты(контроль=False):
                 if контроль:
                     print("  доказательство подлога: наблюдение пропущено у %d интерфейсов" %
                           с.evaluate("() => window.__пропущено"))
+
+                # ── C: секция отделена фоном, контраст не упал ──
+                сек = с.evaluate(ЗАМЕР_СЕКЦИИ)
+                шаг("секция инструментов на ступень светлее страницы, верхние углы скруглены",
+                    сек is not None and сек["секция"] != сек["страница"] and сек["радиус"] > 0,
+                    "фон страницы %s, секции %s, радиус %.0f px" % (
+                        (сек or {}).get("страница"), (сек or {}).get("секция"), (сек or {}).get("радиус", 0)))
+                шаг("текст секции вне макетов не ниже порога контраста",
+                    сек is not None and сек["вне"]["ниже"] == 0,
+                    "текстов %d, минимум %.2f, ниже порога %d" % (
+                        сек["вне"]["всего"], сек["вне"]["мин"], сек["вне"]["ниже"]), собрано=сек["вне"]["всего"])
                 for i in range(len(список)):
                     # СВОЯ ЗАГРУЗКА НА КАЖДЫЙ ИНТЕРФЕЙС: соседний мог начать
-                    # играть, пока проба стояла у предыдущего, и начало его
-                    # было бы не увидеть.
+                    # играть, пока проба стояла у предыдущего.
                     с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
                     с.wait_for_timeout(300)
                     нач = с.evaluate(СНИМОК_МАКЕТА, i)
                     с.evaluate("""(i) => document.querySelectorAll('[data-pf-anim]')[i]
                                   .scrollIntoView({block: 'center', behavior: 'instant'})""", i)
                     кадры = []
-                    for _ in range(80):
+                    for _ in range(90):
                         кадр = с.evaluate(СНИМОК_МАКЕТА, i)
                         кадры.append(кадр)
                         if кадр["состояние"] == "done":
                             break
                         с.wait_for_timeout(100)
                     кон = кадры[-1]
-                    с.wait_for_timeout(3000)
-                    позже = с.evaluate(СНИМОК_МАКЕТА, i)
                     промежуточных = len({_ключ(к_) for к_ in кадры})
                     шаг("%s: оживает при доезде — из начала в конец" % нач["имя"],
                         _начальный(нач) and кон["состояние"] == "done" and _конечный(кон) and промежуточных > 2,
                         "в начале %s, в конце %s (%s), разных кадров %d" % (
                             "да" if _начальный(нач) else "нет", "да" if _конечный(кон) else "нет",
                             кон["состояние"] or "без состояния", промежуточных))
-                    шаг("%s: один проход — через 3 с ничего не движется" % нач["имя"],
+                    if нач["шагов"]:
+                        ряд = []
+                        for к_ in кадры:
+                            if not ряд or ряд[-1] != к_["шагов_готово"]:
+                                ряд.append(к_["шагов_готово"])
+                        по_одному = ряд == list(range(0, нач["шагов"] + 1))
+                        шаг("%s: шаги встают по одному" % нач["имя"], по_одному,
+                            "готовых шагов по кадрам: %s из %d" % (" → ".join(map(str, ряд)), нач["шагов"]),
+                            собрано=нач["шагов"])
+                    с.wait_for_timeout(3000)
+                    позже = с.evaluate(СНИМОК_МАКЕТА, i)
+                    шаг("%s: пока в окне — один проход, через 3 с ничего не движется" % нач["имя"],
                         _ключ(позже) == _ключ(кон) and позже["анимаций"] == 0 and _конечный(позже),
                         "снимок совпал: %s, анимаций идёт %d" % (
                             "да" if _ключ(позже) == _ключ(кон) else "нет", позже["анимаций"]))
+                    # ── D3: три новых въезда = три прохода ──
+                    проходов, ход = 0, []
+                    for откуда in ("снизу", "сверху", "снизу"):
+                        вне, кадры = _въехать(с, i, откуда)
+                        прошёл = (not вне["в_окне"] and _начальный(вне)
+                                  and any(not _конечный(к_) for к_ in кадры) and _конечный(кадры[-1]))
+                        проходов += прошёл
+                        ход.append("%s: вне окна %s, конец %s" % (
+                            откуда, "в начале" if _начальный(вне) else "НЕ в начале",
+                            "да" if _конечный(кадры[-1]) else "нет"))
+                    шаг("%s: при трёх заездах в окно — три прохода" % нач["имя"], проходов == 3,
+                        "проходов %d; %s" % (проходов, "; ".join(ход)))
+
+                # ── D5: запуск по мере въезда, а не все разом ──
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                с.wait_for_timeout(300)
+                верх, низ = с.evaluate("""() => { const с = document.querySelector('.pf-tools').getBoundingClientRect();
+                    return [с.top + scrollY - innerHeight, с.bottom + scrollY]; }""")
+                одновременно, вне_окна, замеров = 0, 0, 0
+                y = верх
+                while y <= низ:
+                    с.evaluate("(y) => window.scrollTo(0, y)", y)
+                    с.wait_for_timeout(120)
+                    играет, играет_вне = с.evaluate("""() => { const и = [...document.querySelectorAll('[data-pf-anim]')]
+                        .filter(м => м.dataset.pfState === 'play');
+                      return [и.length, и.filter(м => { const к = м.getBoundingClientRect();
+                        return к.bottom <= 0 || к.top >= innerHeight; }).length]; }""")
+                    одновременно = max(одновременно, играет)
+                    вне_окна = max(вне_окна, играет_вне)
+                    замеров += 1
+                    y += в / 3
+                шаг("запуск по мере въезда: вне окна не играет ни один, все разом — никогда",
+                    вне_окна == 0 and одновременно < len(список),
+                    "за прокрутку секции замеров %d, одновременно играло максимум %d из %d, вне окна %d" % (
+                        замеров, одновременно, len(список), вне_окна), собрано=замеров)
                 к.close()
 
                 к = _контекст(бр, ш, в, сенсор, движение="reduce")
@@ -968,6 +1113,14 @@ def инструменты(контроль=False):
                 с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
                 с.wait_for_timeout(400)
                 снимки = [с.evaluate(СНИМОК_МАКЕТА, i) for i in range(len(список))]
+                # Контраст внутри макетов — в КОНЕЧНОМ виде: в начале значения
+                # подходов прозрачны нарочно, и мерка засчитала бы их за 1.00.
+                сек = с.evaluate(ЗАМЕР_СЕКЦИИ)
+                шаг("контраст внутри макетов в конечном виде не опустился ниже прежнего",
+                    сек is not None and сек["внутри"]["мин"] >= МАКЕТЫ_КОНТРАСТ_БЫЛО - 0.005,
+                    "минимум %.2f, до правки %.2f" % (сек["внутри"]["мин"], МАКЕТЫ_КОНТРАСТ_БЫЛО),
+                    собрано=сек["внутри"]["всего"])
+
                 готовых = [сн["имя"] for сн in снимки if сн and _конечный(сн)]
                 шаг("«уменьшить движение»: все интерфейсы в конечном состоянии без прокрутки",
                     len(готовых) == len(снимки),
@@ -1141,7 +1294,7 @@ def main():
     elif "--о-себе" in арг:
         о_себе(контроль="--контроль" in арг, контроль_доли="--контроль-доли" in арг)
     elif "--инструменты" in арг:
-        инструменты(контроль="--контроль" in арг)
+        инструменты(контроль="--контроль" in арг, контроль_повтора="--контроль-повтора" in арг)
     elif "--проекты" in арг:
         проекты(контроль="--контроль" in арг)
     else:
