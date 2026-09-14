@@ -476,12 +476,34 @@ body::before {
 }
 .pf-join-h {
   margin: 0 0 var(--space-2);
-  font-size: var(--text-h3);
-  font-weight: 700;
+  /* весомее (заход 342, E4): был --text-h3 — меньше заголовков пунктов
+     списка над ним, и призыв читался сноской под ними */
+  font-size: clamp(1.75rem, 3.2vw, 3.25rem);
+  font-weight: 800;
+  line-height: 1.1;
   letter-spacing: -0.02em;
   color: var(--text-strong);
 }
-.pf-join-sub { margin: 0; font-size: var(--text-body); line-height: 1.6; color: var(--text-2); }
+.pf-join-sub { margin: 0; font-size: var(--text-body-lg); line-height: 1.6; color: var(--text-2); }
+/* кнопка крупнее и со свечением бренда (E4): системный `.btn-glow` */
+.pf-join-cta { min-height: 56px; font-weight: 700; }
+/* «Список растёт» (E3): колонка знака той же ширины, что колонка номеров
+   списка, текст — со второй колонки, вровень с названиями инструментов. */
+.pf-grow {
+  display: grid;
+  grid-template-columns: minmax(4rem, 8rem) minmax(0, 1fr);
+  gap: var(--space-7);
+  align-items: baseline;
+  margin: 0;
+  padding: var(--space-7) 0 0;
+}
+.pf-grow-mark {
+  font-family: var(--font-mono);
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1;
+  color: var(--text-faint);
+}
+.pf-grow-text { max-width: 48rem; font-size: var(--text-body-lg); line-height: 1.5; color: var(--text-2); }
 @media (max-width: 600px) {
   .pf-join { padding: var(--space-5); }
   .pf-join-cta { width: 100%; }
@@ -662,6 +684,8 @@ body::before {
 @media (max-width: 900px) {
   .pf-tools { padding: var(--space-9) var(--space-4); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
   .pf-tool { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); padding: var(--space-7) 0; }
+  /* номера списка здесь встают над текстом; знак «+» — слева от строки */
+  .pf-grow { grid-template-columns: auto minmax(0, 1fr); gap: var(--space-4); }
   .pf-mock { aspect-ratio: auto; min-height: 16rem; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -699,7 +723,7 @@ body::before {
 }
 .pf-proj-head {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: var(--space-5);
   align-items: center;
 }
@@ -719,13 +743,16 @@ body::before {
   color: var(--text-2);
 }
 .pf-proj-title { margin: 0; font-size: clamp(1.75rem, 4vw, 4rem); font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; color: var(--text-strong); }
-.pf-proj-soon { font-size: var(--text-body-sm); color: var(--text-faint); }
 /* Сетка из трёх: две 4:3 столбцом слева, одна 3:4 справа на обе строки.
-   Колонки 8fr : 9fr — при таком делении столбец из двух 4:3 и одна 3:4
-   одной высоты с точностью до зазора. */
+   ВЫСОТЫ РАВНЫ ТОЧНО, А НЕ «С ТОЧНОСТЬЮ ДО ЗАЗОРА» (заход 342, E2). Здесь
+   стояло 8fr : 9fr, и замер дал низ высокой картинки на 16 px выше низа
+   левой колонки — ровно зазор: fr делят ширину БЕЗ зазоров, а в высоту
+   левой колонки зазор между строками входит. Из равенства
+   2·¾·W₁ + g = 4/3·(T − W₁ − g) левая колонка W₁ = (T − 1.75g)·8/17,
+   правая — остаток. Соотношения мест не тронуты. */
 .pf-proj-grid {
   display: grid;
-  grid-template-columns: 8fr 9fr;
+  grid-template-columns: calc((100% - 1.75 * var(--space-4)) * 8 / 17) minmax(0, 1fr);
   grid-template-rows: auto auto;
   gap: var(--space-4);
   align-items: start;
@@ -736,8 +763,13 @@ body::before {
    ограничена от высоты окна: окно минус шапка и 14rem на заголовок
    карточки, поля и отступ стопки у третьей карточки. Первая версия брала
    12rem, и на 1920 карточка в 979 px не влезала в 976 и 960 px под
-   второй и третьей прилипшей (замер пробы). */
-.pf-proj-grid { width: min(100%, calc((100svh - 64px - 14rem) * 1.41)); margin-inline: auto; }
+   второй и третьей прилипшей (замер пробы).
+   ЗАПАС ЗАВИСИТ ОТ КЕГЛЯ НОМЕРА (заход 342): блок C поднял номер до
+   clamp(3rem, 7vw, 7rem), шапка карточки выросла, и на 1920 карточка
+   в 995 px перестала влезать в 992/976/960 — постоянные 14rem это
+   не учитывали. Теперь запас — 9rem на поля и отступы плюс тот же
+   кегль номера: 987 → 955 px на 1920 (замер пробы). */
+.pf-proj-grid { width: min(100%, calc((100svh - 64px - 9rem - clamp(3rem, 7vw, 7rem)) * 1.41)); margin-inline: auto; }
 
 /* ── Кнопка «Связаться» с блоком почты (заход 339, блок F) ──────────────────
    `<details>`: кнопка — summary, почта — всплывающая карточка НАД кнопкой
@@ -872,8 +904,6 @@ body::before {
 @media (max-width: 600px) {
   .pf-projects, .pf-final { padding: var(--space-9) var(--space-4); }
   .pf-proj-card { padding: var(--space-4); }
-  .pf-proj-head { grid-template-columns: auto minmax(0, 1fr); }
-  .pf-proj-go, .pf-proj-soon { grid-column: 1 / -1; }
   .pf-final-btns > * { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {

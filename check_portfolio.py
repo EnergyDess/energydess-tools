@@ -969,7 +969,20 @@ def _ключ(с):
             if (!б) return null; const а = б.querySelector('a[href="/register"]');
             return {после_списка: !!сп && б.getBoundingClientRect().top >= сп.getBoundingClientRect().bottom,
                     высота: б.getBoundingClientRect().height,
-                    кнопка: а ? {фон: getComputedStyle(а).backgroundColor, высота: а.getBoundingClientRect().height} : null,
+                    кнопка: а ? {фон: getComputedStyle(а).backgroundColor, высота: а.getBoundingClientRect().height,
+                                 тень: getComputedStyle(а).boxShadow !== 'none'} : null,
+                    заголовок: (() => { const з = б.querySelector('.pf-join-h'), п = сек.querySelector('.pf-tool-h');
+                      return з ? {кегль: parseFloat(getComputedStyle(з).fontSize), вес: +getComputedStyle(з).fontWeight,
+                                  кегль_пункта: п ? parseFloat(getComputedStyle(п).fontSize) : null} : null; })(),
+                    растёт: (() => { const р = сек.querySelector('.pf-grow'), т = р && р.querySelector('.pf-grow-text');
+                      if (!р || !т) return null;
+                      const д = document.createRange(); д.selectNodeContents(т);
+                      const ys = new Set([...д.getClientRects()].filter(к => к.width).map(к => Math.round(к.top)));
+                      const посл = [...сп.querySelectorAll('.pf-tool')].pop();
+                      return {текст: т.textContent.trim(), строк: ys.size,
+                              после_пятого: !!посл && р.getBoundingClientRect().top >= посл.getBoundingClientRect().bottom - 0.5,
+                              до_призыва: р.getBoundingClientRect().bottom <= б.getBoundingClientRect().top + 0.5,
+                              дата: /(20\d\d|январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр|скоро|недел|месяц|квартал)/i.test(т.textContent)}; })(),
                     свой_фон: hex(фон(б)) !== hex(фон(сек))}; })()};
 }"""
 
@@ -1047,6 +1060,17 @@ def инструменты(контроль=False, контроль_повтор
                     and "rgba(0, 0, 0, 0)" not in дж["кнопка"]["фон"] and дж["кнопка"]["высота"] >= 40,
                     "высота блока %.1f, кнопка %s, контраст подписей кнопок %s" % (
                         (дж or {}).get("высота", 0), (дж or {}).get("кнопка"), (сек or {}).get("кнопки")))
+                рс = (дж or {}).get("растёт")
+                шаг("E3: после пятого инструмента, до призыва — строка «список растёт», 1–2 строки, без дат",
+                    bool(рс) and рс["после_пятого"] and рс["до_призыва"] and not рс["дата"] and 1 <= рс["строк"] <= 2,
+                    "%s" % (рс and "«%s», строк %d, после пятого %s, до призыва %s, дата %s" % (
+                        рс["текст"], рс["строк"], рс["после_пятого"], рс["до_призыва"], рс["дата"])))
+                зг = (дж or {}).get("заголовок") or {}
+                шаг("E4: заголовок призыва не мельче заголовков пунктов, вес ≥ 800; кнопка ≥ 56 px со свечением",
+                    bool(зг) and зг["кегль"] >= (зг["кегль_пункта"] or 0) and зг["вес"] >= 800
+                    and bool(дж and дж["кнопка"]) and дж["кнопка"]["высота"] >= 56 and дж["кнопка"]["тень"],
+                    "заголовок %s px / вес %s (пункт %s px); кнопка %s" % (
+                        зг.get("кегль"), зг.get("вес"), зг.get("кегль_пункта"), (дж or {}).get("кнопка")))
                 шаг("текст секции вне макетов не ниже порога контраста",
                     сек is not None and сек["вне"]["ниже"] == 0,
                     "текстов %d, минимум %.2f, ниже порога %d" % (
@@ -1356,7 +1380,9 @@ def связь(контроль_буфера=False):
       return {n: (к.querySelector('.pf-proj-n') || {}).textContent,
               род: (к.querySelector('.pf-proj-kind') || {}).textContent,
               имя: (к.querySelector('.pf-proj-title') || {}).textContent,
-              кнопка: !!к.querySelector('.pf-proj-go, .pf-proj-soon'),
+              // E1 (заход 342): органов в карточке нет вовсе — ни ссылки, ни кнопки,
+              // ни подписи «ссылка появится»
+              органов: к.querySelectorAll('a, button, .pf-proj-go, .pf-proj-soon').length,
               прилипание: стиль.position, верх_прилипания: parseFloat(стиль.top),
               коробка: пр(к), карточка: пр(коробка),
               масштаб: коробка.getBoundingClientRect().width / коробка.offsetWidth,
@@ -1402,10 +1428,16 @@ def проекты(контроль=False):
                     к.close()
                     continue
                 полных = [кр for кр in з["карточки"]
-                          if кр["n"] and кр["род"] and кр["имя"] and кр["кнопка"] and all(з_ for з_ in кр["места"].values())]
-                шаг("карточек 3: номер, род работы, название, кнопка, три картинки",
+                          if кр["n"] and кр["род"] and кр["имя"] and not кр["органов"] and all(з_ for з_ in кр["места"].values())]
+                шаг("карточек 3: номер, род работы, название, три картинки, кнопок 0 (E1)",
                     len(з["карточки"]) == 3 and len(полных) == 3,
-                    ", ".join("%s %s" % (кр["n"], кр["имя"]) for кр in з["карточки"]), собрано=len(з["карточки"]))
+                    ", ".join("%s %s (органов %d)" % (кр["n"], кр["имя"], кр["органов"]) for кр in з["карточки"]),
+                    собрано=len(з["карточки"]))
+                края = [(abs(кр["места"]["c"]["y"] - кр["места"]["a"]["y"]), abs(кр["места"]["c"]["b"] - кр["места"]["b"]["b"]))
+                        for кр in з["карточки"] if all(кр["места"].values())]
+                шаг("E2: высокая картинка вровень с левой колонкой — верх и низ Δ ≤ 0.5 px",
+                    all(в_ <= 0.5 and н_ <= 0.5 for в_, н_ in края),
+                    "Δ верх/низ по карточкам: %s" % ", ".join("%.1f/%.1f" % к_ for к_ in края), собрано=len(края))
                 сетка = [кр["имя"] for кр in з["карточки"]
                          if кр["места"]["c"]["x"] >= кр["места"]["a"]["r"] and кр["места"]["c"]["x"] >= кр["места"]["b"]["r"]
                          and кр["места"]["b"]["y"] >= кр["места"]["a"]["b"]
@@ -1900,7 +1932,11 @@ def фон(контроль_сети=False, контроль_рывка=False, �
     роль: рс ? {рамка: рс.borderTopWidth + ' ' + рс.borderTopStyle, цвет: рс.color, кегль: parseFloat(рс.fontSize)} : null,
     проекты, связь_детей: поп ? [...поп.children].filter(э => !э.hidden && getComputedStyle(э).display !== 'none').length : null,
     связь_строк: поп ? поп.querySelectorAll('.pf-contact-row').length : null,
-    будущее: !!q('.pf-grow'), фон_зон: document.querySelectorAll('[data-pf-bg]').length};
+    будущее: !!q('.pf-grow'), фон_зон: document.querySelectorAll('[data-pf-bg]').length,
+    призыв: (() => { const з = q('.pf-join-h'), а = q('.pf-join-cta'), б = q('.pf-join');
+      return з && а ? {заголовок_кегль: parseFloat(getComputedStyle(з).fontSize), вес: +getComputedStyle(з).fontWeight,
+        кнопка: Math.round(пр(а).width) + '×' + Math.round(пр(а).height), кнопка_кегль: parseFloat(getComputedStyle(а).fontSize),
+        свечение: getComputedStyle(а).boxShadow !== 'none', блок_h: Math.round(пр(б).height)} : null; })()};
 }"""
 
 
@@ -1945,6 +1981,7 @@ def сводка():
                 print("  блок связи раскрыт: видимых детей %s, строк .pf-contact-row %s" % (
                     з2["связь_детей"], з2["связь_строк"]))
                 print("  блок «растёт» есть: %s; зон фона: %s" % (з["будущее"], з["фон_зон"]))
+                print("  призыв регистрации: %s" % з["призыв"])
                 к.close()
         finally:
             бр.close()
