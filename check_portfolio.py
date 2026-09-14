@@ -1266,8 +1266,12 @@ def связь(контроль_буфера=False):
               масштаб: коробка.getBoundingClientRect().width / коробка.offsetWidth,
               места};
     }),
-    кнопки: [...document.querySelectorAll('.pf-final-btns a')].map(а => Object.assign(пр(а),
-            {href: а.getAttribute('href'), текст: а.textContent.trim()}))};
+    // Прямые органы ряда: с захода 339 «Связаться» — summary блока почты,
+    // и `mailto:` лежит ВНУТРИ него; прежний отбор всех `a` находил скрытую
+    // ссылку закрытого блока и объявлял её кнопкой.
+    кнопки: [...document.querySelectorAll('.pf-final-btns > a, .pf-final-btns > details > summary')].map(а => Object.assign(пр(а),
+            {href: а.tagName === 'SUMMARY' ? (а.parentElement.querySelector('a[href^="mailto:"]') || {getAttribute: () => ''}).getAttribute('href') : а.getAttribute('href'),
+             тег: а.tagName, текст: а.textContent.trim()}))};
 }"""
 
 
@@ -1335,7 +1339,8 @@ def проекты(контроль=False):
                 кн = з["кнопки"]
                 ряд = len(кн) == 2 and (abs(кн[0]["y"] - кн[1]["y"]) < 1 if ш > 600 else кн[1]["y"] >= кн[0]["b"])
                 шаг("подвал: «Связаться» и «Зарегистрироваться» рядом (на узком — столбцом)",
-                    len(кн) == 2 and кн[0]["href"].startswith("mailto:") and кн[1]["href"] == "/register" and ряд,
+                    len(кн) == 2 and кн[0]["тег"] == "SUMMARY" and кн[0]["текст"] == "Связаться"
+                    and кн[0]["href"].startswith("mailto:") and кн[1]["href"] == "/register" and ряд,
                     " | ".join("%s → %s" % (к_["текст"], к_["href"]) for к_ in кн), собрано=len(кн))
                 пустые[(ш, в)] = з
                 к.close()
