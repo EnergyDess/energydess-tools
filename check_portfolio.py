@@ -944,7 +944,7 @@ def _ключ(с):
   const сек = document.querySelector('.pf-tools');
   if (!сек) return null;
   const hex = c => '#' + [c.r, c.g, c.b].map(x => Math.round(x).toString(16).padStart(2, '0')).join('');
-  const вне = {мин: 99, ниже: 0, всего: 0}, внутри = {мин: 99, всего: 0};
+  const вне = {мин: 99, ниже: 0, всего: 0}, внутри = {мин: 99, всего: 0}, кнопки = [];
   const обход = document.createTreeWalker(сек, NodeFilter.SHOW_TEXT);
   const видели = new Set(); let узел;
   while ((узел = обход.nextNode())) {
@@ -955,11 +955,21 @@ def _ключ(с):
     const ф = фон(э), ц = mix(rgb(cs.color), ф);
     const l1 = lum(ц), l2 = lum(ф), k = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
     const px = parseFloat(cs.fontSize), крупный = px >= 24 || (parseInt(cs.fontWeight) >= 700 && px >= 18.66);
+    // Подпись системной `.btn-primary` (белый на акценте, 3.13) — принятое
+    // решение BACKLOG №33, а не находка секции; печатается отдельно.
+    if (э.closest('.btn-primary')) { кнопки.push(+k.toFixed(2)); continue; }
     if (э.closest('.pf-mock')) { внутри.всего++; внутри.мин = Math.min(внутри.мин, k); }
     else { вне.всего++; вне.мин = Math.min(вне.мин, k); if (k < (крупный ? 3 : 4.5)) вне.ниже++; }
   }
   return {страница: hex(фон_тела), секция: hex(фон(сек)), радиус: parseFloat(getComputedStyle(сек).borderTopLeftRadius),
-          вне, внутри};
+          вне, внутри, кнопки,
+          // E (заход 339): блок регистрации идёт ПОСЛЕ списка и зовёт кнопкой
+          join: (() => { const б = сек.querySelector('.pf-join'), сп = сек.querySelector('.pf-tool-list');
+            if (!б) return null; const а = б.querySelector('a[href="/register"]');
+            return {после_списка: !!сп && б.getBoundingClientRect().top >= сп.getBoundingClientRect().bottom,
+                    высота: б.getBoundingClientRect().height,
+                    кнопка: а ? {фон: getComputedStyle(а).backgroundColor, высота: а.getBoundingClientRect().height} : null,
+                    свой_фон: hex(фон(б)) !== hex(фон(сек))}; })()};
 }"""
 
 # До правки захода 339 минимум внутри макетов был 4.12 — метка «AI»
@@ -1030,6 +1040,12 @@ def инструменты(контроль=False, контроль_повтор
                     сек is not None and сек["секция"] != сек["страница"] and сек["радиус"] > 0,
                     "фон страницы %s, секции %s, радиус %.0f px" % (
                         (сек or {}).get("страница"), (сек or {}).get("секция"), (сек or {}).get("радиус", 0)))
+                дж = (сек or {}).get("join")
+                шаг("E: блок регистрации после списка, отделён фоном, кнопка залита и не ниже 40 px",
+                    bool(дж) and дж["после_списка"] and дж["свой_фон"] and дж["кнопка"]
+                    and "rgba(0, 0, 0, 0)" not in дж["кнопка"]["фон"] and дж["кнопка"]["высота"] >= 40,
+                    "высота блока %.1f, кнопка %s, контраст подписей кнопок %s" % (
+                        (дж or {}).get("высота", 0), (дж or {}).get("кнопка"), (сек or {}).get("кнопки")))
                 шаг("текст секции вне макетов не ниже порога контраста",
                     сек is not None and сек["вне"]["ниже"] == 0,
                     "текстов %d, минимум %.2f, ниже порога %d" % (

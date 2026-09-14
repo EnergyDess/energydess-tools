@@ -318,8 +318,32 @@ body::before {
   color: var(--text-strong);
 }
 .pf-tool-desc { margin: 0; max-width: 36rem; font-size: var(--text-body); line-height: 1.6; color: var(--text-2); }
-.pf-tools-join { margin: var(--space-6) 0 0; font-size: var(--text-body); color: var(--text-2); }
-.pf-tools-join a { color: var(--text-strong); }
+/* Призыв зарегистрироваться (заход 339, E): карточка на ступень светлее
+   секции с рамкой, текст слева, кнопка справа; на узком — столбиком. */
+.pf-join {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5) var(--space-7);
+  flex-wrap: wrap;
+  margin-top: var(--space-8);
+  padding: var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+.pf-join-h {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-h3);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+.pf-join-sub { margin: 0; font-size: var(--text-body); line-height: 1.6; color: var(--text-2); }
+@media (max-width: 600px) {
+  .pf-join { padding: var(--space-5); }
+  .pf-join-cta { width: 100%; }
+}
 
 /* Каркас поддельного интерфейса: карточка на ступень выше фона и граница. */
 .pf-mock {
