@@ -15,6 +15,27 @@
    первый экран, лента работ, о себе, инструменты, проекты, связь.
    Медиа — из мест `landing_defs` через ОДИН построитель `_media_slot`. #}
 {% import '_media_slot.html' as ms %}
+{# СВЯЗАТЬСЯ — ОДИН ПОСТРОИТЕЛЬ НА ТРИ КНОПКИ (заход 339, блок F): первый
+   экран, «Обо мне» и финальная секция ведут себя одинаково. Здесь стояла
+   ссылка `mailto:`: без настроенной почтовой программы она не делала
+   НИЧЕГО. Теперь `<details>` — раскрывается и без скрипта, адрес виден
+   текстом и выделяется, копирование и `mailto:` — внутри как пути, а не
+   как единственный путь. Кнопку копирования показывает скрипт: без него
+   она не сработала бы, а обещала бы. #}
+{% macro связь(место, класс='', стиль='') %}
+<details class="pf-contact pf-contact-{{ место }}{{ ' ' + класс if класс }}" data-pf-contact{% if стиль %} style="{{ стиль }}"{% endif %}>
+  <summary class="btn-primary btn-lg pf-contact-btn">Связаться</summary>
+  <div class="pf-contact-pop">
+    <p class="pf-contact-label">Почта</p>
+    <p class="pf-contact-addr" data-pf-contact-addr>pr@energydess.ru</p>
+    <div class="pf-contact-acts">
+      <button type="button" class="btn-secondary pf-contact-copy" data-pf-contact-copy hidden>Скопировать адрес</button>
+      <a href="mailto:pr@energydess.ru" class="btn-ghost pf-contact-mail">Открыть почтовую программу</a>
+    </div>
+    <p class="pf-contact-status" data-pf-contact-status role="status" aria-live="polite"></p>
+  </div>
+</details>
+{% endmacro %}
 {% set header_pf = True %}
 <body class="has-site-header">
 
@@ -42,7 +63,7 @@
     </div>
     <div class="pf-hero-foot">
       <p class="pf-hero-line pf-enter" style="--n: 2">Больше десяти лет в видеопроизводстве. Сейчас — AI-видео и собственные инструменты.</p>
-      <a href="mailto:pr@energydess.ru" class="btn-primary btn-lg pf-hero-cta pf-enter" style="--n: 3">Связаться</a>
+      {{ связь('hero', 'pf-hero-cta pf-enter', '--n: 3') }}
     </div>
   </section>
 
@@ -85,7 +106,7 @@
       <p class="pf-about-text" aria-label="{{ о_себе }}">
         {%- for знак in о_себе -%}<span class="pf-ch" aria-hidden="true">{{ знак }}</span>{%- endfor -%}
       </p>
-      <a href="mailto:pr@energydess.ru" class="btn-primary btn-lg pf-about-cta">Связаться</a>
+      {{ связь('about', 'pf-about-cta') }}
     </div>
   </section>
 
@@ -275,7 +296,7 @@
     <h2 id="pf-final-h" class="pf-grad pf-sec-h">Давайте поработаем</h2>
     <p class="pf-final-sub">Напишите — отвечу. Инструменты открываются после регистрации.</p>
     <div class="pf-final-btns">
-      <a href="mailto:pr@energydess.ru" class="btn-primary btn-lg">Связаться</a>
+      {{ связь('final') }}
       <a href="/register" class="btn-secondary btn-lg">Зарегистрироваться</a>
     </div>
   </section>

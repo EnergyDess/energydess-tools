@@ -20,6 +20,7 @@
   py check_portfolio.py --экран --контроль-магнита  # подлог ввода магнита (339, A4)
   py check_portfolio.py --о-себе --контроль-доли    # подлог расчёта доли (339, B)
   py check_portfolio.py --инструменты --контроль-повтора  # подлог повтора (339, D3)
+  py check_portfolio.py --связь [--контроль-буфера]  # F (339): кнопки связи, подлог буфера
   ... --контроль                     # подлог звена: B — сдвиг портрета,
                                      #   C — ролики грузятся сразу
   py check_portfolio.py --лента --контроль-плавности   # C: рывок ряда
@@ -1146,6 +1147,100 @@ def инструменты(контроль=False, контроль_повтор
             бр.close()
 
 
+# ══ F2. СВЯЗАТЬСЯ (заход 339, блок F) ════════════════════════════════
+
+# ПОДЛОГ ЗВЕНА «БУФЕР»: у страницы нет `navigator.clipboard` — как на
+# странице без защищённого соединения или в браузере без разрешения.
+ПОДЛОГ_БУФЕР = r"""(() => {
+  try { Object.defineProperty(Navigator.prototype, 'clipboard', {get: () => undefined, configurable: true}); } catch (e) {}
+  try { Object.defineProperty(navigator, 'clipboard', {get: () => undefined, configurable: true}); } catch (e) {}
+})();"""
+
+ЗАМЕР_СВЯЗИ = r"""(место) => {
+  const б = document.querySelector('.pf-contact-' + место);
+  if (!б) return null;
+  const поп = б.querySelector('.pf-contact-pop'), адрес = б.querySelector('[data-pf-contact-addr]');
+  const видим = э => !!э && э.checkVisibility({checkOpacity: true, checkVisibilityCSS: true});
+  const итог = б.querySelector('[data-pf-contact-status]');
+  const выделено = String(window.getSelection());
+  const кп = поп.getBoundingClientRect();
+  return {открыт: б.open, карточка_видна: видим(поп), адрес: видим(адрес) ? адрес.textContent.trim() : '',
+          итог: видим(итог) ? итог.textContent.trim() : '', выделено,
+          почта: !!б.querySelector('a[href^="mailto:"]'),
+          в_окне: кп.left >= -0.5 && кп.right <= document.documentElement.clientWidth + 0.5 && кп.top >= 0};
+}"""
+
+
+def связь(контроль_буфера=False):
+    from playwright.sync_api import sync_playwright
+    print("F. СВЯЗАТЬСЯ — гостем, головной браузер, стенд %s%s" % (
+        БАЗА, " · ПОДЛОГ: буфер обмена недоступен" if контроль_буфера else ""))
+    with sync_playwright() as p:
+        бр = p.chromium.launch(headless=False)
+        try:
+            for ш, в, сенсор in ШИРИНЫ:
+                print("\n  ── %d×%d%s" % (ш, в, " (сенсор)" if сенсор else ""))
+                к = _контекст(бр, ш, в, сенсор, движение="reduce")
+                к.grant_permissions(["clipboard-read", "clipboard-write"], origin=БАЗА)
+                if контроль_буфера:
+                    к.add_init_script(ПОДЛОГ_БУФЕР)
+                с = к.new_page()
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                с.wait_for_timeout(300)
+                if контроль_буфера:
+                    print("  доказательство подлога: navigator.clipboard = %s" %
+                          с.evaluate("() => String(navigator.clipboard)"))
+                кнопки = с.evaluate("""() => [...document.querySelectorAll('main a, main summary, main button')]
+                    .filter(э => э.textContent.trim() === 'Связаться')
+                    .map(э => ({тег: э.tagName, href: э.getAttribute('href') || ''}))""")
+                шаг("кнопок «Связаться» на странице 3, и ни одна не голый mailto:",
+                    len(кнопки) == 3 and all(к_["тег"] == "SUMMARY" for к_ in кнопки),
+                    ", ".join("%s %s" % (к_["тег"], к_["href"]) for к_ in кнопки), собрано=len(кнопки))
+                if контроль_буфера:
+                    # в буфере заранее другое — чтобы «скопировано» нельзя было засчитать
+                    с.evaluate("() => { const t = document.createElement('textarea'); t.value = 'другое'; document.body.append(t); t.select(); document.execCommand('copy'); t.remove(); }")
+                for место in ("hero", "about", "final"):
+                    кн = с.locator(".pf-contact-%s summary" % место)
+                    if not кн.count():
+                        шаг("%s: кнопка есть" % место, False, "нет .pf-contact-%s" % место)
+                        continue
+                    кн.scroll_into_view_if_needed()
+                    с.wait_for_timeout(200)
+                    кн.click()
+                    с.wait_for_timeout(300)
+                    з = с.evaluate(ЗАМЕР_СВЯЗИ, место)
+                    шаг("%s: нажатие раскрывает карточку, адрес виден, mailto внутри, карточка в окне" % место,
+                        з["открыт"] and з["карточка_видна"] and з["адрес"] == "pr@energydess.ru" and з["почта"] and з["в_окне"],
+                        "открыт %s, адрес «%s», mailto %s, в окне %s" % (з["открыт"], з["адрес"], з["почта"], з["в_окне"]))
+                    с.locator(".pf-contact-%s [data-pf-contact-copy]" % место).click()
+                    с.wait_for_timeout(400)
+                    з = с.evaluate(ЗАМЕР_СВЯЗИ, место)
+                    буфер = с.evaluate("() => navigator.clipboard ? navigator.clipboard.readText() : null") \
+                        if not контроль_буфера else None
+                    if контроль_буфера:
+                        # Доказательство, что обычный шаг копирования не слеп:
+                        # на подлоге его условие обязано быть ЛОЖНЫМ.
+                        обычный = з["итог"].startswith("Скопировано")
+                        print("  доказательство: обычный шаг «скопировано» на подлоге дал бы %s (итог «%s»)" % (
+                            "OK — ШАГ СЛЕП" if обычный else "ПЛОХО", з["итог"]))
+                        шаг("%s: буфер недоступен — адрес виден, выделен, отказ сказан словами" % место,
+                            з["адрес"] == "pr@energydess.ru" and з["выделено"].strip() == "pr@energydess.ru"
+                            and "не удалось" in з["итог"],
+                            "адрес «%s», выделено «%s», итог «%s»" % (з["адрес"], з["выделено"].strip(), з["итог"]))
+                    else:
+                        шаг("%s: копирование кладёт адрес в буфер и говорит «скопировано»" % место,
+                            буфер == "pr@energydess.ru" and з["итог"].startswith("Скопировано"),
+                            "в буфере «%s», итог «%s»" % (буфер, з["итог"]))
+                    с.keyboard.press("Escape")
+                    с.wait_for_timeout(200)
+                    з = с.evaluate(ЗАМЕР_СВЯЗИ, место)
+                    шаг("%s: Escape закрывает" % место, not з["открыт"] and not з["карточка_видна"],
+                        "открыт %s" % з["открыт"])
+                к.close()
+        finally:
+            бр.close()
+
+
 # ══ F. ПРОЕКТЫ И ПОДВАЛ ═══════════════════════════════════════════════
 
 ЗАМЕР_ПРОЕКТОВ = r"""() => {
@@ -1311,6 +1406,8 @@ def main():
         о_себе(контроль="--контроль" in арг, контроль_доли="--контроль-доли" in арг)
     elif "--инструменты" in арг:
         инструменты(контроль="--контроль" in арг, контроль_повтора="--контроль-повтора" in арг)
+    elif "--связь" in арг:
+        связь(контроль_буфера="--контроль-буфера" in арг)
     elif "--проекты" in арг:
         проекты(контроль="--контроль" in арг)
     else:

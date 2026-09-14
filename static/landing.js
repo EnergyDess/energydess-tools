@@ -249,6 +249,64 @@
     макеты.forEach(function (м) { м.setAttribute('data-pf-state', 'done'); });
   }
 
+  /* СВЯЗАТЬСЯ (заход 339, блок F)
+     · Здесь стояла ссылка `mailto:`. Она открывает почтовую программу,
+       а где программа не настроена — не происходит НИЧЕГО: чужой компьютер,
+       рабочий ноутбук, телефон без почтового клиента. Тупик без признака.
+     · Теперь кнопка — `<details>`: раскрывается и без скрипта, до неё
+       доходит Tab, адрес виден текстом и выделяется руками. Скрипт только
+       добавляет копирование и закрытие по Escape и по нажатию мимо.
+     · Копирование — `navigator.clipboard`. Нет его либо браузер отказал —
+       отказ говорится СЛОВАМИ, а адрес выделяется, чтобы скопировать его
+       обычным способом: молчаливого отказа нет (F5).
+     · Раскрыт одновременно один блок: открытие второго закрывает первый. */
+  var связи = Array.prototype.slice.call(document.querySelectorAll('[data-pf-contact]'));
+  связи.forEach(function (блок) {
+    var адрес = блок.querySelector('[data-pf-contact-addr]');
+    var кнопка = блок.querySelector('[data-pf-contact-copy]');
+    var итог = блок.querySelector('[data-pf-contact-status]');
+    var сказать = function (текст, отказ) {
+      итог.textContent = текст;
+      итог.classList.toggle('pf-contact-fail', !!отказ);
+    };
+    var выделить = function () {
+      var д = document.createRange();
+      д.selectNodeContents(адрес);
+      var в = window.getSelection();
+      в.removeAllRanges();
+      в.addRange(д);
+    };
+    var не_вышло = function () {
+      выделить();
+      сказать('Скопировать не удалось — адрес выделен, скопируйте его вручную.', true);
+    };
+    if (кнопка) {
+      кнопка.hidden = false;   // без скрипта кнопки копирования нет вовсе
+      кнопка.addEventListener('click', function () {
+        var текст = адрес.textContent.trim();
+        if (!navigator.clipboard || !navigator.clipboard.writeText) { не_вышло(); return; }
+        navigator.clipboard.writeText(текст).then(function () {
+          сказать('Скопировано: ' + текст, false);
+        }, не_вышло);
+      });
+    }
+    блок.addEventListener('toggle', function () {
+      if (!блок.open) { сказать('', false); return; }
+      связи.forEach(function (другой) { if (другой !== блок) другой.open = false; });
+    });
+  });
+  if (связи.length) {
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      связи.forEach(function (блок) {
+        if (блок.open) { блок.open = false; блок.querySelector('summary').focus(); }
+      });
+    });
+    document.addEventListener('click', function (e) {
+      связи.forEach(function (блок) { if (блок.open && !блок.contains(e.target)) блок.open = false; });
+    });
+  }
+
   /* ПРОЕКТЫ (блок F): карточка, на которую наезжает следующая, уменьшается
      до 0.94 — пропорционально тому, какую часть её закрыла следующая.
      Прилипание делает CSS; здесь только масштаб, и пишется он в событии

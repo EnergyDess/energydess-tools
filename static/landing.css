@@ -596,6 +596,55 @@ body::before {
    второй и третьей прилипшей (замер пробы). */
 .pf-proj-grid { width: min(100%, calc((100svh - 64px - 14rem) * 1.41)); margin-inline: auto; }
 
+/* ── Кнопка «Связаться» с блоком почты (заход 339, блок F) ──────────────────
+   `<details>`: кнопка — summary, почта — всплывающая карточка НАД кнопкой
+   (у первого экрана кнопка у нижнего края окна, вниз места нет). Карточка
+   вне потока: раскрытие ничего на странице не сдвигает. */
+.pf-contact { position: relative; display: inline-block; }
+.pf-contact-btn { width: 100%; list-style: none; cursor: pointer; }
+.pf-contact-btn::-webkit-details-marker { display: none; }
+.pf-contact-pop {
+  position: absolute;
+  bottom: calc(100% + var(--space-3));
+  right: 0;
+  z-index: 5;
+  width: min(24rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-5);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-lg);
+  text-align: left;
+}
+/* У кнопок по центру секции карточка встаёт по центру над кнопкой. */
+.pf-contact-about .pf-contact-pop, .pf-contact-final .pf-contact-pop { right: auto; left: 50%; transform: translateX(-50%); }
+.pf-contact-label {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.pf-contact-addr {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-h3);
+  font-weight: 600;
+  color: var(--text-strong);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+.pf-contact-acts { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.pf-contact-status { margin: var(--space-3) 0 0; font-size: var(--text-body-sm); color: var(--success); }
+.pf-contact-status:empty { display: none; }
+.pf-contact-status.pf-contact-fail { color: var(--warning); }
+@media (max-width: 600px) {
+  /* на узком все три кнопки во всю ширину — карточка почты под ширину кнопки */
+  .pf-contact { display: block; }
+  .pf-contact-pop { position: absolute; left: 0; right: 0; width: auto; transform: none; }
+  .pf-contact-about .pf-contact-pop, .pf-contact-final .pf-contact-pop { left: 0; transform: none; }
+}
+
 /* ── Связаться ────────────────────────────────────────────────────────────── */
 .pf-final {
   max-width: 1600px;
