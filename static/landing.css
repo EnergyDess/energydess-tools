@@ -278,10 +278,19 @@ body::before {
    Нумерованный список: номер, текст, оживлённый интерфейс. Строки разделены
    волосяной линией. Интерфейс — разметка на токенах акцента раздела
    (`--pf-acc`, `--pf-acc-dim` приходят со строки списка). */
+/* СЕКЦИЯ ОТДЕЛЕНА ОТ ТЁМНОГО (заход 339, блок C). Здесь фона не было,
+   и секции страницы сливались. Фон — на ступень светлее страницы
+   (`--surface-1`), полоса во всю ширину окна со скруглёнными верхними
+   углами; содержимое по-прежнему не шире 1600px — ширину держит
+   боковое поле, а не max-width коробки, иначе фон кончался бы вместе
+   с содержимым. ЧИСТО БЕЛЫЙ НЕ ВЗЯТ: пять тёмных макетов на нём стали
+   бы дырами. Макеты при этом на ступень ТЕМНЕЕ секции — окно в секции,
+   и ни одна пара «текст — фон» ниже прежней не опустилась (замер). */
 .pf-tools {
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: var(--space-10) var(--space-6);
+  --pf-tools-side: max(var(--space-6), calc((100% - 1600px) / 2 + var(--space-6)));
+  padding: var(--space-10) var(--pf-tools-side);
+  background: var(--surface-1);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
 .pf-tool-list { list-style: none; margin: 0; padding: 0; border-bottom: 1px solid var(--border-hairline); }
 .pf-tool {
@@ -320,7 +329,8 @@ body::before {
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--surface-1);
+  /* на ступень темнее секции (C1): макет читается окном в секции */
+  background: var(--surface-0);
   font-size: var(--text-body-sm);
   color: var(--text-2);
 }
@@ -459,7 +469,7 @@ body::before {
 .pf-t.pf-t-off { visibility: hidden; }
 
 @media (max-width: 900px) {
-  .pf-tools { padding: var(--space-9) var(--space-4); }
+  .pf-tools { padding: var(--space-9) var(--space-4); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
   .pf-tool { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); padding: var(--space-7) 0; }
   .pf-mock { aspect-ratio: auto; min-height: 16rem; }
 }
