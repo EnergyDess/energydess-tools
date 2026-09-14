@@ -15,7 +15,7 @@
    первый экран, лента работ, о себе, инструменты, проекты, связь.
    Медиа — из мест `landing_defs` через ОДИН построитель `_media_slot`. #}
 {% import '_media_slot.html' as ms %}
-{% set header_name = 'Денис Кащеев' %}
+{% set header_pf = True %}
 <body class="has-site-header">
 
 {% include '_header.html' %}
@@ -30,9 +30,14 @@
       <span class="pf-grad pf-hero-name">Денис Кащеев</span>
       <span class="pf-hero-role">видео и AI-инструменты</span>
     </h1>
+    {# ПОРТРЕТ НАЛЕЗАЕТ НА ИМЯ СНИЗУ (заход 339, A3): ряд портрета поднят
+       отрицательным отступом, портрет лежит поверх имени, и имя проступает
+       сквозь прозрачный фон. МАГНИТ (A4) двигает ВНУТРЕННЮЮ обёртку:
+       у самой коробки `transform` держит анимация появления, и сдвиг
+       скрипта на ней не применился бы вовсе. #}
     <div class="pf-hero-mid">
       <div class="pf-hero-portrait pf-enter" style="--n: 4; --pf-ratio: {{ места['portrait'].ratio }}">
-        {{ ms.slot(места['portrait']) }}
+        <div class="pf-hero-magnet" data-pf-magnet>{{ ms.slot(места['portrait'], soft=True) }}</div>
       </div>
     </div>
     <div class="pf-hero-foot">

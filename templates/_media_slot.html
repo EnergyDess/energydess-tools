@@ -26,8 +26,14 @@
    `static/landing.js`. Без этого первый заход на страницу тянул бы
    двенадцать роликов разом, пока человек смотрит первый экран.
    По умолчанию выключен — разметка панели `/admin/landing` прежняя. #}
-{% macro slot(м, lazy=False) %}
-<div class="media-slot{% if м.fit == 'contain' %} media-slot-contain{% endif %}"
+{# `soft` — ЗАГЛУШКА БЕЗ РАМКИ (заход 339, блок A3). Портрет первого экрана
+   налезает на имя, и прямоугольная пунктирная заглушка посреди экрана
+   читалась дырой. Здесь пустое место — мягкий свет снизу и силуэт,
+   сквозь которые проступает имя. Подпись места остаётся: заглушка
+   по-прежнему говорит «ещё не загружено», а не прячется. По умолчанию
+   выключен — у панели `/admin/landing` заглушка прежняя. #}
+{% macro slot(м, lazy=False, soft=False) %}
+<div class="media-slot{% if м.fit == 'contain' %} media-slot-contain{% endif %}{% if soft %} media-slot-soft{% endif %}"
      style="--slot-ratio: {{ м.ratio }}"
      data-slot="{{ м.id }}" data-filled="{{ 'yes' if м.file else 'no' }}">
   {% if м.file and м.file.kind == 'video' and lazy %}
@@ -41,6 +47,7 @@
        loading="lazy" decoding="async" width="{{ м.file.width }}" height="{{ м.file.height }}">
   {% else %}
   <div class="media-slot-empty">
+    {% if soft %}{{ значок('user', 'media-slot-figure') }}{% endif %}
     <span class="media-slot-label">{{ м.label }}</span>
     <span class="media-slot-kind">{{ 'видео' if м.kind == 'video' else 'картинка' }} · {{ м.ratio | replace(' ', '') }}</span>
   </div>

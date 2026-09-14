@@ -27,10 +27,19 @@ body::before {
    поэтому первый экран влезает в окно любой высоты, а не выпирает. */
 .pf-hero {
   position: relative;
+  /* КЕГЛЬ ИМЕНИ — ОДНА ВЕЛИЧИНА НА ДВА МЕСТА: сам кегль и то, насколько
+     портрет налезает на имя. Здесь стояло clamp(3.5rem, 13vw, 22rem),
+     и владелец отметил, что имя кричит: кириллица шире латиницы, и размер
+     образца на ней вдвое крупнее. Уменьшено вдвое (заход 339, A2). */
+  --pf-name: clamp(1.75rem, 6.5vw, 11rem);
   height: calc(100svh - 64px);
   min-height: 34rem;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  /* Колонка не шире окна: портрет считает ширину от высоты, и с налезанием
+     на имя его собственная ширина на 390 превышала окно — неявная колонка
+     `auto` росла следом, и весь первый экран уезжал за правый край. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
   padding: var(--space-6) var(--space-6) var(--space-7);
 }
@@ -51,6 +60,11 @@ body::before {
 }
 .pf-hero-title {
   margin: 0;
+  /* Роль стоит НАД именем: портрет налезает на имя снизу и закрыл бы
+     строку под ним. Порядок в разметке прежний — «имя, роль» читается
+     программой чтения именно так; переставляет только раскладка. */
+  display: flex;
+  flex-direction: column-reverse;
   text-align: center;
   font-weight: 800;
   line-height: 0.92;
@@ -71,25 +85,47 @@ body::before {
   overflow-wrap: normal;
   hyphens: manual;
 }
-.pf-hero-name { font-size: clamp(3.5rem, 13vw, 22rem); }
+.pf-hero-name { font-size: var(--pf-name); }
 .pf-hero-role {
   display: block;
-  margin-top: var(--space-3);
+  margin-bottom: var(--space-3);
   font-size: var(--text-h2);
   font-weight: 500;
   line-height: 1.2;
   letter-spacing: -0.01em;
   color: var(--text-2);
 }
+/* НАЛЕЗАНИЕ НА ИМЯ (A3). Ряд портрета поднят на 0.55 кегля имени плюс
+   зазор сетки: верх портрета встаёт на уровень середины букв. Высота
+   ряда от этого не пересчитывается — сетка тянет элемент на трек плюс
+   отрицательный отступ, и портрет становится выше ровно на налезание.
+   Портрет над заголовком по слою: имя проступает сквозь прозрачный фон. */
 .pf-hero-mid {
+  position: relative;
+  z-index: 1;
   min-height: 0;
+  margin-top: calc(var(--pf-name) * -0.55 - var(--space-5));
   display: flex;
   justify-content: center;
+  pointer-events: none;
 }
 .pf-hero-portrait {
   height: 100%;
   max-width: 100%;
-  aspect-ratio: var(--pf-ratio, 4 / 5);
+  aspect-ratio: var(--pf-ratio, 1 / 1);
+  /* Когда окно уже высоты ряда (телефон), коробка упирается в ширину
+     и перестаёт быть квадратом; место внутри остаётся квадратом и стоит
+     у ВЕРХА — там, где налезает на имя. Прижатое к низу, оно на 390
+     вставало на 120 px ниже имени, и налезания не было (замер пробы). */
+  display: flex;
+  align-items: flex-start;
+}
+/* Магнит (A4): сдвиг пишет скрипт переменными, здесь только transform —
+   раскладка при движении не пересчитывается. */
+.pf-hero-magnet {
+  width: 100%;
+  transform: translate3d(var(--pf-mx, 0px), var(--pf-my, 0px), 0);
+  will-change: transform;
 }
 .pf-hero-foot {
   display: flex;
@@ -106,19 +142,14 @@ body::before {
   color: var(--text-2);
 }
 @media (max-width: 600px) {
-  .pf-hero { padding: var(--space-5) var(--space-4) var(--space-6); gap: var(--space-4); }
-  /* На узком имя встаёт в две строки крупнее, а не в одну мелкую. */
-  .pf-hero-name { font-size: clamp(3rem, 19vw, 6rem); }
+  .pf-hero { --pf-name: clamp(1.75rem, 10vw, 3rem); padding: var(--space-5) var(--space-4) var(--space-6); gap: var(--space-4); }
+  .pf-hero-mid { margin-top: calc(var(--pf-name) * -0.55 - var(--space-4)); }
   .pf-hero-cta { width: 100%; }
 }
 
-/* Имя в шапке — два слова, и на 390 без запрета они вставали в две строки:
-   замер пробы «строк 2». Свой класс на подписи, системный `.header-logo`
-   не тронут. */
-.pf-header-name { white-space: nowrap; }
-/* С именем вместо знака шапка на 390 шире окна за вычетом поля: правая
-   кнопка стояла в 9px от края (замер пробы). Боковой паддинг кнопок
-   на узком — на ступень меньше. */
+/* Кнопки «Войти» и «Регистрация» на узком: боковой паддинг на ступень
+   меньше, иначе правая кнопка встаёт вплотную к краю окна (замер пробы
+   захода 334). Знак сайта вернулся (заход 339), правило осталось. */
 @media (max-width: 420px) {
   .pf-header-btn { padding-inline: var(--space-3); }
 }

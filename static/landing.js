@@ -21,6 +21,59 @@
 
   var тихо = window.matchMedia('(prefers-reduced-motion: reduce)');
 
+  /* МАГНИТНЫЙ ПОРТРЕТ (заход 339, блок A4)
+     · Цель сдвига — расстояние от курсора до ЦЕНТРА портрета, делённое
+       на КОЭФФИЦИЕНТ: курсор в углу окна двигает портрет заметно,
+       курсор на портрете — почти никак.
+     · Плавность — приближение к цели на долю разницы в кадр, а не
+       переход CSS: переход перезапускался бы на каждое движение мыши
+       и дёргал. Кадры идут, только пока портрет не пришёл к цели.
+     · Вход и выход плавные: курсор ушёл из окна либо первый экран уехал
+       из вида — цель ноль, портрет спокойно возвращается.
+     · Только настоящий указатель (`hover: hover` и `pointer: fine`)
+       и без «уменьшить движение»: на сенсорном нет курсора, и сдвиг
+       от последнего касания читался бы залипшим. */
+  var магнит = document.querySelector('[data-pf-magnet]');
+  var указатель = window.matchMedia('(hover: hover) and (pointer: fine)');
+  if (магнит) {
+    var КОЭФФИЦИЕНТ = 12;
+    var ДОЛЯ_КАДРА = 0.12;
+    var цель = {x: 0, y: 0}, сейчас = {x: 0, y: 0}, кадр = 0;
+    var записать = function () {
+      магнит.style.setProperty('--pf-mx', сейчас.x.toFixed(2) + 'px');
+      магнит.style.setProperty('--pf-my', сейчас.y.toFixed(2) + 'px');
+    };
+    var шагнуть = function () {
+      сейчас.x += (цель.x - сейчас.x) * ДОЛЯ_КАДРА;
+      сейчас.y += (цель.y - сейчас.y) * ДОЛЯ_КАДРА;
+      if (Math.abs(цель.x - сейчас.x) < 0.05 && Math.abs(цель.y - сейчас.y) < 0.05) {
+        сейчас.x = цель.x; сейчас.y = цель.y; кадр = 0;
+      } else {
+        кадр = requestAnimationFrame(шагнуть);
+      }
+      записать();
+    };
+    var тянуть = function (x, y) {
+      цель.x = x; цель.y = y;
+      if (!кадр) кадр = requestAnimationFrame(шагнуть);
+    };
+    var можно = function () { return указатель.matches && !тихо.matches; };
+    window.addEventListener('pointermove', function (e) {
+      if (!можно() || e.pointerType === 'touch') return;
+      // центр — по коробке БЕЗ текущего сдвига: иначе портрет убегал бы
+      // от курсора собственным смещением
+      var к = магнит.parentElement.getBoundingClientRect();
+      if (к.bottom < 0 || к.top > window.innerHeight) { тянуть(0, 0); return; }
+      тянуть((e.clientX - (к.left + к.width / 2)) / КОЭФФИЦИЕНТ,
+             (e.clientY - (к.top + к.height / 2)) / КОЭФФИЦИЕНТ);
+    }, { passive: true });
+    document.documentElement.addEventListener('pointerleave', function () { тянуть(0, 0); });
+    window.addEventListener('blur', function () { тянуть(0, 0); });
+    var сбросить = function () { if (!можно()) { цель.x = цель.y = сейчас.x = сейчас.y = 0; записать(); } };
+    if (тихо.addEventListener) тихо.addEventListener('change', сбросить);
+    if (указатель.addEventListener) указатель.addEventListener('change', сбросить);
+  }
+
   /* О СЕБЕ (блок D)
      · Знаки абзаца зажигаются от прокрутки: начинается, когда верх текста
        дошёл до 85% окна, кончается, когда низ дошёл до 40%. Функция

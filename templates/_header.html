@@ -36,22 +36,21 @@
 {% set is_authed = user is defined and user %}
 {% set есть_доступ_к_инструментам = is_authed and user.is_verified %}
 {% set регистрация_начата = not is_authed and request.cookies.get('pending_verify') %}
-{#- ВАРИАНТ ШАПКИ ГОСТЕВОЙ ГЛАВНОЙ-ПОРТФОЛИО (заход 334, блок B1).
-   Флаг `header_name` ставит ТОЛЬКО `landing.html`; у остальных страниц
-   его нет, и шапка у них прежняя до байта. Два отличия, оба по письму
-   владельца: слева имя человека вместо знака сайта, а «Войти»
-   и «Регистрация» — тихие, обводкой, потому что единственная яркая
-   кнопка первого экрана — «Связаться». Класс `site-header-pf` нужен
-   только появлению при загрузке (landing.css), вида он не меняет. #}
-{%- set шапка_имя = header_name if header_name is defined and header_name else None %}
-<header class="site-header {{ 'site-header-edges' if not есть_доступ_к_инструментам }}{{ ' site-header-pf' if шапка_имя }}">
+{#- ВАРИАНТ ШАПКИ ГОСТЕВОЙ ГЛАВНОЙ-ПОРТФОЛИО (заход 334, блок B1;
+   заход 339, блок A1).
+   Флаг `header_pf` ставит ТОЛЬКО `landing.html`; у остальных страниц
+   его нет, и шапка у них прежняя до байта.
+   ЗДЕСЬ СТОЯЛО «слева имя человека вместо знака сайта, а обе кнопки
+   тихие, обводкой», И ЭТО ОТМЕНЕНО ВЛАДЕЛЬЦЕМ 2026-09-14: имя
+   на странице и так крупное, а знак сайта пропал; две одинаковые
+   прозрачные кнопки не читались. Теперь знак прежний, «Войти» обводкой,
+   «Регистрация» акцентной. Класс `site-header-pf` нужен только
+   появлению при загрузке (landing.css), вида он не меняет. #}
+{%- set шапка_пф = header_pf if header_pf is defined and header_pf else False %}
+<header class="site-header {{ 'site-header-edges' if not есть_доступ_к_инструментам }}{{ ' site-header-pf' if шапка_пф }}">
   <a href="/" class="header-logo">
-    {%- if шапка_имя %}
-    <span class="pf-header-name">{{ шапка_имя }}</span>
-    {%- else %}
     <span class="nav-logo-symbol">⚡</span>
     <span>EnergyDess</span>
-    {%- endif %}
   </a>
 
   {% if есть_доступ_к_инструментам %}
@@ -143,9 +142,9 @@
       </div>
     </div>
     {% else %}
-    <a href="/login" class="{{ 'btn-secondary header-cta pf-header-btn' if шапка_имя else 'btn-ghost' }}">Войти</a>
+    <a href="/login" class="{{ 'btn-secondary header-cta pf-header-btn' if шапка_пф else 'btn-ghost' }}">Войти</a>
     {% if not регистрация_начата %}
-    <a href="/register" class="{{ 'btn-secondary pf-header-btn' if шапка_имя else 'btn-primary' }} header-cta">Регистрация</a>
+    <a href="/register" class="{{ 'btn-primary pf-header-btn' if шапка_пф else 'btn-primary' }} header-cta">Регистрация</a>
     {% endif %}
     {% endif %}
   </div>

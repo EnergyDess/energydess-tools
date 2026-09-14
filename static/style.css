@@ -4426,4 +4426,34 @@ body.auth-layout .auth-wrap {
   color: var(--text-2);
 }
 .media-slot-label { font-size: var(--text-caption); font-weight: 500; line-height: 1.4; }
+/* МЯГКАЯ ЗАГЛУШКА (`.media-slot-soft`, заход 339, блок A3). Место без
+   подложки и без пунктира: пустота выглядит светом снизу и силуэтом,
+   а не прямоугольником. Потребитель — портрет первого экрана, который
+   налезает на имя: непрозрачная коробка закрыла бы буквы, а пунктир
+   посреди экрана читался дырой. Подпись места прижата к низу. */
+.media-slot-soft { background: transparent; border-radius: 0; overflow: visible; }
+.media-slot-soft .media-slot-empty {
+  justify-content: flex-end;
+  padding-bottom: var(--space-4);
+  border: none;
+  background: radial-gradient(closest-side at 50% 78%, var(--surface-2), transparent);
+  color: var(--text-faint);
+}
+/* Силуэт — ЗАЛИВКА на ступень выше фона, а не контур: так пустое место
+   выглядит тенью будущего портрета, верх головы стоит там же, где встанет
+   голова на снимке, и налезание на имя видно уже без файла. */
+.media-slot-soft .media-slot-figure {
+  position: absolute;
+  /* у значка свой внутренний отступ в поле 24: голова начинается
+     на 12% ниже верха, поэтому силуэт поднят */
+  left: 50%; top: -9%;
+  width: 84%; height: auto;
+  transform: translateX(-50%);
+  fill: var(--surface-2);
+  stroke: none;
+  /* плечи уходят в фон, а не обрываются ровной линией */
+  -webkit-mask-image: linear-gradient(to bottom, var(--surface-0) 55%, transparent 88%);
+  mask-image: linear-gradient(to bottom, var(--surface-0) 55%, transparent 88%);
+}
+.media-slot-soft .media-slot-label, .media-slot-soft .media-slot-kind { position: relative; }
 .media-slot-kind { font-family: var(--font-mono); font-size: var(--text-caption); }

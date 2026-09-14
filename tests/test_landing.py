@@ -41,6 +41,8 @@ def test_мест_26_и_структура_владельца():
                                                    "portrait": 1, "decor": 4}
     assert all(м["kind"] == "video" for м in по["feed"])
     assert all(м["alpha"] for м in по["decor"])
+    # портрет с прозрачным фоном налезает на имя (заход 339, A3)
+    assert по["portrait"][0]["alpha"] and по["portrait"][0]["ratio"] == "1 / 1"
     assert len({м["id"] for м in ld.МЕСТА}) == 26
 
 
