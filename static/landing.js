@@ -321,9 +321,27 @@
     var адрес = блок.querySelector('[data-pf-contact-addr]');
     var кнопка = блок.querySelector('[data-pf-contact-copy]');
     var итог = блок.querySelector('[data-pf-contact-status]');
+    var таймер = 0;
     var сказать = function (текст, отказ) {
       итог.textContent = текст;
-      итог.classList.toggle('pf-contact-fail', !!отказ);
+      // успех — галочкой на месте значка (D5), строка остаётся программе
+      // чтения; отказ — словами на виду (D7)
+      итог.classList.toggle('pf-contact-ok', !!текст && !отказ);
+      if (!кнопка) return;
+      clearTimeout(таймер);
+      кнопка.classList.toggle('pf-done', !!текст && !отказ);
+      if (текст && !отказ) таймер = setTimeout(function () { кнопка.classList.remove('pf-done'); }, 1600);
+    };
+    // Уголок облачка смотрит на центр кнопки (D3): кнопка стоит то у правого
+    // края карточки, то под её серединой, и одним числом в стилях это
+    // не выражается.
+    var карточка = блок.querySelector('.pf-contact-pop');
+    var навести = function () {
+      var к = блок.querySelector('summary').getBoundingClientRect();
+      var п = карточка.getBoundingClientRect();
+      if (!п.width) return;
+      var x = Math.min(п.width - 20, Math.max(20, к.left + к.width / 2 - п.left));
+      карточка.style.setProperty('--pf-tail-x', x.toFixed(1) + 'px');
     };
     var выделить = function () {
       var д = document.createRange();
@@ -348,6 +366,7 @@
     }
     блок.addEventListener('toggle', function () {
       if (!блок.open) { сказать('', false); return; }
+      навести();
       связи.forEach(function (другой) { if (другой !== блок) другой.open = false; });
     });
   });

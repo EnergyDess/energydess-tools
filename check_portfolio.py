@@ -20,7 +20,7 @@
   py check_portfolio.py --экран --контроль-магнита  # подлог ввода магнита (339, A4)
   py check_portfolio.py --о-себе --контроль-доли    # подлог расчёта доли (339, B)
   py check_portfolio.py --инструменты --контроль-повтора  # подлог повтора (339, D3)
-  py check_portfolio.py --связь [--контроль-буфера]  # F (339): кнопки связи, подлог буфера
+  py check_portfolio.py --связь [--контроль-буфера]  # D (342): две строки связи, уголок, три кнопки, подлог буфера
   ... --контроль                     # подлог звена: B — сдвиг портрета,
                                      #   C — ролики грузятся сразу
   py check_portfolio.py --лента --контроль-плавности   # C: рывок ряда
@@ -1161,19 +1161,47 @@ def инструменты(контроль=False, контроль_повтор
   if (!б) return null;
   const поп = б.querySelector('.pf-contact-pop'), адрес = б.querySelector('[data-pf-contact-addr]');
   const видим = э => !!э && э.checkVisibility({checkOpacity: true, checkVisibilityCSS: true});
+  const пр = э => { const r = э.getBoundingClientRect(); return {l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height}; };
   const итог = б.querySelector('[data-pf-contact-status]');
   const выделено = String(window.getSelection());
   const кп = поп.getBoundingClientRect();
+  const кн = б.querySelector('summary').getBoundingClientRect();
+  // D1: строки и их части — только то, что видно человеку
+  const строки = [...поп.querySelectorAll('.pf-contact-row')].filter(видим).map(с => {
+    const гл = с.querySelector('.pf-contact-main'), ико = с.querySelector('.pf-contact-ico'),
+          зн = с.querySelector('.pf-contact-val'),
+          дей = [...с.querySelectorAll('.pf-contact-act')].filter(видим);
+    return {href: гл ? гл.getAttribute('href') : '', значение: видим(зн) ? зн.textContent.trim() : '',
+            ико: видим(ико) ? пр(ико) : null, действий: дей.length, дей: дей.length ? пр(дей[0]) : null,
+            копия_видна: видим(с.querySelector('.pf-contact-act-copy')),
+            галочка_видна: видим(с.querySelector('.pf-contact-act-done'))};
+  });
+  // D3: уголок — псевдоэлемент; его центр по x = левый край карточки + вычисленный left
+  const уг = getComputedStyle(поп, '::after');
+  const уголок_x = кп.left + parseFloat(уг.left);
+  const ир = итог.getBoundingClientRect();
   return {открыт: б.open, карточка_видна: видим(поп), адрес: видим(адрес) ? адрес.textContent.trim() : '',
-          итог: видим(итог) ? итог.textContent.trim() : '', выделено,
-          почта: !!б.querySelector('a[href^="mailto:"]'),
+          итог: итог.textContent.trim(), итог_виден_глазу: видим(итог) && ир.width > 2 && ир.height > 2,
+          выделено, строки,
+          текст_карточки: поп.innerText,
+          уголок: {x: уголок_x, есть: уг.content !== 'none', кнопка_l: кн.left, кнопка_r: кн.right,
+                   под_карточкой: кп.bottom <= кн.top + 0.5},
+          анимация: getComputedStyle(поп).animationName, ширина_карточки: кп.width, ширина_кнопки: кн.width,
           в_окне: кп.left >= -0.5 && кп.right <= document.documentElement.clientWidth + 0.5 && кп.top >= 0};
 }"""
+
+# D6: все три «Связаться» одного вида — сверяются вычисленные свойства кнопки
+ЗАМЕР_КНОПОК_СВЯЗИ = r"""() => [...document.querySelectorAll('.pf-contact summary')].map(э => {
+  const s = getComputedStyle(э), r = э.getBoundingClientRect();
+  return {класс: э.className, текст: э.textContent.trim(), w: Math.round(r.width * 10) / 10,
+          h: Math.round(r.height * 10) / 10, фон: s.backgroundColor, цвет: s.color, кегль: s.fontSize,
+          вес: s.fontWeight, поле: s.padding, радиус: s.borderRadius, рамка: s.borderTopWidth + ' ' + s.borderTopColor};
+})"""
 
 
 def связь(контроль_буфера=False):
     from playwright.sync_api import sync_playwright
-    print("F. СВЯЗАТЬСЯ — гостем, головной браузер, стенд %s%s" % (
+    print("D. СВЯЗАТЬСЯ — гостем, головной браузер, стенд %s%s" % (
         БАЗА, " · ПОДЛОГ: буфер обмена недоступен" if контроль_буфера else ""))
     with sync_playwright() as p:
         бр = p.chromium.launch(headless=False)
@@ -1196,6 +1224,13 @@ def связь(контроль_буфера=False):
                 шаг("кнопок «Связаться» на странице 3, и ни одна не голый mailto:",
                     len(кнопки) == 3 and all(к_["тег"] == "SUMMARY" for к_ in кнопки),
                     ", ".join("%s %s" % (к_["тег"], к_["href"]) for к_ in кнопки), собрано=len(кнопки))
+                вид = с.evaluate(ЗАМЕР_КНОПОК_СВЯЗИ)
+                ключи = ("класс", "текст", "w", "h", "фон", "цвет", "кегль", "вес", "поле", "радиус", "рамка")
+                разные = [кл for кл in ключи if len({str(х[кл]) for х in вид}) > 1]
+                шаг("D6: три «Связаться» одного вида (%s)" % ", ".join(ключи),
+                    len(вид) == 3 and not разные,
+                    "разошлись: %s" % ("; ".join("%s %s" % (кл, [х[кл] for х in вид]) for кл in разные) or "ничего"),
+                    собрано=len(вид))
                 if контроль_буфера:
                     # в буфере заранее другое — чтобы «скопировано» нельзя было засчитать
                     с.evaluate("() => { const t = document.createElement('textarea'); t.value = 'другое'; document.body.append(t); t.select(); document.execCommand('copy'); t.remove(); }")
@@ -1209,33 +1244,94 @@ def связь(контроль_буфера=False):
                     кн.click()
                     с.wait_for_timeout(300)
                     з = с.evaluate(ЗАМЕР_СВЯЗИ, место)
-                    шаг("%s: нажатие раскрывает карточку, адрес виден, mailto внутри, карточка в окне" % место,
-                        з["открыт"] and з["карточка_видна"] and з["адрес"] == "pr@energydess.ru" and з["почта"] and з["в_окне"],
-                        "открыт %s, адрес «%s», mailto %s, в окне %s" % (з["открыт"], з["адрес"], з["почта"], з["в_окне"]))
+                    шаг("%s: нажатие раскрывает карточку, адрес виден, карточка в окне" % место,
+                        з["открыт"] and з["карточка_видна"] and з["адрес"] == "pr@energydess.ru" and з["в_окне"],
+                        "открыт %s, адрес «%s», в окне %s" % (з["открыт"], з["адрес"], з["в_окне"]))
+                    ст = з["строки"]
+                    ожид = [("mailto:pr@energydess.ru", "pr@energydess.ru"), ("https://t.me/energydess", "@energydess")]
+                    факт = [(х["href"], х["значение"]) for х in ст]
+                    шаг("%s: D1 — строк 2: почта и телеграм, у каждой значок, значение и одно действие" % место,
+                        факт == ожид and all(х["ико"] and х["действий"] == 1 for х in ст),
+                        "строк %d: %s; значков %s, действий %s" % (len(ст), факт,
+                            [bool(х["ико"]) for х in ст], [х["действий"] for х in ст]),
+                        отрицание="ноль строк — это находка, а не пустой замер: список не равен ожидаемым двум")
+                    if len(ст) == 2 and all(х["ико"] and х["дей"] for х in ст):
+                        dl = abs(ст[0]["ико"]["l"] - ст[1]["ико"]["l"])
+                        dr = abs(ст[0]["дей"]["r"] - ст[1]["дей"]["r"])
+                        dc = abs((ст[0]["дей"]["l"] + ст[0]["дей"]["r"]) - (ст[1]["дей"]["l"] + ст[1]["дей"]["r"])) / 2
+                        шаг("%s: значки на одной вертикали, действия на одной вертикали" % место,
+                            dl <= 1 and dr <= 1 and dc <= 1,
+                            "значки Δлево %.1f px, действия Δправо %.1f, Δцентр %.1f" % (dl, dr, dc))
+                    шаг("%s: D2 — строки «Открыть почтовую программу» нет" % место,
+                        "почтовую программу" not in з["текст_карточки"],
+                        "текст карточки: %s" % " | ".join(з["текст_карточки"].split("\n")))
+                    уг = з["уголок"]
+                    шаг("%s: D3 — уголок под карточкой и над кнопкой" % место,
+                        уг["есть"] and уг["под_карточкой"] and уг["кнопка_l"] <= уг["x"] <= уг["кнопка_r"],
+                        "уголок x %.1f, кнопка %.1f…%.1f, карточка над кнопкой %s" % (
+                            уг["x"], уг["кнопка_l"], уг["кнопка_r"], уг["под_карточкой"]))
+                    if ш <= 600:
+                        шаг("%s: на узком карточка под ширину кнопки" % место,
+                            abs(з["ширина_карточки"] - з["ширина_кнопки"]) <= 1,
+                            "карточка %.1f px, кнопка %.1f px" % (з["ширина_карточки"], з["ширина_кнопки"]))
+                    шаг("%s: D4 — при «уменьшить движение» раскрытие без анимации" % место,
+                        з["анимация"] == "none", "animation-name %s" % з["анимация"])
                     с.locator(".pf-contact-%s [data-pf-contact-copy]" % место).click()
-                    с.wait_for_timeout(400)
+                    с.wait_for_timeout(300)
                     з = с.evaluate(ЗАМЕР_СВЯЗИ, место)
                     буфер = с.evaluate("() => navigator.clipboard ? navigator.clipboard.readText() : null") \
                         if not контроль_буфера else None
+                    почта = з["строки"][0] if з["строки"] else {}
                     if контроль_буфера:
                         # Доказательство, что обычный шаг копирования не слеп:
                         # на подлоге его условие обязано быть ЛОЖНЫМ.
-                        обычный = з["итог"].startswith("Скопировано")
-                        print("  доказательство: обычный шаг «скопировано» на подлоге дал бы %s (итог «%s»)" % (
-                            "OK — ШАГ СЛЕП" if обычный else "ПЛОХО", з["итог"]))
-                        шаг("%s: буфер недоступен — адрес виден, выделен, отказ сказан словами" % место,
+                        обычный = почта.get("галочка_видна") and з["итог"].startswith("Скопировано")
+                        print("  доказательство: обычный шаг «скопировано» на подлоге дал бы %s (галочка %s, итог «%s»)" % (
+                            "OK — ШАГ СЛЕП" if обычный else "ПЛОХО", почта.get("галочка_видна"), з["итог"]))
+                        шаг("%s: D7 — буфер недоступен: адрес виден, выделен, отказ словами на виду" % место,
                             з["адрес"] == "pr@energydess.ru" and з["выделено"].strip() == "pr@energydess.ru"
-                            and "не удалось" in з["итог"],
-                            "адрес «%s», выделено «%s», итог «%s»" % (з["адрес"], з["выделено"].strip(), з["итог"]))
+                            and "не удалось" in з["итог"] and з["итог_виден_глазу"] and not почта.get("галочка_видна"),
+                            "адрес «%s», выделено «%s», итог «%s» виден %s, галочка %s" % (
+                                з["адрес"], з["выделено"].strip(), з["итог"], з["итог_виден_глазу"], почта.get("галочка_видна")))
                     else:
-                        шаг("%s: копирование кладёт адрес в буфер и говорит «скопировано»" % место,
-                            буфер == "pr@energydess.ru" and з["итог"].startswith("Скопировано"),
-                            "в буфере «%s», итог «%s»" % (буфер, з["итог"]))
+                        шаг("%s: D5 — копирование кладёт адрес в буфер, на месте значка галочка" % место,
+                            буфер == "pr@energydess.ru" and почта.get("галочка_видна") and not почта.get("копия_видна")
+                            and з["итог"].startswith("Скопировано") and not з["итог_виден_глазу"],
+                            "в буфере «%s», галочка %s, значок копирования %s, строка для чтения «%s» на виду %s" % (
+                                буфер, почта.get("галочка_видна"), почта.get("копия_видна"), з["итог"], з["итог_виден_глазу"]))
+                        с.wait_for_timeout(1800)
+                        з = с.evaluate(ЗАМЕР_СВЯЗИ, место)
+                        почта = з["строки"][0] if з["строки"] else {}
+                        шаг("%s: D5 — подтверждение ненадолго: через 2 с снова значок копирования" % место,
+                            почта.get("копия_видна") and not почта.get("галочка_видна"),
+                            "значок копирования %s, галочка %s" % (почта.get("копия_видна"), почта.get("галочка_видна")))
                     с.keyboard.press("Escape")
                     с.wait_for_timeout(200)
                     з = с.evaluate(ЗАМЕР_СВЯЗИ, место)
                     шаг("%s: Escape закрывает" % место, not з["открыт"] and not з["карточка_видна"],
                         "открыт %s" % з["открыт"])
+                к.close()
+            if not контроль_буфера:
+                # D4 обратная половина: без «уменьшить движение» раскрытие анимировано
+                к = _контекст(бр, 1920, 1080, False)
+                с = к.new_page()
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                с.wait_for_timeout(300)
+                с.evaluate("""() => { const п = document.querySelector('.pf-contact-hero .pf-contact-pop');
+                    window.__прозрачность = []; const t0 = performance.now();
+                    const тик = () => { window.__прозрачность.push([performance.now() - t0, +getComputedStyle(п).opacity]);
+                      if (performance.now() - t0 < 600) requestAnimationFrame(тик); };
+                    document.querySelector('.pf-contact-hero').addEventListener('toggle', () => requestAnimationFrame(тик), {once: true}); }""")
+                с.locator(".pf-contact-hero summary").click()
+                с.wait_for_timeout(800)
+                ряд = с.evaluate("() => window.__прозрачность")
+                имя = с.evaluate("() => getComputedStyle(document.querySelector('.pf-contact-hero .pf-contact-pop')).animationName")
+                ступеней = len({round(о, 2) for _, о in ряд})
+                шаг("D4: без «уменьшить движение» карточка проявляется плавно (1920)",
+                    имя == "pf-pop" and ряд and ряд[0][1] < 1 and ряд[-1][1] == 1 and ступеней >= 4,
+                    "animation-name %s, кадров %d, первая прозрачность %.2f, последняя %.2f, ступеней %d" % (
+                        имя, len(ряд), ряд[0][1] if ряд else -1, ряд[-1][1] if ряд else -1, ступеней),
+                    собрано=len(ряд))
                 к.close()
         finally:
             бр.close()

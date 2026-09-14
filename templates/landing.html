@@ -26,11 +26,25 @@
 <details class="pf-contact pf-contact-{{ место }}{{ ' ' + класс if класс }}" data-pf-contact{% if шаг is not none %} style="--n: {{ шаг }}"{% endif %}>
   <summary class="btn-primary btn-lg pf-contact-btn">Связаться</summary>
   <div class="pf-contact-pop">
-    <p class="pf-contact-label">Почта</p>
-    <p class="pf-contact-addr" data-pf-contact-addr>pr@energydess.ru</p>
-    <div class="pf-contact-acts">
-      <button type="button" class="btn-secondary pf-contact-copy" data-pf-contact-copy hidden>Скопировать адрес</button>
-      <a href="mailto:pr@energydess.ru" class="btn-ghost pf-contact-mail">Открыть почтовую программу</a>
+    {# ДВЕ СТРОКИ ОДНОГО СТРОЕНИЯ (заход 342, блок D): значок, значение,
+       действие справа. Строка почты — сама ссылка mailto (отдельной строки
+       «Открыть почтовую программу» больше нет), справа копирование. Строка
+       телеграма — одна ссылка целиком, справа знак перехода. #}
+    <div class="pf-contact-row">
+      <a class="pf-contact-main" href="mailto:pr@energydess.ru">
+        <span class="pf-contact-ico">{{ значок('mail') }}</span>
+        <span class="pf-contact-val" data-pf-contact-addr>pr@energydess.ru</span>
+      </a>
+      <button type="button" class="pf-contact-act" data-pf-contact-copy aria-label="Скопировать адрес" hidden>
+        <span class="pf-contact-act-copy">{{ значок('copy') }}</span><span class="pf-contact-act-done">{{ значок('check') }}</span>
+      </button>
+    </div>
+    <div class="pf-contact-row">
+      <a class="pf-contact-main" href="https://t.me/energydess" target="_blank" rel="noopener">
+        <span class="pf-contact-ico">{{ значок('send') }}</span>
+        <span class="pf-contact-val">@energydess</span>
+        <span class="pf-contact-act" aria-hidden="true">{{ значок('arrow-up-right') }}</span>
+      </a>
     </div>
     <p class="pf-contact-status" data-pf-contact-status role="status" aria-live="polite"></p>
   </div>

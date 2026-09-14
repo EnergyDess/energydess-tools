@@ -747,45 +747,115 @@ body::before {
 .pf-contact-btn { width: 100%; list-style: none; cursor: pointer; }
 .pf-contact-btn::-webkit-details-marker { display: none; }
 .pf-contact-pop {
+  --pf-tail-x: 50%;
   position: absolute;
-  bottom: calc(100% + var(--space-3));
+  bottom: calc(100% + var(--space-4));
   right: 0;
   z-index: 5;
-  width: min(24rem, calc(100vw - 2 * var(--space-4)));
-  padding: var(--space-5);
+  width: min(22rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-2);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--surface-2);
   box-shadow: var(--shadow-lg);
   text-align: left;
 }
-/* У кнопок по центру секции карточка встаёт по центру над кнопкой. */
-.pf-contact-about .pf-contact-pop, .pf-contact-final .pf-contact-pop { right: auto; left: 50%; transform: translateX(-50%); }
-.pf-contact-label {
-  margin: 0 0 var(--space-1);
-  font-family: var(--font-mono);
-  font-size: var(--text-caption);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-2);
+/* УГОЛОК ОБЛАЧКА (D3): квадрат с рамкой по двум сторонам, повёрнутый
+   на 45°, стоит под нижним краем карточки и смотрит на кнопку. Где
+   именно, скрипт считает по центру кнопки при раскрытии: кнопка бывает
+   и у правого края карточки, и под её серединой. */
+.pf-contact-pop::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: var(--pf-tail-x);
+  width: 14px;
+  height: 14px;
+  border-right: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  transform: translate(-50%, -50%) rotate(45deg);
 }
-.pf-contact-addr {
-  margin: 0 0 var(--space-4);
-  font-size: var(--text-h3);
-  font-weight: 600;
+/* У кнопок по центру секции карточка встаёт по центру над кнопкой.
+   Сдвиг — свойством `translate`, а не `transform`: `transform` занят
+   анимацией раскрытия и перебил бы центрирование на время хода. */
+.pf-contact-about .pf-contact-pop, .pf-contact-final .pf-contact-pop { right: auto; left: 50%; translate: -50% 0; }
+/* РАСКРЫТИЕ СНИЗУ ВВЕРХ (D4): карточка поднимается к месту и проявляется.
+   Без масштаба: он сдвигал бы по горизонтали то, по чему скрипт ставит уголок. */
+.pf-contact[open] .pf-contact-pop { animation: pf-pop var(--dur-base) var(--ease-out); }
+@keyframes pf-pop {
+  from { opacity: 0; transform: translateY(var(--space-3)); }
+  to   { opacity: 1; transform: none; }
+}
+/* ДВЕ СТРОКИ ОДНОГО СТРОЕНИЯ (D1): значок, значение, действие. Действия
+   обеих строк стоят у правого края карточки на одной вертикали. */
+.pf-contact-row { display: flex; align-items: center; gap: var(--space-1); }
+.pf-contact-row + .pf-contact-row { border-top: 1px solid var(--border); }
+.pf-contact-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
   color: var(--text-strong);
-  user-select: all;
-  overflow-wrap: anywhere;
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease-out);
 }
-.pf-contact-acts { display: flex; flex-wrap: wrap; gap: var(--space-3); }
-.pf-contact-status { margin: var(--space-3) 0 0; font-size: var(--text-body-sm); color: var(--success); }
+.pf-contact-ico { display: inline-flex; color: var(--text-2); }
+.pf-contact-ico svg, .pf-contact-act svg { width: 20px; height: 20px; }
+.pf-contact-val { flex: 1; min-width: 0; font-size: var(--text-body-lg); font-weight: 600; overflow-wrap: anywhere; }
+.pf-contact-act {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+/* У строки телеграма знак перехода — внутри ссылки; правый отступ
+   ссылки снят с него, чтобы знак встал на ту же вертикаль, что копирование. */
+.pf-contact-main > .pf-contact-act { margin-right: calc(-1 * var(--space-3)); }
+@media (hover: hover) {
+  .pf-contact-main:hover, button.pf-contact-act:hover { background: var(--surface-3); }
+  button.pf-contact-act:hover { color: var(--text-strong); }
+}
+.pf-contact-main:focus-visible, button.pf-contact-act:focus-visible { outline: 2px solid var(--accent-brand); outline-offset: -2px; }
+/* ПОДТВЕРЖДЕНИЕ НА МЕСТЕ ЗНАЧКА (D5): копирование на время сменяется галочкой. */
+.pf-contact-act-copy, .pf-contact-act-done { display: inline-flex; }
+.pf-contact-act-done { display: none; color: var(--success); }
+.pf-contact-act.pf-done .pf-contact-act-copy { display: none; }
+.pf-contact-act.pf-done .pf-contact-act-done { display: inline-flex; }
+/* Отказ говорится словами на виду (D7); успех — галочкой, а строка
+   успеха остаётся только программе чтения. */
+.pf-contact-status { margin: 0; padding: var(--space-2) var(--space-3) var(--space-1); font-size: var(--text-body-sm); color: var(--warning); }
 .pf-contact-status:empty { display: none; }
-.pf-contact-status.pf-contact-fail { color: var(--warning); }
+.pf-contact-status.pf-contact-ok {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 @media (max-width: 600px) {
   /* на узком все три кнопки во всю ширину — карточка почты под ширину кнопки */
   .pf-contact { display: block; }
-  .pf-contact-pop { position: absolute; left: 0; right: 0; width: auto; transform: none; }
-  .pf-contact-about .pf-contact-pop, .pf-contact-final .pf-contact-pop { left: 0; transform: none; }
+  .pf-contact-pop { left: 0; right: 0; width: auto; translate: none; }
+  .pf-contact-about .pf-contact-pop, .pf-contact-final .pf-contact-pop { left: 0; right: 0; translate: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pf-contact[open] .pf-contact-pop { animation: none; }
 }
 
 /* ── Связаться ────────────────────────────────────────────────────────────── */
