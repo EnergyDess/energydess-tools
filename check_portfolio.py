@@ -1401,6 +1401,370 @@ def проекты(контроль=False):
             бр.close()
 
 
+# ══ B. ФОН СТРАНИЦЫ (заход 342) ═══════════════════════════════════════
+#
+# ЧТО СПРАШИВАЕТСЯ — ВИДИМОЕ:
+#   · B1 верхний ролик не едет: его коробка стоит у верха окна при трёх
+#     положениях прокрутки внутри верхней части;
+#   · B4 границы участков без скачка: контент скрыт, по строкам кадра
+#     средняя яркость у каждого края слоя фона и подсветки — скачок
+#     в уровнях из 255 (жёсткий край даёт десятки);
+#   · B5 верхний получает адрес сразу, нижний — не дальше 1.6 и уже
+#     на 1.4 экрана до слоя;
+#   · B6 «чёрные» миллисекунды: кадр первого экрана виден, а кадра фона
+#     нет — на мобильной сети при загрузке и при рывке вниз;
+#   · B7 скорость 0.5 у играющего ролика; B8 «уменьшить движение»:
+#     ролики без адреса, кадр виден, подсветка стоит;
+#   · B9 контраст текста к фону ПОД ним: текст скрыт, p95 яркости фона
+#     в прямоугольниках строк, четыре кадра ролика, три положения текста
+#     в окне; худший случай против 4.5 (3.0 у крупного).
+#
+# ПОДЛОГИ ЛОМАЮТ СВОЁ ЗВЕНО:
+#   --контроль-сети   кадр верхнего фона — адресом вместо встроенного
+#                     (переписанная разметка): чёрные мс обязаны стать > 0;
+#   --контроль-рывка  кадр нижнего фона снят: при рывке чёрные мс > 0;
+#   --контроль-краёв  маски слоёв сняты: скачок у края обязан вырасти.
+
+МОБИЛЬНАЯ_СЕТЬ = {"offline": False, "latency": 150, "downloadThroughput": 200000,
+                  "uploadThroughput": 93750}
+
+ФОН_ТЕКСТЫ = [".pf-hero-role", ".pf-hero-name", ".pf-hero-line", "#pf-about-h",
+              ".pf-about-text", "#pf-final-h", ".pf-final-sub"]
+
+ЗАМЕР_КРАЁВ = r"""() => {
+  const out = [];
+  for (const э of document.querySelectorAll('.pf-bg, .pf-glow')) {
+    const b = э.getBoundingClientRect();
+    out.push({кто: э.className, верх: b.top + scrollY, низ: b.bottom + scrollY,
+              маска: getComputedStyle(э).maskImage || getComputedStyle(э).webkitMaskImage});
+  }
+  return out;
+}"""
+
+ЧЁРНЫЕ_МС = r"""(сел) => new Promise(готово => {
+  const t0 = performance.now(); let первый = null, конец = null;
+  const тик = () => {
+    const слой = document.querySelector(сел);
+    const п = слой && слой.querySelector('.pf-bg-poster'), в = слой && слой.querySelector('.pf-bg-video');
+    const есть = (п && п.complete && п.naturalWidth > 0) || (в && в.classList.contains('pf-on'));
+    const b = слой && слой.getBoundingClientRect();
+    const виден = b && b.bottom > 0 && b.top < innerHeight;
+    if (виден && первый === null) первый = performance.now();
+    if (виден && есть) { конец = performance.now(); готово({чёрные: Math.round(конец - первый), с_начала: Math.round(конец - t0)}); return; }
+    if (performance.now() - t0 > 8000) { готово({чёрные: первый === null ? null : Math.round(performance.now() - первый), с_начала: null}); return; }
+    requestAnimationFrame(тик);
+  };
+  requestAnimationFrame(тик);
+})"""
+
+ПОДЛОГ_КАДР_АДРЕСОМ = r"""(() => {
+  new MutationObserver(() => {
+    const п = document.querySelector('.pf-bg-top .pf-bg-poster');
+    if (п && п.getAttribute('src').startsWith('data:')) п.setAttribute('src', '__АДРЕС__?v=' + Date.now());
+  }).observe(document, {childList: true, subtree: true});
+})();"""
+
+ПЕРВЫЙ_КАДР_ИНИТ = r"""(() => {
+  window.__фон = {герой: null, кадр: null};
+  const тик = () => {
+    const г = document.querySelector('.pf-hero');
+    const п = document.querySelector('.pf-bg-top .pf-bg-poster');
+    const t = performance.now();
+    if (г && window.__фон.герой === null && getComputedStyle(г).display === 'grid' && г.getBoundingClientRect().height > 0) window.__фон.герой = t;
+    if (п && window.__фон.кадр === null && п.complete && п.naturalWidth > 0) window.__фон.кадр = t;
+    if (window.__фон.герой === null || window.__фон.кадр === null) requestAnimationFrame(тик);
+  };
+  requestAnimationFrame(тик);
+})();"""
+
+
+def _яркость(пиксели):
+    """Относительная яркость sRGB по WCAG для массива (N, 3) 0..255."""
+    import numpy as np
+    к = пиксели.astype(np.float64) / 255.0
+    к = np.where(к <= 0.04045, к / 12.92, ((к + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * к[:, 0] + 0.7152 * к[:, 1] + 0.0722 * к[:, 2]
+
+
+def _цвет_яркость(css):
+    import re as _re
+    ч = [float(x) for x in _re.findall(r"[\d.]+", css)[:3]]
+    import numpy as np
+    return float(_яркость(np.array([ч]))[0])
+
+
+def _фон_поведение(бр, ш, в, сенсор, контроль_сети, контроль_рывка, контроль_краёв):
+    """B1, B4, B5, B6, B7 на одной ширине. False — слоёв фона нет."""
+    import io
+    import numpy as np
+    from PIL import Image
+    к = _контекст(бр, ш, в, сенсор)
+    с = к.new_page()
+    с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+    с.wait_for_timeout(800)
+    слоёв = с.locator(".pf-bg").count()
+    if not слоёв:
+        шаг("слои фона есть", False, собрано=слоёв)
+        к.close()
+        return False
+    if контроль_краёв:
+        с.add_style_tag(content=".pf-bg,.pf-glow{-webkit-mask-image:none!important;mask-image:none!important}")
+    адреса = с.evaluate("() => [...document.querySelectorAll('.pf-bg-video')].map(в => !!в.getAttribute('src'))")
+    шаг("B5: при загрузке у верхнего адрес есть, у нижнего нет",
+        адреса == [True, False], "адреса %s" % адреса, собрано=len(адреса))
+
+    # B1 — липкость верхнего
+    верх_зоны = с.evaluate("() => { const b = document.querySelector('.pf-bg-top').getBoundingClientRect(); return {низ: b.bottom + scrollY}; }")
+    сдвиги = []
+    for y in (400, 900, int(max(1000, верх_зоны["низ"] - в * 1.6))):
+        с.evaluate("y => window.scrollTo({top: y, behavior: 'instant'})", y)
+        с.wait_for_timeout(250)
+        сдвиги.append(round(с.evaluate("() => document.querySelector('.pf-bg-top .pf-bg-stick').getBoundingClientRect().top"), 1))
+    шаг("B1: верхний фон не едет — верх ролика у верха окна при трёх прокрутках",
+        all(abs(с_) < 0.6 for с_ in сдвиги), "верх ролика %s px" % сдвиги, собрано=len(сдвиги))
+
+    # B5 — подгрузка нижнего за полтора экрана
+    верх_низа = с.evaluate("() => document.querySelector('.pf-bg-bottom').getBoundingClientRect().top + scrollY")
+    с.evaluate("y => window.scrollTo({top: y, behavior: 'instant'})", int(верх_низа - в - 1.6 * в))
+    с.wait_for_timeout(400)
+    на16 = с.evaluate("() => !!document.querySelector('.pf-bg-bottom .pf-bg-video').getAttribute('src')")
+    с.evaluate("y => window.scrollTo({top: y, behavior: 'instant'})", int(верх_низа - в - 1.4 * в))
+    с.wait_for_timeout(400)
+    на14 = с.evaluate("() => !!document.querySelector('.pf-bg-bottom .pf-bg-video').getAttribute('src')")
+    шаг("B5: нижний не грузится за 1.6 экрана и грузится за 1.4", (not на16) and на14,
+        "адрес на 1.6 %s, на 1.4 %s" % (на16, на14))
+
+    # B7 — скорость
+    с.evaluate("y => window.scrollTo({top: y, behavior: 'instant'})", int(верх_низа))
+    с.wait_for_timeout(2500)
+    скорости = с.evaluate("() => [...document.querySelectorAll('.pf-bg-video')].map(в => [в.playbackRate, в.classList.contains('pf-on')])")
+    шаг("B7: у нижнего (играет) скорость 0.5, у верхнего выставлена 0.5",
+        скорости[1] == [0.5, True] and скорости[0][0] == 0.5, "скорость и игра %s" % скорости)
+
+    # B4 — края участков. Контент скрыт, подсветка стоит, а ролик и кадр
+    # заменены РОВНОЙ светлой заливкой: меряется сам переход, а не
+    # содержимое кадра (у нижнего ролика есть резкий горизонт, и первая
+    # версия мерки попала на него краем подсветки — ложный скачок 1.88).
+    # Жёсткий край при такой заливке даёт скачок в сотню уровней.
+    с.add_style_tag(content=".site-header,.pf-zone>:not(.pf-bg):not(.pf-glow),footer{visibility:hidden!important}"
+                            ".pf-glow i{animation-play-state:paused!important}"
+                            ".pf-bg-poster,.pf-bg-video{visibility:hidden!important}.pf-bg-stick{background:var(--text-strong)}")
+    края = с.evaluate(ЗАМЕР_КРАЁВ)
+    высота = с.evaluate("document.documentElement.scrollHeight")
+    скачки = []
+    for к_ in края:
+        for имя_края, y_док in (("верх", к_["верх"]), ("низ", к_["низ"])):
+            if y_док <= 70 or y_док >= высота - 2:
+                continue   # край у верха страницы или у её конца — не граница участков
+            прокрутка = max(0, int(y_док - в / 2))
+            с.evaluate("y => window.scrollTo({top: y, behavior: 'instant'})", прокрутка)
+            с.wait_for_timeout(300)
+            факт = с.evaluate("() => scrollY")
+            y_окна = int(round(y_док - факт))
+            if not (6 <= y_окна <= в - 6):
+                continue
+            кадр = np.array(Image.open(io.BytesIO(с.screenshot())).convert("RGB")).astype(np.float64)
+            строки = кадр.mean(axis=(1, 2))
+            скачок = abs(строки[y_окна - 4:y_окна - 1].mean() - строки[y_окна + 1:y_окна + 4].mean())
+            скачки.append((к_["кто"].split()[-1] + "·" + имя_края, round(float(скачок), 2)))
+    худший = max((с_[1] for с_ in скачки), default=None)
+    шаг("B4: у краёв фона и подсветки скачок яркости по строкам ≤ 12 уровней (жёсткий край — около сотни)",
+        худший is not None and худший <= 12,
+        "%s; маски: %s" % (скачки, [bool(к_["маска"] and к_["маска"] != "none") for к_ in края]),
+        собрано=len(скачки))
+    к.close()
+
+    # B6 — рывок вниз: сколько мс блок стоит без фона
+    к = _контекст(бр, ш, в, сенсор)
+    с = к.new_page()
+    с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+    с.wait_for_timeout(1000)
+    if контроль_рывка:
+        print("  доказательство подлога: кадров нижнего %d -> " % с.locator(".pf-bg-bottom .pf-bg-poster").count(), end="")
+        с.evaluate("() => document.querySelectorAll('.pf-bg-bottom .pf-bg-poster').forEach(э => э.remove())")
+        print(с.locator(".pf-bg-bottom .pf-bg-poster").count())
+    # замер стартует БЕЗ ожидания: иначе прокрутка случилась бы после его конца
+    с.evaluate("(сел) => { window.__рывок = (" + ЧЁРНЫЕ_МС + ")(сел); }", ".pf-bg-bottom")
+    # к финальному блоку, а не в конец страницы: на 390 подвал выше окна,
+    # и в конце страницы финальный блок уже за верхним краем
+    с.evaluate("() => window.scrollTo({top: document.querySelector('.pf-final').getBoundingClientRect().top + scrollY - innerHeight / 3, behavior: 'instant'})")
+    рывок = с.evaluate("() => window.__рывок")
+    шаг("B6: рывок вниз — нижний блок без фона 0 мс", рывок["чёрные"] == 0,
+        "без фона %s мс" % рывок["чёрные"])
+    к.close()
+
+    # B6 — мобильная сеть: первый кадр верхнего с первой отрисовкой.
+    # ДВА СЛУЧАЯ. Холодный — кеша нет вовсе. Тёплый — стили и скрипты в кеше,
+    # как у вернувшегося гостя, а кадр новый (ролик заменили): на холодной
+    # загрузке кадр по АДРЕСУ успевает раньше стилей, и мерка не отличала бы
+    # встроенный кадр от адреса. Подлог — в тёплом случае: наблюдатель разметки
+    # подменяет встроенный кадр некешированным адресом ДО первой отрисовки
+    # (перехват маршрута выключил бы кеш браузера и вернул холодный случай).
+    for случай in ("холодный", "тёплый"):
+        к = _контекст(бр, ш, в, сенсор)
+        с = к.new_page()
+        cdp = к.new_cdp_session(с)
+        cdp.send("Network.enable")
+        if случай == "холодный":
+            cdp.send("Network.setCacheDisabled", {"cacheDisabled": True})
+            if контроль_сети:
+                к.close()
+                continue
+        else:
+            с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+            видео = с.evaluate("() => (document.querySelector('.pf-bg-top .pf-bg-video') || {getAttribute: () => ''}).getAttribute('data-src')")
+            if контроль_сети and видео:
+                к.add_init_script(ПОДЛОГ_КАДР_АДРЕСОМ.replace("__АДРЕС__", видео.replace(".mp4", ".poster.webp")))
+        к.add_init_script(ПЕРВЫЙ_КАДР_ИНИТ)
+        cdp.send("Network.emulateNetworkConditions", МОБИЛЬНАЯ_СЕТЬ)
+        с.goto(БАЗА + "/", wait_until="load", timeout=120000)
+        с.wait_for_timeout(500)
+        м = с.evaluate("() => window.__фон")
+        if контроль_сети:
+            print("  доказательство подлога: кадр верхнего с адреса %s" % с.evaluate(
+                "() => (document.querySelector('.pf-bg-top .pf-bg-poster') || {getAttribute: () => ''}).getAttribute('src').slice(0, 40)"))
+        чёрные = None if м["герой"] is None or м["кадр"] is None else max(0, round(м["кадр"] - м["герой"]))
+        шаг("B6: мобильная сеть, %s кеш — первый экран без кадра фона 0 мс" % случай, чёрные == 0,
+            "первый экран на %s мс, кадр фона на %s мс, без кадра %s мс" % (
+                None if м["герой"] is None else round(м["герой"]),
+                None if м["кадр"] is None else round(м["кадр"]), чёрные))
+        к.close()
+    return True
+
+
+def _фон_уменьшить(бр, ш, в, сенсор):
+    к = _контекст(бр, ш, в, сенсор, движение="reduce")
+    с = к.new_page()
+    с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+    с.evaluate("() => window.scrollTo({top: document.documentElement.scrollHeight, behavior: 'instant'})")
+    с.wait_for_timeout(1500)
+    т = с.evaluate("""() => ({адреса: [...document.querySelectorAll('.pf-bg-video')].map(в => !!в.getAttribute('src')),
+        кадры: [...document.querySelectorAll('.pf-bg-poster')].map(п => п.complete && п.naturalWidth > 0),
+        подсветка: [...document.querySelectorAll('.pf-glow i')].map(и => getComputedStyle(и).animationName)})""")
+    шаг("B8: «уменьшить движение» — роликам адрес не дан, кадры видны, подсветка стоит",
+        т["адреса"] == [False, False] and all(т["кадры"]) and all(а == "none" for а in т["подсветка"]),
+        str(т), собрано=len(т["кадры"]))
+    к.close()
+
+
+def _фон_контраст(бр, ш, в, сенсор, притемнение=None):
+    """B9 на одной ширине. `притемнение` — {'top': 70, 'bottom': 45} поверх
+    стилей страницы: перебор долей без правки файла (подбор числа замером)."""
+    import io
+    import re as _re
+    import numpy as np
+    from PIL import Image
+    к = _контекст(бр, ш, в, сенсор)
+    с = к.new_page()
+    с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+    if притемнение:
+        с.add_style_tag(content="".join(".pf-bg-%s{--pf-scrim:%s%%!important}" % (к_, д_) for к_, д_ in притемнение.items()))
+        print("  притемнение подложено: %s" % притемнение)
+    с.add_style_tag(content=".pf-ch{color:var(--text-strong)!important}.pf-bg-video{transition:none!important}"
+                            ".pf-glow i{animation-play-state:paused!important}")
+    с.evaluate("""() => document.querySelectorAll('.pf-bg-video').forEach(в => { в.preload = 'auto';
+        if (!в.getAttribute('src')) в.setAttribute('src', в.getAttribute('data-src')); })""")
+    с.wait_for_timeout(2500)
+    фон_hex = с.evaluate("() => getComputedStyle(document.documentElement).getPropertyValue('--surface-0').trim()")
+    фон_ярк = _цвет_яркость("rgb(%d,%d,%d)" % tuple(int(фон_hex[i:i + 2], 16) for i in (1, 3, 5)))
+    худшие = []
+    for сел in ФОН_ТЕКСТЫ:
+        сведения = с.evaluate("""(сел) => { const э = document.querySelector(сел); if (!э) return null;
+            const ст = getComputedStyle(э); const град = э.classList.contains('pf-grad');
+            const цвет = град ? getComputedStyle(document.documentElement).getPropertyValue('--text-faint') : ст.color;
+            const кегль = parseFloat(ст.fontSize), вес = parseInt(ст.fontWeight);
+            const корень = getComputedStyle(document.documentElement);
+            return {цвет: цвет.trim(), град: град, светлый: корень.getPropertyValue('--text-strong').trim(),
+                    крупный: кегль >= 24 || (кегль >= 18.66 && вес >= 700), кегль};
+        }""", сел)
+        if not сведения:
+            continue
+        цвет_hex = сведения["цвет"]
+        if цвет_hex.startswith("#"):
+            цвет_css = "rgb(%d,%d,%d)" % tuple(int(цвет_hex[i:i + 2], 16) for i in (1, 3, 5))
+        else:
+            цвет_css = цвет_hex
+        ц_тёмн = [float(x) for x in _re.findall(r"[\d.]+", цвет_css)[:3]]
+        св_hex = сведения["светлый"]
+        ц_свет = [int(св_hex[i:i + 2], 16) for i in (1, 3, 5)] if св_hex.startswith("#") else ц_тёмн
+        порог = 3.0 if сведения["крупный"] else 4.5
+        хуже = None
+        for доля_окна in (0.25, 0.5, 0.75):
+            с.evaluate("""([сел, д]) => { const э = document.querySelector(сел); const b = э.getBoundingClientRect();
+                window.scrollTo({top: Math.max(0, b.top + scrollY + b.height / 2 - innerHeight * д), behavior: 'instant'}); }""",
+                       [сел, доля_окна])
+            for доля_ролика in (0.0, 0.25, 0.5, 0.75):
+                с.evaluate("""(д) => Promise.all([...document.querySelectorAll('.pf-bg-video')].map(в => new Promise(r => {
+                    в.pause(); в.classList.add('pf-on');
+                    const t = (в.duration || 0) * д; if (Math.abs(в.currentTime - t) < 0.01) { r(); return; }
+                    в.addEventListener('seeked', () => r(), {once: true}); в.currentTime = t; setTimeout(r, 3000); })))""",
+                           доля_ролика)
+                прям = с.evaluate("""(сел) => { const э = document.querySelector(сел);
+                    const д = document.createRange(); д.selectNodeContents(э);
+                    const бокс = э.getBoundingClientRect();
+                    return {бокс: [бокс.left, бокс.width],
+                      строки: [...д.getClientRects()].filter(к => к.width > 2 && к.height > 2 && к.top >= 64 && к.bottom <= innerHeight)
+                      .map(к => [к.left, к.top, к.right, к.bottom])}; }""", сел)
+                if not прям["строки"]:
+                    continue
+                с.add_style_tag(content="%s,%s *{color:transparent!important;-webkit-text-fill-color:transparent!important;"
+                                        "background:none!important;text-shadow:none!important}.pf-hero-portrait{visibility:hidden!important}" % (сел, сел))
+                с.wait_for_timeout(60)
+                кадр = np.array(Image.open(io.BytesIO(с.screenshot())).convert("RGB"))
+                с.evaluate("() => document.head.lastElementChild.remove()")
+                # ПОЛОСАМИ ВДОЛЬ СТРОКИ: у градиентного заголовка цвет букв
+                # меняется от серого края к белому, и фон под каждой полосой
+                # сравнивается с цветом букв В ЭТОЙ полосе
+                б_л, б_ш = прям["бокс"]
+                for l_, t_, r_, b_ in прям["строки"]:
+                    полос = max(1, int((r_ - l_) // 24))
+                    for i in range(полос):
+                        x0 = l_ + (r_ - l_) * i / полос
+                        x1 = l_ + (r_ - l_) * (i + 1) / полос
+                        кусок = кадр[int(t_):int(b_), max(0, int(x0)):int(x1)].reshape(-1, 3)
+                        if not len(кусок):
+                            continue
+                        доля = min(1.0, max(0.0, ((x0 + x1) / 2 - б_л) / б_ш)) if сведения["град"] else 0.0
+                        ц = [ц_тёмн[j] * (1 - доля) + ц_свет[j] * доля for j in range(3)]
+                        L_текст = float(_яркость(np.array([ц]))[0])
+                        L_фон = float(np.percentile(_яркость(кусок), 95))
+                        контраст = (max(L_текст, L_фон) + 0.05) / (min(L_текст, L_фон) + 0.05)
+                        if хуже is None or контраст < хуже[0]:
+                            хуже = (контраст, доля_окна, доля_ролика)
+        if хуже:
+            худшие.append((сел, хуже[0], порог, хуже[1], хуже[2]))
+    для_печати = ["%s %.2f (порог %.1f; окно %.2f, ролик %.2f)" % (с_, к_, п_, д1, д2) for с_, к_, п_, д1, д2 in худшие]
+    шаг("B9: текст на ролике читается — худший контраст не ниже порога в каждом месте",
+        худшие and all(к_ >= п_ for _, к_, п_, _, _ in худшие), "; ".join(для_печати), собрано=len(худшие))
+    print("  (для сравнения: контраст «серого» --text-faint к фону страницы без ролика %.2f)" % (
+        (_цвет_яркость("rgb(122,131,160)") + 0.05) / (фон_ярк + 0.05)))
+    к.close()
+    return худшие
+
+
+def фон(контроль_сети=False, контроль_рывка=False, контроль_краёв=False, только_контраст=False, притемнение=None):
+    from playwright.sync_api import sync_playwright
+    print("B. ФОН СТРАНИЦЫ — гостем, головной браузер, стенд %s%s" % (БАЗА,
+          " · ПОДЛОГ: кадр верхнего адресом" if контроль_сети else
+          " · ПОДЛОГ: кадр нижнего снят" if контроль_рывка else
+          " · ПОДЛОГ: маски слоёв сняты" if контроль_краёв else ""))
+    with sync_playwright() as p:
+        бр = p.chromium.launch(headless=False)
+        try:
+            for ш, в, сенсор in ШИРИНЫ:
+                print("\n  ── %d×%d%s" % (ш, в, " (сенсор)" if сенсор else ""))
+                if not только_контраст:
+                    if not _фон_поведение(бр, ш, в, сенсор, контроль_сети, контроль_рывка, контроль_краёв):
+                        continue
+                    if контроль_сети or контроль_рывка or контроль_краёв:
+                        continue
+                    _фон_уменьшить(бр, ш, в, сенсор)
+                _фон_контраст(бр, ш, в, сенсор, притемнение)
+        finally:
+            бр.close()
+
+
+
 # ══ СВОДКА ЧИСЕЛ (заход 342) ══════════════════════════════════════════
 #
 # ОДНА МЕРКА НА «ДО» И «ПОСЛЕ»: печатает числа и не судит. Вердикты
@@ -1495,7 +1859,14 @@ def main():
     if "--сводка" in арг:
         сводка()
         return 0
-    if "--экран" in арг:
+    if "--фон" in арг:
+        # PF_SCRIM=top:70,bottom:45 — перебор долей притемнения без правки стилей
+        притемнение = (dict(ч.split(":") for ч in os.environ["PF_SCRIM"].split(","))
+                       if os.environ.get("PF_SCRIM") else None)
+        фон(контроль_сети="--контроль-сети" in арг, контроль_рывка="--контроль-рывка" in арг,
+            контроль_краёв="--контроль-краёв" in арг, только_контраст="--контраст" in арг,
+            притемнение=притемнение)
+    elif "--экран" in арг:
         экран(контроль_сдвига="--контроль" in арг, контроль_магнита="--контроль-магнита" in арг)
     elif "--лента" in арг:
         лента(контроль="--контроль" in арг, рывок="--контроль-плавности" in арг)

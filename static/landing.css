@@ -15,6 +15,115 @@ body::before {
   z-index: 1;
 }
 
+/* ── Фон страницы (заход 342, блок B) ─────────────────────────────────────────
+   ТРИ УЧАСТКА: ролик под верхней частью (первый экран, лента, «Обо мне»),
+   мягкая подсветка стилями в середине, ролик под финальным блоком.
+   Решение владельца 2026-09-14 — атмосферный слой лендинга становится
+   подвижным; design-system.md §9 записан заново.
+
+   СЛОЙ — `absolute` на зоне страницы с `z-index: -2`: ниже любого текста
+   и фона секций, в том числе свечения за именем (-1). Зона контекста
+   наложения не заводит, иначе выехавший за неё край слоя лёг бы ПОВЕРХ
+   текста соседней секции.
+
+   ЗАФИКСИРОВАН — ЛИПКОСТЬЮ, А НЕ `position: fixed`. Ролик в окно высотой
+   прилипает к верху, пока слой в окне, и уходит вместе с краем слоя.
+   `overflow: clip`, а не `hidden`: последний заводит прокрутку и снимает
+   липкость. Край слоя растворяется МАСКОЙ в координатах документа —
+   граница участков гладкая при любой высоте окна (B4). */
+.pf-zone { position: relative; }
+.pf-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  overflow: clip;
+  pointer-events: none;
+}
+/* Верхний выходит на 40vh под середину и гаснет в последние 60vh. */
+.pf-bg-top {
+  bottom: -40vh;
+  -webkit-mask-image: linear-gradient(to bottom, var(--surface-0) calc(100% - 60vh), transparent);
+  mask-image: linear-gradient(to bottom, var(--surface-0) calc(100% - 60vh), transparent);
+}
+/* Нижний входит на 40vh сверху и проявляется за них; снизу гаснет
+   к подвалу за 15vh — иначе над подвалом стоял бы резкий край ролика. */
+.pf-bg-bottom {
+  top: -40vh;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, var(--surface-0) 40vh, var(--surface-0) calc(100% - 15vh), transparent);
+  mask-image: linear-gradient(to bottom, transparent, var(--surface-0) 40vh, var(--surface-0) calc(100% - 15vh), transparent);
+}
+.pf-bg-stick {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+.pf-bg-poster, .pf-bg-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* Ролик проявляется поверх кадра, только когда ИГРАЕТ (`pf-on` ставит
+   скрипт на событии `playing`): до того виден кадр, скачка нет. */
+.pf-bg-video { opacity: 0; transition: opacity var(--dur-slow) var(--ease-out); }
+.pf-bg-video.pf-on { opacity: 1; }
+/* ПРИТЕМНЕНИЕ ПОД ТЕКСТОМ (B9). Письмо: контраст падает — притемнить фон,
+   а не осветлять текст. Доля — наименьшая из перебора, при которой худший
+   контраст текста к фону под ним не ниже порога на 2560, 1920 и 390
+   (`PF_SCRIM=top:…,bottom:… py check_portfolio.py --фон --контраст`,
+   ролики владельца, четыре кадра, три положения текста в окне):
+     верх 65% — строка первого экрана на 390 3.70 при пороге 4.5 (мало);
+     верх 72% — проходит везде, худшее 4.69 (та же строка на 390);
+     низ   0% — подпись финала на 390 4.37 (мало); низ 25% — худшее 5.64. */
+.pf-bg-scrim {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--surface-0) var(--pf-scrim), transparent);
+}
+.pf-bg-top { --pf-scrim: 72%; }
+.pf-bg-bottom { --pf-scrim: 25%; }
+
+/* Подсветка середины (B3). Пятна — радиальные градиенты холодных токенов
+   с мягким краем, без `filter: blur`: размытие большого слоя стоило бы
+   перерисовки на каждый кадр движения. Доля цвета — `color-mix` от токена
+   акцента: готовые `-dim` дают 15 %, и на снимке 1920 пятна не читались.
+   Плывут `transform` — раскладка не пересчитывается. Слой выходит вверх
+   под «Обо мне» и вниз под финал. */
+.pf-glow {
+  position: absolute;
+  inset: -80vh 0 -20vh;
+  z-index: -1;
+  overflow: clip;
+  pointer-events: none;
+  /* края слоя растворены: пятно, срезанное краем, дало бы полосу (замер
+     пробы на 390 — скачок 1.88 уровня у нижнего края) */
+  -webkit-mask-image: linear-gradient(to bottom, transparent, var(--surface-0) 25vh, var(--surface-0) calc(100% - 25vh), transparent);
+  mask-image: linear-gradient(to bottom, transparent, var(--surface-0) 25vh, var(--surface-0) calc(100% - 25vh), transparent);
+}
+.pf-glow i {
+  position: absolute;
+  width: 70vw;
+  height: 70vw;
+  max-width: 1400px;
+  max-height: 1400px;
+  border-radius: 50%;
+  opacity: 0.9;
+  animation: pf-glow 20s var(--ease) infinite;
+}
+.pf-glow i:nth-child(1) { top: 6%; left: -18%; background: radial-gradient(closest-side, color-mix(in srgb, var(--accent-hh) 22%, transparent), transparent); }
+.pf-glow i:nth-child(2) { top: 36%; right: -20%; background: radial-gradient(closest-side, color-mix(in srgb, var(--accent-medkit) 18%, transparent), transparent); animation-delay: -7s; }
+.pf-glow i:nth-child(3) { top: 66%; left: 18%; background: radial-gradient(closest-side, color-mix(in srgb, var(--accent-brand) 16%, transparent), transparent); animation-delay: -13s; }
+@keyframes pf-glow {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  33% { transform: translate3d(6vw, -4vh, 0); }
+  66% { transform: translate3d(-4vw, 5vh, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pf-glow i { animation: none; }
+  .pf-bg-video { display: none; }
+}
+
 /* ── Первый экран портфолио (заход 334, блок B) ────────────────────────────
    РОВНО ЭКРАН ВМЕСТЕ С ШАПКОЙ. Шапка прилипает и стоит в потоке, поэтому
    остаток экрана под ней браузер за нас не посчитает: 64px вычитается

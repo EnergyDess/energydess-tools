@@ -74,6 +74,62 @@
     if (указатель.addEventListener) указатель.addEventListener('change', сбросить);
   }
 
+  /* ФОН СТРАНИЦЫ (заход 342, блок B)
+     · ВЕРХНИЙ получает `src` сразу, НИЖНИЙ — когда до слоя осталось
+       полтора экрана (`rootMargin` 150%): при быстрой прокрутке вниз
+       ролик успевает, а первый заход не качает его зря (B5).
+     · ИГРАЕТ только слой в окне; ушёл из окна — пауза. Два ролика
+       на весь экран разом декодировать незачем.
+     · СКОРОСТЬ 0.5 (B7): движение читается дыханием, а не роликом.
+       Ставится и до, и после загрузки: `play()` в части браузеров
+       сбрасывает скорость на `defaultPlaybackRate`.
+     · Ролик проявляется поверх кадра только на `playing` — до того
+       виден кадр (B6), темноты между ними нет.
+     · «Уменьшить движение» (B8): `src` не ставится вовсе — ролик не
+       грузится и не играет, виден кадр. Включили настройку на ходу —
+       ролик встаёт на паузу и уступает кадру. */
+  var СКОРОСТЬ_ФОНА = 0.5;
+  Array.prototype.slice.call(document.querySelectorAll('[data-pf-bg]')).forEach(function (слой) {
+    var видео = слой.querySelector('.pf-bg-video');
+    if (!видео) return;
+    var верх = слой.getAttribute('data-pf-bg') === 'top';
+    var видно = false;
+    var скорость = function () { видео.defaultPlaybackRate = СКОРОСТЬ_ФОНА; видео.playbackRate = СКОРОСТЬ_ФОНА; };
+    var загрузить = function () {
+      if (тихо.matches || видео.getAttribute('src')) return;
+      видео.preload = 'auto';
+      скорость();
+      видео.setAttribute('src', видео.getAttribute('data-src'));
+    };
+    var играть = function () {
+      if (тихо.matches) return;
+      загрузить();
+      скорость();
+      var о = видео.play();
+      if (о && о.catch) о.catch(function () {});
+    };
+    видео.addEventListener('loadedmetadata', скорость);
+    видео.addEventListener('playing', function () { скорость(); видео.classList.add('pf-on'); });
+    if (!('IntersectionObserver' in window)) { играть(); return; }
+    if (верх) загрузить();
+    else {
+      var загрузчик = new IntersectionObserver(function (зз) {
+        if (зз.some(function (з) { return з.isIntersecting; })) { загрузить(); загрузчик.disconnect(); }
+      }, { rootMargin: '150% 0px 150% 0px' });
+      загрузчик.observe(слой);
+    }
+    new IntersectionObserver(function (зз) {
+      зз.forEach(function (з) {
+        видно = з.isIntersecting;
+        if (видно) играть(); else if (видео.getAttribute('src')) видео.pause();
+      });
+    }).observe(слой);
+    if (тихо.addEventListener) тихо.addEventListener('change', function () {
+      if (тихо.matches) { if (видео.getAttribute('src')) видео.pause(); видео.classList.remove('pf-on'); }
+      else if (видно) играть();
+    });
+  });
+
   /* О СЕБЕ (блок D)
      · Знаки абзаца зажигаются от прокрутки (границы — ниже, у
        `доля_проявления`). Функция положения, а не времени: откатил

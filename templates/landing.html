@@ -36,12 +36,39 @@
   </div>
 </details>
 {% endmacro %}
+{# ФОН СТРАНИЦЫ (заход 342, блок B). Слой лежит ПОД зоной страницы, ролик
+   внутри прилипает к окну — зафиксирован, пока зона в окне, и уходит
+   маской в прозрачное на её краю (переход без границы, B4). Первый кадр —
+   картинкой ПОД роликом: пока ролик не приехал, виден кадр, а не темнота
+   (B6). У верхнего кадр встроен в разметку, у нижнего — адресом.
+   `src` ролику ставит скрипт: верхнему сразу, нижнему за полтора экрана
+   до блока (B5), при «уменьшить движение» — никому (B8). Места пустые —
+   слоя нет вовсе, страница прежняя. #}
+{% macro фон(место, край) %}
+{%- set м = места[место] -%}
+{%- if м.file -%}
+<div class="pf-bg pf-bg-{{ край }}" data-pf-bg="{{ край }}" aria-hidden="true">
+  <div class="pf-bg-stick">
+    {%- if край == 'top' and постер_верха %}
+    <img class="pf-bg-poster" src="{{ постер_верха }}" alt="" decoding="sync">
+    {%- elif м.file.poster %}
+    <img class="pf-bg-poster" src="{{ м.file.poster }}" alt="" fetchpriority="low">
+    {%- endif %}
+    <video class="pf-bg-video" data-src="{{ м.file.src }}" muted loop playsinline preload="none"></video>
+    <div class="pf-bg-scrim"></div>
+  </div>
+</div>
+{%- endif -%}
+{% endmacro %}
 {% set header_pf = True %}
 <body class="has-site-header">
 
 {% include '_header.html' %}
 
 <main>
+
+  <div class="pf-zone pf-zone-top">
+  {{ фон('bg-top', 'top') }}
 
   <!-- ── Первый экран ── -->
   {# Появление сверху вниз: шапка (класс от флага), заголовок, строка,
@@ -109,6 +136,13 @@
       {{ связь('about', 'pf-about-cta') }}
     </div>
   </section>
+  </div>
+
+  <div class="pf-zone pf-zone-mid">
+  {# ПОДСВЕТКА СЕРЕДИНЫ (B3): видео здесь нет — три размытых пятна холодных
+     тонов плывут по кругу за двадцать секунд. Весит ноль. Слой шире зоны
+     вверх: он и есть переход из верхнего фона и объём «Обо мне». #}
+  <div class="pf-glow" aria-hidden="true"><i></i><i></i><i></i></div>
 
   <!-- ── Инструменты ── -->
   {# НУМЕРОВАННЫЙ СПИСОК РАБОТ (блок E). Напротив каждого — поддельный
@@ -290,7 +324,10 @@
       {% endfor %}
     </div>
   </section>
+  </div>
 
+  <div class="pf-zone pf-zone-bottom">
+  {{ фон('bg-bottom', 'bottom') }}
   <!-- ── Связаться ── -->
   <section class="pf-final" aria-labelledby="pf-final-h">
     <h2 id="pf-final-h" class="pf-grad pf-sec-h">Давайте поработаем</h2>
@@ -300,6 +337,7 @@
       <a href="/register" class="btn-secondary btn-lg">Зарегистрироваться</a>
     </div>
   </section>
+  </div>
 
 </main>
 
