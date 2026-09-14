@@ -89,7 +89,7 @@
       </div>
     </div>
     <div class="pf-hero-foot">
-      <p class="pf-hero-line pf-enter" style="--n: 2">Больше десяти лет в видеопроизводстве. Сейчас — AI-видео и собственные инструменты.</p>
+      <p class="pf-hero-line pf-enter" style="--n: 2">Больше 10 лет в видео, сейчас — AI.</p>
       {{ связь('hero', 'pf-hero-cta pf-enter', 3) }}
     </div>
   </section>
@@ -129,7 +129,7 @@
     <div class="pf-decor pf-decor-tr pf-side" data-side="r" style="--n: 1">{{ ms.slot(места['decor-tr']) }}</div>
     <div class="pf-decor pf-decor-br pf-side" data-side="r" style="--n: 3">{{ ms.slot(места['decor-br']) }}</div>
     <div class="pf-about-body">
-      <h2 id="pf-about-h" class="pf-grad pf-about-h">Обо мне</h2>
+      <h2 id="pf-about-h" class="pf-grad pf-big-h">Обо мне</h2>
       <p class="pf-about-text" aria-label="{{ о_себе }}">
         {%- for знак in о_себе -%}<span class="pf-ch" aria-hidden="true">{{ знак }}</span>{%- endfor -%}
       </p>
@@ -158,7 +158,7 @@
     {%- for знак in текст -%}<span class="pf-t">{{ знак }}</span>{%- endfor -%}
   {%- endmacro %}
   <section class="pf-tools" aria-labelledby="pf-tools-h">
-    <h2 id="pf-tools-h" class="pf-grad pf-sec-h">Инструменты</h2>
+    <h2 id="pf-tools-h" class="pf-grad pf-big-h">Инструменты</h2>
     <ol class="pf-tool-list">
 
       <li class="pf-tool" style="--pf-acc: var(--accent-hh); --pf-acc-dim: var(--accent-hh-dim)">
@@ -296,7 +296,7 @@
       {'n': '03', 'kind': 'инструменты', 'title': 'EnergyDess', 'url': '#pf-tools-h'},
   ] %}
   <section class="pf-projects" aria-labelledby="pf-projects-h">
-    <h2 id="pf-projects-h" class="pf-grad pf-sec-h">Проекты</h2>
+    <h2 id="pf-projects-h" class="pf-grad pf-big-h">Проекты</h2>
     <div class="pf-proj-stack">
       {% for п in проекты %}
       <article class="pf-proj" style="--n: {{ loop.index0 }}">

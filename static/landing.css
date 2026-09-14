@@ -195,14 +195,22 @@ body::before {
   hyphens: manual;
 }
 .pf-hero-name { font-size: var(--pf-name); }
+/* ПЛАШКА РОЛИ (заход 342, C4): тонкая обводка и бирюзовый текст, как
+   активная плашка отбора в аптечке (`.chip.active` под темой аптечки) —
+   те же токены акцента аптечки. Своим классом, а не системным `.chip`:
+   чипу пришлось бы менять кегль, то есть переопределять компонент. */
 .pf-hero-role {
-  display: block;
-  margin-bottom: var(--space-3);
-  font-size: var(--text-h2);
+  align-self: center;
+  margin-bottom: var(--space-4);
+  padding: var(--space-1) var(--space-4);
+  border: 1px solid var(--accent-medkit);
+  border-radius: 999px;
+  background: var(--accent-medkit-dim);
+  font-size: var(--text-body-lg);
   font-weight: 500;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  color: var(--text-2);
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: var(--accent-medkit);
 }
 /* НАЛЕЗАНИЕ НА ИМЯ (A3). Ряд портрета поднят на 0.55 кегля имени плюс
    зазор сетки: верх портрета встаёт на уровень середины букв. Высота
@@ -261,6 +269,24 @@ body::before {
    захода 334). Знак сайта вернулся (заход 339), правило осталось. */
 @media (max-width: 420px) {
   .pf-header-btn { padding-inline: var(--space-3); }
+}
+/* КНОПКИ ШАПКИ ОДНОЙ ШИРИНЫ (заход 342, C3): у сетки из колонок `1fr`
+   без заданной ширины колонка равна самой широкой подписи. */
+.pf-header-btns { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--space-3); }
+.pf-header-btn { justify-content: center; text-align: center; }
+/* На узком слово знака скрыто ВИЗУАЛЬНО, знак остаётся, а имя читает
+   программа чтения. Замер: на 390 под две равные кнопки оставалось
+   203 px при нужных 254 — и уже до правки на 360 «Регистрация» вылезала
+   за шапку на 14 px. */
+@media (max-width: 480px) {
+  .pf-logo-word {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 /* ПОЯВЛЕНИЕ СВЕРХУ ВНИЗ (B5): шапка, заголовок, строка, кнопка, портрет.
@@ -321,12 +347,19 @@ body::before {
   margin: 0 auto;
   text-align: center;
 }
-.pf-about-h {
-  margin: 0 0 var(--space-6);
-  font-size: var(--text-h1);
+/* ЗАГОЛОВКИ СЕКЦИЙ — КРУПНО, ПО ЦЕНТРУ (заход 342, C1). «Обо мне»,
+   «Инструменты», «Проекты» тем же серым градиентом, что имя, и в том же
+   порядке величины: кегль от ширины окна, как у имени. Было `--text-h1`
+   (48–51 px на десктопе, 28 на 390) и прижато влево — секции не держали
+   страницу. «Давайте поработаем» остаётся `.pf-sec-h`: у него две строки
+   текста рядом, и в этот ряд письмо его не включает. */
+.pf-big-h {
+  margin: 0 0 var(--space-8);
+  font-size: clamp(2.5rem, 7vw, 11rem);
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1;
   letter-spacing: -0.03em;
+  text-align: center;
 }
 .pf-about-text {
   margin: 0 0 var(--space-7);
@@ -672,7 +705,8 @@ body::before {
 }
 .pf-proj-n {
   font-family: var(--font-mono);
-  font-size: clamp(2rem, 4vw, 4rem);
+  /* крупнее (C2): номер и название терялись на фоне картинок */
+  font-size: clamp(3rem, 7vw, 7rem);
   line-height: 1;
   color: var(--text-faint);
 }
@@ -684,7 +718,7 @@ body::before {
   text-transform: uppercase;
   color: var(--text-2);
 }
-.pf-proj-title { margin: 0; font-size: var(--text-h2); font-weight: 700; letter-spacing: -0.02em; color: var(--text-strong); }
+.pf-proj-title { margin: 0; font-size: clamp(1.75rem, 4vw, 4rem); font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; color: var(--text-strong); }
 .pf-proj-soon { font-size: var(--text-body-sm); color: var(--text-faint); }
 /* Сетка из трёх: две 4:3 столбцом слева, одна 3:4 справа на обе строки.
    Колонки 8fr : 9fr — при таком делении столбец из двух 4:3 и одна 3:4

@@ -50,7 +50,7 @@
 <header class="site-header {{ 'site-header-edges' if not есть_доступ_к_инструментам }}{{ ' site-header-pf' if шапка_пф }}">
   <a href="/" class="header-logo">
     <span class="nav-logo-symbol">⚡</span>
-    <span>EnergyDess</span>
+    <span{{ ' class="pf-logo-word"' | safe if шапка_пф }}>EnergyDess</span>
   </a>
 
   {% if есть_доступ_к_инструментам %}
@@ -142,10 +142,14 @@
       </div>
     </div>
     {% else %}
+    {# У главной кнопки входа и регистрации ОДНОЙ ширины (заход 342, C3):
+       сетка из равных колонок, ширина — по самой широкой подписи. #}
+    {% if шапка_пф %}<div class="pf-header-btns">{% endif %}
     <a href="/login" class="{{ 'btn-secondary header-cta pf-header-btn' if шапка_пф else 'btn-ghost' }}">Войти</a>
     {% if not регистрация_начата %}
     <a href="/register" class="{{ 'btn-primary pf-header-btn' if шапка_пф else 'btn-primary' }} header-cta">Регистрация</a>
     {% endif %}
+    {% if шапка_пф %}</div>{% endif %}
     {% endif %}
   </div>
 </header>
