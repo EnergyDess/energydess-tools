@@ -4360,7 +4360,7 @@ async def admin_enshrouded_image(set_id: str, request: Request,
 
 # ══ МЕСТА МЕДИА НОВОЙ ГЛАВНОЙ (BACKLOG №325) ══════════════════════════
 #
-# Двадцать шесть фиксированных мест (`landing_defs`), файлы на ТОМЕ
+# Двадцать восемь фиксированных мест (`landing_defs`), файлы на ТОМЕ
 # (`landing_store`), разбор и сжатие — `landing_media`. Здесь только
 # обвязка: права, поток, запись в базу и порядок «новый файл лёг →
 # строка записана → старый удалён».
@@ -4399,12 +4399,19 @@ def _лнд_место_наружу(место, запись, user=None):
         "duration": запись.duration_sec, "alpha": bool(запись.has_alpha),
         "uploaded": (_момент_в_поясе(запись.uploaded_at, user)
                      if user is not None else None),
+        # ПЕРВЫЙ КАДР РОЛИКА (заход 342, B6) — только если лежит на томе:
+        # ролики, загруженные до захода, кадра не имеют, и адрес в пустоту
+        # дал бы битую картинку вместо честного «кадра нет»
+        "poster": (_лнд_хран.адрес_постера(запись.slot_id, запись.version)
+                   if запись.kind == _лнд.ВИДЕО and os.path.exists(
+                       _лнд_хран.путь(_лнд_хран.имя_постера(запись.slot_id, запись.version)))
+                   else None),
     }
     return д
 
 
 def лнд_места(db, user=None):
-    """Все 26 мест в порядке описания, с тем, что в них лежит."""
+    """Все места в порядке описания, с тем, что в них лежит."""
     записи = {з.slot_id: з for з in db.query(LandingMedia).all()}
     return [_лнд_место_наружу(м, записи.get(м["id"]), user) for м in _лнд.МЕСТА]
 
@@ -4490,6 +4497,11 @@ def _лнд_принять(slot_id, поток, имя):
                     "запаса %d МБ — не принят" % (_лнд_размер(свободно),
                                                    _лнд.ТОМ_ЗАПАС_МБ), 507)
         новое = _лнд_хран.имя_файла(slot_id, сведения["version"], сведения["ext"])
+        # Кадр — ПЕРВЫМ: ролик без кадра на томе страница переживёт,
+        # а кадр без ролика — сирота, но и он уйдёт уборкой `удалить`
+        if сведения.get("poster"):
+            _лнд_хран.положить(сведения["poster"],
+                               _лнд_хран.имя_постера(slot_id, сведения["version"]))
         _лнд_хран.положить(готовый, новое)
         return ("ok", сведения, предупреждения, новое)
     finally:
@@ -4593,12 +4605,22 @@ async def landing_media_file(name: str, db: Session = Depends(get_db)):
     на который указывает ТЕКУЩАЯ строка места, — старая версия после
     замены даёт 404, а не вчерашний ролик."""
     м = _лнд_хран.ИМЯ_ФАЙЛА.match(name)
-    if not м:
+    постер = _лнд_хран.ИМЯ_ПОСТЕРА.match(name)
+    if not (м or постер):
         return JSONResponse({"error": "Нет такого файла"}, status_code=404)
-    slot_id, версия, ext = м.groups()
-    запись = db.query(LandingMedia).filter(LandingMedia.slot_id == slot_id).first()
-    if запись is None or запись.version != версия or запись.ext != ext:
-        return JSONResponse({"error": "Нет такого файла"}, status_code=404)
+    if постер:
+        # Первый кадр ролика: отдаётся, только пока ТЕКУЩАЯ строка места —
+        # ролик той же версии (заход 342, B6)
+        slot_id, версия = постер.groups()
+        ext = "webp"
+        запись = db.query(LandingMedia).filter(LandingMedia.slot_id == slot_id).first()
+        if запись is None or запись.version != версия or запись.kind != _лнд.ВИДЕО:
+            return JSONResponse({"error": "Нет такого файла"}, status_code=404)
+    else:
+        slot_id, версия, ext = м.groups()
+        запись = db.query(LandingMedia).filter(LandingMedia.slot_id == slot_id).first()
+        if запись is None or запись.version != версия or запись.ext != ext:
+            return JSONResponse({"error": "Нет такого файла"}, status_code=404)
     путь = _лнд_хран.путь(name)
     if not os.path.exists(путь):
         print("[landing] %s: строка есть, файла на томе нет — %s" % (slot_id, name))

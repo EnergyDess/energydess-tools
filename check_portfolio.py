@@ -1401,8 +1401,100 @@ def проекты(контроль=False):
             бр.close()
 
 
+# ══ СВОДКА ЧИСЕЛ (заход 342) ══════════════════════════════════════════
+#
+# ОДНА МЕРКА НА «ДО» И «ПОСЛЕ»: печатает числа и не судит. Вердикты
+# ставят режимы блоков; здесь только то, что меняется правкой, — чтобы
+# «до» было снято тем же кодом, что «после», а не пересказано.
+
+ЗАМЕР_СВОДКИ = r"""() => {
+  const q = s => document.querySelector(s);
+  const пр = e => e ? e.getBoundingClientRect() : null;
+  const заголовки = {};
+  for (const id of ['pf-about-h', 'pf-tools-h', 'pf-projects-h', 'pf-final-h']) {
+    const э = document.getElementById(id);
+    if (!э) { заголовки[id] = null; continue; }
+    const д = document.createRange(); д.selectNodeContents(э);
+    const т = д.getBoundingClientRect(), к = пр(э);
+    заголовки[id] = {кегль: parseFloat(getComputedStyle(э).fontSize),
+      текст_ш: Math.round(т.width), центр_смещение: Math.round((т.left + т.width / 2) - (к.left + к.width / 2)),
+      строк: Math.round(т.height / parseFloat(getComputedStyle(э).lineHeight || 1))};
+  }
+  const кн = [...document.querySelectorAll('.site-header .pf-header-btn')].map(э => ({т: э.textContent.trim(), ш: Math.round(пр(э).width * 10) / 10}));
+  const линия = q('.pf-hero-line');
+  const строк = линия ? (() => { const д = document.createRange(); д.selectNodeContents(линия);
+    const ys = new Set([...д.getClientRects()].filter(к => к.width).map(к => Math.round(к.top))); return ys.size; })() : null;
+  const роль = q('.pf-hero-role');
+  const рс = роль ? getComputedStyle(роль) : null;
+  const проекты = [...document.querySelectorAll('.pf-proj')].map(к => {
+    const а = пр(к.querySelector('.pf-proj-a .media-slot')), б = пр(к.querySelector('.pf-proj-b .media-slot')),
+          в = пр(к.querySelector('.pf-proj-c .media-slot'));
+    return {кнопок: к.querySelectorAll('.pf-proj-go, .pf-proj-soon, .pf-proj-card a, .pf-proj-card button').length,
+      верх: а && в ? Math.round((в.top - а.top) * 10) / 10 : null,
+      низ: б && в ? Math.round((в.bottom - б.bottom) * 10) / 10 : null,
+      номер_кегль: parseFloat(getComputedStyle(к.querySelector('.pf-proj-n')).fontSize),
+      имя_кегль: parseFloat(getComputedStyle(к.querySelector('.pf-proj-title')).fontSize)};
+  });
+  const поп = q('.pf-contact-hero .pf-contact-pop');
+  return {заголовки, кнопки_шапки: кн, строк_в_первом_экране: строк,
+    роль: рс ? {рамка: рс.borderTopWidth + ' ' + рс.borderTopStyle, цвет: рс.color, кегль: parseFloat(рс.fontSize)} : null,
+    проекты, связь_детей: поп ? [...поп.children].filter(э => !э.hidden && getComputedStyle(э).display !== 'none').length : null,
+    связь_строк: поп ? поп.querySelectorAll('.pf-contact-row').length : null,
+    будущее: !!q('.pf-grow'), фон_зон: document.querySelectorAll('[data-pf-bg]').length};
+}"""
+
+
+def сводка():
+    from playwright.sync_api import sync_playwright
+    print("СВОДКА — гостем, головной браузер, стенд %s. Числа, без вердиктов." % БАЗА)
+    with sync_playwright() as p:
+        бр = p.chromium.launch(headless=False)
+        try:
+            for ш, в, сенсор in ШИРИНЫ:
+                к = _контекст(бр, ш, в, сенсор)
+                с = к.new_page()
+                cdp = к.new_cdp_session(с)
+                cdp.send("Network.enable")
+                cdp.send("Network.setCacheDisabled", {"cacheDisabled": True})
+                байт = {"n": 0, "b": 0, "видео": 0}
+                типы = {}
+                def ответ(e):
+                    типы[e["requestId"]] = (e.get("type"), e["response"]["url"])
+                def конец(e):
+                    байт["n"] += 1
+                    байт["b"] += e.get("encodedDataLength", 0)
+                    т = типы.get(e["requestId"], ("", ""))
+                    if т[0] == "Media" or т[1].endswith(".mp4"):
+                        байт["видео"] += e.get("encodedDataLength", 0)
+                cdp.on("Network.responseReceived", ответ)
+                cdp.on("Network.loadingFinished", конец)
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                с.wait_for_timeout(3000)
+                print("\n  ── %d×%d%s" % (ш, в, " (сенсор)" if сенсор else ""))
+                print("  вес до прокрутки: %.1f КБ в %d запросах, из них видео %.1f КБ" % (
+                    байт["b"] / 1024, байт["n"], байт["видео"] / 1024))
+                з = с.evaluate(ЗАМЕР_СВОДКИ)
+                for id_, д in з["заголовки"].items():
+                    print("  %s: %s" % (id_, д))
+                print("  кнопки шапки: %s" % з["кнопки_шапки"])
+                print("  строк текста в первом экране: %s; роль: %s" % (з["строк_в_первом_экране"], з["роль"]))
+                print("  проекты: %s" % з["проекты"])
+                с.locator(".pf-contact-hero summary").click()
+                с.wait_for_timeout(500)
+                з2 = с.evaluate(ЗАМЕР_СВОДКИ)
+                print("  блок связи раскрыт: видимых детей %s, строк .pf-contact-row %s" % (
+                    з2["связь_детей"], з2["связь_строк"]))
+                print("  блок «растёт» есть: %s; зон фона: %s" % (з["будущее"], з["фон_зон"]))
+                к.close()
+        finally:
+            бр.close()
+
+
 def main():
     арг = sys.argv[1:]
+    if "--сводка" in арг:
+        сводка()
+        return 0
     if "--экран" in арг:
         экран(контроль_сдвига="--контроль" in арг, контроль_магнита="--контроль-магнита" in арг)
     elif "--лента" in арг:

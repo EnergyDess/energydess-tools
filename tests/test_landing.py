@@ -32,18 +32,23 @@ from fastapi.testclient import TestClient                      # noqa: E402
 from PIL import Image, ImageDraw                               # noqa: E402
 
 
-def test_мест_26_и_структура_владельца():
+def test_мест_28_и_структура_владельца():
     по = {}
     for м in ld.МЕСТА:
         по.setdefault(м["section"], []).append(м)
-    assert len(ld.МЕСТА) == 26
+    assert len(ld.МЕСТА) == 28
     assert {с: len(в) for с, в in по.items()} == {"feed": 12, "projects": 9,
-                                                   "portrait": 1, "decor": 4}
+                                                   "portrait": 1, "decor": 4, "bg": 2}
     assert all(м["kind"] == "video" for м in по["feed"])
+    # фон страницы — два ролика, верх и финал (заход 342, A1)
+    assert [м["id"] for м in по["bg"]] == ["bg-top", "bg-bottom"]
+    assert all(м["kind"] == "video" and not м["alpha"] for м in по["bg"])
+    # лента остаётся ПЕРВЫМ видео: пробы берут «первое видео» по порядку
+    assert next(м for м in ld.МЕСТА if м["kind"] == "video")["section"] == "feed"
     assert all(м["alpha"] for м in по["decor"])
     # портрет с прозрачным фоном налезает на имя (заход 339, A3)
     assert по["portrait"][0]["alpha"] and по["portrait"][0]["ratio"] == "1 / 1"
-    assert len({м["id"] for м in ld.МЕСТА}) == 26
+    assert len({м["id"] for м in ld.МЕСТА}) == 28
 
 
 def test_путь_и_адрес_собираются_в_одном_месте():
@@ -167,3 +172,65 @@ def test_ролик_сверх_потолка_разрешения_отказ_с
     with pytest.raises(лм.ОтказЗагрузки) as e:
         лм.обработать("feed-1-1", файлы["ролик"], "r.mp4")
     assert e.value.код == 413 and "640x480" in e.value.текст and "320" in e.value.текст
+
+
+def test_фон_жмётся_в_1920_лёгким_режимом_а_лента_прежним(tmp_path):
+    """Параметры сжатия — по секции (заход 342, A2). Ролик 1920 в ленте
+    уменьшается до 1280, в фоне остаётся 1920; команда фона несёт лёгкий
+    режим кодера (пик памяти 136 МБ против 239 — замер в landing_defs)."""
+    ролик = tmp_path / "wide.mp4"
+    subprocess.run([лм.ffmpeg(), "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+                    "-i", "testsrc2=size=1920x1080:rate=24", "-t", "1", "-c:v", "libx264",
+                    "-pix_fmt", "yuv444p", str(ролик)], check=True, timeout=120)
+    _, лента, _ = лм.обработать("feed-1-1", str(ролик), "wide.mp4")
+    _, фон, _ = лм.обработать("bg-top", str(ролик), "wide.mp4")
+    assert (лента["width"], лента["height"]) == (1280, 720)
+    assert (фон["width"], фон["height"]) == (1920, 1080)
+    команды = []
+    настоящий = subprocess.Popen
+
+    class Перехват(настоящий):
+        def __init__(self, cmd, *a, **k):
+            команды.append(list(cmd))
+            super().__init__(cmd, *a, **k)
+    subprocess.Popen = Перехват
+    try:
+        лм.сжать_ролик(str(ролик), str(tmp_path / "o1.mp4"), None, ld.ПО_ID["bg-top"])
+        лм.сжать_ролик(str(ролик), str(tmp_path / "o2.mp4"), None, ld.ПО_ID["feed-1-1"])
+    finally:
+        subprocess.Popen = настоящий
+    фон_к, лента_к = команды[0], команды[1]
+    assert "rc-lookahead=0:sync-lookahead=0:bframes=0" in фон_к
+    assert фон_к[фон_к.index("-crf") + 1] == "30"
+    assert "-x264-params" not in лента_к and лента_к[лента_к.index("-crf") + 1] == "26"
+
+
+def test_первый_кадр_ролика_снимается_отдаётся_и_уходит_с_заменой(клиенты, файлы):
+    """B6: кадр из ГОТОВОГО ролика лежит рядом, отдаётся при живой строке,
+    старая версия кадра после замены — 404 и на томе её нет."""
+    админ, _ = клиенты
+    о = админ.post("/admin/api/landing/bg-bottom",
+                   files={"file": ("r.mp4", open(файлы["ролик"], "rb"))})
+    assert о.status_code == 200, о.text
+    первые = sorted(os.listdir(лх.КАТАЛОГ))
+    кадр = [ф for ф in первые if ф.endswith(".poster.webp")]
+    assert len(первые) == 2 and len(кадр) == 1
+    отдан = админ.get("/landing-media/" + кадр[0])
+    assert отдан.status_code == 200 and отдан.headers["content-type"] == "image/webp"
+    import io
+    with Image.open(io.BytesIO(отдан.content)) as im:
+        assert im.size == (640, 480)
+    места = {м["id"]: м for м in main.лнд_места(SessionLocal())}
+    assert места["bg-bottom"]["file"]["poster"] == "/landing-media/" + кадр[0]
+
+    другой = файлы["ролик"].replace("r.mp4", "r2.mp4")
+    subprocess.run([лм.ffmpeg(), "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+                    "-i", "testsrc=size=320x240:rate=25", "-t", "1", "-c:v", "libx264",
+                    другой], check=True, timeout=120)
+    о = админ.post("/admin/api/landing/bg-bottom", files={"file": ("r2.mp4", open(другой, "rb"))})
+    assert о.status_code == 200
+    вторые = sorted(os.listdir(лх.КАТАЛОГ))
+    assert len(вторые) == 2 and not set(вторые) & set(первые)
+    assert админ.get("/landing-media/" + кадр[0]).status_code == 404
+    assert админ.delete("/admin/api/landing/bg-bottom").status_code == 200
+    assert os.listdir(лх.КАТАЛОГ) == []

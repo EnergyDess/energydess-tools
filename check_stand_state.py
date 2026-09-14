@@ -423,10 +423,12 @@ def сироты_тома(c):
     if not os.path.isdir(к):
         return []
     try:
-        живые = {"%s-%s.%s" % r for r in
-                 c.execute("SELECT slot_id, version, ext FROM landing_media")}
+        строки = c.execute("SELECT slot_id, version, ext FROM landing_media").fetchall()
     except sqlite3.OperationalError:
-        живые = set()
+        строки = []
+    # Первый кадр ролика принадлежит строке-ролику той же версии (заход 342)
+    живые = ({"%s-%s.%s" % r for r in строки}
+             | {"%s-%s.poster.webp" % (с, в) for с, в, е in строки if е == "mp4"})
     return sorted(f for f in os.listdir(к) if f not in живые)
 
 
