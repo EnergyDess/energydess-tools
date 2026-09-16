@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   {% include '_meta.html' %}
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  {# ЗАГОЛОВКИ ГЛАВНОЙ — UNBOUNDED (заход 343, блок 3). Preload одного файла:
+     кириллица несёт начертание 900 (файл вариативный, 800 и 900 в нём же);
+     латиница нужна реже и приходит по unicode-range. Адрес без `st()` —
+     та же причина, что у шрифтов в _meta.html: @font-face ссылается
+     на файл без версии, и preload иначе скачал бы его дважды. #}
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/static/fonts/unbounded-cyrillic.woff2">
   <link rel="stylesheet" href="{{ st('style.css') }}">
   <link rel="stylesheet" href="{{ st('landing.css') }}">
 </head>

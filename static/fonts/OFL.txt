@@ -1,4 +1,5 @@
-Manrope и JetBrains Mono распространяются по SIL Open Font License 1.1.
-Текст лицензии ниже. Файлы получены с fonts.gstatic.com 2026-08-30.
+Manrope, JetBrains Mono и Unbounded распространяются по SIL Open Font License 1.1.
+Текст лицензии ниже. Файлы Manrope и JetBrains Mono получены с fonts.gstatic.com 2026-08-30.
 
 https://openfontlicense.org/
+Полный текст лицензии Unbounded с копирайтом — OFL-Unbounded.txt рядом.
