@@ -33,6 +33,39 @@
      · Только настоящий указатель (`hover: hover` и `pointer: fine`)
        и без «уменьшить движение»: на сенсорном нет курсора, и сдвиг
        от последнего касания читался бы залипшим. */
+  /* ПРОКРУТКА ИДЁТ / ЗАКОНЧИЛАСЬ (заход 343, блок 2). Одно состояние
+     на всю страницу: магнит на время прокрутки замирает, кеши геометрии
+     перемеряются после её конца. Конец — нет событий прокрутки
+     `ТИШИНА_МС`; `scrollend` есть не везде, таймер есть везде. */
+  var ТИШИНА_МС = 150;
+  var прокрутка_идёт = false, таймер_тишины = 0;
+  var после_прокрутки = [];
+  window.addEventListener('scroll', function () {
+    прокрутка_идёт = true;
+    clearTimeout(таймер_тишины);
+    таймер_тишины = setTimeout(function () {
+      прокрутка_идёт = false;
+      после_прокрутки.forEach(function (ф) { ф(); });
+    }, ТИШИНА_МС);
+  }, { passive: true });
+
+  /* КЕШ ГЕОМЕТРИИ (блок 2). Обработчики прокрутки и указателя не читают
+     `getBoundingClientRect`: чтение после записи стиля соседним
+     обработчиком заставляло браузер пересчитать раскладку посреди кадра.
+     Положения берутся в координатах ДОКУМЕНТА один раз и пересчитываются
+     при смене размера окна, изменении высоты страницы (догрузка шрифта,
+     картинки) и после конца прокрутки. */
+  var сбросы = [];
+  var сбросить_кеши = function () { сбросы.forEach(function (ф) { ф(); }); };
+  window.addEventListener('resize', сбросить_кеши);
+  после_прокрутки.push(сбросить_кеши);
+  if (window.ResizeObserver) new ResizeObserver(сбросить_кеши).observe(document.body);
+  var в_документе = function (э) {
+    var к = э.getBoundingClientRect();
+    return {top: к.top + window.scrollY, bottom: к.bottom + window.scrollY,
+            left: к.left + window.scrollX, width: к.width, height: к.height};
+  };
+
   var магнит = document.querySelector('[data-pf-magnet]');
   var указатель = window.matchMedia('(hover: hover) and (pointer: fine)');
   if (магнит) {
@@ -58,15 +91,41 @@
       if (!кадр) кадр = requestAnimationFrame(шагнуть);
     };
     var можно = function () { return указатель.matches && !тихо.matches; };
+    /* УКАЗАТЕЛЬ — В КАДР, ГЕОМЕТРИЯ — ИЗ КЕША (блок 2). Событие только
+       запоминает координаты; цель считается в `requestAnimationFrame`
+       не чаще кадра. Центр — по коробке БЕЗ текущего сдвига (родитель
+       магнита): иначе портрет убегал бы от курсора собственным смещением.
+       Кеш сбрасывается ещё и по концу анимации появления: она двигает
+       родителя на 20px. */
+    var коробка = null, указано = null, расчёт = 0;
+    сбросы.push(function () { коробка = null; });
+    магнит.parentElement.addEventListener('animationend', function () { коробка = null; });
+    var прицелиться = function () {
+      расчёт = 0;
+      if (!указано || прокрутка_идёт || !можно()) return;
+      if (!коробка) коробка = в_документе(магнит.parentElement);
+      var верх = коробка.top - window.scrollY, низ = коробка.bottom - window.scrollY;
+      if (низ < 0 || верх > window.innerHeight) { тянуть(0, 0); return; }
+      тянуть((указано.x - (коробка.left - window.scrollX + коробка.width / 2)) / КОЭФФИЦИЕНТ,
+             (указано.y - (верх + коробка.height / 2)) / КОЭФФИЦИЕНТ);
+    };
     window.addEventListener('pointermove', function (e) {
       if (!можно() || e.pointerType === 'touch') return;
-      // центр — по коробке БЕЗ текущего сдвига: иначе портрет убегал бы
-      // от курсора собственным смещением
-      var к = магнит.parentElement.getBoundingClientRect();
-      if (к.bottom < 0 || к.top > window.innerHeight) { тянуть(0, 0); return; }
-      тянуть((e.clientX - (к.left + к.width / 2)) / КОЭФФИЦИЕНТ,
-             (e.clientY - (к.top + к.height / 2)) / КОЭФФИЦИЕНТ);
+      указано = {x: e.clientX, y: e.clientY};
+      if (!расчёт && !прокрутка_идёт) расчёт = requestAnimationFrame(прицелиться);
     }, { passive: true });
+    /* ЗАМИРАНИЕ НА ВРЕМЯ ПРОКРУТКИ (блок 2). Портрет стоит там, где был:
+       новые цели не считаются, бег к цели остановлен. Через `ТИШИНА_МС`
+       после последнего события прокрутки магнит оживает сам — цель
+       пересчитывается от последнего положения указателя. */
+    window.addEventListener('scroll', function () {
+      if (кадр) { cancelAnimationFrame(кадр); кадр = 0; }
+      if (расчёт) { cancelAnimationFrame(расчёт); расчёт = 0; }
+    }, { passive: true });
+    после_прокрутки.push(function () {
+      if (указано) прицелиться();
+      else if (цель.x !== сейчас.x || цель.y !== сейчас.y) тянуть(цель.x, цель.y);
+    });
     document.documentElement.addEventListener('pointerleave', function () { тянуть(0, 0); });
     window.addEventListener('blur', function () { тянуть(0, 0); });
     var сбросить = function () { if (!можно()) { цель.x = цель.y = сейчас.x = сейчас.y = 0; записать(); } };
@@ -151,27 +210,42 @@
        верх уже уехал, — там конец раньше: низ текста поднялся на 75% окна.
        Берётся то, что наступит РАНЬШЕ. Оба расстояния меняются с прокруткой
        одинаково, поэтому знаменатель постоянен и граница идёт ровно. */
+    /* ГЕОМЕТРИЯ ИЗ КЕША (заход 343, блок 2). Текст и секция стоят в потоке,
+       поэтому их положение в окне — положение в документе минус прокрутка:
+       читать коробки на каждом событии прокрутки не нужно. */
+    var места_о_себе = null;
+    сбросы.push(function () { места_о_себе = null; });
     var доля_проявления = function () {
       var vh = window.innerHeight;
-      var т = абзац.getBoundingClientRect();
+      if (!места_о_себе) места_о_себе = {т: в_документе(абзац), с: в_документе(секция_о_себе)};
+      var т = {top: места_о_себе.т.top - window.scrollY, bottom: места_о_себе.т.bottom - window.scrollY,
+               height: места_о_себе.т.height};
       var пройдено = vh - т.top;                                  // 0 — верх текста у низа окна
-      var осталось = Math.min(секция_о_себе.getBoundingClientRect().bottom - vh,
+      var осталось = Math.min(места_о_себе.с.bottom - window.scrollY - vh,
                               т.bottom - 0.75 * vh);
       var путь = пройдено + осталось;
       return путь > 0 ? Math.min(1, Math.max(0, пройдено / путь)) : 1;
     };
+    /* Переключаются только знаки МЕЖДУ прежней и новой границей: проход
+       по всему абзацу на каждом кадре трогал бы сотни узлов ради десятка. */
     var зажечь = function () {
       var сколько = знаки.length;
       if (!тихо.matches) {
         сколько = Math.round(доля_проявления() * знаки.length);
       }
       if (сколько === зажжено) return;
-      for (var i = 0; i < знаки.length; i++) знаки[i].classList.toggle('pf-on', i < сколько);
+      var от = зажжено < 0 ? 0 : Math.min(зажжено, сколько);
+      var до = зажжено < 0 ? знаки.length : Math.max(зажжено, сколько);
+      for (var i = от; i < до; i++) знаки[i].classList.toggle('pf-on', i < сколько);
       зажжено = сколько;
     };
     зажечь();
-    window.addEventListener('scroll', зажечь, { passive: true });
-    window.addEventListener('resize', зажечь);
+    var кадр_о_себе = 0;
+    var зажечь_в_кадре = function () {
+      if (!кадр_о_себе) кадр_о_себе = requestAnimationFrame(function () { кадр_о_себе = 0; зажечь(); });
+    };
+    window.addEventListener('scroll', зажечь_в_кадре, { passive: true });
+    window.addEventListener('resize', зажечь_в_кадре);
     if (тихо.addEventListener) тихо.addEventListener('change', зажечь);
   }
   var бока = Array.prototype.slice.call(document.querySelectorAll('.pf-side'));
@@ -388,22 +462,38 @@
      прокрутки, как у ленты. «Уменьшить движение» — масштаба нет. */
   var карточки = Array.prototype.slice.call(document.querySelectorAll('.pf-proj'));
   if (карточки.length > 1) {
+    /* ЗАХОД 343, БЛОК 2. Карточки прилипают, и их коробки в окне из кеша
+       не выводятся — читаются живьём. Но (1) все чтения идут ДО всех
+       записей: прежний цикл читал коробку после записи масштаба соседней
+       карточки, и раскладка пересчитывалась посреди кадра; (2) пока стопка
+       вне окна (положение секции — из кеша), не читается ничего. */
+    var стопка = карточки[0].parentElement;
+    var место_стопки = null;
+    сбросы.push(function () { место_стопки = null; });
     var сжать = function () {
-      for (var i = 0; i < карточки.length; i++) {
-        var коробка = карточки[i].firstElementChild;
-        if (тихо.matches || i === карточки.length - 1) {
-          коробка.style.removeProperty('--pf-scale');
-          continue;
-        }
+      if (!место_стопки) место_стопки = в_документе(стопка);
+      var верх = место_стопки.top - window.scrollY;
+      var видна = верх < window.innerHeight && верх + место_стопки.height > 0;
+      if (!видна && !тихо.matches) return;
+      var доли = [];
+      for (var i = 0; i < карточки.length - 1; i++) {
         var к = карточки[i].getBoundingClientRect();
         var след = карточки[i + 1].getBoundingClientRect();
-        var доля = Math.min(1, Math.max(0, (к.bottom - след.top) / к.height));
-        коробка.style.setProperty('--pf-scale', (1 - 0.06 * доля).toFixed(4));
+        доли.push(Math.min(1, Math.max(0, (к.bottom - след.top) / к.height)));
+      }
+      for (var j = 0; j < карточки.length; j++) {
+        var коробка = карточки[j].firstElementChild;
+        if (тихо.matches || j === карточки.length - 1) коробка.style.removeProperty('--pf-scale');
+        else коробка.style.setProperty('--pf-scale', (1 - 0.06 * доли[j]).toFixed(4));
       }
     };
     сжать();
-    window.addEventListener('scroll', сжать, { passive: true });
-    window.addEventListener('resize', сжать);
+    var кадр_стопки = 0;
+    var сжать_в_кадре = function () {
+      if (!кадр_стопки) кадр_стопки = requestAnimationFrame(function () { кадр_стопки = 0; сжать(); });
+    };
+    window.addEventListener('scroll', сжать_в_кадре, { passive: true });
+    window.addEventListener('resize', сжать_в_кадре);
     if (тихо.addEventListener) тихо.addEventListener('change', сжать);
   }
 
@@ -422,20 +512,32 @@
     набор = первый.getBoundingClientRect().width + зазор;
   }
 
+  /* ПОЛОЖЕНИЕ ЛЕНТЫ ИЗ КЕША (заход 343, блок 2). Лента стоит в потоке:
+     её верх в окне — верх в документе минус прокрутка. Прежде обработчик
+     читал коробку и `offsetHeight` на каждом событии прокрутки — после
+     записей стиля соседних обработчиков это пересчёт раскладки посреди
+     кадра. */
+  var место_ленты = null;
+  // Ширина набора сюда НЕ входит: она мерится, как и прежде, при загрузке
+  // и смене размера окна. Перемер после прокрутки ловил появление полосы
+  // прокрутки (2560: набор +3.2 px) и сдвигал стоящую ленту.
+  сбросы.push(function () { место_ленты = null; });
+
   function сдвинуть() {
     if (!набор) мерить();
+    if (!место_ленты) место_ленты = в_документе(лента);
     var доля = 0.5;
     if (!тихо.matches) {
-      var к = лента.getBoundingClientRect();
-      var ход = window.innerHeight + к.height;
-      доля = Math.min(1, Math.max(0, (window.innerHeight - к.top) / ход));
+      var верх = место_ленты.top - window.scrollY;
+      var ход = window.innerHeight + место_ленты.height;
+      доля = Math.min(1, Math.max(0, (window.innerHeight - верх) / ход));
     }
     // СКОРОСТЬ — ДОЛЯ ОТ ПРОКРУТКИ, а не от ширины набора: первая версия
     // брала треть набора, и на 2560 ряд проезжал 1179 px за 1140 px
     // прокрутки, шагом до 66 px за кадр (замер пробы). Правило проекта —
     // лёгкий параллакс, 20–30% скорости прокрутки: 0.3. Треть набора
     // остаётся потолком, чтобы край дорожки не показался никогда.
-    var размах = Math.min(набор / 3, 0.3 * (window.innerHeight + лента.offsetHeight) / 2);
+    var размах = Math.min(набор / 3, 0.3 * (window.innerHeight + место_ленты.height) / 2);
     ряды.forEach(function (ряд) {
       var знак = Number(ряд.getAttribute('data-feed-dir')) || 1;
       var сдвиг = -набор + знак * (доля - 0.5) * 2 * размах;
@@ -453,24 +555,41 @@
     return Array.prototype.slice.call(лента.querySelectorAll('video'));
   }
 
-  function запустить() {
+  /* РОЛИКИ ПО ОДНОМУ (заход 343, блок 2). Прежде ряд, доехавший до окна,
+     ставил `src` с `preload = auto` и `play()` ВСЕМ 36 роликам разом —
+     включая два повтора набора за краем окна. Теперь:
+     · ряд доехал — роликам ставится `src` с `preload = metadata`: первый
+       кадр есть, поток не качается;
+     · ИГРАЕТ ролик, который сейчас в окне (свой наблюдатель на каждый;
+       ролик за краем ряда обрезан `overflow` ленты и в окно не входит);
+       ушёл из окна — пауза;
+     · «уменьшить движение» — как прежде: первый кадр (`preload = auto`),
+       без `play()`. */
+  function подготовить() {
     ролики().forEach(function (в) {
       var адрес = в.getAttribute('data-src');
       if (адрес && !в.getAttribute('src')) {
-        в.preload = 'auto';
+        в.preload = тихо.matches ? 'auto' : 'metadata';
         в.setAttribute('src', адрес);
-      }
-      if (тихо.matches) {
-        в.pause();
-      } else {
-        var обещание = в.play();
-        if (обещание && обещание.catch) обещание.catch(function () {});
       }
     });
   }
 
-  function остановить() {
-    ролики().forEach(function (в) { if (в.getAttribute('src')) в.pause(); });
+  function решить(в, видим) {
+    if (!в.getAttribute('src')) return;
+    if (видим && !тихо.matches) {
+      в.preload = 'auto';
+      var обещание = в.play();
+      if (обещание && обещание.catch) обещание.catch(function () {});
+    } else {
+      в.pause();
+    }
+  }
+
+  var в_окне_ролики = new Set();
+  function запустить() {
+    подготовить();
+    ролики().forEach(function (в) { решить(в, в_окне_ролики.has(в)); });
   }
 
   if ('IntersectionObserver' in window) {
@@ -479,10 +598,19 @@
       записи.forEach(function (з) {
         if (з.isIntersecting) видно.add(з.target); else видно.delete(з.target);
       });
-      if (видно.size) { доехала = true; запустить(); } else if (доехала) { остановить(); }
+      if (видно.size && !доехала) { доехала = true; запустить(); }
     }, { rootMargin: '0px 0px -1px 0px' });
     ряды.forEach(function (ряд) { наблюдатель.observe(ряд); });
+    var наблюдатель_роликов = new IntersectionObserver(function (записи) {
+      записи.forEach(function (з) {
+        if (з.isIntersecting) в_окне_ролики.add(з.target); else в_окне_ролики.delete(з.target);
+        if (доехала) решить(з.target, з.isIntersecting);
+      });
+    }, { rootMargin: '0px 0px -1px 0px' });
+    ролики().forEach(function (в) { наблюдатель_роликов.observe(в); });
   } else {
+    доехала = true;
+    ролики().forEach(function (в) { в_окне_ролики.add(в); });
     запустить();
   }
 
