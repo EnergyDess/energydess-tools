@@ -22,6 +22,8 @@
 РЕЖИМЫ — по блокам письма, у каждого свой вопрос:
 
   py check_portfolio.py --экран     # B: первый экран
+  py check_portfolio.py --макет [--контроль-якорей|-отступа|-имени|-головы|-градиента|-кнопки]
+                                    # макет первого экрана (письмо 2 задачи 343)
   py check_portfolio.py --лента     # C: бегущая лента работ
   py check_portfolio.py --о-себе    # D: о себе
   py check_portfolio.py --инструменты   # E: инструменты
@@ -400,6 +402,205 @@ def экран(контроль_сдвига=False, контроль_магни�
             if положили:
                 print("  уборка: портрет снят — HTTP %s" % _портрет(ад, "убрать"))
             бр.close()
+
+
+# ══ МАКЕТ ПЕРВОГО ЭКРАНА (письмо 2 задачи 343) ═══════════════════════
+# Шесть вопросов утверждённого макета, у каждого свой подлог. Подлог
+# засчитывается, только если упал ЕГО шаг: сломанное соседнее звено
+# доказательством не является (код 4 и строка «не пойман своим шагом»).
+#   --контроль-якорей    две ссылки ряда переставлены местами
+#   --контроль-отступа   у секций снят scroll-margin-top
+#   --контроль-имени     кегль имени 11cqi вместо своего коэффициента
+#   --контроль-головы    портрет ограничен 30vh
+#   --контроль-градиента светлая опорная точка градиента кнопки
+#   --контроль-кнопки    кнопка сдвинута на строки о себе
+
+ПОДЛОГИ_МАКЕТА = {
+    "якорей": ("порядок якорей", None),
+    "отступа": ("переход по якорю", "main section[id]{scroll-margin-top:0!important}"),
+    "имени": ("имя одной строкой", ".pf-hero-name{font-size:11cqi!important}"),
+    "головы": ("высота головы", ".pf-hero-portrait{max-height:30vh!important}"),
+    "градиента": ("контраст кнопки", ".pf-cta-pill{--pf-cta-c:var(--accent-workout)!important}"),
+    "кнопки": ("строки и кнопка", None),
+}
+
+ШРИФТ_ГОТОВ = ("() => [...document.fonts].some(f => f.family.replace(/[\"']/g, '') === 'Unbounded'"
+               " && f.status === 'loaded')")
+
+МАКЕТ_ЗАМЕР = r"""() => {
+  const q = s => document.querySelector(s);
+  const пр = b => ({l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height});
+  const текст = э => { const д = document.createRange(); д.selectNodeContents(э); return д; };
+  // 1. якоря: ссылки слева направо против секций в порядке документа
+  const ссылки = [...document.querySelectorAll('.pf-anchors a')]
+    .map(а => ({href: а.getAttribute('href'), x: а.getBoundingClientRect().left,
+                верх: Math.round(а.getBoundingClientRect().top),
+                строк: new Set([...текст(а).getClientRects()].filter(к => к.width).map(к => Math.round(к.top))).size}))
+    .sort((а, б) => а.x - б.x);
+  const цели = ссылки.map(с => ({href: с.href, э: document.getElementById((с.href || '').replace(/^#/, ''))}));
+  const по_документу = цели.filter(ц => ц.э).sort((а, б) =>
+    а.э.compareDocumentPosition(б.э) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1).map(ц => ц.href);
+  // 3. имя
+  const имя = q('.pf-hero-name'), загл = q('.pf-hero-title');
+  const ти = текст(имя).getBoundingClientRect();
+  const строк_имени = new Set([...текст(имя).getClientRects()].filter(к => к.width).map(к => Math.round(к.top))).size;
+  const лх = parseFloat(getComputedStyle(имя).lineHeight);
+  // 4. голова
+  const место = q('.pf-hero-portrait .media-slot').getBoundingClientRect();
+  // 5. опорные точки градиента кнопки — из ВЫЧИСЛЕННОГО фона, не из имён переменных
+  const кн = q('.pf-hero-cta .pf-contact-btn');
+  const фон = getComputedStyle(кн).backgroundImage;
+  const арги = []; let глуб = 0, нач = фон.indexOf('(') + 1;
+  for (let i = нач; i < фон.length; i++) {
+    const ч = фон[i];
+    if (ч === '(') глуб++;
+    else if (ч === ')') { if (глуб === 0) { арги.push(фон.slice(нач, i)); break; } глуб--; }
+    else if (ч === ',' && глуб === 0) { арги.push(фон.slice(нач, i)); нач = i + 1; }
+  }
+  const зонд = document.createElement('i'); document.body.appendChild(зонд);
+  const в_rgb = с => { зонд.style.color = ''; зонд.style.color = с; const в = getComputedStyle(зонд).color;
+    let м = в.match(/^rgba?\(([^)]+)\)/); if (м) return м[1].split(',').slice(0, 3).map(Number);
+    м = в.match(/^color\(srgb ([\d.e+-]+) ([\d.e+-]+) ([\d.e+-]+)/); if (м) return [м[1], м[2], м[3]].map(x => Math.round(+x * 255));
+    return null; };
+  const точки = [];
+  for (let а of арги) {
+    а = а.trim().replace(/\)\s+[\d.]+(%|px)(\s+[\d.]+(%|px))?$/, ')');
+    if (!CSS.supports('color', а)) continue;
+    точки.push({css: а, rgb: в_rgb(а)});
+  }
+  const надпись = в_rgb(getComputedStyle(кн).color); зонд.remove();
+  const ярк = c => { const [r, g, b] = c.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const контраст = (a, b) => { const [x, y] = [ярк(a), ярк(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+  // 6. строки о себе и кнопка
+  const строки = текст(q('.pf-hero-line')).getBoundingClientRect(), кнб = кн.getBoundingClientRect();
+  return {vw: document.documentElement.clientWidth, vh: innerHeight,
+    ссылки: ссылки.map(с => с.href), верхи_ссылок: [...new Set(ссылки.map(с => с.верх))], строк_в_ссылках: ссылки.map(с => с.строк),
+    по_документу, нет_цели: цели.filter(ц => !ц.э).map(ц => ц.href),
+    имя: пр(ти), место_имени: загл.clientWidth, строк_имени, высота_заголовка: загл.getBoundingClientRect().height, лх,
+    голова: место.height / innerHeight,
+    точки: точки.map(т => ({css: т.css.slice(0, 60), rgb: т.rgb, контраст: т.rgb && надпись ? +контраст(т.rgb, надпись).toFixed(2) : null})),
+    надпись, строки: пр(строки), кнопка: пр(кнб)};
+}"""
+
+# Переход по якорю: ждём, пока прокрутка 15 кадров подряд не меняется,
+# и пишем все промежуточные положения — по ним видно, плавно ли шла.
+ПЕРЕХОД = r"""(href) => new Promise(готово => {
+  const ys = [scrollY]; let тихо = 0; const t0 = performance.now();
+  document.querySelector('.pf-anchors a[href="' + href + '"]').click();
+  const тик = () => {
+    const y = scrollY; if (y === ys[ys.length - 1]) тихо++; else { тихо = 0; ys.push(y); }
+    if ((тихо >= 15 && ys.length > 1) || performance.now() - t0 > 6000) {
+      const ц = document.getElementById(href.slice(1)).getBoundingClientRect();
+      const шапка = document.querySelector('.site-header').getBoundingClientRect();
+      готово({положений: ys.length, верх: ц.top, низ_шапки: шапка.bottom, мс: Math.round(performance.now() - t0)});
+      return;
+    }
+    requestAnimationFrame(тик);
+  };
+  requestAnimationFrame(тик);
+})"""
+
+
+def макет(подлог=None):
+    from playwright.sync_api import sync_playwright
+    цель, стиль = ПОДЛОГИ_МАКЕТА[подлог] if подлог else (None, None)
+    print("МАКЕТ ПЕРВОГО ЭКРАНА — гостем, головной браузер, стенд %s%s" % (
+        БАЗА, " · ПОДЛОГ: %s (ждём падения шага «%s»)" % (подлог, цель) if подлог else ""))
+    упавшие = []
+
+    def ш(имя, условие, подробность="", собрано=None):
+        р = шаг(имя, условие, подробность, собрано=собрано)
+        if р is False:
+            упавшие.append(имя)
+
+    with sync_playwright() as p:
+        бр = p.chromium.launch(headless=False)
+        try:
+            for шир, выс, сенсор in ШИРИНЫ:
+                print("\n  ── %d×%d%s" % (шир, выс, " (сенсор)" if сенсор else ""))
+                к = _контекст(бр, шир, выс, сенсор)
+                с = к.new_page()
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                с.wait_for_function(ШРИФТ_ГОТОВ, timeout=20000)
+                с.wait_for_timeout(1200)
+                if стиль:
+                    с.add_style_tag(content=стиль)
+                if подлог == "якорей":
+                    с.evaluate("() => { const а = document.querySelectorAll('.pf-anchors a');"
+                               " а[0].parentNode.insertBefore(а[1], а[0]); }")
+                if подлог == "кнопки":
+                    с.evaluate("""() => { const л = document.querySelector('.pf-hero-line').getBoundingClientRect();
+                        const к = document.querySelector('.pf-hero-cta .pf-contact-btn'); const б = к.getBoundingClientRect();
+                        к.style.translate = (л.left - б.left) + 'px ' + (л.top - б.top) + 'px'; }""")
+                с.wait_for_timeout(200)
+                з = с.evaluate(МАКЕТ_ЗАМЕР)
+
+                ш("порядок якорей: ссылки слева направо = секции в документе",
+                  not з["нет_цели"] and з["ссылки"] == з["по_документу"],
+                  "ссылки %s; секции %s; без цели %s" % (з["ссылки"], з["по_документу"], з["нет_цели"] or "нет"),
+                  собрано=len(з["ссылки"]))
+                ш("якоря в одну строку без переноса",
+                  len(з["верхи_ссылок"]) == 1 and all(н == 1 for н in з["строк_в_ссылках"]),
+                  "разных верхов %d, строк в ссылках %s" % (len(з["верхи_ссылок"]), з["строк_в_ссылках"]),
+                  собрано=len(з["ссылки"]))
+
+                доля = з["имя"]["w"] / з["место_имени"] if з["место_имени"] else 0
+                ш("имя одной строкой: 94–100% места, за край не выходит",
+                  0.94 <= доля <= 1.0 and з["строк_имени"] == 1 and abs(з["высота_заголовка"] - з["лх"]) <= 2
+                  and з["имя"]["l"] >= -0.5 and з["имя"]["r"] <= з["vw"] + 0.5,
+                  "доля %.3f, строк %d, высота блока %.1f при строке %.1f, текст %.1f..%.1f при окне %d" % (
+                      доля, з["строк_имени"], з["высота_заголовка"], з["лх"], з["имя"]["l"], з["имя"]["r"], з["vw"]))
+
+                if not сенсор:
+                    ш("высота головы 60–72% окна", 0.60 <= з["голова"] <= 0.72,
+                      "голова %.1f%% окна" % (з["голова"] * 100))
+
+                ш("контраст кнопки: белая надпись к каждой опорной точке не ниже 4.5",
+                  len(з["точки"]) >= 3 and all(т["контраст"] is not None and т["контраст"] >= 4.5 for т in з["точки"]),
+                  "надпись %s; точки %s" % (з["надпись"], [(т["rgb"], т["контраст"]) for т in з["точки"]]),
+                  собрано=len(з["точки"]))
+
+                л, кн = з["строки"], з["кнопка"]
+                пересеклись = not (л["r"] <= кн["l"] or кн["r"] <= л["l"] or л["b"] <= кн["t"] or кн["b"] <= л["t"])
+                в_окне = all(0 <= б["l"] and б["r"] <= з["vw"] and 0 <= б["t"] and б["b"] <= з["vh"] for б in (л, кн))
+                ш("строки и кнопка: не пересекаются, в пределах окна", not пересеклись and в_окне,
+                  "строки %.0f..%.0f × %.0f..%.0f, кнопка %.0f..%.0f × %.0f..%.0f, окно %d×%d" % (
+                      л["l"], л["r"], л["t"], л["b"], кн["l"], кн["r"], кн["t"], кн["b"], з["vw"], з["vh"]))
+
+                # 2. переход по якорю — каждая ссылка, плавно
+                for href in з["ссылки"]:
+                    с.evaluate("() => window.scrollTo({top: 0, behavior: 'instant'})")
+                    с.wait_for_timeout(150)
+                    п = с.evaluate(ПЕРЕХОД, href)
+                    ш("переход по якорю %s: верх секции не под шапкой, прокрутка плавная" % href,
+                      п["верх"] >= п["низ_шапки"] - 0.5 and п["положений"] >= 4,
+                      "верх секции %.1f, низ шапки %.1f, положений прокрутки %d за %d мс" % (
+                          п["верх"], п["низ_шапки"], п["положений"], п["мс"]))
+                к.close()
+
+                # при «уменьшить движение» переход мгновенный
+                к = _контекст(бр, шир, выс, сенсор, движение="reduce")
+                с = к.new_page()
+                с.goto(БАЗА + "/", wait_until="networkidle", timeout=60000)
+                с.wait_for_timeout(300)
+                if стиль:
+                    с.add_style_tag(content=стиль)
+                п = с.evaluate(ПЕРЕХОД, "#tools")
+                ш("переход по якорю при «уменьшить движение»: мгновенно, верх не под шапкой",
+                  п["положений"] <= 2 and п["верх"] >= п["низ_шапки"] - 0.5,
+                  "положений прокрутки %d, верх %.1f, низ шапки %.1f" % (п["положений"], п["верх"], п["низ_шапки"]))
+                к.close()
+        finally:
+            бр.close()
+    if подлог:
+        свои = [у for у in упавшие if у.startswith(цель)]
+        print("\n  ДОКАЗАТЕЛЬСТВО ПОДЛОГА «%s»: упал свой шаг %d раз; упали всего: %s" % (
+            подлог, len(свои), sorted(set(упавшие)) or "ничего"))
+        if not свои:
+            print("  ПОДЛОГ НЕ ПОЙМАН своим шагом")
+            return 4
+    return None
 
 
 # ══ C. БЕГУЩАЯ ЛЕНТА ══════════════════════════════════════════════════
@@ -1239,8 +1440,14 @@ def инструменты(контроль=False, контроль_повтор
           в_окне: кп.left >= -0.5 && кп.right <= document.documentElement.clientWidth + 0.5 && кп.top >= 0};
 }"""
 
-# D6: все три «Связаться» одного вида — сверяются вычисленные свойства кнопки
-ЗАМЕР_КНОПОК_СВЯЗИ = r"""() => [...document.querySelectorAll('.pf-contact summary')].map(э => {
+# D6: «Связаться» ВНЕ первого экрана одного вида — сверяются вычисленные
+# свойства кнопки. ЗДЕСЬ СТОЯЛО «все три одного вида» (заход 342). Письмо 2
+# задачи 343 дало первому экрану свою кнопку-таблетку с градиентом — решение
+# владельца, и прежняя формулировка стала требовать обратного макету. Вид
+# таблетки спрашивает `--макет`; здесь — две оставшиеся и текст у всех трёх.
+# Отрицательный контроль новой формулировки — в отчёте письма 2 (радиус
+# кнопки финала подменён: шаг обязан упасть).
+ЗАМЕР_КНОПОК_СВЯЗИ = r"""() => [...document.querySelectorAll('.pf-contact:not(.pf-contact-hero) summary')].map(э => {
   const s = getComputedStyle(э), r = э.getBoundingClientRect();
   return {класс: э.className, текст: э.textContent.trim(), w: Math.round(r.width * 10) / 10,
           h: Math.round(r.height * 10) / 10, фон: s.backgroundColor, цвет: s.color, кегль: s.fontSize,
@@ -1276,8 +1483,8 @@ def связь(контроль_буфера=False):
                 вид = с.evaluate(ЗАМЕР_КНОПОК_СВЯЗИ)
                 ключи = ("класс", "текст", "w", "h", "фон", "цвет", "кегль", "вес", "поле", "радиус", "рамка")
                 разные = [кл for кл in ключи if len({str(х[кл]) for х in вид}) > 1]
-                шаг("D6: три «Связаться» одного вида (%s)" % ", ".join(ключи),
-                    len(вид) == 3 and not разные,
+                шаг("D6: две «Связаться» вне первого экрана одного вида (%s)" % ", ".join(ключи),
+                    len(вид) == 2 and not разные,
                     "разошлись: %s" % ("; ".join("%s %s" % (кл, [х[кл] for х in вид]) for кл in разные) or "ничего"),
                     собрано=len(вид))
                 if контроль_буфера:
@@ -1581,7 +1788,7 @@ def проекты(контроль=False):
 МОБИЛЬНАЯ_СЕТЬ = {"offline": False, "latency": 150, "downloadThroughput": 200000,
                   "uploadThroughput": 93750}
 
-ФОН_ТЕКСТЫ = [".pf-hero-role", ".pf-hero-name", ".pf-hero-line", "#pf-about-h",
+ФОН_ТЕКСТЫ = [".pf-hero-name", ".pf-hero-line", "#pf-about-h",
               ".pf-about-text", "#pf-final-h", ".pf-final-sub"]
 
 ЗАМЕР_КРАЁВ = r"""() => {
@@ -1941,8 +2148,7 @@ def фон(контроль_сети=False, контроль_рывка=False, �
   const линия = q('.pf-hero-line');
   const строк = линия ? (() => { const д = document.createRange(); д.selectNodeContents(линия);
     const ys = new Set([...д.getClientRects()].filter(к => к.width).map(к => Math.round(к.top))); return ys.size; })() : null;
-  const роль = q('.pf-hero-role');
-  const рс = роль ? getComputedStyle(роль) : null;
+  const якоря = [...document.querySelectorAll('.pf-anchors a')];
   const проекты = [...document.querySelectorAll('.pf-proj')].map(к => {
     const а = пр(к.querySelector('.pf-proj-a .media-slot')), б = пр(к.querySelector('.pf-proj-b .media-slot')),
           в = пр(к.querySelector('.pf-proj-c .media-slot'));
@@ -1954,7 +2160,7 @@ def фон(контроль_сети=False, контроль_рывка=False, �
   });
   const поп = q('.pf-contact-hero .pf-contact-pop');
   return {заголовки, кнопки_шапки: кн, строк_в_первом_экране: строк,
-    роль: рс ? {рамка: рс.borderTopWidth + ' ' + рс.borderTopStyle, цвет: рс.color, кегль: parseFloat(рс.fontSize)} : null,
+    якоря: якоря.length ? {ссылок: якоря.length, кегль: parseFloat(getComputedStyle(якоря[0]).fontSize)} : null,
     проекты, связь_детей: поп ? [...поп.children].filter(э => !э.hidden && getComputedStyle(э).display !== 'none').length : null,
     связь_строк: поп ? поп.querySelectorAll('.pf-contact-row').length : null,
     будущее: !!q('.pf-grow'), фон_зон: document.querySelectorAll('[data-pf-bg]').length,
@@ -1998,7 +2204,7 @@ def сводка():
                 for id_, д in з["заголовки"].items():
                     print("  %s: %s" % (id_, д))
                 print("  кнопки шапки: %s" % з["кнопки_шапки"])
-                print("  строк текста в первом экране: %s; роль: %s" % (з["строк_в_первом_экране"], з["роль"]))
+                print("  строк текста в первом экране: %s; якоря: %s" % (з["строк_в_первом_экране"], з["якоря"]))
                 print("  проекты: %s" % з["проекты"])
                 с.locator(".pf-contact-hero summary").click()
                 с.wait_for_timeout(500)
@@ -2035,6 +2241,13 @@ def сводка():
     ("фон:контроль-сети",       ("--фон", "--контроль-сети"), 1),
     ("фон:контроль-рывка",      ("--фон", "--контроль-рывка"), 1),
     ("фон:контроль-краёв",      ("--фон", "--контроль-краёв"), 1),
+    ("макет",                   ("--макет",), 0),
+    ("макет:контроль-якорей",   ("--макет", "--контроль-якорей"), 1),
+    ("макет:контроль-отступа",  ("--макет", "--контроль-отступа"), 1),
+    ("макет:контроль-имени",    ("--макет", "--контроль-имени"), 1),
+    ("макет:контроль-головы",   ("--макет", "--контроль-головы"), 1),
+    ("макет:контроль-градиента", ("--макет", "--контроль-градиента"), 1),
+    ("макет:контроль-кнопки",   ("--макет", "--контроль-кнопки"), 1),
     ("экран",                   ("--экран",), 0),
     ("экран:контроль",          ("--экран", "--контроль"), 1),
     ("экран:контроль-магнита",  ("--экран", "--контроль-магнита"), 1),
@@ -2186,6 +2399,15 @@ def main():
         фон(контроль_сети="--контроль-сети" in арг, контроль_рывка="--контроль-рывка" in арг,
             контроль_краёв="--контроль-краёв" in арг, только_контраст="--контраст" in арг,
             притемнение=притемнение)
+    elif "--макет" in арг:
+        подлоги = [к for к in ПОДЛОГИ_МАКЕТА if "--контроль-" + к in арг]
+        if len(подлоги) > 1:
+            print("подлог макета — по одному за прогон, а задано %s" % подлоги)
+            return 2
+        код = макет(подлоги[0] if подлоги else None)
+        if код:
+            print("\nИТОГ: ПЛОХО %d, ПРОПУСК %d" % (итог["плохо"], итог["пропуск"]))
+            return код
     elif "--экран" in арг:
         экран(контроль_сдвига="--контроль" in арг, контроль_магнита="--контроль-магнита" in арг)
     elif "--лента" in арг:

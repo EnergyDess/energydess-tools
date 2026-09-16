@@ -29,9 +29,11 @@
    текстом и выделяется, копирование и `mailto:` — внутри как пути, а не
    как единственный путь. Кнопку копирования показывает скрипт: без него
    она не сработала бы, а обещала бы. #}
-{% macro связь(место, класс='', шаг=None) %}
+{#- `кнопка` — вид самой кнопки. У первого экрана своя таблетка с градиентом
+    (письмо 2 задачи 343), у «Обо мне» и финала — системная `.btn-primary`. #}
+{% macro связь(место, класс='', шаг=None, кнопка='btn-primary btn-lg') %}
 <details class="pf-contact pf-contact-{{ место }}{{ ' ' + класс if класс }}" data-pf-contact{% if шаг is not none %} style="--n: {{ шаг }}"{% endif %}>
-  <summary class="btn-primary btn-lg pf-contact-btn">Связаться</summary>
+  <summary class="{{ кнопка }} pf-contact-btn">Связаться</summary>
   <div class="pf-contact-pop">
     {# ДВЕ СТРОКИ ОДНОГО СТРОЕНИЯ (заход 342, блок D): значок, значение,
        действие справа. Строка почты — сама ссылка mailto (отдельной строки
@@ -95,9 +97,18 @@
   {# Появление сверху вниз: шапка (класс от флага), заголовок, строка,
      кнопка, портрет. Номер шага — `--n`, шаг задаёт landing.css. #}
   <section class="pf-hero" aria-label="Первый экран">
+    {# ЯКОРЯ (письмо 2 задачи 343). Порядок ссылок слева направо обязан
+       совпадать с порядком секций в документе — это спрашивает проба
+       `--экран`, а не память. «Контакты» ведут к финалу. Плашка роли
+       «видео и AI-инструменты» убрана решением владельца. #}
+    <nav class="pf-anchors pf-enter" style="--n: 1" aria-label="Разделы страницы">
+      <a href="#about">Обо мне</a>
+      <a href="#tools">Инструменты</a>
+      <a href="#projects">Проекты</a>
+      <a href="#contacts">Контакты</a>
+    </nav>
     <h1 class="pf-hero-title pf-enter" style="--n: 1">
       <span class="pf-grad pf-hero-name">Денис Кащеев</span>
-      <span class="pf-hero-role">видео и AI-инструменты</span>
     </h1>
     {# ПОРТРЕТ НАЛЕЗАЕТ НА ИМЯ СНИЗУ (заход 339, A3): ряд портрета поднят
        отрицательным отступом, портрет лежит поверх имени, и имя проступает
@@ -110,8 +121,8 @@
       </div>
     </div>
     <div class="pf-hero-foot">
-      <p class="pf-hero-line pf-enter" style="--n: 2">Больше 10 лет в видео, сейчас — AI.</p>
-      {{ связь('hero', 'pf-hero-cta pf-enter', 3) }}
+      <p class="pf-hero-line pf-enter" style="--n: 2"><span>Видеомонтаж и AI-видео</span> <span>10+ лет в продакшене</span> <span>Собираю свои инструменты</span></p>
+      {{ связь('hero', 'pf-hero-cta pf-enter', 3, кнопка='pf-cta-pill') }}
     </div>
   </section>
 
@@ -144,7 +155,7 @@
      Пробел — свой спан, поэтому переносы идут между словами, а не внутри.
      Приглушённый цвет — `--text-faint`, он читается и без скрипта. #}
   {% set о_себе = "Больше десяти лет в видеопроизводстве: федеральное телевидение, киберспорт, реклама, образовательные проекты. Последние годы — AI-видео и собственные инструменты, которые я проектирую, проверяю и довожу до рабочего состояния сам. Если нужен человек, который доводит до конца, — напишите." %}
-  <section class="pf-about" aria-labelledby="pf-about-h">
+  <section class="pf-about" id="about" aria-labelledby="pf-about-h">
     <div class="pf-decor pf-decor-tl pf-side" data-side="l" style="--n: 0">{{ ms.slot(места['decor-tl']) }}</div>
     <div class="pf-decor pf-decor-bl pf-side" data-side="l" style="--n: 2">{{ ms.slot(места['decor-bl']) }}</div>
     <div class="pf-decor pf-decor-tr pf-side" data-side="r" style="--n: 1">{{ ms.slot(места['decor-tr']) }}</div>
@@ -178,7 +189,7 @@
   {% macro печать(текст) -%}
     {%- for знак in текст -%}<span class="pf-t">{{ знак }}</span>{%- endfor -%}
   {%- endmacro %}
-  <section class="pf-tools" aria-labelledby="pf-tools-h">
+  <section class="pf-tools" id="tools" aria-labelledby="pf-tools-h">
     <h2 id="pf-tools-h" class="pf-grad pf-big-h">Инструменты</h2>
     <ol class="pf-tool-list">
 
@@ -321,7 +332,7 @@
       {'n': '02', 'kind': 'AI-видео', 'title': 'AI-сериалы'},
       {'n': '03', 'kind': 'инструменты', 'title': 'EnergyDess'},
   ] %}
-  <section class="pf-projects" aria-labelledby="pf-projects-h">
+  <section class="pf-projects" id="projects" aria-labelledby="pf-projects-h">
     <h2 id="pf-projects-h" class="pf-grad pf-big-h">Проекты</h2>
     <div class="pf-proj-stack">
       {% for п in проекты %}
@@ -350,7 +361,7 @@
   <div class="pf-zone pf-zone-bottom">
   {{ фон('bg-bottom', 'bottom') }}
   <!-- ── Связаться ── -->
-  <section class="pf-final" aria-labelledby="pf-final-h">
+  <section class="pf-final" id="contacts" aria-labelledby="pf-final-h">
     <h2 id="pf-final-h" class="pf-grad pf-sec-h">Давайте поработаем</h2>
     <p class="pf-final-sub">Напишите — отвечу. Инструменты открываются после регистрации.</p>
     <div class="pf-final-btns">

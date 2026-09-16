@@ -27,10 +27,6 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 main :is(h1, h2, h3) { font-family: 'Unbounded', var(--font); }
-/* Метка роли стоит ВНУТРИ h1, но заголовком не является — это подпись.
-   Unbounded расширял её на 2560 с 245 до 325 px, и она ложилась на светлую
-   часть ролика: контраст 6.97 -> 4.35 при пороге 4.5 (`--фон --контраст`). */
-main .pf-hero-role { font-family: var(--font); }
 /* Unbounded шире Manrope: на 390 «Давайте поработаем» переносился в две
    строки (текст 381 px при доступных 358), подпись финала съезжала на
    светлую часть ролика — контраст 5.64 -> 3.80 при пороге 4.5. Только
@@ -173,14 +169,21 @@ body::before {
 .pf-hero {
   position: relative;
   /* КЕГЛЬ ИМЕНИ — ОДНА ВЕЛИЧИНА НА ДВА МЕСТА: сам кегль и то, насколько
-     портрет налезает на имя. Здесь стояло clamp(3.5rem, 13vw, 22rem),
-     и владелец отметил, что имя кричит: кириллица шире латиницы, и размер
-     образца на ней вдвое крупнее. Уменьшено вдвое (заход 339, A2). */
-  --pf-name: clamp(1.75rem, 6.5vw, 11rem);
+     портрет налезает на имя. Письмо 2 задачи 343: имя ОДНОЙ СТРОКОЙ
+     от края до края на любой ширине. Кегль — доля ширины содержимого
+     первого экрана (`cqi`), а не окна: `vw` включает полосу прокрутки
+     и на 1920 с полосой давал бы строку на 15 px шире места. Без скрипта
+     на resize. Коэффициент замерен ОДИН раз: «ДЕНИС КАЩЕЕВ» Unbounded 900
+     с разрядкой -0.03em при кегле 100 px занимает 1060 px, то есть 10.60
+     кегля; 9.35 кегля на процент ширины дают строку в 99.1 % места.
+     Переменная хранит ТОКЕНЫ, и `cqi` считается у потребителя — у имени
+     и у ряда портрета, чей контейнер этот же первый экран. */
+  container-type: inline-size;
+  --pf-name: 9.35cqi;
   height: calc(100svh - 64px);
   min-height: 34rem;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   /* Колонка не шире окна: портрет считает ширину от высоты, и с налезанием
      на имя его собственная ширина на 390 превышала окно — неявная колонка
      `auto` росла следом, и весь первый экран уезжал за правый край. */
@@ -203,17 +206,42 @@ body::before {
   pointer-events: none;
   z-index: -1;
 }
+/* ЯКОРЯ (письмо 2 задачи 343): ряд на всю ширину, прописные Manrope 700.
+   Высота ссылки не меньше 44 px — это и тач-таргет на телефоне. */
+.pf-anchors {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.pf-anchors a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-family: var(--font);
+  font-size: clamp(0.9375rem, 1vw, 1.25rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+@media (hover: hover) {
+  .pf-anchors a:hover { color: var(--text-strong); }
+}
+.pf-anchors a:focus-visible { outline: 2px solid var(--accent-brand); outline-offset: 4px; border-radius: var(--radius-sm); }
+/* ПЕРЕХОД ПО ЯКОРЮ: шапка прилипает, и верх секции без отступа ушёл бы
+   под неё. 64 px — та же высота шапки, что вычитается у первого экрана
+   (design-system.md §4.1). Плавность — `scroll-behavior` у `html`
+   в style.css, при «уменьшить движение» там же мгновенно. */
+main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
 .pf-hero-title {
   margin: 0;
-  /* Роль стоит НАД именем: портрет налезает на имя снизу и закрыл бы
-     строку под ним. Порядок в разметке прежний — «имя, роль» читается
-     программой чтения именно так; переставляет только раскладка. */
-  display: flex;
-  flex-direction: column-reverse;
   text-align: center;
-  font-weight: 800;
+  font-weight: 900;
   line-height: 0.92;
-  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 /* ГРАДИЕНТ ТЕКСТА — ИСКЛЮЧЕНИЕ, НАЗВАННОЕ В design-system.md §0. Письмо
    владельца просит заголовок «от серого к светлому». Цвета при этом
@@ -230,24 +258,10 @@ body::before {
   overflow-wrap: normal;
   hyphens: manual;
 }
-.pf-hero-name { font-size: var(--pf-name); }
-/* ПЛАШКА РОЛИ (заход 342, C4): тонкая обводка и бирюзовый текст, как
-   активная плашка отбора в аптечке (`.chip.active` под темой аптечки) —
-   те же токены акцента аптечки. Своим классом, а не системным `.chip`:
-   чипу пришлось бы менять кегль, то есть переопределять компонент. */
-.pf-hero-role {
-  align-self: center;
-  margin-bottom: var(--space-4);
-  padding: var(--space-1) var(--space-4);
-  border: 1px solid var(--accent-medkit);
-  border-radius: 999px;
-  background: var(--accent-medkit-dim);
-  font-size: var(--text-body-lg);
-  font-weight: 500;
-  line-height: 1.5;
-  letter-spacing: 0;
-  color: var(--accent-medkit);
-}
+/* Разрядка — у самого имени: объявленная на h1, она считается от ЕГО
+   кегля и наследуется готовыми пикселями (замер: -1.02 px при кегле
+   имени 232 px, строка на 2 % шире места). */
+.pf-hero-name { font-size: var(--pf-name); letter-spacing: -0.03em; }
 /* НАЛЕЗАНИЕ НА ИМЯ (A3). Ряд портрета поднят на 0.55 кегля имени плюс
    зазор сетки: верх портрета встаёт на уровень середины букв. Высота
    ряда от этого не пересчитывается — сетка тянет элемент на трек плюс
@@ -287,15 +301,52 @@ body::before {
   gap: var(--space-5);
   flex-wrap: wrap;
 }
+/* ТРИ СТРОКИ О СЕБЕ (письмо 2 задачи 343): прописные, Manrope 700, светлые,
+   крупно. Строка — блок: перенос между ними задаёт разметка, а не ширина. */
 .pf-hero-line {
   margin: 0;
-  max-width: 36rem;
-  font-size: var(--text-body-lg);
-  line-height: 1.6;
-  color: var(--text-2);
+  font-family: var(--font);
+  font-size: clamp(1rem, 1.5vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-strong);
 }
+.pf-hero-line span { display: block; }
+/* КНОПКА-ТАБЛЕТКА «СВЯЗАТЬСЯ»: градиент синий → фиолетовый → оранжевый.
+   Опорные точки — из токенов, у каждой белая надпись не ниже 4.5:
+   `--accent-brand-hover` 4.63, `--accent-enshrouded-hover` 5.29, середина —
+   их соседи по палитре, синий пополам с `--error`. Фиолетового токена
+   в системе нет, заводить его ради одной кнопки незачем. Точки объявлены
+   на самой кнопке — это не токены системы. */
+.pf-cta-pill {
+  --pf-cta-a: var(--accent-brand-hover);
+  --pf-cta-b: color-mix(in srgb, var(--accent-brand-hover) 50%, var(--error));
+  --pf-cta-c: var(--accent-enshrouded-hover);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: clamp(3.5rem, 3.4vw, 5.5rem);
+  padding: 0 var(--space-7);
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--pf-cta-a), var(--pf-cta-b), var(--pf-cta-c));
+  font-family: var(--font);
+  font-size: clamp(1rem, 1.1vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-strong);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+@media (hover: hover) {
+  .pf-cta-pill:hover { transform: scale(1.02); }
+}
+.pf-cta-pill:focus-visible { outline: 2px solid var(--text-strong); outline-offset: 4px; }
 @media (max-width: 600px) {
-  .pf-hero { --pf-name: clamp(1.75rem, 10vw, 3rem); padding: var(--space-5) var(--space-4) var(--space-6); gap: var(--space-4); }
+  .pf-hero { padding: var(--space-5) var(--space-4) var(--space-6); gap: var(--space-4); }
+  .pf-anchors { gap: var(--space-2); }
+  .pf-anchors a { font-size: 0.8125rem; letter-spacing: 0.02em; }
   .pf-hero-mid { margin-top: calc(var(--pf-name) * -0.55 - var(--space-4)); }
   .pf-hero-cta { width: 100%; }
 }
