@@ -734,7 +734,12 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
 .pf-join {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-  gap: var(--space-6) var(--space-7);
+  /* НЕ ШИРЕ 1040 И ПО ЦЕНТРУ (письмо 5 задачи 343): на всю колонку
+     1536 px между текстом и лентой стояла пустота; колонки ближе —
+     зазор 32 вместо 48. На 390 карточка уже 1040 и не меняется. */
+  max-width: 1040px;
+  margin-inline: auto;
+  gap: var(--space-6);
   /* РЯД ПО ВЫСОТЕ ЛЕВОЙ КОЛОНКИ (письмо 4 задачи 343): лента растягивается
      на всю высоту карточки. Прежде окно ленты 230 px стояло посередине
      колонки, а колонка была выше от крупного заголовка. */
@@ -848,7 +853,8 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--border);
+  /* рамка светлее прежней `--border` (0.08) — письмо 5 задачи 343 */
+  border: 1px solid var(--landing-window-line);
   border-radius: var(--radius-lg);
   /* на ступень темнее секции (C1): макет читается окном в секции */
   background: var(--surface-0);
@@ -1165,7 +1171,7 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   letter-spacing: -0.03em;
   color: var(--text-strong);
 }
-.pf-scale-nums span { font-size: var(--text-body-sm); font-weight: 500; color: var(--text-2); }
+.pf-scale-nums span { font-size: var(--text-body); font-weight: 500; color: var(--text-2); }
 .pf-scale-cap {
   margin: 0 0 var(--space-3);
   font-size: var(--text-caption);
@@ -1174,25 +1180,30 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   text-transform: uppercase;
   color: var(--landing-soft);
 }
+/* «КАК СДЕЛАНО» ВО ВСЮ ШИРИНУ (письмо 5 задачи 343): пять шагов равной
+   ширины и стрелки между ними; у шага название и короткая подпись,
+   мельче и приглушённее. На узком — столбиком, стрелки вниз. */
 .pf-scale-steps {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr) auto) minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .pf-scale-step {
-  padding: var(--space-2) var(--space-4);
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--landing-mini-line);
-  border-radius: 999px;
+  border-radius: 18px;
   background: var(--landing-mini-bg);
-  font-size: var(--text-body);
-  font-weight: 600;
-  color: var(--text-strong);
 }
-.pf-scale-arrow { font-size: var(--text-body-lg); color: var(--text-faint); }
+.pf-scale-step b { font-size: var(--text-body); font-weight: 600; color: var(--text-strong); }
+.pf-scale-step span { font-size: var(--text-body-sm); font-weight: 500; line-height: 1.4; color: var(--text-faint); }
+.pf-scale-arrow { align-self: center; font-size: var(--text-body-lg); color: var(--text-faint); }
 .pf-scale-cols {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -1203,7 +1214,7 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
 .pf-scale-list svg { flex: none; width: 20px; height: 20px; color: var(--landing-soft); }
 .pf-scale-stack { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 .pf-scale-stack li {
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-4);
   border: 1px solid var(--landing-soft-line);
   border-radius: 999px;
   font-size: var(--text-body-sm);
@@ -1214,6 +1225,8 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
 @media (max-width: 900px) {
   .pf-scale-nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pf-scale-cols { grid-template-columns: minmax(0, 1fr); }
+  .pf-scale-steps { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+  .pf-scale-arrow { justify-self: center; rotate: 90deg; }
 }
 @media (max-width: 600px) {
   .pf-scale { min-height: 0; gap: var(--space-5); }

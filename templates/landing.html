@@ -398,14 +398,17 @@
      (таблица — отчёт письма 4). #}
   {% set масштаб_числа = (('tools', 'инструментов'), ('closed', 'задач закрыто'),
                           ('commits', 'коммитов'), ('checks', 'автопроверок')) %}
-  {% set масштаб_как = ('Идея', 'ТЗ для агента', 'Claude Code', 'Проверки с подлогом', 'Выкладка') %}
+  {% set масштаб_как = (('Идея', 'что и зачем'), ('ТЗ для агента', 'задача и критерии'),
+                        ('Claude Code', 'пишет и правит код'),
+                        ('Автопроверки', 'каждая проверена на заведомой ошибке'),
+                        ('Выкладка', 'GitHub Actions → Fly.io')) %}
   {% set масштаб_внутри = ('AI-ассистент с маршрутизатором запросов',
                            'Письма под вакансию за 27 секунд',
                            'Сканер DataMatrix и штрихкодов',
                            'Интеграция с умными весами',
                            'Программа тренировок с прогрессией') %}
   {% set масштаб_стек = ('Python', 'FastAPI', 'SQLAlchemy', 'SQLite', 'Jinja2', 'OpenRouter · LLM',
-                         'RAG по справочникам', 'Claude Code', 'Playwright', 'GitHub Actions',
+                         'RAG по справочникам', 'Claude Code + MCP', 'Playwright', 'GitHub Actions',
                          'Fly.io', 'Cloudflare Turnstile', 'GPG-бэкапы') %}
   <section class="pf-projects" id="projects" aria-labelledby="pf-projects-h">
     <h2 id="pf-projects-h" class="pf-grad pf-big-h">Проекты</h2>
@@ -434,7 +437,7 @@
             <div class="pf-scale-how">
               <p class="pf-scale-cap">Как сделано</p>
               <ol class="pf-scale-steps">
-                {% for шаг in масштаб_как %}{% if not loop.first %}<li class="pf-scale-arrow" aria-hidden="true">→</li>{% endif %}<li class="pf-scale-step">{{ шаг }}</li>{% endfor %}
+                {% for имя, подпись in масштаб_как %}{% if not loop.first %}<li class="pf-scale-arrow" aria-hidden="true">→</li>{% endif %}<li class="pf-scale-step"><b>{{ имя }}</b><span>{{ подпись }}</span></li>{% endfor %}
               </ol>
             </div>
             <div class="pf-scale-cols">
