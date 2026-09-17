@@ -37,8 +37,11 @@
      style="--slot-ratio: {{ м.ratio }}"
      data-slot="{{ м.id }}" data-filled="{{ 'yes' if м.file else 'no' }}">
   {% if м.file and м.file.kind == 'video' and lazy %}
+  {# ПЕРВЫЙ КАДР ЛЕНТЫ (письмо 3а задачи 343): пока ролик грузится,
+     в рамке кадр картинкой. Адрес кадра приходит только если файл лежит
+     на томе (`_лнд_место`) — нет кадра, нет и атрибута, 404 не бывает. #}
   <video class="media-slot-media" data-src="{{ м.file.src }}" muted loop playsinline
-         preload="none" aria-label="{{ м.label }}"></video>
+         preload="none"{% if м.file.poster %} poster="{{ м.file.poster }}"{% endif %} aria-label="{{ м.label }}"></video>
   {% elif м.file and м.file.kind == 'video' %}
   <video class="media-slot-media" src="{{ м.file.src }}" muted loop playsinline autoplay
          preload="metadata" aria-label="{{ м.label }}"></video>

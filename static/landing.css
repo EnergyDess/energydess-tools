@@ -406,10 +406,34 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
    34rem. Лента во всю ширину окна — поле по бокам здесь не нужно, ряд
    уходит за край намеренно. */
 .pf-feed {
+  position: relative;
   display: grid;
   gap: var(--space-4);
   padding: var(--space-9) 0;
   overflow: hidden;
+}
+/* ПОЛОСА-ПОДЛОЖКА ПОД ДВУМЯ РЯДАМИ (письмо 3а задачи 343): лента читается
+   отдельным объектом на фоне. Статичный слой — без `filter`
+   и `backdrop-filter`: под лентой едет фоновый ролик, и размытие
+   пересчитывалось бы каждый кадр. Во всю ширину, за рядами на отступ. */
+.pf-feed::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--space-9) - var(--space-6)) 0;
+  background: color-mix(in srgb, var(--surface-0) 78%, transparent);
+  border-block: 1px solid var(--border);
+  pointer-events: none;
+}
+/* МЯГКОЕ ЗАТУХАНИЕ ПО КРАЯМ РЯДА — маской, статичной: маска не движется,
+   движется только дорожка под ней (`transform`). Цвет в маске значим
+   только прозрачностью. */
+.pf-feed-row {
+  position: relative;
+  --pf-feed-fade: clamp(2rem, 9vw, 14rem);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, var(--surface-0) var(--pf-feed-fade),
+    var(--surface-0) calc(100% - var(--pf-feed-fade)), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, var(--surface-0) var(--pf-feed-fade),
+    var(--surface-0) calc(100% - var(--pf-feed-fade)), transparent 100%);
 }
 .pf-feed-track {
   display: flex;
@@ -419,7 +443,24 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   will-change: transform;
 }
 .pf-feed-set { display: flex; gap: var(--space-4); }
-.pf-feed-item { flex: none; width: clamp(16rem, 26vw, 34rem); }
+.pf-feed-item {
+  position: relative;
+  flex: none;
+  width: clamp(16rem, 26vw, 34rem);
+  /* КАРТОЧКА ЛЕНТЫ (письмо 3а): скругление крупнее системного места медиа
+     и тонкая светлая рамка. Своим классом: системный `.media-slot`
+     страница не переопределяет (§6.0.2) — обёртка обрезает его углы. */
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+.pf-feed-item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: inherit;
+  pointer-events: none;
+}
 
 /* ── О себе (заход 334, блок D) ─────────────────────────────────────────────
    Текст по центру колонкой читаемой ширины, четыре декоративных объекта
