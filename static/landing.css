@@ -198,6 +198,32 @@ body::before {
     linear-gradient(180deg, var(--landing-sky-0) 0%, var(--landing-sky-1) 15%, var(--landing-sky-2) 30%,
       var(--landing-sky-3) 48%, var(--landing-sky-4) 66%, var(--landing-sky-5) 84%, var(--landing-sky-6) 100%);
 }
+/* ЗВЁЗДЫ (задача 345, блок 1, п.3). Редкие мелкие точки по всему фону, как
+   в верхнем ролике: статичный слой, ни одной анимации.
+
+   ФАЙЛА НЕТ — два повторяющихся тайла из градиентов, 0 КБ сети при потолке
+   40 КБ письма. ДВА тайла разного размера (500 и 700), а не один: у одного
+   повтор виден сеткой на широком экране, у пары периоды не совпадают
+   в пределах окна. ПЛОТНОСТЬ ВЫВЕДЕНА ИЗ ПОТОЛКА ПИСЬМА (20-40 точек
+   на 1920x1080): 3 точки на тайл 500 дают ~25, 2 точки на тайл 700 ещё ~8.
+
+   `::after`, А НЕ СЕДЬМОЙ СЛОЙ В `background`: слои там задают тон полотна
+   и тянутся на всю высоту, а звёздам нужен ПОВТОР со своим размером тайла.
+   Внутри `.pf-sky` — значит под содержимым и с той же маской хвоста: точки
+   гаснут к финалу вместе с фоном, отдельного края не заводят. */
+.pf-sky::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle 1.1px at 77px 63px, var(--landing-star) 0 55%, transparent 100%),
+    radial-gradient(circle 0.9px at 311px 208px, var(--landing-star-dim) 0 55%, transparent 100%),
+    radial-gradient(circle 1px at 186px 431px, var(--landing-star) 0 55%, transparent 100%),
+    radial-gradient(circle 1.2px at 509px 147px, var(--landing-star-dim) 0 55%, transparent 100%),
+    radial-gradient(circle 1px at 122px 576px, var(--landing-star) 0 55%, transparent 100%);
+  background-size: 500px 500px, 500px 500px, 500px 500px, 700px 700px, 700px 700px;
+  background-repeat: repeat;
+}
 /* На 390 те же цвета, положения по долям секций узкой ширины
    («Обо мне» 12–22 %, «Инструменты» 22–73 %, «Это только начало» 66–72 %). */
 @media (max-width: 767px) {
