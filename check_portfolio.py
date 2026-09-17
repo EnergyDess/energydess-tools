@@ -999,6 +999,28 @@ def лента(контроль=False, рывок=False):
 ШИРИНЫ_О_СЕБЕ = ШИРИНЫ + [(1101, 900, False)]
 
 
+def _призыв_по_макету(дж):
+    """Карточка-призыв письма 3б задачи 343 (шаг «E» режима инструментов)."""
+    return (bool(дж) and дж["после_списка"] and дж["заголовок"] == "Это только начало"
+            and bool(дж["кнопка"]) and "pf-cta-pill" in дж["кнопка"]["класс"].split()
+            and "pf-cta-ghost" not in дж["кнопка"]["класс"].split() and дж["кнопка"]["высота"] >= 40
+            and дж["лента"] == 8 and дж["скоро"] == 2
+            and not дж["старое"]["растёт"] and not дж["старое"]["попробуйте"])
+
+
+def _не_таблетки(вид):
+    """Кнопки-призывы главной не того вида: основная обязана быть основной
+    таблеткой, вторичная — вторичной (письмо 3б задачи 343)."""
+    плохие = []
+    for к_ in вид:
+        классы = set(к_["класс"].split())
+        нужно = {"pf-cta-pill", "pf-cta-ghost"} if к_["роль"] == "вторичная" else {"pf-cta-pill"}
+        лишнее = {"pf-cta-ghost"} if к_["роль"] == "основная" else set()
+        if not нужно <= классы or лишнее & классы:
+            плохие.append("%s «%s» (%s)" % (к_["место"], к_["текст"], к_["класс"]))
+    return плохие
+
+
 def _декор_ждёт(д):
     """До доезда объект спрятан и опущен (письмо 3б задачи 343).
 
@@ -1298,32 +1320,27 @@ def _ключ(с):
     const px = parseFloat(cs.fontSize), крупный = px >= 24 || (parseInt(cs.fontWeight) >= 700 && px >= 18.66);
     // Подпись системной `.btn-primary` (белый на акценте, 3.13) — принятое
     // решение BACKLOG №33, а не находка секции; печатается отдельно.
-    if (э.closest('.btn-primary')) { кнопки.push(+k.toFixed(2)); continue; }
+    // С письма 3б задачи 343 кнопка карточки — таблетка с градиентом: белый
+    // на ней проверяется по опорным точкам градиента (режим «макет»), а не
+    // по цвету под кнопкой.
+    if (э.closest('.btn-primary, .pf-cta-pill')) { кнопки.push(+k.toFixed(2)); continue; }
     if (э.closest('.pf-mock')) { внутри.всего++; внутри.мин = Math.min(внутри.мин, k); }
     else { вне.всего++; вне.мин = Math.min(вне.мин, k); if (k < (крупный ? 3 : 4.5)) вне.ниже++; }
   }
   return {страница: hex(фон_тела), секция: hex(фон(сек)), радиус: parseFloat(getComputedStyle(сек).borderTopLeftRadius),
           вне, внутри, кнопки,
-          // E (заход 339): блок регистрации идёт ПОСЛЕ списка и зовёт кнопкой
+          // Карточка-призыв (письмо 3б задачи 343): после списка, по макету,
+          // прежних «список растёт» и «Попробуйте инструменты сами» нет.
           join: (() => { const б = сек.querySelector('.pf-join'), сп = сек.querySelector('.pf-tool-list');
             if (!б) return null; const а = б.querySelector('a[href="/register"]');
+            const з = б.querySelector('.pf-join-h');
             return {после_списка: !!сп && б.getBoundingClientRect().top >= сп.getBoundingClientRect().bottom,
-                    высота: б.getBoundingClientRect().height,
-                    кнопка: а ? {фон: getComputedStyle(а).backgroundColor, высота: а.getBoundingClientRect().height,
-                                 тень: getComputedStyle(а).boxShadow !== 'none'} : null,
-                    заголовок: (() => { const з = б.querySelector('.pf-join-h'), п = сек.querySelector('.pf-tool-h');
-                      return з ? {кегль: parseFloat(getComputedStyle(з).fontSize), вес: +getComputedStyle(з).fontWeight,
-                                  кегль_пункта: п ? parseFloat(getComputedStyle(п).fontSize) : null} : null; })(),
-                    растёт: (() => { const р = сек.querySelector('.pf-grow'), т = р && р.querySelector('.pf-grow-text');
-                      if (!р || !т) return null;
-                      const д = document.createRange(); д.selectNodeContents(т);
-                      const ys = new Set([...д.getClientRects()].filter(к => к.width).map(к => Math.round(к.top)));
-                      const посл = [...сп.querySelectorAll('.pf-tool')].pop();
-                      return {текст: т.textContent.trim(), строк: ys.size,
-                              после_пятого: !!посл && р.getBoundingClientRect().top >= посл.getBoundingClientRect().bottom - 0.5,
-                              до_призыва: р.getBoundingClientRect().bottom <= б.getBoundingClientRect().top + 0.5,
-                              дата: /(20\d\d|январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр|скоро|недел|месяц|квартал)/i.test(т.textContent)}; })(),
-                    свой_фон: hex(фон(б)) !== hex(фон(сек))}; })()};
+                    заголовок: з ? з.textContent.replace(/\s+/g, ' ').trim() : null,
+                    кнопка: а ? {класс: а.className, высота: а.getBoundingClientRect().height} : null,
+                    лента: б.querySelectorAll('.pf-join-reel .pf-mini').length,
+                    скоро: б.querySelectorAll('.pf-soon').length,
+                    старое: {растёт: !!document.querySelector('.pf-grow'),
+                             попробуйте: /Попробуйте инструменты сами/.test(document.querySelector('main').textContent)}}; })()};
 }"""
 
 # До правки захода 339 минимум внутри макетов был 4.12 — метка «AI»
@@ -1456,22 +1473,13 @@ def инструменты(контроль=False, контроль_повтор
                     "фон страницы %s, секции %s, радиус %.0f px" % (
                         (сек or {}).get("страница"), (сек or {}).get("секция"), (сек or {}).get("радиус", 0)))
                 дж = (сек or {}).get("join")
-                шаг("E: блок регистрации после списка, отделён фоном, кнопка залита и не ниже 40 px",
-                    bool(дж) and дж["после_списка"] and дж["свой_фон"] and дж["кнопка"]
-                    and "rgba(0, 0, 0, 0)" not in дж["кнопка"]["фон"] and дж["кнопка"]["высота"] >= 40,
-                    "высота блока %.1f, кнопка %s, контраст подписей кнопок %s" % (
-                        (дж or {}).get("высота", 0), (дж or {}).get("кнопка"), (сек or {}).get("кнопки")))
-                рс = (дж or {}).get("растёт")
-                шаг("E3: после пятого инструмента, до призыва — строка «список растёт», 1–2 строки, без дат",
-                    bool(рс) and рс["после_пятого"] and рс["до_призыва"] and not рс["дата"] and 1 <= рс["строк"] <= 2,
-                    "%s" % (рс and "«%s», строк %d, после пятого %s, до призыва %s, дата %s" % (
-                        рс["текст"], рс["строк"], рс["после_пятого"], рс["до_призыва"], рс["дата"])))
-                зг = (дж or {}).get("заголовок") or {}
-                шаг("E4: заголовок призыва не мельче заголовков пунктов, вес ≥ 800; кнопка ≥ 56 px со свечением",
-                    bool(зг) and зг["кегль"] >= (зг["кегль_пункта"] or 0) and зг["вес"] >= 800
-                    and bool(дж and дж["кнопка"]) and дж["кнопка"]["высота"] >= 56 and дж["кнопка"]["тень"],
-                    "заголовок %s px / вес %s (пункт %s px); кнопка %s" % (
-                        зг.get("кегль"), зг.get("вес"), зг.get("кегль_пункта"), (дж or {}).get("кнопка")))
+                # ЗДЕСЬ СТОЯЛИ ТРИ ШАГА — «E: блок регистрации…», «E3: строка
+                # „список растёт“…» и «E4: заголовок призыва… кнопка со свечением».
+                # Решение владельца (письмо 3б задачи 343) объединило оба блока
+                # в карточку по макету: прежние шаги требовали отменённое.
+                # Подлог: вернуть строку «список растёт» — шаг падает.
+                шаг("E: после списка — карточка «Это только начало» с лентой и кнопкой-таблеткой; прежних блоков нет",
+                    _призыв_по_макету(дж), "%s" % дж)
                 шаг("текст секции вне макетов не ниже порога контраста",
                     сек is not None and сек["вне"]["ниже"] == 0,
                     "текстов %d, минимум %.2f, ниже порога %d" % (
@@ -1668,12 +1676,19 @@ def инструменты(контроль=False, контроль_повтор
 # таблетки спрашивает `--макет`; здесь — две оставшиеся и текст у всех трёх.
 # Отрицательный контроль новой формулировки — в отчёте письма 2 (радиус
 # кнопки финала подменён: шаг обязан упасть).
-ЗАМЕР_КНОПОК_СВЯЗИ = r"""() => [...document.querySelectorAll('.pf-contact:not(.pf-contact-hero) summary')].map(э => {
-  const s = getComputedStyle(э), r = э.getBoundingClientRect();
-  return {класс: э.className, текст: э.textContent.trim(), w: Math.round(r.width * 10) / 10,
-          h: Math.round(r.height * 10) / 10, фон: s.backgroundColor, цвет: s.color, кегль: s.fontSize,
-          вес: s.fontWeight, поле: s.padding, радиус: s.borderRadius, рамка: s.borderTopWidth + ' ' + s.borderTopColor};
-})"""
+ЗАМЕР_КНОПОК_СВЯЗИ = r"""() => {
+  // Все кнопки-призывы главной: «Связаться» (summary) и «Зарегистрироваться»
+  // (ссылка). Вторичная — ссылка в ряду финала рядом с основной.
+  const кнопки = [...document.querySelectorAll('main summary, main a[href="/register"]')]
+    .filter(э => /^(Связаться|Зарегистрироваться)$/i.test(э.textContent.trim()));
+  return кнопки.map(э => {
+    const вторичная = !!э.closest('.pf-final-btns') && э.tagName === 'A';
+    const секция = э.closest('section');
+    const r = э.getBoundingClientRect();
+    return {место: секция ? (секция.id || секция.className.split(' ')[0]) : '?', текст: э.textContent.trim(),
+            класс: э.className, роль: вторичная ? 'вторичная' : 'основная', h: Math.round(r.height * 10) / 10};
+  });
+}"""
 
 
 def связь(контроль_буфера=False):
@@ -1702,11 +1717,16 @@ def связь(контроль_буфера=False):
                     len(кнопки) == 3 and all(к_["тег"] == "SUMMARY" for к_ in кнопки),
                     ", ".join("%s %s" % (к_["тег"], к_["href"]) for к_ in кнопки), собрано=len(кнопки))
                 вид = с.evaluate(ЗАМЕР_КНОПОК_СВЯЗИ)
-                ключи = ("класс", "текст", "w", "h", "фон", "цвет", "кегль", "вес", "поле", "радиус", "рамка")
-                разные = [кл for кл in ключи if len({str(х[кл]) for х in вид}) > 1]
-                шаг("D6: две «Связаться» вне первого экрана одного вида (%s)" % ", ".join(ключи),
-                    len(вид) == 2 and not разные,
-                    "разошлись: %s" % ("; ".join("%s %s" % (кл, [х[кл] for х in вид]) for кл in разные) or "ничего"),
+                # ЗДЕСЬ СТОЯЛ ШАГ «D6: две „Связаться“ вне первого экрана одного
+                # вида»: у «Обо мне» и финала была системная `.btn-primary`,
+                # у первого экрана — своя таблетка. Решение владельца (письмо 3б
+                # задачи 343): все кнопки-призывы главной — таблетки одного стиля.
+                # Подлог: одной кнопке вернуть `.btn-primary` — шаг её называет.
+                плохие = _не_таблетки(вид)
+                высоты = sorted({к_["h"] for к_ in вид})
+                шаг("D6: все кнопки-призывы главной — таблетки одного класса и одной высоты",
+                    len(вид) == 5 and not плохие and высоты[-1] - высоты[0] <= 1,
+                    "кнопок %d; не тем классом: %s; высоты %s" % (len(вид), "; ".join(плохие) or "нет", высоты),
                     собрано=len(вид))
                 if контроль_буфера:
                     # в буфере заранее другое — чтобы «скопировано» нельзя было засчитать
@@ -2384,11 +2404,11 @@ def фон(контроль_сети=False, контроль_рывка=False, �
     якоря: якоря.length ? {ссылок: якоря.length, кегль: parseFloat(getComputedStyle(якоря[0]).fontSize)} : null,
     проекты, связь_детей: поп ? [...поп.children].filter(э => !э.hidden && getComputedStyle(э).display !== 'none').length : null,
     связь_строк: поп ? поп.querySelectorAll('.pf-contact-row').length : null,
-    будущее: !!q('.pf-grow'), фон_зон: document.querySelectorAll('[data-pf-bg]').length,
+    будущее: !!q('.pf-join-reel'), фон_зон: document.querySelectorAll('[data-pf-bg]').length,
     призыв: (() => { const з = q('.pf-join-h'), а = q('.pf-join-cta'), б = q('.pf-join');
       return з && а ? {заголовок_кегль: parseFloat(getComputedStyle(з).fontSize), вес: +getComputedStyle(з).fontWeight,
         кнопка: Math.round(пр(а).width) + '×' + Math.round(пр(а).height), кнопка_кегль: parseFloat(getComputedStyle(а).fontSize),
-        свечение: getComputedStyle(а).boxShadow !== 'none', блок_h: Math.round(пр(б).height)} : null; })()};
+        блок_h: Math.round(пр(б).height)} : null; })()};
 }"""
 
 
@@ -2432,7 +2452,7 @@ def сводка():
                 з2 = с.evaluate(ЗАМЕР_СВОДКИ)
                 print("  блок связи раскрыт: видимых детей %s, строк .pf-contact-row %s" % (
                     з2["связь_детей"], з2["связь_строк"]))
-                print("  блок «растёт» есть: %s; зон фона: %s" % (з["будущее"], з["фон_зон"]))
+                print("  лента карточки-призыва есть: %s; зон фона: %s" % (з["будущее"], з["фон_зон"]))
                 print("  призыв регистрации: %s" % з["призыв"])
                 к.close()
         finally:

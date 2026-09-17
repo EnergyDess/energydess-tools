@@ -343,6 +343,13 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   .pf-cta-pill:hover { transform: scale(1.02); }
 }
 .pf-cta-pill:focus-visible { outline: 2px solid var(--text-strong); outline-offset: 4px; }
+/* ВТОРИЧНАЯ ТАБЛЕТКА (письмо 3б задачи 343): та же форма и размер,
+   без заливки, с тонкой светлой рамкой — где две кнопки стоят рядом. */
+.pf-cta-ghost {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--landing-card-line);
+}
+.pf-cta-pill { text-decoration: none; list-style: none; cursor: pointer; }
 /* ТЕЛЕФОН: ПЕРВЫЙ ЭКРАН ПО СОДЕРЖИМОМУ, А НЕ В РОСТ ОКНА (задача 340).
    Квадрат портрета на узком упирается в ширину (358 px), а ряд `1fr`
    забирал весь остаток высоты окна — между портретом и строками стояло
@@ -662,53 +669,105 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   background: var(--pf-acc);
 }
 .pf-tool-desc { margin: 0; max-width: 36rem; font-size: var(--text-body); line-height: 1.6; color: var(--text-2); }
-/* Призыв зарегистрироваться (заход 339, E): карточка на ступень светлее
-   секции с рамкой, текст слева, кнопка справа; на узком — столбиком. */
+/* КАРТОЧКА-ПРИЗЫВ (письмо 3б задачи 343): макет владельца. Рамка, фон
+   и свечения — токены `--landing-*`; свечения статичные, без `filter`.
+   Две колонки ~1.1 : 1, на узком — левая над правой. Здесь стояли
+   «список растёт» (заход 342, E3) и карточка регистрации (заход 339, E). */
 .pf-join {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: var(--space-6) var(--space-7);
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-5) var(--space-7);
-  flex-wrap: wrap;
   margin-top: var(--space-8);
-  padding: var(--space-6);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface-2);
+  padding: var(--space-5);
+  border: 1px solid var(--landing-card-line);
+  border-radius: 28px;
+  background:
+    radial-gradient(120% 90% at 0% 100%, var(--landing-glow-blue), transparent 60%),
+    radial-gradient(90% 80% at 100% 0%, var(--landing-glow-violet), transparent 60%),
+    var(--landing-card-bg);
 }
 .pf-join-h {
-  margin: 0 0 var(--space-2);
-  /* весомее (заход 342, E4): был --text-h3 — меньше заголовков пунктов
-     списка над ним, и призыв читался сноской под ними */
-  font-size: clamp(1.75rem, 3.2vw, 3.25rem);
-  font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-5);
+  font-size: clamp(2.25rem, 4.5vw, 5rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.03em;
   color: var(--text-strong);
 }
-.pf-join-sub { margin: 0; font-size: var(--text-body-lg); line-height: 1.6; color: var(--text-2); }
-/* кнопка крупнее и со свечением бренда (E4): системный `.btn-glow` */
-.pf-join-cta { min-height: 56px; font-weight: 700; }
-/* «Список растёт» (E3): колонка знака той же ширины, что колонка номеров
-   списка, текст — со второй колонки, вровень с названиями инструментов. */
-.pf-grow {
+.pf-join-h span { display: block; }
+.pf-join-list {
   display: grid;
-  grid-template-columns: minmax(4rem, 8rem) minmax(0, 1fr);
-  gap: var(--space-7);
-  align-items: baseline;
-  margin: 0;
-  padding: var(--space-7) 0 0;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  list-style: none;
 }
-.pf-grow-mark {
-  font-family: var(--font-mono);
-  font-size: clamp(2rem, 4vw, 3.5rem);
-  line-height: 1;
-  color: var(--text-faint);
+.pf-join-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-body-lg);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text);
 }
-.pf-grow-text { max-width: 48rem; font-size: var(--text-body-lg); line-height: 1.5; color: var(--text-2); }
+.pf-join-list svg { flex: none; width: 20px; height: 20px; }
+.pf-join-yes svg { color: var(--landing-soft); }
+.pf-join-soon svg { color: var(--text-faint); }
+.pf-soon {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--landing-soft-line);
+  border-radius: 999px;
+  font-size: var(--text-caption);
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.6;
+  color: var(--landing-soft);
+}
+/* Лента мини-карточек: окно с затуханием сверху и снизу, внутри список
+   дважды — сдвиг на половину дорожки замыкает круг без шва. */
+.pf-join-reel {
+  height: 230px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
+  mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
+}
+.pf-join-track {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 8px;
+  animation: pf-join-reel 16s linear infinite paused;
+}
+.pf-join-reel.pf-on .pf-join-track { animation-play-state: running; }
+@keyframes pf-join-reel {
+  from { transform: translateY(0); }
+  to { transform: translateY(-50%); }
+}
+.pf-mini {
+  padding: 10px 12px;
+  border: 1px solid var(--landing-mini-line);
+  border-radius: 14px;
+  background: var(--landing-mini-bg);
+}
+.pf-mini-tag {
+  display: block;
+  font-size: var(--text-caption);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--landing-soft);
+}
+.pf-mini-text { margin: var(--space-1) 0 0; font-size: var(--text-body); font-weight: 500; line-height: 1.4; color: var(--text-strong); }
+@media (max-width: 900px) {
+  .pf-join { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 600px) {
-  .pf-join { padding: var(--space-5); }
+  .pf-join { padding: var(--space-5) var(--space-4); }
   .pf-join-cta { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pf-join-track { animation: none; }
 }
 
 /* Каркас поддельного интерфейса: карточка на ступень выше фона и граница. */
@@ -886,8 +945,6 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
 @media (max-width: 900px) {
   .pf-tools { padding: var(--space-9) var(--space-4); }
   .pf-tool { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); padding: var(--space-7) 0; }
-  /* номера списка здесь встают над текстом; знак «+» — слева от строки */
-  .pf-grow { grid-template-columns: auto minmax(0, 1fr); gap: var(--space-4); }
   .pf-mock { aspect-ratio: auto; min-height: 16rem; }
 }
 @media (prefers-reduced-motion: reduce) {
