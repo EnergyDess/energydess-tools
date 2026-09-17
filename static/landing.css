@@ -515,6 +515,34 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
 .pf-decor-bl { bottom: var(--space-7); left: var(--space-6); }
 .pf-decor-tr { top: var(--space-7); right: var(--space-6); }
 .pf-decor-br { bottom: var(--space-7); right: var(--space-6); }
+/* СДВИГ ЗА МЫШЬЮ (письмо 3а задачи 343): переменные пишет скрипт,
+   двигается только `transform` обёртки. */
+.pf-decor-float {
+  position: relative;
+  transform: translate3d(var(--pf-px, 0px), var(--pf-py, 0px), 0);
+}
+/* СКОБКИ КРУПНЕЕ: по габариту непрозрачного на файле скобки занимают
+   770 px из 1200, остальные три в среднем 989 — отношение 1.28. Отдельным
+   свойством `scale`, чтобы не спорить с `transform` сдвига. Содержимое
+   файла отступает от краёв на 18 %, поэтому и увеличенное не выходит
+   за коробку места. */
+/* Точка увеличения у ПРАВОГО края: скобки растут наружу, к краю экрана,
+   а не к колонке текста — на ширине 1101 от центра коробка скобок
+   задевала колонку. */
+.pf-decor-bl .pf-decor-float { scale: 1.28; transform-origin: 100% 50%; }
+/* СВЕЧЕНИЕ ПОД СКОБКАМИ — статичный слой-градиент, без `filter`
+   и теней. Цвет: пипетка по свечению шлема даёт #17D9E4 (среднее
+   45 470 пикселей), ближайший токен системы — `--accent-medkit-hover`. */
+.pf-decor-glow {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side,
+    color-mix(in srgb, var(--accent-medkit-hover) 42%, transparent),
+    color-mix(in srgb, var(--accent-medkit-hover) 14%, transparent) 60%,
+    transparent);
+  pointer-events: none;
+}
 /* ПОЯВЛЕНИЕ С БОКОВ (D3): левые выезжают слева, правые справа, по очереди.
    `pf-in` ставит скрипт при доезде; при «уменьшить движение» — сразу. */
 .pf-side {

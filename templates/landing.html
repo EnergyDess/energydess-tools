@@ -156,10 +156,15 @@
      Приглушённый цвет — `--text-faint`, он читается и без скрипта. #}
   {% set о_себе = "Больше десяти лет в видеопроизводстве: федеральное телевидение, киберспорт, реклама, образовательные проекты. Последние годы — AI-видео и собственные инструменты, которые я проектирую, проверяю и довожу до рабочего состояния сам. Если нужен человек, который доводит до конца, — напишите." %}
   <section class="pf-about" id="about" aria-labelledby="pf-about-h">
-    <div class="pf-decor pf-decor-tl pf-side" data-side="l" style="--n: 0">{{ ms.slot(места['decor-tl']) }}</div>
-    <div class="pf-decor pf-decor-bl pf-side" data-side="l" style="--n: 2">{{ ms.slot(места['decor-bl']) }}</div>
-    <div class="pf-decor pf-decor-tr pf-side" data-side="r" style="--n: 1">{{ ms.slot(места['decor-tr']) }}</div>
-    <div class="pf-decor pf-decor-br pf-side" data-side="r" style="--n: 3">{{ ms.slot(места['decor-br']) }}</div>
+    {# СДВИГ ЗА МЫШЬЮ (письмо 3а задачи 343). Обёртка `pf-decor-float` —
+       отдельный элемент, потому что `transform` самого `.pf-decor` занят
+       выездом сбоку (`.pf-side`). `data-pf-depth` — размах в пикселях,
+       у каждого свой. Под скобками — статичное свечение в тон шлема,
+       внутри обёртки: двигается вместе со скобками. #}
+    <div class="pf-decor pf-decor-tl pf-side" data-side="l" style="--n: 0"><div class="pf-decor-float" data-pf-depth="8">{{ ms.slot(места['decor-tl']) }}</div></div>
+    <div class="pf-decor pf-decor-bl pf-side" data-side="l" style="--n: 2"><div class="pf-decor-float" data-pf-depth="12"><i class="pf-decor-glow" aria-hidden="true"></i>{{ ms.slot(места['decor-bl']) }}</div></div>
+    <div class="pf-decor pf-decor-tr pf-side" data-side="r" style="--n: 1"><div class="pf-decor-float" data-pf-depth="6">{{ ms.slot(места['decor-tr']) }}</div></div>
+    <div class="pf-decor pf-decor-br pf-side" data-side="r" style="--n: 3"><div class="pf-decor-float" data-pf-depth="10">{{ ms.slot(места['decor-br']) }}</div></div>
     <div class="pf-about-body">
       <h2 id="pf-about-h" class="pf-grad pf-big-h">Обо мне</h2>
       <p class="pf-about-text" aria-label="{{ о_себе }}">

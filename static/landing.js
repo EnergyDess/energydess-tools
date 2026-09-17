@@ -248,6 +248,97 @@
     window.addEventListener('resize', зажечь_в_кадре);
     if (тихо.addEventListener) тихо.addEventListener('change', зажечь);
   }
+  /* ОБЪЕКТЫ «ОБО МНЕ» ЗА МЫШЬЮ (письмо 3а задачи 343)
+     · Каждый объект уходит ОТ курсора на свой размах (`data-pf-depth`,
+       6–12 px): курсор в центре секции — ноль, у края окна — полный.
+     · Один обработчик на все четыре: событие запоминает координаты, цель
+       считается в `requestAnimationFrame`, бег к цели — долей разницы
+       в кадр, как у магнита головы. Пишется только `transform`.
+     · Геометрия секции — из кеша в координатах документа (`сбросы`).
+     · На время прокрутки замирает, через `ТИШИНА_МС` оживает сам.
+     · Слушает указатель, только пока секция в окне.
+     · Выключено на сенсорных (`pointer: coarse`) и при «уменьшить
+       движение»: объект, сдвинутый последним касанием, читался бы
+       залипшим. */
+  var секция_о_себе = document.querySelector('.pf-about');
+  var плывущие = секция_о_себе
+    ? Array.prototype.slice.call(секция_о_себе.querySelectorAll('[data-pf-depth]')) : [];
+  var грубый = window.matchMedia('(pointer: coarse)');
+  if (плывущие.length) {
+    var ДОЛЯ_ПЛАВАНИЯ = 0.1;
+    var состояния = плывущие.map(function (э) {
+      return {э: э, размах: parseFloat(э.getAttribute('data-pf-depth')) || 0, x: 0, y: 0};
+    });
+    var пл_цель = {x: 0, y: 0}, пл_кадр = 0, пл_расчёт = 0, пл_указано = null, пл_коробка = null;
+    var пл_в_окне = false;
+    сбросы.push(function () { пл_коробка = null; });
+    var пл_можно = function () { return !грубый.matches && !тихо.matches; };
+    var пл_записать = function () {
+      состояния.forEach(function (с) {
+        с.э.style.setProperty('--pf-px', с.x.toFixed(2) + 'px');
+        с.э.style.setProperty('--pf-py', с.y.toFixed(2) + 'px');
+      });
+    };
+    var пл_шаг = function () {
+      var готово = true;
+      состояния.forEach(function (с) {
+        var цх = -пл_цель.x * с.размах, цу = -пл_цель.y * с.размах;
+        с.x += (цх - с.x) * ДОЛЯ_ПЛАВАНИЯ;
+        с.y += (цу - с.y) * ДОЛЯ_ПЛАВАНИЯ;
+        if (Math.abs(цх - с.x) < 0.05 && Math.abs(цу - с.y) < 0.05) { с.x = цх; с.y = цу; }
+        else готово = false;
+      });
+      пл_записать();
+      пл_кадр = готово ? 0 : requestAnimationFrame(пл_шаг);
+    };
+    var пл_тянуть = function (x, y) {
+      пл_цель.x = x; пл_цель.y = y;
+      if (!пл_кадр) пл_кадр = requestAnimationFrame(пл_шаг);
+    };
+    var пл_прицелиться = function () {
+      пл_расчёт = 0;
+      if (!пл_указано || прокрутка_идёт || !пл_можно()) return;
+      if (!пл_коробка) пл_коробка = в_документе(секция_о_себе);
+      var верх = пл_коробка.top - window.scrollY;
+      var центр_х = пл_коробка.left - window.scrollX + пл_коробка.width / 2;
+      var центр_у = верх + пл_коробка.height / 2;
+      var доля = function (v) { return Math.max(-1, Math.min(1, v)); };
+      пл_тянуть(доля((пл_указано.x - центр_х) / (window.innerWidth / 2)),
+               доля((пл_указано.y - центр_у) / (window.innerHeight / 2)));
+    };
+    var пл_при_указателе = function (e) {
+      if (!пл_можно() || e.pointerType === 'touch') return;
+      пл_указано = {x: e.clientX, y: e.clientY};
+      if (!пл_расчёт && !прокрутка_идёт) пл_расчёт = requestAnimationFrame(пл_прицелиться);
+    };
+    var пл_включить = function (да) {
+      if (да === пл_в_окне) return;
+      пл_в_окне = да;
+      if (да) window.addEventListener('pointermove', пл_при_указателе, { passive: true });
+      else { window.removeEventListener('pointermove', пл_при_указателе); пл_указано = null; пл_тянуть(0, 0); }
+    };
+    window.addEventListener('scroll', function () {
+      if (пл_кадр) { cancelAnimationFrame(пл_кадр); пл_кадр = 0; }
+      if (пл_расчёт) { cancelAnimationFrame(пл_расчёт); пл_расчёт = 0; }
+    }, { passive: true });
+    после_прокрутки.push(function () {
+      if (пл_указано) пл_прицелиться();
+      else пл_тянуть(пл_цель.x, пл_цель.y);
+    });
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (зз) {
+        пл_включить(зз[зз.length - 1].isIntersecting);
+      }).observe(секция_о_себе);
+    } else {
+      пл_включить(true);
+    }
+    var пл_сбросить = function () {
+      if (!пл_можно()) { пл_цель.x = пл_цель.y = 0; состояния.forEach(function (с) { с.x = с.y = 0; }); пл_записать(); }
+    };
+    if (тихо.addEventListener) тихо.addEventListener('change', пл_сбросить);
+    if (грубый.addEventListener) грубый.addEventListener('change', пл_сбросить);
+  }
+
   var бока = Array.prototype.slice.call(document.querySelectorAll('.pf-side'));
   if (бока.length) {
     if (тихо.matches || !('IntersectionObserver' in window)) {
