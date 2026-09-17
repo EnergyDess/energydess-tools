@@ -2062,6 +2062,89 @@ def проекты(контроль=False, контроль_ссылок=False, 
             бр.close()
 
 
+# ══ ФОН: БИРЮЗЫ НЕТ (письмо 5 задачи 343) ═════════════════════════════
+# Проверка ПО КОДУ, без браузера: в правилах СЛОЁВ ФОНА главной нет цвета
+# с тоном 170–200° (бирюза). Слой фона — правило, в последнем составном
+# селекторе которого нет классов, кроме классов слоёв (`.pf-glow i` — слой,
+# `.pf-tools .pf-tool-can li::before` — нет: это акцент инструмента, он
+# не считается). Токены `var(--x)` раскрываются значениями из `:root`
+# style.css — цвет в токене виден так же, как литерал.
+КЛАССЫ_ФОНА = {"pf-sky", "pf-sky-wrap", "pf-bg", "pf-bg-top", "pf-bg-bottom", "pf-bg-stick",
+               "pf-bg-scrim", "pf-glow", "pf-zone", "pf-zone-top", "pf-zone-mid", "pf-zone-bottom",
+               "pf-tools", "pf-about", "pf-projects", "pf-final", "pf-feed"}
+СВОЙСТВА_ФОНА = ("background", "background-image", "background-color")
+ПОДЛОГ_БИРЮЗЫ = (".pf-glow i:nth-child(2) { top: 36%; right: -20%; background: radial-gradient("
+                 "closest-side, color-mix(in srgb, var(--accent-medkit) 18%, transparent), transparent); }")
+
+
+def _бирюза_в_css(css, корень):
+    import re
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    токены = {}
+    for м in re.finditer(r"(--[\w-]+)\s*:\s*([^;]+);", корень):
+        токены.setdefault(м.group(1), м.group(2).strip())
+
+    def раскрыть(знач, глубина=0):
+        if глубина > 8:
+            return знач
+        return re.sub(r"var\((--[\w-]+)\s*(?:,[^()]*)?\)",
+                      lambda м: раскрыть(токены.get(м.group(1), ""), глубина + 1), знач)
+
+    def цвета(знач):
+        out = []
+        for м in re.finditer(r"#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b", знач):
+            h = м.group(1)
+            if len(h) == 3:
+                h = "".join(c * 2 for c in h)
+            out.append((м.group(0), tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))))
+        for м in re.finditer(r"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)", знач):
+            out.append((м.group(0) + ")", tuple(int(x) for x in м.groups())))
+        return out
+
+    import colorsys
+    правил, проверено, находки = 0, 0, []
+    for м in re.finditer(r"([^{}]+)\{([^{}]*)\}", css):
+        селекторы, тело = м.group(1).strip(), м.group(2)
+        if селекторы.startswith("@"):
+            continue
+        for сел in селекторы.split(","):
+            составные = re.split(r"\s*[>+~]\s*|\s+", сел.strip())
+            все_классы = set(re.findall(r"\.([\w-]+)", сел))
+            субъект = set(re.findall(r"\.([\w-]+)", составные[-1]))
+            if not (все_классы & КЛАССЫ_ФОНА) or (субъект - КЛАССЫ_ФОНА):
+                continue
+            правил += 1
+            for об in re.finditer(r"([\w-]+)\s*:\s*([^;]+)", тело):
+                if об.group(1).strip() not in СВОЙСТВА_ФОНА:
+                    continue
+                for лит, (r, g, b) in цвета(раскрыть(об.group(2))):
+                    проверено += 1
+                    тон, _, нас = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
+                    тон *= 360
+                    if 170 <= тон <= 200 and нас >= 0.2:
+                        находки.append("%s → %s (тон %.0f°)" % (сел.strip(), лит, тон))
+            break
+    return правил, проверено, находки
+
+
+def фон_бирюза(подлог=False):
+    корень = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(корень, "static", "landing.css"), encoding="utf-8") as ф:
+        css = ф.read()
+    with open(os.path.join(корень, "static", "style.css"), encoding="utf-8") as ф:
+        style = ф.read()
+    print("ФОН, БИРЮЗА ПО КОДУ — static/landing.css, токены из style.css")
+    if подлог:
+        до = len(_бирюза_в_css(css, style)[2])
+        css += "\n" + ПОДЛОГ_БИРЮЗЫ + "\n"
+        print("  доказательство подлога: бирюзовых до вставки пятна %d" % до)
+    правил, проверено, находки = _бирюза_в_css(css, style)
+    шаг("фон: в слоях фона нет цветов тона 170–200°", not находки,
+        "правил слоёв %d, цветов %d, бирюзовых %d%s" % (
+            правил, проверено, len(находки), (": " + "; ".join(находки)) if находки else ""),
+        собрано=проверено)
+
+
 # ══ B. ФОН СТРАНИЦЫ (заход 342) ═══════════════════════════════════════
 #
 # ЧТО СПРАШИВАЕТСЯ — ВИДИМОЕ:
@@ -2094,7 +2177,7 @@ def проекты(контроль=False, контроль_ссылок=False, 
 
 ЗАМЕР_КРАЁВ = r"""() => {
   const out = [];
-  for (const э of document.querySelectorAll('.pf-bg, .pf-glow')) {
+  for (const э of document.querySelectorAll('.pf-bg, .pf-sky')) {
     const b = э.getBoundingClientRect();
     out.push({кто: э.className, верх: b.top + scrollY, низ: b.bottom + scrollY,
               маска: getComputedStyle(э).maskImage || getComputedStyle(э).webkitMaskImage});
@@ -2169,7 +2252,7 @@ def _фон_поведение(бр, ш, в, сенсор, контроль_се
         к.close()
         return False
     if контроль_краёв:
-        с.add_style_tag(content=".pf-bg,.pf-glow{-webkit-mask-image:none!important;mask-image:none!important}")
+        с.add_style_tag(content=".pf-bg,.pf-sky{-webkit-mask-image:none!important;mask-image:none!important}")
     адреса = с.evaluate("() => [...document.querySelectorAll('.pf-bg-video')].map(в => !!в.getAttribute('src'))")
     шаг("B5: при загрузке у верхнего адрес есть, у нижнего нет",
         адреса == [True, False], "адреса %s" % адреса, собрано=len(адреса))
@@ -2207,8 +2290,7 @@ def _фон_поведение(бр, ш, в, сенсор, контроль_се
     # содержимое кадра (у нижнего ролика есть резкий горизонт, и первая
     # версия мерки попала на него краем подсветки — ложный скачок 1.88).
     # Жёсткий край при такой заливке даёт скачок в сотню уровней.
-    с.add_style_tag(content=".site-header,.pf-zone>:not(.pf-bg):not(.pf-glow),footer{visibility:hidden!important}"
-                            ".pf-glow i{animation-play-state:paused!important}"
+    с.add_style_tag(content=".site-header,.pf-zone>:not(.pf-bg),footer{visibility:hidden!important}"
                             ".pf-bg-poster,.pf-bg-video{visibility:hidden!important}.pf-bg-stick{background:var(--text-strong)}")
     края = с.evaluate(ЗАМЕР_КРАЁВ)
     высота = с.evaluate("document.documentElement.scrollHeight")
@@ -2301,9 +2383,12 @@ def _фон_уменьшить(бр, ш, в, сенсор):
     с.wait_for_timeout(1500)
     т = с.evaluate("""() => ({адреса: [...document.querySelectorAll('.pf-bg-video')].map(в => !!в.getAttribute('src')),
         кадры: [...document.querySelectorAll('.pf-bg-poster')].map(п => п.complete && п.naturalWidth > 0),
-        подсветка: [...document.querySelectorAll('.pf-glow i')].map(и => getComputedStyle(и).animationName)})""")
-    шаг("B8: «уменьшить движение» — роликам адрес не дан, кадры видны, подсветка стоит",
-        т["адреса"] == [False, False] and all(т["кадры"]) and all(а == "none" for а in т["подсветка"]),
+        слой: [...document.querySelectorAll('.pf-sky')].map(и => getComputedStyle(и).animationName)})""")
+    # ЗДЕСЬ СТОЯЛО «подсветка стоит» (пятна `.pf-glow` с анимацией) — подсветка
+    # удалена решением владельца (письмо 5 задачи 343); слой `.pf-sky` статичен
+    # всегда, и шаг спрашивает, что он ЕСТЬ и без анимации.
+    шаг("B8: «уменьшить движение» — роликам адрес не дан, кадры видны, слой фона без анимации",
+        т["адреса"] == [False, False] and all(т["кадры"]) and т["слой"] == ["none"],
         str(т), собрано=len(т["кадры"]))
     к.close()
 
@@ -2321,8 +2406,7 @@ def _фон_контраст(бр, ш, в, сенсор, притемнение=
     if притемнение:
         с.add_style_tag(content="".join(".pf-bg-%s{--pf-scrim:%s%%!important}" % (к_, д_) for к_, д_ in притемнение.items()))
         print("  притемнение подложено: %s" % притемнение)
-    с.add_style_tag(content=".pf-ch{color:var(--text-strong)!important}.pf-bg-video{transition:none!important}"
-                            ".pf-glow i{animation-play-state:paused!important}")
+    с.add_style_tag(content=".pf-ch{color:var(--text-strong)!important}.pf-bg-video{transition:none!important}")
     с.evaluate("""() => document.querySelectorAll('.pf-bg-video').forEach(в => { в.preload = 'auto';
         if (!в.getAttribute('src')) в.setAttribute('src', в.getAttribute('data-src')); })""")
     с.wait_for_timeout(2500)
@@ -2542,6 +2626,8 @@ def сводка():
     ("фон:контроль-сети",       ("--фон", "--контроль-сети"), 1),
     ("фон:контроль-рывка",      ("--фон", "--контроль-рывка"), 1),
     ("фон:контроль-краёв",      ("--фон", "--контроль-краёв"), 1),
+    ("фон-бирюза",              ("--фон-бирюза",), 0),
+    ("фон-бирюза:контроль",     ("--фон-бирюза", "--контроль-бирюзы"), 1),
     ("макет",                   ("--макет",), 0),
     ("макет:контроль-якорей",   ("--макет", "--контроль-якорей"), 1),
     ("макет:контроль-отступа",  ("--макет", "--контроль-отступа"), 1),
@@ -2704,7 +2790,9 @@ def main():
     if "--сводка" in арг:
         сводка()
         return 0
-    if "--фон" in арг:
+    if "--фон-бирюза" in арг:
+        фон_бирюза(подлог="--контроль-бирюзы" in арг)
+    elif "--фон" in арг:
         # PF_SCRIM=top:70,bottom:45 — перебор долей притемнения без правки стилей
         притемнение = (dict(ч.split(":") for ч in os.environ["PF_SCRIM"].split(","))
                        if os.environ.get("PF_SCRIM") else None)

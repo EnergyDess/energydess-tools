@@ -77,12 +77,45 @@ body::before {
   -webkit-mask-image: linear-gradient(to bottom, var(--surface-0) calc(100% - 60vh), transparent);
   mask-image: linear-gradient(to bottom, var(--surface-0) calc(100% - 60vh), transparent);
 }
-/* Нижний входит на 40vh сверху и проявляется за них; снизу гаснет
-   к подвалу за 15vh — иначе над подвалом стоял бы резкий край ролика. */
+/* Нижний входит на 40vh сверху. МЯГКОЕ ЗАТУХАНИЕ ВЕЕРА (письмо 5 задачи
+   343): здесь стояла маска «прозрачно -> непрозрачно за 40vh -> гаснет за
+   15vh», и в кадре оставались жёсткие края и линия горизонта. Теперь
+   ролик набирает плотность плавно ДО горизонта и на 15vh ниже него
+   (горизонт стоит на центре секции — `20vh + 50%` в координатах слоя),
+   а снизу гаснет за последние 25vh. */
 .pf-bg-bottom {
   top: -40vh;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, var(--surface-0) 40vh, var(--surface-0) calc(100% - 15vh), transparent);
-  mask-image: linear-gradient(to bottom, transparent, var(--surface-0) 40vh, var(--surface-0) calc(100% - 15vh), transparent);
+  --pf-fan-mid: calc(20vh + 50%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent,
+    color-mix(in srgb, var(--surface-0) 55%, transparent) var(--pf-fan-mid),
+    var(--surface-0) calc(var(--pf-fan-mid) + 15vh), var(--surface-0) calc(100% - 25vh), transparent);
+  mask-image: linear-gradient(to bottom, transparent,
+    color-mix(in srgb, var(--surface-0) 55%, transparent) var(--pf-fan-mid),
+    var(--surface-0) calc(var(--pf-fan-mid) + 15vh), var(--surface-0) calc(100% - 25vh), transparent);
+}
+/* ВЕЕР ПО ЦЕНТРУ СЕКЦИИ. Точка схода лучей в ролике — горизонт на 57 %
+   высоты кадра. `object-position` её не двигает: кадр 16:9 в коробке
+   высотой в окно по вертикали не переполняется (замер: на 1920 и 2560
+   сдвиг 0), а липкая коробка ставила веер по-разному при разной
+   прокрутке (на 1920 горизонт 184 px от верха секции при центре 232).
+   Поэтому коробка НЕ липкая, кадр держит свою пропорцию, и горизонт
+   ставится на центр секции: верх кадра на `20vh + 50%`, сдвиг вверх на
+   57 % собственной высоты. `object-position` остаётся 50% 50%. На узком
+   кадр не уже 160vh — иначе веер вышел бы полосой высотой в 220 px. */
+.pf-bg-bottom .pf-bg-stick {
+  position: absolute;
+  inset: 0;
+  height: auto;
+}
+.pf-bg-bottom .pf-bg-poster, .pf-bg-bottom .pf-bg-video {
+  inset: auto;
+  left: 50%;
+  top: var(--pf-fan-mid);
+  width: max(100%, 160vh);
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-position: 50% 50%;
+  translate: -50% -57%;
 }
 .pf-bg-stick {
   position: sticky;
@@ -116,43 +149,66 @@ body::before {
 .pf-bg-top { --pf-scrim: 72%; }
 .pf-bg-bottom { --pf-scrim: 25%; }
 
-/* Подсветка середины (B3). Пятна — радиальные градиенты холодных токенов
-   с мягким краем, без `filter: blur`: размытие большого слоя стоило бы
-   перерисовки на каждый кадр движения. Доля цвета — `color-mix` от токена
-   акцента: готовые `-dim` дают 15 %, и на снимке 1920 пятна не читались.
-   Плывут `transform` — раскладка не пересчитывается. Слой выходит вверх
-   под «Обо мне» и вниз под финал. */
-.pf-glow {
+/* ФОН ОТ ПЕРВОГО ЭКРАНА ДО ФИНАЛА — утверждённый вариант 2 (письмо 5
+   задачи 343). ЗДЕСЬ СТОЯЛА ПОДСВЕТКА СЕРЕДИНЫ `.pf-glow` (заход 342, B3):
+   три плывущих пятна, одно из них бирюзовое (`--accent-medkit`), —
+   удалена решением владельца вместе с анимацией.
+
+   ОДИН СТАТИЧНЫЙ СЛОЙ на всю высоту обёртки `.pf-sky-wrap` (зоны верха
+   и середины): позиционируется вместе со страницей, не `fixed`, без
+   `filter`, `backdrop-filter` и анимации. Лежит под роликами (-3 против
+   их -2): верхний ролик растворяется в графит основы, где слой ещё
+   графитовый, — переход без линии; нижний край слоя приходится на верх
+   финала, где ролик финала уже непрозрачен (проявляется за 40vh выше).
+
+   ПОЛОСЫ СВЕТА шире окна (160–180 %), края не видны. Порядок слоёв
+   в `background` не порядок по высоте: положения подобраны замером долей
+   секций (1920: «Обо мне» 18–27 %, «Инструменты» 27–65 %, «Это только
+   начало» 60–64 %, «Проекты» 65–100 %):
+     синий  band-1 на 24 % — проступает в «Обо мне»;
+     синий  band-3 на 38 % — начало «Инструментов»;
+     индиго band-2 на 50 % — середина «Инструментов»;
+     фиолет band-4 на 62 % — насыщеннее всего у карточки «Это только начало»,
+     дальше основа уходит в фиолетовый под «Проектами». */
+.pf-sky-wrap { position: relative; }
+.pf-sky {
   position: absolute;
-  inset: -80vh 0 -20vh;
-  z-index: -1;
-  overflow: clip;
+  inset: 0;
+  /* ХВОСТ ПОД ФИНАЛ: верх ролика финала теперь полупрозрачный (мягкое
+     затухание), и край слоя на верху секции читался бы линией. Слой
+     заходит в финал и гаснет маской; хвост не длиннее секции финала
+     (на 2560 она 492 px, 40vh там 576) — иначе ушёл бы под подвал. */
+  --pf-sky-tail: min(40vh, 24rem);
+  bottom: calc(-1 * var(--pf-sky-tail));
+  -webkit-mask-image: linear-gradient(to bottom, var(--surface-0) calc(100% - var(--pf-sky-tail)), transparent);
+  mask-image: linear-gradient(to bottom, var(--surface-0) calc(100% - var(--pf-sky-tail)), transparent);
+  z-index: -3;
   pointer-events: none;
-  /* края слоя растворены: пятно, срезанное краем, дало бы полосу (замер
-     пробы на 390 — скачок 1.88 уровня у нижнего края) */
-  -webkit-mask-image: linear-gradient(to bottom, transparent, var(--surface-0) 25vh, var(--surface-0) calc(100% - 25vh), transparent);
-  mask-image: linear-gradient(to bottom, transparent, var(--surface-0) 25vh, var(--surface-0) calc(100% - 25vh), transparent);
+  --pf-sky-b1: 24%;
+  --pf-sky-b3: 38%;
+  --pf-sky-b2: 50%;
+  --pf-sky-b4: 62%;
+  background:
+    radial-gradient(160% 22% at 15% var(--pf-sky-b1), var(--landing-sky-band-1), transparent 75%),
+    radial-gradient(170% 24% at 85% var(--pf-sky-b2), var(--landing-sky-band-2), transparent 75%),
+    radial-gradient(180% 26% at 25% var(--pf-sky-b3), var(--landing-sky-band-3), transparent 75%),
+    radial-gradient(180% 26% at 80% var(--pf-sky-b4), var(--landing-sky-band-4), transparent 75%),
+    linear-gradient(165deg, transparent 25%, var(--landing-sky-diag-blue) 50%,
+      var(--landing-sky-diag-violet) 75%, transparent 100%),
+    linear-gradient(180deg, var(--landing-sky-0) 0%, var(--landing-sky-1) 15%, var(--landing-sky-2) 30%,
+      var(--landing-sky-3) 48%, var(--landing-sky-4) 66%, var(--landing-sky-5) 84%, var(--landing-sky-6) 100%);
 }
-.pf-glow i {
-  position: absolute;
-  width: 70vw;
-  height: 70vw;
-  max-width: 1400px;
-  max-height: 1400px;
-  border-radius: 50%;
-  opacity: 0.9;
-  animation: pf-glow 20s var(--ease) infinite;
-}
-.pf-glow i:nth-child(1) { top: 6%; left: -18%; background: radial-gradient(closest-side, color-mix(in srgb, var(--accent-hh) 22%, transparent), transparent); }
-.pf-glow i:nth-child(2) { top: 36%; right: -20%; background: radial-gradient(closest-side, color-mix(in srgb, var(--accent-medkit) 18%, transparent), transparent); animation-delay: -7s; }
-.pf-glow i:nth-child(3) { top: 66%; left: 18%; background: radial-gradient(closest-side, color-mix(in srgb, var(--accent-brand) 16%, transparent), transparent); animation-delay: -13s; }
-@keyframes pf-glow {
-  0%, 100% { transform: translate3d(0, 0, 0); }
-  33% { transform: translate3d(6vw, -4vh, 0); }
-  66% { transform: translate3d(-4vw, 5vh, 0); }
+/* На 390 те же цвета, положения по долям секций узкой ширины
+   («Обо мне» 12–22 %, «Инструменты» 22–73 %, «Это только начало» 66–72 %). */
+@media (max-width: 767px) {
+  .pf-sky {
+    --pf-sky-b1: 17%;
+    --pf-sky-b3: 30%;
+    --pf-sky-b2: 50%;
+    --pf-sky-b4: 69%;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pf-glow i { animation: none; }
   .pf-bg-video { display: none; }
 }
 
@@ -603,7 +659,7 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
    `--surface-1` со скруглёнными верхними углами (заход 339, блок C),
    и её верхняя граница читалась жёсткой линией. Решение владельца:
    раздел лежит на тёмном фоне страницы, переход сверху мягкий —
-   его даёт подсветка середины (`.pf-glow`). Содержимое по-прежнему
+   его даёт слой фона (`.pf-sky`). Содержимое по-прежнему
    не шире 1600px — ширину держит боковое поле. */
 .pf-tools {
   --pf-tools-side: max(var(--space-6), calc((100% - 1600px) / 2 + var(--space-6)));
@@ -1289,9 +1345,29 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   margin: 0 auto;
   padding: var(--space-10) var(--space-6);
   text-align: center;
+  container-type: inline-size;
 }
-.pf-final .pf-sec-h { margin-bottom: var(--space-4); }
-.pf-final-sub { margin: 0 auto var(--space-7); max-width: 36rem; font-size: var(--text-body-lg); color: var(--text-2); }
+/* ЗАГОЛОВОК ФИНАЛА (письмо 5 задачи 343): Unbounded 900 одной строкой
+   по ширине колонки. Строка шире кегля в 13.83 раза (замер `Range`
+   на живом заголовке); 6.9cqi даёт 95.4 % колонки — запас 4.6 % при
+   требуемых 2 (на 1920 и 2560 колонка 1536 px, на 390 — 358). */
+.pf-final .pf-final-h {
+  margin-bottom: var(--space-5);
+  font-size: 6.9cqi;
+  font-weight: 900;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+/* Подзаголовок крупнее основного текста и светлее: `--text` вместо
+   `--text-2`. Контраст к самому светлому кадру ролика под строкой —
+   `py check_portfolio.py --фон --контраст`. */
+.pf-final-sub {
+  margin: 0 auto var(--space-7);
+  max-width: 40rem;
+  font-size: clamp(1.25rem, 1.4vw, 1.625rem);
+  line-height: 1.45;
+  color: var(--text);
+}
 .pf-final-btns { display: flex; flex-wrap: wrap; gap: var(--space-4); justify-content: center; }
 
 @media (max-width: 600px) {
