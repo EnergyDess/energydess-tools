@@ -8,7 +8,7 @@
 <article class="card card-static landing-card" data-card="{{ м.id }}" data-section="{{ м.section }}"
          data-filled="{{ 'yes' if м.file else 'no' }}"
          data-find="{{ (м.label ~ ' ' ~ м.id) | lower }}">
-  {{ ms.slot(м) }}
+  <div class="landing-card-frame">{{ ms.slot(м, contain=True) }}</div>
   <div class="landing-card-body">
     <p class="landing-card-title">{{ м.label }}</p>
     {% if м.file %}
@@ -28,7 +28,7 @@
         {{ значок('upload') }}{{ 'Заменить' if м.file else 'Загрузить' }}
       </button>
       {% if м.file %}
-      <button type="button" class="btn btn-ghost btn-sm" data-clear="{{ м.id }}">
+      <button type="button" class="btn btn-secondary btn-sm landing-card-del" data-clear="{{ м.id }}">
         {{ значок('trash-2') }}Убрать
       </button>
       {% endif %}
