@@ -346,7 +346,9 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
 /* ВТОРИЧНАЯ ТАБЛЕТКА (письмо 3б задачи 343): та же форма и размер,
    без заливки, с тонкой светлой рамкой — где две кнопки стоят рядом. */
 .pf-cta-ghost {
-  background: transparent;
+  /* тёмная полупрозрачная заливка внутри рамки (письмо 4): на движущемся
+     ролике финала прозрачная кнопка терялась. Без backdrop-filter. */
+  background: var(--landing-ghost-bg);
   box-shadow: inset 0 0 0 1px var(--landing-card-line);
 }
 .pf-cta-pill { text-decoration: none; list-style: none; cursor: pointer; }
@@ -677,7 +679,10 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   gap: var(--space-6) var(--space-7);
-  align-items: center;
+  /* РЯД ПО ВЫСОТЕ ЛЕВОЙ КОЛОНКИ (письмо 4 задачи 343): лента растягивается
+     на всю высоту карточки. Прежде окно ленты 230 px стояло посередине
+     колонки, а колонка была выше от крупного заголовка. */
+  align-items: stretch;
   margin-top: var(--space-8);
   padding: var(--space-5);
   border: 1px solid var(--landing-card-line);
@@ -689,7 +694,10 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
 }
 .pf-join-h {
   margin: 0 0 var(--space-5);
-  font-size: clamp(2.25rem, 4.5vw, 5rem);
+  /* ≈2,5 кегля строк перечня — пропорция макета (письмо 4 задачи 343);
+     было clamp(2.25rem, 4.5vw, 5rem), то есть 80–85 px при перечне 17–18.
+     Нижняя граница — чтобы «Это только» влезало одной строкой на 390. */
+  font-size: clamp(2rem, 9vw, calc(2.5 * var(--text-body-lg)));
   font-weight: 900;
   line-height: 1;
   letter-spacing: -0.03em;
@@ -726,14 +734,20 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   color: var(--landing-soft);
 }
 /* Лента мини-карточек: окно с затуханием сверху и снизу, внутри список
-   дважды — сдвиг на половину дорожки замыкает круг без шва. */
+   дважды — сдвиг на половину дорожки замыкает круг без шва.
+   ДОРОЖКА ВНЕ ПОТОКА: иначе её высота (восемь карточек) растила бы ряд
+   сетки, и карточка вытягивалась бы под ленту, а не лента под карточку.
+   На узком, где колонки друг под другом, у окна своя высота 230 px. */
 .pf-join-reel {
-  height: 230px;
+  position: relative;
+  min-height: 230px;
   overflow: hidden;
   -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
   mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
 }
 .pf-join-track {
+  position: absolute;
+  inset: 0 0 auto;
   display: grid;
   gap: 8px;
   padding-bottom: 8px;
@@ -745,9 +759,10 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   to { transform: translateY(-50%); }
 }
 .pf-mini {
-  padding: 10px 12px;
+  /* чуть крупнее (письмо 4): поля 10/12 → 12/16 */
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--landing-mini-line);
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--landing-mini-bg);
 }
 .pf-mini-tag {
@@ -761,6 +776,7 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
 .pf-mini-text { margin: var(--space-1) 0 0; font-size: var(--text-body); font-weight: 500; line-height: 1.4; color: var(--text-strong); }
 @media (max-width: 900px) {
   .pf-join { grid-template-columns: minmax(0, 1fr); }
+  .pf-join-reel { height: 230px; }
 }
 @media (max-width: 600px) {
   .pf-join { padding: var(--space-5) var(--space-4); }
