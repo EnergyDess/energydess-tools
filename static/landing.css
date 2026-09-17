@@ -990,24 +990,37 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   display: grid;
   gap: var(--space-5);
   padding: var(--space-6);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  /* рамка и скругление — как у карточки-призыва (письмо 4 задачи 343) */
+  border: 1px solid var(--landing-card-line);
+  border-radius: 28px;
   background: var(--surface-1);
   transform: scale(var(--pf-scale, 1));
   transform-origin: top center;
 }
 .pf-proj-head {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: var(--space-5);
   align-items: center;
 }
+/* НОМЕР — Unbounded в масштабе номеров «Инструментов» (письмо 4 задачи 343);
+   был JetBrains Mono того же кегля и на фоне картинок читался мельче. */
+.pf-proj { --pf-proj-n-size: clamp(3rem, 6vw, 7rem); }
 .pf-proj-n {
-  font-family: var(--font-mono);
-  /* крупнее (C2): номер и название терялись на фоне картинок */
-  font-size: clamp(3rem, 7vw, 7rem);
-  line-height: 1;
+  font-family: 'Unbounded', var(--font);
+  font-size: var(--pf-proj-n-size);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
   color: var(--text-faint);
+}
+/* «ПОРТФОЛИО» — вторичная таблетка, меньше кнопок-призывов: угол карточки,
+   а не призыв страницы. Стоит у верха шапки, в правом углу. */
+.pf-proj-go {
+  align-self: start;
+  min-height: clamp(2.75rem, 2.4vw, 3.75rem);
+  padding: 0 var(--space-5);
+  font-size: clamp(0.8125rem, 0.75vw, 1.0625rem);
 }
 .pf-proj-kind {
   margin: 0 0 var(--space-1);
@@ -1017,7 +1030,7 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   text-transform: uppercase;
   color: var(--text-2);
 }
-.pf-proj-title { margin: 0; font-size: clamp(1.75rem, 4vw, 4rem); font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; color: var(--text-strong); }
+.pf-proj-title { margin: 0; font-family: 'Unbounded', var(--font); font-size: clamp(1.75rem, 4.5vw, 5rem); font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; color: var(--text-strong); }
 /* Сетка из трёх: две 4:3 столбцом слева, одна 3:4 справа на обе строки.
    ВЫСОТЫ РАВНЫ ТОЧНО, А НЕ «С ТОЧНОСТЬЮ ДО ЗАЗОРА» (заход 342, E2). Здесь
    стояло 8fr : 9fr, и замер дал низ высокой картинки на 16 px выше низа
@@ -1026,13 +1039,17 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
    2·¾·W₁ + g = 4/3·(T − W₁ − g) левая колонка W₁ = (T − 1.75g)·8/17,
    правая — остаток. Соотношения мест не тронуты. */
 .pf-proj-grid {
+  /* зазор меньше (письмо 4 задачи 343): 16 → 12 px */
+  --pf-proj-gap: var(--space-3);
   display: grid;
-  grid-template-columns: calc((100% - 1.75 * var(--space-4)) * 8 / 17) minmax(0, 1fr);
+  grid-template-columns: calc((100% - 1.75 * var(--pf-proj-gap)) * 8 / 17) minmax(0, 1fr);
   grid-template-rows: auto auto;
-  gap: var(--space-4);
+  gap: var(--pf-proj-gap);
   align-items: start;
 }
 .pf-proj-c { grid-column: 2; grid-row: 1 / span 2; }
+/* картинки со скруглением около 20 px — обрезает обёртка места */
+.pf-proj-a, .pf-proj-b, .pf-proj-c { border-radius: 20px; overflow: hidden; }
 /* КАРТОЧКА ОБЯЗАНА ВЛЕЗАТЬ В ОКНО, иначе следующая наедет на её низ раньше,
    чем человек его увидит. Высота сетки ≈ 0.71 её ширины, поэтому ширина
    ограничена от высоты окна: окно минус шапка и 14rem на заголовок
@@ -1044,7 +1061,7 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
    в 995 px перестала влезать в 992/976/960 — постоянные 14rem это
    не учитывали. Теперь запас — 9rem на поля и отступы плюс тот же
    кегль номера: 987 → 955 px на 1920 (замер пробы). */
-.pf-proj-grid { width: min(100%, calc((100svh - 64px - 9rem - clamp(3rem, 7vw, 7rem)) * 1.41)); margin-inline: auto; }
+.pf-proj-grid { width: min(100%, calc((100svh - 64px - 9rem - var(--pf-proj-n-size)) * 1.41)); margin-inline: auto; }
 
 /* ── Кнопка «Связаться» с блоком почты (заход 339, блок F) ──────────────────
    `<details>`: кнопка — summary, почта — всплывающая карточка НАД кнопкой
@@ -1179,6 +1196,10 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
 @media (max-width: 600px) {
   .pf-projects, .pf-final { padding: var(--space-9) var(--space-4); }
   .pf-proj-card { padding: var(--space-4); }
+  /* На узком «Портфолио» переносится под название: в строку с номером
+     и названием места нет. */
+  .pf-proj-head { grid-template-columns: auto minmax(0, 1fr); gap: var(--space-2) var(--space-4); }
+  .pf-proj-go { grid-column: 2; justify-self: start; }
   .pf-final-btns > * { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
