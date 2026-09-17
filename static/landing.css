@@ -487,13 +487,28 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
    (48–51 px на десктопе, 28 на 390) и прижато влево — секции не держали
    страницу. «Давайте поработаем» остаётся `.pf-sec-h`: у него две строки
    текста рядом, и в этот ряд письмо его не включает. */
+/* ОДНА СТРОКА И ОДИН КЕГЛЬ У ВСЕХ ТРЁХ (письмо 3б задачи 343). Здесь стояло
+   `clamp(2.5rem, 7vw, 11rem)`: на 390 «Инструменты» вылезали из колонки
+   на 1 %, на 2560 — на 2 %, а «Обо мне» ломалось в две строки в колонке
+   текста 44rem. Кегль — меньший из двух пределов, одинаковый у всех:
+   · 8.2rem — «Обо мне» (5.2em ширины) в колонке `.pf-about-body` 44rem
+     с запасом 3 %;
+   · доля ширины окна — «Инструменты» (8.785em) в колонке секции с запасом
+     2 %: 0.98 / 8.785 = 0.1115. Из окна вычитаются боковые поля секции
+     и 15 px полосы прокрутки: `vw` её включает, а у колонки её нет.
+     Кегль от `vw`, а не от контейнера: у трёх секций разные поля
+     на 900–1100, и контейнерные единицы дали бы три разных кегля. */
 .pf-big-h {
   margin: 0 0 var(--space-8);
-  font-size: clamp(2.5rem, 7vw, 11rem);
+  font-size: min(8.2rem, (min(100vw, 1600px) - 90px) * 0.1115);
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.03em;
+  white-space: nowrap;
   text-align: center;
+}
+@media (max-width: 900px) {
+  .pf-big-h { font-size: min(8.2rem, (100vw - 58px) * 0.1115); }
 }
 .pf-about-text {
   margin: 0 0 var(--space-7);
@@ -515,7 +530,7 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
 .pf-decor-bl { bottom: var(--space-7); left: var(--space-6); }
 .pf-decor-tr { top: var(--space-7); right: var(--space-6); }
 .pf-decor-br { bottom: var(--space-7); right: var(--space-6); }
-/* СДВИГ ЗА МЫШЬЮ (письмо 3а задачи 343): переменные пишет скрипт,
+/* ОТКЛИК НА КУРСОР (письмо 3б задачи 343): переменные пишет скрипт,
    двигается только `transform` обёртки. */
 .pf-decor-float {
   position: relative;
@@ -530,29 +545,19 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
    а не к колонке текста — на ширине 1101 от центра коробка скобок
    задевала колонку. */
 .pf-decor-bl .pf-decor-float { scale: 1.28; transform-origin: 100% 50%; }
-/* СВЕЧЕНИЕ ПОД СКОБКАМИ — статичный слой-градиент, без `filter`
-   и теней. Цвет: пипетка по свечению шлема даёт #17D9E4 (среднее
-   45 470 пикселей), ближайший токен системы — `--accent-medkit-hover`. */
-.pf-decor-glow {
-  position: absolute;
-  inset: 8%;
-  border-radius: 50%;
-  background: radial-gradient(closest-side,
-    color-mix(in srgb, var(--accent-medkit-hover) 42%, transparent),
-    color-mix(in srgb, var(--accent-medkit-hover) 14%, transparent) 60%,
-    transparent);
-  pointer-events: none;
+/* ПОЯВЛЕНИЕ ПО ОЧЕРЕДИ (письмо 3б задачи 343). Здесь стоял выезд с боков
+   (`.pf-side`, заход 339) и скрытие ПО УМОЛЧАНИЮ в CSS: без скрипта объекты
+   не показывались вовсе. Теперь прячет скрипт классом `pf-wait`, при первом
+   въезде секции снимает его; без скрипта и при «уменьшить движение» класса
+   нет — объекты видны сразу. Шаг очереди 120 мс, `--n` — место в очереди. */
+.pf-decor {
+  transition: opacity 700ms var(--ease-out), transform 700ms var(--ease-out);
+  transition-delay: calc(var(--n, 0) * 120ms);
 }
-/* ПОЯВЛЕНИЕ С БОКОВ (D3): левые выезжают слева, правые справа, по очереди.
-   `pf-in` ставит скрипт при доезде; при «уменьшить движение» — сразу. */
-.pf-side {
+.pf-decor.pf-wait {
   opacity: 0;
-  transform: translateX(calc(var(--pf-from, -1) * 3rem));
-  transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
-  transition-delay: calc(var(--n, 0) * 80ms);
+  transform: translateY(24px) scale(0.92);
 }
-.pf-side[data-side="r"] { --pf-from: 1; }
-.pf-side.pf-in { opacity: 1; transform: none; }
 @media (max-width: 1100px) {
   /* На узком углы уходят в ряд над текстом и под ним: сбоку от колонки
      в 44rem места нет (ниже ~1100 px декор лёг бы на буквы), а меньше
@@ -563,9 +568,12 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   .pf-decor-bl, .pf-decor-br { bottom: var(--space-5); }
   .pf-decor-tl, .pf-decor-bl { left: var(--space-4); }
   .pf-decor-tr, .pf-decor-br { right: var(--space-4); }
+  /* Скобки здесь у ЛЕВОГО края экрана: увеличение от правого края уводило
+     их на 20 px за окно. Растут вправо, в пустой ряд под текстом. */
+  .pf-decor-bl .pf-decor-float { transform-origin: 0 50%; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pf-side { opacity: 1; transform: none; transition: none; }
+  .pf-decor { transition: none; }
   .pf-ch { color: var(--text-strong); transition: none; }
 }
 

@@ -156,15 +156,15 @@
      Приглушённый цвет — `--text-faint`, он читается и без скрипта. #}
   {% set о_себе = "Больше десяти лет в видеопроизводстве: федеральное телевидение, киберспорт, реклама, образовательные проекты. Последние годы — AI-видео и собственные инструменты, которые я проектирую, проверяю и довожу до рабочего состояния сам. Если нужен человек, который доводит до конца, — напишите." %}
   <section class="pf-about" id="about" aria-labelledby="pf-about-h">
-    {# СДВИГ ЗА МЫШЬЮ (письмо 3а задачи 343). Обёртка `pf-decor-float` —
-       отдельный элемент, потому что `transform` самого `.pf-decor` занят
-       выездом сбоку (`.pf-side`). `data-pf-depth` — размах в пикселях,
-       у каждого свой. Под скобками — статичное свечение в тон шлема,
-       внутри обёртки: двигается вместе со скобками. #}
-    <div class="pf-decor pf-decor-tl pf-side" data-side="l" style="--n: 0"><div class="pf-decor-float" data-pf-depth="8">{{ ms.slot(места['decor-tl']) }}</div></div>
-    <div class="pf-decor pf-decor-bl pf-side" data-side="l" style="--n: 2"><div class="pf-decor-float" data-pf-depth="12"><i class="pf-decor-glow" aria-hidden="true"></i>{{ ms.slot(места['decor-bl']) }}</div></div>
-    <div class="pf-decor pf-decor-tr pf-side" data-side="r" style="--n: 1"><div class="pf-decor-float" data-pf-depth="6">{{ ms.slot(места['decor-tr']) }}</div></div>
-    <div class="pf-decor pf-decor-br pf-side" data-side="r" style="--n: 3"><div class="pf-decor-float" data-pf-depth="10">{{ ms.slot(места['decor-br']) }}</div></div>
+    {# ПОЯВЛЕНИЕ И ОТКЛИК ОБЪЕКТОВ (письмо 3б задачи 343). `.pf-decor` —
+       появление по очереди при первом въезде секции (`--n` — очередь,
+       прячет объекты СКРИПТ, без него они видны). Обёртка `pf-decor-float`
+       — отклик на курсор: у неё свой `transform`, чтобы не спорить
+       с появлением. Двигается только объект, к которому подошёл курсор. #}
+    <div class="pf-decor pf-decor-tl" style="--n: 0"><div class="pf-decor-float" data-pf-float>{{ ms.slot(места['decor-tl']) }}</div></div>
+    <div class="pf-decor pf-decor-tr" style="--n: 1"><div class="pf-decor-float" data-pf-float>{{ ms.slot(места['decor-tr']) }}</div></div>
+    <div class="pf-decor pf-decor-bl" style="--n: 2"><div class="pf-decor-float" data-pf-float>{{ ms.slot(места['decor-bl']) }}</div></div>
+    <div class="pf-decor pf-decor-br" style="--n: 3"><div class="pf-decor-float" data-pf-float>{{ ms.slot(места['decor-br']) }}</div></div>
     <div class="pf-about-body">
       <h2 id="pf-about-h" class="pf-grad pf-big-h">Обо мне</h2>
       <p class="pf-about-text" aria-label="{{ о_себе }}">
@@ -231,7 +231,7 @@
           <ul class="pf-tool-can">
             <li>Записывает подходы и веса по каждому упражнению</li>
             <li>Подбирает замену упражнению под ваш зал</li>
-            <li>Узнаёт тренажёр по фото в чате с тренером</li>
+            <li>Узнаёт тренажёр по фото в чате с AI-тренером</li>
           </ul>
         </div>
         <div class="pf-mock" data-pf-anim="workout" aria-hidden="true">
@@ -258,7 +258,7 @@
           <ul class="pf-tool-can">
             <li>Считывает штрих-код продукта камерой телефона</li>
             <li>Оценивает блюдо по фотографии</li>
-            <li>Подтягивает вес и состав тела с весов Zepp Life</li>
+            <li>Подтягивает вес и состав тела с умных весов через Zepp Life</li>
           </ul>
         </div>
         <div class="pf-mock" data-pf-anim="nutrition" aria-hidden="true">
@@ -288,7 +288,7 @@
           <ul class="pf-tool-can">
             <li>Отмечает найденные части сета по слотам</li>
             <li>Ищет сет по названию</li>
-            <li>Показывает картинку сета крупно по наведению</li>
+            <li>Считает, сколько частей каждого сета уже собрано</li>
           </ul>
         </div>
         <div class="pf-mock" data-pf-anim="enshrouded" aria-hidden="true">
@@ -312,9 +312,9 @@
           <h3 class="pf-tool-h">Аптечка</h3>
           <p class="pf-tool-desc">Домашняя аптечка: что есть, сколько осталось и не истёк ли срок. Упаковку можно завести по фото, общий список ведётся на всю семью, а закончившееся само просится в список покупок.</p>
           <ul class="pf-tool-can">
-            <li>Читает код с упаковки камерой — вторая пачка заводится без набора</li>
+            <li>Сканирует код упаковки — повторную покупку не нужно вводить заново</li>
             <li>Предупреждает за 30 дней до конца срока</li>
-            <li>Подсказывает, что уже есть дома от вашей жалобы</li>
+            <li>Находит в домашней аптечке нужное по описанию</li>
           </ul>
         </div>
         <div class="pf-mock" data-pf-anim="medkit" aria-hidden="true">

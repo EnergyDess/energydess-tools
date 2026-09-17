@@ -248,31 +248,69 @@
     window.addEventListener('resize', зажечь_в_кадре);
     if (тихо.addEventListener) тихо.addEventListener('change', зажечь);
   }
-  /* ОБЪЕКТЫ «ОБО МНЕ» ЗА МЫШЬЮ (письмо 3а задачи 343)
-     · Каждый объект уходит ОТ курсора на свой размах (`data-pf-depth`,
-       6–12 px): курсор в центре секции — ноль, у края окна — полный.
+  /* ОБЪЕКТЫ «ОБО МНЕ» (письмо 3б задачи 343)
+     ПОЯВЛЕНИЕ. Скрипт прячет объекты классом `pf-wait` и снимает его при
+     первом въезде секции в окно — один раз за загрузку; очередь 120 мс
+     задаёт CSS через `--n`. Без скрипта и при «уменьшить движение» класса
+     нет: объекты видны сразу.
+     ОТКЛИК. Здесь стоял общий сдвиг всех четырёх за мышью (письмо 3а) —
+     отменён владельцем. Двигается только объект, центр которого ближе
+     `РАДИУС_ОТКЛИКА` к курсору: он отстраняется от курсора, тем сильнее,
+     чем курсор ближе, но не дальше `РАЗМАХ_ОТКЛИКА`. Курсор ушёл
+     за радиус — объект плавно возвращается.
      · Один обработчик на все четыре: событие запоминает координаты, цель
        считается в `requestAnimationFrame`, бег к цели — долей разницы
        в кадр, как у магнита головы. Пишется только `transform`.
-     · Геометрия секции — из кеша в координатах документа (`сбросы`).
+     · Центры объектов — из кеша в координатах документа (`сбросы`);
+       после появления кеш перемеряется: до него объект стоял ниже.
      · На время прокрутки замирает, через `ТИШИНА_МС` оживает сам.
      · Слушает указатель, только пока секция в окне.
      · Выключено на сенсорных (`pointer: coarse`) и при «уменьшить
-       движение»: объект, сдвинутый последним касанием, читался бы
-       залипшим. */
+       движение». */
   var секция_о_себе = document.querySelector('.pf-about');
-  var плывущие = секция_о_себе
-    ? Array.prototype.slice.call(секция_о_себе.querySelectorAll('[data-pf-depth]')) : [];
+  var объекты = секция_о_себе
+    ? Array.prototype.slice.call(секция_о_себе.querySelectorAll('.pf-decor')) : [];
   var грубый = window.matchMedia('(pointer: coarse)');
-  if (плывущие.length) {
-    var ДОЛЯ_ПЛАВАНИЯ = 0.1;
-    var состояния = плывущие.map(function (э) {
-      return {э: э, размах: parseFloat(э.getAttribute('data-pf-depth')) || 0, x: 0, y: 0};
+  if (объекты.length && !тихо.matches && 'IntersectionObserver' in window) {
+    // Прятать мгновенно: с переходом объекты сначала гасли бы на глазах,
+    // и въезд, начатый раньше конца этого угасания, начинался бы с середины.
+    объекты.forEach(function (э) { э.style.transition = 'none'; э.classList.add('pf-wait'); });
+    void секция_о_себе.offsetWidth;
+    объекты.forEach(function (э) { э.style.transition = ''; });
+    var наблюдатель_появления = new IntersectionObserver(function (зз) {
+      if (!зз.some(function (з) { return з.isIntersecting; })) return;
+      объекты.forEach(function (э) { э.classList.remove('pf-wait'); });
+      наблюдатель_появления.disconnect();
+    }, { threshold: 0.15 });
+    наблюдатель_появления.observe(секция_о_себе);
+    if (тихо.addEventListener) тихо.addEventListener('change', function () {
+      if (тихо.matches) объекты.forEach(function (э) { э.classList.remove('pf-wait'); });
     });
-    var пл_цель = {x: 0, y: 0}, пл_кадр = 0, пл_расчёт = 0, пл_указано = null, пл_коробка = null;
-    var пл_в_окне = false;
-    сбросы.push(function () { пл_коробка = null; });
+  }
+  var плывущие = объекты.map(function (э) { return э.querySelector('[data-pf-float]'); })
+    .filter(Boolean);
+  if (плывущие.length) {
+    var РАДИУС_ОТКЛИКА = 200, РАЗМАХ_ОТКЛИКА = 12, ДОЛЯ_ПЛАВАНИЯ = 0.1;
+    var состояния = плывущие.map(function (э) {
+      return {э: э, x: 0, y: 0, цх: 0, цу: 0, центр: null};
+    });
+    var пл_кадр = 0, пл_расчёт = 0, пл_указано = null, пл_в_окне = false;
+    сбросы.push(function () { состояния.forEach(function (с) { с.центр = null; }); });
+    объекты.forEach(function (э) {
+      э.addEventListener('transitionend', function (e) {
+        if (e.target === э) состояния.forEach(function (с) { с.центр = null; });
+      });
+    });
     var пл_можно = function () { return !грубый.matches && !тихо.matches; };
+    var пл_центр = function (с) {
+      if (!с.центр) {
+        var к = с.э.getBoundingClientRect();
+        var масштаб = parseFloat(getComputedStyle(с.э).scale) || 1;
+        с.центр = {x: к.left + window.scrollX + к.width / 2 - с.x * масштаб,
+                   y: к.top + window.scrollY + к.height / 2 - с.y * масштаб};
+      }
+      return с.центр;
+    };
     var пл_записать = function () {
       состояния.forEach(function (с) {
         с.э.style.setProperty('--pf-px', с.x.toFixed(2) + 'px');
@@ -282,29 +320,30 @@
     var пл_шаг = function () {
       var готово = true;
       состояния.forEach(function (с) {
-        var цх = -пл_цель.x * с.размах, цу = -пл_цель.y * с.размах;
-        с.x += (цх - с.x) * ДОЛЯ_ПЛАВАНИЯ;
-        с.y += (цу - с.y) * ДОЛЯ_ПЛАВАНИЯ;
-        if (Math.abs(цх - с.x) < 0.05 && Math.abs(цу - с.y) < 0.05) { с.x = цх; с.y = цу; }
+        с.x += (с.цх - с.x) * ДОЛЯ_ПЛАВАНИЯ;
+        с.y += (с.цу - с.y) * ДОЛЯ_ПЛАВАНИЯ;
+        if (Math.abs(с.цх - с.x) < 0.05 && Math.abs(с.цу - с.y) < 0.05) { с.x = с.цх; с.y = с.цу; }
         else готово = false;
       });
       пл_записать();
       пл_кадр = готово ? 0 : requestAnimationFrame(пл_шаг);
     };
-    var пл_тянуть = function (x, y) {
-      пл_цель.x = x; пл_цель.y = y;
-      if (!пл_кадр) пл_кадр = requestAnimationFrame(пл_шаг);
+    var пл_бежать = function () { if (!пл_кадр) пл_кадр = requestAnimationFrame(пл_шаг); };
+    var пл_отпустить = function () {
+      состояния.forEach(function (с) { с.цх = с.цу = 0; });
+      пл_бежать();
     };
     var пл_прицелиться = function () {
       пл_расчёт = 0;
       if (!пл_указано || прокрутка_идёт || !пл_можно()) return;
-      if (!пл_коробка) пл_коробка = в_документе(секция_о_себе);
-      var верх = пл_коробка.top - window.scrollY;
-      var центр_х = пл_коробка.left - window.scrollX + пл_коробка.width / 2;
-      var центр_у = верх + пл_коробка.height / 2;
-      var доля = function (v) { return Math.max(-1, Math.min(1, v)); };
-      пл_тянуть(доля((пл_указано.x - центр_х) / (window.innerWidth / 2)),
-               доля((пл_указано.y - центр_у) / (window.innerHeight / 2)));
+      var px = пл_указано.x + window.scrollX, py = пл_указано.y + window.scrollY;
+      состояния.forEach(function (с) {
+        var ц = пл_центр(с), dx = ц.x - px, dy = ц.y - py, d = Math.sqrt(dx * dx + dy * dy);
+        if (d >= РАДИУС_ОТКЛИКА || d < 0.5) { с.цх = с.цу = 0; return; }
+        var сила = РАЗМАХ_ОТКЛИКА * (1 - d / РАДИУС_ОТКЛИКА);
+        с.цх = dx / d * сила; с.цу = dy / d * сила;
+      });
+      пл_бежать();
     };
     var пл_при_указателе = function (e) {
       if (!пл_можно() || e.pointerType === 'touch') return;
@@ -315,7 +354,7 @@
       if (да === пл_в_окне) return;
       пл_в_окне = да;
       if (да) window.addEventListener('pointermove', пл_при_указателе, { passive: true });
-      else { window.removeEventListener('pointermove', пл_при_указателе); пл_указано = null; пл_тянуть(0, 0); }
+      else { window.removeEventListener('pointermove', пл_при_указателе); пл_указано = null; пл_отпустить(); }
     };
     window.addEventListener('scroll', function () {
       if (пл_кадр) { cancelAnimationFrame(пл_кадр); пл_кадр = 0; }
@@ -323,8 +362,9 @@
     }, { passive: true });
     после_прокрутки.push(function () {
       if (пл_указано) пл_прицелиться();
-      else пл_тянуть(пл_цель.x, пл_цель.y);
+      else пл_бежать();
     });
+    document.documentElement.addEventListener('pointerleave', function () { пл_указано = null; пл_отпустить(); });
     if ('IntersectionObserver' in window) {
       new IntersectionObserver(function (зз) {
         пл_включить(зз[зз.length - 1].isIntersecting);
@@ -333,24 +373,10 @@
       пл_включить(true);
     }
     var пл_сбросить = function () {
-      if (!пл_можно()) { пл_цель.x = пл_цель.y = 0; состояния.forEach(function (с) { с.x = с.y = 0; }); пл_записать(); }
+      if (!пл_можно()) { состояния.forEach(function (с) { с.x = с.y = с.цх = с.цу = 0; }); пл_записать(); }
     };
     if (тихо.addEventListener) тихо.addEventListener('change', пл_сбросить);
     if (грубый.addEventListener) грубый.addEventListener('change', пл_сбросить);
-  }
-
-  var бока = Array.prototype.slice.call(document.querySelectorAll('.pf-side'));
-  if (бока.length) {
-    if (тихо.matches || !('IntersectionObserver' in window)) {
-      бока.forEach(function (э) { э.classList.add('pf-in'); });
-    } else {
-      var наблюдатель_боков = new IntersectionObserver(function (записи) {
-        записи.forEach(function (з) {
-          if (з.isIntersecting) { з.target.classList.add('pf-in'); наблюдатель_боков.unobserve(з.target); }
-        });
-      }, { threshold: 0.2 });
-      бока.forEach(function (э) { наблюдатель_боков.observe(э); });
-    }
   }
 
   /* ИНСТРУМЕНТЫ (блок E; заход 339, блоки D2–D5)
