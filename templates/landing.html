@@ -194,6 +194,8 @@
   {% macro печать(текст) -%}
     {%- for знак in текст -%}<span class="pf-t">{{ знак }}</span>{%- endfor -%}
   {%- endmacro %}
+  {# ЧТО УМЕЕТ (письмо 3а задачи 343): каждая строка — возможность, которая
+     есть в коде инструмента; подтверждающие места названы в отчёте захода. #}
   <section class="pf-tools" id="tools" aria-labelledby="pf-tools-h">
     <h2 id="pf-tools-h" class="pf-grad pf-big-h">Инструменты</h2>
     <ol class="pf-tool-list">
@@ -203,6 +205,11 @@
         <div class="pf-tool-text">
           <h3 class="pf-tool-h">HH-ассистент</h3>
           <p class="pf-tool-desc">Готовит сопроводительное письмо за 15 секунд: вставьте ссылку на вакансию или её текст — получите письмо под ваше резюме и требования работодателя. Никаких шаблонов, только конкретика под каждого работодателя.</p>
+          <ul class="pf-tool-can">
+            <li>Забирает текст вакансии прямо по ссылке с hh.ru</li>
+            <li>Сверяет вакансию с вашим резюме</li>
+            <li>Пишет по-английски, если вакансия этого просит</li>
+          </ul>
         </div>
         <div class="pf-mock" data-pf-anim="hh" aria-hidden="true">
           <div class="pf-mock-bar"><i></i><i></i><i></i><span>HH-АССИСТЕНТ</span></div>
@@ -221,6 +228,11 @@
         <div class="pf-tool-text">
           <h3 class="pf-tool-h">Программа тренировок</h3>
           <p class="pf-tool-desc">Генерирует программу под ваши цели, уровень и оборудование зала. Следит за прогрессией весов, предлагает замены и корректирует при болях или пропусках.</p>
+          <ul class="pf-tool-can">
+            <li>Записывает подходы и веса по каждому упражнению</li>
+            <li>Подбирает замену упражнению под ваш зал</li>
+            <li>Узнаёт тренажёр по фото в чате с тренером</li>
+          </ul>
         </div>
         <div class="pf-mock" data-pf-anim="workout" aria-hidden="true">
           <div class="pf-mock-bar"><i></i><i></i><i></i><span>ДЕНЬ 1 · ГРУДЬ И ТРИЦЕПС</span></div>
@@ -243,6 +255,11 @@
         <div class="pf-tool-text">
           <h3 class="pf-tool-h">Дневник питания</h3>
           <p class="pf-tool-desc">Добавляйте еду по штрих-коду или названию, следите за КБЖУ. AI-нутрициолог анализирует рацион и даёт конкретные рекомендации. Синхронизируется с программой тренировок.</p>
+          <ul class="pf-tool-can">
+            <li>Считывает штрих-код продукта камерой телефона</li>
+            <li>Оценивает блюдо по фотографии</li>
+            <li>Подтягивает вес и состав тела с весов Zepp Life</li>
+          </ul>
         </div>
         <div class="pf-mock" data-pf-anim="nutrition" aria-hidden="true">
           <div class="pf-mock-bar"><i></i><i></i><i></i><span>ДНЕВНИК ПИТАНИЯ</span></div>
@@ -268,6 +285,11 @@
         <div class="pf-tool-text">
           <h3 class="pf-tool-h">Enshrouded</h3>
           <p class="pf-tool-desc">Трекер доспехов: отмечайте собранные сеты брони, следите за редкостью и уровнями предметов. Планируйте следующий крафт и не теряйте прогресс.</p>
+          <ul class="pf-tool-can">
+            <li>Отмечает найденные части сета по слотам</li>
+            <li>Ищет сет по названию</li>
+            <li>Показывает картинку сета крупно по наведению</li>
+          </ul>
         </div>
         <div class="pf-mock" data-pf-anim="enshrouded" aria-hidden="true">
           <div class="pf-mock-bar"><i></i><i></i><i></i><span>КОЛЛЕКЦИЯ</span><em><b data-pf-tally data-count-from="8">12</b> / 24</em></div>
@@ -289,6 +311,11 @@
         <div class="pf-tool-text">
           <h3 class="pf-tool-h">Аптечка</h3>
           <p class="pf-tool-desc">Домашняя аптечка: что есть, сколько осталось и не истёк ли срок. Упаковку можно завести по фото, общий список ведётся на всю семью, а закончившееся само просится в список покупок.</p>
+          <ul class="pf-tool-can">
+            <li>Читает код с упаковки камерой — вторая пачка заводится без набора</li>
+            <li>Предупреждает за 30 дней до конца срока</li>
+            <li>Подсказывает, что уже есть дома от вашей жалобы</li>
+          </ul>
         </div>
         <div class="pf-mock" data-pf-anim="medkit" aria-hidden="true">
           <div class="pf-mock-bar"><i></i><i></i><i></i><span>АПТЕЧКА</span></div>

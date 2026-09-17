@@ -582,44 +582,76 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
    Нумерованный список: номер, текст, оживлённый интерфейс. Строки разделены
    волосяной линией. Интерфейс — разметка на токенах акцента раздела
    (`--pf-acc`, `--pf-acc-dim` приходят со строки списка). */
-/* СЕКЦИЯ ОТДЕЛЕНА ОТ ТЁМНОГО (заход 339, блок C). Здесь фона не было,
-   и секции страницы сливались. Фон — на ступень светлее страницы
-   (`--surface-1`), полоса во всю ширину окна со скруглёнными верхними
-   углами; содержимое по-прежнему не шире 1600px — ширину держит
-   боковое поле, а не max-width коробки, иначе фон кончался бы вместе
-   с содержимым. ЧИСТО БЕЛЫЙ НЕ ВЗЯТ: пять тёмных макетов на нём стали
-   бы дырами. Макеты при этом на ступень ТЕМНЕЕ секции — окно в секции,
-   и ни одна пара «текст — фон» ниже прежней не опустилась (замер). */
+/* СЕКЦИЯ НА ОБЩЕМ ФОНЕ (письмо 3а задачи 343). Здесь стояла подложка
+   `--surface-1` со скруглёнными верхними углами (заход 339, блок C),
+   и её верхняя граница читалась жёсткой линией. Решение владельца:
+   раздел лежит на тёмном фоне страницы, переход сверху мягкий —
+   его даёт подсветка середины (`.pf-glow`). Содержимое по-прежнему
+   не шире 1600px — ширину держит боковое поле. */
 .pf-tools {
   --pf-tools-side: max(var(--space-6), calc((100% - 1600px) / 2 + var(--space-6)));
   padding: var(--space-10) var(--pf-tools-side);
-  background: var(--surface-1);
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
 .pf-tool-list { list-style: none; margin: 0; padding: 0; border-bottom: 1px solid var(--border-hairline); }
 .pf-tool {
   display: grid;
-  grid-template-columns: minmax(4rem, 8rem) minmax(0, 1fr) minmax(0, 1.1fr);
+  grid-template-columns: var(--pf-tool-n-col) minmax(0, 1fr) minmax(0, 1.1fr);
   gap: var(--space-7);
   align-items: start;
   padding: var(--space-8) 0;
   border-top: 1px solid var(--border-hairline);
 }
+/* НОМЕР И НАЗВАНИЕ КРУПНЕЕ, Unbounded (письмо 3а задачи 343). Колонка
+   номера считается от кегля номера: «05» Unbounded 800 шириной около
+   1.6em, запас на соседнюю колонку — в `gap`. */
+.pf-tool {
+  --pf-tool-n-size: clamp(3rem, 6vw, 7rem);
+  --pf-tool-n-col: calc(var(--pf-tool-n-size) * 1.8);
+}
 .pf-tool-n {
   align-self: start;
-  font-family: var(--font-mono);
-  font-size: clamp(2.5rem, 5vw, 5rem);
-  font-weight: 500;
-  line-height: 1;
+  font-family: 'Unbounded', var(--font);
+  font-size: var(--pf-tool-n-size);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
   color: var(--text-faint);
 }
 .pf-tool-h {
   margin: 0 0 var(--space-4);
-  font-size: var(--text-h2);
-  font-weight: 700;
-  line-height: 1.15;
+  font-size: clamp(1.75rem, 3vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1.1;
   letter-spacing: -0.02em;
   color: var(--text-strong);
+}
+/* ЧТО УМЕЕТ: маркированный список под описанием, Manrope, точка в цвет
+   акцента инструмента (`--pf-acc` приходит со строки списка). */
+.pf-tool-can {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 36rem;
+  margin: var(--space-5) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.pf-tool-can li {
+  position: relative;
+  padding-left: var(--space-5);
+  font-size: var(--text-body);
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--text);
+}
+.pf-tool-can li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: calc(0.75em - 4px);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pf-acc);
 }
 .pf-tool-desc { margin: 0; max-width: 36rem; font-size: var(--text-body); line-height: 1.6; color: var(--text-2); }
 /* Призыв зарегистрироваться (заход 339, E): карточка на ступень светлее
@@ -844,7 +876,7 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
 .pf-mock.pf-snap, .pf-mock.pf-snap * { transition: none !important; }
 
 @media (max-width: 900px) {
-  .pf-tools { padding: var(--space-9) var(--space-4); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .pf-tools { padding: var(--space-9) var(--space-4); }
   .pf-tool { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); padding: var(--space-7) 0; }
   /* номера списка здесь встают над текстом; знак «+» — слева от строки */
   .pf-grow { grid-template-columns: auto minmax(0, 1fr); gap: var(--space-4); }
