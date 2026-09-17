@@ -385,8 +385,26 @@
        'link': 'https://disk.yandex.ru/d/PFdacTDoN_iwPA', 'go': 'Портфолио'},
       {'n': '02', 'kind': 'AI-видео', 'title': 'AI-сериалы',
        'link': 'https://disk.yandex.ru/d/jqvXMaCUNAbvng', 'go': 'Портфолио'},
-      {'n': '03', 'kind': 'инструменты', 'title': 'EnergyDess'},
+      {'n': '03', 'kind': 'инструменты', 'title': 'EnergyDess',
+       'link': '#tools', 'go': 'Открыть', 'scale': True},
   ] %}
+  {# КАРТОЧКА 03 — МАСШТАБ РАБОТЫ ВМЕСТО СКРИНШОТОВ (письмо 4 задачи 343,
+     решение владельца). Места медиа `project-3-*` здесь больше не
+     выводятся и сняты с панели; файлы и строки не удалены.
+     Числа считает `landing_stats.py` ПРИ ВЫКЛАДКЕ, не на каждый запрос.
+     «Что внутри» и «Стек» — только подтверждённое кодом или зависимостями
+     (таблица — отчёт письма 4). #}
+  {% set масштаб_числа = (('tools', 'инструментов'), ('sessions', 'рабочих заходов'),
+                          ('commits', 'коммитов'), ('checks', 'автопроверок')) %}
+  {% set масштаб_как = ('Идея', 'ТЗ для агента', 'Claude Code', 'Проверки с подлогом', 'Выкладка') %}
+  {% set масштаб_внутри = ('AI-ассистент с маршрутизатором запросов',
+                           'Письма под вакансию за 15 секунд',
+                           'Сканер DataMatrix и штрихкодов',
+                           'Интеграция с умными весами',
+                           'Программа тренировок с прогрессией') %}
+  {% set масштаб_стек = ('Python', 'FastAPI', 'SQLAlchemy', 'SQLite', 'Jinja2', 'OpenRouter · LLM',
+                         'RAG по справочникам', 'Claude Code', 'Playwright', 'GitHub Actions',
+                         'Fly.io', 'Cloudflare Turnstile', 'GPG-бэкапы') %}
   <section class="pf-projects" id="projects" aria-labelledby="pf-projects-h">
     <h2 id="pf-projects-h" class="pf-grad pf-big-h">Проекты</h2>
     <div class="pf-proj-stack">
@@ -400,15 +418,46 @@
               <h3 class="pf-proj-title">{{ п.title }}</h3>
             </div>
             {% if п.link %}
-            <a class="pf-cta-pill pf-cta-ghost pf-proj-go" href="{{ п.link }}" target="_blank" rel="noopener">{{ п.go }}</a>
+            <a class="pf-cta-pill pf-cta-ghost pf-proj-go" href="{{ п.link }}"{% if not п.scale %} target="_blank" rel="noopener"{% endif %}>{{ п.go }}</a>
             {% endif %}
           </header>
+          {% if п.scale %}
+          <div class="pf-scale">
+            <p class="pf-scale-lead">Работаю с нейросетями как продюсер с командой: ставлю задачи, контролирую качество и довожу до готового продукта.</p>
+            <ul class="pf-scale-nums">
+              {% for ключ, подпись in масштаб_числа %}
+              <li><b data-scale="{{ ключ }}">{{ числа_работы[ключ] if числа_работы else '—' }}</b><span>{{ подпись }}</span></li>
+              {% endfor %}
+            </ul>
+            <div class="pf-scale-how">
+              <p class="pf-scale-cap">Как сделано</p>
+              <ol class="pf-scale-steps">
+                {% for шаг in масштаб_как %}{% if not loop.first %}<li class="pf-scale-arrow" aria-hidden="true">→</li>{% endif %}<li class="pf-scale-step">{{ шаг }}</li>{% endfor %}
+              </ol>
+            </div>
+            <div class="pf-scale-cols">
+              <div>
+                <p class="pf-scale-cap">Что внутри</p>
+                <ul class="pf-scale-list">
+                  {% for строка in масштаб_внутри %}<li>{{ значок('check') }}<span>{{ строка }}</span></li>{% endfor %}
+                </ul>
+              </div>
+              <div>
+                <p class="pf-scale-cap">Стек</p>
+                <ul class="pf-scale-stack">
+                  {% for имя in масштаб_стек %}<li>{{ имя }}</li>{% endfor %}
+                </ul>
+              </div>
+            </div>
+          </div>
+          {% else %}
           {% set номер = loop.index %}
           <div class="pf-proj-grid">
             {% for буква in ('a', 'b', 'c') %}
             <div class="pf-proj-{{ буква }}">{{ ms.slot(места['project-%d-%s' % (номер, буква)]) }}</div>
             {% endfor %}
           </div>
+          {% endif %}
         </div>
       </article>
       {% endfor %}

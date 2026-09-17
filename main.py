@@ -2393,7 +2393,8 @@ async def index(request: Request, user=Depends(get_current_user), db: Session = 
         места = {м["id"]: м for м in лнд_места(db)}
         return templates.TemplateResponse(request=request, name="landing.html",
                                           context={"места": места,
-                                                   "постер_верха": _лнд_постер_встроенный(места["bg-top"])})
+                                                   "постер_верха": _лнд_постер_встроенный(места["bg-top"]),
+                                                   "числа_работы": _лнд_числа()})
 
     tools_with_access = [
         {**t, "has_access": user_has_access(user, t["id"], db)}
@@ -4439,6 +4440,25 @@ def _лнд_постер_встроенный(место):
     return _лнд_постеры[имя]
 
 
+# ЧИСЛА КАРТОЧКИ 03 (письмо 4 задачи 343). Считает `landing_stats.py`
+# при выкладке и кладёт в `landing_stats.json` рядом с приложением; здесь
+# файл читается ОДИН раз за жизнь процесса. Нет файла — карточка ставит
+# «—», и это говорится строкой в журнале, а не проглатывается.
+_лнд_числа_кеш = []
+
+
+def _лнд_числа():
+    if not _лнд_числа_кеш:
+        путь = os.path.join(os.path.dirname(os.path.abspath(__file__)), "landing_stats.json")
+        try:
+            with open(путь, encoding="utf-8") as f:
+                _лнд_числа_кеш.append(_json.load(f))
+        except (OSError, ValueError) as e:
+            print("[landing] числа карточки 03 не прочитаны (%s): вместо чисел «—»" % e)
+            _лнд_числа_кеш.append(None)
+    return _лнд_числа_кеш[0]
+
+
 def лнд_места(db, user=None):
     """Все места в порядке описания, с тем, что в них лежит."""
     записи = {з.slot_id: з for з in db.query(LandingMedia).all()}
@@ -4458,7 +4478,10 @@ async def admin_landing_page(request: Request, user=Depends(get_current_user),
                              db: Session = Depends(get_db)):
     if not _admin_guard(user):
         return RedirectResponse("/", status_code=302)
-    места = лнд_места(db, user)
+    # Места карточки 03 сняты с панели решением владельца (письмо 4
+    # задачи 343): карточка стала «масштабом работы» без скриншотов.
+    # Строки и файлы НЕ удаляются — ждут решения владельца.
+    места = [м for м in лнд_места(db, user) if not м.get("retired")]
     по_секциям = [{"id": с, "label": имя,
                    "slots": [м for м in места if м["section"] == с]}
                   for с, имя in _лнд.СЕКЦИИ]

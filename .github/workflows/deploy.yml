@@ -9,7 +9,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # вся история: число коммитов карточки 03 главной (письмо 4 задачи 343)
+          fetch-depth: 0
       - uses: superfly/flyctl-actions/setup-flyctl@master
+      # ЧИСЛА КАРТОЧКИ 03 ГОСТЕВОЙ ГЛАВНОЙ считаются ПРИ ВЫКЛАДКЕ: в образе
+      # нет ни .git/, ни *.md. Не посчиталось — выкладка останавливается.
+      - run: python3 landing_stats.py --записать
       # ОТПЕЧАТОК КОММИТА ВПЕКАЕТСЯ В ОБРАЗ (BACKLOG №245, E.5):
       # `.git/` в образ не едет, и без этого `/version` на проде
       # отвечал «unknown», а ось коммита в `check_deploy.py`

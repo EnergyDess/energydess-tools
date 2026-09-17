@@ -1063,6 +1063,107 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
    кегль номера: 987 → 955 px на 1920 (замер пробы). */
 .pf-proj-grid { width: min(100%, calc((100svh - 64px - 9rem - var(--pf-proj-n-size)) * 1.41)); margin-inline: auto; }
 
+/* КАРТОЧКА 03 — МАСШТАБ РАБОТЫ (письмо 4 задачи 343). Высота тела — та же,
+   что у сетки картинок 01 и 02: та же ширина сетки (cqw — ширина
+   содержимого карточки), пересчитанная в высоту формулой сетки. Так карточка в стопке
+   закрывает предыдущую целиком, а не полосой. */
+.pf-proj-card { container-type: inline-size; }
+.pf-scale {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-6);
+  /* высота сетки 01/02 точно: 12/17·(T − 1.75g) + g, T — ширина сетки */
+  min-height: calc(min(100cqw, (100svh - 64px - 9rem - var(--pf-proj-n-size)) * 1.41) * 12 / 17
+                   + var(--space-3) * (1 - 21 / 17));
+}
+.pf-scale-lead {
+  margin: 0;
+  max-width: 60rem;
+  font-size: clamp(1.25rem, 1.6vw, 2.25rem);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--text-strong);
+}
+.pf-scale-nums {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pf-scale-nums li {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border: 1px solid var(--landing-mini-line);
+  border-radius: 18px;
+  background: var(--landing-mini-bg);
+}
+.pf-scale-nums b {
+  font-family: 'Unbounded', var(--font);
+  font-size: clamp(2.25rem, 4vw, 5rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--text-strong);
+}
+.pf-scale-nums span { font-size: var(--text-body-sm); font-weight: 500; color: var(--text-2); }
+.pf-scale-cap {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--landing-soft);
+}
+.pf-scale-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pf-scale-step {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--landing-mini-line);
+  border-radius: 999px;
+  background: var(--landing-mini-bg);
+  font-size: var(--text-body);
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.pf-scale-arrow { font-size: var(--text-body-lg); color: var(--text-faint); }
+.pf-scale-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-6) var(--space-7);
+}
+.pf-scale-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.pf-scale-list li { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-body-lg); font-weight: 500; color: var(--text); }
+.pf-scale-list svg { flex: none; width: 20px; height: 20px; color: var(--landing-soft); }
+.pf-scale-stack { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.pf-scale-stack li {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--landing-soft-line);
+  border-radius: 999px;
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--text);
+}
+@media (max-width: 900px) {
+  .pf-scale-nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pf-scale-cols { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .pf-scale { min-height: 0; gap: var(--space-5); }
+  .pf-scale-nums li { padding: var(--space-4); }
+}
+
 /* ── Кнопка «Связаться» с блоком почты (заход 339, блок F) ──────────────────
    `<details>`: кнопка — summary, почта — всплывающая карточка НАД кнопкой
    (у первого экрана кнопка у нижнего края окна, вниз места нет). Карточка
