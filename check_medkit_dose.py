@@ -46,6 +46,40 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 ПОЧТА = os.getenv("STAND_EMAIL", "screenshot@local.dev")
 ПАРОЛЬ = os.getenv("STAND_PASSWORD", "Screenshot-Local-2026")
 
+
+# ── КОНТРОЛЬ ОБЯЗАН ДОЙТИ ДО ПРОВЕРЯЕМОГО МЕСТА ──────────────────────
+#
+# С задачи 327 эндпоинт ассистента спрашивает права по КУКЕ ещё до тела
+# запроса (`ЗаслонТела`), то есть раньше, чем вступает подмена
+# `dependency_overrides`. Пять контролей этой пробы слали запрос БЕЗ куки,
+# получали 401 и разбирали тело отказа как ответ ассистента: «тип —,
+# кнопок 0» — то есть мерили отказ по правам, а не заслон. Контроль,
+# ждущий ОТСУТСТВИЯ кнопки, на таком теле прошёл бы молча.
+#
+# Отсюда два правила: клиент несёт куку того же человека, что подменён,
+# и ответ не 200 — это НЕСОСТОЯВШИЙСЯ контроль (код 2), а не провал
+# и не успех. `--подлог-без-куки` снимает куку и доказывает второе.
+class КонтрольНеСостоялся(Exception):
+    pass
+
+
+def _клиент(main, user):
+    from fastapi.testclient import TestClient
+    from auth import create_token
+    клиент = TestClient(main.app)
+    if "--подлог-без-куки" not in sys.argv:
+        клиент.cookies.set("access_token", create_token(user.id))
+    return клиент
+
+
+def _спросить_ассистента(клиент, вопрос):
+    ответ = клиент.post("/medkit/api/assist", json={"text": вопрос})
+    if ответ.status_code != 200:
+        raise КонтрольНеСостоялся(
+            "запрос не дошёл до проверяемого места: POST /medkit/api/assist "
+            "ответил %d (%s)" % (ответ.status_code, ответ.text[:120]))
+    return ответ.json()
+
 # ── ВОПРОСЫ: ЧЕТЫРЕ НАМЕРЕНИЯ ПЛЮС ДОЗИРОВКА ─────────────────────────
 #
 # Названия — позиции СТЕНДА (`make_local_user --seed`), а не владельца:
@@ -846,9 +880,9 @@ def _тело_ступеней(тип, вопрос, имена, групп=None
     main.app.dependency_overrides[main.get_current_user] = lambda: user
     main._апт_спросить_модель = модель
     try:
-        клиент = TestClient(main.app)
+        клиент = _клиент(main, user)
         клиент.delete("/medkit/api/chat")
-        тело = клиент.post("/medkit/api/assist", json={"text": вопрос}).json()
+        тело = _спросить_ассистента(клиент, вопрос)
         клиент.delete("/medkit/api/chat")
     finally:
         main._апт_спросить_модель = прежняя
@@ -992,9 +1026,9 @@ def _прогон_остатка(сломать_маршрут, снять_за�
             main._апт_маршрут_остатка = lambda текст, db, user: None
         if снять_залог:
             main._апт_списание_при_остатке = lambda тело: тело
-        клиент = TestClient(main.app)
+        клиент = _клиент(main, user)
         клиент.delete("/medkit/api/chat")
-        тело = клиент.post("/medkit/api/assist", json={"text": вопрос}).json()
+        тело = _спросить_ассистента(клиент, вопрос)
         клиент.delete("/medkit/api/chat")
     finally:
         (main._апт_маршрут_остатка, main._апт_списание_при_остатке,
@@ -1131,9 +1165,9 @@ def _прогон_места(сломать_маршрут, снять_зало�
             main._апт_ответ_о_месте = с_кнопкой
         if расширить_список:
             main.АПТ_ТИПЫ_СО_СПИСАНИЕМ = frozenset({"поиск", "место"})
-        клиент = TestClient(main.app)
+        клиент = _клиент(main, user)
         клиент.delete("/medkit/api/chat")
-        тело = клиент.post("/medkit/api/assist", json={"text": вопрос}).json()
+        тело = _спросить_ассистента(клиент, вопрос)
         клиент.delete("/medkit/api/chat")
     finally:
         (main._апт_маршрут_места, main._апт_списание_при_месте,
@@ -1256,9 +1290,9 @@ def _прогон_поля(вопрос_жалобы, слепой_срок, с�
             main._апт_ответ_о_поле = с_кнопкой
         if расширить_список:
             main.АПТ_ТИПЫ_СО_СПИСАНИЕМ = frozenset({"поиск", "поле"})
-        клиент = TestClient(main.app)
+        клиент = _клиент(main, user)
         клиент.delete("/medkit/api/chat")
-        тело = клиент.post("/medkit/api/assist", json={"text": вопрос}).json()
+        тело = _спросить_ассистента(клиент, вопрос)
         клиент.delete("/medkit/api/chat")
     finally:
         (main._апт_поля_в_вопросе, main._апт_списание_при_поле,
@@ -1413,10 +1447,9 @@ def _прогон_роутера(сломать_роутер, снять_зас�
             main._апт_след_дозы = lambda куски: []
         if снять_заслон:
             main._апт_заслон_выхода = lambda тело: тело
-        клиент = TestClient(main.app)
+        клиент = _клиент(main, user)
         клиент.delete("/medkit/api/chat")
-        тело = клиент.post("/medkit/api/assist",
-                           json={"text": ВОПРОС_РОУТЕРА}).json()
+        тело = _спросить_ассистента(клиент, ВОПРОС_РОУТЕРА)
         клиент.delete("/medkit/api/chat")
     finally:
         (main._апт_вопрос_о_дозе, main._апт_след_дозы,
@@ -1539,6 +1572,14 @@ async def списание():
 
 
 def main_():
+    try:
+        return _main()
+    except КонтрольНеСостоялся as e:
+        print("КОНТРОЛЬ НЕ СОСТОЯЛСЯ: %s" % e)
+        return 2
+
+
+def _main():
     if "--контроль-ступеней" in sys.argv:
         return asyncio.run(контроль_ступеней())
     if "--контроль-остатка" in sys.argv:
