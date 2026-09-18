@@ -668,12 +668,12 @@ def _контроль():
                     print("  %-14s ОСТАНОВЛЕНО: якоря подлога нет в шаблоне" % вид)
                     ок = False
                     continue
-                ШАБЛОН.write_text(исходный.replace(ищем, кладём, 1), encoding="utf-8")
+                ШАБЛОН.write_text(исходный.replace(ищем, кладём, 1), encoding="utf-8", newline="")
                 try:
                     поймано = [x for x in проверить()
                                if x[0] == вид and x not in было]
                 finally:
-                    ШАБЛОН.write_text(исходный, encoding="utf-8")
+                    ШАБЛОН.write_text(исходный, encoding="utf-8", newline="")
             elif было_стр == "@крупная":
                 файл = КАРТИНКИ / стало_стр
                 цел = файл.read_bytes()
@@ -707,18 +707,18 @@ def _контроль():
                     print("  %-14s ОСТАНОВЛЕНО: якоря подлога нет в шаблоне" % вид)
                     ок = False
                     continue
-                ШАБЛОН.write_text(исходный.replace(было_стр, стало_стр, 1), encoding="utf-8")
+                ШАБЛОН.write_text(исходный.replace(было_стр, стало_стр, 1), encoding="utf-8", newline="")
                 try:
                     поймано = [x for x in проверить()
                                if x[0] == вид and x not in было]
                 finally:
-                    ШАБЛОН.write_text(исходный, encoding="utf-8")
+                    ШАБЛОН.write_text(исходный, encoding="utf-8", newline="")
             знак = "НАЙДЕН" if поймано else "ПРОПУЩЕН — проверка сломана"
             ок = ок and bool(поймано)
             пример = (": %s — %s" % (поймано[0][1], поймано[0][2])) if поймано else ""
             print("  %-14s подлог %s%s" % (вид, знак, пример))
     finally:
-        ШАБЛОН.write_text(исходный, encoding="utf-8")
+        ШАБЛОН.write_text(исходный, encoding="utf-8", newline="")
         shutil.rmtree(str(врем), ignore_errors=True)
 
     после = проверить()
