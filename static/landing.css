@@ -349,18 +349,32 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
    ряда от этого не пересчитывается — сетка тянет элемент на трек плюс
    отрицательный отступ, и портрет становится выше ровно на налезание.
    Портрет над заголовком по слою: имя проступает сквозь прозрачный фон.
- */
+
+   ГОЛОВА КРУПНЕЕ (задача 345, блок 3): владельцу было мелко. Растёт она
+   ВВЕРХ — подъём `--pf-head-up` прибавляется и к отрицательному отступу
+   ряда, и к высоте портрета, поэтому НИЗ остаётся на месте и зазор под
+   портретом не трогается.
+
+   ПОЧЕМУ 6.5svh, А НЕ БОЛЬШЕ: сверху голова упирается в РЯД ЯКОРЕЙ, и
+   письмо запрещает их перекрывать. Замер по трём ширинам: при 6.5svh
+   до якорей остаётся 16–18 px; при 7svh на 2560 остаётся 9, при 8svh —
+   2 px, то есть запаса нет. Отсюда 80–85 % высоты окна, которых просило
+   письмо, НЕДОСТИЖИМЫ без перекрытия: между низом якорей и верхом строк
+   на 1920 всего 782 px, то есть 72.4 % окна ПРИ НУЛЕВЫХ зазорах. Взято
+   ближайшее значение без пересечений — 69.4 % на 1920 и 74.7 % на 2560
+   против 62.3 % и 67.7 % до правки. */
 .pf-hero-mid {
   position: relative;
   z-index: 1;
   min-height: 0;
-  margin-top: calc(var(--pf-name) * -0.55 - var(--space-5));
+  --pf-head-up: 6.5svh;
+  margin-top: calc(var(--pf-name) * -0.55 - var(--space-5) - var(--pf-head-up));
   display: flex;
   justify-content: center;
   pointer-events: none;
 }
 .pf-hero-portrait {
-  height: 100%;
+  height: calc(100% + var(--pf-head-up));
   max-width: 100%;
   aspect-ratio: var(--pf-ratio, 1 / 1);
   /* Когда окно уже высоты ряда (телефон), коробка упирается в ширину
@@ -442,6 +456,9 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
    обычный ряд сетки, а лента работ заглядывает в первый экран снизу. */
 @media (max-width: 600px) {
   .pf-hero { height: auto; grid-template-rows: auto auto auto auto; padding: var(--space-5) var(--space-4) var(--space-6); gap: var(--space-4); }
+  /* НА 390 ПОВЕДЕНИЕ НЕ ТРОГАЕТСЯ (письмо задачи 345, блок 3): подъём
+     головы обнуляется, высота снова по ширине. */
+  .pf-hero-mid { --pf-head-up: 0px; }
   .pf-hero-portrait { height: auto; width: 100%; }
   .pf-anchors { gap: var(--space-2); }
   .pf-anchors a { font-size: 0.8125rem; letter-spacing: 0.02em; }
@@ -1239,7 +1256,9 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   letter-spacing: -0.03em;
   color: var(--text-strong);
 }
-.pf-scale-nums span { font-size: var(--text-body); font-weight: 500; color: var(--text-2); }
+/* ПОДПИСИ КАРТОЧКИ 03 КРУПНЕЕ (задача 345, блок 3): владельцу были мелки.
+   Подпись под цифрой 16 → 18px. */
+.pf-scale-nums span { font-size: var(--text-body-xl); font-weight: 500; color: var(--text-2); }
 .pf-scale-cap {
   margin: 0 0 var(--space-3);
   font-size: var(--text-caption);
@@ -1269,8 +1288,14 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   border-radius: 18px;
   background: var(--landing-mini-bg);
 }
-.pf-scale-step b { font-size: var(--text-body); font-weight: 600; color: var(--text-strong); }
-.pf-scale-step span { font-size: var(--text-body-sm); font-weight: 500; line-height: 1.4; color: var(--text-faint); }
+/* ШАГ «КАК СДЕЛАНО»: подпись 15 → 17px и цвет на ступень светлее
+   (`--text-faint` → `--text-2`), название 16 → 18px.
+   ПОРЯДОК ВАЖЕН, И ЗАМЕР ЕГО ПОПРАВИЛ: первая версия дала подписи 18,
+   а названию 17 — название стало МЕЛЬЧЕ своей подписи (18.0 против 17.0
+   на 1920), чего письмо прямо не разрешает. Подпись взяла верхнюю
+   границу диапазона письма снизу (17), название — новую ступень 18. */
+.pf-scale-step b { font-size: var(--text-body-xl); font-weight: 600; color: var(--text-strong); }
+.pf-scale-step span { font-size: var(--text-body-lg); font-weight: 500; line-height: 1.4; color: var(--text-2); }
 .pf-scale-arrow { align-self: center; font-size: var(--text-body-lg); color: var(--text-faint); }
 .pf-scale-cols {
   display: grid;
@@ -1285,7 +1310,8 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   padding: var(--space-2) var(--space-4);
   border: 1px solid var(--landing-soft-line);
   border-radius: 999px;
-  font-size: var(--text-body-sm);
+  /* плашка стека 15 → 16px (задача 345, блок 3) */
+  font-size: var(--text-body);
   font-weight: 500;
   line-height: 1.6;
   color: var(--text);

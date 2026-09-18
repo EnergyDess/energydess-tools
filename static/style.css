@@ -351,6 +351,10 @@
   --text-h1: clamp(1.75rem, 4vw, 3rem);
   --text-h2: clamp(1.375rem, 3vw, 2rem);
   --text-h3: clamp(1.125rem, 2vw, 1.5rem);
+  /* СТУПЕНЬ 18px (задача 345, блок 3): подписи карточки 03 просили 17–18px,
+     а между `--text-body-lg` (17) и `--text-h3` (clamp 18–24) пустое место.
+     Фиксированная, не `clamp`: это подпись, а не заголовок. */
+  --text-body-xl: 1.125rem;
   --text-body-lg: 1.0625rem;
   --text-body: 1rem;
   --text-body-sm: 0.9375rem;

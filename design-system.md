@@ -140,6 +140,7 @@ affordance. На углублении выключенный тумблер ст
   --text-h1:      clamp(1.75rem, 4vw, 3rem);    /* H1 обычный (28→48px), weight 700 */
   --text-h2:      clamp(1.375rem, 3vw, 2rem);   /* H2 (22→32px), weight 700 */
   --text-h3:      clamp(1.125rem, 2vw, 1.5rem); /* H3 (18→24px), weight 600 */
+  --text-body-xl: 1.125rem;                     /* 18px — подпись карточки 03, №345 */
   --text-body-lg: 1.0625rem;                    /* 17px — крупный body, weight 400 */
   --text-body:    1rem;                         /* 16px — стандартный body, weight 400 */
   --text-body-sm: 0.9375rem;                    /* 15px — вторичный body, weight 400 */
@@ -5607,6 +5608,10 @@ BACKLOG №184, блок D.
   --text-h1: clamp(1.75rem, 4vw, 3rem);
   --text-h2: clamp(1.375rem, 3vw, 2rem);
   --text-h3: clamp(1.125rem, 2vw, 1.5rem);
+  /* ступень 18px (BACKLOG №345, блок 3): подписи карточки 03 просили
+     17–18px, а между `--text-body-lg` (17) и `--text-h3` (clamp 18–24)
+     пустое место. Фиксированная, не `clamp`: это подпись, не заголовок */
+  --text-body-xl: 1.125rem;
   --text-body-lg: 1.0625rem;
   --text-body: 1rem;
   --text-body-sm: 0.9375rem;
