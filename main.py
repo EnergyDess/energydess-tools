@@ -597,6 +597,10 @@ def _без_ключа(текст: str) -> str:
     return текст
 MODEL               = os.getenv("MODEL",         "anthropic/claude-haiku-4-5")
 LETTER_MODEL        = os.getenv("LETTER_MODEL",  "anthropic/claude-opus-4-5")   # генерация письма
+# ВАРИАНТ ЗАПРОСА ПИСЬМА (№346, заход 3, блок 3). «полный» — прежний, по
+# умолчанию; «кэш» — тот же текст, постоянная часть вперёд и под отметкой
+# кэша. Новый путь на проде ВЫКЛЮЧЕН до решения владельца по двум письмам
+LETTER_PROMPT_VARIANT = os.getenv("LETTER_PROMPT_VARIANT", "полный")
 ANALYZE_MODEL       = os.getenv("ANALYZE_MODEL", "anthropic/claude-sonnet-4-5") # анализ вакансии (JSON)
 PARSER_MODEL        = os.getenv("PARSER_MODEL",  "anthropic/claude-sonnet-4-5") # парсер резюме (JSON)
 # ── Потолки ответа модели ─────────────────────────────────────────────────────
@@ -846,7 +850,8 @@ def _model_output(payload: dict, метка: str, лимит: int) -> tuple[str,
 def _разобрать_расход(resp) -> dict:
     """Числа строки расхода из ответа OpenRouter. Текст НЕ берётся."""
     строка = {"ok": False, "error_code": None, "prompt_tokens": None,
-              "completion_tokens": None, "cost": None, "gen_id": None}
+              "completion_tokens": None, "cost": None, "gen_id": None,
+              "cached_tokens": None, "cache_write_tokens": None}
     if resp is None:
         return строка
     # Разбор не имеет права бросить: ответ бывает не той формы (поддельный
@@ -864,6 +869,14 @@ def _разобрать_расход(resp) -> dict:
             строка[ключ] = usage[ключ]
     if isinstance(usage.get("cost"), (int, float)):
         строка["cost"] = float(usage["cost"])
+    # КЭШ ПРОМПТА (№346, заход 3): OpenRouter кладёт его в
+    # `prompt_tokens_details`; поля нет — строка остаётся NULL
+    детали = usage.get("prompt_tokens_details")
+    if isinstance(детали, dict):
+        for ключ, поле in (("cached_tokens", "cached_tokens"),
+                           ("cache_write_tokens", "cache_write_tokens")):
+            if isinstance(детали.get(поле), int):
+                строка[ключ] = детали[поле]
     if isinstance(тело.get("id"), str):
         строка["gen_id"] = тело["id"][:80]
     ошибка = тело.get("error")
@@ -888,7 +901,9 @@ def _записать_расход(инструмент: str, модель: str,
                           cost=строка.get("cost"), cost_missing=cost_missing,
                           user_id=user_id, ok=bool(строка.get("ok")),
                           error_code=строка.get("error_code"),
-                          gen_id=строка.get("gen_id")))
+                          gen_id=строка.get("gen_id"),
+                          cached_tokens=строка.get("cached_tokens"),
+                          cache_write_tokens=строка.get("cache_write_tokens")))
         db.commit()
     except РАСХОД_СБОИ_ЗАПИСИ as e:
         print(f"[расход] запись НЕ удалась ({инструмент}, {модель}): "
@@ -5270,6 +5285,36 @@ Call to action в финале. Тип CTA определяется правил
     return "".join(части.values()), части
 
 
+def _сообщения_письма(части: dict, вариант: str) -> list:
+    """Сообщения запроса письма по варианту (№346, заход 3, блок 3).
+
+    «полный» — одна строка в прежнем порядке, побайтно как до захода.
+
+    «кэш» — ТЕ ЖЕ ЧАСТИ, ни одна не выброшена, другой порядок: всё, что
+    не меняется между письмами одного человека (инструкция, примеры,
+    правила, резюме, досье — замер на письме 107: 95 % знаков), идёт
+    первым блоком с отметкой `cache_control`, а ссылки, подсказки
+    анализа и вакансия — вторым. Вакансия остаётся ЦЕЛИКОМ: она весит
+    2.7 % запроса, а правила требуют цитировать её и отвечать на прямые
+    вопросы работодателя — выжимка отняла бы и то и другое.
+
+    Правило про ссылки говорило «из блока выше» — в новом порядке блок
+    ниже, и слово поправлено: иначе модель искала бы ссылки не там.
+    """
+    if вариант != "кэш":
+        return [{"role": "user", "content": "".join(части.values())}]
+    правила = части["правила"].replace(
+        "ТОЛЬКО из блока «РЕЛЕВАНТНЫЕ ССЫЛКИ» выше",
+        "ТОЛЬКО из блока «РЕЛЕВАНТНЫЕ ССЫЛКИ» ниже")
+    постоянное = (части["инструкция"] + части["примеры"] + правила + "\n"
+                  + части["резюме"] + части["досье"])
+    переменное = части["ссылки"] + части["подсказки"] + части["вакансия"]
+    return [{"role": "user", "content": [
+        {"type": "text", "text": постоянное,
+         "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": переменное}]}]
+
+
 @app.post("/api/generate-letter")
 async def generate_letter(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user or not user_has_access(user, "hh", db):
@@ -5389,7 +5434,8 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
                 OPENROUTER_URL,
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess HH Helper"},
-                json={**ПОЛИТИКА_ЗАПРОСА, "model": LETTER_MODEL, "messages": [{"role": "user", "content": prompt}],
+                json={**ПОЛИТИКА_ЗАПРОСА, "model": LETTER_MODEL,
+                      "messages": _сообщения_письма(_части, LETTER_PROMPT_VARIANT),
                       "temperature": 0.5, "max_tokens": LETTER_MAX_TOKENS},
                 timeout=40.0,
             )

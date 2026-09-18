@@ -35,7 +35,9 @@ import main  # noqa: E402
 # расхода в историю обращений человека, в том числе к справочнику лекарств
 ДОПУСТИМЫЕ_КОЛОНКИ = {"id", "created_at", "tool", "model", "prompt_tokens",
                       "completion_tokens", "cost", "cost_missing", "user_id",
-                      "ok", "error_code", "gen_id"}
+                      "ok", "error_code", "gen_id",
+                      # кэш промпта — числа токенов (№346, заход 3)
+                      "cached_tokens", "cache_write_tokens"}
 
 
 def места_вызова(исходник: str) -> tuple[list, list]:

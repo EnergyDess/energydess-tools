@@ -1583,6 +1583,10 @@ class ModelUsage(Base):
     ok = Column(Boolean, nullable=False, default=False)
     error_code = Column(String, nullable=True)     # код HTTP, error.code или имя исключения
     gen_id = Column(String, nullable=True)         # id генерации OpenRouter — для сверки
+    # КЭШ ПРОМПТА (№346, заход 3, блок 3): сколько токенов входа прочитано
+    # из кэша и сколько записано в него. Числа, не текст
+    cached_tokens = Column(Integer, nullable=True)
+    cache_write_tokens = Column(Integer, nullable=True)
 
 
 class MedkitEvent(Base):
@@ -1805,6 +1809,9 @@ def migrate_db():
         # строки остаются NULL — «за себя», и это не пробел, а факт:
         # другого случая до этой колонки не было
         "ALTER TABLE medkit_events ADD COLUMN for_user_id INTEGER",
+        # BACKLOG №346, заход 3: кэш промпта — сколько прочитано и записано
+        "ALTER TABLE model_usage ADD COLUMN cached_tokens INTEGER",
+        "ALTER TABLE model_usage ADD COLUMN cache_write_tokens INTEGER",
     ]:
         try:
             conn.execute(col)
