@@ -79,3 +79,42 @@ def test_без_деталей_кэша_поля_пусты():
             return {"id": "gen-x", "usage": {"prompt_tokens": 1}}
     строка = main._разобрать_расход(Ответ())
     assert строка["cached_tokens"] is None and строка["cache_write_tokens"] is None
+
+
+# ── BACKLOG №349: ссылки проекта идут парой, досье не теряет репозиторий ──
+
+ПРОЕКТЫ = [{"title": "energydess.ru", "url": "https://energydess.ru",
+            "description": "П" * 200 + " Публичный репозиторий: github.com/EnergyDess/energydess-tools"}]
+
+
+def test_досье_письма_не_теряет_ссылку_за_обрезкой_описания():
+    class Проф:
+        projects = ПРОЕКТЫ
+        profession_one_liner = location = languages = total_years_in_profession = None
+        experience_extra = skills = methodology = tone_preference = None
+        never_mention = extra_context = ending_style = None
+    досье = main._build_full_dossier(Проф())
+    assert "github.com/EnergyDess/energydess-tools" in досье
+
+
+def test_выбран_сайт_рядом_встаёт_репозиторий():
+    группы = main._письмо_факты.ссылки_проектов(ПРОЕКТЫ)
+    вход = dict(ВХОД, analysis={"relevant_portfolio_links": ["https://energydess.ru"]},
+                группы_ссылок=группы)
+    _, части = main._промпт_письма(**вход)
+    assert "https://energydess.ru" in части["ссылки"]
+    assert "github.com/EnergyDess/energydess-tools" in части["ссылки"]
+
+
+def test_проект_не_выбран_пара_не_приезжает():
+    группы = main._письмо_факты.ссылки_проектов(ПРОЕКТЫ)
+    вход = dict(ВХОД, analysis={"relevant_portfolio_links": []}, группы_ссылок=группы)
+    _, части = main._промпт_письма(**вход)
+    assert "github.com" not in части["ссылки"]
+
+
+def test_в_правилах_нет_адресов_которых_нет_в_досье():
+    _, части = main._промпт_письма(**ВХОД)
+    assert "github.com/EnergyDess" not in части["правила"]
+    assert "идут ПАРОЙ" in части["правила"]
+    assert "Технологии и сервисы." in части["правила"]

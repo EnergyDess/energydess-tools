@@ -1,0 +1,129 @@
+# СЛОВАРЬ ТЕХНОЛОГИЙ И СЕРВИСОВ для проверки готового письма HH
+# (letter_facts.py, BACKLOG №349). Пополняется ПРАВКОЙ ЭТОГО ФАЙЛА, не кода.
+#
+# Что это НЕ такое: это не список разрешённого. Разрешённое у каждого
+# человека своё и выводится из ЕГО досье и резюме при каждой проверке.
+# Здесь — какие слова в письме вообще считаются названием технологии.
+# Название из словаря, которого нет ни в досье, ни в резюме, — находка:
+# так ловится «Groq», написанный моделью рядом с Whisper из досье.
+#
+# Формат: одна технология на строку, варианты написания через « | ».
+# Первое имя — каноническое, его печатает отчёт. Регистр не важен.
+# Совпадение — целым латинским словом: «Git» не находится внутри «GitHub».
+# Общие понятия (API, REST, SQL, LLM, CI) сюда НЕ вносятся: это не название
+# конкретного продукта, и находка на них была бы ложной.
+Python
+FastAPI
+Django
+Flask
+SQLAlchemy
+Alembic
+Pydantic
+httpx
+aiohttp
+Jinja2
+SQLite
+PostgreSQL | Postgres
+MySQL
+MongoDB
+Redis
+Celery
+RabbitMQ
+Kafka
+Elasticsearch
+ClickHouse
+Supabase
+Firebase
+Docker
+Docker Compose
+Kubernetes | k8s
+Terraform
+Ansible
+Nginx
+Fly.io
+AWS
+GCP | Google Cloud
+Azure
+Heroku
+Vercel
+Render
+Cloudflare
+GitHub Actions
+GitLab CI
+GitLab
+GitHub
+Git
+Jenkins
+pytest
+Playwright
+Selenium
+Sentry
+Grafana
+Prometheus
+OpenRouter
+OpenAI
+ChatGPT
+GPT-4 | GPT-4o | GPT-5
+Claude
+Anthropic
+Whisper
+Groq
+Grok
+Gemini
+Llama
+Mistral
+DeepSeek
+Qwen
+Ollama
+vLLM
+Hugging Face | HuggingFace
+Replicate
+LangChain
+LangGraph
+LlamaIndex
+CrewAI
+AutoGen
+Pinecone
+Qdrant
+Chroma | ChromaDB
+Weaviate
+pgvector
+FAISS
+MCP
+n8n
+Zapier
+Telegram Bot API | aiogram
+Stripe
+Resend
+Turnstile
+React
+Vue
+Angular
+Next.js
+Node.js
+TypeScript
+JavaScript
+Tailwind
+Rust
+Java
+Kotlin
+Swift
+C++
+Midjourney
+Runway | Runway ML
+Kling | Kling AI
+ElevenLabs
+HeyGen
+Sora
+Seedance
+VEO
+Stable Diffusion
+ComfyUI
+Flux
+DaVinci Resolve
+Premiere Pro | Adobe Premiere Pro
+After Effects | Adobe After Effects
+Photoshop | Adobe Photoshop
+Figma
+Notion
+Jira
