@@ -57,7 +57,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, func
 from sqlalchemy.exc import SQLAlchemyError
 
-from database import (get_db, init_db, migrate_db, DB_PATH, SessionLocal, User, Resume, ToolAccess, EnshroudedSlot,
+from database import (get_db, init_db, migrate_db, DB_PATH, SessionLocal, ModelUsage, User, Resume, ToolAccess, EnshroudedSlot,
                       EnshroudedSet, enshrouded_img, ENSHROUDED_DIR,
                       HHProfile, CoverLetter, NutritionProfile, NutritionGoalPeriod,
                       FoodLog, CustomFood, CustomRecipe, RecipeIngredient,
@@ -774,7 +774,7 @@ def _model_output(payload: dict, метка: str, лимит: int) -> tuple[str,
 
     Расход печатается ВСЕГДА, а не только при обрыве. Строка `finish=stop
     токенов=1187 из 3000` — единственный способ узнать фактический расход
-    на проде: `usage` больше нигде не сохраняется, и запас у потолка иначе
+    на проде (деньги с 2026-09-18 — таблица `model_usage`, §2.7), и запас у потолка иначе
     проверяется рассуждением, а не замером. Ровно этой строки не хватало,
     чтобы заметить 700 при расходе 958.
     """
@@ -810,6 +810,91 @@ def _model_output(payload: dict, метка: str, лимит: int) -> tuple[str,
                         f"(ключи: {', '.join(sorted(payload)) or 'нет'})")
         return "", f"empty: модель вернула пустой ответ (finish_reason={finish})"
     return текст, None
+
+
+# ── РАСХОД НА МОДЕЛИ: ОДНА ОБЁРТКА НА ВСЕ ВЫЗОВЫ (BACKLOG №346) ──────────────
+#
+# Баланс OpenRouter однажды кончился молча, и прод перестал отвечать.
+# Любой вызов модели идёт через `_модель_post` — и строка расхода ложится
+# в `model_usage` ИЗ СЛУЖЕБНОЙ ЧАСТИ ОТВЕТА (`usage`). Отдельных платных
+# запросов ради учёта не делается.
+#
+# Обёртка, а не запись в `_model_output`: тот видит только УДАЧНО
+# разобранное тело, а таймаут, обрыв связи и ответ не в JSON до него
+# не доходят вовсе — то есть самые важные для учёта отказы пропали бы.
+#
+# УЧЁТ НЕ ИМЕЕТ ПРАВА УРОНИТЬ ИНСТРУМЕНТ. Сбой записи ловится УЗКО
+# (сбой базы и файла) и печатается строкой `[расход]`; всё прочее —
+# ошибка в нашем коде, и она обязана быть громкой.
+РАСХОД_СБОИ_ЗАПИСИ = (SQLAlchemyError, OSError)  # сбой sqlite3 SQLAlchemy оборачивает сам
+
+
+def _разобрать_расход(resp) -> dict:
+    """Числа строки расхода из ответа OpenRouter. Текст НЕ берётся."""
+    строка = {"ok": False, "error_code": None, "prompt_tokens": None,
+              "completion_tokens": None, "cost": None, "gen_id": None}
+    if resp is None:
+        return строка
+    # Разбор не имеет права бросить: ответ бывает не той формы (поддельный
+    # в тесте, тело не JSON), и уронить из-за этого инструмент нельзя
+    чтение = getattr(resp, "json", None)
+    try:
+        тело = чтение() if callable(чтение) else None
+    except ValueError:
+        тело = None
+    if not isinstance(тело, dict):
+        тело = {}
+    usage = тело.get("usage") if isinstance(тело.get("usage"), dict) else {}
+    for ключ in ("prompt_tokens", "completion_tokens"):
+        if isinstance(usage.get(ключ), int):
+            строка[ключ] = usage[ключ]
+    if isinstance(usage.get("cost"), (int, float)):
+        строка["cost"] = float(usage["cost"])
+    if isinstance(тело.get("id"), str):
+        строка["gen_id"] = тело["id"][:80]
+    ошибка = тело.get("error")
+    код = getattr(resp, "status_code", 200)
+    if код != 200:
+        строка["error_code"] = f"http_{код}"
+    elif isinstance(ошибка, dict):
+        строка["error_code"] = f"error_{ошибка.get('code')}"
+    else:
+        строка["ok"] = True
+    return строка
+
+
+def _записать_расход(инструмент: str, модель: str, user_id, строка: dict) -> None:
+    """Одна строка в `model_usage`. Сбой записи — строка в журнале, не исключение."""
+    cost_missing = строка.get("cost") is None and bool(строка.get("ok"))
+    db = SessionLocal()
+    try:
+        db.add(ModelUsage(tool=инструмент[:40], model=(модель or "?")[:120],
+                          prompt_tokens=строка.get("prompt_tokens"),
+                          completion_tokens=строка.get("completion_tokens"),
+                          cost=строка.get("cost"), cost_missing=cost_missing,
+                          user_id=user_id, ok=bool(строка.get("ok")),
+                          error_code=строка.get("error_code"),
+                          gen_id=строка.get("gen_id")))
+        db.commit()
+    except РАСХОД_СБОИ_ЗАПИСИ as e:
+        print(f"[расход] запись НЕ удалась ({инструмент}, {модель}): "
+              f"{type(e).__name__}: {str(e)[:200]}", flush=True)
+    finally:
+        db.close()
+
+
+async def _модель_post(client, инструмент: str, user_id, url: str, **kw):
+    """`client.post(url, **kw)` к модели плюс строка расхода. Ответ — как есть."""
+    модель = str((kw.get("json") or {}).get("model") or "")
+    try:
+        resp = await client.post(url, **kw)
+    except Exception as e:
+        # Отказ СЕТИ тоже расход: записываем и пробрасываем как было
+        _записать_расход(инструмент, модель, user_id,
+                         {"ok": False, "error_code": type(e).__name__})
+        raise
+    _записать_расход(инструмент, модель, user_id, _разобрать_расход(resp))
+    return resp
 
 
 # ── ТЕКСТ ЧЕЛОВЕКУ СТРОИТСЯ ИЗ ПРИЧИНЫ, И ИСТОЧНИК У НЕГО ОДИН ──────────────
@@ -5024,7 +5109,7 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
         # соединение к базе НЕ держим на время сети (см. `_сеть`)
         db.close()
         async with httpx.AsyncClient() as client:
-            response = await client.post(
+            response = await _модель_post(client, "hh-analyze", user.id,
                 OPENROUTER_URL,
                 headers={
                     "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -5132,7 +5217,7 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
         # соединение к базе НЕ держим на время сети (см. `_сеть`)
         db.close()
         async with httpx.AsyncClient() as client:
-            ar = await client.post(
+            ar = await _модель_post(client, "hh-analyze", user.id,
                 OPENROUTER_URL,
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess HH Helper"},
@@ -5269,7 +5354,7 @@ Call to action в финале. Тип CTA определяется правил
 """
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(
+            response = await _модель_post(client, "hh-letter", user.id,
                 OPENROUTER_URL,
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess HH Helper"},
@@ -5523,7 +5608,7 @@ async def parse_resume_to_dossier(request: Request, user=Depends(get_current_use
         # соединение к базе НЕ держим на время сети (см. `_сеть`)
         db.close()
         async with httpx.AsyncClient() as client:
-            response = await client.post(
+            response = await _модель_post(client, "hh-parser", user.id,
                 OPENROUTER_URL,
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess HH Helper"},
@@ -6469,7 +6554,7 @@ def _разделить_по_бренду(query: str, results: list,
     return основные, доп, (имена.most_common(1)[0][0] if имена else "")
 
 
-async def _переводы_слов(слова: list, db: Session) -> tuple[dict, str]:
+async def _переводы_слов(слова: list, db: Session, user_id=None) -> tuple[dict, str]:
     """Переводы слов запроса: сначала кеш, за остатком — к модели.
 
     Возвращает ПАРУ: словарь «слово → перевод» и причину сбоя (пустая
@@ -6518,7 +6603,7 @@ async def _переводы_слов(слова: list, db: Session) -> tuple[dic
         # соединение к базе НЕ держим на время сети (см. `_сеть`)
         db.close()
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
+            resp = await _модель_post(client, "nut-translate", user_id,
                 OPENROUTER_URL,
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru",
@@ -6652,7 +6737,8 @@ def _for_vision(content: bytes, file: UploadFile) -> tuple[str, str]:
     return base64.b64encode(готовое).decode(), "image/jpeg"
 
 
-async def _call_vision(b64: str, mime: str, prompt: str, max_tokens: int = VISION_MAX_TOKENS) -> str:
+async def _call_vision(b64: str, mime: str, prompt: str, max_tokens: int = VISION_MAX_TOKENS,
+                       инструмент: str = "vision", user_id=None) -> str:
     # КАРТИНКА СВЕРХ ПОТОЛКА НЕ ОТПРАВЛЯЕТСЯ. Сюда она попадает по запасному
     # пути `_for_vision`: пересобрать не вышло — шлём оригинал как есть.
     # Запасной путь правильный (модель читает форматы, которых не знает
@@ -6667,7 +6753,7 @@ async def _call_vision(b64: str, mime: str, prompt: str, max_tokens: int = VISIO
             f"{VISION_IMAGE_MAX_MB:.0f} МБ. Сфотографируйте упаковку заново — "
             f"телефон уменьшит кадр сам, — либо заполните карточку руками.")
     async with httpx.AsyncClient() as client:
-        resp = await client.post(
+        resp = await _модель_post(client, инструмент, user_id,
             OPENROUTER_URL,
             headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                      "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
@@ -7010,7 +7096,7 @@ def _extract_json(text: str) -> dict:
         return _json.loads(m.group(0))
 
 
-async def _ai_food_estimate(query: str) -> list:
+async def _ai_food_estimate(query: str, user_id=None) -> list:
     """Оценка ИИ. Пустой список означает «оценить не удалось» — И ЭТО ИСХОД.
 
     До 2026-08-14 модель обязана была назвать числа всегда, и на запрос
@@ -7035,7 +7121,7 @@ async def _ai_food_estimate(query: str) -> list:
 {{"known":true,"name":"уточнённое название блюда","calories":150,"protein":10,"fat":5,"carbs":20}}"""
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
+            resp = await _модель_post(client, "nut-estimate", user_id,
                 OPENROUTER_URL,
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
@@ -7859,7 +7945,7 @@ async def nut_search(q: str = "", user=Depends(get_current_user), db: Session = 
     # при пустой выдаче: главный случай — «гречка увелка» — даёт двадцать
     # находок, и нужная лежит среди них седьмой. Чинит её ранжирование,
     # а не повторный поиск (замер 2026-08-15: 7 → 1).
-    переводы, сбой_перевода = await _переводы_слов(_слова_запроса(q), db)
+    переводы, сбой_перевода = await _переводы_слов(_слова_запроса(q), db, getattr(user, "id", None))
 
     # Второй поиск — только когда первый почти ничего не дал. Порог замерен:
     # осмысленные запросы дают 16–25 находок, бессмысленные 0, середины нет.
@@ -7917,7 +8003,7 @@ async def nut_estimate(q: str = "", user=Depends(get_current_user)):
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     if not q.strip():
         return JSONResponse({"results": []})
-    results = await _ai_food_estimate(q.strip())
+    results = await _ai_food_estimate(q.strip(), getattr(user, "id", None))
     if not results:
         # Отдельный признак, а не просто пустой список: интерфейсу надо
         # сказать «модель не смогла определить», а не «ничего не найдено»
@@ -8962,7 +9048,7 @@ async def nut_ai_chat(request: Request, user=Depends(get_current_user), db: Sess
             # соединение к базе НЕ держим на время сети (см. `_сеть`)
             db.close()
             async with httpx.AsyncClient() as client:
-                resp = await client.post(
+                resp = await _модель_post(client, "nut-chat", user.id,
                     OPENROUTER_URL,
                     headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                              "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Nutrition"},
@@ -9085,7 +9171,7 @@ async def nut_ai_photo(file: UploadFile = File(...), description: str = Form("")
 {{"name":"название блюда","brand":"заведение или производитель (пустая строка, если неизвестно)","calories":150,"protein":10,"fat":5,"carbs":20,"estimated_grams":300,"note":"краткое пояснение"}}"""
 
     try:
-        text = await _call_vision(b64, mime, prompt)
+        text = await _call_vision(b64, mime, prompt, инструмент="nut-photo", user_id=user.id)
         result = _extract_json(text)
         return JSONResponse({"ok": True, "food": result})
     except Exception as e:
@@ -9132,7 +9218,8 @@ async def nut_ai_chat_photo(file: UploadFile = File(...), message: str = Form(""
                               image_path=токен)
 
     try:
-        text = await _сеть(db, _call_vision(b64, mime, prompt))
+        text = await _сеть(db, _call_vision(b64, mime, prompt, инструмент="nut-chat-photo",
+                                            user_id=user.id))
         food = _extract_json(text)
     except Exception as e:
         reply = f"Не удалось распознать фото: {e}"
@@ -9226,7 +9313,7 @@ async def nut_transcribe(file: UploadFile = File(...),
                 # отсутствующего. Голос закрывается только настройкой аккаунта
                 # (openrouter.ai/settings/privacy), см. BACKLOG №19.
                 # Сторожит тест test_у_распознавания_речи_политики_НЕТ_и_это_решение.
-                resp = await client.post(
+                resp = await _модель_post(client, "voice", user.id,
                     OPENROUTER_AUDIO_URL,
                     headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
                     json={
@@ -9920,7 +10007,7 @@ async def workout_generate_program(user=Depends(get_current_user), db: Session =
         # соединение к базе НЕ держим на время сети (см. `_сеть`)
         db.close()
         async with httpx.AsyncClient() as client:
-            response = await client.post(
+            response = await _модель_post(client, "wk-program", user.id,
                 OPENROUTER_URL,
                 headers={
                     "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -11061,7 +11148,7 @@ async def workout_chat(request: Request, user=Depends(get_current_user), db: Ses
         # соединение к базе НЕ держим на время сети (см. `_сеть`)
         db.close()
         async with httpx.AsyncClient() as client:
-            resp = await client.post(
+            resp = await _модель_post(client, "wk-chat", user.id,
                 OPENROUTER_URL,
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru", "X-Title": "EnergyDess Workout"},
@@ -11220,7 +11307,8 @@ async def workout_chat_photo(file: UploadFile = File(...), message: str = Form("
         # Прежние 300 были опасны той же формой, что и везде: строка «МЕТКА:»
         # стоит В КОНЦЕ ответа, и обрыв срезает именно её — тренажёр
         # не опознавался, а причина выглядела как «модель не нашла метку»
-        reply = await _сеть(db, _call_vision(b64, mime, prompt))
+        reply = await _сеть(db, _call_vision(b64, mime, prompt, инструмент="wk-chat-photo",
+                                             user_id=user.id))
     except Exception as e:
         # ЧУЖОЙ ОТВЕТ — ЧЕРЕЗ ОДНО МЕСТО (BACKLOG №244, C.2)
         return JSONResponse({"error": _сбой_наружу(e, user)},
@@ -12412,6 +12500,12 @@ OpenRouter запрещена маршрутизация к провайдера
 вход, просто вводя неверный пароль. Если попыток набирается подозрительно
 много, мы пишем вам письмо — и только.</p>
 
+<p>Чтобы видеть, сколько стоит работа ассистентов, мы ведём
+<strong>расход обращений к моделям</strong>: какой инструмент обратился,
+к какой модели, сколько было токенов и сколько это стоило. Текста запроса
+и ответа в этом журнале нет. При удалении аккаунта связь записей с вами
+снимается, а сами числа остаются.</p>
+
 <p>Полной гарантии безопасности не даёт никто, и мы тоже не будем: проект
 небольшой и развивается силами одного человека. Мы описываем то, что делаем,
 а не то, как хотелось бы выглядеть.</p>
@@ -12451,6 +12545,10 @@ OpenRouter запрещена маршрутизация к провайдера
     <tr>
       <td data-label="Что">Журнал попыток входа</td>
       <td data-label="Срок">сутки, затем строки стираются</td>
+    </tr>
+    <tr>
+      <td data-label="Что">Расход обращений к моделям</td>
+      <td data-label="Срок">бессрочно, без текста запросов; при удалении аккаунта — без связи с вами</td>
     </tr>
     <tr>
       <td data-label="Что">Заявка на смену адреса входа</td>
@@ -19591,7 +19689,7 @@ async def _апт_ответ_на_запрос(вопрос: str, db, user) -> d
     сырой, беда, код = await _сеть(
         db, _апт_спросить_модель(
             промпт, очищать=False, потолок=MEDKIT_QUERY_MAX_TOKENS,
-            допустить_обрыв=True,
+            допустить_обрыв=True, user_id=user.id,
             # СВОЙ СОВЕТ, А НЕ ОБЩИЙ (BACKLOG №248, A.1): в разговоре
             # о жалобе упаковка не упоминается вовсе, и просить описать
             # её короче — совет из чужого сценария. Сюда мы попадаем
@@ -21124,7 +21222,9 @@ def _апт_обрывок(текст: str) -> dict | None:
 async def _апт_спросить_модель(промпт: str, очищать: bool = True, *,
                                совет: str,
                                потолок: int = MEDKIT_MAX_TOKENS,
-                               допустить_обрыв: bool = False
+                               допустить_обрыв: bool = False,
+                               инструмент: str = "medkit-assist",
+                               user_id=None
                                ) -> tuple[dict, str, int]:
     """Ответ модели, текст отказа и код.
 
@@ -21161,7 +21261,7 @@ async def _апт_спросить_модель(промпт: str, очищат�
         return {}, "Ассистент не настроен на этом сервере", 503
     try:
         async with httpx.AsyncClient() as c:
-            r = await c.post(
+            r = await _модель_post(c, инструмент, user_id,
                 OPENROUTER_URL,
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
                          "HTTP-Referer": "https://energydess.ru",
@@ -21908,7 +22008,8 @@ async def medkit_assist(request: Request,
             "видно: название, действующее вещество, форму выпуска, "
             "количество в упаковке, срок годности." + уточнение)
         try:
-            текст = await _call_vision(b64, mime, подсказка, MEDKIT_MAX_TOKENS)
+            текст = await _call_vision(b64, mime, подсказка, MEDKIT_MAX_TOKENS,
+                                        инструмент="medkit-photo", user_id=user.id)
         except RuntimeError as e:
             # C.2: чужой ответ прячется от постороннего, наш текст
             # («снимок весит 24 МБ») проходит как есть
@@ -22026,7 +22127,7 @@ async def medkit_assist(request: Request,
         if ждём:
             сырой_у, беда, код = await _сеть(db, _апт_спросить_модель(
                 _апт_промпт_уточнения(ждём, прошлый_вопрос, текст_ввода),
-                очищать=False,
+                очищать=False, user_id=user.id,
                 совет="Ответ не поместился в лимит и оборвался. "
                       "Ответьте на вопрос короче."))
             if беда:
@@ -22076,7 +22177,7 @@ async def medkit_assist(request: Request,
         # список полей карточки его бы срезал — и запрос уехал бы в форму
         # пустым черновиком, то есть маршрут молча перестал бы работать
         сырой, беда, код = await _сеть(db, _апт_спросить_модель(
-            _апт_промпт(описание), очищать=False,
+            _апт_промпт(описание), очищать=False, user_id=user.id,
             совет="Разбор не поместился в лимит и оборвался. "
                   "Опишите упаковку короче."))
         if беда:
@@ -23594,7 +23695,7 @@ async def medkit_gaps_categories(user=Depends(get_current_user),
     # `database is locked`.
     сырой, отказ, код = await _сеть(
         db, _апт_спросить_модель(
-            промпт, очищать=False,
+            промпт, очищать=False, инструмент="medkit-gaps", user_id=user.id,
             совет="Разбор показаний не поместился в лимит и оборвался. "
                   "Попробуйте ещё раз — предложений станет меньше."))
     if отказ:

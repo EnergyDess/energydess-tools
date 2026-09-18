@@ -57,8 +57,16 @@ def _вызовы(имя):
             continue
         if not узел.args:
             continue
-        первый = узел.args[0]
-        if isinstance(первый, ast.Name) and первый.id == имя:
+        # С 2026-09-18 (BACKLOG №346) вызов идёт через обёртку учёта
+        # расхода `_модель_post(client, инструмент, user_id, URL, …)` —
+        # адрес там ЧЕТВЁРТЫЙ. Ищем обе формы: иначе охват молча упал бы
+        # до нуля, и тест печатал бы «политика везде» про пустой список
+        позиция = 3 if (isinstance(узел.func, ast.Name)
+                        and узел.func.id == "_модель_post") else 0
+        if len(узел.args) <= позиция:
+            continue
+        адрес = узел.args[позиция]
+        if isinstance(адрес, ast.Name) and адрес.id == имя:
             итог.append(узел)
     return итог
 

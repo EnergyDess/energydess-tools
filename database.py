@@ -1547,6 +1547,44 @@ class RefRequestDay(Base):
     __table_args__ = (UniqueConstraint("day", "host", name="uq_ref_day_host"),)
 
 
+class ModelUsage(Base):
+    """РАСХОД НА МОДЕЛИ: ОДНА СТРОКА НА КАЖДЫЙ ВЫЗОВ (BACKLOG №346).
+
+    Баланс OpenRouter однажды кончился МОЛЧА (51.88 $ за всё время),
+    и прод перестал отвечать: сколько стоит какой инструмент, знал
+    только чужой кабинет. Строку пишет `main._модель_post` — ОДНА
+    обёртка, через которую проходит любой вызов модели.
+
+    ЧИСЛА БЕРУТСЯ ИЗ ОТВЕТА (`usage`), А НЕ СЧИТАЮТСЯ ПО ПРАЙСУ. Нет
+    в ответе стоимости — `cost` пуст и `cost_missing` истинно: выдуманная
+    цена хуже отсутствующей, по ней решают, хватит ли денег.
+
+    ТЕКСТА ЗАПРОСА И ОТВЕТА ЗДЕСЬ НЕТ И БЫТЬ НЕ ДОЛЖНО. Через модели идут
+    резюме, дневник питания и аптечка (§5.1, §8.0); одна колонка
+    «что спросили» превратила бы журнал расходов в историю обращений
+    человека — в том числе к справочнику лекарств. Сторожит тест
+    `test_в_журнале_расхода_нет_текста` по СХЕМЕ, а не по чтению кода.
+
+    `user_id` при удалении аккаунта ОБНУЛЯЕТСЯ, а не уносит строку:
+    деньги потрачены, и сумма за месяц не должна уменьшаться от того,
+    что человек ушёл. Тот же приём, что у `email_logs`.
+    """
+
+    __tablename__ = "model_usage"
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)  # UTC
+    tool = Column(String, nullable=False, index=True)
+    model = Column(String, nullable=False)
+    prompt_tokens = Column(Integer, nullable=True)
+    completion_tokens = Column(Integer, nullable=True)
+    cost = Column(Float, nullable=True)            # $ из usage.cost
+    cost_missing = Column(Boolean, default=False)  # ответ стоимости не нёс
+    user_id = Column(Integer, nullable=True, index=True)
+    ok = Column(Boolean, nullable=False, default=False)
+    error_code = Column(String, nullable=True)     # код HTTP, error.code или имя исключения
+    gen_id = Column(String, nullable=True)         # id генерации OpenRouter — для сверки
+
+
 class MedkitEvent(Base):
     """ЛЕНТА ИЗМЕНЕНИЙ ОБЩЕЙ АПТЕЧКИ (постановка C).
 
@@ -2484,7 +2522,8 @@ CHILD_TABLES = [
 ]
 
 # email_logs намеренно НЕ удаляется, а обезличивается — см. _anonymize_email_logs
-EXCLUDED_TABLES = {"email_logs", "users", "exercises"}
+# model_usage — тоже обезличивается: деньги потрачены, строка остаётся (№346)
+EXCLUDED_TABLES = {"email_logs", "model_usage", "users", "exercises"}
 
 
 def check_user_tables_complete():
@@ -2555,6 +2594,9 @@ PRIVACY_MENTIONS = {
     "medkit_blocks":             ["приглашени"],
     "medkit_events":             ["лента изменений"],
     "email_logs":                ["факте отправки"],
+    # Расход на модели (№346): инструмент, модель, число токенов и цена.
+    # Текста нет, но строка связана с аккаунтом — категория названа
+    "model_usage":               ["расход обращений к моделям"],
     # Журнал попыток входа: адрес подключения и ХЕШ введённого адреса почты.
     # Персональные данные (IP-адрес ими является), поэтому категория обязана
     # быть названа в политике, а срок хранения — совпадать с кодом
@@ -2788,6 +2830,14 @@ def delete_user_cascade(user_id: int, dry_run: bool = False) -> dict:
         if n and not dry_run:
             _anonymize_email_logs(conn, user_id)
         отчёт["email_logs (обезличено)"] = n
+
+        # 3б. Журнал расхода на модели — тоже обезличивание (№346)
+        n = conn.execute("SELECT COUNT(*) FROM model_usage WHERE user_id = ?",
+                         (user_id,)).fetchone()[0]
+        if n and not dry_run:
+            conn.execute("UPDATE model_usage SET user_id = NULL WHERE user_id = ?",
+                         (user_id,))
+        отчёт["model_usage (обезличено)"] = n
 
         # 4. Сам пользователь — последним
         n = conn.execute("SELECT COUNT(*) FROM users WHERE id = ?", (user_id,)).fetchone()[0]
