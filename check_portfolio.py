@@ -76,14 +76,20 @@ def шаг(имя, условие, подробность="", собрано=Non
 
 def _войти(стр, почта, пароль):
     стр.goto(БАЗА + "/login", wait_until="domcontentloaded", timeout=45000)
-    стр.fill("input[name=email]", почта)
-    стр.fill("input[name=password]", пароль)
     if стр.locator(".cf-turnstile").count():
         стр.wait_for_function("() => { const e = document.querySelector"
                               "('[name=\"cf-turnstile-response\"]'); return e && e.value; }",
                               timeout=20000)
+    # Значения и отправка одним вызовом: нажатие человека в соседнем окне
+    # не успевает попасть в поле (задача 351, тот же случай, что
+    # `check_hover._войти`).
     with стр.expect_navigation(timeout=45000):
-        стр.click("button[type=submit]")
+        стр.evaluate("""([почта, пароль]) => {
+            const ф = document.querySelector('input[name=password]').form;
+            ф.querySelector('input[name=email]').value = почта;
+            ф.querySelector('input[name=password]').value = пароль;
+            ф.requestSubmit(ф.querySelector('button[type=submit]'));
+        }""", [почта, пароль])
     if "/login" in стр.url:
         raise RuntimeError("вход не прошёл: остались на /login")
 
@@ -3133,8 +3139,30 @@ def прогнать_все(подробно, только):
     return 1 if упали else 0
 
 
+# ГОЛЫЙ `--контроль` (задача 351): `run_controls` зовёт пробу именно так,
+# а подлоги живут в реестре `РЕЖИМЫ` по режимам — без режима проба
+# печатала справку с кодом 2 и числилась «НЕ ПРОГНАН». Гоняются подлоги
+# ТЕХ режимов, что стоят в ряду стенда: они не пишут в хранилище стенда.
+# Режимы «экран», «о-себе», «проекты» кладут и убирают файлы мест —
+# их подлоги гоняются только явным ключом режима.
+РЕЖИМЫ_КОНТРОЛЯ_РЯДА = ("макет", "связь", "лента", "инструменты")
+
+
+def контроль_ряда():
+    только = {имя for имя, _, _ in РЕЖИМЫ
+              if ":" in имя and "контроль" in имя
+              and имя.split(":")[0] in РЕЖИМЫ_КОНТРОЛЯ_РЯДА}
+    print("КОНТРОЛЬ: подлоги режимов ряда стенда — %d" % len(только))
+    код = прогнать_все(False, только)
+    print("КОНТРОЛЬ: %s" % ("ПОДЛОГ НАЙДЕН — каждый режим-подлог упал на своём шаге"
+                            if код == 0 else "НЕ ПРОЙДЕН — см. упавшие режимы выше"))
+    return 0 if код == 0 else 1
+
+
 def main():
     арг = sys.argv[1:]
+    if арг == ["--контроль"]:
+        return контроль_ряда()
     режим_задан = any(к.startswith("--") and к not in КЛЮЧИ_ПРОГОНА for к in арг)
     if not режим_задан:
         только = None
