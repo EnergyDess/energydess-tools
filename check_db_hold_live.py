@@ -109,6 +109,9 @@ def _поднять_приложение(порт, база_копия):
         raise ConnectionError("порт %d занят чужим процессом — замер не проведён" % порт)
     env["PYTHONIOENCODING"] = "utf-8"
     env["OPENROUTER_URL"] = "http://127.0.0.1:%d/chat" % ПОРТ_ЗАГЛУШКИ
+    # Ключ стенда фиктивный: запрос уходит в заглушку, а ключ прода на стенде
+    # не используется вовсе (№346, заход 3)
+    env["OPENROUTER_STAND_KEY"] = "stub"
     os.makedirs(ВЫВОД, exist_ok=True)
     журнал = io.open(os.path.join(ВЫВОД, "app.log"), "w",
                      encoding="utf-8", errors="replace")

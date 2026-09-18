@@ -196,16 +196,15 @@ def запрос_из_карточки(название, форма="", доза
 
 
 def _ключ():
-    если = os.getenv("OPENROUTER_API_KEY")
-    if если:
-        return если
-    try:
-        for ln in io.open(".env", encoding="utf-8"):
-            if ln.strip().startswith("OPENROUTER_API_KEY="):
-                return ln.split("=", 1)[1].strip()
-    except OSError:
-        pass
-    return ""
+    """Ключ СТЕНДА по правилу `or_key` — проба живая и платная, и платить
+    она обязана со своего ключа, а не с прода (№346, заход 3)."""
+    from dotenv import dotenv_values
+    import or_key
+    окружение = {**dotenv_values(".env"), **os.environ}
+    ключ, причина = or_key.выбрать_ключ(окружение)
+    if причина:
+        print("  " + причина)
+    return ключ
 
 
 def _домен(адрес: str) -> str:
@@ -263,7 +262,7 @@ def главная() -> int:
     print("ПОИСКОВИК — ЗАМЕР")
     print("=" * 74)
     if not ключ:
-        print("  ключа OPENROUTER_API_KEY нет — замерить нечем")
+        print("  ключа стенда нет — замерить нечем")
         return 0
 
     движки = [а.движок] if а.движок else ["exa", "native"]

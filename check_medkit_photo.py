@@ -286,7 +286,7 @@ def прогон():
     окр = dict(os.environ)
     окр.update({"DB_PATH": os.path.join(КОРЕНЬ, "app.db"),
                 "OPENROUTER_URL": f"http://127.0.0.1:{ПОРТ + 1}/v1/chat/completions",
-                "OPENROUTER_API_KEY": "stub", "PYTHONIOENCODING": "utf-8"})
+                "OPENROUTER_STAND_KEY": "stub", "PYTHONIOENCODING": "utf-8"})
 
     журнал = open(os.path.join(врем, "server.log"), "wb")
     app, job = _под_потолком(

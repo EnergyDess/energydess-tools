@@ -214,6 +214,11 @@ def _боевой_путь(main, подмена=None, потолок=None, об�
             return Ответ()
 
     main.httpx.AsyncClient = Клиент
+    # Ключ ФИКТИВНЫЙ: ответ подаётся подменённым клиентом, в сеть запрос
+    # не уходит. Прежде заслон «ключ есть» проходил настоящим ключом прода
+    # из `.env`, а на стенде его больше нет (№346, заход 3)
+    ключ_был = main.OPENROUTER_API_KEY
+    main.OPENROUTER_API_KEY = "stub"
     try:
         return asyncio.run(main._апт_спросить_модель(
             "промпт", очищать=False,
@@ -221,6 +226,7 @@ def _боевой_путь(main, подмена=None, потолок=None, об�
             допустить_обрыв=обрыв, совет=совет))
     finally:
         main.httpx.AsyncClient = сохранено
+        main.OPENROUTER_API_KEY = ключ_был
 
 
 def _путь(main, тихо=False):

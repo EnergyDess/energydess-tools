@@ -96,6 +96,11 @@ def поднять_приложение(порт, доп_env):
     env["DB_PATH"] = os.path.join(КОРЕНЬ, "app.db")
     env["PYTHONIOENCODING"] = "utf-8"
     env.update(доп_env)
+    # Адрес сервиса подменён на нашу петлю — ключ стенда фиктивный. Ключ прода
+    # на стенде не используется вовсе (№346, заход 3), и без ключа стенда
+    # приложение отказало бы раньше заглушки
+    if env.get("OPENROUTER_URL", "").startswith("http://127.0.0.1"):
+        env["OPENROUTER_STAND_KEY"] = "stub"
     журнал = io.open(os.path.join(ВЫВОД, "app_%d.log") % порт, "w",
                      encoding="utf-8", errors="replace")
     п = subprocess.Popen(

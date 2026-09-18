@@ -580,7 +580,21 @@ def _plural_ru(n: int, one: str, few: str, many: str) -> str:
         return few
     return many
 
-OPENROUTER_API_KEY  = os.getenv("OPENROUTER_API_KEY", "")
+# ── КЛЮЧ OPENROUTER: У ПРОДА И У СТЕНДА РАЗНЫЕ (BACKLOG №346, заход 3) ──────
+# Правило живёт в `or_key.py` — одно на `main.py` и живые пробы. Ключа нет —
+# каждое место вызова отказывает своим «API ключ не настроен», к которому
+# на стенде дописано, какой ключ нужен (`_без_ключа`). Отката на ключ прода нет.
+import or_key
+OPENROUTER_API_KEY, КЛЮЧ_НЕТ_ПРИЧИНА = or_key.выбрать_ключ(os.environ)
+if КЛЮЧ_НЕТ_ПРИЧИНА:
+    print(f"[ключ] живых вызовов модели не будет: {КЛЮЧ_НЕТ_ПРИЧИНА}", flush=True)
+
+
+def _без_ключа(текст: str) -> str:
+    """Текст отказа «ключа нет». На проде прежний, на стенде — с причиной."""
+    if КЛЮЧ_НЕТ_ПРИЧИНА and not or_key.на_проде(os.environ):
+        return f"{текст} ({КЛЮЧ_НЕТ_ПРИЧИНА})"
+    return текст
 MODEL               = os.getenv("MODEL",         "anthropic/claude-haiku-4-5")
 LETTER_MODEL        = os.getenv("LETTER_MODEL",  "anthropic/claude-opus-4-5")   # генерация письма
 ANALYZE_MODEL       = os.getenv("ANALYZE_MODEL", "anthropic/claude-sonnet-4-5") # анализ вакансии (JSON)
@@ -5067,7 +5081,7 @@ async def analyze_vacancy(request: Request, user=Depends(get_current_user), db: 
     if not job_text:
         return JSONResponse({"error": "Вставьте ссылку на вакансию или её текст"}, status_code=400)
     if not OPENROUTER_API_KEY:
-        return JSONResponse({"error": "API ключ не настроен"}, status_code=500)
+        return JSONResponse({"error": _без_ключа("API ключ не настроен")}, status_code=500)
 
     resume_obj = db.query(Resume).filter(Resume.user_id == user.id).first()
     resume_text = resume_obj.resume_text if resume_obj else ""
@@ -5170,7 +5184,7 @@ async def generate_letter(request: Request, user=Depends(get_current_user), db: 
     if not job_text:
         return JSONResponse({"error": "Вставьте ссылку на вакансию или её текст"}, status_code=400)
     if not OPENROUTER_API_KEY:
-        return JSONResponse({"error": "API ключ не настроен"}, status_code=500)
+        return JSONResponse({"error": _без_ключа("API ключ не настроен")}, status_code=500)
 
     resume_obj = db.query(Resume).filter(Resume.user_id == user.id).first()
     resume_text = resume_obj.resume_text if resume_obj else ""
@@ -5554,7 +5568,7 @@ async def parse_resume_to_dossier(request: Request, user=Depends(get_current_use
     if not user or not user_has_access(user, "hh", db):
         return JSONResponse({"error": "Нет доступа"}, status_code=403)
     if not OPENROUTER_API_KEY:
-        return JSONResponse({"error": "API ключ не настроен"}, status_code=500)
+        return JSONResponse({"error": _без_ключа("API ключ не настроен")}, status_code=500)
 
     resume_obj = db.query(Resume).filter(Resume.user_id == user.id).first()
     resume_text = resume_obj.resume_text if resume_obj else ""
@@ -6584,7 +6598,7 @@ async def _переводы_слов(слова: list, db: Session, user_id=None
     if not новые:
         return известные, ""
     if not OPENROUTER_API_KEY:
-        return известные, "переводчик не настроен"
+        return известные, _без_ключа("переводчик не настроен")
 
     # Латиница на входе перевода не нужна: «uvelka» и «protein» уже латиница
     новые = [w for w in новые if any("а" <= c <= "я" or c == "ё" for c in w)]
@@ -9042,7 +9056,7 @@ async def nut_ai_chat(request: Request, user=Depends(get_current_user), db: Sess
     db.commit()
 
     if not OPENROUTER_API_KEY:
-        reply = "API ключ не настроен."
+        reply = _без_ключа("API ключ не настроен.")
     else:
         try:
             # соединение к базе НЕ держим на время сети (см. `_сеть`)
@@ -9289,7 +9303,7 @@ async def nut_transcribe(file: UploadFile = File(...),
     if not user or not _голос_разрешён(user, db):
         return JSONResponse({"error": "Нет доступа"}, status_code=403)
     if not OPENROUTER_API_KEY:
-        return JSONResponse({"error": "Распознавание речи не настроено"}, status_code=503)
+        return JSONResponse({"error": _без_ключа("Распознавание речи не настроено")}, status_code=503)
     content = await file.read()
     if not content:
         return JSONResponse({"error": "Пустая запись"}, status_code=400)
@@ -9991,7 +10005,7 @@ async def workout_generate_program(user=Depends(get_current_user), db: Session =
     if not profile or not profile.onboarded:
         return JSONResponse({"error": "Сначала заполни анкету"}, status_code=400)
     if not OPENROUTER_API_KEY:
-        return JSONResponse({"error": "API ключ не настроен"}, status_code=500)
+        return JSONResponse({"error": _без_ключа("API ключ не настроен")}, status_code=500)
 
     structure, days = _program_structure(profile.days_per_week)
     pool = _exercise_pool(db, profile)
@@ -11130,7 +11144,7 @@ async def workout_chat(request: Request, user=Depends(get_current_user), db: Ses
     if not msg:
         return JSONResponse({"error": "Пустое сообщение"}, status_code=400)
     if not OPENROUTER_API_KEY:
-        return JSONResponse({"error": "API ключ не настроен"}, status_code=500)
+        return JSONResponse({"error": _без_ключа("API ключ не настроен")}, status_code=500)
 
     history = db.query(ChatMessage).filter(ChatMessage.user_id == user.id, ChatMessage.tool == "workout").order_by(
         ChatMessage.created_at).limit(30).all()
@@ -11281,7 +11295,7 @@ async def workout_chat_photo(file: UploadFile = File(...), message: str = Form("
     if not user:
         return JSONResponse({"error": "Не авторизован"}, status_code=401)
     if not OPENROUTER_API_KEY:
-        return JSONResponse({"error": "API ключ не настроен"}, status_code=500)
+        return JSONResponse({"error": _без_ключа("API ключ не настроен")}, status_code=500)
     content = await file.read()
     if not content:
         return JSONResponse({"error": "Пустой файл"}, status_code=400)
@@ -21258,7 +21272,7 @@ async def _апт_спросить_модель(промпт: str, очищат�
     оборванная карточка означала бы поля без части значений.
     """
     if not OPENROUTER_API_KEY:
-        return {}, "Ассистент не настроен на этом сервере", 503
+        return {}, _без_ключа("Ассистент не настроен на этом сервере"), 503
     try:
         async with httpx.AsyncClient() as c:
             r = await _модель_post(c, инструмент, user_id,
