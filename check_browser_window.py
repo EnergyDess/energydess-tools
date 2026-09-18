@@ -9,6 +9,8 @@
     py check_browser_window.py --контроль   # смещение снято: обязан назвать основной
     py check_browser_window.py --ширина     # вьюпорт 2560 на втором и на основном:
                                             # совпадают ли замеры
+    py check_browser_window.py --фокус      # клавиатура осталась у прежнего окна
+    BROWSER_KEEP_FOCUS=1 py check_browser_window.py --фокус   # подлог: код 1
 
 Код 2 — второго монитора нет, спросить нечем.
 """
@@ -49,6 +51,39 @@ def _окно(вьюпорт=None):
             бр.close()
 
 
+def _фокус():
+    """Открыть браузер, контекст и две страницы, как пробы, и спросить,
+    у какого окна клавиатура. Код 0 — у прежнего, 1 — забрал браузер."""
+    import ctypes
+    import time
+    u = ctypes.windll.user32
+    было = u.GetForegroundWindow()
+    if not было:
+        print("ПРОПУСК: переднего окна нет — сравнивать не с чем")
+        return 2
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        бр = p.chromium.launch(headless=False)
+        try:
+            for _ in range(2):
+                кон = бр.new_context(viewport={"width": 390, "height": 844})
+                стр = кон.new_page()
+                стр.set_content("<input id=i>")
+                стр.fill("#i", "проба")
+                time.sleep(1.0)
+                стало = u.GetForegroundWindow()
+                буф = ctypes.create_unicode_buffer(200)
+                u.GetClassNameW(стало, буф, 200)
+                print("окно с клавиатурой: %s (класс %s)" % (
+                    "ПРЕЖНЕЕ" if стало == было else "ДРУГОЕ", буф.value))
+                if стало != было:
+                    return 1
+                кон.close()
+        finally:
+            бр.close()
+    return 0
+
+
 def main():
     второй = bw.второй_монитор()
     for x, y, ш, в, осн in bw.мониторы():
@@ -56,6 +91,11 @@ def main():
     if not второй:
         print("ПРОПУСК: второго монитора нет — спросить нечем")
         return 2
+    if "--фокус" in sys.argv:
+        код = _фокус()
+        print("ИТОГ: фокус %s" % ("ВОЗВРАЩЁН" if код == 0 else "ЗАБРАН БРАУЗЕРОМ"
+                                   if код == 1 else "не проверен"))
+        return код
     контроль = "--контроль" in sys.argv
     if контроль:
         os.environ[bw.ОТКЛЮЧИТЬ_ПЕРЕМЕННАЯ] = "primary"

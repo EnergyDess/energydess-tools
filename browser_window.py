@@ -31,6 +31,8 @@ import os
 import sys
 
 ОТКЛЮЧИТЬ_ПЕРЕМЕННАЯ = "BROWSER_MONITOR"
+# `BROWSER_KEEP_FOCUS=1` — не возвращать фокус (подлог проверки фокуса)
+ОТКЛЮЧИТЬ_ФОКУС = "BROWSER_KEEP_FOCUS"
 
 
 def мониторы():
@@ -97,6 +99,71 @@ def _дополнить(kwargs):
     return kwargs
 
 
+def _передний():
+    """Окно, у которого сейчас клавиатура (hwnd), либо None."""
+    if sys.platform != "win32":
+        return None
+    import ctypes
+    return ctypes.windll.user32.GetForegroundWindow() or None
+
+
+def вернуть_фокус(hwnd):
+    """Вернуть клавиатуру окну `hwnd`, если её забрал браузер пробы.
+
+    ЗАЧЕМ — ЗАМЕР 2026-09-18: вход пробы отправил пароль с лишней
+    буквой «d» на конце. Новое окно браузера становится ПЕРЕДНИМ, и
+    нажатия человека, работающего в своём окне, уходят в поле страницы
+    пробы. Окно на втором мониторе этого не отменяет: фокус не зависит
+    от монитора. Страница пробы фокус ОС не требует — Playwright
+    эмулирует его сам, — поэтому клавиатура возвращается прежнему окну.
+
+    Прямой `SetForegroundWindow` из фонового процесса Windows запрещает;
+    `AttachThreadInput` к потоку текущего переднего окна снимает запрет."""
+    if sys.platform != "win32" or not hwnd:
+        return False
+    import ctypes
+    u = ctypes.windll.user32
+    k = ctypes.windll.kernel32
+    import time
+    # Новое окно на миг оставляет передний план ПУСТЫМ (замер: класс
+    # переднего окна сразу после `new_page` — пустая строка); ждём,
+    # пока он определится, иначе возврат уйдёт в никуда.
+    сейчас = u.GetForegroundWindow()
+    for _ in range(20):
+        if сейчас:
+            break
+        time.sleep(0.05)
+        сейчас = u.GetForegroundWindow()
+    if сейчас == hwnd or not u.IsWindow(hwnd):
+        return сейчас == hwnd
+    чужой = u.GetWindowThreadProcessId(сейчас, None)
+    свой = k.GetCurrentThreadId()
+    u.AttachThreadInput(свой, чужой, True)
+    try:
+        u.SetForegroundWindow(hwnd)
+    finally:
+        u.AttachThreadInput(свой, чужой, False)
+    return u.GetForegroundWindow() == hwnd
+
+
+def _с_возвратом(прежний, асинхр):
+    """Обёртка: запомнить переднее окно, открыть, вернуть фокус."""
+    if асинхр:
+        async def обёртка(self, *a, **kw):
+            было = _передний()
+            итог = await прежний(self, *a, **kw)
+            вернуть_фокус(было)
+            return итог
+    else:
+        def обёртка(self, *a, **kw):
+            было = _передний()
+            итог = прежний(self, *a, **kw)
+            вернуть_фокус(было)
+            return итог
+    обёртка._второй_монитор = True
+    return обёртка
+
+
 def поставить():
     """Заменяет launch у Playwright. Идемпотентно; нет Playwright — ничего."""
     try:
@@ -117,6 +184,15 @@ def поставить():
 
     launch_с._второй_монитор = True
     launch_а._второй_монитор = True
-    Синхр.launch = launch_с
-    Асинхр.launch = launch_а
+    Синхр.launch = _с_возвратом(launch_с, False)
+    Асинхр.launch = _с_возвратом(launch_а, True)
+    # Каждая новая страница и контекст в головном режиме — НОВОЕ ОКНО,
+    # и оно тоже забирает фокус; возврат ставится и на них.
+    if os.environ.get(ОТКЛЮЧИТЬ_ФОКУС, "") != "1":
+        from playwright.sync_api import Browser as Бс, BrowserContext as Кс
+        from playwright.async_api import Browser as Ба, BrowserContext as Ка
+        for класс, асинхр in ((Бс, False), (Кс, False), (Ба, True), (Ка, True)):
+            класс.new_page = _с_возвратом(класс.new_page, асинхр)
+    else:
+        Синхр.launch, Асинхр.launch = launch_с, launch_а
     return True
