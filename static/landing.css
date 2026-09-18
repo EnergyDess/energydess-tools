@@ -348,7 +348,8 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
    зазор сетки: верх портрета встаёт на уровень середины букв. Высота
    ряда от этого не пересчитывается — сетка тянет элемент на трек плюс
    отрицательный отступ, и портрет становится выше ровно на налезание.
-   Портрет над заголовком по слою: имя проступает сквозь прозрачный фон. */
+   Портрет над заголовком по слою: имя проступает сквозь прозрачный фон.
+ */
 .pf-hero-mid {
   position: relative;
   z-index: 1;
@@ -691,23 +692,56 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
   --pf-tools-side: max(var(--space-6), calc((100% - 1600px) / 2 + var(--space-6)));
   padding: var(--space-10) var(--pf-tools-side);
 }
-.pf-tool-list { list-style: none; margin: 0; padding: 0; border-bottom: 1px solid var(--border-hairline); }
+/* КАЖДЫЙ ИНСТРУМЕНТ — ОДНА КАРТОЧКА (задача 345, блок 2).
+
+   ЗДЕСЬ БЫЛ СПИСОК СТРОК С ЛИНИЯМИ: `.pf-tool-list` несла `border-bottom`,
+   каждая строка `border-top`, а сама строка была гридом ИЗ ТРЁХ колонок —
+   номер | текст | окно — с зазором 48px. Владелец это отменил: описание
+   висело в пустоте слева, окно стояло справа отдельно, между ними и по краям
+   было много пустого места. Записано на месте прежнего, а не приписано
+   снизу: два набора правил рядом — это не история, это выбор наугад
+   для следующего.
+
+   ДВЕ КОЛОНКИ, А НЕ ТРИ, И РАЗМЕТКА ПРИ ЭТОМ НЕ ТРОНУТА: номер, текст
+   и окно остаются прямыми детьми `.pf-tool`, а колонку им задаёт СЕТКА
+   ПО ОБЛАСТЯМ — номер и текст в левую, окно во вторую на обе строки.
+   Обёртка в шаблоне дала бы то же самое ценой правки разметки пяти
+   инструментов и шага пробы, который ищет `.pf-tool > *`.
+
+   ВЫСОТА ПО СОДЕРЖИМОМУ: строка номера — по его кеглю (`auto`), строка
+   текста — `auto`, окно прижато к верху (`align-self: start`) и высоту
+   карточки задаёт своим `aspect-ratio`, пока текст не выше. Растяжения
+   нет ни у одной части — ровно этого и просило письмо. */
+.pf-tool-list {
+  list-style: none;
+  display: grid;
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+}
 .pf-tool {
   display: grid;
-  grid-template-columns: var(--pf-tool-n-col) minmax(0, 1fr) minmax(0, 1.1fr);
-  gap: var(--space-7);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  grid-template-areas: "н окно" "текст окно";
+  grid-template-rows: auto auto;
+  column-gap: var(--space-6);
+  row-gap: var(--space-4);
   align-items: start;
-  padding: var(--space-8) 0;
-  border-top: 1px solid var(--border-hairline);
+  padding: var(--space-6);
+  border: 1px solid var(--landing-tool-line);
+  border-radius: var(--radius-xl);
+  background: var(--landing-tool-bg);
 }
-/* НОМЕР И НАЗВАНИЕ КРУПНЕЕ, Unbounded (письмо 3а задачи 343). Колонка
-   номера считается от кегля номера: «05» Unbounded 800 шириной около
-   1.6em, запас на соседнюю колонку — в `gap`. */
+/* НОМЕР И НАЗВАНИЕ КРУПНЕЕ, Unbounded (письмо 3а задачи 343). Кегль номера
+   остался прежним; колонка под него больше не нужна — он стоит НАД
+   названием в той же колонке, что текст. */
 .pf-tool {
   --pf-tool-n-size: clamp(3rem, 6vw, 7rem);
-  --pf-tool-n-col: calc(var(--pf-tool-n-size) * 1.8);
 }
+.pf-tool-text { grid-area: текст; }
+.pf-mock { grid-area: окно; align-self: start; }
 .pf-tool-n {
+  grid-area: н;
   align-self: start;
   font-family: 'Unbounded', var(--font);
   font-size: var(--pf-tool-n-size);
@@ -1048,7 +1082,15 @@ main section[id] { scroll-margin-top: calc(64px + var(--space-4)); }
 
 @media (max-width: 900px) {
   .pf-tools { padding: var(--space-9) var(--space-4); }
-  .pf-tool { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); padding: var(--space-7) 0; }
+  /* НА УЗКОЙ — ОДНА КОЛОНКА: номер, текст, под ними окно. Области те же,
+     поэтому порядок задаётся строками, а не правкой разметки. */
+  .pf-tool {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "н" "текст" "окно";
+    grid-template-rows: auto auto auto;
+    row-gap: var(--space-4);
+    padding: var(--space-5);
+  }
   .pf-mock { aspect-ratio: auto; min-height: 16rem; }
 }
 @media (prefers-reduced-motion: reduce) {
