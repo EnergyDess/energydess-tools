@@ -33,6 +33,7 @@ import asyncio
 import os
 import sys
 import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
+import model_stub  # заслон живых режимов (№346, заход 3)
 
 # ВЫВОД В UTF-8: без этого печать знака вне cp1251 роняет пробу
 # `UnicodeEncodeError` при ЛЮБОМ перенаправлении (`> файл`,
@@ -132,5 +133,6 @@ async def прогон():
 
 
 if __name__ == "__main__":
+    model_stub.живой_замер("shots_medkit_246", покрывает="снимки живых ответов смотрит человек; подделка показала бы не то")
     asyncio.run(прогон())
     sys.exit(0)

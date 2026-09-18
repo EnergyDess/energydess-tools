@@ -38,6 +38,7 @@ import os
 import re
 import sys
 import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
+import model_stub  # заслон живых режимов (№346, заход 3)
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -1547,6 +1548,7 @@ def main_():
     if "--контроль-поля" in sys.argv:
         return контроль_поля()
     if "--списание" in sys.argv:
+        model_stub.живой_замер("check_medkit_dose --списание")
         return asyncio.run(списание())
     if "--контроль-списания" in sys.argv:
         return asyncio.run(контроль_списания())
@@ -1582,6 +1584,11 @@ def main_():
                else ВОПРОСЫ_ПОЛЯ if "--поле" in sys.argv
                else ВОПРОСЫ_ПАДЕЖИ if "--падежи" in sys.argv
                else ВОПРОСЫ_ВЫДУМКИ if "--выдумки" in sys.argv else ВОПРОСЫ)
+    # ПАДЕЖИ ОТВЕЧАЕТ КОД (маршруты остатка, места, поля) — замер через
+    # заглушку дал 0 вызовов модели, поэтому режим идёт без флага.
+    # Остальные наборы вопросов доходят до модели (замер: 1–6 вызовов)
+    if "--падежи" not in sys.argv:
+        model_stub.живой_замер("check_medkit_dose (вопросы ассистенту)")
     return asyncio.run(прогон(путь, вопросы))
 
 

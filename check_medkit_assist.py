@@ -63,6 +63,7 @@ import sys
 import time
 from datetime import date as _date
 import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
+import model_stub  # заслон живых режимов (№346, заход 3)
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -766,11 +767,13 @@ async def сверка():
 
 def main():
     if "--сверка" in sys.argv:
+        model_stub.живой_замер("check_medkit_assist --сверка")
         asyncio.run(сверка())
         return 0
     if "--очистить" in sys.argv:
         очистить()
         return 0
+    model_stub.живой_замер("check_medkit_assist (заведение набора через браузер)")
     печать(asyncio.run(прогон()))
     return 0
 

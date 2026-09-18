@@ -83,6 +83,7 @@ import json
 import os
 import sys
 import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
+import model_stub  # заслон живых режимов (№346, заход 3)
 
 # ВЫВОД В UTF-8: без этого печать знака вне cp1251 роняет пробу
 # `UnicodeEncodeError` при ЛЮБОМ перенаправлении (`> файл`,
@@ -1615,8 +1616,10 @@ def _сверить_показания(пары):
 
 def main_():
     if "--выбор" in sys.argv:
+        model_stub.живой_замер("check_medkit_query --выбор")
         return asyncio.run(выбор())
     if ПОДПИСИ:
+        model_stub.живой_замер("check_medkit_query --подписи")
         return asyncio.run(подписи())
     # КОНТРОЛЬ МАРШРУТА — СВОЙ, а не общий с контролем ответов модели:
     # там подлоги кладутся в ОТВЕТ, здесь в САМ КОД развилки, и вопросы
@@ -1632,7 +1635,9 @@ def main_():
     if МАРШРУТ:
         return asyncio.run(маршрут())
     if ДИАЛОГ:
+        model_stub.живой_замер("check_medkit_query --диалог")
         return asyncio.run(диалог())
+    model_stub.живой_замер("check_medkit_query (восемь вопросов)")
     всего, по_категориям = _в_базе()
     print("АПТЕЧКА СТЕНДА: позиций %d" % всего)
     for имя, n in по_категориям:

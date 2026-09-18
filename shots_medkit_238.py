@@ -37,6 +37,7 @@ import asyncio
 import os
 import sys
 import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
+import model_stub  # заслон живых режимов (№346, заход 3)
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -179,4 +180,5 @@ async def главное():
 
 
 if __name__ == "__main__":
+    model_stub.живой_замер("shots_medkit_238", покрывает="снимки живых ответов смотрит человек; подделка показала бы не то")
     asyncio.run(главное())

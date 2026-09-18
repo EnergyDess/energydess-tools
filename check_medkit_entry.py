@@ -60,6 +60,7 @@ os.environ.setdefault("DB_PATH", "./app.db")
 import main as M                                    # noqa: E402
 import medkit_defs as _опр                          # noqa: E402
 import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
+import model_stub  # заслон живых режимов (№346, заход 3)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -322,6 +323,7 @@ async def главное():
     if контроль:
         return await контроль_признака()
 
+    model_stub.живой_замер("check_medkit_entry (сценарии заведения)")
     if повторов > 1:
         return await много_прогонов(повторов)
 

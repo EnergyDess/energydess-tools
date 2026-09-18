@@ -67,6 +67,7 @@ import time
 
 import httpx
 import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
+import model_stub  # заслон живых режимов (№346, заход 3)
 
 # ВЫВОД В UTF-8: без этого печать знака вне cp1251 роняет пробу
 # `UnicodeEncodeError` при ЛЮБОМ перенаправлении (`> файл`,
@@ -258,6 +259,7 @@ def главная() -> int:
     р.add_argument("--движок", default="", help="exa | native")
     а = р.parse_args()
 
+    model_stub.живой_замер("check_search_api (поисковик exa через OpenRouter, $11/1000)", покрывает="никто: проба мерит сам поисковик, подделка тут пустышка")
     ключ = _ключ()
     print("ПОИСКОВИК — ЗАМЕР")
     print("=" * 74)
