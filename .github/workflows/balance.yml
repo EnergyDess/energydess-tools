@@ -1,0 +1,80 @@
+name: Остаток OpenRouter
+
+# BACKLOG №346. Баланс OpenRouter однажды кончился МОЛЧА, и прод перестал
+# отвечать. Раз в сутки спрашиваем остаток и, если он ниже порога (3 $),
+# пишем в Telegram тем же ботом и тем же скриптом, что и бэкап.
+#
+# Отдельным workflow, а не шагом бэкапа: упади бэкап — шаги ниже него
+# не выполняются, и предупреждение пропало бы ровно в день аварии; упади
+# эта проверка — бэкап не заденет.
+#
+# Ключа OpenRouter в секретах GitHub нет и заводить его не нужно: остаток
+# спрашивает `balance_check.py` на машине прода, тем же приёмом, что
+# `make_backup.py`. Решение «слать или нет» и суточный предел — там же;
+# отметка «отправлено» ставится ТОЛЬКО после удачной отправки.
+#
+# ВАЖНО: имена переменных и ключи JSON под jq — только латиницей (§6.0).
+on:
+  workflow_dispatch:
+    inputs:
+      ping:
+        description: 'Отправить проверочное сообщение, не спрашивая остаток'
+        type: boolean
+        default: false
+  schedule:
+    - cron: '0 6 * * *'     # ежедневно 06:00 UTC = 09:00 МСК
+
+jobs:
+  balance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      # Проверка связи: доходит ли сообщение до владельца. Остаток при этом
+      # не спрашивается и состояние на томе не трогается
+      - name: Проверка связи
+        if: inputs.ping
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          source .github/scripts/telegram.sh
+          tg_send_message "Проверка связи, учёт расхода подключён"
+
+      - name: Спросить остаток
+        if: ${{ !inputs.ping }}
+        id: check
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -o pipefail
+          out=$(flyctl ssh console -a energydess-tools -C "python /app/balance_check.py" 2>&1 | tr -d '\r')
+          echo "$out" | grep -v 'Error: The handle is invalid'
+          meta=$(echo "$out" | grep -o 'BALANCE_JSON=.*' | head -1 | sed 's/^BALANCE_JSON=//')
+          if [ -z "$meta" ]; then
+            echo "::error::Остаток не получен — balance_check.py не вернул BALANCE_JSON"
+            exit 1
+          fi
+          echo "remaining=$(echo "$meta" | jq -r .remaining)" >> "$GITHUB_OUTPUT"
+          echo "send=$(echo "$meta" | jq -r .send)" >> "$GITHUB_OUTPUT"
+          {
+            echo "text<<TEXTEOF"
+            echo "$meta" | jq -r .text
+            echo "TEXTEOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Предупредить в Telegram
+        if: ${{ !inputs.ping && steps.check.outputs.send == 'true' }}
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          TEXT: ${{ steps.check.outputs.text }}
+        run: |
+          source .github/scripts/telegram.sh
+          tg_send_message "$TEXT" || exit 1
+          flyctl ssh console -a energydess-tools -C "python /app/balance_check.py --mark" 2>&1 | tr -d '\r' | grep 'BALANCE_MARKED=1' || {
+            echo "::error::Сообщение ушло, а отметка не поставлена — завтра придёт повторное"
+            exit 1
+          }

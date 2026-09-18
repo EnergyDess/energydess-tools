@@ -16,6 +16,10 @@
 
 set -o pipefail
 
+# Адрес Telegram — переменной, как OPENROUTER_URL и RESEND_API_URL в main.py:
+# ветку «Telegram недоступен» иначе нечем прогнать (BACKLOG №346)
+TG_API_BASE="${TG_API_BASE:-https://api.telegram.org}"
+
 # Проверяет ответ Telegram. Возвращает 1 при любой неудаче.
 tg_check() {
   local resp="$1" code="$2" what="$3"
@@ -60,7 +64,7 @@ tg_send_message() {
   out=$(curl -sS -m 60 -w '\n%{http_code}' -X POST \
     -d "chat_id=$CHAT_ID" \
     --data-urlencode "text=$text" \
-    "https://api.telegram.org/bot$BOT_TOKEN/sendMessage") || {
+    "$TG_API_BASE/bot$BOT_TOKEN/sendMessage") || {
       echo "::error::curl не смог обратиться к Telegram (сеть или таймаут)"
       return 1
     }
@@ -83,7 +87,7 @@ tg_send_document() {
     -F "chat_id=$CHAT_ID" \
     -F "document=@$file" \
     -F "caption=$caption" \
-    "https://api.telegram.org/bot$BOT_TOKEN/sendDocument") || {
+    "$TG_API_BASE/bot$BOT_TOKEN/sendDocument") || {
       echo "::error::curl не смог отправить файл (сеть или таймаут)"
       return 1
     }
