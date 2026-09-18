@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% set meta_title = 'Расход — Админ' %}
+  {% include '_meta.html' %}
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ st('style.css') }}">
+  <link rel="stylesheet" href="{{ st('admin.css') }}">
+</head>
+<body class="has-site-header page-column">
+
+{% import '_admin_head.html' as ah %}
+{% include '_admin_nav.html' %}
+
+{% set active = 'usage' %}
+{% include '_admin_subnav.html' %}
+
+{# РАСХОД НА МОДЕЛИ (BACKLOG №346). Только чтение `model_usage` плюс один
+   запрос остатка. Числа печатаются так, чтобы их нельзя было прочитать
+   как больше или меньше, чем есть: строка без цены — отдельно, пустой
+   период — словами, время — по Москве с подписью. #}
+<div class="admin-wrap page-fill">
+
+  {{ ah.head('Расход', 'Сколько стоят вызовы моделей — по учёту на нашей стороне',
+             отбор, 'Инструмент или модель') }}
+
+  <div class="usage-top">
+    <div class="card usage-stat">
+      <p class="field-label">Остаток OpenRouter</p>
+      {% if остаток.остаток is not none %}
+      <p class="usage-big" id="usage-balance">{{ '%.2f' % остаток.остаток }} $</p>
+      <p class="data-note">обновлено {{ остаток.при_мск }} (МСК)</p>
+      {% else %}
+      <p class="usage-big usage-none" id="usage-balance">нет данных</p>
+      <p class="data-note">{{ остаток.причина }}</p>
+      {% endif %}
+    </div>
+    {% for п in сводка.периоды %}
+    <div class="card usage-stat">
+      <p class="field-label">{{ п.подпись }}</p>
+      {% if п.вызовов %}
+      <p class="usage-big" data-sum="{{ п.код }}">{{ '%.4f' % п.сумма }} $</p>
+      <p class="data-note">вызовов {{ п.вызовов }}{% if п.без_цены %}, <b class="usage-warn" data-missing="{{ п.код }}">без цены {{ п.без_цены }} — в сумму не входят</b>{% endif %}{% if п.ошибок %}, неудачных {{ п.ошибок }}{% endif %}</p>
+      {% else %}
+      <p class="usage-big usage-none" data-sum="{{ п.код }}">данных нет</p>
+      <p class="data-note">вызовов за период не было</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  <p class="data-note usage-since">Учёт ведётся с {{ сводка.учёт_с }} (МСК). Всё, что потрачено раньше, здесь не видно — только в кабинете OpenRouter. Время на странице — московское.</p>
+
+  {% for п in сводка.периоды %}
+  <section class="usage-period" data-period="{{ п.код }}" {% if not loop.first %}hidden{% endif %}>
+    {% if not п.вызовов %}
+    <p class="empty-state admin-empty">За {{ п.подпись | lower }} вызовов модели не было — данных нет</p>
+    {% else %}
+    {% if п.мало %}
+    <p class="alert alert-warn">Данных мало: {{ п.вызовов }} вызовов при пороге {{ мало }}. Доли и средние по ним ненадёжны.</p>
+    {% endif %}
+    {% for вид, строки in (('По инструментам', п.по_инструментам), ('По моделям', п.по_моделям)) %}
+    {# Признак вида таблицы — ДО вложенного цикла: внутри него `loop`
+       уже цикл строк, и колонка «одна операция» съезжала (снимок приёмки). #}
+    {% set инстр = loop.first %}
+    <h2 class="usage-h2">{{ вид }}</h2>
+    <div class="card admin-panel">
+      <div class="table-scroll">
+        <table class="admin-table admin-table-usage">
+          <thead><tr>
+            <th>{{ 'Инструмент' if инстр else 'Модель' }}</th><th>Вызовов</th><th>Токенов</th><th>Сумма, $</th><th>Доля</th>
+            {% if инстр %}<th>Одна операция, $</th>{% endif %}
+          </tr></thead>
+          <tbody>
+          {% for г in строки %}
+          <tr data-name="{{ (г.подпись ~ ' ' ~ г.имя) | lower }}">
+            <td>{{ г.подпись }}{% if г.без_цены %} <span class="usage-warn">без цены {{ г.без_цены }}</span>{% endif %}{% if г.ошибок %} <span class="data-note">неудачных {{ г.ошибок }}</span>{% endif %}</td>
+            <td class="usage-n">{{ г.вызовов }}</td>
+            <td class="usage-n">{{ г.токенов }}</td>
+            <td class="usage-n">{{ '%.4f' % г.сумма if г.с_ценой else '—' }}</td>
+            <td class="usage-n">{{ '%.0f %%' % г.доля if г.доля is not none else '—' }}</td>
+            {% if инстр %}<td class="usage-n">{% if г.средняя is not none %}{{ '%.4f' % г.средняя }} <span class="data-note">{{ г.операция }}</span>{% else %}—{% endif %}</td>{% endif %}
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  <h2 class="usage-h2">Неудачные вызовы за 7 дней</h2>
+  {% if сводка.неудачи %}
+  <div class="card admin-panel">
+    <div class="table-scroll">
+      <table class="admin-table admin-table-usage">
+        <thead><tr><th>Код</th><th>Сколько</th><th>Последний (МСК)</th></tr></thead>
+        <tbody>
+        {% for н in сводка.неудачи %}
+        <tr data-name="{{ н.код | lower }}"><td>{{ н.код }}</td><td class="usage-n">{{ н.n }}</td><td class="usage-n">{{ н.последний }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <p class="data-note">Неудачных вызовов за 7 дней нет.</p>
+  {% endif %}
+
+  {% call ah.foot() %}{% endcall %}
+</div>
+
+<script>
+(function () {
+  const чипы = document.querySelectorAll('.admin-bar [data-pick]');
+  const поле = document.getElementById('admin-q');
+  let период = чипы.length ? чипы[0].dataset.pick : '7';
+  function показать() {
+    const q = (поле.value || '').trim().toLowerCase();
+    let видно = 0;
+    document.querySelectorAll('[data-period]').forEach(с => {
+      с.hidden = с.dataset.period !== период;
+      if (с.hidden) return;
+      с.querySelectorAll('tr[data-name]').forEach(tr => {
+        tr.hidden = !!q && !tr.dataset.name.includes(q);
+        if (!tr.hidden) видно++;
+      });
+    });
+    const нота = document.getElementById('note');
+    нота.textContent = '';
+    const чип = document.querySelector('.admin-bar [data-pick="' + период + '"]');
+    нота.append(нотаПункт('Период: ', чип.firstChild.textContent.trim()),
+      нотаПункт('Строк в таблицах: ', нотаЧисло(видно)),
+      нотаВажно('Строки без цены в суммы не входят'));
+  }
+  чипы.forEach(ч => ч.addEventListener('click', () => {
+    чипы.forEach(х => х.classList.toggle('active', х === ч));
+    период = ч.dataset.pick;
+    показать();
+  }));
+  поле.addEventListener('input', показать);
+  показать();
+})();
+</script>
+
+{% include '_page_end.html' %}
+</body>
+</html>

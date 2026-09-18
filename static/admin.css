@@ -1248,3 +1248,31 @@
   margin-top: var(--space-4);
 }
 .admin-foot-side { flex: 0 0 auto; margin: 0; }
+
+/* РАСХОД НА МОДЕЛИ — /admin/usage (BACKLOG №346). Карточки сводки
+   рядом, числа моноширинные: суммы с четырьмя знаками дёргали бы
+   строку в пропорциональной гарнитуре. */
+.usage-top {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+.usage-stat { padding: var(--space-5); }
+.usage-big {
+  font-family: var(--font-mono);
+  font-size: var(--text-h3);
+  font-weight: 600;
+  color: var(--text);
+  margin: var(--space-1) 0;
+}
+.usage-none { color: var(--text-2); }
+.usage-warn { color: var(--warning); font-weight: 500; }
+.usage-since { margin-bottom: var(--space-6); }
+.usage-h2 {
+  font-size: var(--text-h3);
+  font-weight: 600;
+  margin: var(--space-6) 0 var(--space-3);
+}
+.admin-table-usage { table-layout: auto; }
+.usage-n { font-family: var(--font-mono); white-space: nowrap; }
