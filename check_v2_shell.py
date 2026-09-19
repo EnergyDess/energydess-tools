@@ -27,6 +27,8 @@
                  полоса  — не сохранять состояние → после перезагрузки
                            меню развёрнуто.
 
+  --телефон    блок 3: меню за кнопкой и три способа закрыть, список
+               инструментов на месте, вкладки листаются, кнопки под заголовком
   --приёмка    блок 3: за краем окна, пересечения меню, верхней строки,
                шапки и кнопок — 390, 1920, 2560, ВИДИМЫЙ браузер (ширина)
   --снимки     кадры всех страниц на 390 и 1920 в review_screenshots/redesign-shell/
@@ -446,6 +448,68 @@ def кадры():
         бр.close()
 
 
+def телефон():
+    """Блок 3: каркас ниже десктопа — меню за кнопкой, три способа закрыть,
+    «Инструменты» списком на месте, вкладки листаются и активная видна,
+    кнопки действий не на заголовке. Ширина 390 с сенсором."""
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        бр = p.chromium.launch()
+        стр = бр.new_context(viewport={"width": 390, "height": 844},
+                             has_touch=True, is_mobile=True).new_page()
+        ch._войти(стр)
+        стр.goto(ch.БАЗА + "/nutrition", wait_until="networkidle")
+        видно = стр.evaluate("document.getElementById('v2-side').checkVisibility({checkVisibilityCSS: true})")
+        шаг("меню спрятано, пока не открыли", not видно)
+        шаг("кнопка меню в верхней строке видна", стр.locator("#v2-burger").is_visible())
+        for способ in ("крестик", "подложка", "Escape"):
+            стр.click("#v2-burger")
+            стр.wait_for_timeout(350)
+            открыто = стр.evaluate("""() => [document.getElementById('v2-shell').classList.contains('is-side-open'),
+                document.getElementById('v2-side').checkVisibility({checkVisibilityCSS: true}),
+                document.activeElement.id]""")
+            шаг(f"открылось поверх страницы ({способ})", открыто[0] and открыто[1], f"фокус на {открыто[2]}")
+            if способ == "крестик":
+                стр.click("#v2-side-close")
+            elif способ == "подложка":
+                стр.mouse.click(370, 500)
+            else:
+                стр.keyboard.press("Escape")
+            стр.wait_for_timeout(350)
+            шаг(f"закрылось: {способ}",
+                not стр.evaluate("document.getElementById('v2-shell').classList.contains('is-side-open')"))
+        стр.click("#v2-burger")
+        стр.wait_for_timeout(300)
+        стр.click("#v2-tools-btn")
+        стр.wait_for_timeout(250)
+        сп = стр.evaluate("""() => { const п = document.getElementById('v2-tools-pop');
+            const r = п.getBoundingClientRect(), м = document.getElementById('v2-side').getBoundingClientRect();
+            return {видно: !п.hidden, position: getComputedStyle(п).position,
+                    внутри: r.left >= м.left - 1 && r.right <= м.right + 1}; }""")
+        шаг("«Инструменты» раскрываются списком на месте, без наведения",
+            сп["видно"] and сп["position"] == "static" and сп["внутри"], str(сп))
+        стр.keyboard.press("Escape")
+        стр.keyboard.press("Escape")
+        стр.wait_for_timeout(300)
+        вкладки = стр.evaluate("""() => { const н = document.querySelector('.v2-page-head .v2-tabs');
+            if (!н) return null;
+            const а = н.querySelector('.v2-tab.is-active, .v2-tab.active, [aria-current=page]');
+            const r = а.getBoundingClientRect(), л = н.getBoundingClientRect();
+            return {листается: н.scrollWidth > н.clientWidth + 1,
+                    активная_видна: r.left >= л.left - 1 && r.right <= л.right + 1,
+                    за_краем: r.right > innerWidth + 1}; }""")
+        шаг("вкладки листаются вбок, активная видна",
+            вкладки and вкладки["листается"] and вкладки["активная_видна"] and not вкладки["за_краем"],
+            str(вкладки))
+        кн = стр.evaluate("""() => { const заг = document.querySelector('.v2-head-title').getBoundingClientRect();
+            const к = [...document.querySelectorAll('.v2-head-actions > *')].map(e => e.getBoundingClientRect());
+            return {налезают: к.filter(b => b.width && b.top < заг.bottom - 1 && b.bottom > заг.top + 1).length,
+                    под_заголовком: к.filter(b => b.top >= заг.bottom - 1).length, всего: к.length}; }""")
+        шаг("кнопки действий перенесены под заголовок", кн["налезают"] == 0 and кн["под_заголовком"] == кн["всего"],
+            str(кн))
+        бр.close()
+
+
 ИМЕНА_СНИМКОВ = {"/": "launcher"}
 
 
@@ -483,6 +547,10 @@ if __name__ == "__main__":
     if "--снимки" in sys.argv:
         снимки()
         sys.exit(0)
+    if "--телефон" in sys.argv:
+        телефон()
+        print(f"ИТОГ: находок {находок}, пропусков {пропусков}")
+        sys.exit(1 if находок else (2 if пропусков else 0))
     if "--кадры" in sys.argv:
         кадры()
         sys.exit(0)
