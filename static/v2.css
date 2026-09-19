@@ -70,10 +70,18 @@
   --v2-nutrition: #10B981;
   --v2-medkit: #06B6D4;
   --v2-enshrouded: #D97706;
-  --v2-workout: #F59E0B;
+  /* Тренировки — фиолетовый (решение владельца 2026-09-19): оранжевый
+     #F59E0B почти совпадал с Enshrouded, ΔE2000 12.2. #D08CFF — оттенок
+     275°, тёмная надпись 8.30, к фону 8.30, ближайший сосед HH ΔE 24.6
+     (документ §4). */
+  --v2-workout: #D08CFF;
   /* Надпись на таблетке инструмента — ТЁМНАЯ у всех пяти: белая даёт
      2.15–3.19 при норме 4.5, тёмная 6.16–9.14 (документ §4.3). */
   --v2-ink-on-tool: #0a0b12;
+  /* Кольцо фокуса у нейтральных органов (вторичная кнопка, пункты меню,
+     вкладки, чипы): светлая линия, к фону 9.92. У цветных — свой цвет
+     органа (ниже, `--v2-ring`). */
+  --v2-ring-neutral: #AEB8D4;
   /* Градиентная таблетка — только «Регистрация» и «Связаться»; точки
      те же, что у .pf-cta-pill гостевой главной (середина — смесь крайних
      пополам), белая надпись 4.63 · 5.48 · 5.29. */
@@ -183,19 +191,30 @@
 /* Состояния — псевдоклассом у живого органа и классом-зеркалом у образца
    витрины (`.is-hover`, `.is-focus`, `.is-pressed`): статичную картинку
    наведения иначе не показать. Живые страницы классы-зеркала не ставят. */
-.v2-btn:focus-visible, .v2-btn.is-focus { outline: 2px solid var(--v2-text-strong); outline-offset: 2px; }
+.v2-btn { --v2-ring: var(--v2-ring-neutral); }
+/* ФОКУС — только с клавиатуры (`:focus-visible`), кольцо в цвете самого
+   органа и ВПЛОТНУЮ к нему: без белого и без тёмного зазора, который
+   читался второй обводкой (письмо 2, блок 1). Контраст кольца к фону
+   не ниже 3 у всех видов — документ §5.1. */
+.v2-btn:focus-visible, .v2-btn.is-focus { outline: 2px solid var(--v2-ring); outline-offset: 0; }
 .v2-btn:active:not(:disabled), .v2-btn.is-pressed { transform: scale(0.98); }
 .v2-btn:disabled, .v2-btn[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
 .v2-btn-primary {
+  --v2-ring: var(--v2-tool, var(--v2-hh));
   border-color: var(--v2-tool, var(--v2-hh));
   background: var(--v2-tool, var(--v2-hh));
   color: var(--v2-ink-on-tool);
 }
 .v2-btn-secondary { background: transparent; }
-.v2-btn-danger { border-color: var(--v2-danger); color: var(--v2-danger); }
+.v2-btn-danger { --v2-ring: var(--v2-danger); border-color: var(--v2-danger); color: var(--v2-danger); }
 .v2-btn-gradient {
+  --v2-ring: var(--v2-grad-b);
   border-color: transparent;
   background: linear-gradient(90deg, var(--v2-grad-a), var(--v2-grad-b), var(--v2-grad-c));
+  /* Рамка прозрачна, и фон по умолчанию ложится ПОД неё повтором от края
+     поля (`background-origin: padding-box`): у левого края был виден
+     конец градиента, у правого — начало. Фон от края рамки. */
+  background-origin: border-box;
   color: var(--v2-text-strong);
 }
 .v2-btn-icon { flex-shrink: 0; padding: 0; width: var(--v2-ctl-h); }
@@ -226,10 +245,21 @@
 /* Загрузка — неактивная кнопка с кольцом: орган ставит `disabled` на время
    запроса, а приглушение неактивной здесь снято — кнопка занята, а не выключена. */
 .v2-btn.is-loading, .v2-btn.is-loading:disabled { opacity: 1; cursor: progress; }
+/* ЗАГРУЗКА — ОДНО ПРАВИЛО НА ВСЕ ВИДЫ: кольцо слева от текста, группа
+   по центру, зазор тот же `--v2-sp-2`, ширина кнопки НЕ МЕНЯЕТСЯ.
+   Кольцо размером со значок: у кнопки со значком оно встаёт на его
+   место (значок прячется), у кнопки без значка поле с каждой стороны
+   уже на половину «кольцо + зазор». */
+.v2-btn.is-loading > svg { display: none; }
+.v2-btn.is-loading:not(:has(> svg)):not(.v2-btn-icon) {
+  padding-inline: calc(var(--v2-sp-5) - (var(--v2-icon) + var(--v2-sp-2)) / 2);
+}
 .v2-btn.is-loading::before {
   content: "";
-  width: var(--v2-sp-4);
-  height: var(--v2-sp-4);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: var(--v2-icon);
+  height: var(--v2-icon);
   border: 2px solid currentColor;
   border-right-color: transparent;
   border-radius: var(--v2-r-pill);
@@ -297,7 +327,7 @@
   transition: background-color var(--v2-dur-fast) var(--v2-ease-out);
 }
 .v2-seg-btn.is-active { background: var(--v2-surface-hover); color: var(--v2-text-strong); }
-.v2-seg-btn:focus-visible { outline: 2px solid var(--v2-text-strong); outline-offset: 1px; }
+.v2-seg-btn:focus-visible { outline: 2px solid var(--v2-ring-neutral); outline-offset: 0; }
 @media (hover: hover) { .v2-seg-btn:hover:not(.is-active) { color: var(--v2-text); } }
 
 /* Вкладки разделов */
@@ -327,7 +357,7 @@
 }
 .v2-tab svg { width: var(--v2-icon); height: var(--v2-icon); }
 .v2-tab.is-active { border-bottom-color: var(--v2-tool, var(--v2-hh)); color: var(--v2-text-strong); }
-.v2-tab:focus-visible { outline: 2px solid var(--v2-text-strong); outline-offset: -2px; }
+.v2-tab:focus-visible { outline: 2px solid var(--v2-ring-neutral); outline-offset: -2px; }
 @media (hover: hover) { .v2-tab:hover:not(.is-active) { color: var(--v2-text); } }
 
 /* Чип фильтра */
@@ -355,7 +385,7 @@
 }
 .v2-chip-count { font-family: var(--v2-font-mono); font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
 .v2-chip.is-active .v2-chip-count { color: var(--v2-text); }
-.v2-chip:focus-visible { outline: 2px solid var(--v2-text-strong); outline-offset: 2px; }
+.v2-chip:focus-visible { outline: 2px solid var(--v2-ring-neutral); outline-offset: 0; }
 @media (hover: hover) { .v2-chip:hover:not(.is-active) { border-color: var(--v2-line-hover); color: var(--v2-text); } }
 
 /* Карточки трёх уровней */
@@ -470,7 +500,7 @@
 .v2-menu-name { display: block; font-weight: var(--v2-fw-strong); color: var(--v2-text-strong); }
 .v2-menu-sub { display: block; font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
 .v2-menu-sep { height: 0; margin: var(--v2-sp-1) 0; border-top: 1px solid var(--v2-line-3); }
-.v2-menu-item:focus-visible { outline: 2px solid var(--v2-text-strong); outline-offset: -2px; }
+.v2-menu-item:focus-visible { outline: 2px solid var(--v2-ring-neutral); outline-offset: -2px; }
 @media (hover: hover) { .v2-menu-item:hover { background: var(--v2-surface-hover); } }
 
 /* ---------- 6. КАРКАС ---------- */
@@ -515,7 +545,7 @@
 .v2-side-item svg { width: var(--v2-icon); height: var(--v2-icon); flex-shrink: 0; }
 .v2-side-item.is-active { background: var(--v2-surface-hover); color: var(--v2-text-strong); }
 .v2-side-item.is-soon { cursor: default; color: var(--v2-text-faint); }
-.v2-side-item:focus-visible, .v2-side-item.is-focus { outline: 2px solid var(--v2-text-strong); outline-offset: -2px; }
+.v2-side-item:focus-visible, .v2-side-item.is-focus { outline: 2px solid var(--v2-ring-neutral); outline-offset: -2px; }
 .v2-side-item.is-hover { background: var(--v2-surface-2); color: var(--v2-text); }
 .v2-side-recent { padding-left: var(--v2-sp-6); font-size: var(--v2-fs-xs); }
 .v2-side-recent svg { color: var(--v2-tool, var(--v2-text-2)); }
@@ -567,12 +597,10 @@
   grid-template-columns: 1fr auto;
   gap: var(--v2-sp-3) var(--v2-sp-5);
   padding: var(--v2-sp-6) var(--v2-sp-5) 0;
-  border: 1px solid var(--v2-line-3);
-  border-radius: var(--v2-r-xl);
-  background:
-    radial-gradient(60% 120% at 0% 0%, var(--v2-tool-glow, transparent), transparent 70%),
-    var(--v2-bg);
-  overflow: hidden;
+  /* БЕЗ РАМКИ И СКРУГЛЕНИЯ (решение владельца 2026-09-19): свечение
+     и звёзды растворяются в фоне страницы к низу шапки, снизу её
+     отделяет только линия под вкладками. */
+  background: radial-gradient(60% 100% at 0% 0%, var(--v2-tool-glow, transparent), transparent 100%);
   isolation: isolate;
 }
 .v2-page-head::before {
@@ -587,6 +615,8 @@
     radial-gradient(circle 1.2px at 509px 47px, var(--v2-star-dim) 0 55%, transparent 100%),
     radial-gradient(circle 1px at 422px 116px, var(--v2-star) 0 55%, transparent 100%);
   background-size: 560px 160px;
+  /* маска берёт только прозрачность: цвет в ней роли не играет */
+  mask-image: linear-gradient(to bottom, var(--v2-bg), transparent);
   pointer-events: none;
 }
 .v2-head-text { display: flex; flex-direction: column; gap: var(--v2-sp-2); min-width: 0; }
@@ -612,7 +642,7 @@
 }
 .v2-head-desc { margin: 0; font-size: var(--v2-fs-md); line-height: var(--v2-lh-body); color: var(--v2-text-2); }
 .v2-head-actions { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-end; gap: var(--v2-sp-2); }
-.v2-page-head .v2-tabs { grid-column: 1 / -1; margin-top: var(--v2-sp-3); border-bottom: 0; }
+.v2-page-head .v2-tabs { grid-column: 1 / -1; margin-top: var(--v2-sp-3); border-bottom: 1px solid var(--v2-line-2); }
 
 /* Панель ассистента — справа; на телефоне на весь экран. */
 .v2-assist {

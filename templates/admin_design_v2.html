@@ -29,7 +29,7 @@
 
   {# 1. ШАПКА СТРАНИЦЫ — в цвете каждого инструмента #}
   <section class="v2s-sec" aria-labelledby="v2s-heads">
-    <h2 class="v2s-h2" id="v2s-heads">Шапка страницы · пять инструментов</h2>
+    <h2 class="v2s-h2" id="v2s-heads">Шаблон страницы · шапка в цвете пяти инструментов</h2>
     <div class="v2s-heads">
       {% for код, иконка, метка, заголовок, описание in v2_tools %}
       <div class="v2s-sample v2-tool-{{ код }}">
@@ -40,7 +40,8 @@
             <p class="v2-head-desc">{{ описание }}</p>
           </div>
           <div class="v2-head-actions">
-            <button type="button" class="v2-btn v2-btn-secondary">{{ значок('sparkles') }}AI-ассистент</button>
+            {# Кнопка ассистента — только там, где ассистент есть (в HH и Enshrouded его нет) #}
+            {% if код not in ('hh', 'enshrouded') %}<button type="button" class="v2-btn v2-btn-secondary">{{ значок('sparkles') }}AI-ассистент</button>{% endif %}
             <button type="button" class="v2-btn v2-btn-primary">{{ значок('plus') }}Добавить</button>
           </div>
           <nav class="v2-tabs" aria-label="Разделы {{ заголовок }}">
@@ -50,7 +51,7 @@
             <button type="button" class="v2-tab">{{ значок('settings') }}Настройки</button>
           </nav>
         </header>
-        <p class="v2s-cap"><code>.v2-tool-{{ код }} .v2-page-head</code> · <code>--v2-{{ код }}</code>, <code>--v2-tool-glow</code>, <code>--v2-star</code>, <code>--v2-font-display</code>, <code>--v2-fs-3xl</code></p>
+        <p class="v2s-cap">шаблон страницы · <code>.v2-tool-{{ код }} .v2-page-head</code> · без рамки, снизу линия под вкладками · <code>--v2-{{ код }}</code>, <code>--v2-tool-glow</code>, <code>--v2-star</code>, <code>--v2-font-display</code>, <code>--v2-fs-3xl</code></p>
       </div>
       {% endfor %}
     </div>
@@ -78,6 +79,17 @@
       </div>
     </div>
     {% endfor %}
+    <div class="v2s-sample">
+      <p class="v2s-cap">загрузка со значком · <code>.v2-btn.is-loading</code>: кольцо встаёт на место значка, ширина та же</p>
+      <div class="v2s-btns">
+        {% for кл, имя, перем in виды %}
+        <div class="v2s-sample">
+          <button type="button" class="v2-btn {{ кл }}">{{ значок('plus') }}{{ имя }}</button>
+          <button type="button" class="v2-btn {{ кл }} is-loading" disabled aria-busy="true">{{ значок('plus') }}{{ имя }}</button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
     <div class="v2s-sample">
       <p class="v2s-cap"><code>.v2-btn.v2-btn-icon</code> · <code>--v2-ctl-h</code>, <code>--v2-icon</code></p>
       <div class="v2s-row">
@@ -238,7 +250,7 @@
           <a class="v2-side-item v2-side-recent v2-tool-medkit is-focus" href="#v2s-frame" tabindex="-1">{{ значок('pill') }}<span class="v2-side-label">Аптечка</span></a>
           <a class="v2-side-item v2-side-recent v2-tool-nutrition" href="#v2s-frame">{{ значок('salad') }}<span class="v2-side-label">Дневник питания</span></a>
           <p class="v2-side-section">Сообщество</p>
-          <a class="v2-side-item" href="#v2s-frame">{{ значок('file-text') }}<span class="v2-side-label">Новости</span></a>
+          <span class="v2-side-item is-soon" aria-disabled="true">{{ значок('file-text') }}<span class="v2-side-label">Новости</span><span class="v2-soon">скоро</span></span>
           <span class="v2-side-item is-soon" aria-disabled="true">{{ значок('message-circle') }}<span class="v2-side-label">Обсуждения</span><span class="v2-soon">скоро</span></span>
           <div class="v2-side-foot">
             <button type="button" class="v2-side-item">{{ значок('chevron-left') }}<span class="v2-side-label">Свернуть</span></button>
@@ -250,7 +262,7 @@
         <nav class="v2-side is-rail" aria-label="Полоса иконок (образец)">
           <a class="v2-side-item is-active" href="#v2s-frame" aria-label="Главная">{{ значок('home') }}<span class="v2-side-label">Главная</span></a>
           <button type="button" class="v2-side-item" aria-label="Инструменты">{{ значок('layout-grid') }}<span class="v2-side-label">Инструменты</span></button>
-          <a class="v2-side-item" href="#v2s-frame" aria-label="Новости">{{ значок('file-text') }}<span class="v2-side-label">Новости</span></a>
+          <span class="v2-side-item is-soon" aria-disabled="true" aria-label="Новости, скоро">{{ значок('file-text') }}<span class="v2-side-label">Новости</span></span>
           <div class="v2-side-foot">
             <button type="button" class="v2-side-item" aria-label="Развернуть">{{ значок('chevron-right') }}<span class="v2-side-label">Развернуть</span></button>
           </div>
@@ -287,10 +299,10 @@
     <h2 class="v2s-h2" id="v2s-scales">Шкалы: шрифт, отступы, скругления, цвета</h2>
     <div class="v2s-sample">
       {% for имя in ['fs-3xl', 'fs-2xl', 'fs-xl'] %}
-      <div class="v2s-scale-row"><span class="v2s-scale-name">--v2-{{ имя }}</span><span class="v2s-fs v2s-fs-display" style="--fs: var(--v2-{{ имя }})">Unbounded 42</span></div>
+      <div class="v2s-scale-row"><span class="v2s-scale-name">--v2-{{ имя }}</span><span class="v2s-fs v2s-fs-display" style="--fs: var(--v2-{{ имя }})">Unbounded <span class="v2s-px" data-px></span></span></div>
       {% endfor %}
       {% for имя in ['fs-lg', 'fs-md', 'fs-sm', 'fs-xs'] %}
-      <div class="v2s-scale-row"><span class="v2s-scale-name">--v2-{{ имя }}</span><span class="v2s-fs" style="--fs: var(--v2-{{ имя }})">Manrope — съедено 1840 ккал из 2200</span></div>
+      <div class="v2s-scale-row"><span class="v2s-scale-name">--v2-{{ имя }}</span><span class="v2s-fs" style="--fs: var(--v2-{{ имя }})">Manrope · <span class="v2s-px" data-px></span></span></div>
       {% endfor %}
     </div>
     <div class="v2s-sample">
@@ -311,6 +323,21 @@
   </section>
 
 </main>
+
+{# Подпись шкалы — НАСТОЯЩИЙ кегль, вычисленный браузером: шаг clamp()
+   зависит от ширины окна, и число, написанное руками, врало бы. #}
+<script>
+  (function () {
+    function подписать() {
+      document.querySelectorAll('[data-px]').forEach(function (el) {
+        var px = parseFloat(getComputedStyle(el.parentElement).fontSize);
+        el.textContent = (Math.round(px * 10) / 10) + ' px';
+      });
+    }
+    подписать();
+    addEventListener('resize', подписать);
+  })();
+</script>
 
 {% include '_page_end.html' %}
 </body>
