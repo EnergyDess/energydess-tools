@@ -31,10 +31,15 @@
       <p class="field-label">Остаток OpenRouter</p>
       {% if остаток.остаток is not none %}
       <p class="usage-big" id="usage-balance">{{ '%.2f' % остаток.остаток }} $</p>
-      <p class="data-note">обновлено {{ остаток.при_мск }} (МСК)</p>
+      <p class="data-note usage-balance-note" id="usage-balance-note">обновлено {{ остаток.при_мск }} (МСК)</p>
       {% else %}
-      <p class="usage-big usage-none" id="usage-balance">нет данных</p>
-      <p class="data-note">{{ остаток.причина }}</p>
+      {# ВЫСОТА КАРТОЧКИ ОДНА ВО ВСЕХ СОСТОЯНИЯХ (№346, заход 7): под
+         примечание отведено ровно три строки, лишнее обрезается, полный
+         текст — в подсказке. Прежде текст сбоя растил карточку и сдвигал
+         всё ниже, вплоть до подвала. #}
+      <p class="usage-big usage-none" id="usage-balance">не получен</p>
+      <p class="data-note usage-balance-note" id="usage-balance-note"
+         title="{{ остаток.причина }}{% if остаток.подробно %} ({{ остаток.подробно }}){% endif %} {{ остаток.последний_текст }}">{{ остаток.причина }} {{ остаток.последний_текст }}</p>
       {% endif %}
     </div>
     {% for п in сводка.периоды %}

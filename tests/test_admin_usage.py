@@ -146,3 +146,54 @@ def test_неудачи_по_кодам_за_неделю(стенд):
 
 def test_время_по_москве():
     assert main._расход_момент(datetime(2026, 9, 18, 21, 30)) == "19.09.2026 00:30"
+
+
+# ── СБОЙ ЗАПРОСА ОСТАТКА (заход 7, блок 2) ──────────────────────────────
+# Три вида сбоя проходят БОЕВОЙ `_расход_остаток_спросить` с подменённым
+# запросом: подменяется ровно сеть, разбор причины и текст — боевые.
+import httpx  # noqa: E402
+import balance_check  # noqa: E402
+
+
+def _сбой(исключение):
+    def _запрос(ключ, адрес=None):
+        raise исключение
+    return _запрос
+
+
+_ЗАПРОС = httpx.Request("GET", "https://openrouter.ai/api/v1/credits")
+СБОИ = {
+    "сеть": (httpx.ConnectError("нет связи", request=_ЗАПРОС), "не ответил (сеть)"),
+    "ключ": (httpx.HTTPStatusError("401", request=_ЗАПРОС,
+                                   response=httpx.Response(401, request=_ЗАПРОС)),
+             "отклонил ключ (HTTP 401)"),
+    "разбор": (KeyError("data"), "не разобран"),
+}
+
+
+@pytest.mark.parametrize("вид", sorted(СБОИ))
+def test_сбой_остатка_называет_причину_и_последнее(стенд, monkeypatch, вид):
+    _, к = стенд
+    monkeypatch.undo()
+    monkeypatch.setattr(main, "OPENROUTER_API_KEY", "sk-test-not-real")
+    monkeypatch.setattr(main, "РАСХОД_ОСТАТОК_КЕШ_SEC", 0)
+    monkeypatch.setattr(main, "_расход_остаток", {"при": 0.0, "итог": None, "последний": None})
+    monkeypatch.setattr(balance_check, "остаток_openrouter", lambda ключ, адрес=None: 7.65)
+    удачно = к["админ"].get("/admin/usage").text
+    assert 'id="usage-balance-note"' in удачно and "7.65 $" in удачно
+    исключение, причина = СБОИ[вид]
+    monkeypatch.setattr(balance_check, "остаток_openrouter", _сбой(исключение))
+    html = к["админ"].get("/admin/usage").text
+    assert причина in html
+    assert "Последний: 7.65" in html            # последнее удачное значение названо
+    assert 'id="usage-balance-note"' in html    # тот же узел — та же резервная высота
+
+
+def test_ключа_нет_и_удачных_не_было(стенд, monkeypatch):
+    _, к = стенд
+    monkeypatch.undo()
+    monkeypatch.setattr(main, "OPENROUTER_API_KEY", "")
+    monkeypatch.setattr(main, "РАСХОД_ОСТАТОК_КЕШ_SEC", 0)
+    monkeypatch.setattr(main, "_расход_остаток", {"при": 0.0, "итог": None, "последний": None})
+    html = к["админ"].get("/admin/usage").text
+    assert "Ключа OpenRouter нет." in html and "Удачных запросов с запуска не было" in html
