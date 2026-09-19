@@ -948,14 +948,10 @@ h1, h2, h3 { line-height: 1.1; letter-spacing: -0.02em; }
   border: 1px solid var(--tool-accent, var(--accent-brand));
 }
 
-/* Два независимых модификатора размера и свечения. Разделены намеренно:
-   на лендинге они нужны в разных сочетаниях — у кнопки в hero своё
-   свечение, но не свой размер (рядом стоит .btn-signature высотой 40px,
-   и увеличенная кнопка сломала бы ряд), у финального CTA — и то и другое.
-   Раньше оба свойства лежали в landing.css как .hero .btn-primary
-   и .cta .btn-primary, то есть страница переопределяла компонент. */
+/* Модификатор размера. Раньше лежал в landing.css правилом .cta .btn-primary,
+   то есть страница переопределяла компонент. Парный модификатор свечения
+   удалён 2026-09-19 (BACKLOG №338): потребителей 0 с захода 334. */
 .btn-lg { padding: var(--space-4) var(--space-7); font-size: var(--text-body-lg); }
-.btn-glow { box-shadow: var(--shadow-glow-brand); }
 
 /* Во всю ширину родителя. Модификатор, а не свойство компонента: ширину
    кнопки задаёт место, куда её поставили, — форма входа растягивает,
@@ -2631,6 +2627,15 @@ img.avatar { object-fit: cover; padding: 0; }
   transition: color var(--dur-fast) var(--ease);
 }
 .site-footer li a { display: inline-flex; align-items: center; gap: var(--space-2); }
+/* ОБЛАСТЬ НАЖАТИЯ ССЫЛОК ПОДВАЛА С ЗАПАСОМ. Ссылка высотой в строку (24 px)
+   стояла на пороге проверки 20: «Cookies» 80×25 проходит, 80×24 уже нет,
+   а дробная высота зависит от ширины. Отступ растит область, а равное ему
+   отрицательное поле гасит его в раскладке — текст не двигается, фона
+   у ссылок нет. Вертикальный отступ меньше половины промежутка списка
+   (12 px), поэтому соседние области не накладываются; запас по площади
+   добирается шириной. */
+.site-footer li a { padding: var(--space-1) var(--space-2); margin: calc(-1 * var(--space-1)) calc(-1 * var(--space-2)); }
+.footer-contacts a { padding-block: var(--space-1); margin-block: calc(-1 * var(--space-1)); }
 .site-footer li svg {
   width: 15px; height: 15px; flex-shrink: 0;
   color: var(--text-faint); stroke-width: 1.75;
@@ -2693,11 +2698,15 @@ img.avatar { object-fit: cover; padding: 0; }
   gap: var(--space-3) var(--space-5);
 }
 .site-footer-thin .footer-legal a { font-size: var(--text-caption); }
+/* Тот же запас у тонкого подвала: ссылки в ОДНУ строку, промежуток 24 по горизонтали */
+.site-footer-thin .footer-legal a { display: inline-block; padding: var(--space-2) var(--space-3); margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)); }
 
 @media (max-width: 640px) {
   .site-footer-thin { padding: 0 var(--space-4) var(--space-5); }
   /* На 390px три ссылки в строку не встают — колонкой, с шагом из шкалы */
   .site-footer-thin .footer-legal { flex-direction: column; gap: var(--space-2); }
+  /* Колонкой промежуток 8: по вертикали 4, недостающее добирается шириной */
+  .site-footer-thin .footer-legal a { padding: var(--space-1) var(--space-4); margin: calc(-1 * var(--space-1)) calc(-1 * var(--space-4)); }
 }
 
 /* ── Адаптив ──────────────────────────────────────────────────────────────
