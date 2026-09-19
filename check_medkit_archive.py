@@ -355,7 +355,7 @@ async def _экран_прогон(подлог=False):
     print("=" * 72)
     доказано = None
     async with async_playwright() as p:
-        бр = await p.chromium.launch(headless=False)
+        бр = await p.chromium.launch(headless=True)
         ктх = await бр.new_context(viewport={"width": 1920, "height": 1100})
         if подлог:
             await ктх.add_init_script(ПОДЛОГ_ЭКРАНА)

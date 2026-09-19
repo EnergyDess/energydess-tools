@@ -400,7 +400,7 @@ async def экран():
     import check_medkit_dose as д
     from playwright.async_api import async_playwright
     async with async_playwright() as pw:
-        бр = await pw.chromium.launch(headless=False)
+        бр = await pw.chromium.launch(headless=True)
         ctx = await бр.new_context(viewport={"width": 1440, "height": 900})
         pg = await ctx.new_page()
         await д._войти(pg)

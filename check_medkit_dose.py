@@ -375,7 +375,7 @@ async def прогон(путь, вопросы=ВОПРОСЫ):
         # ГОЛОВНОЙ БРАУЗЕР (§6.0.3): правило захода, и ширина пузыря
         # тут не главное — главное, что замер делается тем же путём,
         # что у человека
-        бр = await pw.chromium.launch(headless=False)
+        бр = await pw.chromium.launch(headless=True)
         ctx = await бр.new_context(viewport={"width": 1440, "height": 900})
         pg = await ctx.new_page()
         await _войти(pg)
@@ -596,7 +596,7 @@ def сравнить(а, б):
 # ПОДЛОГ КЛАДЁТСЯ В ТО ЗВЕНО, КОТОРОЕ ПРОВЕРЯЕТСЯ, — В ТЕЛО ОТВЕТА
 # ПЕРЕД ВЫХОДОМ. Внутренние заслоны веток в этом пути не участвуют
 # вовсе: тело собрано руками и подаётся ПРЯМО на `_апт_заслон_выхода`.
-# Дальше его рисует НАСТОЯЩИЙ построитель панели в головном браузере,
+# Дальше его рисует НАСТОЯЩИЙ построитель панели в невидимом браузере,
 # и считается дозировка в тексте, который человек увидит.
 #
 # У КАЖДОГО СЛУЧАЯ ДВА ЧИСЛА: доз видно С ЗАСЛОНОМ и БЕЗ НЕГО. Второе —
@@ -691,7 +691,7 @@ async def _нарисовать(pg, тело, как=None):
 # ПОДЛОГ ЛОМАЕТ ПРОВЕРЯЕМОЕ ЗВЕНО — БЕЛЫЙ СПИСОК `main.АПТ_ТИПЫ_СО_СПИСАНИЕМ`:
 # в него возвращаются «схема» и «иное», то есть кнопка возвращается
 # в ответ «как принимать» ровно тем путём, каким жила до правки. Тело
-# рисует боевой построитель панели в головном браузере, считаются
+# рисует боевой построитель панели в невидимом браузере, считаются
 # КНОПКИ С ЧИСЛОМ на экране. Три числа на случай:
 #   сырое  — тело без заслона: ДОКАЗАТЕЛЬСТВО, что подпись доезжает
 #            до экрана вовсе (ноль тут значил бы, что мерить нечего);
@@ -723,7 +723,7 @@ async def контроль_списания():
     прежний = main.АПТ_ТИПЫ_СО_СПИСАНИЕМ
     плохо = 0
     async with async_playwright() as pw:
-        бр = await pw.chromium.launch(headless=False)
+        бр = await pw.chromium.launch(headless=True)
         ctx = await бр.new_context(viewport={"width": 1440, "height": 900})
         pg = await ctx.new_page()
         await _войти(pg)
@@ -768,7 +768,7 @@ async def контроль_списания():
 # МЕРКА, а не контроль: сколько озаглавленных блоков в ответе, какие
 # у них шапки и какой высоты пузырь. Тело собирает НАСТОЯЩИЙ эндпоинт
 # (`TestClient`, модель подложена — тип задан, пачки выбирает сервер
-# тем же путём, что в бою), рисует боевой построитель в головном
+# тем же путём, что в бою), рисует боевой построитель в невидимом
 # браузере. Живой модели не зовёт: вопрос про построитель, а не про то,
 # какой тип модель поставит.
 ТЕЛА_СТУПЕНЕЙ = (
@@ -896,7 +896,7 @@ async def ступени():
             for тип, вопрос, имена, групп in ТЕЛА_СТУПЕНЕЙ]
     пустоты = 0
     async with async_playwright() as pw:
-        бр = await pw.chromium.launch(headless=False)
+        бр = await pw.chromium.launch(headless=True)
         ctx = await бр.new_context(viewport={"width": 1440, "height": 900})
         pg = await ctx.new_page()
         await _войти(pg)
@@ -947,7 +947,7 @@ async def контроль_ступеней():
     тело, ids = _тело_ступеней(тип, вопрос, имена, групп)
     итог = {}
     async with async_playwright() as pw:
-        бр = await pw.chromium.launch(headless=False)
+        бр = await pw.chromium.launch(headless=True)
         ctx = await бр.new_context(viewport={"width": 1440, "height": 900})
         pg = await ctx.new_page()
         await _войти(pg)
@@ -1041,7 +1041,7 @@ async def _кнопки_всех(тела):
     from playwright.async_api import async_playwright
     итог = []
     async with async_playwright() as pw:
-        бр = await pw.chromium.launch(headless=False)
+        бр = await pw.chromium.launch(headless=True)
         ctx = await бр.new_context(viewport={"width": 1440, "height": 900})
         pg = await ctx.new_page()
         await _войти(pg)
@@ -1364,7 +1364,7 @@ async def контроль():
     from playwright.async_api import async_playwright
     плохо = 0
     async with async_playwright() as pw:
-        бр = await pw.chromium.launch(headless=False)
+        бр = await pw.chromium.launch(headless=True)
         ctx = await бр.new_context(viewport={"width": 1440, "height": 900})
         pg = await ctx.new_page()
         await _войти(pg)
@@ -1410,7 +1410,7 @@ async def контроль():
 # (`АПТ_СЛЕД_ДОЗЫ`), а не через подменённую функцию.
 #
 # ЗАПРОС ИДЁТ ЧЕРЕЗ НАСТОЯЩИЙ ЭНДПОИНТ (`TestClient`, тот же процесс),
-# ответ рисуется боевым построителем в головном браузере. Три прогона:
+# ответ рисуется боевым построителем в невидимом браузере. Три прогона:
 #   V0 — ничего не сломано: тип «доза», модель не звалась;
 #   V1 — роутер сломан, выходной заслон на месте;
 #   V2 — роутер сломан, выходной заслон снят — ДОКАЗАТЕЛЬСТВО: доза
@@ -1462,7 +1462,7 @@ async def _нарисовать_все(тела):
     from playwright.async_api import async_playwright
     видно = []
     async with async_playwright() as pw:
-        бр = await pw.chromium.launch(headless=False)
+        бр = await pw.chromium.launch(headless=True)
         ctx = await бр.new_context(viewport={"width": 1440, "height": 900})
         pg = await ctx.new_page()
         await _войти(pg)
@@ -1530,7 +1530,7 @@ def _остаток(ид):
 async def списание():
     from playwright.async_api import async_playwright
     async with async_playwright() as pw:
-        бр = await pw.chromium.launch(headless=False)
+        бр = await pw.chromium.launch(headless=True)
         ctx = await бр.new_context(viewport={"width": 1440, "height": 900})
         pg = await ctx.new_page()
         await _войти(pg)
