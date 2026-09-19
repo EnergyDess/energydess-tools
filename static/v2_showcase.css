@@ -1,0 +1,58 @@
+/* @v2 — РАСКЛАДКА ВИТРИНЫ `/admin/design-v2` (BACKLOG №352, письмо 1).
+   Только размещение образцов; вид компонентов — `static/v2.css`.
+   Прямых значений нет, только `var(--v2-*)` (проверка 47). */
+.v2s {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--v2-sp-6) var(--v2-sp-5) var(--v2-sp-9);
+  background: var(--v2-bg);
+  color: var(--v2-text);
+  font-family: var(--v2-font);
+}
+.v2s-intro { display: flex; flex-direction: column; gap: var(--v2-sp-2); margin-bottom: var(--v2-sp-7); }
+.v2s-h1 {
+  margin: 0;
+  font-family: var(--v2-font-display);
+  font-size: var(--v2-fs-3xl);
+  font-weight: var(--v2-fw-display);
+  line-height: var(--v2-lh-tight);
+  letter-spacing: var(--v2-ls-display);
+  color: var(--v2-text-strong);
+}
+.v2s-sec { display: flex; flex-direction: column; gap: var(--v2-sp-4); margin-top: var(--v2-sp-8); }
+.v2s-h2 {
+  margin: 0;
+  padding-bottom: var(--v2-sp-3);
+  border-bottom: 1px solid var(--v2-line-3);
+  font-family: var(--v2-font-display);
+  font-size: var(--v2-fs-xl);
+  font-weight: var(--v2-fw-num);
+  letter-spacing: var(--v2-ls-display);
+  color: var(--v2-text-strong);
+}
+.v2s-cap { margin: 0; font-size: var(--v2-fs-xs); line-height: var(--v2-lh-snug); color: var(--v2-text-faint); }
+.v2s-cap code { font-family: var(--v2-font-mono); color: var(--v2-text-2); }
+.v2s-sample { display: flex; flex-direction: column; gap: var(--v2-sp-2); min-width: 0; }
+.v2s-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--v2-sp-4); }
+.v2s-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: var(--v2-sp-5); }
+.v2s-grid-wide { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: var(--v2-sp-5); }
+.v2s-heads { display: flex; flex-direction: column; gap: var(--v2-sp-5); }
+.v2s-btns { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); gap: var(--v2-sp-4); }
+.v2s-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr)); gap: var(--v2-sp-3); }
+.v2s-frame { display: flex; flex-wrap: wrap; gap: var(--v2-sp-5); align-items: stretch; }
+.v2s-frame .v2-side { border: 1px solid var(--v2-line-3); border-radius: var(--v2-r-lg); }
+.v2s-top { flex: 1 1 100%; border: 1px solid var(--v2-line-3); border-radius: var(--v2-r-lg); }
+.v2s-scale-row { display: flex; align-items: baseline; gap: var(--v2-sp-4); padding: var(--v2-sp-2) 0; border-bottom: 1px solid var(--v2-line-3); }
+.v2s-scale-name { flex: 0 0 auto; width: 9rem; font-family: var(--v2-font-mono); font-size: var(--v2-fs-xs); color: var(--v2-text-2); }
+.v2s-fs { font-size: var(--fs); line-height: var(--v2-lh-snug); color: var(--v2-text-strong); overflow-wrap: anywhere; }
+.v2s-fs-display { font-family: var(--v2-font-display); font-weight: var(--v2-fw-display); letter-spacing: var(--v2-ls-display); }
+.v2s-bar { display: block; width: var(--w); height: var(--v2-sp-3); border-radius: var(--v2-r-sm); background: var(--v2-tool, var(--v2-hh)); }
+.v2s-radius { display: block; width: var(--v2-sp-8); height: var(--v2-sp-7); border: 1px solid var(--v2-line-1); border-radius: var(--r); background: var(--v2-surface-2); }
+.v2s-swatch { display: block; height: var(--v2-sp-7); border: 1px solid var(--v2-line-2); border-radius: var(--v2-r-md); background: var(--c); }
+
+@media (max-width: 768px) {
+  .v2s { padding: var(--v2-sp-5) var(--v2-sp-4) var(--v2-sp-8); }
+  .v2s-sec { margin-top: var(--v2-sp-7); }
+  .v2s-scale-name { width: 7rem; }
+}

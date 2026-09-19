@@ -180,8 +180,11 @@
               transform var(--v2-dur-fast) var(--v2-ease-out);
 }
 .v2-btn svg { width: var(--v2-icon); height: var(--v2-icon); flex-shrink: 0; }
-.v2-btn:focus-visible { outline: 2px solid var(--v2-text-strong); outline-offset: 2px; }
-.v2-btn:active:not(:disabled) { transform: scale(0.98); }
+/* Состояния — псевдоклассом у живого органа и классом-зеркалом у образца
+   витрины (`.is-hover`, `.is-focus`, `.is-pressed`): статичную картинку
+   наведения иначе не показать. Живые страницы классы-зеркала не ставят. */
+.v2-btn:focus-visible, .v2-btn.is-focus { outline: 2px solid var(--v2-text-strong); outline-offset: 2px; }
+.v2-btn:active:not(:disabled), .v2-btn.is-pressed { transform: scale(0.98); }
 .v2-btn:disabled, .v2-btn[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
 .v2-btn-primary {
   border-color: var(--v2-tool, var(--v2-hh));
@@ -195,7 +198,18 @@
   background: linear-gradient(90deg, var(--v2-grad-a), var(--v2-grad-b), var(--v2-grad-c));
   color: var(--v2-text-strong);
 }
-.v2-btn-icon { padding: 0; width: var(--v2-ctl-h); }
+.v2-btn-icon { flex-shrink: 0; padding: 0; width: var(--v2-ctl-h); }
+.v2-btn.is-hover { border-color: var(--v2-line-hover); background: var(--v2-surface-hover); }
+.v2-btn-primary.is-hover {
+  border-color: var(--v2-tool, var(--v2-hh));
+  background: color-mix(in srgb, var(--v2-tool, var(--v2-hh)) 86%, var(--v2-text-strong));
+}
+.v2-btn-danger.is-hover { border-color: var(--v2-danger); background: var(--v2-danger-dim); }
+.v2-btn-gradient.is-hover {
+  border-color: transparent;
+  background: linear-gradient(90deg, var(--v2-grad-a), var(--v2-grad-b), var(--v2-grad-c));
+  transform: scale(1.02);
+}
 @media (hover: hover) {
   .v2-btn:hover:not(:disabled) { border-color: var(--v2-line-hover); background: var(--v2-surface-hover); }
   .v2-btn-primary:hover:not(:disabled) {
@@ -209,7 +223,9 @@
     transform: scale(1.02);
   }
 }
-.v2-btn.is-loading { pointer-events: none; }
+/* Загрузка — неактивная кнопка с кольцом: орган ставит `disabled` на время
+   запроса, а приглушение неактивной здесь снято — кнопка занята, а не выключена. */
+.v2-btn.is-loading, .v2-btn.is-loading:disabled { opacity: 1; cursor: progress; }
 .v2-btn.is-loading::before {
   content: "";
   width: var(--v2-sp-4);
@@ -499,7 +515,8 @@
 .v2-side-item svg { width: var(--v2-icon); height: var(--v2-icon); flex-shrink: 0; }
 .v2-side-item.is-active { background: var(--v2-surface-hover); color: var(--v2-text-strong); }
 .v2-side-item.is-soon { cursor: default; color: var(--v2-text-faint); }
-.v2-side-item:focus-visible { outline: 2px solid var(--v2-text-strong); outline-offset: -2px; }
+.v2-side-item:focus-visible, .v2-side-item.is-focus { outline: 2px solid var(--v2-text-strong); outline-offset: -2px; }
+.v2-side-item.is-hover { background: var(--v2-surface-2); color: var(--v2-text); }
 .v2-side-recent { padding-left: var(--v2-sp-6); font-size: var(--v2-fs-xs); }
 .v2-side-recent svg { color: var(--v2-tool, var(--v2-text-2)); }
 .v2-soon {
@@ -634,7 +651,7 @@
 @media (pointer: coarse) {
   .v2-btn, .v2-chip, .v2-input, .v2-select { min-height: var(--v2-ctl-h-touch); }
   .v2-btn-icon { width: var(--v2-ctl-h-touch); }
-  .v2-seg-btn { min-height: calc(var(--v2-ctl-h-touch) - var(--v2-sp-2)); }
+  .v2-seg-btn { min-height: var(--v2-ctl-h-touch); }
 }
 @media (max-width: 768px) {
   .v2-top { padding: 0 var(--v2-sp-4); }
@@ -652,5 +669,5 @@
   .v2-btn, .v2-seg-btn, .v2-tab, .v2-chip, .v2-side-item, .v2-progress-fill,
   .v2-input, .v2-textarea, .v2-select { transition: none; }
   .v2-btn.is-loading::before { animation: none; }
-  .v2-btn:active:not(:disabled) { transform: none; }
+  .v2-btn:active:not(:disabled), .v2-btn.is-pressed { transform: none; }
 }

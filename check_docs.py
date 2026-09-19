@@ -99,7 +99,7 @@ import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.
 sys.stdout.reconfigure(encoding="utf-8")
 
 КОРЕНЬ = pathlib.Path(__file__).parent
-ДОКУМЕНТЫ = ('design-system.md', 'CLAUDE.md')
+ДОКУМЕНТЫ = ('design-system.md', 'CLAUDE.md', 'design-system-v2.md')
 
 # Имена, которые называются в документации ИМЕННО как удалённые или
 # гипотетические. Каждое — с причиной: список без причин через полгода

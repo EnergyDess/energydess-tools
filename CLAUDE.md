@@ -687,6 +687,8 @@ templates/           — HTML-шаблоны Jinja2
                                        свою, и расхождения были не
                                        косметические
 static/
+  v2_showcase.css    — раскладка витрины `/admin/design-v2` (№352), тоже
+                       `@v2`; в переменной `pages` §6.0.2
   v2.css             — ДИЗАЙН-СИСТЕМА v2 (№352): токены `--v2-*` в ОДНОМ
                        `:root`, `@font-face` Unbounded и компоненты `.v2-*`
                        только на токенах (сторож — проверка 47). До письма 2
@@ -3164,6 +3166,9 @@ measure_letter_prompt.py — ЗАПРОС ПИСЬМА: ЧАСТИ, ЦЕНА, К
                        вакансии, токены частей — самой моделью
                        (`max_tokens=1`). Без флага — на заглушке и без
                        денег; `--живьём` — 8 вызовов на ключе стенда
+check_v2_tokens.py   — ПРОВЕРКА 47 (№352): стили с меткой `@v2` — только
+                       переменные v2; долг прямых значений старого кода
+                       не растёт. Счёт — `measure_redesign.прямые_значения`
 measure_redesign.py  — РАЗНОБОЙ СТИЛЕЙ ЗАЛОГИНЕННОЙ ЧАСТИ (№352, письмо 1):
                        переменные, прямые значения мимо них по файлам,
                        варианты компонентов, шрифты, цвета инструментов,
@@ -10858,7 +10863,7 @@ py project_lists.py     # оба ряда с номерами ПЛЮС «вне 
 
 ```bash
 # pages — латиницей, см. §6.0: кириллическое имя переменной bash даёт «command not found»
-pages="templates/ static/hh.css static/profile.css static/landing.css static/workout.css static/workout_profile.css static/nutrition.css static/botamin.css static/verify.css static/enshrouded.css static/admin.css static/medkit.css"
+pages="templates/ static/hh.css static/profile.css static/landing.css static/workout.css static/workout_profile.css static/nutrition.css static/botamin.css static/verify.css static/enshrouded.css static/admin.css static/medkit.css static/v2_showcase.css"
 # demo — ФАЙЛЫ, КОТОРЫХ ПРОВЕРКИ НЕ СЧИТАЮТ. Решение владельца 2026-08-20
 # (BACKLOG №27): две страницы витрины тестового задания остаются
 # в репозитории, к дизайн-системе отношения не имеют, правки в них
@@ -11235,6 +11240,14 @@ py check_letter_facts.py
 #     перечня `ВЁРСТКА` — находка; проба вёрстки без видимого запуска —
 #     находка (замер ширины headless врёт на 15 px полосы прокрутки).
 py check_headed.py
+
+# 47. СТИЛИ ПО v2 — ТОЛЬКО ПЕРЕМЕННЫЕ v2 (№352, письмо 1). В файлах
+#     с меткой `@v2` в первой строке НОЛЬ прямых значений цвета, кегля,
+#     отступа, скругления и тени и ни одного токена-литерала вне `:root`
+#     `static/v2.css`. По старому коду печатается ДОЛГ — прямые значения
+#     из замера блока 1 (стартовый 302) — и проверка падает, если он
+#     вырос. Счёт один с меркой `measure_redesign.py`, импортом.
+py check_v2_tokens.py
 
 # ═══ РЯД СТЕНДА ═══════════════════════════════════════════════════════
 # Дальше идут проверки, которым нужны БРАУЗЕР и ПОДНЯТОЕ ПРИЛОЖЕНИЕ.

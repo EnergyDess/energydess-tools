@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% set meta_title = 'Дизайн-система v2 — Админ' %}
+  {% include '_meta.html' %}
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ st('style.css') }}">
+  <link rel="stylesheet" href="{{ st('v2.css') }}">
+  <link rel="stylesheet" href="{{ st('v2_showcase.css') }}">
+</head>
+<body class="has-site-header page-column">
+
+{% include '_admin_nav.html' %}
+
+{# ВИТРИНА ДИЗАЙН-СИСТЕМЫ v2 (BACKLOG №352, письмо 1). Каждый образец
+   подписан именем компонента и переменных. Состояния наведения, фокуса
+   и нажатия показаны классами-зеркалами `.is-hover`, `.is-focus`,
+   `.is-pressed` — статичную картинку псевдокласса иначе не получить.
+   Такие образцы вынуты из порядка Tab (`tabindex="-1"`): обводка у них
+   уже нарисована, и настоящий фокус к ней ничего бы не добавил. #}
+<main class="v2s page-fill">
+
+  <div class="v2s-intro">
+    <h1 class="v2s-h1">Дизайн-система v2</h1>
+    <p class="v2-text">Образцы всех компонентов залогиненной части на токенах <code>--v2-*</code>. Источник правды — design-system-v2.md.</p>
+  </div>
+
+  {# 1. ШАПКА СТРАНИЦЫ — в цвете каждого инструмента #}
+  <section class="v2s-sec" aria-labelledby="v2s-heads">
+    <h2 class="v2s-h2" id="v2s-heads">Шапка страницы · пять инструментов</h2>
+    <div class="v2s-heads">
+      {% for код, иконка, метка, заголовок, описание in v2_tools %}
+      <div class="v2s-sample v2-tool-{{ код }}">
+        <header class="v2-page-head">
+          <div class="v2-head-text">
+            <span class="v2-head-label">{{ значок(иконка) }}{{ метка }}</span>
+            <p class="v2-head-title">{{ заголовок }}</p>
+            <p class="v2-head-desc">{{ описание }}</p>
+          </div>
+          <div class="v2-head-actions">
+            <button type="button" class="v2-btn v2-btn-secondary">{{ значок('sparkles') }}AI-ассистент</button>
+            <button type="button" class="v2-btn v2-btn-primary">{{ значок('plus') }}Добавить</button>
+          </div>
+          <nav class="v2-tabs" aria-label="Разделы {{ заголовок }}">
+            <button type="button" class="v2-tab is-active" aria-current="page">{{ значок('layout-grid') }}Главное</button>
+            <button type="button" class="v2-tab">{{ значок('history') }}История</button>
+            <button type="button" class="v2-tab">{{ значок('bar-chart-3') }}Статистика</button>
+            <button type="button" class="v2-tab">{{ значок('settings') }}Настройки</button>
+          </nav>
+        </header>
+        <p class="v2s-cap"><code>.v2-tool-{{ код }} .v2-page-head</code> · <code>--v2-{{ код }}</code>, <code>--v2-tool-glow</code>, <code>--v2-star</code>, <code>--v2-font-display</code>, <code>--v2-fs-3xl</code></p>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# 2. КНОПКИ — все виды и состояния #}
+  <section class="v2s-sec v2-tool-hh" aria-labelledby="v2s-btns">
+    <h2 class="v2s-h2" id="v2s-btns">Кнопки · виды и состояния</h2>
+    {% set виды = [('v2-btn-primary', 'Главная', '--v2-tool, --v2-ink-on-tool'),
+                   ('v2-btn-secondary', 'Вторичная', '--v2-line-1, --v2-line-hover'),
+                   ('v2-btn-danger', 'Опасная', '--v2-danger, --v2-danger-dim'),
+                   ('v2-btn-gradient', 'Регистрация', '--v2-grad-a, --v2-grad-b, --v2-grad-c')] %}
+    {% set состояния = [('', 'обычная'), ('is-hover', 'наведение'), ('is-focus', 'фокус'),
+                        ('is-pressed', 'нажата'), ('disabled', 'неактивна'), ('is-loading', 'загрузка')] %}
+    {% for кл, имя, перем in виды %}
+    <div class="v2s-sample">
+      <p class="v2s-cap"><code>.v2-btn.{{ кл }}</code> · <code>{{ перем }}</code></p>
+      <div class="v2s-btns">
+        {% for сост, подпись in состояния %}
+        <div class="v2s-sample">
+          <button type="button" class="v2-btn {{ кл }}{% if сост and сост != 'disabled' %} {{ сост }}{% endif %}"{% if сост in ('disabled', 'is-loading') %} disabled{% endif %}{% if сост == 'is-loading' %} aria-busy="true"{% endif %}{% if сост in ('is-hover', 'is-focus', 'is-pressed') %} tabindex="-1"{% endif %}>{{ имя }}</button>
+          <span class="v2s-cap">{{ подпись }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+    <div class="v2s-sample">
+      <p class="v2s-cap"><code>.v2-btn.v2-btn-icon</code> · <code>--v2-ctl-h</code>, <code>--v2-icon</code></p>
+      <div class="v2s-row">
+        <button type="button" class="v2-btn v2-btn-secondary v2-btn-icon" aria-label="Изменить">{{ значок('pencil') }}</button>
+        <button type="button" class="v2-btn v2-btn-danger v2-btn-icon" aria-label="Удалить">{{ значок('trash-2') }}</button>
+      </div>
+    </div>
+  </section>
+
+  {# 3. ПОЛЯ ВВОДА #}
+  <section class="v2s-sec v2-tool-nutrition" aria-labelledby="v2s-fields">
+    <h2 class="v2s-h2" id="v2s-fields">Поля ввода</h2>
+    <div class="v2s-grid">
+      <div class="v2s-sample">
+        <label class="v2-field"><span class="v2-label">Название</span>
+          <input class="v2-input" type="text" placeholder="Например, творог 5%"></label>
+        <p class="v2s-cap"><code>.v2-field .v2-input</code> · <code>--v2-surface-field</code>, <code>--v2-line-1</code>, <code>--v2-r-md</code></p>
+      </div>
+      <div class="v2s-sample">
+        <label class="v2-field"><span class="v2-label">Граммы</span>
+          <input class="v2-input" type="text" value="-20" aria-invalid="true" aria-describedby="v2s-err1">
+          <span class="v2-error" id="v2s-err1">Вес не может быть отрицательным</span></label>
+        <p class="v2s-cap"><code>.v2-input[aria-invalid]</code> + <code>.v2-error</code> · <code>--v2-danger</code></p>
+      </div>
+      <div class="v2s-sample">
+        <label class="v2-field"><span class="v2-label">Заметка</span>
+          <textarea class="v2-textarea" placeholder="Что важно запомнить"></textarea>
+          <span class="v2-hint">Необязательно</span></label>
+        <p class="v2s-cap"><code>.v2-textarea</code>, <code>.v2-hint</code> · <code>--v2-text-faint</code></p>
+      </div>
+      <div class="v2s-sample">
+        <label class="v2-field"><span class="v2-label">Приём пищи</span>
+          <select class="v2-select"><option>Завтрак</option><option>Обед</option><option>Ужин</option></select></label>
+        <p class="v2s-cap"><code>.v2-select</code> · <code>--v2-surface-pop</code> у списка</p>
+      </div>
+      <div class="v2s-sample">
+        <label class="v2-field"><span class="v2-label">Единица</span>
+          <select class="v2-select" aria-invalid="true" aria-describedby="v2s-err2"><option>— не выбрано —</option></select>
+          <span class="v2-error" id="v2s-err2">Выберите единицу</span></label>
+        <p class="v2s-cap"><code>.v2-select[aria-invalid]</code></p>
+      </div>
+      <div class="v2s-sample">
+        <span class="v2-label">Режим</span>
+        <div class="v2-seg" role="group" aria-label="Режим">
+          <button type="button" class="v2-seg-btn is-active" aria-pressed="true">Текст</button>
+          <button type="button" class="v2-seg-btn" aria-pressed="false">Ссылка</button>
+          <button type="button" class="v2-seg-btn" aria-pressed="false">Фото</button>
+        </div>
+        <p class="v2s-cap"><code>.v2-seg .v2-seg-btn.is-active</code> · <code>--v2-surface-hover</code>, <code>--v2-r-pill</code></p>
+      </div>
+    </div>
+  </section>
+
+  {# 4. ВКЛАДКИ И ЧИПЫ #}
+  <section class="v2s-sec v2-tool-enshrouded" aria-labelledby="v2s-chips">
+    <h2 class="v2s-h2" id="v2s-chips">Вкладки и чипы</h2>
+    <div class="v2s-sample">
+      <nav class="v2-tabs" aria-label="Образец вкладок">
+        <button type="button" class="v2-tab is-active" aria-current="page">Сеты</button>
+        <button type="button" class="v2-tab">Собрано</button>
+        <button type="button" class="v2-tab">Не хватает</button>
+      </nav>
+      <p class="v2s-cap"><code>.v2-tabs .v2-tab.is-active</code> · <code>--v2-tool</code>, <code>--v2-line-3</code></p>
+    </div>
+    <div class="v2s-sample">
+      <div class="v2-chips">
+        <button type="button" class="v2-chip">Кузнец</button>
+        <button type="button" class="v2-chip is-active" aria-pressed="true">Охотница</button>
+        <button type="button" class="v2-chip">Алхимик <span class="v2-chip-count">14</span></button>
+        <button type="button" class="v2-chip is-active" aria-pressed="true">Мир <span class="v2-chip-count">21</span></button>
+      </div>
+      <p class="v2s-cap"><code>.v2-chip</code>, <code>.is-active</code>, <code>.v2-chip-count</code> · <code>--v2-tool-dim</code>, <code>--v2-tool-line</code>, <code>--v2-font-mono</code></p>
+    </div>
+  </section>
+
+  {# 5. КАРТОЧКИ, ПЛИТКИ, ПРОГРЕСС, ПУСТОЕ СОСТОЯНИЕ #}
+  <section class="v2s-sec v2-tool-medkit" aria-labelledby="v2s-cards">
+    <h2 class="v2s-h2" id="v2s-cards">Карточки трёх уровней, плитки, прогресс, пустое состояние</h2>
+    <div class="v2s-grid-wide">
+      <div class="v2s-sample">
+        <div class="v2-card">
+          <p class="v2-card-title">Главная карточка</p>
+          <p class="v2-text">Поверхность почти прозрачна, от фона её отделяет рамка.</p>
+          <hr class="v2-divider">
+          <div class="v2-card-nested">
+            <p class="v2-text">Вложенное окно — на ступень светлее, рамка слабее.</p>
+          </div>
+        </div>
+        <p class="v2s-cap"><code>.v2-card</code> · <code>--v2-surface-1</code>, <code>--v2-line-1</code>, <code>--v2-r-xl</code>; <code>.v2-divider</code> · <code>--v2-line-3</code>; <code>.v2-card-nested</code> · <code>--v2-surface-2</code>, <code>--v2-line-2</code>, <code>--v2-r-lg</code></p>
+      </div>
+      <div class="v2s-sample">
+        <div class="v2s-tiles">
+          <div class="v2-tile"><span class="v2-tile-num">77</span><span class="v2-tile-label">упаковок</span></div>
+          <div class="v2-tile"><span class="v2-tile-num">3</span><span class="v2-tile-label">истекает</span></div>
+          <div class="v2-tile"><span class="v2-tile-num">1</span><span class="v2-tile-label">просрочено</span></div>
+        </div>
+        <p class="v2s-cap"><code>.v2-tile .v2-tile-num</code> · <code>--v2-font-display</code>, <code>--v2-fs-2xl</code>, <code>--v2-fw-num</code></p>
+        <div class="v2-progress" role="progressbar" aria-valuenow="64" aria-valuemin="0" aria-valuemax="100" aria-label="Осталось">
+          <div class="v2-progress-fill" style="--v2-value: 64%"></div>
+        </div>
+        <p class="v2s-cap"><code>.v2-progress</code> · <code>--v2-value</code>, <code>--v2-progress-h</code>, <code>--v2-tool</code></p>
+      </div>
+      <div class="v2s-sample">
+        <div class="v2-card">
+          <div class="v2-empty">
+            <span class="v2-empty-icon">{{ значок('pill') }}</span>
+            <p class="v2-empty-title">В аптечке пока пусто</p>
+            <p class="v2-empty-text">Сфотографируйте упаковку — ассистент заполнит карточку.</p>
+            <button type="button" class="v2-btn v2-btn-primary">{{ значок('plus') }}Добавить</button>
+          </div>
+        </div>
+        <p class="v2s-cap"><code>.v2-empty</code> · <code>--v2-tool-dim</code>, <code>--v2-tool-line</code>, <code>--v2-sp-8</code></p>
+      </div>
+    </div>
+  </section>
+
+  {# 6. МЕНЮ — открытые, статичные #}
+  <section class="v2s-sec" aria-labelledby="v2s-menus">
+    <h2 class="v2s-h2" id="v2s-menus">Всплывающие меню</h2>
+    <div class="v2s-row">
+      <div class="v2s-sample">
+        <div class="v2-menu" role="menu" aria-label="Инструменты">
+          {% for код, иконка, метка, заголовок, описание in v2_tools %}
+          <a class="v2-menu-item v2-tool-{{ код }}" role="menuitem" href="#v2s-menus">{{ значок(иконка) }}<span><span class="v2-menu-name">{{ заголовок }}</span><span class="v2-menu-sub">{{ описание }}</span></span></a>
+          {% endfor %}
+        </div>
+        <p class="v2s-cap"><code>.v2-menu .v2-menu-item</code> · <code>--v2-surface-pop</code>, <code>--v2-shadow-pop</code>, иконка <code>--v2-tool</code></p>
+      </div>
+      <div class="v2s-sample">
+        <div class="v2-menu" role="menu" aria-label="Аккаунт">
+          <a class="v2-menu-item" role="menuitem" href="#v2s-menus">{{ значок('user') }}<span class="v2-menu-name">Профиль</span></a>
+          <a class="v2-menu-item" role="menuitem" href="#v2s-menus">{{ значок('shield-check') }}<span class="v2-menu-name">Админ-панель</span></a>
+          <div class="v2-menu-sep" role="separator"></div>
+          <a class="v2-menu-item" role="menuitem" href="#v2s-menus">{{ значок('log-out') }}<span class="v2-menu-name">Выйти</span></a>
+        </div>
+        <p class="v2s-cap">меню аватара · <code>.v2-menu-sep</code> · <code>--v2-line-3</code>; «Админ-панель» — только администратору</p>
+      </div>
+    </div>
+  </section>
+
+  {# 7. КАРКАС #}
+  <section class="v2s-sec" aria-labelledby="v2s-frame">
+    <h2 class="v2s-h2" id="v2s-frame">Каркас: верхняя строка, боковое меню, полоса</h2>
+    <div class="v2s-frame">
+      <div class="v2s-sample v2s-top">
+        <div class="v2-top">
+          <button type="button" class="v2-btn v2-btn-secondary v2-btn-icon v2-top-burger" aria-label="Меню">{{ значок('layout-grid') }}</button>
+          <input class="v2-input v2-top-search" type="search" placeholder="Найти инструмент, письмо, продукт…" aria-label="Поиск">
+          <button type="button" class="v2-avatar" aria-label="Меню аккаунта">Д</button>
+        </div>
+        <p class="v2s-cap"><code>.v2-top</code> · <code>--v2-top-h</code>; кнопка меню <code>.v2-top-burger</code> только на телефоне; <code>.v2-avatar</code></p>
+      </div>
+      <div class="v2s-sample">
+        <nav class="v2-side" aria-label="Боковое меню (образец)">
+          <a class="v2-side-item is-active" href="#v2s-frame" aria-current="page">{{ значок('home') }}<span class="v2-side-label">Главная</span></a>
+          <button type="button" class="v2-side-item is-hover" aria-haspopup="menu" tabindex="-1">{{ значок('layout-grid') }}<span class="v2-side-label">Инструменты</span></button>
+          <a class="v2-side-item v2-side-recent v2-tool-hh" href="#v2s-frame">{{ значок('briefcase') }}<span class="v2-side-label">HH-ассистент</span></a>
+          <a class="v2-side-item v2-side-recent v2-tool-medkit is-focus" href="#v2s-frame" tabindex="-1">{{ значок('pill') }}<span class="v2-side-label">Аптечка</span></a>
+          <a class="v2-side-item v2-side-recent v2-tool-nutrition" href="#v2s-frame">{{ значок('salad') }}<span class="v2-side-label">Дневник питания</span></a>
+          <p class="v2-side-section">Сообщество</p>
+          <a class="v2-side-item" href="#v2s-frame">{{ значок('file-text') }}<span class="v2-side-label">Новости</span></a>
+          <span class="v2-side-item is-soon" aria-disabled="true">{{ значок('message-circle') }}<span class="v2-side-label">Обсуждения</span><span class="v2-soon">скоро</span></span>
+          <div class="v2-side-foot">
+            <button type="button" class="v2-side-item">{{ значок('chevron-left') }}<span class="v2-side-label">Свернуть</span></button>
+          </div>
+        </nav>
+        <p class="v2s-cap"><code>.v2-side-item</code>: <code>.is-active</code>, <code>.is-hover</code> (Инструменты), <code>.is-focus</code> (Аптечка), <code>.is-soon</code>; <code>--v2-side-w</code></p>
+      </div>
+      <div class="v2s-sample">
+        <nav class="v2-side is-rail" aria-label="Полоса иконок (образец)">
+          <a class="v2-side-item is-active" href="#v2s-frame" aria-label="Главная">{{ значок('home') }}<span class="v2-side-label">Главная</span></a>
+          <button type="button" class="v2-side-item" aria-label="Инструменты">{{ значок('layout-grid') }}<span class="v2-side-label">Инструменты</span></button>
+          <a class="v2-side-item" href="#v2s-frame" aria-label="Новости">{{ значок('file-text') }}<span class="v2-side-label">Новости</span></a>
+          <div class="v2-side-foot">
+            <button type="button" class="v2-side-item" aria-label="Развернуть">{{ значок('chevron-right') }}<span class="v2-side-label">Развернуть</span></button>
+          </div>
+        </nav>
+        <p class="v2s-cap"><code>.v2-side.is-rail</code> · <code>--v2-rail-w</code></p>
+      </div>
+    </div>
+  </section>
+
+  {# 8. ПАНЕЛЬ АССИСТЕНТА — открытая, статичная #}
+  <section class="v2s-sec v2-tool-medkit" aria-labelledby="v2s-assist">
+    <h2 class="v2s-h2" id="v2s-assist">Панель ассистента</h2>
+    <div class="v2s-sample">
+      <aside class="v2-assist" aria-label="AI-ассистент (образец)">
+        <div class="v2-assist-head">
+          {{ значок('sparkles') }}<p class="v2-assist-title">AI-ассистент</p>
+          <button type="button" class="v2-btn v2-btn-secondary v2-btn-icon" aria-label="Закрыть">{{ значок('x') }}</button>
+        </div>
+        <div class="v2-assist-body">
+          <p class="v2-msg v2-msg-me">Что у меня есть от головы?</p>
+          <p class="v2-msg">Нашлось две позиции — обе в категории «Голова», сроки в порядке.</p>
+        </div>
+        <div class="v2-assist-input">
+          <input class="v2-input" type="text" placeholder="Спросите или пришлите упаковку" aria-label="Сообщение">
+          <button type="button" class="v2-btn v2-btn-primary v2-btn-icon" aria-label="Отправить">{{ значок('send') }}</button>
+        </div>
+      </aside>
+      <p class="v2s-cap"><code>.v2-assist</code> · <code>--v2-assist-w</code>, <code>--v2-surface-pop</code>; <code>.v2-msg-me</code> · <code>--v2-tool-dim</code></p>
+    </div>
+  </section>
+
+  {# 9. ШКАЛЫ #}
+  <section class="v2s-sec v2-tool-workout" aria-labelledby="v2s-scales">
+    <h2 class="v2s-h2" id="v2s-scales">Шкалы: шрифт, отступы, скругления, цвета</h2>
+    <div class="v2s-sample">
+      {% for имя in ['fs-3xl', 'fs-2xl', 'fs-xl'] %}
+      <div class="v2s-scale-row"><span class="v2s-scale-name">--v2-{{ имя }}</span><span class="v2s-fs v2s-fs-display" style="--fs: var(--v2-{{ имя }})">Unbounded 42</span></div>
+      {% endfor %}
+      {% for имя in ['fs-lg', 'fs-md', 'fs-sm', 'fs-xs'] %}
+      <div class="v2s-scale-row"><span class="v2s-scale-name">--v2-{{ имя }}</span><span class="v2s-fs" style="--fs: var(--v2-{{ имя }})">Manrope — съедено 1840 ккал из 2200</span></div>
+      {% endfor %}
+    </div>
+    <div class="v2s-sample">
+      {% for н in range(1, 10) %}
+      <div class="v2s-scale-row"><span class="v2s-scale-name">--v2-sp-{{ н }}</span><span class="v2s-bar" style="--w: var(--v2-sp-{{ н }})"></span></div>
+      {% endfor %}
+    </div>
+    <div class="v2s-row">
+      {% for имя in ['r-sm', 'r-md', 'r-lg', 'r-xl', 'r-pill'] %}
+      <div class="v2s-sample"><span class="v2s-radius" style="--r: var(--v2-{{ имя }})"></span><span class="v2s-cap">--v2-{{ имя }}</span></div>
+      {% endfor %}
+    </div>
+    <div class="v2s-tiles">
+      {% for имя in ['hh', 'nutrition', 'medkit', 'enshrouded', 'workout', 'bg', 'text', 'text-2', 'text-faint', 'danger'] %}
+      <div class="v2s-sample"><span class="v2s-swatch" style="--c: var(--v2-{{ имя }})"></span><span class="v2s-cap">--v2-{{ имя }}</span></div>
+      {% endfor %}
+    </div>
+  </section>
+
+</main>
+
+{% include '_page_end.html' %}
+</body>
+</html>

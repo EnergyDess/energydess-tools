@@ -4770,6 +4770,30 @@ async def admin_usage_page(request: Request, user=Depends(get_current_user),
                            for п in сводка["периоды"]]})
 
 
+@app.get("/admin/design-v2")
+async def admin_design_v2_page(request: Request, user=Depends(get_current_user)):
+    """ВИТРИНА ДИЗАЙН-СИСТЕМЫ v2 (BACKLOG №352, письмо 1). Все компоненты
+    `static/v2.css` в одном месте, для глаза и для проверок ряда стенда.
+    Только администратору — тем же `_admin_guard`, что у остальных
+    разделов. В панель разделов админки НЕ ВНЕСЕНА: новая вкладка
+    изменила бы шесть страниц, а инструменты в письме 1 не меняются."""
+    if not _admin_guard(user):
+        return RedirectResponse("/", status_code=302)
+    return templates.TemplateResponse(
+        request=request, name="admin_design_v2.html",
+        context={"user": user,
+                 "v2_tools": [("hh", "briefcase", "КАРЬЕРА", "HH-ассистент",
+                               "Сопроводительное письмо к вакансии за полминуты"),
+                              ("nutrition", "salad", "ПИТАНИЕ", "Дневник питания",
+                               "Что съедено сегодня и сколько осталось до нормы"),
+                              ("medkit", "pill", "ДОМ · АПТЕЧКА", "Аптечка",
+                               "Что есть дома, сколько осталось, не протухло ли"),
+                              ("enshrouded", "shield", "ИГРЫ · ENSHROUDED", "Enshrouded",
+                               "Какие сеты брони собраны и чего не хватает"),
+                              ("workout", "dumbbell", "ТРЕНИРОВКИ", "Программа тренировок",
+                               "Сегодняшняя тренировка, подходы и прогрессия")]})
+
+
 @app.get("/admin/landing")
 async def admin_landing_page(request: Request, user=Depends(get_current_user),
                              db: Session = Depends(get_db)):

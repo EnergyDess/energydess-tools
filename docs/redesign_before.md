@@ -243,7 +243,7 @@
 | пустые состояния | 18 | 10 | 8 |
 
 ### кнопки: 97
-- `.add-btn` — css: nutrition.css; разметка: hh.html, nutrition.html
+- `.add-btn` — css: nutrition.css; разметка: nutrition.html
 - `.add-btn-gap` — css: nutrition.css; разметка: nutrition.html
 - `.add-btn-gap-sm` — css: nutrition.css; разметка: nutrition.html
 - `.ai-btn` — css: nutrition.css; разметка: nutrition.html
@@ -256,10 +256,10 @@
 - `.apt-for-btn` — css: medkit.css; разметка: _medkit_who.html
 - `.avatar-btn` — css: style.css; разметка: _header.html
 - `.avatar-upload-btn` — css: profile.css; разметка: profile.html
-- `.btn` — css: medkit.css, style.css; разметка: _admin_subnav.html, _header.html, _landing_card.html, _medkit_buy.html, _medkit_circle.html, _medkit_circle_help.html, _medkit_grid.html, _medkit_who.html, admin_exercises.html, admin_products.html, attach-menu.js, demo_program.html, enshrouded.html, hh.html, landing.html, login.html, medkit.html, nutrition.html, profile.html, register.html, reset_password.html, ui.js, verify_pending.html, verify_required.html, workout.html, workout_profile.html
+- `.btn` — css: medkit.css, style.css; разметка: _landing_card.html, _medkit_buy.html, _medkit_circle.html, _medkit_grid.html, admin_exercises.html, admin_products.html, attach-menu.js, enshrouded.html, hh.html, medkit.html, nutrition.html, ui.js, verify_pending.html, verify_required.html, workout.html, workout_profile.html
 - `.btn-block` — css: style.css; разметка: forgot_password.html, login.html, medkit.html, nutrition.html, register.html, reset_password.html, verify_required.html
-- `.btn-danger` — css: style.css; разметка: _medkit_buy.html, _medkit_circle.html, _medkit_grid.html, admin_enshrouded.html, admin_landing.html, admin_products.html, medkit.html, profile.html, workout_profile.html
-- `.btn-ghost` — css: profile.css, style.css; разметка: _header.html, _medkit_grid.html, medkit.html, nutrition.html, profile.html, workout.html
+- `.btn-danger` — css: style.css; разметка: _medkit_buy.html, _medkit_circle.html, _medkit_grid.html, admin_enshrouded.html, admin_landing.html, admin_products.html, medkit.html, profile.html
+- `.btn-ghost` — css: profile.css, style.css; разметка: _header.html, _medkit_grid.html, medkit.html, nutrition.html, profile.html
 - `.btn-icon` — css: nutrition.css, style.css; разметка: _medkit_cats.html, _medkit_circle.html, _medkit_grid.html, admin_products.html, enshrouded.html, hh.html, login.html, medkit.html, nutrition.html, register.html, reset_password.html, voice-input.js, workout_profile.html
 - `.btn-icon-accent` — css: style.css; разметка: medkit.html, nutrition.html
 - `.btn-icon-danger` — css: style.css; разметка: _medkit_cats.html, admin_products.html, hh.html, medkit.html, nutrition.html
@@ -269,10 +269,10 @@
 - `.btn-icon-sm` — css: style.css; разметка: _medkit_cats.html, _medkit_circle.html, hh.html, medkit.html, nutrition.html
 - `.btn-icon-solid` — css: style.css; разметка: medkit.html, nutrition.html
 - `.btn-lg` — css: style.css; разметка: —
-- `.btn-primary` — css: medkit.css, profile.css, style.css; разметка: 404.html, _header.html, _medkit_circle.html, _medkit_grid.html, account_deleted.html, admin_enshrouded.html, admin_exercises.html, botamin.html, forgot_password.html, hh.html, login.html, medkit.html, nutrition.html, profile.html, register.html, reset_password.html, tool_preview.html, verify_pending.html, workout.html
+- `.btn-primary` — css: medkit.css, profile.css, style.css; разметка: 404.html, _header.html, _medkit_circle.html, _medkit_grid.html, account_deleted.html, admin_enshrouded.html, admin_exercises.html, botamin.html, forgot_password.html, hh.html, login.html, medkit.html, nutrition.html, profile.html, register.html, reset_password.html, tool_preview.html, verify_pending.html
 - `.btn-secondary` — css: profile.css, style.css; разметка: 404.html, _ens_rows.html, _header.html, _landing_card.html, _medkit_buy.html, _medkit_circle.html, _medkit_grid.html, admin_enshrouded.html, admin_landing.html, admin_products.html, hh.html, medkit.html, nutrition.html, profile.html, tool_preview.html, verify_pending.html, verify_required.html
 - `.btn-signature` — css: style.css; разметка: —
-- `.btn-sm` — css: style.css; разметка: _landing_card.html, _medkit_buy.html, _medkit_circle.html, _medkit_grid.html, medkit.html, workout_profile.html
+- `.btn-sm` — css: style.css; разметка: _landing_card.html, _medkit_buy.html, _medkit_circle.html, _medkit_grid.html, medkit.html
 - `.btn-soft` — css: style.css; разметка: _medkit_grid.html, medkit.html
 - `.chat-attach-btn` — css: nutrition.css; разметка: nutrition.html
 - `.copy-btn` — css: style.css; разметка: hh.html
@@ -359,21 +359,21 @@
 - `.apt-doses-box` — css: medkit.css; разметка: medkit.html
 - `.auth-box` — css: style.css; разметка: account_deleted.html, forgot_password.html, login.html, register.html, reset_password.html, verify_pending.html, verify_required.html
 - `.auth-turnstile` — css: style.css; разметка: login.html, register.html
-- `.card` — css: style.css; разметка: _landing_card.html, _medkit_buy.html, _medkit_grid.html, admin_enshrouded.html, admin_exercises.html, admin_products.html, admin_usage.html, admin_users.html, botamin.html, demo_landing.html, demo_program.html, enshrouded.html, hh.html, index.html, landing.html, nutrition.html, profile.html, tool_preview.html, workout.html, workout_profile.html
+- `.card` — css: style.css; разметка: _landing_card.html, _medkit_grid.html, admin_enshrouded.html, admin_exercises.html, admin_products.html, admin_usage.html, admin_users.html, botamin.html, enshrouded.html, hh.html, index.html, nutrition.html, profile.html, tool_preview.html, workout.html, workout_profile.html
 - `.card-banner` — css: enshrouded.css; разметка: enshrouded.html
-- `.card-body` — css: enshrouded.css; разметка: _landing_card.html, admin_exercises.html, enshrouded.html
+- `.card-body` — css: enshrouded.css; разметка: enshrouded.html
 - `.card-compact` — css: style.css; разметка: nutrition.html
 - `.card-flush` — css: style.css; разметка: _medkit_grid.html, enshrouded.html, nutrition.html
-- `.card-meta` — css: enshrouded.css; разметка: _landing_card.html, admin_exercises.html, enshrouded.html
-- `.card-name` — css: enshrouded.css; разметка: admin_exercises.html, enshrouded.html
+- `.card-meta` — css: enshrouded.css; разметка: enshrouded.html
+- `.card-name` — css: enshrouded.css; разметка: enshrouded.html
 - `.card-nested` — css: style.css; разметка: nutrition.html
 - `.card-prog` — css: enshrouded.css; разметка: enshrouded.html
 - `.card-static` — css: style.css; разметка: _landing_card.html, hh.html, nutrition.html, profile.html
 - `.card-top` — css: enshrouded.css; разметка: enshrouded.html
-- `.chart-box` — css: nutrition.css; разметка: nutrition.html, workout.html
+- `.chart-box` — css: nutrition.css; разметка: nutrition.html
 - `.danger-card` — css: profile.css; разметка: profile.html
 - `.dosie-view-card` — css: hh.css; разметка: hh.html
-- `.ex-card` — css: admin.css; разметка: admin_exercises.html, workout.html
+- `.ex-card` — css: admin.css; разметка: admin_exercises.html
 - `.ex-card-actions` — css: admin.css; разметка: admin_exercises.html
 - `.ex-card-badge` — css: admin.css; разметка: admin_exercises.html
 - `.ex-card-body` — css: admin.css; разметка: admin_exercises.html
@@ -398,8 +398,8 @@
 - `.landing-card-title` — css: admin.css; разметка: _landing_card.html
 - `.macro-card` — css: nutrition.css; разметка: nutrition.html
 - `.meal-card` — css: nutrition.css; разметка: nutrition.html
-- `.panel` — css: hh.css; разметка: admin_enshrouded.html, admin_products.html, admin_usage.html, admin_users.html, hh.html, nutrition.html, panel-refresh.js, workout.html
-- `.panel-title` — css: hh.css; разметка: hh.html, workout.html
+- `.panel` — css: hh.css; разметка: hh.html, panel-refresh.js, workout.html
+- `.panel-title` — css: hh.css; разметка: hh.html
 - `.panel-title-grow` — css: hh.css; разметка: hh.html
 - `.result-panel` — css: hh.css; разметка: hh.html
 - `.resume-view-card` — css: hh.css; разметка: hh.html
@@ -433,7 +433,7 @@
 ### поля ввода: 37
 - `.apt-ref-field` — css: medkit.css; разметка: medkit.html
 - `.apt-search-input` — css: medkit.css; разметка: medkit.html
-- `.chat-input-row` — css: nutrition.css; разметка: nutrition.html, workout.html
+- `.chat-input-row` — css: nutrition.css; разметка: nutrition.html
 - `.chat-input-row-modal` — css: nutrition.css; разметка: nutrition.html
 - `.compare-select` — css: nutrition.css; разметка: nutrition.html
 - `.dosie-field` — css: hh.css; разметка: hh.html
@@ -445,7 +445,7 @@
 - `.field-label` — css: nutrition.css, style.css; разметка: _medkit_circle.html, admin_enshrouded.html, admin_usage.html, enshrouded.html, forgot_password.html, hh.html, login.html, medkit.html, nutrition.html, register.html, reset_password.html
 - `.g-input` — css: nutrition.css; разметка: nutrition.html
 - `.identity-fields` — css: profile.css; разметка: profile.html
-- `.input` — css: enshrouded.css, hh.css, medkit.css, nutrition.css, profile.css, style.css; разметка: _header.html, _medkit_circle.html, _medkit_who.html, admin_enshrouded.html, admin_exercises.html, admin_landing.html, admin_products.html, admin_usage.html, admin_users.html, demo_program.html, email-typo.js, enshrouded.html, header-search.js, hh.html, landing.html, medkit.html, modal.js, nutrition.html, profile.html, ui.js, workout.html, workout_profile.html
+- `.input` — css: enshrouded.css, hh.css, medkit.css, nutrition.css, profile.css, style.css; разметка: _header.html, _medkit_circle.html, _medkit_who.html, admin_enshrouded.html, admin_exercises.html, admin_landing.html, admin_products.html, admin_usage.html, admin_users.html, demo_program.html, email-typo.js, enshrouded.html, header-search.js, hh.html, medkit.html, modal.js, nutrition.html, profile.html, ui.js, workout.html, workout_profile.html
 - `.input-compact` — css: style.css; разметка: enshrouded.html, hh.html, medkit.html, nutrition.html
 - `.input-nested` — css: style.css; разметка: hh.html
 - `.input-sm` — css: style.css; разметка: _medkit_who.html, admin_exercises.html, admin_products.html, enshrouded.html, nutrition.html
@@ -479,7 +479,7 @@
 - `.ens-tabs` — css: enshrouded.css; разметка: enshrouded.html
 - `.hh-tabs` — css: hh.css; разметка: hh.html
 - `.nut-tab` — css: nutrition.css; разметка: nutrition.html
-- `.s-tabs` — css: nutrition.css; разметка: enshrouded.html, nutrition.html
+- `.s-tabs` — css: nutrition.css; разметка: nutrition.html
 - `.tab-bar` — css: style.css; разметка: _admin_subnav.html, _medkit_circle.html, hh.html
 - `.tab-bar-lg` — css: style.css; разметка: _admin_subnav.html
 - `.tab-bar-sticky` — css: style.css; разметка: hh.html
@@ -498,12 +498,12 @@
 - `.apt-chips` — css: medkit.css; разметка: medkit.html
 - `.apt-doses-tag` — css: medkit.css; разметка: medkit.html
 - `.apt-own-tag` — css: medkit.css; разметка: medkit.html
-- `.badge` — css: style.css; разметка: _medkit_circle.html, _medkit_grid.html, admin_exercises.html, demo_landing.html, demo_program.html, hh.html, index.html, workout.html
+- `.badge` — css: style.css; разметка: _medkit_circle.html, _medkit_grid.html, admin_exercises.html, hh.html, index.html
 - `.badge-blue` — css: style.css; разметка: index.html
 - `.badge-green` — css: style.css; разметка: —
 - `.badge-muted` — css: style.css; разметка: _medkit_circle.html, _medkit_grid.html, index.html
 - `.badge-warn` — css: style.css; разметка: hh.html
-- `.chip` — css: medkit.css, nutrition.css, style.css; разметка: _admin_head.html, _medkit_cats.html, admin_enshrouded.html, demo_program.html, hh.html, medkit.html, nutrition.html, workout.html
+- `.chip` — css: medkit.css, nutrition.css, style.css; разметка: _admin_head.html, _medkit_cats.html, admin_enshrouded.html, demo_program.html, hh.html, medkit.html, nutrition.html
 - `.chip-danger` — css: style.css; разметка: _medkit_cats.html
 - `.chip-dashed` — css: style.css; разметка: _medkit_cats.html, medkit.html
 - `.chip-n` — css: style.css; разметка: _admin_head.html, _medkit_cats.html, _medkit_circle.html
@@ -609,7 +609,7 @@
 - есть в коде, нет в скелете: ['--surface-sunken']
 - есть в скелете, нет в коде: нет
 - значение расходится: нет
-- строк в design-system.md: 5766; разделов верхнего уровня: 15
+- строк в design-system.md: 5772; разделов верхнего уровня: 15
 
 ## 8. Скриншоты «до» (review_screenshots/redesign-before/, в git не входят — §8.0)
 
