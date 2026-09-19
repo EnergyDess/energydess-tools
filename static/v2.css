@@ -1,0 +1,656 @@
+/* @v2 — ДИЗАЙН-СИСТЕМА v2 ЗАЛОГИНЕННОЙ ЧАСТИ (BACKLOG №352, письмо 1).
+
+   Единственный источник правды — design-system-v2.md. Здесь ОДНО место,
+   где объявлены значения v2: блок `:root` ниже, пространство имён `--v2-*`.
+   Всё, что ниже `:root`, — компоненты, и в них НЕТ прямых значений цвета,
+   кегля, отступа, скругления и тени: только `var(--v2-*)`. Это сторожит
+   проверка 47 (`py check_v2_tokens.py`), метка файла — `@v2` в первой
+   строке.
+
+   Файл подключён ТОЛЬКО витриной `/admin/design-v2`. Страницы инструментов
+   его не грузят до письма 2 плана — поэтому их облик от этого файла
+   не меняется по построению. Старые токены `style.css` не тронуты;
+   таблица «старое → новое» — design-system-v2.md §9. */
+
+/* Unbounded — заголовки и цифры. Файлы те же, что у гостевой главной
+   (landing.css), ось wght 200–900; landing.css этот файл не подключает,
+   и объявления не пересекаются. */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url('fonts/unbounded-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url('fonts/unbounded-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  /* 1. ОСНОВА: фон и поверхности. Фон — верх неба гостевой главной
+     (--landing-sky-0). Поверхности почти прозрачные, их отделяет рамка. */
+  --v2-bg: #0a0b12;
+  --v2-surface-1: rgba(255, 255, 255, 0.02);   /* главная карточка */
+  --v2-surface-2: rgba(255, 255, 255, 0.04);   /* вложенное окно, плитка */
+  --v2-surface-field: rgba(255, 255, 255, 0.03);
+  --v2-surface-hover: rgba(255, 255, 255, 0.06);
+  --v2-surface-pop: #16171e;                    /* меню, панель: непрозрачно */
+  --v2-scrim: rgba(5, 6, 10, 0.72);
+
+  /* Рамки трёх уровней. Контраст к фону: .14 → 1.43, .10 → 1.25,
+     .07 → 1.16 (таблица — документ §1.3). */
+  --v2-line-1: rgba(255, 255, 255, 0.14);      /* главные карточки, поля */
+  --v2-line-2: rgba(255, 255, 255, 0.10);      /* вложенные окна */
+  --v2-line-3: rgba(255, 255, 255, 0.07);      /* разделители */
+  --v2-line-hover: rgba(255, 255, 255, 0.24);
+  --v2-line-strong: rgba(255, 255, 255, 0.36); /* граница, обязанная дать 3.0 */
+
+  /* Звёзды шапки страницы — рецепт гостевой главной. */
+  --v2-star: rgba(255, 255, 255, 0.42);
+  --v2-star-dim: rgba(255, 255, 255, 0.30);
+
+  /* Текст — прежние значения, контраст к фону 16.63 / 9.92 / 5.22. */
+  --v2-text: #E8ECF8;
+  --v2-text-2: #AEB8D4;
+  --v2-text-faint: #7A83A0;
+  --v2-text-strong: #FFFFFF;
+  --v2-ok: #10B981;
+  --v2-warn: #F59E0B;
+  --v2-danger: #EF4444;
+  --v2-danger-dim: rgba(239, 68, 68, 0.14);
+
+  /* 4. ЦВЕТА ИНСТРУМЕНТОВ — прежние значения, новых нет. */
+  --v2-hh: #4F8FFF;
+  --v2-nutrition: #10B981;
+  --v2-medkit: #06B6D4;
+  --v2-enshrouded: #D97706;
+  --v2-workout: #F59E0B;
+  /* Надпись на таблетке инструмента — ТЁМНАЯ у всех пяти: белая даёт
+     2.15–3.19 при норме 4.5, тёмная 6.16–9.14 (документ §4.3). */
+  --v2-ink-on-tool: #0a0b12;
+  /* Градиентная таблетка — только «Регистрация» и «Связаться»; точки
+     те же, что у .pf-cta-pill гостевой главной (середина — смесь крайних
+     пополам), белая надпись 4.63 · 5.48 · 5.29. */
+  --v2-grad-a: #146AFF;
+  --v2-grad-b: #8257A2;
+  --v2-grad-c: #A25904;
+
+  /* 2. ШРИФТЫ. Одна шкала на весь сайт. */
+  --v2-font: 'Manrope', 'Manrope Fallback', 'Manrope Fallback Android',
+             -apple-system, BlinkMacSystemFont, sans-serif;
+  --v2-font-display: 'Unbounded', 'Manrope', sans-serif;
+  --v2-font-mono: 'JetBrains Mono', 'JetBrains Mono Fallback', monospace;
+  --v2-fs-xs: 0.8125rem;                        /* 13 — минимум */
+  --v2-fs-sm: 0.9375rem;                        /* 15 — навигация, подписи */
+  --v2-fs-md: 1rem;                             /* 16 — текст */
+  --v2-fs-lg: 1.125rem;                         /* 18 */
+  --v2-fs-xl: clamp(1.25rem, 1.4vw, 1.5rem);    /* 20–24 — заголовок блока */
+  --v2-fs-2xl: clamp(1.5rem, 2.2vw, 2rem);      /* 24–32 — цифра плитки */
+  --v2-fs-3xl: clamp(1.75rem, 3vw, 2.75rem);    /* 28–44 — заголовок страницы */
+  --v2-lh-tight: 1.1;
+  --v2-lh-snug: 1.3;
+  --v2-lh-body: 1.55;
+  --v2-ls-display: -0.02em;
+  --v2-ls-label: 0.08em;
+  --v2-fw-text: 400;
+  --v2-fw-medium: 500;
+  --v2-fw-strong: 600;
+  --v2-fw-num: 700;
+  --v2-fw-display: 800;
+
+  /* 3. ОТСТУПЫ И СКРУГЛЕНИЯ — одна шкала, кратная 4. */
+  --v2-sp-1: 4px;
+  --v2-sp-2: 8px;
+  --v2-sp-3: 12px;
+  --v2-sp-4: 16px;
+  --v2-sp-5: 24px;
+  --v2-sp-6: 32px;
+  --v2-sp-7: 48px;
+  --v2-sp-8: 64px;
+  --v2-sp-9: 80px;
+  --v2-r-sm: 8px;
+  --v2-r-md: 12px;
+  --v2-r-lg: 16px;
+  --v2-r-xl: 24px;
+  --v2-r-pill: 999px;
+  --v2-shadow-pop: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --v2-shadow-none: none;
+
+  /* 6. КАРКАС */
+  --v2-side-w: 248px;
+  --v2-rail-w: 72px;
+  --v2-top-h: 64px;
+  --v2-assist-w: 420px;
+  --v2-ctl-h: 40px;
+  --v2-ctl-h-touch: 44px;
+  --v2-icon: 18px;
+  --v2-icon-lg: 24px;
+  --v2-progress-h: 6px;
+
+  /* 8. АНИМАЦИИ */
+  --v2-dur-fast: 150ms;
+  --v2-dur-base: 200ms;
+  --v2-dur-enter: 400ms;
+  --v2-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --v2-ease-out: cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* ЦВЕТ ИНСТРУМЕНТА. Класс ставится на <body> (письмо 2) либо на обёртку
+   образца витрины. `--v2-tool-dim` и `--v2-tool-glow` выводятся из цвета,
+   своих значений не заводят. */
+.v2-tool-hh         { --v2-tool: var(--v2-hh); }
+.v2-tool-nutrition  { --v2-tool: var(--v2-nutrition); }
+.v2-tool-medkit     { --v2-tool: var(--v2-medkit); }
+.v2-tool-enshrouded { --v2-tool: var(--v2-enshrouded); }
+.v2-tool-workout    { --v2-tool: var(--v2-workout); }
+[class*="v2-tool-"] {
+  --v2-tool-dim: color-mix(in srgb, var(--v2-tool) 16%, transparent);
+  --v2-tool-line: color-mix(in srgb, var(--v2-tool) 55%, transparent);
+  --v2-tool-glow: color-mix(in srgb, var(--v2-tool) 22%, transparent);
+}
+
+/* ---------- 5. КОМПОНЕНТЫ ---------- */
+
+/* Кнопка — таблетка. Высота 40, на сенсорном 44. */
+.v2-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--v2-sp-2);
+  min-height: var(--v2-ctl-h);
+  padding: 0 var(--v2-sp-5);
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-pill);
+  background: transparent;
+  color: var(--v2-text);
+  font-family: var(--v2-font);
+  font-size: var(--v2-fs-sm);
+  font-weight: var(--v2-fw-strong);
+  line-height: var(--v2-lh-snug);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--v2-dur-fast) var(--v2-ease-out),
+              border-color var(--v2-dur-fast) var(--v2-ease-out),
+              transform var(--v2-dur-fast) var(--v2-ease-out);
+}
+.v2-btn svg { width: var(--v2-icon); height: var(--v2-icon); flex-shrink: 0; }
+.v2-btn:focus-visible { outline: 2px solid var(--v2-text-strong); outline-offset: 2px; }
+.v2-btn:active:not(:disabled) { transform: scale(0.98); }
+.v2-btn:disabled, .v2-btn[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+.v2-btn-primary {
+  border-color: var(--v2-tool, var(--v2-hh));
+  background: var(--v2-tool, var(--v2-hh));
+  color: var(--v2-ink-on-tool);
+}
+.v2-btn-secondary { background: transparent; }
+.v2-btn-danger { border-color: var(--v2-danger); color: var(--v2-danger); }
+.v2-btn-gradient {
+  border-color: transparent;
+  background: linear-gradient(90deg, var(--v2-grad-a), var(--v2-grad-b), var(--v2-grad-c));
+  color: var(--v2-text-strong);
+}
+.v2-btn-icon { padding: 0; width: var(--v2-ctl-h); }
+@media (hover: hover) {
+  .v2-btn:hover:not(:disabled) { border-color: var(--v2-line-hover); background: var(--v2-surface-hover); }
+  .v2-btn-primary:hover:not(:disabled) {
+    border-color: var(--v2-tool, var(--v2-hh));
+    background: color-mix(in srgb, var(--v2-tool, var(--v2-hh)) 86%, var(--v2-text-strong));
+  }
+  .v2-btn-danger:hover:not(:disabled) { border-color: var(--v2-danger); background: var(--v2-danger-dim); }
+  .v2-btn-gradient:hover:not(:disabled) {
+    border-color: transparent;
+    background: linear-gradient(90deg, var(--v2-grad-a), var(--v2-grad-b), var(--v2-grad-c));
+    transform: scale(1.02);
+  }
+}
+.v2-btn.is-loading { pointer-events: none; }
+.v2-btn.is-loading::before {
+  content: "";
+  width: var(--v2-sp-4);
+  height: var(--v2-sp-4);
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--v2-r-pill);
+  animation: v2-spin var(--v2-dur-enter) linear infinite;
+}
+@keyframes v2-spin { to { transform: rotate(360deg); } }
+
+/* Поле ввода */
+.v2-field { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
+.v2-label {
+  font-size: var(--v2-fs-xs);
+  font-weight: var(--v2-fw-strong);
+  letter-spacing: var(--v2-ls-label);
+  text-transform: uppercase;
+  color: var(--v2-text-2);
+}
+.v2-input, .v2-textarea, .v2-select {
+  width: 100%;
+  min-height: var(--v2-ctl-h);
+  padding: var(--v2-sp-2) var(--v2-sp-4);
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-md);
+  background: var(--v2-surface-field);
+  color: var(--v2-text);
+  font-family: var(--v2-font);
+  font-size: var(--v2-fs-md);
+  line-height: var(--v2-lh-body);
+  transition: border-color var(--v2-dur-fast) var(--v2-ease-out);
+}
+.v2-textarea { min-height: calc(var(--v2-ctl-h) * 3); resize: vertical; }
+.v2-select { appearance: none; cursor: pointer; }
+.v2-select option { background: var(--v2-surface-pop); color: var(--v2-text); }
+.v2-input::placeholder, .v2-textarea::placeholder { color: var(--v2-text-faint); }
+.v2-input:focus, .v2-textarea:focus, .v2-select:focus {
+  outline: 2px solid var(--v2-tool, var(--v2-hh));
+  outline-offset: 0;
+  border-color: transparent;
+}
+.v2-input[aria-invalid="true"], .v2-textarea[aria-invalid="true"], .v2-select[aria-invalid="true"] {
+  border-color: var(--v2-danger);
+}
+.v2-hint { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+.v2-error { font-size: var(--v2-fs-xs); color: var(--v2-danger); }
+
+/* Переключатель сегментов */
+.v2-seg {
+  display: inline-flex;
+  gap: var(--v2-sp-1);
+  padding: var(--v2-sp-1);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-pill);
+  background: var(--v2-surface-field);
+}
+.v2-seg-btn {
+  min-height: calc(var(--v2-ctl-h) - var(--v2-sp-2));
+  padding: 0 var(--v2-sp-4);
+  border: 0;
+  border-radius: var(--v2-r-pill);
+  background: transparent;
+  color: var(--v2-text-2);
+  font-family: var(--v2-font);
+  font-size: var(--v2-fs-sm);
+  font-weight: var(--v2-fw-medium);
+  cursor: pointer;
+  transition: background-color var(--v2-dur-fast) var(--v2-ease-out);
+}
+.v2-seg-btn.is-active { background: var(--v2-surface-hover); color: var(--v2-text-strong); }
+.v2-seg-btn:focus-visible { outline: 2px solid var(--v2-text-strong); outline-offset: 1px; }
+@media (hover: hover) { .v2-seg-btn:hover:not(.is-active) { color: var(--v2-text); } }
+
+/* Вкладки разделов */
+.v2-tabs {
+  display: flex;
+  gap: var(--v2-sp-5);
+  border-bottom: 1px solid var(--v2-line-3);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.v2-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--v2-sp-2);
+  min-height: var(--v2-ctl-h-touch);
+  padding: 0 var(--v2-sp-1);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--v2-text-2);
+  font-family: var(--v2-font);
+  font-size: var(--v2-fs-sm);
+  font-weight: var(--v2-fw-strong);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--v2-dur-fast) var(--v2-ease-out);
+}
+.v2-tab svg { width: var(--v2-icon); height: var(--v2-icon); }
+.v2-tab.is-active { border-bottom-color: var(--v2-tool, var(--v2-hh)); color: var(--v2-text-strong); }
+.v2-tab:focus-visible { outline: 2px solid var(--v2-text-strong); outline-offset: -2px; }
+@media (hover: hover) { .v2-tab:hover:not(.is-active) { color: var(--v2-text); } }
+
+/* Чип фильтра */
+.v2-chips { display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); }
+.v2-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--v2-sp-2);
+  min-height: var(--v2-ctl-h);
+  padding: 0 var(--v2-sp-4);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-pill);
+  background: transparent;
+  color: var(--v2-text-2);
+  font-family: var(--v2-font);
+  font-size: var(--v2-fs-sm);
+  font-weight: var(--v2-fw-medium);
+  cursor: pointer;
+  transition: border-color var(--v2-dur-fast) var(--v2-ease-out);
+}
+.v2-chip.is-active {
+  border-color: var(--v2-tool-line, var(--v2-line-hover));
+  background: var(--v2-tool-dim, var(--v2-surface-hover));
+  color: var(--v2-text-strong);
+}
+.v2-chip-count { font-family: var(--v2-font-mono); font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+.v2-chip.is-active .v2-chip-count { color: var(--v2-text); }
+.v2-chip:focus-visible { outline: 2px solid var(--v2-text-strong); outline-offset: 2px; }
+@media (hover: hover) { .v2-chip:hover:not(.is-active) { border-color: var(--v2-line-hover); color: var(--v2-text); } }
+
+/* Карточки трёх уровней */
+.v2-card {
+  padding: var(--v2-sp-5);
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-xl);
+  background: var(--v2-surface-1);
+}
+.v2-card-nested {
+  padding: var(--v2-sp-4);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-lg);
+  background: var(--v2-surface-2);
+}
+.v2-divider { height: 0; margin: var(--v2-sp-4) 0; border: 0; border-top: 1px solid var(--v2-line-3); }
+.v2-card-title {
+  margin: 0 0 var(--v2-sp-3);
+  font-family: var(--v2-font-display);
+  font-size: var(--v2-fs-lg);
+  font-weight: var(--v2-fw-num);
+  line-height: var(--v2-lh-snug);
+  letter-spacing: var(--v2-ls-display);
+  color: var(--v2-text-strong);
+}
+.v2-text { margin: 0; font-size: var(--v2-fs-md); line-height: var(--v2-lh-body); color: var(--v2-text-2); }
+
+/* Плитка с цифрой */
+.v2-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-sp-1);
+  padding: var(--v2-sp-4);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-lg);
+  background: var(--v2-surface-2);
+}
+.v2-tile-num {
+  font-family: var(--v2-font-display);
+  font-size: var(--v2-fs-2xl);
+  font-weight: var(--v2-fw-num);
+  line-height: var(--v2-lh-tight);
+  letter-spacing: var(--v2-ls-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--v2-text-strong);
+}
+.v2-tile-label { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+
+/* Прогресс. Доля задаётся переменной `--v2-value` на самом элементе. */
+.v2-progress {
+  height: var(--v2-progress-h);
+  border-radius: var(--v2-r-pill);
+  background: var(--v2-surface-hover);
+  overflow: hidden;
+}
+.v2-progress-fill {
+  width: var(--v2-value, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--v2-tool, var(--v2-hh));
+  transition: width var(--v2-dur-enter) var(--v2-ease-out);
+}
+
+/* Пустое состояние */
+.v2-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--v2-sp-3);
+  padding: var(--v2-sp-7) var(--v2-sp-5);
+  text-align: center;
+}
+.v2-empty-icon {
+  display: grid;
+  place-items: center;
+  width: var(--v2-sp-8);
+  height: var(--v2-sp-8);
+  border: 1px solid var(--v2-tool-line, var(--v2-line-2));
+  border-radius: var(--v2-r-pill);
+  background: var(--v2-tool-dim, var(--v2-surface-2));
+  color: var(--v2-tool, var(--v2-text-2));
+}
+.v2-empty-icon svg { width: var(--v2-icon-lg); height: var(--v2-icon-lg); }
+.v2-empty-title { margin: 0; font-size: var(--v2-fs-lg); font-weight: var(--v2-fw-strong); color: var(--v2-text-strong); }
+.v2-empty-text { margin: 0; max-width: 32rem; font-size: var(--v2-fs-sm); line-height: var(--v2-lh-body); color: var(--v2-text-2); }
+
+/* Всплывающее меню (инструменты, аватар) */
+.v2-menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-sp-1);
+  min-width: 16rem;
+  padding: var(--v2-sp-2);
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-lg);
+  background: var(--v2-surface-pop);
+  box-shadow: var(--v2-shadow-pop);
+}
+.v2-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--v2-sp-3);
+  min-height: var(--v2-ctl-h-touch);
+  padding: var(--v2-sp-2) var(--v2-sp-3);
+  border-radius: var(--v2-r-md);
+  color: var(--v2-text);
+  font-size: var(--v2-fs-sm);
+  text-decoration: none;
+  cursor: pointer;
+}
+.v2-menu-item svg { width: var(--v2-icon); height: var(--v2-icon); flex-shrink: 0; color: var(--v2-tool, var(--v2-text-2)); }
+.v2-menu-name { display: block; font-weight: var(--v2-fw-strong); color: var(--v2-text-strong); }
+.v2-menu-sub { display: block; font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+.v2-menu-sep { height: 0; margin: var(--v2-sp-1) 0; border-top: 1px solid var(--v2-line-3); }
+.v2-menu-item:focus-visible { outline: 2px solid var(--v2-text-strong); outline-offset: -2px; }
+@media (hover: hover) { .v2-menu-item:hover { background: var(--v2-surface-hover); } }
+
+/* ---------- 6. КАРКАС ---------- */
+
+/* Боковое меню и полоса иконок */
+.v2-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-sp-1);
+  width: var(--v2-side-w);
+  padding: var(--v2-sp-4) var(--v2-sp-3);
+  border-right: 1px solid var(--v2-line-3);
+  background: var(--v2-bg);
+}
+.v2-side.is-rail { width: var(--v2-rail-w); align-items: center; }
+.v2-side-section {
+  margin: var(--v2-sp-4) 0 var(--v2-sp-1);
+  padding: 0 var(--v2-sp-3);
+  font-size: var(--v2-fs-xs);
+  font-weight: var(--v2-fw-strong);
+  letter-spacing: var(--v2-ls-label);
+  text-transform: uppercase;
+  color: var(--v2-text-faint);
+}
+.v2-side-item {
+  display: flex;
+  align-items: center;
+  gap: var(--v2-sp-3);
+  min-height: var(--v2-ctl-h-touch);
+  padding: 0 var(--v2-sp-3);
+  border: 0;
+  border-radius: var(--v2-r-md);
+  background: transparent;
+  color: var(--v2-text-2);
+  font-family: var(--v2-font);
+  font-size: var(--v2-fs-sm);
+  font-weight: var(--v2-fw-medium);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--v2-dur-fast) var(--v2-ease-out);
+}
+.v2-side-item svg { width: var(--v2-icon); height: var(--v2-icon); flex-shrink: 0; }
+.v2-side-item.is-active { background: var(--v2-surface-hover); color: var(--v2-text-strong); }
+.v2-side-item.is-soon { cursor: default; color: var(--v2-text-faint); }
+.v2-side-item:focus-visible { outline: 2px solid var(--v2-text-strong); outline-offset: -2px; }
+.v2-side-recent { padding-left: var(--v2-sp-6); font-size: var(--v2-fs-xs); }
+.v2-side-recent svg { color: var(--v2-tool, var(--v2-text-2)); }
+.v2-soon {
+  margin-left: auto;
+  padding: 0 var(--v2-sp-2);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-pill);
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-text-faint);
+}
+.v2-side.is-rail .v2-side-item { justify-content: center; width: var(--v2-ctl-h-touch); padding: 0; }
+.v2-side.is-rail .v2-side-label,
+.v2-side.is-rail .v2-side-section,
+.v2-side.is-rail .v2-soon,
+.v2-side.is-rail .v2-side-recent { display: none; }
+.v2-side-foot { margin-top: auto; }
+@media (hover: hover) { .v2-side-item:hover:not(.is-active):not(.is-soon) { background: var(--v2-surface-2); color: var(--v2-text); } }
+
+/* Верхняя строка */
+.v2-top {
+  display: flex;
+  align-items: center;
+  gap: var(--v2-sp-4);
+  min-height: var(--v2-top-h);
+  padding: 0 var(--v2-sp-5);
+  border-bottom: 1px solid var(--v2-line-3);
+  background: var(--v2-bg);
+}
+.v2-top-search { flex: 1; max-width: 30rem; }
+.v2-avatar {
+  display: grid;
+  place-items: center;
+  width: var(--v2-ctl-h-touch);
+  height: var(--v2-ctl-h-touch);
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-pill);
+  background: var(--v2-surface-2);
+  color: var(--v2-text-strong);
+  font-weight: var(--v2-fw-strong);
+  cursor: pointer;
+}
+.v2-top-burger { display: none; }
+
+/* Шапка страницы инструмента: звёзды и свечение ТОЛЬКО здесь. */
+.v2-page-head {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--v2-sp-3) var(--v2-sp-5);
+  padding: var(--v2-sp-6) var(--v2-sp-5) 0;
+  border: 1px solid var(--v2-line-3);
+  border-radius: var(--v2-r-xl);
+  background:
+    radial-gradient(60% 120% at 0% 0%, var(--v2-tool-glow, transparent), transparent 70%),
+    var(--v2-bg);
+  overflow: hidden;
+  isolation: isolate;
+}
+.v2-page-head::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle 1.1px at 77px 63px, var(--v2-star) 0 55%, transparent 100%),
+    radial-gradient(circle 0.9px at 311px 28px, var(--v2-star-dim) 0 55%, transparent 100%),
+    radial-gradient(circle 1px at 186px 131px, var(--v2-star) 0 55%, transparent 100%),
+    radial-gradient(circle 1.2px at 509px 47px, var(--v2-star-dim) 0 55%, transparent 100%),
+    radial-gradient(circle 1px at 422px 116px, var(--v2-star) 0 55%, transparent 100%);
+  background-size: 560px 160px;
+  pointer-events: none;
+}
+.v2-head-text { display: flex; flex-direction: column; gap: var(--v2-sp-2); min-width: 0; }
+.v2-head-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--v2-sp-2);
+  font-size: var(--v2-fs-xs);
+  font-weight: var(--v2-fw-strong);
+  letter-spacing: var(--v2-ls-label);
+  text-transform: uppercase;
+  color: var(--v2-tool, var(--v2-text-2));
+}
+.v2-head-label svg { width: var(--v2-icon); height: var(--v2-icon); }
+.v2-head-title {
+  margin: 0;
+  font-family: var(--v2-font-display);
+  font-size: var(--v2-fs-3xl);
+  font-weight: var(--v2-fw-display);
+  line-height: var(--v2-lh-tight);
+  letter-spacing: var(--v2-ls-display);
+  color: var(--v2-text-strong);
+}
+.v2-head-desc { margin: 0; font-size: var(--v2-fs-md); line-height: var(--v2-lh-body); color: var(--v2-text-2); }
+.v2-head-actions { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-end; gap: var(--v2-sp-2); }
+.v2-page-head .v2-tabs { grid-column: 1 / -1; margin-top: var(--v2-sp-3); border-bottom: 0; }
+
+/* Панель ассистента — справа; на телефоне на весь экран. */
+.v2-assist {
+  display: flex;
+  flex-direction: column;
+  width: var(--v2-assist-w);
+  max-width: 100%;
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-xl);
+  background: var(--v2-surface-pop);
+  overflow: hidden;
+}
+.v2-assist-head {
+  display: flex;
+  align-items: center;
+  gap: var(--v2-sp-3);
+  padding: var(--v2-sp-3) var(--v2-sp-4);
+  border-bottom: 1px solid var(--v2-line-3);
+}
+.v2-assist-title { flex: 1; margin: 0; font-size: var(--v2-fs-md); font-weight: var(--v2-fw-strong); color: var(--v2-text-strong); }
+.v2-assist-body { display: flex; flex-direction: column; gap: var(--v2-sp-3); padding: var(--v2-sp-4); }
+.v2-msg {
+  max-width: 85%;
+  padding: var(--v2-sp-3) var(--v2-sp-4);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-lg);
+  background: var(--v2-surface-2);
+  font-size: var(--v2-fs-sm);
+  line-height: var(--v2-lh-body);
+  color: var(--v2-text);
+}
+.v2-msg-me { align-self: flex-end; border-color: var(--v2-tool-line, var(--v2-line-2)); background: var(--v2-tool-dim, var(--v2-surface-2)); }
+.v2-assist-input { display: flex; gap: var(--v2-sp-2); padding: var(--v2-sp-3) var(--v2-sp-4); border-top: 1px solid var(--v2-line-3); }
+
+/* ---------- 7. ТЕЛЕФОН ---------- */
+@media (pointer: coarse) {
+  .v2-btn, .v2-chip, .v2-input, .v2-select { min-height: var(--v2-ctl-h-touch); }
+  .v2-btn-icon { width: var(--v2-ctl-h-touch); }
+  .v2-seg-btn { min-height: calc(var(--v2-ctl-h-touch) - var(--v2-sp-2)); }
+}
+@media (max-width: 768px) {
+  .v2-top { padding: 0 var(--v2-sp-4); }
+  .v2-top-burger { display: inline-flex; }
+  .v2-page-head { grid-template-columns: 1fr; padding: var(--v2-sp-5) var(--v2-sp-4) 0; }
+  .v2-head-actions { justify-content: flex-start; }
+  .v2-tabs { flex-wrap: nowrap; }
+  .v2-tab { flex-shrink: 0; }
+  .v2-assist { width: 100%; border-radius: var(--v2-r-lg); }
+  .v2-card { padding: var(--v2-sp-4); }
+}
+
+/* ---------- 8. УМЕНЬШИТЬ ДВИЖЕНИЕ ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .v2-btn, .v2-seg-btn, .v2-tab, .v2-chip, .v2-side-item, .v2-progress-fill,
+  .v2-input, .v2-textarea, .v2-select { transition: none; }
+  .v2-btn.is-loading::before { animation: none; }
+  .v2-btn:active:not(:disabled) { transform: none; }
+}
