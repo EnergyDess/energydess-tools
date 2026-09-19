@@ -57,7 +57,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, func
 from sqlalchemy.exc import SQLAlchemyError
 
-from database import (get_db, init_db, migrate_db, DB_PATH, SessionLocal, ModelUsage, User, Resume, ToolAccess, EnshroudedSlot,
+from database import (get_db, init_db, migrate_db, DB_PATH, SessionLocal, ModelUsage, LetterCheck, User, Resume, ToolAccess, EnshroudedSlot,
                       EnshroudedSet, enshrouded_img, ENSHROUDED_DIR,
                       HHProfile, CoverLetter, NutritionProfile, NutritionGoalPeriod,
                       FoodLog, CustomFood, CustomRecipe, RecipeIngredient,
@@ -4692,8 +4692,15 @@ def расход_сводка(db, сейчас=None):
                .filter(ModelUsage.ok == False,  # noqa: E712 — SQL, а не Python
                        ModelUsage.created_at >= сейчас - timedelta(days=7))
                .group_by(ModelUsage.error_code).all())
+    # Журнал нарушений письма (№346, заход 6): по типам за 7 дней
+    нарушения = (db.query(LetterCheck.kind, func.count(LetterCheck.id),
+                          func.max(LetterCheck.created_at))
+                 .filter(LetterCheck.created_at >= сейчас - timedelta(days=7))
+                 .group_by(LetterCheck.kind).all())
     return {"периоды": периоды,
             "учёт_с": _расход_момент(первая),
+            "нарушения": [{"вид": в, "n": n, "последний": _расход_момент(т)}
+                          for в, n, т in sorted(нарушения, key=lambda р: -р[1])],
             "неудачи": [{"код": к or "без кода", "n": n, "последний": _расход_момент(т)}
                         for к, n, т in sorted(неудачи, key=lambda р: -р[1])]}
 
@@ -5240,6 +5247,10 @@ def _build_full_dossier(profile: HHProfile) -> str:
                     cta.append("предложи тестовое задание")
                 if cta:
                     parts.append(f"Концовка письма: {' и '.join(cta)}")
+                else:
+                    # Ничего не выбрано — то же, что «только подпись»: решение
+                    # владельца 2026-09-19 «никогда, если в досье не разрешено»
+                    parts.append("Концовка письма: без CTA — только подпись (ничего не выбрано)")
     return "\n".join(parts)
 
 
@@ -5432,8 +5443,12 @@ Call to action в финале. Тип CTA определяется правил
 — «предложи созвон» → созвон в финале, без тестового задания.
 — «предложи тестовое задание» → тестовое в финале, без созвона.
 — оба → один вариант по контексту вакансии: творческая/продуктовая → тестовое; корпоративная/b2b → созвон.
-— поля нет или все false → по умолчанию предлагай созвон.
-Это правило приоритетнее любых стилевых соображений.
+— поля нет или ничего не выбрано → без CTA, только подпись: созвона и тестового не предлагай.
+Это правило приоритетнее любых стилевых соображений. Письмо заканчивается последней содержательной фразой и подписью.
+
+━━━ «НЕ УПОМИНАТЬ» — ЖЁСТКИЙ ЗАПРЕТ ━━━
+
+Поле «Не упоминать» в ДОСЬЕ КАНДИДАТА сильнее любого другого правила этой инструкции, включая исключение про прямые вопросы работодателя об условиях. Если там запрещена зарплата — не называй сумм, вилок, оклада, дохода и ожиданий по оплате, даже в ответ на прямой вопрос вакансии.
 """
     части = {
         "инструкция": голова + "\n",
@@ -5476,6 +5491,49 @@ def _сообщения_письма(части: dict, вариант: str) -> l
         {"type": "text", "text": постоянное,
          "cache_control": {"type": "ephemeral"}},
         {"type": "text", "text": переменное}]}]
+
+
+def _виды_находок(итог: dict) -> list:
+    """Типы находок проверки письма — по одному на строку журнала."""
+    виды = sorted(итог.get("запреты") or {})
+    if итог.get("вне_досье"):
+        виды.append("вне_досье")
+    if итог.get("нет_репозитория"):
+        виды.append("нет_репозитория")
+    return виды
+
+
+def _проверить_письмо(db, letter_id, letter, full_dossier, resume_text,
+                      job_text, группы_ссылок, profile) -> list:
+    """Проверка 44 над готовым письмом и журнал нарушений (`letter_checks`).
+
+    НЕ РОНЯЕТ ГЕНЕРАЦИЮ НИ ПРИ КАКОМ ИСХОДЕ: письмо уже написано и оплачено.
+    Упала проверка — строка `сбой_проверки` в журнале и явная строка
+    в логе; упала запись журнала — явная строка в логе. Текста письма
+    нигде нет (§2.7). Возвращает записанные виды — для пробы."""
+    try:
+        итог = _письмо_факты.проверить(
+            letter, full_dossier, resume_text, job_text, группы_ссылок,
+            концовка=profile.ending_style if profile else None,
+            не_упоминать=(profile.never_mention or "") if profile else "")
+        print(f"[letter-check] письмо {letter_id}: {_письмо_факты.строкой(итог)}")
+        виды = _виды_находок(итог)
+    except Exception as e:  # проверка не вправе уронить отдачу письма
+        print(f"[letter-check] ПРОВЕРКА НЕ СОСТОЯЛАСЬ, письмо {letter_id} отдано как есть: "
+              f"{type(e).__name__}: {e}")
+        виды = ["сбой_проверки"]
+    if not виды:
+        return []
+    try:
+        for вид in виды:
+            db.add(LetterCheck(letter_id=letter_id, kind=вид))
+        db.commit()
+    except SQLAlchemyError as e:
+        print(f"[letter-check] ЖУРНАЛ НЕ ЗАПИСАН, письмо {letter_id}, виды {виды}: "
+              f"{type(e).__name__}: {e}")
+        db.rollback()
+        return []
+    return виды
 
 
 @app.post("/api/generate-letter")
@@ -5622,16 +5680,6 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
                       "Попробуйте ещё раз — или сократите текст вакансии.")},
                 status_code=502)
 
-        # ── Проверка готового письма (BACKLOG №349) ───────────────────────────
-        # Только журнал: письмо человеку отдаётся как есть, решение за ним.
-        # Текста письма в строке нет (§2.7), только числа и названия находок.
-        try:
-            _проверка = _письмо_факты.проверить(letter, full_dossier, resume_text,
-                                                job_text, группы_ссылок)
-            print(f"[letter-check] {_письмо_факты.строкой(_проверка)}")
-        except (OSError, ValueError) as e:
-            print(f"[letter-check] проверка не состоялась: {type(e).__name__}: {e}")
-
         # ── Сохраняем в историю писем ─────────────────────────────────────────
         letter_id = None
         save_error = None
@@ -5661,6 +5709,12 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
                 db.rollback()
             except SQLAlchemyError:
                 pass
+
+        # ── Проверка готового письма (BACKLOG №349, №346 заход 6) ──────────────
+        # ПОСЛЕ сохранения: журналу нужен номер письма. Письмо человеку
+        # отдаётся как есть при любом исходе проверки — решение за ним.
+        _проверить_письмо(db, letter_id, letter, full_dossier, resume_text,
+                          job_text, группы_ссылок, profile)
 
         return JSONResponse({"letter": letter, "analysis": analysis, "letter_id": letter_id,
                              "analysis_error": analysis_error, "save_error": save_error})
@@ -5692,6 +5746,12 @@ def _purge_deleted_letters(db: Session) -> int:
     лежат дольше срока — они при этом уже недоступны ни в одной выдаче.
     """
     порог = datetime.utcnow() - timedelta(days=LETTER_PURGE_DAYS)
+    стираемые = [i for (i,) in db.query(CoverLetter.id).filter(
+        CoverLetter.deleted_at.isnot(None), CoverLetter.deleted_at < порог)]
+    if стираемые:
+        # Находки журнала остаются в счёте, номер письма — больше ни на что
+        (db.query(LetterCheck).filter(LetterCheck.letter_id.in_(стираемые))
+         .update({LetterCheck.letter_id: None}, synchronize_session=False))
     убрано = (db.query(CoverLetter)
               .filter(CoverLetter.deleted_at.isnot(None), CoverLetter.deleted_at < порог)
               .delete(synchronize_session=False))

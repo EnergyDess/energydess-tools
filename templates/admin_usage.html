@@ -110,6 +110,24 @@
   <p class="data-note">Неудачных вызовов за 7 дней нет.</p>
   {% endif %}
 
+  <h2 class="usage-h2">Нарушения в письмах HH за 7 дней</h2>
+  {% if сводка.нарушения %}
+  <div class="card admin-panel">
+    <div class="table-scroll">
+      <table class="admin-table admin-table-usage" id="usage-violations">
+        <thead><tr><th>Находка</th><th>Писем</th><th>Последнее (МСК)</th></tr></thead>
+        <tbody>
+        {% for н in сводка.нарушения %}
+        <tr data-name="{{ н.вид | lower }}" data-violation="{{ н.вид }}"><td>{{ н.вид }}</td><td class="usage-n">{{ н.n }}</td><td class="usage-n">{{ н.последний }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <p class="data-note" id="usage-violations-none">Нарушений в письмах за 7 дней нет.</p>
+  {% endif %}
+
   {% call ah.foot() %}{% endcall %}
 </div>
 

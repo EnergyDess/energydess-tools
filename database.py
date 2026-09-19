@@ -1589,6 +1589,27 @@ class ModelUsage(Base):
     cache_write_tokens = Column(Integer, nullable=True)
 
 
+class LetterCheck(Base):
+    """ЖУРНАЛ НАРУШЕНИЙ ГОТОВОГО ПИСЬМА HH (задача 346, заход 6).
+
+    Каждое сгенерированное письмо проходит проверку 44 (`letter_facts`);
+    находка — строка здесь: тип находки и номер письма. ТЕКСТА НЕТ —
+    ни письма, ни найденного куска (тот же довод, что у `model_usage`).
+    `user_id` нет: человек известен через письмо, и при удалении аккаунта
+    строки уходят каскадом вместе с письмами (CHILD_TABLES). Письмо стёрто
+    уборкой удалённых — номер обнуляется, строка остаётся в счёте.
+
+    Виды: созвон, тестовое, зарплата (запреты досье), вне_досье,
+    нет_репозитория, сбой_проверки — проверка упала, письмо ушло как есть.
+    """
+
+    __tablename__ = "letter_checks"
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)  # UTC
+    letter_id = Column(Integer, nullable=True, index=True)
+    kind = Column(String, nullable=False)
+
+
 class MedkitEvent(Base):
     """ЛЕНТА ИЗМЕНЕНИЙ ОБЩЕЙ АПТЕЧКИ (постановка C).
 
@@ -2523,6 +2544,8 @@ CHILD_TABLES = [
      "workout_programs"),
     ("workout_program_days", "program_id", "workout_programs", None, None),
     ("recipe_ingredients", "recipe_id", "custom_recipes", None, None),
+    # Журнал нарушений письма: своего user_id нет, владелец — у письма
+    ("letter_checks", "letter_id", "cover_letters", None, None),
     # Связь позиции аптечки с категориями: своего user_id у неё нет
     # намеренно — владелец ровно тот, что у позиции (см. MedkitItemCategory)
     ("medkit_item_categories", "item_id", "medkit_items", None, None),
@@ -2561,6 +2584,8 @@ PRIVACY_MENTIONS = {
     "resumes":                   ["текст резюме"],
     "hh_profiles":               ["досье"],
     "cover_letters":             ["текст вакансии"],
+    # Тип находки проверки письма и номер письма — часть той же категории
+    "letter_checks":             ["текст вакансии"],
     "nutrition_profiles":        ["уровень активности", "нормы калорий"],
     "nutrition_goal_periods":    ["история норм"],
     "food_logs":                 ["записи о съеденном"],
