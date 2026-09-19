@@ -8,23 +8,8 @@
    задаётся в разметке классом .container-wide — вариант живёт в style.css.
    Здесь ничего нет намеренно: страница системный контейнер не трогает. */
 
-/* ── Шапка страницы ─────────────────────────────────────────────────────── */
-.hh-page-header { padding: var(--space-6) 0 var(--space-5); }
-/* цвета здесь нет: .eyebrow сам читает --tool-accent (style.css) */
-.hh-page-header .eyebrow { display: inline-flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
-.hh-page-header h1 {
-  font-size: var(--text-h1);
-  font-weight: 700;
-  color: var(--text-strong);
-  margin-bottom: var(--space-2);
-}
-.hh-page-header p { color: var(--text-2); font-size: var(--text-body-sm); }
-
-/* ── Табы разделов ──────────────────────────────────────────────────────────
-   Сам компонент переехал в style.css (.tab-bar / .tab-bar-sticky / .tab-btn,
-   BACKLOG.md задача 42). Здесь осталась только отбивка ряда от содержимого:
-   это раскладка экземпляра, ею распоряжается страница. */
-.hh-tabs { margin-bottom: var(--space-6); }
+/* Шапка страницы и ряд разделов — с письма 2 задачи 352 это шапка v2
+   (`.v2-page-head`, static/v2.css); свои правила сняты вместе с разметкой. */
 
 .hh-view { display: none; padding-bottom: var(--space-8); }
 .hh-view.active { display: block; }
@@ -860,12 +845,6 @@
 
 /* ── Адаптив ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  .hh-page-header { padding: var(--space-5) 0 var(--space-4); }
-  /* top: 64px здесь стоял вторым экземпляром того же числа и повторял
-     десктопное значение слово в слово — уехал в .tab-bar-sticky вместе
-     с компонентом. Кегль и паддинг вкладки на узком экране — тоже
-     компонент (медиазапрос в style.css). Странице осталась отбивка. */
-  .hh-tabs { margin-bottom: var(--space-5); }
   .result-panel { min-height: 360px; }
   #job-input { min-height: 200px; }
   /* `.result-header { flex-wrap: wrap; gap }` отсюда убрано 2026-08-11:

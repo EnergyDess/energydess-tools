@@ -84,16 +84,12 @@
 .ens-bar-row {
   display: flex; align-items: center; gap: var(--space-4);
 }
-.ens-brand { flex-shrink: 0; }
-.ens-title {
-  font-size: var(--text-h3); font-weight: 700; line-height: 1.1;
-  letter-spacing: -0.01em; color: var(--tool-accent);
-}
+.ens-headwrap { padding: 0 var(--space-5); }
 /* Вторичная строка под заголовком — одна роль на два места: подпись
    раздела и подпись категории. Сведено в один селектор, а не написано
    дважды (BACKLOG №126: дубль внутри одного файла безопасен по
    построению, каскад у обоих один и тот же). */
-.ens-sub, .cat-sub {
+.cat-sub {
   font-size: var(--text-caption); color: var(--text-faint);
   margin-top: var(--space-1);
 }
@@ -189,10 +185,12 @@
 @media (min-width: 1024px) {
   .ens-main { padding-left: var(--space-6); padding-right: var(--space-6); }
   .ens-bar  { padding-left: var(--space-6); padding-right: var(--space-6); }
+  .ens-headwrap { padding-left: var(--space-6); padding-right: var(--space-6); }
 }
 @media (min-width: 1600px) {
   .ens-main { padding-left: var(--space-7); padding-right: var(--space-7); }
   .ens-bar  { padding-left: var(--space-7); padding-right: var(--space-7); }
+  .ens-headwrap { padding-left: var(--space-7); padding-right: var(--space-7); }
 }
 .ens-sets { contain: layout paint; }
 .ens-loading { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); }
@@ -512,7 +510,7 @@
 @media (max-width: 640px) {
   .ens-bar { padding: var(--space-3) var(--space-4) 0; }
   .ens-bar-row { flex-wrap: wrap; gap: var(--space-2) var(--space-3); }
-  .ens-brand { flex: 1; }
+  .ens-headwrap { padding: 0 var(--space-4); }
   .ens-search { order: 3; flex: none; width: 100%; max-width: none; }
   .ens-stats { margin-left: auto; }
   .ens-stat { padding: var(--space-1) var(--space-3); }

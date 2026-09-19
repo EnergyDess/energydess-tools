@@ -15,40 +15,38 @@
 
 <main class="container container-wide">
 
-  {# Крошек здесь нет с 2026-08-10 и быть не должно: родитель у страницы
-     один — лаунчер, а он и так стоит в шапке логотипом. Строка
-     «Инструменты / HH-ассистент» повторяла его ссылкой и заголовок H1
-     под собой — три элемента подряд об одном. Правило и разбор —
-     design-system.md §10.3, BACKLOG.md задача 39 #}
-  <header class="hh-page-header">
-    <span class="eyebrow">{{ значок('briefcase', 'tool-icon') }} Карьера</span>
-    <h1>HH-ассистент</h1>
-    <p>Вставьте текст или ссылку на вакансию — получите сопроводительное письмо за 32 секунды</p>
-  </header>
-
   {% set has_resume = resume and resume.resume_text %}
-
-  <!-- ── Табы разделов ─────────────────────────────────────────────────── -->
-  <div class="tab-bar tab-bar-sticky hh-tabs" role="tablist">
-    <button class="tab-btn active" data-view="write" onclick="switchView('write')">
-      {{ значок('pen-line') }} Написать письмо
-    </button>
-    <button class="tab-btn" data-view="history" onclick="switchView('history')">
-      {{ значок('history') }} История писем
-    </button>
-    <button class="tab-btn" data-view="dossier" onclick="switchView('dossier')">
-      {{ значок('folder-open') }} Досье
-      <span class="resume-badge {{ 'resume-badge-ok' if has_dossier else 'resume-badge-warn' }}" id="dosie-badge">
-        {%- if has_dossier -%}✓{%- else -%}нет{%- endif -%}
-      </span>
-    </button>
-    <button class="tab-btn" data-view="resume" onclick="switchView('resume')">
-      {{ значок('file-text') }} Резюме
-      <span class="resume-badge {{ 'resume-badge-ok' if has_resume else 'resume-badge-warn' }}" id="resume-badge">
-        {%- if has_resume -%}✓{%- else -%}нет{%- endif -%}
-      </span>
-    </button>
-  </div>
+  {% import '_page_head.html' as ph %}
+  {# ШАПКА СТРАНИЦЫ v2 (BACKLOG №352, письмо 2). Крошек здесь нет с 2026-08-10
+     и быть не должно (design-system.md §10.3). Разделы — вкладками шапки,
+     «Новое письмо» — действие: открывает раздел письма и ставит курсор
+     в поле вакансии. Ассистента у HH нет — кнопки нет. #}
+  <header class="v2-page-head is-page">
+    {{ ph.text(V2_TOOL.hh, 'Вставьте текст или ссылку на вакансию — получите сопроводительное письмо за 32 секунды') }}
+    <div class="v2-head-actions">
+      <button type="button" class="v2-btn v2-btn-primary" onclick="switchView('write'); document.getElementById('job-input').focus()">{{ значок('pen-line') }}Новое письмо</button>
+    </div>
+    <nav class="v2-tabs hh-views" aria-label="Разделы HH-ассистента">
+      <button type="button" class="v2-tab active is-active" aria-current="page" data-view="write" onclick="switchView('write')">
+        {{ значок('pen-line') }} Написать письмо
+      </button>
+      <button type="button" class="v2-tab" data-view="history" onclick="switchView('history')">
+        {{ значок('history') }} История писем
+      </button>
+      <button type="button" class="v2-tab" data-view="dossier" onclick="switchView('dossier')">
+        {{ значок('folder-open') }} Досье
+        <span class="resume-badge {{ 'resume-badge-ok' if has_dossier else 'resume-badge-warn' }}" id="dosie-badge">
+          {%- if has_dossier -%}✓{%- else -%}нет{%- endif -%}
+        </span>
+      </button>
+      <button type="button" class="v2-tab" data-view="resume" onclick="switchView('resume')">
+        {{ значок('file-text') }} Резюме
+        <span class="resume-badge {{ 'resume-badge-ok' if has_resume else 'resume-badge-warn' }}" id="resume-badge">
+          {%- if has_resume -%}✓{%- else -%}нет{%- endif -%}
+        </span>
+      </button>
+    </nav>
+  </header>
 
   <!-- ── Вкладка: написать письмо ──────────────────────────────────────── -->
   <section class="hh-view active" id="view-write">
@@ -543,7 +541,12 @@
 
   // ── Переключение вкладок раздела ─────────────────────────────────────────
   function switchView(name) {
-    document.querySelectorAll('.hh-tabs .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+    document.querySelectorAll('.hh-views [data-view]').forEach(b => {
+      const да = b.dataset.view === name;
+      b.classList.toggle('active', да);
+      b.classList.toggle('is-active', да);
+      if (да) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
     document.querySelectorAll('.hh-view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
     // ИСТОРИЮ ПЕРЕЧИТЫВАЕТ СЛОЙ (`panel-refresh.js`), а не эта функция:
     // вкладка объявила `data-refresh` и обновляется при КАЖДОМ открытии.

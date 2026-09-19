@@ -109,22 +109,7 @@
 
 /* ── Wizard shell ── */
 .wk-shell { max-width: 900px; margin: 0 auto; }
-.wk-head { text-align: center; margin-bottom: var(--space-6); }
-.wk-head h1 {
-  font-family: var(--font);
-  font-size: clamp(1.6rem, 3vw, 2.2rem);
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: var(--space-2);
-}
-.wk-head p { color: var(--text-2); font-size: var(--text-body-sm); }
-/* Eyebrow над заголовком — было инлайном на элементе (CLAUDE.md §6.0.2:
-   токен внутри style= не делает инлайн законным) */
-.wk-head .eyebrow {
-  /* цвета здесь нет: .eyebrow сам читает --tool-accent (style.css) */
-  display: inline-flex; align-items: center; gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
+/* Шапка раздела — шапка v2 с письма 2 задачи 352 (`.v2-page-head`). */
 
 .wk-progress { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-6); }
 /* Дорожка и заливка — СИСТЕМНЫЕ (.meter .meter-edge / .meter-fill),

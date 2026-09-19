@@ -1,0 +1,14 @@
+{#- ШАПКА СТРАНИЦЫ ИНСТРУМЕНТА по шаблону v2 (BACKLOG №352, письмо 2;
+   design-system-v2.md §5). Текстовая часть — макросом, одна на все
+   инструменты: метка прописными в цвете инструмента, заголовок Unbounded,
+   одна строка описания. Кнопки действий и вкладки у каждого инструмента
+   свои — их страница пишет сама внутри `<header class="v2-page-head">`.
+   Импортируется `{% import '_page_head.html' as ph %}`. -#}
+{% macro text(t, desc, extra='') -%}
+<div class="v2-head-text">
+  <span class="v2-head-label">{{ значок(t.icon) }}{{ t.label }}</span>
+  <h1 class="v2-head-title">{{ t.title }}</h1>
+  <p class="v2-head-desc">{{ desc }}</p>
+  {{- extra }}
+</div>
+{%- endmacro %}

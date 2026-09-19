@@ -17,22 +17,18 @@
 <main class="wkp-page page-fill">
 
   <div class="wkp-shell">
-    {# Единственная страница проекта, у которой родитель НЕ достижим из шапки:
-       логотип ведёт в лаунчер, а «/workout» из шапки не открыть ничем.
-       Поэтому здесь крошки, а на самих страницах инструментов их нет —
-       design-system.md §10.3. Раньше тут стояла безымянная стрелка
-       .wkp-back: она вела туда же, но не говорила куда, и была третьим
-       способом вернуться назад при двух уже описанных (§10.4) #}
-    <nav class="breadcrumb" aria-label="Хлебные крошки">
-      <a href="/">Инструменты</a>
-      <span class="crumb-sep">/</span>
-      <a href="/workout">Тренировки</a>
-      <span class="crumb-sep">/</span>
-      <span class="crumb-current">Профиль</span>
-    </nav>
-    <div class="wkp-head">
-      <h1>{{ значок('settings', 'tool-icon wkp-head-icon') }} Профиль тренировок</h1>
-    </div>
+    {% import '_page_head.html' as ph %}
+    {# ШАПКА СТРАНИЦЫ v2 (BACKLOG №352, письмо 2). Крошки и свой заголовок
+       сняты: раздел «Профиль» — вкладка тренировок, назад ведёт вкладка
+       «Программа», а весь инструмент — пункт бокового меню. Ассистент
+       тренировок живёт на странице программы — здесь его кнопки нет. #}
+    <header class="v2-page-head is-page">
+      {{ ph.text(V2_TOOL.workout, 'Несколько вопросов — и соберём программу под вас') }}
+      <nav class="v2-tabs" aria-label="Разделы тренировок">
+        <a class="v2-tab" href="/workout">{{ значок('dumbbell') }}Программа</a>
+        <a class="v2-tab is-active" href="/workout/profile" aria-current="page">{{ значок('settings') }}Профиль</a>
+      </nav>
+    </header>
 
     <div class="wk-card">
       <div class="wk-profile-sec-title">Моя анкета</div>

@@ -7,9 +7,8 @@
    проверка 47 (`py check_v2_tokens.py`), метка файла — `@v2` в первой
    строке.
 
-   Файл подключён ТОЛЬКО витриной `/admin/design-v2`. Страницы инструментов
-   его не грузят до письма 2 плана — поэтому их облик от этого файла
-   не меняется по построению. Старые токены `style.css` не тронуты;
+   С письма 2 файл подключает `_meta.html` на каждой странице каркаса
+   (вошедший с подтверждённой почтой); у гостя и на страницах входа его нет. Старые токены `style.css` не тронуты;
    таблица «старое → новое» — design-system-v2.md §9. */
 
 /* Unbounded — заголовки и цифры. Файлы те же, что у гостевой главной
@@ -356,7 +355,7 @@
   transition: color var(--v2-dur-fast) var(--v2-ease-out);
 }
 .v2-tab svg { width: var(--v2-icon); height: var(--v2-icon); }
-.v2-tab.is-active { border-bottom-color: var(--v2-tool, var(--v2-hh)); color: var(--v2-text-strong); }
+.v2-tab.is-active, .v2-tab.active { border-bottom-color: var(--v2-tool, var(--v2-hh)); color: var(--v2-text-strong); }
 .v2-tab:focus-visible { outline: 2px solid var(--v2-ring-neutral); outline-offset: -2px; }
 @media (hover: hover) { .v2-tab:hover:not(.is-active) { color: var(--v2-text); } }
 
@@ -594,13 +593,18 @@
 .v2-page-head {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr auto;
+  /* Текст шапки получает свою полную ширину первым (описание — одна
+     строка), кнопки действий — остаток и при нехватке переносятся. */
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
   gap: var(--v2-sp-3) var(--v2-sp-5);
   padding: var(--v2-sp-6) var(--v2-sp-5) 0;
   /* БЕЗ РАМКИ И СКРУГЛЕНИЯ (решение владельца 2026-09-19): свечение
      и звёзды растворяются в фоне страницы к низу шапки, снизу её
      отделяет только линия под вкладками. */
-  background: radial-gradient(60% 100% at 0% 0%, var(--v2-tool-glow, transparent), transparent 100%);
+  /* Центр свечения отнесён от краёв ровно на радиус: к левому и верхнему
+     краю шапки оно гаснет до прозрачности, резкой границы нет ни с одной
+     стороны; вниз уходит в фон страницы. */
+  background: radial-gradient(28% 60% at 28% 60%, var(--v2-tool-glow, transparent), transparent 100%);
   isolation: isolate;
 }
 .v2-page-head::before {
@@ -677,11 +681,150 @@
 .v2-msg-me { align-self: flex-end; border-color: var(--v2-tool-line, var(--v2-line-2)); background: var(--v2-tool-dim, var(--v2-surface-2)); }
 .v2-assist-input { display: flex; gap: var(--v2-sp-2); padding: var(--v2-sp-3) var(--v2-sp-4); border-top: 1px solid var(--v2-line-3); }
 
+/* ---------- 6а. КАРКАС НА СТРАНИЦАХ (письмо 2) ----------
+   Разметка — `templates/_header.html` (открывает каркас) и
+   `templates/_page_end.html` (закрывает после подвала). Каркас ставится
+   только вошедшему с подтверждённой почтой; у гостя и на страницах входа
+   шапка прежняя до байта. */
+.v2-shell {
+  display: grid;
+  grid-template-columns: var(--v2-side-w) minmax(0, 1fr);
+  flex: 1 0 auto;
+  min-height: 100dvh;
+  background: var(--v2-bg);
+  /* модалки лежат в колонке содержимого и центрируются по ней, а не по окну
+     (style.css, `--app-aside`) */
+  --app-aside: var(--v2-side-w);
+}
+html.v2-rail .v2-shell { grid-template-columns: var(--v2-rail-w) minmax(0, 1fr); --app-aside: var(--v2-rail-w); }
+.v2-shell > .v2-side {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  width: auto;
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+html.v2-rail .v2-shell > .v2-side { align-items: center; }
+html.v2-rail .v2-shell .v2-side-item { justify-content: center; width: var(--v2-ctl-h-touch); padding: 0; }
+html.v2-rail .v2-shell .v2-side-label,
+html.v2-rail .v2-shell .v2-side-section,
+html.v2-rail .v2-shell .v2-soon,
+html.v2-rail .v2-shell .v2-side-recent,
+html.v2-rail .v2-shell .v2-side-brand-word { display: none; }
+.v2-side-brandrow { display: flex; align-items: center; gap: var(--v2-sp-2); margin-bottom: var(--v2-sp-3); }
+.v2-side-brandrow .v2-side-brand { margin-bottom: 0; }
+.v2-side-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--v2-sp-2);
+  min-height: var(--v2-ctl-h-touch);
+  margin-bottom: var(--v2-sp-3);
+  padding: 0 var(--v2-sp-3);
+  color: var(--v2-text-strong);
+  font-family: var(--v2-font-display);
+  font-size: var(--v2-fs-md);
+  font-weight: var(--v2-fw-display);
+  letter-spacing: var(--v2-ls-display);
+  text-decoration: none;
+}
+.v2-side-brand-mark { color: var(--v2-hh); }
+.v2-side-item[aria-expanded="true"] { background: var(--v2-surface-2); color: var(--v2-text); }
+.v2-side-caret { margin-left: auto; transition: transform var(--v2-dur-fast) var(--v2-ease-out); }
+.v2-side-item[aria-expanded="true"] .v2-side-caret { transform: rotate(180deg); }
+html.v2-rail .v2-shell .v2-side-caret { display: none; }
+.v2-side-recent.is-active { background: var(--v2-surface-hover); color: var(--v2-text-strong); }
+.v2-side-close { display: none; }
+/* Всплывающий список инструментов: `fixed`, положение считает скрипт
+   от кнопки — внутри прокручиваемого меню абсолютный блок обрезался бы. */
+.v2-side-pop { position: fixed; z-index: 170; }
+.v2-side-pop[hidden] { display: none; }
+.v2-side-scrim { display: none; }
+.v2-shell-main { display: flex; flex-direction: column; min-width: 0; min-height: 100dvh; }
+.v2-shell-main > .page-fill { flex: 1 0 auto; }
+.v2-top-lead { display: flex; align-items: center; }
+.v2-top-burger { display: none; }
+/* Меню аватара: пункт администратора называется по делу */
+.v2-shell .avatar-dropdown a { white-space: nowrap; }
+
+/* Шапка страницы внутри колонки содержимого. У страницы без вкладок
+   нижнюю линию даёт сама шапка. */
+.v2-page-wrap {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 var(--v2-sp-5);
+  font-family: var(--v2-font);
+}
+.v2-page-wrap .v2-page-head { margin-bottom: var(--v2-sp-5); }
+/* В странице шапка стоит в контейнере содержимого и выравнивается по нему:
+   своих боковых полей нет. */
+.v2-page-head.is-page { padding-left: 0; padding-right: 0; margin-bottom: var(--v2-sp-5); }
+.v2-page-head.is-notabs { padding-bottom: var(--v2-sp-5); border-bottom: 1px solid var(--v2-line-2); }
+.v2-page-head .v2-tab { text-decoration: none; }
+.v2-page-head .v2-tab .v2-tab-badge {
+  padding: 0 var(--v2-sp-2);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-pill);
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-text-2);
+}
+.v2-head-date {
+  font-family: var(--v2-font-mono);
+  font-size: var(--v2-fs-xs);
+  letter-spacing: var(--v2-ls-label);
+  text-transform: capitalize;
+  color: var(--v2-text-2);
+}
+
 /* ---------- 7. ТЕЛЕФОН ---------- */
 @media (pointer: coarse) {
   .v2-btn, .v2-chip, .v2-input, .v2-select { min-height: var(--v2-ctl-h-touch); }
   .v2-btn-icon { width: var(--v2-ctl-h-touch); }
   .v2-seg-btn { min-height: var(--v2-ctl-h-touch); }
+}
+/* Каркас ниже десктопа: меню за кнопкой в верхней строке, поверх страницы. */
+@media (max-width: 1023px) {
+  .v2-shell, html.v2-rail .v2-shell { grid-template-columns: minmax(0, 1fr); --app-aside: initial; }
+  .v2-shell > .v2-side {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 160;
+    width: min(var(--v2-side-w), calc(100vw - var(--v2-sp-8)));
+    height: auto;
+    border-right: 1px solid var(--v2-line-1);
+    visibility: hidden;
+    transform: translateX(-100%);
+    transition: transform var(--v2-dur-base) var(--v2-ease-out), visibility 0s linear var(--v2-dur-base);
+  }
+  .v2-shell.is-side-open > .v2-side { visibility: visible; transform: none; transition: transform var(--v2-dur-base) var(--v2-ease-out); }
+  /* полосы иконок на телефоне нет: меню открывается целиком */
+  html.v2-rail .v2-shell > .v2-side { align-items: stretch; }
+  html.v2-rail .v2-shell .v2-side-item { justify-content: flex-start; width: auto; padding: 0 var(--v2-sp-3); }
+  html.v2-rail .v2-shell .v2-side-label,
+  html.v2-rail .v2-shell .v2-side-section,
+  html.v2-rail .v2-shell .v2-soon,
+  html.v2-rail .v2-shell .v2-side-brand-word,
+  html.v2-rail .v2-shell .v2-side-caret { display: revert; }
+  html.v2-rail .v2-shell .v2-side-recent { display: flex; }
+  /* «Свернуть» — только на десктопе: ниже него полосы нет */
+  .v2-side .v2-side-fold { display: none; }
+  .v2-side-close { display: inline-flex; margin-left: auto; }
+  .v2-side-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 155;
+    background: var(--v2-scrim);
+  }
+  .v2-shell.is-side-open .v2-side-scrim { display: block; }
+  .v2-top-burger { display: inline-flex; }
+  /* «Инструменты» — раскрывающийся список на месте, без наведения */
+  .v2-side-pop { position: static; min-width: 0; margin: var(--v2-sp-1) 0; box-shadow: var(--v2-shadow-none); }
+  .v2-page-wrap { padding: 0 var(--v2-sp-4); }
 }
 @media (max-width: 768px) {
   .v2-top { padding: 0 var(--v2-sp-4); }

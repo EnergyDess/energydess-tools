@@ -144,3 +144,8 @@
      а не в хвосте: наблюдатель ставится до разбора разметки, и поправка
      прокрутки успевает до первого кадра. Разбор — в самом файле. #}
   <script src="{{ st('ribbon-active.js') }}"></script>
+  {#- Стили каркаса v2 (BACKLOG №352, письмо 2) — там же, где каркас:
+     вошедшему с подтверждённой почтой. Условие то же, что в `_header.html`. #}
+  {%- if user is defined and user and user.is_verified and not (header_pf is defined and header_pf) and not (shell_off is defined and shell_off) %}
+  <link rel="stylesheet" href="{{ st('v2.css') }}">
+  {%- endif %}

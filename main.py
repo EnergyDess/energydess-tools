@@ -1132,6 +1132,27 @@ TOOL_EYEBROWS = {"hh": "Карьера", "nutrition": "Питание",
                  "workout": "Тренировки", "enshrouded": "Игры · Enshrouded",
                  "medkit": "Дом · Аптечка"}
 templates.env.globals["TOOL_ICONS"] = TOOL_ICONS
+
+# КАРКАС v2 (BACKLOG №352, письмо 2): инструменты в боковом меню и шапке
+# страницы. Метка — прописными (CLAUDE.md §4, колонка «Mono-label»), подпись —
+# одна строка для всплывающего списка «Инструменты». Порядок — порядок меню.
+# Цвет инструмента ставится классом `.v2-tool-<id>` (static/v2.css).
+V2_TOOLS = [
+    {"id": "hh", "title": "HH-ассистент", "label": "КАРЬЕРА", "url": "/hh",
+     "sub": "Сопроводительное письмо к вакансии за полминуты"},
+    {"id": "nutrition", "title": "Дневник питания", "label": "ПИТАНИЕ", "url": "/nutrition",
+     "sub": "Что съедено сегодня и сколько осталось до нормы"},
+    {"id": "medkit", "title": "Аптечка", "label": "ДОМ · АПТЕЧКА", "url": "/medkit",
+     "sub": "Что есть дома, сколько осталось, не протухло ли"},
+    {"id": "enshrouded", "title": "Enshrouded", "label": "ИГРЫ · ENSHROUDED", "url": "/enshrouded",
+     "sub": "Какие сеты брони собраны и чего не хватает"},
+    {"id": "workout", "title": "Программа тренировок", "label": "ТРЕНИРОВКИ", "url": "/workout",
+     "sub": "Сегодняшняя тренировка, подходы и прогрессия"},
+]
+for _т in V2_TOOLS:
+    _т["icon"] = TOOL_ICONS[_т["id"]]
+templates.env.globals["V2_TOOLS"] = V2_TOOLS
+templates.env.globals["V2_TOOL"] = {т["id"]: т for т in V2_TOOLS}
 # Нужен в _meta.html: og:url и og:image требуют АБСОЛЮТНЫХ адресов, с
 # относительным путём превью не собирается ни в одном мессенджере
 templates.env.globals["BASE_URL"] = BASE_URL
@@ -2452,7 +2473,9 @@ async def botamin_page(request: Request, user=Depends(get_current_user)):
     """
     return templates.TemplateResponse(
         request=request, name="botamin.html",
-        context={"user": user,
+        # Каркаса v2 нет (BACKLOG №352, письмо 2): витрина тестового задания,
+        # а не часть залогиненной части; шапка у неё прежняя и вошедшему.
+        context={"user": user, "shell_off": True,
                  "meta_title": "Голосовой ИИ-агент для Botamin",
                  "meta_desc": "Демонстрация голосового агента: запись на "
                               "видеовстречу разговором, календарная логика "
@@ -4782,16 +4805,8 @@ async def admin_design_v2_page(request: Request, user=Depends(get_current_user))
     return templates.TemplateResponse(
         request=request, name="admin_design_v2.html",
         context={"user": user,
-                 "v2_tools": [("hh", "briefcase", "КАРЬЕРА", "HH-ассистент",
-                               "Сопроводительное письмо к вакансии за полминуты"),
-                              ("nutrition", "salad", "ПИТАНИЕ", "Дневник питания",
-                               "Что съедено сегодня и сколько осталось до нормы"),
-                              ("medkit", "pill", "ДОМ · АПТЕЧКА", "Аптечка",
-                               "Что есть дома, сколько осталось, не протухло ли"),
-                              ("enshrouded", "shield", "ИГРЫ · ENSHROUDED", "Enshrouded",
-                               "Какие сеты брони собраны и чего не хватает"),
-                              ("workout", "dumbbell", "ТРЕНИРОВКИ", "Программа тренировок",
-                               "Сегодняшняя тренировка, подходы и прогрессия")]})
+                 "v2_tools": [(т["id"], т["icon"], т["label"], т["title"], т["sub"])
+                              for т in V2_TOOLS]})
 
 
 @app.get("/admin/landing")

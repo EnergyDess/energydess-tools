@@ -16,11 +16,21 @@
 <main class="wk-page page-fill">
 
   <div class="wk-shell">
-    <div class="wk-head">
-      <span class="eyebrow">{{ значок('dumbbell', 'tool-icon') }} Тренировки</span>
-      <h1>Программа тренировок</h1>
-      <p>Несколько вопросов — и соберём программу под вас</p>
-    </div>
+    {% import '_page_head.html' as ph %}
+    {# ШАПКА СТРАНИЦЫ v2 (BACKLOG №352, письмо 2). Разделы тренировок —
+       вкладками-ссылками: программа и профиль (прежде профиль открывался
+       только кнопкой «Настройки» и крошками). «AI-ассистент» зовёт ТОТ ЖЕ
+       обработчик, что кнопка «Ассистент» в блоке программы. #}
+    <header class="v2-page-head is-page">
+      {{ ph.text(V2_TOOL.workout, 'Несколько вопросов — и соберём программу под вас') }}
+      <div class="v2-head-actions">
+        <button type="button" class="v2-btn v2-btn-secondary" onclick="document.getElementById('wkGeneralChatBtn').click()">{{ значок('sparkles') }}AI-ассистент</button>
+      </div>
+      <nav class="v2-tabs" aria-label="Разделы тренировок">
+        <a class="v2-tab is-active" href="/workout" aria-current="page">{{ значок('dumbbell') }}Программа</a>
+        <a class="v2-tab" href="/workout/profile">{{ значок('settings') }}Профиль</a>
+      </nav>
+    </header>
 
     <div class="wk-progress">
       <div class="meter meter-edge wk-progress-track"><div class="meter-fill wk-progress-bar" id="wkProgressBar"></div></div>
@@ -236,9 +246,6 @@
         <button class="wk-btn wk-btn-ghost" id="wkBack"></button>
         <button class="wk-btn wk-btn-primary" id="wkNext" disabled></button>
       </div>
-    </div>
-  </div>
-
     </div>
   </div>
 </main>

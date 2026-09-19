@@ -17,12 +17,18 @@
 
 {% include '_header.html' %}
 
+{% import '_page_head.html' as ph %}
+{# ШАПКА СТРАНИЦЫ v2 (BACKLOG №352, письмо 2). Прежние заголовок и подпись
+   полосы — текстом шапки. Разделов у раздела нет (категории — отбор одного
+   списка, остаются в полосе ниже), ассистента нет — кнопок нет. Поля
+   шапки те же, что у полосы и сетки, — одна вертикаль. #}
+<div class="ens-headwrap">
+  <header class="v2-page-head is-page">
+    {{ ph.text(V2_TOOL.enshrouded, 'Трекер сетов брони') }}
+  </header>
+</div>
 <div class="ens-bar">
   <div class="ens-bar-row">
-    <div class="ens-brand">
-      <h1 class="ens-title">Enshrouded</h1>
-      <p class="ens-sub">Трекер сетов брони</p>
-    </div>
     <div class="ens-search">
       {{ значок('search', 'ens-search-ico') }}
       <input class="input input-compact" type="text" id="searchInput"

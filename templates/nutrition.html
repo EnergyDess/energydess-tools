@@ -14,6 +14,29 @@
 {% include '_header.html' %}
 
 <!-- ── App shell ──────────────────────────────────────────────────────────── -->
+{% import '_page_head.html' as ph %}
+{# ШАПКА СТРАНИЦЫ v2 (BACKLOG №352, письмо 2). Собственное боковое меню
+   дневника (оно же нижняя панель на телефоне) убрано: разделы — вкладками
+   шапки, «Добавить» и «AI-ассистент» — кнопками действий. Кнопки несут
+   прежний `data-tab` и зовут прежний `switchTab`, так что переключение
+   и подсветку ведёт тот же код, что вёл меню. `#sidebar-date` — прежняя
+   строка даты меню, её по-прежнему пишет скрипт страницы. #}
+<div class="v2-page-wrap">
+  <header class="v2-page-head is-page">
+    {{ ph.text(V2_TOOL.nutrition, 'Дневник питания с подсчётом КБЖУ и штрих-код сканером.',
+               '<span class="v2-head-date" id="sidebar-date"></span>' | safe) }}
+    <div class="v2-head-actions">
+      <button type="button" class="v2-btn v2-btn-secondary nut-tabbtn" data-tab="assistant" onclick="switchTab(this)">{{ значок('sparkles') }}AI-ассистент</button>
+      <button type="button" class="v2-btn v2-btn-primary nut-tabbtn" data-tab="search" onclick="switchTab(this)">{{ значок('plus') }}Добавить</button>
+    </div>
+    <nav class="v2-tabs" aria-label="Разделы дневника питания">
+      <button type="button" class="v2-tab nut-tabbtn active" data-tab="diary" onclick="switchTab(this)">{{ значок('clipboard-list') }}Дневник</button>
+      <button type="button" class="v2-tab nut-tabbtn" data-tab="history" onclick="switchTab(this)">{{ значок('history') }}История</button>
+      <button type="button" class="v2-tab nut-tabbtn" data-tab="weight" onclick="switchTab(this)">{{ значок('scale') }}Вес</button>
+      <button type="button" class="v2-tab nut-tabbtn" data-tab="profile" onclick="switchTab(this)">{{ значок('user') }}Профиль</button>
+    </nav>
+  </header>
+</div>
 <div class="nut-app page-fill">
 
   <!-- App header -->
@@ -748,35 +771,6 @@
 
   </div><!-- /nut-content -->
 
-  <!-- Bottom nav / Desktop sidebar -->
-  <nav class="nut-nav">
-    <div class="sidebar-hd"><span>{{ значок('salad') }}</span> Дневник питания</div>
-    <div class="sidebar-date" id="sidebar-date"></div>
-    <button class="nut-nav-btn active" data-tab="diary"   onclick="switchTab(this)">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-      Дневник
-    </button>
-    <button class="nut-nav-btn" data-tab="search" onclick="switchTab(this)">
-      <div class="nav-plus"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></div>
-      Добавить
-    </button>
-    <button class="nut-nav-btn" data-tab="history" onclick="switchTab(this)">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M3.05 11a9 9 0 1017.9 0"/><path d="M3 4v4h4"/></svg>
-      История
-    </button>
-    <button class="nut-nav-btn" data-tab="weight" onclick="switchTab(this)">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="8"/><path d="M12 2v2M4.22 4.22l1.42 1.42M2 10h2M4.22 15.78l1.42-1.42M8 17.66V22M16 17.66V22"/><path d="M9 10l2 2 4-4"/></svg>
-      Вес
-    </button>
-    <button class="nut-nav-btn" data-tab="profile" onclick="switchTab(this)">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      Профиль
-    </button>
-    <button class="nut-nav-btn" data-tab="assistant" onclick="switchTab(this)">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
-      Ассистент
-    </button>
-  </nav>
 </div><!-- /nut-app -->
 
 {# Двенадцать модалок дневника собраны одним макросом. До него каркас лежал
@@ -1131,7 +1125,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ── Navigation ────────────────────────────────────────────────────────────────
 function switchTab(btn) {
   goTab(btn.dataset.tab);
-  document.querySelectorAll('.nut-nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.nut-tabbtn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 }
 
@@ -1205,7 +1199,7 @@ function goTab(tab) {
 // один раздел, а панель называла бы другой
 function перейтиНаВкладку(tab) {
   goTab(tab);
-  document.querySelectorAll('.nut-nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.nut-tabbtn').forEach(b => b.classList.remove('active'));
   document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');
 }
 
@@ -2042,7 +2036,7 @@ function openSearchFor(mealId) {
   выделитьПриём(mealId);
   закрытьПанель();
   goTab('search');
-  document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.nut-tabbtn').forEach(b=>b.classList.remove('active'));
   document.querySelector('[data-tab="search"]').classList.add('active');
   setTimeout(()=>document.getElementById('s-input').focus(),150);
 }
@@ -2713,7 +2707,7 @@ async function confirmAdd(изПанели = false) {
   toast('Добавлено!',true);
   const назад = S.addFrom === 'history' ? 'history' : 'diary';
   goTab(назад);
-  document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.nut-tabbtn').forEach(b=>b.classList.remove('active'));
   document.querySelector(`[data-tab="${назад}"]`).classList.add('active');
 }
 
@@ -3028,7 +3022,7 @@ async function confirmAddRecipe() {
   })});
   закрыть_модалку('modal-recipe-log'); loadDiary(S.date); loadDayCounts(); toast('Рецепт добавлен!',true);
   goTab('diary');
-  document.querySelectorAll('.nut-nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.nut-tabbtn').forEach(b=>b.classList.remove('active'));
   document.querySelector('[data-tab="diary"]').classList.add('active');
 }
 

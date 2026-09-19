@@ -49,24 +49,10 @@
    ВВЕРХ, через заголовок и список покупок, а переносом их ВНИЗ,
    в ту же строку, что поиск. Теперь связанные органы стоят рядом,
    а пара «поиск — отбор» не разорвана ничем. */
-.apt-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-5);
-}
-.apt-head-t { min-width: 0; }
-.apt-title {
-  font-size: var(--text-h2);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  margin: 0 0 var(--space-1);
-}
+/* Шапка раздела — шапка v2 с письма 2 задачи 352 (`.v2-page-head`). */
 /* Подпись раздела и оговорка удаления — одна роль: вторичная
    строка под заголовком. Тела совпадали дословно (BACKLOG №126). */
-.apt-sub, .apt-del-note { color: var(--text-2);
+.apt-del-note { color: var(--text-2);
   font-size: var(--text-body-sm);
   margin: 0; }
 
@@ -2467,7 +2453,6 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 /* Подзаголовок раздела на пустом экране остаётся, а вот воздух под
    шапкой без ряда поиска становится лишним: приглашение уезжало бы
    от заголовка на 40 пикселей вместо 24 */
-.apt-wrap.apt-blank .apt-head { margin-bottom: var(--space-4); }
 
 /* ══ ПАНЕЛЬ АССИСТЕНТА ЗАВЕДЕНИЯ ══════════════════════════════════════
    BACKLOG №166.

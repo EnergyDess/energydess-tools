@@ -47,11 +47,76 @@
    «Регистрация» акцентной. Класс `site-header-pf` нужен только
    появлению при загрузке (landing.css), вида он не меняет. #}
 {%- set шапка_пф = header_pf if header_pf is defined and header_pf else False %}
-<header class="site-header {{ 'site-header-edges' if not есть_доступ_к_инструментам }}{{ ' site-header-pf' if шапка_пф }}">
+{#- КАРКАС v2 (BACKLOG №352, письмо 2). Вошедшему с подтверждённой почтой
+   шапка открывает каркас: слева боковое меню, справа колонка содержимого
+   с верхней строкой (поиск и аватар). Закрывает его `_page_end.html` ПОСЛЕ
+   подвала — подвал стоит в колонке содержимого, а не под меню. Условие
+   записано в двух файлах одинаково, и сверяет их проба каркаса
+   (`check_v2_shell.py`: каркас ровно один на каждой странице).
+   `shell_off` — страница без каркаса осознанно. -#}
+{%- set каркас = есть_доступ_к_инструментам and not шапка_пф and not (shell_off is defined and shell_off) %}
+{#- Инструмент страницы выводится из АДРЕСА по списку V2_TOOLS, а не
+   объявляется каждой страницей: объявление, которое надо не забыть,
+   на новой странице забудут. `/workout/profile` — раздел тренировок. -#}
+{%- set _путь = request.url.path %}
+{%- set _нашли = namespace(id='') %}
+{%- for т in V2_TOOLS if _путь == т.url or _путь.startswith(т.url ~ '/') %}{% set _нашли.id = т.id %}{% endfor %}
+{%- set инструмент = _нашли.id %}
+{%- if каркас %}
+<script>try{if(localStorage.getItem('v2-rail')==='1')document.documentElement.classList.add('v2-rail')}catch(e){}</script>
+<div class="v2-shell{{ ' v2-tool-' ~ инструмент if инструмент }}" id="v2-shell" data-tool="{{ инструмент }}">
+  <nav class="v2-side" id="v2-side" aria-label="Основное меню">
+    <div class="v2-side-brandrow">
+      <a href="/" class="v2-side-brand"><span class="v2-side-brand-mark" aria-hidden="true">⚡</span><span class="v2-side-brand-word">EnergyDess</span></a>
+      <button type="button" class="v2-btn v2-btn-secondary v2-btn-icon v2-side-close" id="v2-side-close" aria-label="Закрыть меню">{{ значок('x') }}</button>
+    </div>
+    <a class="v2-side-item{{ ' is-active' if request.url.path == '/' }}" href="/" title="Главная"{{ ' aria-current="page"' | safe if request.url.path == '/' }}>{{ значок('house') }}<span class="v2-side-label">Главная</span></a>
+    <button type="button" class="v2-side-item{{ ' is-active' if инструмент }}" id="v2-tools-btn" title="Инструменты"
+            aria-haspopup="menu" aria-expanded="false" aria-controls="v2-tools-pop">{{ значок('layout-grid') }}<span class="v2-side-label">Инструменты</span>{{ значок('chevron-down', 'v2-side-caret') }}</button>
+    <div class="v2-menu v2-side-pop" id="v2-tools-pop" role="menu" aria-label="Инструменты" hidden>
+      {% for т in V2_TOOLS %}
+      <a class="v2-menu-item v2-tool-{{ т.id }}" role="menuitem" href="{{ т.url }}">{{ значок(т.icon) }}<span><span class="v2-menu-name">{{ т.title }}</span><span class="v2-menu-sub">{{ т.sub }}</span></span></a>
+      {% endfor %}
+    </div>
+    {# ПОСЛЕДНИЕ ОТКРЫТЫЕ — до трёх, самый свежий сверху, список в браузере
+       (`localStorage['v2-recent']`). Все пять пунктов рисует СЕРВЕР скрытыми,
+       встроенный скрипт сразу за ними показывает и упорядочивает нужные —
+       до первой отрисовки, без второго построителя (§6.0.15). Хранилище
+       недоступно или повреждено — список просто пуст. #}
+    <div class="v2-side-recents" id="v2-recent">
+      {% for т in V2_TOOLS %}
+      <a class="v2-side-item v2-side-recent v2-tool-{{ т.id }}{{ ' is-active' if т.id == инструмент }}" href="{{ т.url }}" data-recent="{{ т.id }}" title="{{ т.title }}" hidden>{{ значок(т.icon) }}<span class="v2-side-label">{{ т.title }}</span></a>
+      {% endfor %}
+    </div>
+    <script>(function(){var с=[],т=document.getElementById('v2-shell').getAttribute('data-tool');
+      try{с=JSON.parse(localStorage.getItem('v2-recent')||'[]');if(!Array.isArray(с))с=[];}catch(e){с=[];}
+      с=с.filter(function(x){return typeof x==='string'&&document.querySelector('[data-recent="'+x+'"]');});
+      if(т){с=с.filter(function(x){return x!==т;});с.unshift(т);}
+      с=с.slice(0,3);try{localStorage.setItem('v2-recent',JSON.stringify(с));}catch(e){}
+      var к=document.getElementById('v2-recent');
+      с.forEach(function(x){var э=к.querySelector('[data-recent="'+x+'"]');if(э){э.hidden=false;к.appendChild(э);}});})();</script>
+    <p class="v2-side-section">Сообщество</p>
+    <span class="v2-side-item is-soon" aria-disabled="true" title="Новости — скоро">{{ значок('file-text') }}<span class="v2-side-label">Новости</span><span class="v2-soon">скоро</span></span>
+    <span class="v2-side-item is-soon" aria-disabled="true" title="Обсуждения — скоро">{{ значок('message-circle') }}<span class="v2-side-label">Обсуждения</span><span class="v2-soon">скоро</span></span>
+    <div class="v2-side-foot v2-side-fold">
+      <button type="button" class="v2-side-item" id="v2-side-fold" aria-pressed="false" title="Свернуть меню">{{ значок('chevron-left', 'v2-side-fold-ico') }}<span class="v2-side-label">Свернуть</span></button>
+    </div>
+  </nav>
+  <div class="v2-side-scrim" id="v2-side-scrim"></div>
+  <div class="v2-shell-main">
+{%- endif %}
+<header class="site-header {{ 'site-header-edges' if not есть_доступ_к_инструментам }}{{ ' site-header-pf' if шапка_пф }}{{ ' v2-top-bar' if каркас }}">
+  {% if каркас %}
+  <div class="header-logo v2-top-lead">
+    <button type="button" class="v2-btn v2-btn-secondary v2-btn-icon v2-top-burger" id="v2-burger"
+            aria-label="Открыть меню" aria-controls="v2-side" aria-expanded="false">{{ значок('menu') }}</button>
+  </div>
+  {% else %}
   <a href="/" class="header-logo">
     <span class="nav-logo-symbol">⚡</span>
     <span{{ ' class="pf-logo-word"' | safe if шапка_пф }}>EnergyDess</span>
   </a>
+  {% endif %}
 
   {% if есть_доступ_к_инструментам %}
   {# Поиск-навигация по инструментам. Источник данных — глобал TOOLS из main.py
@@ -136,7 +201,9 @@
       <div class="avatar-dropdown" role="menu">
         <a href="/profile">{{ значок('user') }} Профиль</a>
         {% if user.is_admin %}
-        <a href="/admin">{{ значок('settings') }} Админ</a>
+        {# `/admin` отвечает перенаправлением на первый раздел — в каркасе
+           ссылка ведёт прямо туда, без лишнего шага. #}
+        <a href="{{ '/admin/users' if каркас else '/admin' }}">{{ значок('settings') }} {{ 'Админ-панель' if каркас else 'Админ' }}</a>
         {% endif %}
         <a href="/logout">{{ значок('log-out') }} Выйти</a>
       </div>
