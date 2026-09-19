@@ -84,7 +84,49 @@ def _фокус():
     return 0
 
 
+def _остановка():
+    """Задача 344: запись остановки кадров. Два случая в ОДНОМ окне —
+    обычный замер записи не даёт, замер при остановленном
+    `requestAnimationFrame` (подлог в странице) даёт ровно одну строку
+    со всеми полями. Файл — временный, копящийся файл заходов не трогается."""
+    import json
+    import tempfile
+    from playwright.sync_api import sync_playwright
+    путь = os.path.join(tempfile.mkdtemp(prefix="stall_"), "frame_stalls.jsonl")
+    os.environ[bw.ОСТАНОВКИ_ПЕРЕМЕННАЯ] = путь
+
+    def строк():
+        return sum(1 for _ in open(путь, encoding="utf-8")) if os.path.exists(путь) else 0
+
+    with sync_playwright() as p:
+        б = p.chromium.launch(headless=False)
+        с = б.new_page()
+        с.set_content("<title>проба кадров</title><p>кадры</p>")
+        обычно = bw.кадров_окна(с, "контроль: обычный замер")
+        после_обычного = строк()
+        с.evaluate("() => { window.requestAnimationFrame = () => 0; }")
+        стоит = bw.кадров_окна(с, "контроль: rAF остановлен")
+        после_подлога = строк()
+        б.close()
+    print("обычный замер: кадров %d, строк в файле %d" % (обычно, после_обычного))
+    print("подлог (rAF остановлен): кадров %d, строк в файле %d" % (стоит, после_подлога))
+    поля = {}
+    if после_подлога:
+        поля = json.loads(open(путь, encoding="utf-8").read().splitlines()[-1])
+        print("поля записи: %s" % ", ".join(sorted(поля)))
+    нужно = {"ts", "where", "frames_500ms", "page", "chrome_windows", "foreground", "cpu_percent"}
+    стр = поля.get("page") or {}
+    своё = [о for о in (поля.get("chrome_windows") or [])
+            if isinstance(стр, dict) and о["rect"][:2] == [стр.get("sx"), стр.get("sy")]]
+    print("окно пробы среди окон Chromium по screenX/screenY: %d" % len(своё))
+    ок = (после_обычного == 0 and после_подлога == 1 and нужно <= set(поля) and len(своё) == 1)
+    print("ИТОГ: запись остановки %s" % ("ЕСТЬ И ТОЛЬКО ПРИ ОСТАНОВКЕ" if ок else "НЕ РАБОТАЕТ"))
+    return 0 if ок else 1
+
+
 def main():
+    if "--остановка" in sys.argv:
+        return _остановка()
     второй = bw.второй_монитор()
     for x, y, ш, в, осн in bw.мониторы():
         print("монитор (%d,%d) %dx%d%s" % (x, y, ш, в, " основной" if осн else ""))

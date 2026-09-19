@@ -1463,11 +1463,11 @@ def _въехать(с, i, откуда):
 })();"""
 
 
-def _кадров(с):
-    """Кадров requestAnimationFrame за 500 мс — идёт ли отрисовка окна."""
-    return с.evaluate("""() => new Promise(r => { let n = 0; const t0 = performance.now();
-        const f = () => { n++; if (performance.now() - t0 < 500) requestAnimationFrame(f); };
-        requestAnimationFrame(f); setTimeout(() => r(n), 520); })""")
+def _кадров(с, где="инструменты"):
+    """Кадров requestAnimationFrame за 500 мс — идёт ли отрисовка окна.
+    Меньше 10 — строка в файл остановок (задача 344, `browser_window`)."""
+    import browser_window
+    return browser_window.кадров_окна(с, где)
 
 
 def _отрисовка_идёт(с, где):

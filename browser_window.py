@@ -299,3 +299,122 @@ def поставить():
     else:
         Синхр.launch, Асинхр.launch = launch_с, launch_а
     return True
+
+
+# ── ОСТАНОВКА КАДРОВ ОКНА ПРОБЫ (задача 344) ────────────────────────────
+# Корень не найден, и догадка «фоновое торможение» опровергнута (заход 6
+# задачи 346). Дальше не угадываем, а КОПИМ ДАННЫЕ: каждый случай, когда
+# окно пробы дало меньше КАДРОВ_ПОРОГ кадров за 500 мс, пишется строкой
+# JSON в файл, который живёт между заходами (каталог закрыт .gitignore).
+КАДРОВ_ПОРОГ = 10
+ОСТАНОВКИ_ПЕРЕМЕННАЯ = "FRAME_STALL_LOG"
+ОСТАНОВКИ_ФАЙЛ = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "review_screenshots", "frame_stalls.jsonl")
+
+_ЗАМЕР_КАДРОВ = """() => new Promise(r => { let n = 0; const t0 = performance.now();
+    const f = () => { n++; if (performance.now() - t0 < 500) requestAnimationFrame(f); };
+    requestAnimationFrame(f); setTimeout(() => r(n), 520); })"""
+
+
+def _окна_хрома():
+    """[{title, exe, rect, visible, iconic}] всех окон верхнего уровня
+    процессов Chromium. По заголовку окно пробы не найти: при стоящей
+    отрисовке новый заголовок до окна может не доехать — ровно в нужный
+    момент. Окно пробы опознаётся по `page.sx/sy/ow/oh` той же записи."""
+    import ctypes
+    from ctypes import wintypes
+    import psutil
+    u = ctypes.windll.user32
+    найдено = []
+    ПРОЦ = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    def _одно(hwnd, _lp):
+        pid = wintypes.DWORD()
+        u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        try:
+            exe = psutil.Process(pid.value).name()
+        except psutil.Error:
+            return True
+        if not exe.lower().startswith("chrom") or not u.IsWindowVisible(hwnd):
+            return True
+        б = ctypes.create_unicode_buffer(256)
+        u.GetWindowTextW(hwnd, б, 256)
+        р = wintypes.RECT()
+        u.GetWindowRect(hwnd, ctypes.byref(р))
+        найдено.append({"title": б.value[:80], "exe": exe,
+                        "rect": [р.left, р.top, р.right - р.left, р.bottom - р.top],
+                        "iconic": bool(u.IsIconic(hwnd))})
+        return True
+    u.EnumWindows(ПРОЦ(_одно), 0)
+    return найдено
+
+
+def _переднее_окно():
+    import ctypes
+    from ctypes import wintypes
+    u = ctypes.windll.user32
+    hwnd = u.GetForegroundWindow()
+    if not hwnd:
+        return None
+    б = ctypes.create_unicode_buffer(256)
+    u.GetWindowTextW(hwnd, б, 256)
+    к = ctypes.create_unicode_buffer(128)
+    u.GetClassNameW(hwnd, к, 128)
+    pid = wintypes.DWORD()
+    u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    имя = None
+    try:
+        import psutil
+        имя = psutil.Process(pid.value).name()
+    except Exception as e:  # процесс мог завершиться между вызовами
+        имя = "?" + type(e).__name__
+    р = wintypes.RECT()
+    u.GetWindowRect(hwnd, ctypes.byref(р))
+    return {"title": б.value[:120], "class": к.value, "exe": имя,
+            "rect": [р.left, р.top, р.right - р.left, р.bottom - р.top]}
+
+
+def записать_остановку(страница, кадров, где):
+    """Строка JSON про одну остановку. Сбой записи печатается (§6.0.1)."""
+    import json
+    import time
+    запись = {"ts": time.strftime("%Y-%m-%d %H:%M:%S"), "probe": os.path.basename(sys.argv[0]),
+              "where": где, "frames_500ms": кадров, "threshold": КАДРОВ_ПОРОГ}
+    try:
+        запись["page"] = страница.evaluate(
+            "() => ({visibility: document.visibilityState, focus: document.hasFocus(),"
+            " title: document.title, w: innerWidth, h: innerHeight,"
+            " sx: screenX, sy: screenY, ow: outerWidth, oh: outerHeight})")
+    except Exception as e:  # страница могла закрыться — остановка всё равно пишется
+        запись["page"] = {"error": type(e).__name__}
+    if sys.platform == "win32":
+        try:
+            запись["chrome_windows"] = _окна_хрома()
+        except Exception as e:  # данные — не повод ронять пробу
+            запись["chrome_windows"] = {"error": type(e).__name__}
+        запись["foreground"] = _переднее_окно()
+    try:
+        import psutil
+        запись["cpu_percent"] = psutil.cpu_percent(interval=0.3)
+        запись["cpu_per_core"] = psutil.cpu_percent(interval=None, percpu=True)
+        запись["chrome_processes"] = sum(1 for п in psutil.process_iter(["name"])
+                                         if (п.info.get("name") or "").lower().startswith("chrom"))
+    except Exception as e:
+        запись["cpu_error"] = type(e).__name__
+    путь = os.environ.get(ОСТАНОВКИ_ПЕРЕМЕННАЯ) or ОСТАНОВКИ_ФАЙЛ
+    try:
+        os.makedirs(os.path.dirname(путь), exist_ok=True)
+        with open(путь, "a", encoding="utf-8") as ф:
+            ф.write(json.dumps(запись, ensure_ascii=False) + "\n")
+    except OSError as e:
+        print("[окно] остановка кадров не записана: %s" % e)
+    return путь
+
+
+def кадров_окна(страница, где=""):
+    """Кадров requestAnimationFrame за 500 мс. Меньше порога — строка в файл
+    остановок (`FRAME_STALL_LOG` либо review_screenshots/frame_stalls.jsonl)."""
+    n = страница.evaluate(_ЗАМЕР_КАДРОВ)
+    if n < КАДРОВ_ПОРОГ:
+        записать_остановку(страница, n, где)
+    return n
