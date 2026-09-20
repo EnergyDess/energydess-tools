@@ -456,6 +456,12 @@
       <div class="resume-head">
         <h2 class="v2-card-title hh-hist-title">Моё резюме</h2>
         <span class="v2-chip-count" id="resume-chars">{{ резюме_разделы.знаков }}&nbsp;симв.</span>
+        {# ДАТА ОБНОВЛЕНИЯ — ОДИН РАЗ И ЗДЕСЬ. В самом тексте hh.ru
+           печатает её колонтитулом НА КАЖДОЙ СТРАНИЦЕ выгрузки, и между
+           разделами она читалась как часть резюме. Из показа колонтитул
+           убран, а дата сказана там, где её ищут, — рядом с заголовком. #}
+        <span class="hh-resume-date" id="resume-updated"
+              {% if not резюме_разделы.обновлено %}hidden{% endif %}>обновлено {{ резюме_разделы.обновлено }}</span>
       </div>
 
       <div class="v2-card hh-resume-tools">
@@ -590,6 +596,17 @@
     return true;
   }
 
+  // Дата обновления и число знаков приходят ОДНОЙ разметкой с сервера
+  // (`.hh-chars-src`): второй способ их посчитать разошёлся бы с первым.
+  function обновитьДатуРезюме() {
+    const и = document.querySelector('.hh-chars-src');
+    const п = document.getElementById('resume-updated');
+    if (!и || !п) return;
+    const д = и.dataset['обновлено'] || '';
+    п.textContent = д ? 'обновлено ' + д : '';
+    п.hidden = !д;
+  }
+
   function обновитьЧислоЗнаков() {
     const метка = document.querySelector('.hh-chars-src');
     if (!метка) return;
@@ -602,14 +619,33 @@
     return document.querySelector('.hh-sec[data-sec="' + индекс + '"]');
   }
 
+  // ПРАВКА НА МЕСТЕ. Кнопки «Отмена» и «Сохранить» появляются ТАМ ЖЕ,
+  // где стояло «Изменить» (решение владельца 2026-09-20): человек
+  // нажал в шапке карточки, и следующее решение принимает там же,
+  // а не внизу выросшего поля.
+  //
+  // Раскрытие плавное: высоту анимирует СЕТКА (`0fr → 1fr`, CSS),
+  // потому что высота поля заранее неизвестна — её считает по тексту
+  // `autosizeTextarea`, а переход `height: auto → auto` браузер
+  // не анимирует по построению.
+  function _показатьПравку(карточка, правим, видКласс, коробКласс) {
+    карточка.querySelector(видКласс).hidden = правим;
+    // Короб правки закрывается КЛАССОМ: `hidden` прячет мгновенно
+    // (`display: none !important` в style.css сильнее), и плавности
+    // не было бы вовсе — замер покадрово показал одну ступень высоты.
+    карточка.querySelector(коробКласс).classList.toggle('is-open', правим);
+    карточка.querySelectorAll('[class*="-edit"]').forEach(э => {
+      if (э.tagName === 'BUTTON') э.hidden = правим;
+    });
+    карточка.querySelectorAll('[class*="-cancel"], [class*="-save"]')
+      .forEach(э => { if (э.tagName === 'BUTTON') э.hidden = !правим; });
+  }
+
   function правитьРаздел(индекс) {
     const карточка = _разделКарточка(индекс);
     if (!карточка) return;
-    карточка.querySelector('.hh-sec-view').hidden = true;
-    карточка.querySelector('.hh-sec-edit').hidden  = true;
-    const короб = карточка.querySelector('.hh-sec-edit-box');
-    короб.hidden = false;
-    const поле = короб.querySelector('.hh-sec-input');
+    _показатьПравку(карточка, true, '.hh-sec-view', '.hh-sec-edit-box');
+    const поле = карточка.querySelector('.hh-sec-input');
     // Исходное тело запоминается ДО правки: «Отмена» обязана вернуть
     // ровно его, а не то, что лежало в разметке после прошлой правки
     if (поле.dataset.было === undefined) поле.dataset.было = поле.value;
@@ -620,12 +656,66 @@
   function отменитьРаздел(индекс) {
     const карточка = _разделКарточка(индекс);
     if (!карточка) return;
-    const короб = карточка.querySelector('.hh-sec-edit-box');
-    const поле  = короб.querySelector('.hh-sec-input');
+    const поле = карточка.querySelector('.hh-sec-input');
     if (поле.dataset.было !== undefined) поле.value = поле.dataset.было;
-    короб.hidden = true;
-    карточка.querySelector('.hh-sec-view').hidden = false;
-    карточка.querySelector('.hh-sec-edit').hidden = false;
+    _показатьПравку(карточка, false, '.hh-sec-view', '.hh-sec-edit-box');
+  }
+
+  // ── Правка ОДНОГО МЕСТА РАБОТЫ ─────────────────────────────────────────
+  function _местоКарточка(раздел, место) {
+    const с = _разделКарточка(раздел);
+    return с ? с.querySelector('.hh-job[data-place="' + место + '"]') : null;
+  }
+
+  function правитьМесто(раздел, место) {
+    const карточка = _местоКарточка(раздел, место);
+    if (!карточка) return;
+    _показатьПравку(карточка, true, '.hh-place-view', '.hh-place-edit-box');
+    const поле = карточка.querySelector('.hh-place-input');
+    if (поле.dataset.было === undefined) поле.dataset.было = поле.value;
+    autosizeTextarea(поле);
+    поле.focus();
+  }
+
+  function отменитьМесто(раздел, место) {
+    const карточка = _местоКарточка(раздел, место);
+    if (!карточка) return;
+    const поле = карточка.querySelector('.hh-place-input');
+    if (поле.dataset.было !== undefined) поле.value = поле.dataset.было;
+    _показатьПравку(карточка, false, '.hh-place-view', '.hh-place-edit-box');
+  }
+
+  async function сохранитьМесто(раздел, место) {
+    const карточка = _местоКарточка(раздел, место);
+    if (!карточка) return;
+    const кнопка = карточка.querySelector('.hh-place-save');
+    const поле   = карточка.querySelector('.hh-place-input');
+    кнопка.disabled = true;
+    кнопка.textContent = 'Сохраняю...';
+    try {
+      // Полный текст собирает СЕРВЕР: пересобери его браузер — ошибка
+      // сборки стоила бы всего резюме, а не одного места
+      const res = await fetch('/api/resume/place', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section: раздел, place: место, text: поле.value }),
+      });
+      if (res.ok) {
+        document.getElementById('resume-body').innerHTML = await res.text();
+        обновитьЧислоЗнаков();
+        обновитьДатуРезюме();
+        подрезатьОписания();
+        showToast('✓ Место работы сохранено');
+        return;
+      }
+      let текст = 'Не удалось сохранить место работы';
+      try { текст = (await res.json()).error || текст; } catch {}
+      showToast(текст);
+    } catch {
+      showToast('Ошибка сети — место работы не сохранено');
+    }
+    кнопка.disabled = false;
+    кнопка.textContent = 'Сохранить';
   }
 
   async function сохранитьРаздел(индекс) {
@@ -646,6 +736,7 @@
       if (res.ok) {
         document.getElementById('resume-body').innerHTML = await res.text();
         обновитьЧислоЗнаков();
+        обновитьДатуРезюме();
         подрезатьОписания();
         showToast('✓ Раздел сохранён');
         return;

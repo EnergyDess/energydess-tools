@@ -7,7 +7,8 @@
       {# Число знаков живёт РЯДОМ с разметкой, которую отдал сервер: после
    правки раздела оно меняется, и второй способ его посчитать
    разошёлся бы с первым. #}
-<span class="hh-chars-src" data-знаков="{{ резюме_разделы.знаков }}" hidden></span>
+<span class="hh-chars-src" data-знаков="{{ резюме_разделы.знаков }}"
+      data-обновлено="{{ резюме_разделы.обновлено or '' }}" hidden></span>
 {% if not резюме_разделы.есть %}
         {# Резюме нет вовсе: одно поле и одна кнопка — по разделам делить
            нечего, и обещать разделы, которых не будет, нельзя. #}
@@ -66,26 +67,67 @@
              он отжимал бы всё прочее за экран. #}
           <div class="hh-resume-left">
             {% for р in резюме_разделы.разделы if р.имя == 'Опыт работы' %}
+              {# ОПЫТ РАБОТЫ ПРАВИТСЯ ПО КАРТОЧКАМ МЕСТ (решение владельца
+                 2026-09-20): раздел самый длинный в резюме — на боевой
+                 выгрузке девять мест, — и править его целиком значит
+                 держать перед глазами всё ради одной строки. У каждого
+                 места своё «Изменить», и правка меняет в тексте РОВНО
+                 кусок этого места.
+                 КНОПКИ ПРАВКИ — В ШАПКЕ, НА МЕСТЕ «ИЗМЕНИТЬ»: так
+                 «Отмена» и «Сохранить» оказываются там, куда человек
+                 только что нажал, а не внизу выросшего поля. #}
               <section class="v2-card hh-sec" data-sec="{{ р.индекс }}">
                 <div class="hh-sec-head">
                   <h3 class="v2-card-title hh-sec-title">{{ р.имя }}</h3>
-                  <button class="v2-btn v2-btn-secondary hh-sec-edit" type="button"
-                          onclick="правитьРаздел({{ р.индекс }})">{{ значок('edit-3') }}Изменить</button>
+                  {% if not р.места %}
+                    <div class="hh-sec-btns">
+                      <button class="v2-btn v2-btn-secondary hh-sec-edit" type="button"
+                              onclick="правитьРаздел({{ р.индекс }})">{{ значок('edit-3') }}Изменить</button>
+                      <button class="v2-btn v2-btn-secondary hh-sec-cancel" type="button" hidden
+                              onclick="отменитьРаздел({{ р.индекс }})">Отмена</button>
+                      <button class="v2-btn v2-btn-primary hh-sec-save" type="button" hidden
+                              onclick="сохранитьРаздел({{ р.индекс }})">Сохранить раздел</button>
+                    </div>
+                  {% endif %}
                 </div>
                 <div class="hh-sec-view">
                   {% if р.места %}
                     <div class="hh-jobs">
                       {% for м in р.места %}
-                        <article class="v2-card-nested hh-job">
+                        <article class="v2-card-nested hh-job" data-place="{{ loop.index0 }}">
                           <div class="hh-job-top">
                             <div class="hh-job-name">{{ м.компания }}</div>
-                            <div class="hh-job-period">{{ м.период }}</div>
+                            <div class="hh-place-btns">
+                              <button class="v2-btn v2-btn-secondary v2-btn-sm hh-place-edit" type="button"
+                                      onclick="правитьМесто({{ р.индекс }}, {{ loop.index0 }})">{{ значок('edit-3') }}Изменить</button>
+                              <button class="v2-btn v2-btn-secondary v2-btn-sm hh-place-cancel" type="button" hidden
+                                      onclick="отменитьМесто({{ р.индекс }}, {{ loop.index0 }})">Отмена</button>
+                              <button class="v2-btn v2-btn-primary v2-btn-sm hh-place-save" type="button" hidden
+                                      onclick="сохранитьМесто({{ р.индекс }}, {{ loop.index0 }})">Сохранить</button>
+                            </div>
                           </div>
-                          {% if м.должность %}<div class="hh-job-role">{{ м.должность }}</div>{% endif %}
-                          {% if м.описание %}
-                            <div class="hh-job-desc" data-collapsed="1">{{ м.описание }}</div>
-                            <button class="hh-job-more" type="button" onclick="развернутьМесто(this)">ещё</button>
-                          {% endif %}
+                          <div class="hh-place-view">
+                            {# ПЕРИОД ЦЕЛИКОМ: начало — конец, длительность
+                               отдельно и приглушённо. Прежде дата начала
+                               терялась, и стояло «Апрель 2026 — 11 месяцев». #}
+                            <div class="hh-job-period">
+                              {{ м.период }}{% if м.длительность %}<span class="hh-job-dur"> · {{ м.длительность }}</span>{% endif %}
+                            </div>
+                            {% if м.должность %}<div class="hh-job-role">{{ м.должность }}</div>{% endif %}
+                            {% if м.город %}
+                              <div class="hh-job-place">{{ значок('map-pin') }}{{ м.город }}{% if м.сайт %} · <span class="hh-job-site">{{ м.сайт }}</span>{% endif %}</div>
+                            {% endif %}
+                            {% if м.отрасль or м.подотрасли %}
+                              <div class="hh-job-branch">{{ м.отрасль }}{% for п in м.подотрасли %} {{ п }}{% endfor %}</div>
+                            {% endif %}
+                            {% if м.описание %}
+                              <div class="hh-job-desc" data-collapsed="1">{{ м.описание }}</div>
+                              <button class="hh-job-more" type="button" onclick="развернутьМесто(this)">ещё</button>
+                            {% endif %}
+                          </div>
+                          <div class="hh-place-edit-box">
+                            <textarea class="v2-input v2-textarea hh-place-input">{{ м.тело }}</textarea>
+                          </div>
                         </article>
                       {% endfor %}
                     </div>
@@ -95,13 +137,11 @@
                     <p class="v2-hint">В этом разделе резюме ничего нет.</p>
                   {% endif %}
                 </div>
-                <div class="hh-sec-edit-box" hidden>
-                  <textarea class="v2-input v2-textarea hh-sec-input">{{ р.тело }}</textarea>
-                  <div class="hh-sec-actions">
-                    <button class="v2-btn v2-btn-secondary" type="button" onclick="отменитьРаздел({{ р.индекс }})">Отмена</button>
-                    <button class="v2-btn v2-btn-primary hh-sec-save" type="button" onclick="сохранитьРаздел({{ р.индекс }})">Сохранить раздел</button>
+                {% if not р.места %}
+                  <div class="hh-sec-edit-box">
+                    <textarea class="v2-input v2-textarea hh-sec-input">{{ р.тело }}</textarea>
                   </div>
-                </div>
+                {% endif %}
               </section>
             {% endfor %}
           </div>
@@ -111,27 +151,39 @@
               <section class="v2-card hh-sec" data-sec="{{ р.индекс }}">
                 <div class="hh-sec-head">
                   <h3 class="v2-card-title hh-sec-title">{{ р.имя }}</h3>
-                  <button class="v2-btn v2-btn-secondary hh-sec-edit" type="button"
-                          onclick="правитьРаздел({{ р.индекс }})">{{ значок('edit-3') }}Изменить</button>
+                  <div class="hh-sec-btns">
+                    <button class="v2-btn v2-btn-secondary hh-sec-edit" type="button"
+                            onclick="правитьРаздел({{ р.индекс }})">{{ значок('edit-3') }}Изменить</button>
+                    <button class="v2-btn v2-btn-secondary hh-sec-cancel" type="button" hidden
+                            onclick="отменитьРаздел({{ р.индекс }})">Отмена</button>
+                    <button class="v2-btn v2-btn-primary hh-sec-save" type="button" hidden
+                            onclick="сохранитьРаздел({{ р.индекс }})">Сохранить раздел</button>
+                  </div>
                 </div>
                 <div class="hh-sec-view">
+                  {# ЯЗЫКИ — НЕ НАВЫКИ: у языка есть уровень, и пара
+                     «язык — уровень» это другая сущность. Чипом языка
+                     карточка утверждала бы, что родной язык это навык. #}
+                  {% if р.языки %}
+                    <dl class="hh-langs">
+                      {% for я, у in р.языки %}
+                        <div class="hh-lang-row"><dt>{{ я }}</dt><dd>{{ у }}</dd></div>
+                      {% endfor %}
+                    </dl>
+                  {% endif %}
                   {% if р.навыки %}
                     {% if р.показ.strip() %}<pre class="hh-sec-text">{{ р.показ }}</pre>{% endif %}
                     <div class="v2-chips hh-skills">
-                      {% for н in р.навыки %}<span class="v2-chip">{{ н }}</span>{% endfor %}
+                      {% for н in р.навыки %}<span class="v2-chip hh-skill">{{ н }}</span>{% endfor %}
                     </div>
                   {% elif р.показ.strip() %}
                     <pre class="hh-sec-text">{{ р.показ }}</pre>
-                  {% else %}
+                  {% elif not р.языки %}
                     <p class="v2-hint">В этом разделе резюме ничего нет.</p>
                   {% endif %}
                 </div>
-                <div class="hh-sec-edit-box" hidden>
+                <div class="hh-sec-edit-box">
                   <textarea class="v2-input v2-textarea hh-sec-input">{{ р.тело }}</textarea>
-                  <div class="hh-sec-actions">
-                    <button class="v2-btn v2-btn-secondary" type="button" onclick="отменитьРаздел({{ р.индекс }})">Отмена</button>
-                    <button class="v2-btn v2-btn-primary hh-sec-save" type="button" onclick="сохранитьРаздел({{ р.индекс }})">Сохранить раздел</button>
-                  </div>
                 </div>
               </section>
             {% endfor %}

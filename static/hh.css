@@ -36,7 +36,6 @@
 /* ОДНО ПОЛЕ НА ТЕКСТ И НА ССЫЛКУ (решение владельца 2026-09-20): своей
    высоты у поля нет — её задаёт `rows`-подобный минимум компонента, —
    а здесь только запас под описание вакансии целиком. */
-.hh-job-input { min-height: 15rem; }
 
 .hh-field-foot {
   display: flex;
@@ -388,6 +387,11 @@
 
 .hh-sec { display: flex; flex-direction: column; gap: var(--v2-sp-3); }
 .hh-sec-head { display: flex; align-items: center; justify-content: space-between; gap: var(--v2-sp-2); }
+/* КНОПКИ ПРАВКИ СТОЯТ В ШАПКЕ, НА МЕСТЕ «ИЗМЕНИТЬ» (решение владельца
+   2026-09-20): «Отмена» и «Сохранить» оказываются там, куда человек
+   только что нажал, а не внизу выросшего поля — до них не надо
+   доезжать прокруткой через весь раздел. */
+.hh-sec-btns, .hh-place-btns { display: flex; align-items: center; gap: var(--v2-sp-2); flex-shrink: 0; }
 .hh-sec-title { margin: 0; }
 .hh-sec-edit svg { width: 15px; height: 15px; }
 /* Тело раздела — ДОСЛОВНЫЙ текст резюме: переводы строк и отступы
@@ -401,8 +405,74 @@
   line-height: 1.6;
   color: var(--v2-text-2);
 }
-.hh-sec-edit-box { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
-.hh-sec-input { min-height: 180px; }
+/* РАСКРЫТИЕ ПЛАВНОЕ: высота и прозрачность, ~200 мс. Сетка вместо
+   height: у поля правки высота НЕ ЗАДАНА — она следует за текстом
+   (`autosizeTextarea`), а переход `height: auto → auto` браузер
+   не анимирует по построению. `minmax(0, 0fr) → minmax(0, 1fr)`
+   анимируется и не требует знать высоту заранее (тот же приём, что
+   у аккордеона истории писем). */
+/* ЗАКРЫТОЕ СОСТОЯНИЕ — КЛАССОМ, А НЕ `hidden`, и это не вкус: глобальное
+   `[hidden] { display: none !important }` (§7) сильнее любого правила
+   файла, и короб с ним пропадал МГНОВЕННО — замер покадрово: 1 ступень
+   высоты за 43 кадра, то есть плавности не было вовсе при полностью
+   верном на вид CSS. `visibility` в закрытом состоянии обязателен:
+   без него поле остаётся в дереве и до него доходит Tab. */
+.hh-sec-edit-box, .hh-place-edit-box {
+  display: grid;
+  grid-template-rows: minmax(0, 0fr);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: grid-template-rows var(--v2-dur-enter) var(--v2-ease),
+              opacity var(--v2-dur-enter) var(--v2-ease),
+              visibility 0s linear var(--v2-dur-enter);
+}
+.hh-sec-edit-box.is-open, .hh-place-edit-box.is-open {
+  grid-template-rows: minmax(0, 1fr);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: grid-template-rows var(--v2-dur-enter) var(--v2-ease),
+              opacity var(--v2-dur-enter) var(--v2-ease),
+              visibility 0s;
+}
+.hh-sec-edit-box > *, .hh-place-edit-box > * { min-height: 0; overflow: hidden; }
+/* ПОЛЕ ПРАВКИ БЕЗ СВОЕЙ ПРОКРУТКИ: высоту ему считает скрипт по тексту.
+   Прежний `min-height: 180px` держал окошко с прокруткой внутри
+   прокручиваемой страницы — палец в таком окне уводит страницу,
+   а не текст. */
+.hh-sec-input, .hh-place-input {
+  min-height: var(--v2-ctl-h);
+  overflow-y: hidden;
+  resize: vertical;
+}
+.hh-sec-actions { display: flex; justify-content: flex-end; gap: var(--v2-sp-2); flex-wrap: wrap; }
+@media (prefers-reduced-motion: reduce) {
+  .hh-sec-edit-box, .hh-place-edit-box { transition: none; }
+}
+/* Место работы: период целиком, длительность приглушена рядом. */
+.hh-job-dur { color: var(--v2-text-faint); }
+.hh-job-place {
+  display: flex; align-items: center; gap: var(--v2-sp-1);
+  font-size: var(--v2-fs-xs); color: var(--v2-text-2);
+}
+.hh-job-place svg { width: 13px; height: 13px; flex-shrink: 0; }
+.hh-job-site { color: var(--v2-text-faint); }
+/* Отрасль — мелко и приглушённо: она уточняет компанию, а не место
+   человека в ней, и спорить с должностью не должна. */
+.hh-job-branch { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+.hh-place-view { display: flex; flex-direction: column; gap: var(--v2-sp-1); }
+/* Языки — пары «язык — уровень», а не чипы навыков. */
+/* Дата обновления резюме — приглушённо рядом с числом знаков: это
+   справка о выгрузке, а не содержимое. */
+.hh-resume-date { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+.hh-langs { margin: 0 0 var(--v2-sp-2); display: flex; flex-direction: column; gap: var(--v2-sp-1); }
+.hh-lang-row { display: flex; gap: var(--v2-sp-2); font-size: var(--v2-fs-sm); }
+.hh-lang-row dt { color: var(--v2-text); font-weight: 500; }
+/* Тире между языком и уровнем — так их печатает сама выгрузка, и без
+   него пара читается одним словом («РусскийРодной» в текстовом слое). */
+.hh-lang-row dt::after { content: " —"; color: var(--v2-text-faint); }
+.hh-lang-row dd { margin: 0; color: var(--v2-text-2); }
 .hh-sec-actions { display: flex; justify-content: flex-end; gap: var(--v2-sp-2); flex-wrap: wrap; }
 
 .hh-jobs { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
@@ -895,7 +965,7 @@
 /* ── Адаптив ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .result-panel { min-height: 22.5rem; }
-  .hh-job-input { min-height: 12.5rem; }
+  .hh-place-input { min-height: 12.5rem; }
   /* Четыре кнопки в 390px в один ряд не помещаются — подписи обрезались.
      Переносим: по две в ряду. Отжим «Нового письма» вправо при этом
      пропадает сам (`margin-left: auto` в перенесённом ряду не работает),

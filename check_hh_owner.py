@@ -108,6 +108,104 @@ window.fetch = async (u, o) => {
 """
 
 
+# ── ВОЗВРАТ РЕЗЮМЕ СТЕНДА ────────────────────────────────────────────────
+# Проба ПРАВИТ резюме (иначе «правка легла в базу» не проверить), и без
+# возврата каждый прогон оставляет стенд другим: замер — после нескольких
+# прогонов подряд разделов стало 2 вместо 9, и контроль начал падать
+# на подлоге, к резюме отношения не имеющем. Инструмент приёмки,
+# оставляющий стенд не таким, каким взял, ломает не свой прогон,
+# а следующий (§6.0.3, шестая причина неповторимости).
+БАЗА_СТЕНДА = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.db")
+ПОЧТА_СЪЁМКИ = "screenshot@local.dev"
+
+
+def _снять_таблицу(запрос):
+    """Снимок строки аккаунта съёмки: (колонки, значения) либо None."""
+    import sqlite3
+    if not os.path.exists(БАЗА_СТЕНДА):
+        return None
+    с = sqlite3.connect(БАЗА_СТЕНДА)
+    try:
+        кур = с.execute(запрос, (ПОЧТА_СЪЁМКИ,))
+        ряд = кур.fetchone()
+        return ([о[0] for о in кур.description], ряд) if ряд else None
+    finally:
+        с.close()
+
+
+def _досье_снять():
+    """Досье возвращается так же, как резюме: проба ПРАВИТ его поля,
+    и без возврата след пробы остаётся на стенде — он попал даже
+    в снимок приёмки («Проба03776» в поле профессии)."""
+    return _снять_таблицу(
+        "SELECT * FROM hh_profiles WHERE user_id ="
+        " (SELECT id FROM users WHERE email = ?)")
+
+
+def _досье_вернуть(снимок):
+    import sqlite3
+    if not снимок or not os.path.exists(БАЗА_СТЕНДА):
+        return
+    колонки, значения = снимок
+    поля = [к for к in колонки if к not in ("id", "user_id")]
+    if not поля:
+        return
+    зн = [значения[колонки.index(к)] for к in поля]
+    с = sqlite3.connect(БАЗА_СТЕНДА)
+    try:
+        с.execute("UPDATE hh_profiles SET %s WHERE user_id ="
+                  " (SELECT id FROM users WHERE email = ?)"
+                  % ", ".join("%s = ?" % к for к in поля), зн + [ПОЧТА_СЪЁМКИ])
+        с.commit()
+    finally:
+        с.close()
+
+
+def _резюме_снять():
+    import sqlite3
+    if not os.path.exists(БАЗА_СТЕНДА):
+        return None
+    с = sqlite3.connect(БАЗА_СТЕНДА)
+    try:
+        ряд = с.execute(
+            "SELECT r.resume_text FROM resumes r JOIN users u ON u.id = r.user_id"
+            " WHERE u.email = ?", (ПОЧТА_СЪЁМКИ,)).fetchone()
+        return ряд[0] if ряд else None
+    finally:
+        с.close()
+
+
+def _резюме_вернуть(текст):
+    import sqlite3
+    if текст is None or not os.path.exists(БАЗА_СТЕНДА):
+        return
+    с = sqlite3.connect(БАЗА_СТЕНДА)
+    try:
+        с.execute(
+            "UPDATE resumes SET resume_text = ? WHERE user_id ="
+            " (SELECT id FROM users WHERE email = ?)", (текст, ПОЧТА_СЪЁМКИ))
+        с.commit()
+    finally:
+        с.close()
+
+
+def _нажать(стр, селектор, ждать=400):
+    """Нажать, если орган ВИДЕН; иначе вернуть False.
+
+    Нажатие по мёртвому органу висит до таймаута и валит прогон
+    стектрейсом — то есть подлог ОДНОГО замечания уносит с собой весь
+    реестр. Замер: так контроль обрывался дважды (§6.0.3).
+    """
+    орган = стр.locator(селектор).first
+    if not орган.count():
+        return False
+    if not орган.evaluate("e => e.checkVisibility({checkOpacity: true})"):
+        return False
+    орган.click()
+    стр.wait_for_timeout(ждать)
+    return True
+
+
 def _страница(бр, подлог=None, ширина=1920):
     ctx = бр.new_context(viewport={"width": ширина, "height": 1080})
     стр = ctx.new_page()
@@ -654,6 +752,296 @@ def замечания_досье(бр, подлог=None):
         собрано=len(метки))
     ctx.close()
 
+
+# ══════════════════════════════════════════════════════════════════════════
+# БЛОК 3. РЕЗЮМЕ
+# ══════════════════════════════════════════════════════════════════════════
+
+def замечания_резюме(бр, подлог=None):
+    """№9–14: сохранение раздела, правка на месте, карточки мест,
+    разбор места, колонтитул PDF, навыки и языки."""
+    ctx, стр = _страница(бр, подлог)
+    стр.goto(ch.БАЗА + "/hh", wait_until="domcontentloaded")
+    стр.wait_for_timeout(800)
+    стр.click('.v2-tab[data-view="resume"]')
+    стр.wait_for_timeout(900)
+
+    # ── №9. ЛОЖНАЯ ОШИБКА ПРИ СОХРАНЕНИИ РАЗДЕЛА ─────────────────────────
+    # Правка сохранялась, а экран говорил «Не удалось сохранить раздел»:
+    # `_резюме_разметка` звала `TemplateResponse` СТАРОЙ позиционной
+    # формой, Starlette 1.1 читал словарь как имя шаблона и падал —
+    # уже ПОСЛЕ `db.commit()`. Спрашивается И ответ сервера, И тост,
+    # И база: «ответил 200» о том, что легло в базу, не говорит (§6.3).
+    ответы = []
+    стр.on("response", lambda r: ответы.append(r.status)
+           if "/api/resume/section" in r.url else None)
+    разделов = стр.locator(".hh-sec").count()
+    шаг(9, "разделы-резюме-на-экране", разделов >= 5,
+        "разделов: %d" % разделов, собрано=разделов)
+    правимый = None
+    for i in range(разделов):
+        с = стр.locator(".hh-sec").nth(i)
+        if с.locator(".hh-sec-edit").count() and с.locator(".hh-sec-input").count():
+            правимый = с.get_attribute("data-sec")
+            break
+    if правимый is None:
+        шаг(9, "есть-раздел-с-правкой", False, "ни одного", собрано=0)
+        ctx.close()
+        return
+
+    метка = "Проба раздела %s." % str(id(стр))[-4:]
+    карточка = '.hh-sec[data-sec="%s"]' % правимый
+    нажалось = _нажать(стр, карточка + " .hh-sec-edit", 350)
+    поле = стр.locator(карточка + " .hh-sec-input")
+    поле.fill(поле.input_value() + "\n" + метка)
+    _нажать(стр, карточка + " .hh-sec-save", 1500)
+    тост = стр.evaluate(
+        "() => [...document.querySelectorAll('.toast, #toast, .v2-toast')]"
+        ".filter(e => e.checkVisibility()).map(e => e.textContent.trim()).join(' ')")
+    шаг(9, "сохранение-раздела-отвечает-успехом",
+        bool(ответы) and ответы[-1] == 200 and "Не удалось" not in тост,
+        "ответ %s, тост %r" % (ответы[-1] if ответы else "нет", тост[:40]),
+        собрано=len(ответы))
+    стр.reload(wait_until="domcontentloaded")
+    стр.wait_for_timeout(900)
+    стр.click('.v2-tab[data-view="resume"]')
+    стр.wait_for_timeout(700)
+    в_базе = стр.evaluate(
+        "(м) => document.getElementById('resume-body').innerText.includes(м)", метка)
+    шаг(9, "правка-раздела-легла-в-базу", в_базе is True)
+
+    # ── №10. ПРАВКА НА МЕСТЕ: КНОПКИ В ШАПКЕ ─────────────────────────────
+    до = стр.evaluate(
+        "(с) => {"
+        " const к = document.querySelector(с);"
+        " const и = к.querySelector('.hh-sec-edit');"
+        " return {изменить: и.checkVisibility(),"
+        "         отмена: к.querySelector('.hh-sec-cancel').checkVisibility(),"
+        "         сохранить: к.querySelector('.hh-sec-save').checkVisibility(),"
+        "         шапка: Math.round(и.getBoundingClientRect().top)};"
+        "}", карточка)
+    _нажать(стр, карточка + " .hh-sec-edit")
+    после = стр.evaluate(
+        "(с) => {"
+        " const к = document.querySelector(с);"
+        " const о = к.querySelector('.hh-sec-cancel');"
+        " const х = к.querySelector('.hh-sec-save');"
+        " return {изменить: к.querySelector('.hh-sec-edit').checkVisibility(),"
+        "         отмена: о.checkVisibility(), сохранить: х.checkVisibility(),"
+        "         верх_отмены: Math.round(о.getBoundingClientRect().top),"
+        "         верх_сохранить: Math.round(х.getBoundingClientRect().top)};"
+        "}", карточка)
+    шаг(10, "кнопки-правки-встали-на-место-изменить",
+        нажалось and до["изменить"] and not до["отмена"] and not до["сохранить"]
+        and не_видно(после["изменить"]) and после["отмена"] and после["сохранить"]
+        and abs(после["верх_отмены"] - до["шапка"]) <= 2
+        and abs(после["верх_сохранить"] - до["шапка"]) <= 2,
+        "шапка была y=%d, «Отмена» y=%d, «Сохранить» y=%d"
+        % (до["шапка"], после["верх_отмены"], после["верх_сохранить"]))
+
+    # ПОЛЕ ПРАВКИ БЕЗ СВОЕЙ ПРОКРУТКИ: высота следует за текстом.
+    прокрутка = стр.evaluate(
+        "(с) => {"
+        " const п = document.querySelector(с + ' .hh-sec-input');"
+        " return {лишнее: п.scrollHeight - п.clientHeight,"
+        "         высота: Math.round(п.getBoundingClientRect().height)};"
+        "}", карточка)
+    шаг(10, "поле-правки-без-внутренней-прокрутки",
+        прокрутка["лишнее"] <= 2,
+        "невидимого текста %d px при высоте %d" % (прокрутка["лишнее"],
+                                                   прокрутка["высота"]))
+
+    # «ОТМЕНА» ВОЗВРАЩАЕТ ПРЕЖНИЙ ВИД И ПРЕЖНИЙ ТЕКСТ.
+    было = стр.locator(карточка + " .hh-sec-input").input_value()
+    стр.locator(карточка + " .hh-sec-input").fill(было + "\nЭто не должно сохраниться.")
+    _нажать(стр, карточка + " .hh-sec-cancel", 500)
+    отмена = стр.evaluate(
+        "(с) => {"
+        " const к = document.querySelector(с);"
+        " return {изменить: к.querySelector('.hh-sec-edit').checkVisibility(),"
+        "         поле: к.querySelector('.hh-sec-input').value,"
+        "         вид: к.querySelector('.hh-sec-view').checkVisibility()};"
+        "}", карточка)
+    шаг(10, "отмена-возвращает-прежний-вид",
+        отмена["изменить"] and отмена["вид"] and отмена["поле"] == было,
+        "текст вернулся: %s" % (отмена["поле"] == было))
+
+    # ПЛАВНОСТЬ РАСКРЫТИЯ спрашивается ПОКАДРОВО, а не по объявлению
+    # в стилях: правило может быть написано и не применяться (§6.0.15,
+    # «между двумя готовыми кадрами»). Сэмплер считает высоту короба
+    # в каждом кадре, пока карточка раскрывается.
+    ход = стр.evaluate(
+        "async (с) => {"
+        " const к = document.querySelector(с + ' .hh-sec-edit-box');"
+        " const кадры = [];"
+        " let идём = true;"
+        " const тик = () => { if (!идём) return;"
+        "   кадры.push(Math.round(к.getBoundingClientRect().height));"
+        "   requestAnimationFrame(тик); };"
+        " requestAnimationFrame(тик);"
+        " document.querySelector(с + ' .hh-sec-edit').click();"
+        " await new Promise(r => setTimeout(r, 700));"
+        " идём = false;"
+        " const разных = [...new Set(кадры)];"
+        " return {кадров: кадры.length, ступеней: разных.length,"
+        "         начало: кадры[0], конец: кадры[кадры.length - 1]};"
+        "}", карточка)
+    шаг(10, "раскрытие-плавное",
+        ход["ступеней"] >= 5 and ход["конец"] > ход["начало"],
+        "ступеней высоты %d за %d кадров, %d → %d px"
+        % (ход["ступеней"], ход["кадров"], ход["начало"], ход["конец"]),
+        собрано=ход["кадров"])
+    _нажать(стр, карточка + " .hh-sec-cancel")
+
+    # «УМЕНЬШИТЬ ДВИЖЕНИЕ» — БЕЗ АНИМАЦИИ. Спрашивается у БРАУЗЕРА
+    # (эмуляция признака), а не у нашего правила: правило могло бы
+    # стоять и не применяться.
+    стр.emulate_media(reduced_motion="reduce")
+    стр.wait_for_timeout(200)
+    без_движения = стр.evaluate(
+        "async (с) => {"
+        " const к = document.querySelector(с + ' .hh-sec-edit-box');"
+        " const кадры = [];"
+        " let идём = true;"
+        " const тик = () => { if (!идём) return;"
+        "   кадры.push(Math.round(к.getBoundingClientRect().height));"
+        "   requestAnimationFrame(тик); };"
+        " requestAnimationFrame(тик);"
+        " document.querySelector(с + ' .hh-sec-edit').click();"
+        " await new Promise(r => setTimeout(r, 600));"
+        " идём = false;"
+        " return {ступеней: [...new Set(кадры)].length,"
+        "         длительность: getComputedStyle(к).transitionDuration};"
+        "}", карточка)
+    шаг(10, "при-уменьшить-движение-без-анимации",
+        без_движения["ступеней"] <= 2,
+        "ступеней %d, длительность перехода %s"
+        % (без_движения["ступеней"], без_движения["длительность"]))
+    стр.emulate_media(reduced_motion="no-preference")
+    _нажать(стр, карточка + " .hh-sec-cancel", 300)
+
+    # ── №11. ОПЫТ РАБОТЫ ПРАВИТСЯ ПО КАРТОЧКАМ МЕСТ ──────────────────────
+    мест = стр.locator(".hh-job").count()
+    шаг(11, "места-работы-карточками", мест >= 2, "мест: %d" % мест, собрано=мест)
+    кнопок = стр.locator(".hh-place-edit").count()
+    шаг(11, "у-каждого-места-своё-изменить", кнопок == мест,
+        "кнопок %d при %d местах" % (кнопок, мест), собрано=мест)
+    if мест >= 2:
+        весь_до = стр.evaluate(
+            "() => document.getElementById('resume-body').innerText")
+        метка2 = "Правка места %s." % str(id(стр))[-4:]
+        _нажать(стр, ".hh-place-edit")
+        поле2 = стр.locator(".hh-place-input").first
+        поле2.fill(поле2.input_value().rstrip("\n") + "\n" + метка2 + "\n")
+        _нажать(стр, ".hh-place-save", 1500)
+        стр.reload(wait_until="domcontentloaded")
+        стр.wait_for_timeout(900)
+        стр.click('.v2-tab[data-view="resume"]')
+        стр.wait_for_timeout(700)
+        легло = стр.evaluate(
+            "(м) => document.getElementById('resume-body').innerText.includes(м)", метка2)
+        шаг(11, "правка-места-легла-в-базу", легло is True)
+        # ОСТАЛЬНЫЕ МЕСТА НЕ ТРОНУТЫ: сверяем текст ВТОРОЙ карточки.
+        второе_до = _текст_места(весь_до, 1)
+        второе_после = _текст_места(
+            стр.evaluate("() => document.getElementById('resume-body').innerText"), 1)
+        шаг(11, "соседнее-место-не-тронуто", второе_до == второе_после,
+            "длина %d → %d" % (len(второе_до), len(второе_после)),
+            собрано=len(второе_до))
+
+    # ── №12. РАЗБОР МЕСТА: ПЕРИОД, ГОРОД, ДОЛЖНОСТЬ ──────────────────────
+    разбор = стр.evaluate(
+        "() => [...document.querySelectorAll('.hh-job')].map(к => ({"
+        " компания: (к.querySelector('.hh-job-name')||{}).textContent,"
+        " период: (к.querySelector('.hh-job-period')||{}).textContent,"
+        " должность: (к.querySelector('.hh-job-role')||{}).textContent,"
+        " город: (к.querySelector('.hh-job-place')||{}).textContent || '',"
+        " отрасль: (к.querySelector('.hh-job-branch')||{}).textContent || '',"
+        "}))")
+    полные = [м for м in разбор if " — " in (м["период"] or "")
+              and "·" in (м["период"] or "")]
+    шаг(12, "период-целиком-начало-конец-длительность",
+        len(полные) == len(разбор) and разбор,
+        "полных периодов %d из %d: %s"
+        % (len(полные), len(разбор),
+           [м["период"].strip()[:38] for м in разбор][:2]),
+        собрано=len(разбор))
+    # Должность НЕ должна совпадать с отраслью или городом того же места:
+    # ровно так прежний разбор их и путал.
+    путаница = [м["компания"] for м in разбор
+                if м["должность"] and
+                (м["должность"].strip() == м["отрасль"].strip()
+                 or м["должность"].strip() in (м["город"] or "").strip())]
+    шаг(12, "должность-не-подменена-городом-или-отраслью", not путаница,
+        "спутано у: %s" % путаница if путаница else "спутанных нет",
+        собрано=len(разбор))
+
+    # ── №13. КОЛОНТИТУЛ PDF ──────────────────────────────────────────────
+    # Спрашивается ВИДИМЫЙ текст, а не атрибут: дата, лежащая в `data-`,
+    # человеку не видна вовсе — ровно так первая версия правки её
+    # и «вывела».
+    кол = стр.evaluate(
+        "() => {"
+        " const п = document.getElementById('resume-updated');"
+        " return {видно: (document.getElementById('resume-body').innerText"
+        "   .match(/Резюме обновлено/g) || []).length,"
+        "  дата: п && п.checkVisibility() ? п.textContent.trim() : '',"
+        "  мест_даты: [...document.querySelectorAll('#resume-updated')]"
+        "   .filter(э => э.checkVisibility()).length};"
+        "}")
+    шаг(13, "колонтитул-pdf-не-показывается", кол["видно"] == 0,
+        "строк «Резюме обновлено» на экране: %d" % кол["видно"])
+    шаг(13, "дата-обновления-видна-один-раз",
+        bool(кол["дата"]) and кол["мест_даты"] == 1,
+        "на экране %r, мест %d" % (кол["дата"], кол["мест_даты"]))
+
+    # ── №14. НАВЫКИ И ЯЗЫКИ ──────────────────────────────────────────────
+    нав = стр.evaluate(
+        "() => {"
+        " const ч = [...document.querySelectorAll('.hh-skills .v2-chip')];"
+        " const я = [...document.querySelectorAll('.hh-lang-row')];"
+        " const выс = ч.map(э => Math.round(э.getBoundingClientRect().height));"
+        " return {чипов: ч.length, классы: [...new Set(ч.map(э => э.className))],"
+        "         высоты: [...new Set(выс)],"
+        "         тексты: ч.map(э => э.textContent.trim()),"
+        "         языков: я.length,"
+        "         имена: я.map(э => (э.querySelector('dt')||{}).textContent"
+        "                    ? э.querySelector('dt').textContent.trim() : ''),"
+        "         языки: я.map(э => э.textContent.trim())};"
+        "}")
+    шаг(14, "навыки-одинаковыми-чипами",
+        нав["чипов"] > 0 and len(нав["классы"]) == 1 and len(нав["высоты"]) == 1,
+        "чипов %d, классов %d, высот %d" % (нав["чипов"], len(нав["классы"]),
+                                            len(нав["высоты"])),
+        собрано=нав["чипов"])
+    шаг(14, "языки-отдельным-списком", нав["языков"] > 0,
+        "пар «язык — уровень»: %d %s" % (нав["языков"], нав["языки"][:2]),
+        собрано=нав["языков"])
+    # Ни один язык не уехал в чипы навыков — ровно то, чем болел показ.
+    # Имя языка берётся у `dt`, а не у строки целиком: `dt` и `dd` стоят
+    # вплотную, и `textContent` строки даёт «РусскийРодной» — признак
+    # не опознал бы НИ ОДИН язык в чипах (поймано контролем).
+    в_чипах = [имя for имя in нав["имена"] if имя and имя in нав["тексты"]]
+    шаг(14, "язык-не-попал-в-чипы-навыков", not в_чипах,
+        "в чипах оказались: %s" % в_чипах if в_чипах else "ни одного",
+        собрано=нав["языков"])
+    ctx.close()
+
+
+def не_видно(значение):
+    """`checkVisibility()` у скрытой кнопки — False; читаем это словом."""
+    return значение is False
+
+
+def _текст_места(весь, номер):
+    """Кусок текста экрана, принадлежащий карточке места с этим номером.
+
+    Берётся по разметке, а не по содержимому: проба сравнивает СОСЕДНЕЕ
+    место до и после правки первого, и делить надо ровно там же.
+    """
+    куски = весь.split("\n\n")
+    return куски[номер] if номер < len(куски) else ""
+
 # ══════════════════════════════════════════════════════════════════════════
 # ПОДЛОГИ: каждый возвращает СВОЮ поломку и обязан уронить ИМЕННО свою
 # строку. Общий подлог доказывал бы, что реестр видит хоть что-то, —
@@ -743,6 +1131,57 @@ def замечания_досье(бр, подлог=None):
         s.textContent = '.dosie-view-card { max-width: 860px !important; }';
         document.head.appendChild(s);
       });""",
+    # Разметка резюме снова рисуется старой позиционной формой
+    # `TemplateResponse` — сервер отвечает 500 при сохранённой правке.
+    "ложная-ошибка-сохранения": """
+      addEventListener('DOMContentLoaded', () => {
+        const исходный = window.fetch;
+        window.fetch = async (u, o) => {
+          const адрес = typeof u === 'string' ? u : u.url;
+          if (адрес.includes('/api/resume/section')) {
+            await исходный(u, o);            // правка всё равно сохраняется
+            return new Response('{}', {status: 500,
+              headers: {'Content-Type': 'application/json'}});
+          }
+          return исходный(u, o);
+        };
+      });""",
+    # Кнопки правки снова внизу поля, а не в шапке карточки.
+    "кнопки-правки-внизу": """
+      addEventListener('DOMContentLoaded', () => {
+        const s = document.createElement('style');
+        s.textContent = '.hh-sec-cancel, .hh-sec-save { display: none !important; }';
+        document.head.appendChild(s);
+      });""",
+    # Раскрытие снова мгновенное: короб прячется `hidden`.
+    "раскрытие-мгновенное": """
+      addEventListener('DOMContentLoaded', () => {
+        const s = document.createElement('style');
+        s.textContent = '.hh-sec-edit-box { transition: none !important; }';
+        document.head.appendChild(s);
+      });""",
+    # Колонтитул PDF снова показывается между разделами.
+    "колонтитул-виден": r"""
+      addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+          const т = document.querySelector('.hh-sec-text');
+          if (т) т.textContent = 'Пётр Иванов  •  Резюме обновлено 27 мая 2026\n' + т.textContent;
+        }, 600);
+      });""",
+    # Язык снова уехал в чипы навыков.
+    "язык-в-чипах": r"""
+      addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+          const ч = document.querySelector('.hh-skills');
+          const я = document.querySelector('.hh-lang-row dt');
+          if (ч && я) {
+            const э = document.createElement('span');
+            э.className = 'v2-chip hh-skill';
+            э.textContent = я.textContent.replace(/\s*—\s*$/, '');
+            ч.appendChild(э);
+          }
+        }, 600);
+      });""",
     # Слой свечения снова обрывается по колонке содержимого.
     "свечение-в-колонке": """
       addEventListener('DOMContentLoaded', () => {
@@ -764,6 +1203,11 @@ def замечания_досье(бр, подлог=None):
     "оценка-без-цвета":        "оценка-окрашена-по-порогам",
     "удаление-обведено":       "удаление-в-покое-тихое",
     "досье-узкое":             "досье-во-всю-ширину-колонки",
+    "ложная-ошибка-сохранения": "сохранение-раздела-отвечает-успехом",
+    "кнопки-правки-внизу":     "кнопки-правки-встали-на-место-изменить",
+    "раскрытие-мгновенное":    "раскрытие-плавное",
+    "колонтитул-виден":        "колонтитул-pdf-не-показывается",
+    "язык-в-чипах":            "язык-не-попал-в-чипы-навыков",
     "свечение-в-колонке":      "свечение-без-резкого-края",
 }
 
@@ -786,7 +1230,19 @@ def прогон(подлог=None, только=None):
             if только is None or {6, 7} & только:
                 замечания_истории(бр, подлог)
             if только is None or 8 in только:
-                замечания_досье(бр, подлог)
+                снимок_досье = _досье_снять()
+                try:
+                    замечания_досье(бр, подлог)
+                finally:
+                    _досье_вернуть(снимок_досье)
+            if только is None or {9, 10, 11, 12, 13, 14} & только:
+                # Резюме возвращается ТЕМ ЖЕ, каким взято: правка —
+                # часть проверки, а не след, который остаётся на стенде.
+                снимок = _резюме_снять()
+                try:
+                    замечания_резюме(бр, подлог)
+                finally:
+                    _резюме_вернуть(снимок)
         finally:
             бр.close()
     return находок, пропусков
