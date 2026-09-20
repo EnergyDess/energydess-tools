@@ -87,9 +87,9 @@
         <div class="hh-preview" id="fetched-preview"></div>
 
         {# Язык письма. Стоит рядом с кнопкой генерации, потому что это
-           последнее решение перед нажатием. Между генерациями выбор
-           не запоминается: каждая новая вакансия начинается с русского
-           либо с автоопределения по ней самой. #}
+           последнее решение перед нажатием. Ручной выбор СИЛЬНЕЕ
+           автоопределения и держится до очистки поля: человек, нажавший
+           English и вставивший следом ссылку, получит английское письмо. #}
         <div class="hh-lang">
           <span class="v2-label">Язык письма</span>
           <div class="v2-seg letter-lang-seg" role="group" aria-label="Язык письма">
@@ -170,10 +170,17 @@
           </ul>
         </div>
 
+        {# ОДИН ИНДИКАТОР НА ЭКРАН: тонкая полоса и текст под ней.
+           Этапов здесь НЕТ, и это замер, а не упрощение: генерация —
+           ОДИН запрос `/api/generate-letter`, внутри которого сервер
+           делает два вызова модели, а браузер об их границе не знает
+           вовсе. Прежние «Анализирую вакансию» → «Пишу письмо» меняли
+           текст по флагу `force`, то есть по ПОВТОРНОМУ запросу после
+           предупреждения о низкой релевантности, — и выдавали два
+           разных случая за два этапа одной работы. #}
         <div class="loading-state" id="loading-state">
-          <div class="spinner spinner-lg"></div>
           <div class="v2-progress hh-loading-bar"><div class="v2-progress-fill hh-loading-fill"></div></div>
-          <div class="loading-text" id="loading-text">Анализирую вакансию и резюме...</div>
+          <div class="loading-text" id="loading-text">Пишу письмо — обычно около 30 секунд</div>
         </div>
 
         <div class="error-state" id="error-state">
@@ -212,11 +219,10 @@
         <div class="letter-content" id="letter-content"></div>
 
         {# ДЕЙСТВИЯ ВНИЗУ, А НЕ В ШАПКЕ КАРТОЧКИ: они про готовое письмо,
-           и до него надо сначала дочитать. «Новое письмо» стоит справа
-           отдельно — оно уводит от написанного, остальные три с ним
-           работают. Кнопка уехала сюда из шапки СТРАНИЦЫ (решение
-           владельца 2026-09-20): там она предлагала начать заново
-           на экране, где начинать ещё нечего. #}
+           и до него надо сначала дочитать. Все три работают С НАПИСАННЫМ
+           и идут одним рядом с ОДНИМ зазором; «Новое письмо» здесь больше
+           нет (решение владельца 2026-09-20) — новое письмо это новая
+           вакансия в поле, а под полем уже стоит «Очистить». #}
         <div class="hh-result-actions" id="result-actions" hidden>
           <button class="v2-btn v2-btn-primary" id="copy-btn" onclick="copyLetter()">
             {{ значок('copy') }}Копировать
@@ -224,11 +230,8 @@
           <button class="v2-btn v2-btn-secondary" id="edit-btn" onclick="toggleLetterEdit()">
             {{ значок('edit-3') }}<span id="edit-btn-label">Редактировать</span>
           </button>
-          <button class="v2-btn v2-btn-secondary" onclick="generateLetter()">
+          <button class="v2-btn v2-btn-secondary" id="regen-btn" onclick="generateLetter()">
             {{ значок('refresh-cw') }}Перегенерировать
-          </button>
-          <button class="v2-btn v2-btn-secondary hh-new-letter" id="new-letter-btn" onclick="startNewLetter()">
-            {{ значок('pen-line') }}Новое письмо
           </button>
         </div>
       </div>
@@ -888,10 +891,11 @@
     if (вручную) {
       langChosenByUser = true;
       // Подпись про автоопределение врала бы после ручного переключения
-      document.getElementById('lang-reason').style.display = 'none';
+      document.getElementById('lang-reason').hidden = true;
     }
-    document.querySelectorAll('.letter-lang-seg .segmented-btn').forEach(b => {
+    document.querySelectorAll('.letter-lang-seg [data-lang]').forEach(b => {
       b.classList.toggle('active', b.dataset.lang === lang);
+      b.setAttribute('aria-pressed', b.dataset.lang === lang ? 'true' : 'false');
     });
   }
 
@@ -900,7 +904,7 @@
   function resetLetterLang() {
     langChosenByUser = false;
     setLetterLang('ru', false);
-    document.getElementById('lang-reason').style.display = 'none';
+    document.getElementById('lang-reason').hidden = true;
   }
 
   async function detectLetterLang(text) {
@@ -917,10 +921,10 @@
       if (d.lang === 'en') {
         setLetterLang('en', false);
         document.getElementById('lang-reason-quote').textContent = d.reason || '';
-        reason.style.display = d.reason ? '' : 'none';
+        reason.hidden = !d.reason;
       } else {
         setLetterLang('ru', false);
-        reason.style.display = 'none';
+        reason.hidden = true;
       }
     } catch { /* сеть отвалилась — остаётся русский, это безопасный исход */ }
   }
@@ -1015,9 +1019,9 @@
     warnBox.hidden = true;
     fetchedText = '';
     fetchedUrl  = '';
-    // Загрузка новой ссылки — это новая вакансия: право автоопределения
-    // возвращается, даже если по прошлой человек переключал язык руками
-    resetLetterLang();
+    // Ручной выбор языка НЕ СБРАСЫВАЕТСЯ: загрузка ссылки — продолжение
+    // того же действия, а не новая вакансия. Автоопределение ниже
+    // (`detectLetterLang`) само уступает выбору человека.
 
     try {
       const res  = await fetch('/api/fetch-url', {
@@ -1119,11 +1123,11 @@
     }
 
     generateBtn.disabled = true;
-    // Спиннера на кнопке нет намеренно: справа уже крутится spinner-lg
-    // с полосой загрузки в панели письма — второй индикатор на том же экране
-    // ничего не добавляет.
-    btnText.textContent = force ? 'Генерирую...' : 'Анализирую...';
-    loadingText.textContent = force ? 'Пишу письмо...' : 'Анализирую вакансию и резюме...';
+    // Значка на кнопке нет намеренно: индикатор на экране ровно один —
+    // полоса в карточке письма. Текст у кнопки один на оба случая:
+    // выдуманных этапов не показываем (разбор — у разметки блока загрузки).
+    btnText.textContent = 'Пишу письмо…';
+    loadingText.textContent = 'Пишу письмо — обычно около 30 секунд';
     setState('loading');
 
     try {
@@ -1169,7 +1173,13 @@
           saveNote.title = data.save_error;
         }
         localStorage.removeItem('hh_draft_job_text');
-        document.getElementById('clear-text-btn').hidden = true;
+        // КНОПКА «ОЧИСТИТЬ» СЛЕДУЕТ ЗА ПОЛЕМ, А НЕ ЗА ЧЕРНОВИКОМ. Здесь
+        // стояло `hidden = true` рядом с уборкой черновика, и после
+        // генерации в поле оставался текст вакансии, а кнопка пряталась:
+        // замер 2026-09-20 — 171 знак в поле при скрытой кнопке. Путь
+        // «начать заново» исчезал ровно в тот момент, когда он нужен,
+        // и другого пути с тех пор нет — «Новое письмо» убрано тем же
+        // письмом владельца.
         // обновляем историю после успешной генерации
         if (historyLoaded) renderHistory();
       }
@@ -1234,18 +1244,6 @@
     resetLetterLang();
   }
 
-  // «Новое письмо» — то же, что делала кнопка в шапке страницы: чистый
-  // экран письма и курсор в поле вакансии. Написанное письмо при этом
-  // НЕ ТРОГАЕТСЯ в истории — оно там уже сохранено.
-  function startNewLetter() {
-    switchView('write');
-    clearJobText();
-    setState('empty');
-    document.getElementById('letter-meta').hidden = true;
-    document.getElementById('analysis-card').classList.remove('visible');
-    cachedAnalysis = null;
-    jobInput.focus();
-  }
 
   // ── Анализ вакансии ───────────────────────────────────────────────────────
   let cachedAnalysis = null;

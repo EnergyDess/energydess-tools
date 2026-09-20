@@ -387,17 +387,18 @@ def проход(подлог=None):
           const р = document.getElementById('result-actions');
           const к = [...р.querySelectorAll('button')];
           const главных = к.filter(b => b.classList.contains('v2-btn-primary'));
-          const новое = document.getElementById('new-letter-btn');
-          const края = к.map(b => Math.round(b.getBoundingClientRect().right));
           return {видно: !р.hidden, кнопок: к.length,
                   главных: главных.map(b => b.textContent.trim()),
-                  новое_правее_всех: новое &&
-                    Math.round(новое.getBoundingClientRect().right) === Math.max(...края)};
+                  новое_убрано: !document.getElementById('new-letter-btn')};
         }""")
+        # Кнопок ТРИ: «Новое письмо» убрана решением владельца 2026-09-20 —
+        # новое письмо это новая вакансия в поле, а под полем уже стоит
+        # «Очистить». Что зазоры между тремя равны, спрашивает реестр
+        # замечаний (`check_hh_owner.py`, №3).
         шаг("действия-письма-внизу-и-живые",
-            действия["видно"] and действия["кнопок"] == 4, str(действия))
-        шаг("копировать-главная-новое-справа",
-            действия["главных"] == ["Копировать"] and действия["новое_правее_всех"],
+            действия["видно"] and действия["кнопок"] == 3, str(действия))
+        шаг("копировать-главная-новое-убрано",
+            действия["главных"] == ["Копировать"] and действия["новое_убрано"],
             str(действия))
         шаг("кнопка-копировать-живая", живой(стр, "#copy-btn").get("дотянулись"))
 
@@ -427,17 +428,17 @@ def проход(подлог=None):
         шаг("перегенерация-работает",
             "Добавлено правкой." not in стр.inner_text("#letter-content"))
 
-        стр.click("#new-letter-btn")
+        # Путь «начать заново» остался ОДИН — «Очистить» под полем вакансии,
+        # и он проверяется тем же, чем проверялась убранная кнопка:
+        # наблюдаемым состоянием экрана, а не тем, что нажатие прошло.
+        стр.click("#clear-text-btn")
         стр.wait_for_timeout(300)
         чисто = стр.evaluate("""() => ({
           поле: document.getElementById('job-input').value,
-          письмо: getComputedStyle(document.getElementById('letter-content')).display,
-          пусто: getComputedStyle(document.getElementById('empty-state')).display,
-          метки: document.getElementById('letter-meta').hidden,
+          превью: document.getElementById('fetched-preview').classList.contains('visible'),
         })""")
-        шаг("новое-письмо-чистит-экран",
-            not чисто["поле"] and чисто["письмо"] == "none"
-            and чисто["пусто"] != "none" and чисто["метки"], str(чисто))
+        шаг("очистить-чистит-поле-и-превью",
+            not чисто["поле"] and not чисто["превью"], str(чисто))
 
         print("\n3. ИСТОРИЯ ПИСЕМ")
         стр.click('.v2-tab[data-view="history"]')

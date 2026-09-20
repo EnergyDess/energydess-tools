@@ -139,6 +139,10 @@
      на 1920 две колонки HH выходят по 748 px против 530 px
      у прежнего контейнера. */
   --v2-content: 1600px;
+  /* Насколько слой свечения шапки выходит за колонку содержимого в каждую
+     сторону. Половина самой широкой мыслимой области минус самая узкая
+     колонка — с запасом; точное значение не нужно, лишнее срезается. */
+  --v2-head-bleed: 50vw;
   --v2-ctl-h: 40px;
   --v2-ctl-h-touch: 44px;
   --v2-icon: 18px;
@@ -626,6 +630,16 @@
   content: "";
   position: absolute;
   inset: 0;
+  /* ВЫЛЕТ ЗА КОЛОНКУ СОДЕРЖИМОГО. Слой с `inset: 0` обрывался по краю
+     колонки вертикальной линией: замер 2026-09-20 по строке в верхнем
+     поле шапки — скачок 41–55 единиц канала ровно на её левой границе
+     у всех пяти инструментов на 1920 и 2560. Запас заведомо больше
+     любого поля; лишнее срезает `overflow-x: clip` у `.v2-shell-main`,
+     то есть край приходится на границу главной области, где свечения
+     уже нет. Числом поле не считается: оно зависит и от ширины окна,
+     и от того, свёрнуто ли боковое меню. */
+  left: calc(-1 * var(--v2-head-bleed));
+  right: calc(-1 * var(--v2-head-bleed));
   z-index: -2;              /* под звёздами (-1) и под содержимым */
   background-image:
     url("/static/v2-grain.svg"),
@@ -644,6 +658,10 @@
   content: "";
   position: absolute;
   inset: 0;
+  /* Звёзды идут той же шириной: оборвись они по колонке, край вернулся бы
+     на то же место, только россыпью точек вместо заливки. */
+  left: calc(-1 * var(--v2-head-bleed));
+  right: calc(-1 * var(--v2-head-bleed));
   z-index: -1;
   background:
     radial-gradient(circle 1.1px at 77px 63px, var(--v2-star) 0 55%, transparent 100%),
@@ -775,7 +793,13 @@ html.v2-rail .v2-shell .v2-side-caret { display: none; }
 .v2-side-pop { position: fixed; z-index: 170; }
 .v2-side-pop[hidden] { display: none; }
 .v2-side-scrim { display: none; }
-.v2-shell-main { display: flex; flex-direction: column; min-width: 0; min-height: 100dvh; }
+/* `overflow-x: clip` ОБРЕЗАЕТ СВЕЧЕНИЕ РОВНО ПО ГЛАВНОЙ ОБЛАСТИ — от
+   бокового меню до правого края окна. Слой свечения шапки выходит за
+   колонку содержимого с заведомым запасом (`.v2-page-head::after/::before`
+   ниже), и без этой обрезки запас дал бы горизонтальную прокрутку.
+   Именно `clip`, а не `hidden`: второй заводит scroll-container и отнял бы
+   прилипание у шапки сайта, которая лежит здесь же. */
+.v2-shell-main { display: flex; flex-direction: column; min-width: 0; min-height: 100dvh; overflow-x: clip; }
 .v2-shell-main > .page-fill { flex: 1 0 auto; }
 .v2-top-lead { display: flex; align-items: center; }
 .v2-top-burger { display: none; }
