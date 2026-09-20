@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+  <!-- ЗЕРНО СВЕЧЕНИЯ ШАПКИ v2 (задача 352, письмо 3, блок 1).
+       Статичная картинка, а не CSS `filter`: фильтр на элементе считается
+       браузером на каждый кадр, а здесь нужен ровно один раз.
+       `stitchTiles` — чтобы плитка 200x200 стыковалась без шва.
+       Непрозрачность мала намеренно: зерно обязано разбивать ступеньки
+       линейного градиента и не быть видимым само по себе. -->
+  <filter id="g" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/>
+    <feColorMatrix type="saturate" values="0"/>
+  </filter>
+  <rect width="200" height="200" filter="url(#g)" opacity="0.06"/>
+</svg>
