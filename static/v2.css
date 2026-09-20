@@ -226,12 +226,30 @@
   color: var(--v2-text-strong);
 }
 .v2-btn-icon { flex-shrink: 0; padding: 0; width: var(--v2-ctl-h); }
+/* ТИХОЕ УДАЛЕНИЕ (решение владельца 2026-09-20): в покое серый значок
+   без рамки и без заливки, красный — только при наведении и фокусе.
+   Рядов с таким удалением много (история писем, языки и места работы
+   в досье), и красная обводка у каждой строки читалась как ряд тревог.
+   ЦЕНА НАЗВАНА: на сенсорном экране наведения нет вовсе, и красным
+   орган там не станет — предупреждение о необратимости несёт окно
+   подтверждения, которое стоит перед удалением в обоих случаях.
+   Область нажатия НЕ уменьшается: размер кнопки прежний, снята только
+   рамка (её место занимает прозрачная того же размера). */
+.v2-btn-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--v2-text-faint);
+}
+.v2-btn-quiet.is-hover,
+.v2-btn-quiet:focus-visible,
+.v2-btn-quiet.is-focus { --v2-ring: var(--v2-danger); color: var(--v2-danger); }
 .v2-btn.is-hover { border-color: var(--v2-line-hover); background: var(--v2-surface-hover); }
 .v2-btn-primary.is-hover {
   border-color: var(--v2-tool, var(--v2-hh));
   background: color-mix(in srgb, var(--v2-tool, var(--v2-hh)) 86%, var(--v2-text-strong));
 }
 .v2-btn-danger.is-hover { border-color: var(--v2-danger); background: var(--v2-danger-dim); }
+.v2-btn-quiet.is-hover { border-color: transparent; background: var(--v2-danger-dim); }
 .v2-btn-gradient.is-hover {
   border-color: transparent;
   background: linear-gradient(90deg, var(--v2-grad-a), var(--v2-grad-b), var(--v2-grad-c));
@@ -244,6 +262,11 @@
     background: color-mix(in srgb, var(--v2-tool, var(--v2-hh)) 86%, var(--v2-text-strong));
   }
   .v2-btn-danger:hover:not(:disabled) { border-color: var(--v2-danger); background: var(--v2-danger-dim); }
+  .v2-btn-quiet:hover:not(:disabled) {
+    border-color: transparent;
+    background: var(--v2-danger-dim);
+    color: var(--v2-danger);
+  }
   .v2-btn-gradient:hover:not(:disabled) {
     border-color: transparent;
     background: linear-gradient(90deg, var(--v2-grad-a), var(--v2-grad-b), var(--v2-grad-c));

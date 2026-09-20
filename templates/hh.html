@@ -1461,7 +1461,7 @@
     const item = document.createElement('div');
     item.className = 'dosie-item';
     item.innerHTML = `
-      <button class="v2-btn v2-btn-icon v2-btn-danger dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
+      <button class="v2-btn v2-btn-icon v2-btn-quiet dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
       <div class="dosie-g2">
         <div class="dosie-field">
           <label class="v2-label dosie-label">Язык</label>
@@ -1491,7 +1491,7 @@
     const item = document.createElement('div');
     item.className = 'dosie-item';
     item.innerHTML = `
-      <button class="v2-btn v2-btn-icon v2-btn-danger dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
+      <button class="v2-btn v2-btn-icon v2-btn-quiet dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
       <div class="dosie-g2">
         <div class="dosie-field">
           <label class="v2-label dosie-label">Компания</label>
@@ -1544,7 +1544,7 @@
     const item = document.createElement('div');
     item.className = 'dosie-item';
     item.innerHTML = `
-      <button class="v2-btn v2-btn-icon v2-btn-danger dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
+      <button class="v2-btn v2-btn-icon v2-btn-quiet dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
       <div class="dosie-g2">
         <div class="dosie-field">
           <label class="v2-label dosie-label">Название</label>
@@ -1813,7 +1813,7 @@
               : ''}
             ${score != null ? `<span class="history-item-score ${cls}">${score}/10</span>` : ''}
           </button>
-          <button class="v2-btn v2-btn-icon v2-btn-danger history-item-del" type="button"
+          <button class="v2-btn v2-btn-icon v2-btn-quiet history-item-del" type="button"
                   title="Удалить письмо" aria-label="Удалить письмо"
                   onclick="askDeleteLetter(${item.id})">
             <i data-lucide="trash-2"></i>

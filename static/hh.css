@@ -452,7 +452,12 @@
 }
 
 /* ── Досье (вкладка) ────────────────────────────────────────────────────── */
-.dosie-view-card { max-width: 860px; display: flex; flex-direction: column; gap: var(--v2-sp-3); }
+/* ДОСЬЕ — НА ВСЮ ШИРИНУ КОЛОНКИ (решение владельца 2026-09-20).
+   Здесь стоял потолок 860px, и на 1920 форма занимала 860 из 1520,
+   то есть чуть больше половины при пустой правой половине экрана.
+   Короткие поля и так идут по два в ряд (`.dosie-row`), длинные —
+   во всю ширину (`.full`), на 640 всё схлопывается в одну колонку. */
+.dosie-view-card { display: flex; flex-direction: column; gap: var(--v2-sp-3); }
 .dosie-head { display: flex; align-items: center; gap: var(--v2-sp-3); flex-wrap: wrap; }
 .dosie-head h2 { font-size: var(--v2-fs-xl); font-weight: 600; }
 .dosie-hint { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); line-height: 1.5; }
@@ -528,14 +533,12 @@
 @media (max-width: 640px) { .dosie-row { grid-template-columns: 1fr; } }
 .dosie-field { display: flex; flex-direction: column; gap: var(--v2-sp-1); }
 .dosie-field.full { grid-column: 1 / -1; }
-.dosie-label {
-  font-family: var(--v2-font-mono);
-  font-size: var(--v2-fs-xs);
-  font-weight: 500;
-  color: var(--v2-text-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
+/* Подписи полей досье — ОБЫЧНЫЕ подписи v2 (решение владельца
+   2026-09-20). Здесь стояло своё правило с моноширинной гарнитурой,
+   своим весом, своим цветом и разрядкой 0.1em: одно и то же поле
+   в досье и на соседнем экране подписывалось по-разному. Класс остался
+   носителем без своих объявлений — он стоит в разметке рядом
+   с `.v2-label` и им же и оформляется. */
 .dosie-hint-sm { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); line-height: 1.45; }
 
 /* Динамические списки досье */
@@ -723,6 +726,24 @@
   padding: 2px var(--v2-sp-2);
   border-radius: var(--v2-r-sm);
   flex-shrink: 0;
+}
+/* ЦВЕТ ОЦЕНКИ ВЕРНУЛСЯ, И ПОРОГИ ТЕ ЖЕ, ЧТО ДО РЕДИЗАЙНА: 7 и выше —
+   зелёный, 4–6 — янтарь, ниже 4 — красный (`классОценки` в hh.html,
+   значения не менялись). Правила `score-*` при редизайне уехали внутрь
+   `.hh-score` — плитки разбора, — и оценка в истории осталась без
+   единого цветового правила: класс на ней стоял и не значил ничего.
+   Подложка 12 %, как была, цвет текста — сам токен. */
+.history-item-score.score-high {
+  background: color-mix(in srgb, var(--v2-ok) 12%, transparent);
+  color: var(--v2-ok);
+}
+.history-item-score.score-mid {
+  background: color-mix(in srgb, var(--v2-warn) 12%, transparent);
+  color: var(--v2-warn);
+}
+.history-item-score.score-low {
+  background: color-mix(in srgb, var(--v2-danger) 12%, transparent);
+  color: var(--v2-danger);
 }
 /* Тот же аккордеон на сетке, что и .ds-body выше, и заведён он здесь
    не «заодно», а по замеру: письмо на 390px занимает 1764px при потолке

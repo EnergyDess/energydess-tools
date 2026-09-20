@@ -17,6 +17,12 @@
 ВЫЗОВОВ МОДЕЛИ НОЛЬ: ответы генерации подделываются В СТРАНИЦЕ —
 путь кода при этом тот же. Резюме и письма ВЫДУМАННЫЕ (§5.1).
 
+ПИШЕТ В БАЗУ СТЕНДА: удаляет письмо из истории и правит поля досье —
+это и есть проверка действием, «ответил ли сервер» тут не ответ (§6.3).
+ПОСЛЕ ПРОГОНА СТЕНД ПЕРЕСЕЯТЬ: `py make_local_user.py --seed`.
+В ряды §6.0.2 не входит по этой причине — ряд обязан быть безопасным
+для любого прогона.
+
 КЛЮЧИ:
   --контроль     подлоги, по одному на замечание: каждый возвращает
                  СВОЮ поломку и обязан уронить ИМЕННО свою строку;
@@ -278,10 +284,18 @@ def замечания_письма(бр, подлог=None):
         поле["знаков"] > 0 and поле["скрыта"] is False,
         "в поле %d знаков, кнопка скрыта: %s" % (поле["знаков"], поле["скрыта"]),
         собрано=поле["знаков"])
-    стр.click("#clear-text-btn")
-    стр.wait_for_timeout(300)
+    # НАЖАТИЕ ПО МЁРТВОМУ ОРГАНУ НЕ РОНЯЕТ ПРОГОН, а становится ПРОПУСКОМ:
+    # первая версия висла на скрытой кнопке 30 секунд и валила контроль
+    # стектрейсом — то есть подлог соседнего замечания уносил с собой
+    # весь реестр (§6.0.3).
+    видна = стр.eval_on_selector("#clear-text-btn",
+                                 "e => e.checkVisibility({checkOpacity: true})")
+    if видна:
+        стр.click("#clear-text-btn")
+        стр.wait_for_timeout(300)
     после = стр.evaluate("document.getElementById('job-input').value.length")
-    шаг(3, "очистить-чистит-поле", после == 0, "осталось знаков: %d" % после)
+    шаг(3, "очистить-чистит-поле", видна and после == 0,
+        "осталось знаков: %d" % после, собрано=1 if видна else 0)
 
     # ── №4. ЦВЕТ ЗАГРУЖЕННОГО ТЕКСТА ВАКАНСИИ ────────────────────────────
     стр.evaluate("clearJobText()")
@@ -377,6 +391,269 @@ def замечание_свечения(бр, подлог=None, ширины=(1
     return худшее
 
 
+
+# ══════════════════════════════════════════════════════════════════════════
+# БЛОК 2. ИСТОРИЯ ПИСЕМ И ДОСЬЕ
+# ══════════════════════════════════════════════════════════════════════════
+
+# Пороги те же, что до редизайна (`классОценки` в hh.html): 7 и выше —
+# зелёный, 4–6 — янтарь, ниже 4 — красный. Здесь они записаны ВТОРОЙ раз
+# намеренно: проба, берущая порог у проверяемого кода, подтвердит любое
+# его значение — включая то, которое разъехалось с решением владельца.
+ПОРОГИ_ОЦЕНКИ = [(9, "ok"), (8, "ok"), (7, "ok"), (6, "warn"),
+                 (5, "warn"), (4, "warn"), (3, "danger"), (1, "danger")]
+
+
+def замечания_истории(бр, подлог=None):
+    """№6–7: цвет оценки в истории, тихие кнопки удаления."""
+    ctx, стр = _страница(бр, подлог)
+    стр.goto(ch.БАЗА + "/hh", wait_until="domcontentloaded")
+    стр.wait_for_timeout(800)
+    стр.click('.v2-tab[data-view="history"]')
+    стр.wait_for_timeout(900)
+
+    # ── №6. ОЦЕНКА СНОВА ОКРАШЕНА ПО ПОРОГАМ ─────────────────────────────
+    # Правила `score-*` при редизайне уехали внутрь `.hh-score` — плитки
+    # разбора, — и класс на оценке в истории стоял, не значив ничего.
+    # Цвет спрашивается ПОДСТАНОВКОЙ ОЦЕНКИ в живую строку, а не чтением
+    # правила из файла: правило может быть перебито соседом при равной
+    # специфичности, и проверка 21 ловит ровно это.
+    цвета = стр.evaluate(
+        "(пороги) => {"
+        " const з = document.querySelector('.history-item-score');"
+        " if (!з) return null;"
+        " const был = з.className;"
+        " const цв = т => {"
+        "   const d = document.createElement('div');"
+        "   d.style.color = 'var(--v2-' + т + ')';"
+        "   document.body.appendChild(d);"
+        "   const c = getComputedStyle(d).color; d.remove(); return c; };"
+        " const класс = о => о >= 7 ? 'score-high' : о >= 4 ? 'score-mid' : 'score-low';"
+        " const итог = {};"
+        " for (const [о, т] of пороги) {"
+        "   з.className = 'history-item-score ' + класс(о);"
+        "   итог[о] = {факт: getComputedStyle(з).color, ждём: цв(т)};"
+        " }"
+        " з.className = был;"
+        " return итог;"
+        "}", ПОРОГИ_ОЦЕНКИ)
+    разошлись = ([] if not цвета else
+                 [о for о, д in цвета.items() if д["факт"] != д["ждём"]])
+    шаг(6, "оценка-окрашена-по-порогам", not разошлись,
+        "проверено оценок %d%s" % (len(цвета or {}),
+                                   ("; разошлись: " + str(разошлись)) if разошлись else ""),
+        собрано=len(цвета or {}))
+
+    # ── №7. КНОПКИ УДАЛЕНИЯ ТИХИЕ ────────────────────────────────────────
+    # Спрашивается ПИКСЕЛЬ И ВЫЧИСЛЕННЫЙ СТИЛЬ: «красной обводки нет» —
+    # это про рамку и заливку в ПОКОЕ, а «красная при наведении» — про
+    # смену цвета, и по одному покою второе неотличимо от мёртвого
+    # правила.
+    покой = стр.evaluate(
+        "() => {"
+        " const к = document.querySelector('.history-item-del');"
+        " if (!к) return null;"
+        " const s = getComputedStyle(к);"
+        " const d = document.createElement('div');"
+        " d.style.color = 'var(--v2-danger)';"
+        " document.body.appendChild(d);"
+        " const красный = getComputedStyle(d).color; d.remove();"
+        " const r = к.getBoundingClientRect();"
+        " return {рамка: s.borderTopColor, фон: s.backgroundColor, цвет: s.color,"
+        "         красный, w: Math.round(r.width), h: Math.round(r.height)};"
+        "}")
+    прозрачна = lambda ц: ц in ("rgba(0, 0, 0, 0)", "transparent")
+    шаг(7, "удаление-в-покое-тихое",
+        покой is not None and прозрачна(покой["рамка"])
+        and прозрачна(покой["фон"]) and покой["цвет"] != покой["красный"],
+        "рамка %s, фон %s, цвет %s" % (покой["рамка"], покой["фон"], покой["цвет"])
+        if покой else "кнопки нет",
+        собрано=1 if покой else 0)
+
+    # Наведение — НАСТОЯЩИМ указателем: навязанный `:hover` объявляет
+    # мёртвой исправную подсветку и наоборот (§6.0.3).
+    стр.hover(".history-item-del")
+    стр.wait_for_timeout(250)
+    ховер = стр.evaluate(
+        "() => {"
+        " const к = document.querySelector('.history-item-del');"
+        " const d = document.createElement('div');"
+        " d.style.color = 'var(--v2-danger)';"
+        " document.body.appendChild(d);"
+        " const красный = getComputedStyle(d).color; d.remove();"
+        " return {цвет: getComputedStyle(к).color, красный};"
+        "}")
+    шаг(7, "удаление-краснеет-при-наведении",
+        ховер["цвет"] == ховер["красный"],
+        "под курсором %s, красный %s" % (ховер["цвет"], ховер["красный"]))
+
+    # Область нажатия не уменьшилась: снята рамка, а не размер.
+    касание = стр.evaluate(
+        "() => {"
+        " const к = document.querySelector('.history-item-del');"
+        " const r = к.getBoundingClientRect();"
+        " return {w: Math.round(r.width), h: Math.round(r.height)};"
+        "}")
+    шаг(7, "область-нажатия-удаления-цела",
+        касание["w"] >= 32 and касание["h"] >= 32,
+        "%dx%d" % (касание["w"], касание["h"]))
+
+    # Удаление работает как раньше — С ПОДТВЕРЖДЕНИЕМ и ДО БАЗЫ.
+    было = стр.locator(".history-item").count()
+    стр.click(".history-item-del")
+    стр.wait_for_timeout(500)
+    окно = стр.evaluate(
+        "() => {"
+        " const м = [...document.querySelectorAll('.modal-ov')]"
+        "   .filter(e => e.checkVisibility({checkOpacity: true}));"
+        " return м.length ? м[0].innerText.slice(0, 80) : '';"
+        "}")
+    шаг(7, "удаление-спрашивает-подтверждение", bool(окно.strip()),
+        "в окне: %r" % окно.strip()[:50])
+    if окно.strip():
+        стр.evaluate(
+            "() => {"
+            " const м = [...document.querySelectorAll('.modal-ov')]"
+            "   .filter(e => e.checkVisibility({checkOpacity: true}))[0];"
+            " const к = [...м.querySelectorAll('button')]"
+            "   .find(b => /удал/i.test(b.textContent));"
+            " if (к) к.click();"
+            "}")
+        стр.wait_for_timeout(900)
+        стало = стр.locator(".history-item").count()
+        шаг(7, "удаление-убирает-письмо", стало == было - 1,
+            "писем было %d, стало %d" % (было, стало), собрано=было)
+    ctx.close()
+
+
+def замечания_досье(бр, подлог=None):
+    """№8: досье на всю ширину, системные подписи, правка сохраняется."""
+    ctx, стр = _страница(бр, подлог)
+    стр.goto(ch.БАЗА + "/hh", wait_until="domcontentloaded")
+    стр.wait_for_timeout(800)
+    стр.click('.v2-tab[data-view="dossier"]')
+    стр.wait_for_timeout(800)
+
+    вид = стр.evaluate(
+        "() => {"
+        " const в = document.getElementById('view-dossier');"
+        " const ф = в.querySelector('.dosie-view-card') || в.firstElementChild;"
+        " const л = document.querySelector('.dosie-label');"
+        " const мон = document.createElement('div');"
+        " мон.style.fontFamily = 'var(--v2-font-mono)';"
+        " document.body.appendChild(мон);"
+        " const моно = getComputedStyle(мон).fontFamily; мон.remove();"
+        " const ш = e => Math.round(e.getBoundingClientRect().width);"
+        " return {вкладка: ш(в), форма: ш(ф),"
+        "         подпись: л ? getComputedStyle(л).fontFamily : null, моно,"
+        "         рядов: document.querySelectorAll('.dosie-row').length,"
+        "         колонки: document.querySelector('.dosie-row')"
+        "                  ? getComputedStyle(document.querySelector('.dosie-row'))"
+        "                    .gridTemplateColumns : null};"
+        "}")
+    шаг(8, "досье-во-всю-ширину-колонки",
+        вид["форма"] >= вид["вкладка"] - 2,
+        "форма %d из %d" % (вид["форма"], вид["вкладка"]))
+    шаг(8, "подписи-досье-системные",
+        вид["подпись"] != вид["моно"],
+        "подпись %s, моно %s" % (вид["подпись"], вид["моно"]),
+        собрано=1 if вид["подпись"] else 0)
+    шаг(8, "короткие-поля-по-два-в-ряд",
+        bool(вид["колонки"]) and len(вид["колонки"].split()) == 2,
+        "колонки ряда: %s" % вид["колонки"], собрано=вид["рядов"])
+
+    # ПРАВКА ДОХОДИТ ДО БАЗЫ, А НЕ ДО ЭКРАНА: поле меняется, сохраняется,
+    # страница перезагружается, значение спрашивается заново.
+    метка = "Проба " + str(id(стр))[-5:]
+    поле = стр.locator("#d-profession")
+    шаг(8, "поле-досье-на-месте", поле.count() > 0, собрано=поле.count())
+    if поле.count():
+        поле.fill(метка)
+        стр.evaluate("window.__ЗАПРОСЫ = []")
+        стр.click("#dosie-save-btn")
+        стр.wait_for_timeout(1200)
+        стр.reload(wait_until="domcontentloaded")
+        стр.wait_for_timeout(900)
+        стр.click('.v2-tab[data-view="dossier"]')
+        стр.wait_for_timeout(700)
+        стало = стр.eval_on_selector("#d-profession", "e => e.value")
+        шаг(8, "правка-досье-пережила-перезагрузку", стало == метка,
+            "в поле %r, ждали %r" % (стало[:40], метка))
+
+    # РАЗДЕЛЫ 1–7 не тронуты правкой ширины и подписей: каждый
+    # раскрывается, и поле в КАЖДОМ сохраняется. Спрашивается перезагрузкой,
+    # а не тем, что экран не ругнулся.
+    разделов = стр.locator(".ds").count()
+    шаг(8, "разделов-досье-семь", разделов == 7, "разделов: %d" % разделов,
+        собрано=разделов)
+    # ПОЛЕ БЕРЁТСЯ ЛЮБОЕ ИМЕНОВАННОЕ, а не `input.v2-input`: в разделе
+    # «Как я работаю» первым идёт `textarea`, в «Тоне писем» — `select`,
+    # и первая версия пробы находила поле лишь в трёх разделах из семи,
+    # печатая это НАХОДКОЙ. Ограничение было у пробы, а не у экрана.
+    # Раздел, где именованных полей нет вовсе (проекты — динамический
+    # список, поля там без `id`), это ПРОПУСК с причиной: спросить
+    # перезагрузкой нечем, и выдать это за находку нельзя (§6.0.1).
+    метки, без_имени = {}, []
+    for i in range(разделов):
+        раздел = стр.locator(".ds").nth(i)
+        if раздел.locator(".ds-body.open").count() == 0:
+            раздел.locator(".ds-toggle").click()
+            стр.wait_for_timeout(250)
+        поля = раздел.locator(".ds-body :is(input, textarea)[id]:visible")
+        имя = раздел.locator(".ds-toggle span").inner_text().strip()[:22]
+        if поля.count() == 0:
+            без_имени.append(имя)
+            continue
+        орган = поля.first
+        ид = орган.get_attribute("id")
+        if орган.get_attribute("type") == "checkbox":
+            орган.check()
+            метки[i] = (ид, True, имя, "значение")
+            continue
+        м = "Проба%d%s" % (i, str(id(стр))[-4:])
+        # ПОЛЕ ВВОДА ЧИПОВ ХРАНИМЫМ НЕ ЯВЛЯЕТСЯ: набранное уходит в чип
+        # по Enter, а само поле очищается. Требовать от него переживания
+        # перезагрузки — мерить не то; спрашивается ЧИП.
+        чипы = раздел.locator(".tag-wrap")
+        if чипы.count() and орган.get_attribute("class") == "tag-text-input":
+            орган.fill(м)
+            орган.press("Enter")
+            стр.wait_for_timeout(200)
+            метки[i] = (ид, м, имя, "чип")
+            continue
+        орган.fill(м)
+        метки[i] = (ид, м, имя, "значение")
+    шаг(8, "в-разделах-есть-именованное-поле",
+        len(метки) + len(без_имени) == разделов and len(метки) >= 5,
+        "полей нашлось в %d разделах из %d%s"
+        % (len(метки), разделов,
+           ("; только списки: " + str(без_имени)) if без_имени else ""),
+        собрано=разделов)
+    стр.click("#dosie-save-btn")
+    стр.wait_for_timeout(1400)
+    стр.reload(wait_until="domcontentloaded")
+    стр.wait_for_timeout(900)
+    стр.click('.v2-tab[data-view="dossier"]')
+    стр.wait_for_timeout(700)
+    не_сошлись = []
+    for i, (ид, м, имя, как) in метки.items():
+        if как == "чип":
+            есть = стр.evaluate(
+                "(м) => [...document.querySelectorAll('.tag-wrap .tag-chip,"
+                " .tag-wrap .v2-chip')].some(э => э.textContent.includes(м))", м)
+            if not есть:
+                не_сошлись.append((имя, "чип не найден"))
+            continue
+        если = стр.eval_on_selector(
+            "#" + ид, "e => e.type === 'checkbox' ? e.checked : e.value")
+        if если != м:
+            не_сошлись.append((имя, если))
+    шаг(8, "правка-каждого-раздела-пережила-перезагрузку", not не_сошлись,
+        "проверено разделов %d%s" % (len(метки),
+                                     ("; разошлись: " + str(не_сошлись)) if не_сошлись else ""),
+        собрано=len(метки))
+    ctx.close()
+
 # ══════════════════════════════════════════════════════════════════════════
 # ПОДЛОГИ: каждый возвращает СВОЮ поломку и обязан уронить ИМЕННО свою
 # строку. Общий подлог доказывал бы, что реестр видит хоть что-то, —
@@ -443,6 +720,29 @@ def замечание_свечения(бр, подлог=None, ширины=(1
           if (письмо && письмо.textContent.trim() && !к.hidden) к.hidden = true;
         }).observe(document.body, {subtree: true, childList: true, attributes: true});
       });""",
+    # Оценка в истории снова без единого цветового правила.
+    "оценка-без-цвета": """
+      addEventListener('DOMContentLoaded', () => {
+        const s = document.createElement('style');
+        s.textContent = '.history-item-score.score-high, .history-item-score.score-mid,'
+          + ' .history-item-score.score-low { color: var(--v2-text-2) !important; }';
+        document.head.appendChild(s);
+      });""",
+    # Кнопки удаления снова с красной обводкой в покое.
+    "удаление-обведено": """
+      addEventListener('DOMContentLoaded', () => {
+        const s = document.createElement('style');
+        s.textContent = '.history-item-del { border-color: var(--v2-danger) !important;'
+          + ' color: var(--v2-danger) !important; }';
+        document.head.appendChild(s);
+      });""",
+    # Досье снова у́же колонки.
+    "досье-узкое": """
+      addEventListener('DOMContentLoaded', () => {
+        const s = document.createElement('style');
+        s.textContent = '.dosie-view-card { max-width: 860px !important; }';
+        document.head.appendChild(s);
+      });""",
     # Слой свечения снова обрывается по колонке содержимого.
     "свечение-в-колонке": """
       addEventListener('DOMContentLoaded', () => {
@@ -461,6 +761,9 @@ def замечание_свечения(бр, подлог=None, ширины=(1
     "новое-письмо-вернулось":  "новое-письмо-убрано",
     "вакансия-другим-цветом":  "текст-вакансии-обычным-цветом",
     "очистить-прячется":       "очистить-доступна-после-генерации",
+    "оценка-без-цвета":        "оценка-окрашена-по-порогам",
+    "удаление-обведено":       "удаление-в-покое-тихое",
+    "досье-узкое":             "досье-во-всю-ширину-колонки",
     "свечение-в-колонке":      "свечение-без-резкого-края",
 }
 
@@ -480,6 +783,10 @@ def прогон(подлог=None, только=None):
                 замечания_письма(бр, подлог)
             if только is None or 5 in только:
                 замечание_свечения(бр, подлог)
+            if только is None or {6, 7} & только:
+                замечания_истории(бр, подлог)
+            if только is None or 8 in только:
+                замечания_досье(бр, подлог)
         finally:
             бр.close()
     return находок, пропусков
