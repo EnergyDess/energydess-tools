@@ -444,29 +444,32 @@
 
   <!-- ── Вкладка: резюме ───────────────────────────────────────────────── -->
   <section class="hh-view" id="view-resume">
-    <div class="card card-static resume-view-card">
+    {# РЕЗЮМЕ ПО РАЗДЕЛАМ (решение владельца 2026-09-20, письмо 3, блок 3).
+       Источник правды НЕ МЕНЯЕТСЯ: хранится и уходит в генерацию писем
+       полный текст. Разделы — вид поверх него; разбирает их СЕРВЕР
+       (`resume_sections.py`) и отдаёт первым кадром — собери их скрипт,
+       человек увидел бы сплошной текст и его перестройку на глазах. #}
+    <div class="resume-view">
       <div class="resume-head">
-        <h2>Моё резюме</h2>
-        <span class="resume-chars" id="resume-chars">{{ (resume.resume_text|length)|string + ' симв.' if has_resume else '0 симв.' }}</span>
+        <h2 class="v2-card-title hh-hist-title">Моё резюме</h2>
+        <span class="v2-chip-count" id="resume-chars">{{ резюме_разделы.знаков }}&nbsp;симв.</span>
       </div>
-      <div class="upload-row">
-        <label class="upload-label" for="resume-file">
-          {{ значок('upload') }}
-          Загрузить PDF / DOCX
-          <input type="file" id="resume-file" accept=".pdf,.doc,.docx" style="display:none" onchange="uploadResumeFile(this)">
-        </label>
-        <span class="upload-sep">или вставьте текст ниже</span>
-        <span class="upload-status" id="upload-status"></span>
-      </div>
-      <textarea class="v2-input v2-textarea" id="resume-textarea"
-        placeholder="Имя, должность, опыт работы, навыки, проекты, ссылки на портфолио..."
-        oninput="updateResumeChars()">{{ resume.resume_text if has_resume else '' }}</textarea>
-      <div class="resume-footer">
-        <span class="dosie-hint-sm">Резюме — база для генерации. Досье дополняет его деталями.</span>
-        <div class="resume-actions">
+
+      <div class="v2-card hh-resume-tools">
+        <div class="upload-row">
+          <label class="v2-btn v2-btn-secondary upload-label" for="resume-file">
+            {{ значок('upload') }}
+            Загрузить PDF / DOCX
+            <input type="file" id="resume-file" accept=".pdf,.doc,.docx" style="display:none" onchange="uploadResumeFile(this)">
+          </label>
           <button class="v2-btn v2-btn-secondary" type="button" id="parse-dossier-btn" onclick="parseResumeToDossier()">Заполнить досье из резюме</button>
-          <button class="v2-btn v2-btn-primary" type="button" id="resume-save-btn" onclick="saveResume()">Сохранить резюме</button>
+          <span class="upload-status" id="upload-status"></span>
         </div>
+        <p class="v2-hint">Резюме — база для генерации писем. Досье дополняет его деталями.</p>
+      </div>
+
+      <div id="resume-body">
+{% include '_hh_resume.html' %}
       </div>
     </div>
   </section>
@@ -558,12 +561,126 @@
     // вкладки scrollHeight равен нулю, и поле, посчитанное до показа,
     // схлопнулось бы в ноль
     if (name === 'dossier') autosizeAll(document.getElementById('view-dossier'));
+    if (name === 'resume')  подрезатьОписания();
   }
 
   // ── Резюме ──
+  // Счётчик знаков считает ПОЛЕ, когда оно на экране (замена всего текста),
+  // и МОЛЧИТ, когда его нет: в виде по разделам число приходит с сервера
+  // вместе с разметкой, и второго способа его посчитать заводить нельзя.
   function updateResumeChars() {
-    const v = document.getElementById('resume-textarea').value;
-    document.getElementById('resume-chars').textContent = v.length.toLocaleString('ru') + ' симв.';
+    const поле = document.getElementById('resume-textarea');
+    if (!поле) return;
+    document.getElementById('resume-chars').textContent =
+      поле.value.length.toLocaleString('ru') + ' симв.';
+  }
+
+  // Разделы рисует СЕРВЕР — тем же файлом, что и первый кадр страницы.
+  // Своей сборки разметки в браузере нет: разошлась бы она молча
+  // (довод `_hh_resume.html`).
+  async function перечитатьРезюме() {
+    const res = await fetch('/api/resume/sections');
+    if (!res.ok) return false;
+    document.getElementById('resume-body').innerHTML = await res.text();
+    обновитьЧислоЗнаков();
+    подрезатьОписания();
+    return true;
+  }
+
+  function обновитьЧислоЗнаков() {
+    const метка = document.querySelector('.hh-chars-src');
+    if (!метка) return;
+    const n = Number(метка.dataset['знаков'] || 0);
+    document.getElementById('resume-chars').textContent =
+      n.toLocaleString('ru') + ' симв.';
+  }
+
+  function _разделКарточка(индекс) {
+    return document.querySelector('.hh-sec[data-sec="' + индекс + '"]');
+  }
+
+  function правитьРаздел(индекс) {
+    const карточка = _разделКарточка(индекс);
+    if (!карточка) return;
+    карточка.querySelector('.hh-sec-view').hidden = true;
+    карточка.querySelector('.hh-sec-edit').hidden  = true;
+    const короб = карточка.querySelector('.hh-sec-edit-box');
+    короб.hidden = false;
+    const поле = короб.querySelector('.hh-sec-input');
+    // Исходное тело запоминается ДО правки: «Отмена» обязана вернуть
+    // ровно его, а не то, что лежало в разметке после прошлой правки
+    if (поле.dataset.было === undefined) поле.dataset.было = поле.value;
+    autosizeTextarea(поле);
+    поле.focus();
+  }
+
+  function отменитьРаздел(индекс) {
+    const карточка = _разделКарточка(индекс);
+    if (!карточка) return;
+    const короб = карточка.querySelector('.hh-sec-edit-box');
+    const поле  = короб.querySelector('.hh-sec-input');
+    if (поле.dataset.было !== undefined) поле.value = поле.dataset.было;
+    короб.hidden = true;
+    карточка.querySelector('.hh-sec-view').hidden = false;
+    карточка.querySelector('.hh-sec-edit').hidden = false;
+  }
+
+  async function сохранитьРаздел(индекс) {
+    const карточка = _разделКарточка(индекс);
+    if (!карточка) return;
+    const кнопка = карточка.querySelector('.hh-sec-save');
+    const поле   = карточка.querySelector('.hh-sec-input');
+    кнопка.disabled = true;
+    кнопка.textContent = 'Сохраняю...';
+    try {
+      // Полный текст собирает СЕРВЕР: пересобери его браузер — ошибка
+      // сборки стоила бы всего резюме, а не одного раздела
+      const res = await fetch('/api/resume/section', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ index: индекс, text: поле.value }),
+      });
+      if (res.ok) {
+        document.getElementById('resume-body').innerHTML = await res.text();
+        обновитьЧислоЗнаков();
+        подрезатьОписания();
+        showToast('✓ Раздел сохранён');
+        return;
+      }
+      let текст = 'Не удалось сохранить раздел';
+      try { текст = (await res.json()).error || текст; } catch {}
+      showToast(текст);
+    } catch {
+      showToast('Ошибка сети — раздел не сохранён');
+    }
+    кнопка.disabled = false;
+    кнопка.textContent = 'Сохранить раздел';
+  }
+
+  function развернутьМесто(кнопка) {
+    const текст = кнопка.previousElementSibling;
+    const свёрнуто = текст.dataset.collapsed === '1';
+    текст.dataset.collapsed = свёрнуто ? '0' : '1';
+    кнопка.textContent = свёрнуто ? 'свернуть' : 'ещё';
+  }
+
+  // Кнопка «ещё» стоит только там, где текст ДЕЙСТВИТЕЛЬНО не влез:
+  // кнопка, которая ничего не разворачивает, обещает действие, которого
+  // нет. Считается ПОСЛЕ показа вкладки — у скрытой высоты равны нулю
+  function подрезатьОписания() {
+    document.querySelectorAll('.hh-job-desc').forEach(т => {
+      const кнопка = т.nextElementSibling;
+      if (!кнопка || !кнопка.classList.contains('hh-job-more')) return;
+      кнопка.hidden = т.dataset.collapsed === '1' && т.scrollHeight <= т.clientHeight + 1;
+    });
+  }
+
+  function отменитьЗамену() {
+    const короб = document.getElementById('resume-replace');
+    if (короб) короб.hidden = true;
+    const сетка = document.getElementById('resume-sections');
+    if (сетка) сетка.hidden = false;
+    document.getElementById('upload-status').textContent = '';
   }
 
   async function uploadResumeFile(input) {
@@ -583,7 +700,16 @@
         status.className = 'upload-status err';
         status.textContent = data.error;
       } else {
-        document.getElementById('resume-textarea').value = data.text;
+        // В виде по разделам поле лежит скрытым блоком замены: новый файл
+        // заменяет резюме ЦЕЛИКОМ, и увидеть это надо ДО сохранения
+        const замена = document.getElementById('resume-replace');
+        if (замена) {
+          замена.hidden = false;
+          const сетка = document.getElementById('resume-sections');
+          if (сетка) сетка.hidden = true;
+        }
+        const поле = document.getElementById('resume-textarea');
+        поле.value = data.text;
         updateResumeChars();
         status.className = 'upload-status ok';
         status.textContent = `✓ ${data.text.length.toLocaleString('ru')} символов — нажмите «Сохранить резюме»`;
@@ -610,6 +736,9 @@
       if (res.ok) {
         поставитьТочку('resume-badge', !!text.trim());
         document.getElementById('upload-status').textContent = '';
+        // Разделы перечитываются у сервера: новый текст мог разобраться
+        // иначе, и показывать прежнюю разбивку значило бы врать
+        if (!await перечитатьРезюме()) location.reload();
         showToast('✓ Резюме сохранено');
       } else {
         showToast('Не удалось сохранить резюме');

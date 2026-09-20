@@ -76,6 +76,7 @@ from database import (get_db, init_db, migrate_db, DB_PATH, SessionLocal, ModelU
 import medkit_defs as _апт_опр
 import landing_defs as _лнд
 import letter_facts as _письмо_факты
+import resume_sections as _резюме_разделы
 import landing_store as _лнд_хран
 import landing_media as _лнд_медиа
 import medkit_dosage as _апт_дозы
@@ -5092,7 +5093,44 @@ async def hh_page(request: Request, letter: int = None,
     return templates.TemplateResponse(request=request, name="hh.html",
                                       context={"user": user, "resume": resume,
                                                "has_dossier": dossier_ready(профиль),
+                                               "резюме_разделы": _резюме_по_разделам(resume),
                                                "open_letter": открыть})
+
+
+def _резюме_по_разделам(resume):
+    """Резюме для показа по разделам. Источник правды — тот же текст.
+
+    Разбор идёт НА СЕРВЕРЕ и уезжает в разметку первым кадром: собери
+    разделы скрипт, человек увидел бы сплошной текст и его перестройку
+    на глазах (§6.0.15).
+    """
+    текст = (resume.resume_text if resume else "") or ""
+    if not текст.strip():
+        return {"есть": False, "разделы": [], "знаков": 0, "запасной": False}
+    разделы = _резюме_разделы.разобрать(текст)
+    наружу = []
+    for i, р in enumerate(разделы):
+        # `тело` — ДОСЛОВНЫЙ кусок резюме (он же уходит в поле правки),
+        # `показ` — он же без строки заголовка: имя раздела уже стоит
+        # шапкой карточки, и печатать его второй раз строкой ниже значит
+        # сказать одно и то же дважды.
+        кусок = {"индекс": i, "имя": р["имя"], "тело": р["тело"],
+                 "показ": _резюме_разделы.показ(р)}
+        if р["имя"] == "Опыт работы":
+            кусок["места"] = _резюме_разделы.места_работы(р["тело"])
+        if р["имя"] in ("Ключевые навыки", "Навыки"):
+            кусок["навыки"] = _резюме_разделы.навыки(р["тело"])
+            # Строка, ушедшая в чипы, из текста убирается: показать её
+            # дважды значит сказать одно и то же двумя способами
+            if кусок["навыки"]:
+                кусок["показ"] = _резюме_разделы.остаток_без_навыков(кусок["показ"])
+        наружу.append(кусок)
+    return {"есть": True, "разделы": наружу, "знаков": len(текст),
+            # ЗАПАСНОЙ ВИД НАЗЫВАЕТСЯ ПРЯМО: «заголовков hh.ru не нашлось»
+            # и «резюме из одного раздела» — разные факты, и человеку
+            # надо сказать, почему разделов нет.
+            "запасной": len(разделы) == 1
+                        and разделы[0]["имя"] == _резюме_разделы.ВЕСЬ_ТЕКСТ}
 
 
 # ── API: сохранение отображаемого имени ──────────────────────────────────────
@@ -6030,6 +6068,64 @@ async def save_resume_api(request: Request, user=Depends(get_current_user), db: 
         resume.resume_text = text
     db.commit()
     return JSONResponse({"ok": True})
+
+
+# ── API: правка ОДНОГО раздела резюме ────────────────────────────────────────
+# Клиент присылает НОМЕР раздела и его новый текст; полный текст резюме
+# собирает СЕРВЕР, заменяя ровно кусок этого раздела. Пересобирать текст
+# в браузере нельзя: ошибка сборки стоила бы человеку всего резюме,
+# и заметить её было бы нечем — сохранение прошло бы успешно.
+
+@app.post("/api/resume/section")
+async def save_resume_section(request: Request, user=Depends(get_current_user),
+                              db: Session = Depends(get_db)):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    data = await request.json()
+    try:
+        индекс = int(data.get("index"))
+    except (TypeError, ValueError):
+        return JSONResponse({"error": "Не указан раздел"}, status_code=400)
+    новое = data.get("text")
+    if not isinstance(новое, str):
+        return JSONResponse({"error": "Не указан текст раздела"}, status_code=400)
+
+    resume = db.query(Resume).filter(Resume.user_id == user.id).first()
+    текст = (resume.resume_text if resume else "") or ""
+    if not текст.strip():
+        return JSONResponse({"error": "Резюме ещё не загружено"}, status_code=400)
+    try:
+        полный = _резюме_разделы.заменить_тело(текст, индекс, новое)
+    except IndexError:
+        # Разделы пересчитались (резюме поменяли в соседней вкладке) —
+        # молча сохранить не тот кусок хуже отказа.
+        return JSONResponse(
+            {"error": "Разделы резюме изменились — обновите страницу"},
+            status_code=409)
+    resume.resume_text = полный
+    db.commit()
+    # Отдаём ГОТОВУЮ РАЗМЕТКУ тем же файлом, которым рисуется первый кадр
+    # страницы: собери её браузер — построителей стало бы два, и разошлись
+    # бы они молча (§6.0.15, довод `_medkit_grid.html`).
+    return _резюме_разметка(request, resume)
+
+
+@app.get("/api/resume/sections")
+async def resume_sections_html(request: Request, user=Depends(get_current_user),
+                               db: Session = Depends(get_db)):
+    """Разметка разделов резюме. Второй потребитель `_hh_resume.html`."""
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+    resume = db.query(Resume).filter(Resume.user_id == user.id).first()
+    return _резюме_разметка(request, resume)
+
+
+def _резюме_разметка(request, resume):
+    """Тело вкладки «Резюме» — тем же шаблоном, что и первый кадр."""
+    return templates.TemplateResponse("_hh_resume.html", {
+        "request": request,
+        "резюме_разделы": _резюме_по_разделам(resume),
+    })
 
 
 # ── HH Досье: Pydantic-схема ─────────────────────────────────────────────────

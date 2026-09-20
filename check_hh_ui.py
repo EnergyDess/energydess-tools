@@ -141,6 +141,36 @@ def подделать(стр, ушло, перехвачено, подлог=No
         route.fulfill(status=200, content_type="application/json",
                       body=json.dumps({"ok": True}))
 
+    # ПРАВКА РАЗДЕЛА РЕЗЮМЕ идёт на поддельный ответ, и это решение:
+    # настоящий эндпоинт ПИШЕТ в базу стенда, а проба стоит в ряду
+    # §6.0.2 — ряд обязан быть безопасным для любого прогона. Что именно
+    # ложится в базу, спрашивает `tests/test_resume_sections.py`
+    # на голых функциях; здесь спрашивается браузерная половина —
+    # уходит ли правка на сервер и подставляется ли ответ.
+    def раздел(route):
+        try:
+            ушло.append(route.request.post_data or "")
+        except Exception:
+            ушло.append("")
+        тело = route.request.post_data_json or {}
+        # Сервер отдаёт РАЗМЕТКУ: подделываем её тем же образом, чтобы
+        # проверить подстановку, а не выдумываем свой формат ответа
+        разметка = ('<span class="hh-chars-src" data-знаков="424242" hidden></span>'
+                    '<div class="hh-resume-cols" id="resume-sections">'
+                    '<div class="hh-resume-left"><section class="v2-card hh-sec"'
+                    ' data-sec="0"><div class="hh-sec-head">'
+                    '<h3 class="v2-card-title hh-sec-title">Опыт работы</h3>'
+                    '<button class="v2-btn v2-btn-secondary hh-sec-edit" type="button"'
+                    ' onclick="правитьРаздел(0)">Изменить</button></div>'
+                    '<div class="hh-sec-view"><pre class="hh-sec-text">%s</pre></div>'
+                    '<div class="hh-sec-edit-box" hidden>'
+                    '<textarea class="v2-input v2-textarea hh-sec-input"></textarea>'
+                    '</div></section></div><div class="hh-resume-right"></div></div>'
+                    ) % (тело.get("text", "") or "")
+        route.fulfill(status=200, content_type="text/html; charset=utf-8",
+                      body=разметка)
+
+    стр.route("**/api/resume/section", раздел)
     if подлог != "ссылка-не-грузится":
         стр.route("**/api/fetch-url", вакансия)
     стр.route("**/api/analyze-vacancy", анализ)
@@ -157,6 +187,26 @@ def подделать(стр, ушло, перехвачено, подлог=No
         " window.поставитьТочку = (id) => {"
         "   const т = document.getElementById(id);"
         "   if (т) т.className = 'hh-dot'; }; });",
+    # Правка раздела — единственное место вкладки, где можно потерять
+    # НАБРАННОЕ: «Отмена», не вернувшая исходный текст, оставляет в поле
+    # черновик, и следующее «Сохранить» кладёт его в резюме молча.
+    "отмена-не-возвращает":
+        "addEventListener('DOMContentLoaded', () => {"
+        " window.отменитьРаздел = (i) => {"
+        "   const к = document.querySelector('.hh-sec[data-sec=\"' + i + '\"]');"
+        "   к.querySelector('.hh-sec-edit-box').hidden = true;"
+        "   к.querySelector('.hh-sec-view').hidden = false;"
+        "   к.querySelector('.hh-sec-edit').hidden = false; }; });",
+    # Разметку после правки собирает сервер; собери её скрипт — на экране
+    # осталась бы прежняя разбивка при изменившемся тексте
+    "разметку-собирает-скрипт":
+        "addEventListener('DOMContentLoaded', () => {"
+        " const было = window.fetch;"
+        " window.fetch = (u, o) => (String(u).includes('/api/resume/section')"
+        "   ? было(u, o).then(r => ({ ok: r.ok, status: r.status,"
+        "       text: () => Promise.resolve('<div>собрано скриптом</div>'),"
+        "       json: () => r.json() }))"
+        "   : было(u, o)); });",
     "сверка-таблетками":
         "addEventListener('DOMContentLoaded', () => {"
         " const s = document.createElement('style');"
@@ -197,6 +247,34 @@ def доказать(стр, подлог, перехвачено=0):
             ul.remove();
             return v;
         }""")}
+    if подлог == "отмена-не-возвращает":
+        # ВРЕМЕННАЯ карточка, а не живая: к концу прохода тело вкладки уже
+        # подменено ответом сервера, и живой `data-sec="2"` там нет —
+        # замер отвечал бы «карточки нет» и при сработавшем подлоге,
+        # и при не сработавшем (§6.0.3).
+        return {"поле после Отмены": стр.evaluate("""() => {
+            const к = document.createElement('section');
+            к.className = 'v2-card hh-sec';
+            к.dataset.sec = '777';
+            к.innerHTML = '<div class="hh-sec-head">'
+              + '<button class="hh-sec-edit"></button></div>'
+              + '<div class="hh-sec-view"></div>'
+              + '<div class="hh-sec-edit-box" hidden>'
+              + '<textarea class="hh-sec-input">ИСХОДНОЕ</textarea></div>';
+            document.body.appendChild(к);
+            const п = к.querySelector('.hh-sec-input');
+            правитьРаздел(777);
+            п.value = 'ЧЕРНОВИК';
+            отменитьРаздел(777);
+            const итог = п.value === 'ИСХОДНОЕ' ? 'вернулось' : 'остался черновик';
+            к.remove();
+            return итог;
+        }""")}
+    if подлог == "разметку-собирает-скрипт":
+        return {"что подставлено": стр.evaluate(
+            "() => (document.getElementById('resume-body') || {}).textContent"
+            "        ? document.getElementById('resume-body').textContent.slice(0, 40)"
+            "        : 'тела нет'")}
     return {}
 
 
@@ -429,6 +507,64 @@ def проход(подлог=None):
             "; ".join("%s=%s" % (т["id"], т.get("зелёная")) for т in точки),
             собрано=len(точки))
 
+        print("\n6. РЕЗЮМЕ ПО РАЗДЕЛАМ")
+        стр.click('.v2-tab[data-view="resume"]')
+        стр.wait_for_timeout(500)
+        # Разделы обязаны быть В ПЕРВОМ КАДРЕ: собери их скрипт, человек
+        # увидел бы сплошной текст и его перестройку на глазах (§6.0.15)
+        # Спрашивается СЫРОЙ ОТВЕТ СЕРВЕРА, а не дерево: в дереве разделы
+        # лежат и тогда, когда их собрал скрипт, — то есть вопрос «кто
+        # нарисовал» по нему не задать вовсе (§6.0.15).
+        сырой = стр.request.get(ch.БАЗА + "/hh").text()
+        первый = сырой.count("hh-sec-head")
+        шаг("разделы-нарисовал-сервер", первый > 0,
+            "карточек разделов в разметке: %d" % первый,
+            отрицание="разделов нет — текст резюме не разобрался")
+        слева = стр.locator(".hh-resume-left .hh-sec").count()
+        справа = стр.locator(".hh-resume-right .hh-sec").count()
+        шаг("опыт-слева-остальное-справа", слева >= 1 and справа >= 1,
+            "слева %d, справа %d" % (слева, справа))
+        мест = стр.locator(".hh-job").count()
+        шаг("места-работы-карточками", мест >= 2, "карточек мест: %d" % мест,
+            отрицание="мест нет — признак не сошёлся, раздел показан текстом")
+        шаг("кнопка-изменить-живая",
+            живой(стр, '.hh-sec[data-sec="2"] .hh-sec-edit').get("дотянулись"))
+
+        # ПРАВКА: поле открывается, «Отмена» возвращает исходный текст
+        было = стр.evaluate(
+            "() => document.querySelector('.hh-sec[data-sec=\"2\"] .hh-sec-input').value")
+        стр.click('.hh-sec[data-sec="2"] .hh-sec-edit')
+        стр.wait_for_timeout(300)
+        видно = стр.locator('.hh-sec[data-sec="2"] .hh-sec-input').is_visible()
+        шаг("изменить-открывает-поле", видно)
+        стр.fill('.hh-sec[data-sec="2"] .hh-sec-input', было + "ЧЕРНОВИК\n")
+        стр.click('.hh-sec[data-sec="2"] .hh-sec-edit-box .v2-btn-secondary')
+        стр.wait_for_timeout(300)
+        стало = стр.evaluate(
+            "() => document.querySelector('.hh-sec[data-sec=\"2\"] .hh-sec-input').value")
+        шаг("отмена-возвращает-исходный-текст", стало == было,
+            "знаков было %d, стало %d" % (len(было), len(стало)))
+
+        # СОХРАНЕНИЕ: уходит на сервер и подставляется ЕГО разметка
+        ушло_до = len(ушло)
+        стр.click('.hh-sec[data-sec="2"] .hh-sec-edit')
+        стр.wait_for_timeout(200)
+        стр.fill('.hh-sec[data-sec="2"] .hh-sec-input', "ПРАВЛЕНЫЙ РАЗДЕЛ\n")
+        стр.click('.hh-sec[data-sec="2"] .hh-sec-save')
+        стр.wait_for_timeout(700)
+        тела = [т for т in ушло[ушло_до:] if "ПРАВЛЕНЫЙ РАЗДЕЛ" in (т or "")]
+        шаг("правка-раздела-ушла-на-сервер", len(тела) == 1,
+            "запросов с правкой: %d" % len(тела),
+            собрано=len(ушло) - ушло_до,
+            отрицание="сохранение не дошло до сервера")
+        шаг("разметку-подставил-сервер",
+            "ПРАВЛЕНЫЙ РАЗДЕЛ" in стр.inner_text("#resume-body"),
+            "в теле вкладки: %s" % ("есть" if "ПРАВЛЕНЫЙ РАЗДЕЛ"
+                                    in стр.inner_text("#resume-body") else "нет"))
+        знаков = стр.inner_text("#resume-chars")
+        шаг("счётчик-знаков-с-сервера", "424" in знаков.replace(" ", ""),
+            "на экране %r" % знаков)
+
         доказательство = доказать(стр, подлог, len(перехвачено)) if подлог else {}
         # Пустой список ошибок — ЗАКОННЫЙ исход, а не «мерить нечего»:
         # страница отработала и не ругнулась. `отрицание` называет это
@@ -463,7 +599,8 @@ def контроль():
 
     итог = []
     for подлог in ["ссылка-не-грузится", "письмо-без-меток",
-                   "точка-всегда-серая", "сверка-таблетками"]:
+                   "точка-всегда-серая", "сверка-таблетками",
+                   "отмена-не-возвращает", "разметку-собирает-скрипт"]:
         находок, пропусков = 0, 0
         print("\nПОДЛОГ: %s" % подлог)
         док = проход(подлог)

@@ -356,45 +356,98 @@
 }
 
 /* ── Резюме (вкладка) ───────────────────────────────────────────────────── */
-.resume-view-card { max-width: 860px; display: flex; flex-direction: column; gap: var(--space-4); }
-.resume-head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-.resume-head h2 { font-size: var(--text-h3); font-weight: 600; }
-/* `.resume-badge*` удалены вместе с разметкой (решение владельца
-   2026-09-20): круг с галочкой у вкладок «Досье» и «Резюме» заменён
-   точкой `.hh-dot`. Мёртвое правило выглядит живым, и через полгода
-   кто-нибудь вернёт под него разметку. */
+/* РЕЗЮМЕ ПО РАЗДЕЛАМ (письмо 3, блок 3). Разметку рисует сервер
+   (`_hh_resume.html`), здесь только раскладка экземпляров и вид карточек
+   мест работы. Всё — на переменных v2. */
+.resume-view { display: flex; flex-direction: column; gap: var(--v2-sp-5); }
+.resume-head { display: flex; align-items: center; gap: var(--v2-sp-2); flex-wrap: wrap; }
 
-.upload-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-.upload-label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-caption);
-  font-weight: 500;
-  color: var(--text-2);
-  cursor: pointer;
-  transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+.hh-resume-tools { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
+.upload-row { display: flex; align-items: center; gap: var(--v2-sp-2); flex-wrap: wrap; }
+/* Поле файла скрыто, а нажимают подпись: открыть выбор файла программно
+   браузер разрешает не везде (§5.8, тот же приём у аптечки) */
+.upload-label { cursor: pointer; }
+.upload-label svg { width: 16px; height: 16px; }
+.upload-status { font-size: var(--v2-fs-sm); color: var(--v2-text-2); }
+.upload-status.ok  { color: var(--v2-ok); }
+.upload-status.err { color: var(--v2-danger); }
+
+/* Две колонки: слева «Опыт работы» (самая длинная часть резюме — в одной
+   колонке он отжимал бы всё прочее за экран), справа остальные разделы.
+   Доли 1.35 / 1 — не вкус: у опыта строки длиннее, у навыков чипы */
+.hh-resume-cols {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: var(--v2-sp-5);
+  align-items: start;
+}
+.hh-resume-left,
+.hh-resume-right { display: flex; flex-direction: column; gap: var(--v2-sp-5); min-width: 0; }
+
+.hh-sec { display: flex; flex-direction: column; gap: var(--v2-sp-3); }
+.hh-sec-head { display: flex; align-items: center; justify-content: space-between; gap: var(--v2-sp-2); }
+.hh-sec-title { margin: 0; }
+.hh-sec-edit svg { width: 15px; height: 15px; }
+/* Тело раздела — ДОСЛОВНЫЙ текст резюме: переводы строк и отступы
+   выгрузки значащие, и схлопывать их нельзя */
+.hh-sec-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: var(--v2-fs-sm);
+  line-height: 1.6;
+  color: var(--v2-text-2);
+}
+.hh-sec-edit-box { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
+.hh-sec-input { min-height: 180px; }
+.hh-sec-actions { display: flex; justify-content: flex-end; gap: var(--v2-sp-2); flex-wrap: wrap; }
+
+.hh-jobs { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
+.hh-job { display: flex; flex-direction: column; gap: 4px; }
+.hh-job-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--v2-sp-2); }
+.hh-job-name { font-size: var(--v2-fs-md); font-weight: 600; color: var(--v2-text); }
+.hh-job-period {
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-text-faint);
+  font-family: var(--v2-font-mono);
   white-space: nowrap;
 }
-@media (hover: hover) {
-  .upload-label:hover { border-color: var(--tool-accent); color: var(--text); }
+.hh-job-role { font-size: var(--v2-fs-sm); color: var(--v2-tool); }
+/* Описание свёрнуто до трёх строк; кнопку «ещё» скрипт прячет там, где
+   текст влез целиком, — иначе она обещала бы действие, которого нет */
+.hh-job-desc {
+  font-size: var(--v2-fs-sm);
+  line-height: 1.6;
+  color: var(--v2-text-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
-.upload-label svg { width: 15px; height: 15px; stroke-width: 1.5; }
-.upload-sep { font-size: var(--text-caption); color: var(--text-faint); }
-.upload-status { font-size: var(--text-caption); }
-.upload-status.ok  { color: var(--success); }
-.upload-status.err { color: var(--error); }
+.hh-job-desc[data-collapsed="1"] {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.hh-job-more {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-tool);
+  cursor: pointer;
+}
+@media (hover: hover) { .hh-job-more:hover { text-decoration: underline; } }
 
-/* Только высота экземпляра, как у #job-input выше; `font-size` убран там же
-   и по той же причине */
-#resume-textarea { min-height: 240px; }
-.resume-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
-.resume-actions { display: flex; gap: var(--space-2); align-items: center; }
-.resume-chars { font-size: var(--text-caption); color: var(--text-faint); }
+.hh-skills { gap: 6px; }
+.hh-resume-all { min-height: 320px; }
+.hh-resume-replace { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
+
+@media (max-width: 900px) {
+  .hh-resume-cols { grid-template-columns: 1fr; }
+}
 
 /* ── Досье (вкладка) ────────────────────────────────────────────────────── */
 .dosie-view-card { max-width: 860px; display: flex; flex-direction: column; gap: var(--v2-sp-3); }
