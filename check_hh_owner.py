@@ -1054,7 +1054,6 @@ def _текст_места(весь, номер):
       addEventListener('DOMContentLoaded', () => {
         const прежний = window.setLetterLang;
         window.setLetterLang = (lang, вручную) => {
-          window.letterLang = lang;
           document.querySelectorAll('.letter-lang-seg .segmented-btn').forEach(b =>
             b.classList.toggle('active', b.dataset.lang === lang));
         };

@@ -194,9 +194,8 @@ def подделать(стр, ушло, перехвачено, подлог=No
         "addEventListener('DOMContentLoaded', () => {"
         " window.отменитьРаздел = (i) => {"
         "   const к = document.querySelector('.hh-sec[data-sec=\"' + i + '\"]');"
-        "   к.querySelector('.hh-sec-edit-box').hidden = true;"
-        "   к.querySelector('.hh-sec-view').hidden = false;"
-        "   к.querySelector('.hh-sec-edit').hidden = false; }; });",
+        "   window._показатьПравку(к, false, '.hh-sec-view', '.hh-sec-edit-box');"
+        " }; });",
     # Разметку после правки собирает сервер; собери её скрипт — на экране
     # осталась бы прежняя разбивка при изменившемся тексте
     "разметку-собирает-скрипт":
@@ -528,30 +527,40 @@ def проход(подлог=None):
         мест = стр.locator(".hh-job").count()
         шаг("места-работы-карточками", мест >= 2, "карточек мест: %d" % мест,
             отрицание="мест нет — признак не сошёлся, раздел показан текстом")
-        шаг("кнопка-изменить-живая",
-            живой(стр, '.hh-sec[data-sec="2"] .hh-sec-edit').get("дотянулись"))
+        # Раздел берётся ПО ФАКТУ кнопки: у «Опыта работы» её нет вовсе —
+        # он правится по карточкам мест (задача 352, письмо 4).
+        сек = стр.evaluate(
+            "() => { const к = document.querySelector('.hh-sec .hh-sec-edit');"
+            "  return к ? к.closest('.hh-sec').dataset.sec : null; }")
+        шаг("раздел-с-кнопкой-правки-нашёлся", сек is not None,
+            "раздел №%s" % сек,
+            отрицание="кнопки правки нет ни у одного раздела")
+        if сек is None:
+            сек = "0"
+        к = '.hh-sec[data-sec="%s"]' % сек
+        шаг("кнопка-изменить-живая", живой(стр, к + " .hh-sec-edit").get("дотянулись"))
 
         # ПРАВКА: поле открывается, «Отмена» возвращает исходный текст
         было = стр.evaluate(
-            "() => document.querySelector('.hh-sec[data-sec=\"2\"] .hh-sec-input').value")
-        стр.click('.hh-sec[data-sec="2"] .hh-sec-edit')
+            "(сел) => document.querySelector(сел + ' .hh-sec-input').value", к)
+        стр.click(к + " .hh-sec-edit")
         стр.wait_for_timeout(300)
-        видно = стр.locator('.hh-sec[data-sec="2"] .hh-sec-input').is_visible()
+        видно = стр.locator(к + " .hh-sec-input").is_visible()
         шаг("изменить-открывает-поле", видно)
-        стр.fill('.hh-sec[data-sec="2"] .hh-sec-input', было + "ЧЕРНОВИК\n")
-        стр.click('.hh-sec[data-sec="2"] .hh-sec-edit-box .v2-btn-secondary')
+        стр.fill(к + " .hh-sec-input", было + "ЧЕРНОВИК\n")
+        стр.click(к + " .hh-sec-cancel")
         стр.wait_for_timeout(300)
         стало = стр.evaluate(
-            "() => document.querySelector('.hh-sec[data-sec=\"2\"] .hh-sec-input').value")
+            "(сел) => document.querySelector(сел + ' .hh-sec-input').value", к)
         шаг("отмена-возвращает-исходный-текст", стало == было,
             "знаков было %d, стало %d" % (len(было), len(стало)))
 
         # СОХРАНЕНИЕ: уходит на сервер и подставляется ЕГО разметка
         ушло_до = len(ушло)
-        стр.click('.hh-sec[data-sec="2"] .hh-sec-edit')
+        стр.click(к + " .hh-sec-edit")
         стр.wait_for_timeout(200)
-        стр.fill('.hh-sec[data-sec="2"] .hh-sec-input', "ПРАВЛЕНЫЙ РАЗДЕЛ\n")
-        стр.click('.hh-sec[data-sec="2"] .hh-sec-save')
+        стр.fill(к + " .hh-sec-input", "ПРАВЛЕНЫЙ РАЗДЕЛ\n")
+        стр.click(к + " .hh-sec-save")
         стр.wait_for_timeout(700)
         тела = [т for т in ушло[ушло_до:] if "ПРАВЛЕНЫЙ РАЗДЕЛ" in (т or "")]
         шаг("правка-раздела-ушла-на-сервер", len(тела) == 1,
