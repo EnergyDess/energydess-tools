@@ -18,7 +18,8 @@
 .workspace {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-5);
+  gap: var(--v2-sp-5);
+  align-items: start;
 }
 @media (max-width: 900px) { .workspace { grid-template-columns: 1fr; } }
 /* min-width у элемента грида по умолчанию auto — колонка не может стать уже
@@ -27,86 +28,92 @@
    вместе с кнопками над письмом. */
 .workspace > * { min-width: 0; }
 
-.panel { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
-
-.panel-title {
-  font-family: var(--font-mono);
-  font-size: var(--text-mono);
-  font-weight: 500;
-  color: var(--text-2);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.panel-title::after { content: ''; flex: 1; height: 1px; background: var(--border-hairline); }
-/* Заголовок, делящий ряд с кнопками действий: забирает остаток ширины,
-   чтобы кнопки прижались вправо. Раньше был инлайновый style="flex:1" */
-.panel-title-grow { flex: 1; }
+/* Карточка колонки: содержимое столбиком с одним шагом. Сама карточка —
+   системная `.v2-card`, здесь только раскладка внутри неё. */
+.hh-col { display: flex; flex-direction: column; gap: var(--v2-sp-4); min-width: 0; }
 
 /* ── Карточка вакансии ──────────────────────────────────────────────────── */
-.vacancy-card { display: flex; flex-direction: column; gap: var(--space-4); }
+/* ОДНО ПОЛЕ НА ТЕКСТ И НА ССЫЛКУ (решение владельца 2026-09-20): своей
+   высоты у поля нет — её задаёт `rows`-подобный минимум компонента, —
+   а здесь только запас под описание вакансии целиком. */
+.hh-job-input { min-height: 15rem; }
 
-/* Переключатель источника (текст / ссылка) — компонент .segmented
-   в style.css. Своего у страницы здесь не осталось ничего. */
-
-.tab-panel { display: none; }
-.tab-panel.active { display: flex; flex-direction: column; gap: var(--space-3); }
-
-/* Только высота экземпляра: 300px — это место поля в колонке, а не свойство
-   компонента, и такие правила родитель задаёт по построению (CLAUDE.md
-   §6.0.2, таблица законных). `font-size` отсюда убран 2026-08-11: он был
-   остатком самодельного поля, которое стояло здесь до миграции со своим
-   фоном, рамкой и кеглем 0.875rem. Три таких поля имели три РАЗНЫХ кегля
-   (0.875 / 0.875 / 0.88rem) — то есть это был дрейф копий, а не решение,
-   и переносить его в компонент было не за чем.
-
-   ЗАМЕЧАНИЕ ПРО ФОРМУ: правило по id весит больше любого класса, поэтому
-   даже законная раскладка, записанная так, не переопределяется системой —
-   ни медиазапросом в style.css, ни вариантом компонента. Проверка 8. */
-#job-input { min-height: 300px; }
-
-.url-row { display: flex; gap: var(--space-2); }
-/* Только раскладка: место поля в ряду. Высоту 44px даёт .input-compact
-   из style.css — она у поля и у .fetch-btn общая, поэтому и живёт в системе */
-.url-row .input { flex: 1; }
-.fetch-btn { height: 44px; padding: 0 var(--space-4); white-space: nowrap; font-size: var(--text-caption); }
-
-.fetched-preview {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--text-caption);
-  color: var(--text-2);
-  max-height: 180px;
-  overflow-y: auto;
-  /* Прокрутка внутри страницы, которая сама прокручивается: докатив
-     до конца окошка, палец продолжает движение и уводит страницу.
-     contain это прекращает — цепочка обрывается на границе блока. */
-  overscroll-behavior: contain;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  line-height: 1.5;
-  display: none;
+.hh-field-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--v2-sp-3);
 }
-.fetched-preview.visible { display: block; }
-/* Потолок здесь остаётся ОСОЗНАННО, в отличие от досье и истории писем.
-   Разница не в форме, а в назначении: это не текст для чтения, а признак
-   того, что загрузка сработала и загрузилось именно описание (для второго
-   есть отдельная плашка .alert-warn выше). Раскрыть его целиком значит
-   отодвинуть кнопку «Написать письмо» на пять тысяч символов вниз —
-   замер: вакансия hh даёт 5035 символов, это около 6000px на 390px.
-   Окно при этом увеличено со 180px до 40vh (338px на 844): в окно
-   в 180px палец попадает наполовину собой.
+.hh-clear {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--v2-text-faint);
+  font-family: var(--v2-font);
+  font-size: var(--v2-fs-xs);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--v2-sp-1);
+  transition: color var(--v2-dur-fast) var(--v2-ease-out);
+}
+.hh-clear svg { width: var(--v2-icon); height: var(--v2-icon); }
+@media (hover: hover) {
+  .hh-clear:hover { color: var(--v2-danger); }
+}
+/* Пустое поле после нажатия «Написать письмо»: рамка на полторы секунды.
+   Класс, а не инлайновый `style.borderColor`: инлайн бьёт любое правило
+   файла и в грепы по классам не попадает (§6.0.2). */
+.hh-field-bad { border-color: var(--v2-danger); }
 
-   ЧТО ИЗМЕНИЛОСЬ 2026-08-12: в окне лежит ВЕСЬ текст, а не первые 600
-   символов с многоточием. Потолок окна — про место на экране, а обрез
-   строки был про содержимое, и второе выглядело как первое: человек
-   докручивал до многоточия и видел «вакансия загрузилась не целиком».
-   Теперь прокрутка доходит до конца описания. */
-@media (max-width: 640px) { .fetched-preview { max-height: 40vh; } }
+/* СТАТУС ЗАГРУЗКИ — ПОД ПОЛЕМ, там же, куда вставили ссылку. */
+.hh-fetch-status {
+  display: none;
+  align-items: center;
+  gap: var(--v2-sp-2);
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-text-2);
+}
+.hh-fetch-status.visible { display: flex; }
+.hh-fetch-status.ok  { color: var(--v2-ok); }
+.hh-fetch-status.err { color: var(--v2-danger); }
+/* Страница загрузилась, но описания в ней нет — это не ошибка сети и не успех */
+.hh-fetch-status.warn { color: var(--v2-warn); }
+
+/* Плашка-пояснение: значок слева, текст рядом. Три тона — обычный,
+   предупреждение, отказ. */
+.hh-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--v2-sp-2);
+  padding: var(--v2-sp-3) var(--v2-sp-4);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-md);
+  background: var(--v2-surface-2);
+  font-size: var(--v2-fs-xs);
+  line-height: var(--v2-lh-body);
+  color: var(--v2-text-2);
+}
+.hh-note svg { flex-shrink: 0; width: var(--v2-icon); height: var(--v2-icon); }
+.hh-note-warn { border-color: color-mix(in srgb, var(--v2-warn) 32%, transparent); color: var(--v2-warn); }
+.hh-note-error { border-color: color-mix(in srgb, var(--v2-danger) 32%, transparent); color: var(--v2-danger); }
+.lang-reason-quote { color: var(--v2-text); font-style: italic; }
+
+.hh-preview {
+  display: none;
+  max-height: 12rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--v2-sp-3) var(--v2-sp-4);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-md);
+  background: var(--v2-surface-2);
+  font-size: var(--v2-fs-xs);
+  line-height: var(--v2-lh-body);
+  color: var(--v2-text-2);
+  white-space: pre-wrap;
+}
+.hh-preview.visible { display: block; }
 
 /* ── Растягивание окна вакансии мышью — только десктоп ─────────────────────
    На узком экране этого правила нет намеренно: там текст листается пальцем,
@@ -123,132 +130,126 @@
    до 180px. Это цена предсказуемого поля, за угол которого можно взяться;
    прежний вариант «по содержимому» не давал взяться вообще. */
 @media (min-width: 641px) {
-  .fetched-preview {
+  .hh-preview {
     max-height: none;
-    height: 180px;
-    min-height: 120px;
+    height: 11rem;
+    min-height: 7.5rem;
     resize: vertical;
   }
 }
 
-.fetch-status { font-size: var(--text-caption); display: none; align-items: center; gap: var(--space-2); }
-.fetch-status.visible { display: flex; }
-.fetch-status.ok   { color: var(--success); }
-.fetch-status.err  { color: var(--error); }
-/* Страница загрузилась, но описания в ней нет — это не ошибка сети и не успех */
-.fetch-status.warn { color: var(--warning); }
-
-.char-count {
-  font-size: var(--text-caption);
-  color: var(--text-faint);
-  text-align: right;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: var(--space-3);
-}
-.draft-clear-btn {
-  background: none; border: none; cursor: pointer;
-  font-size: var(--text-caption); color: var(--text-faint); font-family: var(--font);
-  padding: 0; transition: color var(--dur-fast) var(--ease);
-}
-@media (hover: hover) {
-  .draft-clear-btn:hover { color: var(--error); }
-}
-
 /* ── Язык письма ────────────────────────────────────────────────────────── */
-/* Только раскладка ряда: сам переключатель — системный .segmented */
-.letter-lang { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-.letter-lang-label { flex-shrink: 0; }
-.letter-lang-seg { flex: 1; min-width: 160px; }
-.lang-reason {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  font-size: var(--text-caption);
-  color: var(--text-2);
-  line-height: 1.5;
-}
-.lang-reason svg { width: 14px; height: 14px; stroke-width: 1.5; flex-shrink: 0; margin-top: 2px; color: var(--tool-accent); }
-.lang-reason-quote { color: var(--text); }
+/* Только раскладка ряда: сам переключатель — системный `.v2-seg` */
+.hh-lang { display: flex; align-items: center; gap: var(--v2-sp-3); flex-wrap: wrap; }
+.hh-lang .v2-label { flex-shrink: 0; }
+.letter-lang-seg { flex: 1; min-width: 10rem; }
+.letter-lang-seg .v2-seg-btn { flex: 1; }
 
-.generate-btn { width: 100%; }
+/* ── Два действия в одну строку ─────────────────────────────────────────── */
+/* Сверка и генерация стоят рядом и делят строку поровну: это две половины
+   одного решения — посмотреть на совпадение и написать письмо. На узкой
+   ширине становятся друг под другом, потому что подписи длинные. */
+.hh-actions { display: flex; gap: var(--v2-sp-3); flex-wrap: wrap; }
+.hh-actions > .v2-btn { flex: 1 1 12rem; }
 
-/* ── Анализ вакансии ────────────────────────────────────────────────────── */
-.analyze-btn { width: 100%; }
-
-.analysis-card {
-  margin-top: var(--space-2);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
+/* ── Результат сверки ───────────────────────────────────────────────────── */
+.hh-analysis {
   display: none;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--v2-sp-4);
+  padding-top: var(--v2-sp-4);
+  border-top: 1px solid var(--v2-line-3);
 }
-.analysis-card.visible { display: flex; }
-.analysis-score-row { display: flex; align-items: center; gap: var(--space-3); }
-.analysis-score-badge {
-  font-family: var(--font-mono);
-  font-size: var(--text-h3);
-  font-weight: 500;
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
-}
-.score-high { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
-.score-mid  { background: color-mix(in srgb, var(--warning) 12%, transparent); color: var(--warning); }
-.score-low  { background: color-mix(in srgb, var(--error) 12%, transparent);  color: var(--error); }
-.analysis-reason { font-size: var(--text-caption); color: var(--text-2); line-height: 1.5; }
-.analysis-section-title {
-  font-family: var(--font-mono);
-  font-size: var(--text-mono);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-faint);
-  margin-bottom: var(--space-1);
-}
-.analysis-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.tag-match {
-  background: color-mix(in srgb, var(--success) 10%, transparent);
-  color: var(--success);
-  border-color: color-mix(in srgb, var(--success) 25%, transparent);
-}
-.tag-miss {
-  background: color-mix(in srgb, var(--error) 8%, transparent);
-  color: var(--error);
-  border-color: color-mix(in srgb, var(--error) 20%, transparent);
-}
+.hh-analysis.visible { display: flex; }
+.hh-analysis-top { display: flex; align-items: flex-start; gap: var(--v2-sp-4); }
+.hh-analysis-reason { flex: 1; min-width: 0; font-size: var(--v2-fs-sm); }
 
-/* Блок «Разовая настройка под эту вакансию» удалён целиком 2026-08-11
-   (BACKLOG №53): пять чипов, поле и подпись под ним. Правила
-   .custom-context-wrap, .custom-context-label, .ctx-chips и .ctx-hint
-   ушли вместе с разметкой — мёртвый CSS выглядит живым и через полгода
-   кто-нибудь вернёт под него разметку. */
+/* Плитка оценки: цифра Unbounded даёт сам компонент `.v2-tile-num`,
+   здесь — ширина под «10/10» и цвет по порогам. Пороги ТЕ ЖЕ, что
+   в истории писем, и решает их одно место в скрипте (`классОценки`). */
+.hh-score { flex-shrink: 0; min-width: 7rem; align-items: center; text-align: center; }
+.hh-score.score-high { border-color: color-mix(in srgb, var(--v2-ok) 45%, transparent); }
+.hh-score.score-high .v2-tile-num { color: var(--v2-ok); }
+.hh-score.score-mid { border-color: color-mix(in srgb, var(--v2-warn) 45%, transparent); }
+.hh-score.score-mid .v2-tile-num { color: var(--v2-warn); }
+.hh-score.score-low { border-color: color-mix(in srgb, var(--v2-danger) 45%, transparent); }
+.hh-score.score-low .v2-tile-num { color: var(--v2-danger); }
+
+.hh-points-block { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
+/* СТРОКИ, А НЕ ТАБЛЕТКИ (решение владельца 2026-09-20): пункт «опыт
+   промышленной эксплуатации LLM-агентов» в таблетку не помещается,
+   и она либо режет его, либо растягивается на всю карточку. Маркер даёт
+   цвет, перенос — обычный текстовый. */
+.hh-points { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--v2-sp-2); }
+.hh-points li {
+  position: relative;
+  padding-left: var(--v2-sp-5);
+  font-size: var(--v2-fs-sm);
+  line-height: var(--v2-lh-body);
+  color: var(--v2-text-2);
+}
+.hh-points li::before {
+  content: "";
+  position: absolute;
+  left: var(--v2-sp-2);
+  top: 0.62em;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--v2-r-pill);
+}
+.hh-points-ok li::before { background: var(--v2-ok); }
+.hh-points-gap li::before { background: var(--v2-danger); }
+
+/* ── Точка заполненности у вкладок «Досье» и «Резюме» ───────────────────── */
+/* ТОЧКА, А НЕ КРУГ С ГАЛОЧКОЙ (решение владельца 2026-09-20): круг весил
+   столько же, сколько подпись вкладки, и спорил с ней за внимание. Имя
+   точки живёт в `title` и `aria-label` — знак без имени не у кого
+   спросить. */
+.hh-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: var(--v2-r-pill);
+  background: var(--v2-text-faint);
+}
+.hh-dot.is-on { background: var(--v2-ok); }
 
 /* ── Панель результата ──────────────────────────────────────────────────── */
-.result-panel {
+.result-panel { min-height: 31rem; }
+
+.hh-result-head {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  min-height: 500px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--v2-sp-3);
+  flex-wrap: wrap;
 }
-/* Ряд кнопок шире, чем остаток строки рядом с заголовком: три подписи
-   со значками — это ~620px, а колонка письма на 1280 всего 580. Без переноса
-   ряд вылезал за карточку (замер: правый край кнопок 1439 при краю панели
-   1225). min-width: 0 — чтобы ряд вообще мог сжаться: у элемента флекса
-   минимальная ширина по умолчанию равна ширине содержимого. */
-.result-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
-.result-actions { display: flex; gap: var(--space-2); align-items: center; min-width: 0; flex: 1 1 auto; }
-.result-actions button { flex: 1; min-width: 0; justify-content: center; }
+.hh-result-head .v2-card-title { margin: 0; }
+
+/* МЕТКИ ПИСЬМА: должность, компания, длина. Собираются ТОЛЬКО из того,
+   что пришло в данных, — пустая метка не рисуется вовсе (см. скрипт,
+   `показатьМеткиПисьма`). */
+.hh-letter-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--v2-sp-2) var(--v2-sp-3);
+  min-width: 0;
+}
+.hh-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--v2-sp-1);
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-text-faint);
+  min-width: 0;
+}
+.hh-meta-item svg { width: 14px; height: 14px; flex-shrink: 0; }
 
 .letter-content {
   flex: 1;
-  font-size: var(--text-body-sm);
+  font-size: var(--v2-fs-sm);
   line-height: 1.8;
-  color: var(--text);
+  color: var(--v2-text);
   white-space: pre-wrap;
   /* Ссылка в письме — одно слово без пробелов. Без переноса «где угодно»
      она задаёт минимальную ширину блока и распирает всю колонку. */
@@ -256,39 +257,38 @@
   min-width: 0;
   display: none;
 }
-.letter-content a { color: var(--tool-accent); text-decoration: none; }
+.letter-content a { color: var(--v2-tool); text-decoration: none; }
 @media (hover: hover) {
   .letter-content a:hover { text-decoration: underline; }
 }
 /* Режим правки не двигает ни одной буквы. Раньше рамка и отступы
    ПОЯВЛЯЛИСЬ вместе с contenteditable, то есть текст поджимался внутрь:
    замер 2026-08-11 — ширина текста 531 → 497, высота документа
-   2162 → 2269, сдвинулось 118 элементов из 243. На 390px к этому
-   добавлялась прокрутка к полю, и всё вместе читалось как «интерфейс
-   поехал от нажатия».
-
-   Отрицательный внешний отступ ровно на величину внутреннего ПЛЮС рамка:
-   коробка вырастает НАРУЖУ, в поле карточки (у неё --space-6 запаса,
-   нужно --space-4 и пиксель), а текст остаётся на прежнем месте.
-   Про рамку сказано отдельно, потому что на ней я и споткнулся: без
-   вычета этого пикселя высота документа менялась на 2 — мало, но
-   «ничего не двигается» и «двигается на 2px» это разные утверждения,
-   а замер показывает второе. */
+   2162 → 2269, сдвинулось 118 элементов из 243. Рамка стоит всегда,
+   прозрачной, и в режиме правки только меняет цвет. */
+.letter-content {
+  padding: var(--v2-sp-4);
+  border: 1px solid transparent;
+  border-radius: var(--v2-r-lg);
+}
 .letter-content[contenteditable="true"] {
+  border-color: var(--v2-tool);
+  background: var(--v2-surface-field);
   outline: none;
-  border: 1px solid var(--tool-accent);
-  border-radius: var(--radius-sm);
-  padding: var(--space-3) var(--space-4);
-  margin: calc(-1 * var(--space-3) - 1px) calc(-1 * var(--space-4) - 1px);
-  background: var(--surface-2);
 }
 
-/* BACKLOG №115. Пустое состояние переехало В СИСТЕМУ целиком:
-   `.empty-state .empty-state-hero` плюс `.empty-state-icon`. Правила
-   перенесены ДОСЛОВНО, расхождение ноль — здесь была единственная
-   приличная реализация из девяти, её и подняли в базу.
-   Имя `.empty-icon` заодно ушло: оно совпадало по смыслу с системным
-   значком и жило только тут. */
+/* ДЕЙСТВИЯ ВНИЗУ КАРТОЧКИ. «Новое письмо» отжато вправо: оно уводит
+   от написанного, остальные три с ним работают. На узкой ширине ряд
+   переносится, и отжим пропадает сам — там он означал бы пустую строку. */
+.hh-result-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--v2-sp-2);
+  flex-wrap: wrap;
+  padding-top: var(--v2-sp-4);
+  border-top: 1px solid var(--v2-line-3);
+}
+.hh-new-letter { margin-left: auto; }
 
 .loading-state {
   flex: 1;
@@ -296,106 +296,73 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-4);
+  gap: var(--v2-sp-4);
 }
-/* Дорожка — СИСТЕМНАЯ (задача 118), а заливка — её вариант
-   `.meter-fill-loop`: неопределённая загрузка. Своего у экземпляра
-   осталось два свойства: ширина 200px и высота 3px через ручку
-   компонента. Кромка (`.meter-edge`) сохранена намеренно, хотя система
-   советует её от 5px: снять её значило бы изменить облик, а вопрос
-   этого сведения — убрать копию, а не перерисовать полосу. */
-.loading-bar { width: 200px; --meter-h: 3px; }
+/* Дорожка и заливка — системные `.v2-progress`; своего у экземпляра
+   осталась ширина и бесконечный ход: длительность генерации заранее
+   неизвестна, и доля здесь означала бы выдуманное число. */
+.hh-loading-bar { width: 12.5rem; }
+.hh-loading-fill { width: 40%; animation: hh-loading 1.4s var(--v2-ease) infinite; }
+@keyframes hh-loading {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hh-loading-fill { animation: none; width: 100%; opacity: 0.5; }
+}
 
-.loading-text { font-size: var(--text-caption); color: var(--text-2); }
+.loading-text { font-size: var(--v2-fs-xs); color: var(--v2-text-2); }
 
 .error-state { display: none; }
-/* .alert / .alert svg / .alert-error переехали в style.css: компонент
-   системный, и страница переопределяла его целиком. Значения ушли туда
-   как есть — вид этой страницы не изменился, изменился вид остальных,
-   которые до сих пор получали версию не по шкале. */
 
-.warn-box {
-  background: color-mix(in srgb, var(--warning) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
+/* Вакансия слабо подходит: предупреждение и кнопка «всё равно». Карточка
+   вложенная — системная `.v2-card-nested`; здесь раскладка и тон. */
+.hh-warn-box {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--v2-sp-3);
+  align-items: flex-start;
+  border-color: color-mix(in srgb, var(--v2-warn) 32%, transparent);
 }
-.warn-box-text { font-size: var(--text-body-sm); color: var(--warning); line-height: 1.5; }
-.warn-box-score { font-size: var(--text-caption); color: color-mix(in srgb, var(--warning) 65%, transparent); }
-.warn-force-btn {
-  align-self: flex-start;
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-caption);
-  background: color-mix(in srgb, var(--warning) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
-  border-radius: var(--radius-sm);
-  color: var(--warning);
-  cursor: pointer;
-  font-family: var(--font);
-  transition: background var(--dur-fast) var(--ease);
-}
-@media (hover: hover) {
-  .warn-force-btn:hover { background: color-mix(in srgb, var(--warning) 22%, transparent); }
-}
-
-.letter-stats {
-  display: none;
-  gap: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border-hairline);
-}
-.stat { display: flex; flex-direction: column; gap: 2px; }
-.stat-value { font-family: var(--font-mono); font-size: var(--text-body); font-weight: 500; color: var(--text); }
-.stat-label {
-  font-family: var(--font-mono);
-  font-size: var(--text-mono);
-  color: var(--text-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
+.hh-warn-text { font-size: var(--v2-fs-sm); line-height: var(--v2-lh-body); color: var(--v2-warn); }
+.hh-warn-score { font-size: var(--v2-fs-xs); color: color-mix(in srgb, var(--v2-warn) 70%, transparent); }
 
 /* ── Советы ─────────────────────────────────────────────────────────────── */
-.tips { padding: var(--space-4) var(--space-5); }
-.tips-title {
-  font-family: var(--font-mono);
-  font-size: var(--text-mono);
-  font-weight: 500;
-  color: var(--tool-accent);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: var(--space-3);
+/* СОВЕТЫ ЖИВУТ В ПУСТОМ СОСТОЯНИИ (решение владельца 2026-09-20): прежде
+   они стояли отдельной карточкой под формой и занимали место на КАЖДОМ
+   экране, включая тот, где письмо уже написано и советы бесполезны. */
+.hh-tips {
+  margin: var(--v2-sp-2) 0 0;
+  padding: 0;
+  list-style: none;
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  flex-direction: column;
+  gap: var(--v2-sp-2);
+  text-align: left;
+  max-width: 26rem;
 }
-.tips-title svg { width: 14px; height: 14px; stroke-width: 1.5; }
-.tips ul { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
-.tips ul li { font-size: var(--text-caption); color: var(--text-2); padding-left: var(--space-4); position: relative; }
-.tips ul li::before { content: '·'; position: absolute; left: var(--space-1); color: var(--tool-accent); }
+.hh-tips li {
+  position: relative;
+  padding-left: var(--v2-sp-4);
+  font-size: var(--v2-fs-xs);
+  line-height: var(--v2-lh-body);
+  color: var(--v2-text-faint);
+}
+.hh-tips li::before {
+  content: "·";
+  position: absolute;
+  left: var(--v2-sp-1);
+  color: var(--v2-tool);
+}
 
 /* ── Резюме (вкладка) ───────────────────────────────────────────────────── */
 .resume-view-card { max-width: 860px; display: flex; flex-direction: column; gap: var(--space-4); }
 .resume-head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 .resume-head h2 { font-size: var(--text-h3); font-weight: 600; }
-.resume-badge {
-  font-size: var(--text-caption);
-  font-weight: 500;
-  padding: var(--space-1) var(--space-3);
-  border-radius: 999px;
-}
-.resume-badge-ok {
-  background: color-mix(in srgb, var(--success) 14%, transparent);
-  color: var(--success);
-  border: 1px solid color-mix(in srgb, var(--success) 28%, transparent);
-}
-.resume-badge-warn {
-  background: color-mix(in srgb, var(--warning) 12%, transparent);
-  color: var(--warning);
-  border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
-}
+/* `.resume-badge*` удалены вместе с разметкой (решение владельца
+   2026-09-20): круг с галочкой у вкладок «Досье» и «Резюме» заменён
+   точкой `.hh-dot`. Мёртвое правило выглядит живым, и через полгода
+   кто-нибудь вернёт под него разметку. */
 
 .upload-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 .upload-label {
@@ -430,34 +397,34 @@
 .resume-chars { font-size: var(--text-caption); color: var(--text-faint); }
 
 /* ── Досье (вкладка) ────────────────────────────────────────────────────── */
-.dosie-view-card { max-width: 860px; display: flex; flex-direction: column; gap: var(--space-3); }
-.dosie-head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-.dosie-head h2 { font-size: var(--text-h3); font-weight: 600; }
-.dosie-hint { font-size: var(--text-caption); color: var(--text-faint); line-height: 1.5; }
+.dosie-view-card { max-width: 860px; display: flex; flex-direction: column; gap: var(--v2-sp-3); }
+.dosie-head { display: flex; align-items: center; gap: var(--v2-sp-3); flex-wrap: wrap; }
+.dosie-head h2 { font-size: var(--v2-fs-xl); font-weight: 600; }
+.dosie-hint { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); line-height: 1.5; }
 
 /* Аккордеоны секций досье */
-.ds { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.ds { border: 1px solid var(--v2-line-2); border-radius: var(--v2-r-md); overflow: hidden; }
 .ds-toggle {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-2);
+  padding: var(--v2-sp-3) var(--v2-sp-4);
+  background: var(--v2-surface-2);
   border: none;
   cursor: pointer;
-  font-family: var(--font);
-  color: var(--text-2);
-  font-size: var(--text-caption);
+  font-family: var(--v2-font);
+  color: var(--v2-text-2);
+  font-size: var(--v2-fs-xs);
   font-weight: 600;
   text-align: left;
-  gap: var(--space-3);
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  gap: var(--v2-sp-3);
+  transition: background var(--v2-dur-fast) var(--v2-ease), color var(--v2-dur-fast) var(--v2-ease);
 }
 @media (hover: hover) {
-  .ds-toggle:hover { background: var(--surface-3); color: var(--text); }
+  .ds-toggle:hover { background: var(--v2-surface-hover); color: var(--v2-text); }
 }
-.ds-chev { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-faint); transition: transform var(--dur-base) var(--ease); }
+.ds-chev { width: 14px; height: 14px; flex-shrink: 0; color: var(--v2-text-faint); transition: transform var(--v2-dur-base) var(--v2-ease); }
 .ds-chev.open { transform: rotate(180deg); }
 /* Аккордеон секции досье. Открытое состояние — класс, а не инлайновый
    max-height в разметке: раньше семь секций несли style="max-height: 0px"
@@ -482,7 +449,7 @@
      и рамка .ds-body-inner в него ВХОДЯТ, сколько ни ставь min-height: 0
      на сам элемент. Замер: с голым 0fr закрытая секция 33px, с minmax — 0. */
   grid-template-rows: minmax(0, 0fr);
-  transition: grid-template-rows var(--dur-slow) var(--ease);
+  transition: grid-template-rows var(--v2-dur-enter) var(--v2-ease);
   /* Обрезка и на самом контейнере, не только на элементе внутри.
      Замер: с ней 0px в закрытом виде, без неё 33px — у .ds-body-inner
      свои --space-4 паддинга и рамка сверху, а padding элемента сетки
@@ -495,34 +462,34 @@
    ниже своего содержимого и закрытая секция остаётся раскрытой */
 .ds-body > * { min-height: 0; }
 .ds-body-inner {
-  padding: var(--space-4);
+  padding: var(--v2-sp-4);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  border-top: 1px solid var(--border-hairline);
+  gap: var(--v2-sp-3);
+  border-top: 1px solid var(--v2-line-3);
 }
 
-.dosie-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.dosie-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--v2-sp-3); }
 @media (max-width: 640px) { .dosie-row { grid-template-columns: 1fr; } }
-.dosie-field { display: flex; flex-direction: column; gap: var(--space-1); }
+.dosie-field { display: flex; flex-direction: column; gap: var(--v2-sp-1); }
 .dosie-field.full { grid-column: 1 / -1; }
 .dosie-label {
-  font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-family: var(--v2-font-mono);
+  font-size: var(--v2-fs-xs);
   font-weight: 500;
-  color: var(--text-faint);
+  color: var(--v2-text-faint);
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
-.dosie-hint-sm { font-size: var(--text-caption); color: var(--text-faint); line-height: 1.45; }
+.dosie-hint-sm { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); line-height: 1.45; }
 
 /* Динамические списки досье */
-.dosie-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.dosie-list { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
 .dosie-item {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-3) var(--space-6) var(--space-3) var(--space-3);
+  background: var(--v2-surface-2);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-sm);
+  padding: var(--v2-sp-3) var(--v2-sp-6) var(--v2-sp-3) var(--v2-sp-3);
   position: relative;
 }
 /* Фон полей внутри под-карточки задаёт .input-nested / .textarea-nested,
@@ -532,53 +499,53 @@
 /* BACKLOG №119. Было: свой крестик без размера вовсе. Стало: системный
    набор `.btn-icon .btn-icon-sm .btn-icon-danger`, здесь только МЕСТО
    в углу под-карточки. */
-.dosie-item-del { position: absolute; top: var(--space-2); right: var(--space-2); }
-.dosie-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-bottom: var(--space-2); }
-.dosie-g1 { margin-bottom: var(--space-2); }
+.dosie-item-del { position: absolute; top: var(--v2-sp-2); right: var(--v2-sp-2); }
+.dosie-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--v2-sp-2); margin-bottom: var(--v2-sp-2); }
+.dosie-g1 { margin-bottom: var(--v2-sp-2); }
 @media (max-width: 640px) { .dosie-g2 { grid-template-columns: 1fr; } }
 
 .dosie-add-btn {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-sm);
+  gap: var(--v2-sp-2);
+  padding: var(--v2-sp-2) var(--v2-sp-4);
+  border: 1px dashed var(--v2-line-hover);
+  border-radius: var(--v2-r-sm);
   background: none;
   cursor: pointer;
-  color: var(--text-2);
-  font-size: var(--text-caption);
-  font-family: var(--font);
-  transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  color: var(--v2-text-2);
+  font-size: var(--v2-fs-xs);
+  font-family: var(--v2-font);
+  transition: border-color var(--v2-dur-fast) var(--v2-ease), color var(--v2-dur-fast) var(--v2-ease);
   align-self: flex-start;
 }
 @media (hover: hover) {
-  .dosie-add-btn:hover { border-color: var(--tool-accent); color: var(--tool-accent); }
+  .dosie-add-btn:hover { border-color: var(--v2-tool); color: var(--v2-tool); }
 }
 
 /* Теги навыков */
 .tag-wrap {
-  display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center;
+  display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); align-items: center;
   min-height: 44px;
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  padding: var(--v2-sp-2) var(--v2-sp-3);
+  background: var(--v2-surface-2);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-sm);
   cursor: text;
-  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  transition: border-color var(--v2-dur-fast) var(--v2-ease), box-shadow var(--v2-dur-fast) var(--v2-ease);
 }
 .tag-wrap:focus-within {
-  border-color: var(--tool-accent);
-  box-shadow: 0 0 0 3px var(--tool-accent-dim);
+  border-color: var(--v2-tool);
+  box-shadow: 0 0 0 3px var(--v2-tool-dim);
 }
 .tag-chip {
-  display: inline-flex; align-items: center; gap: var(--space-1);
-  background: var(--tool-accent-dim);
-  border: 1px solid color-mix(in srgb, var(--tool-accent) 30%, transparent);
-  border-radius: var(--radius-sm);
-  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
-  font-size: var(--text-caption);
-  color: var(--tool-accent);
+  display: inline-flex; align-items: center; gap: var(--v2-sp-1);
+  background: var(--v2-tool-dim);
+  border: 1px solid color-mix(in srgb, var(--v2-tool) 30%, transparent);
+  border-radius: var(--v2-r-sm);
+  padding: var(--v2-sp-1) var(--v2-sp-2) var(--v2-sp-1) var(--v2-sp-3);
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-tool);
   white-space: nowrap;
 }
 /* BACKLOG №119. Было: свой крестик без размера. Стало: системный набор.
@@ -588,72 +555,78 @@
    26px ему там много — сжат до 18. */
 .tag-chip-x { width: 18px; height: 18px; }
 .tag-text-input {
-  background: none; border: none; outline: none; color: var(--text);
-  font-size: var(--text-caption); font-family: var(--font); flex: 1; min-width: 120px;
+  background: none; border: none; outline: none; color: var(--v2-text);
+  font-size: var(--v2-fs-xs); font-family: var(--v2-font); flex: 1; min-width: 120px;
 }
 
 /* Чекбоксы концовки */
-.dosie-checks { display: flex; flex-direction: column; gap: var(--space-2); }
+.dosie-checks { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
 /* Здесь стояло ещё пять объявлений — font-family, font-weight,
    text-transform, letter-spacing, margin-bottom, — и все пять не описывали
    эту строку, а гасили голое правило `label` из style.css: без них обычная
    фраза «Ставить фразу…» рисовалась моноширинным капсом. Правило переехало
    на класс .field-label (BACKLOG.md, задача 40), гасить стало нечего. */
 .dosie-check {
-  display: flex; align-items: center; gap: var(--space-3); cursor: pointer;
-  font-size: var(--text-body-sm); color: var(--text-2);
-  padding: var(--space-1) 0; user-select: none;
+  display: flex; align-items: center; gap: var(--v2-sp-3); cursor: pointer;
+  font-size: var(--v2-fs-sm); color: var(--v2-text-2);
+  padding: var(--v2-sp-1) 0; user-select: none;
 }
 .dosie-check input[type=checkbox] {
   width: 15px; height: 15px;
-  accent-color: var(--tool-accent);
+  accent-color: var(--v2-tool);
   flex-shrink: 0; cursor: pointer;
 }
 
 .dosie-save-row {
   display: flex;
   justify-content: flex-end;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border-hairline);
+  padding-top: var(--v2-sp-3);
+  border-top: 1px solid var(--v2-line-3);
 }
 
 /* ── История (вкладка) ──────────────────────────────────────────────────── */
-.history-view { max-width: 860px; display: flex; flex-direction: column; gap: var(--space-3); }
-.history-head { display: flex; align-items: baseline; gap: var(--space-3); }
-.history-head h2 { font-size: var(--text-h3); font-weight: 600; }
-.history-count { font-size: var(--text-caption); color: var(--text-faint); }
+.history-view { display: flex; flex-direction: column; gap: var(--v2-sp-3); }
+.history-head { display: flex; align-items: baseline; gap: var(--v2-sp-3); }
 
-.history-list { display: flex; flex-direction: column; gap: var(--space-3); }
-.history-note { padding: var(--space-5); color: var(--text-2); font-size: var(--text-caption); }
-.history-note.err { color: var(--error); }
-.history-note a { color: var(--tool-accent); text-decoration: none; }
+.history-list { display: flex; flex-direction: column; gap: var(--v2-sp-3); }
+.history-note { padding: var(--v2-sp-5); color: var(--v2-text-2); font-size: var(--v2-fs-xs); }
+.history-note.err { color: var(--v2-danger); }
+.history-note a { color: var(--v2-tool); text-decoration: none; }
 @media (hover: hover) {
   .history-note a:hover { text-decoration: underline; }
 }
 .history-item { padding: 0; overflow: hidden; }
+.hh-hist-title { margin: 0; }
+/* «без анализа» — пометка, а не действие: тон предупреждения,
+   форма подписи. */
+.hh-hist-warn {
+  flex-shrink: 0;
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-warn);
+  padding: 2px var(--v2-sp-2);
+  border: 1px solid color-mix(in srgb, var(--v2-warn) 32%, transparent);
+  border-radius: var(--v2-r-pill);
+}
 /* Шапка карточки и кнопка удаления стоят в ряд. Ряд нужен потому, что
    раскрывающая шапка — <button>, а вложить кнопку в кнопку нельзя:
    браузер молча разрывает внешнюю, и часть шапки перестаёт раскрывать
    карточку. Здесь только раскладка — вид обеих кнопок системный. */
 .history-item-row { display: flex; align-items: stretch; }
-.history-item-del { align-self: center; margin-right: var(--space-2); }
-@media (hover: hover) {
-  .history-item-del:hover { color: var(--error); background: var(--surface-2); }
-}
+.history-item-del { align-self: center; margin-right: var(--v2-sp-2); }
 .history-item-head {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--v2-sp-3) var(--v2-sp-4);
   background: none;
   border: none;
   cursor: pointer;
-  font-family: var(--font);
-  color: var(--text);
+  font-family: var(--v2-font);
+  color: var(--v2-text);
   text-align: left;
-  gap: var(--space-3);
-  transition: background var(--dur-fast) var(--ease);
+  gap: var(--v2-sp-3);
+  transition: background var(--v2-dur-fast) var(--v2-ease);
 }
 /* Подсветка шапки — только там, где наведение настоящее.
    Замер 2026-08-12 на 390px с сенсорным вводом: после тапа по заголовку фон
@@ -668,11 +641,11 @@
    (замер: outline-style у :focus — none), то есть табом по истории
    человек шёл вслепую. */
 @media (hover: hover) {
-  .history-item-head:hover { background: var(--surface-2); }
+  .history-item-head:hover { background: var(--v2-surface-2); }
 }
 .history-item-head:focus-visible {
-  background: var(--surface-2);
-  outline: 2px solid var(--tool-accent);
+  background: var(--v2-surface-2);
+  outline: 2px solid var(--v2-tool);
   outline-offset: -2px;
 }
 /* Шапка забирает остаток ряда — иначе кнопка удаления уехала бы к тексту,
@@ -680,20 +653,20 @@
 .history-item-row .history-item-head { flex: 1; min-width: 0; }
 .history-item-meta { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .history-item-title {
-  font-size: var(--text-body-sm);
+  font-size: var(--v2-fs-sm);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.history-item-sub { font-size: var(--text-caption); color: var(--text-faint); }
-.history-item-sub .edited-mark { color: var(--tool-accent); font-style: italic; }
+.history-item-sub { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+.history-item-sub .edited-mark { color: var(--v2-tool); font-style: italic; }
 .history-item-score {
-  font-family: var(--font-mono);
-  font-size: var(--text-caption);
+  font-family: var(--v2-font-mono);
+  font-size: var(--v2-fs-xs);
   font-weight: 500;
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-sm);
+  padding: 2px var(--v2-sp-2);
+  border-radius: var(--v2-r-sm);
   flex-shrink: 0;
 }
 /* Тот же аккордеон на сетке, что и .ds-body выше, и заведён он здесь
@@ -707,9 +680,9 @@
 .history-item-body {
   display: grid;
   grid-template-rows: minmax(0, 0fr);   /* см. разбор minmax у .ds-body выше */
-  transition: grid-template-rows var(--dur-slow) var(--ease);
+  transition: grid-template-rows var(--v2-dur-enter) var(--v2-ease);
   overflow: hidden;
-  padding: 0 var(--space-4);
+  padding: 0 var(--v2-sp-4);
 }
 .history-item-body.open { grid-template-rows: minmax(0, 1fr); }
 /* Нижний отступ живёт ВНУТРИ анимируемого ряда, а не на самом .history-item-body.
@@ -723,24 +696,24 @@
    шапки и верхней границей блока письма было РОВНО 0 во всех состояниях
    (433.59 против 433.59), а зазор, который видно глазом, давала нижняя
    подкладка самой шапки — прозрачная, пока фон шапки совпадает с фоном
-   карточки. При наведении фон шапки становится var(--surface-2), а это
+   карточки. При наведении фон шапки становится var(--v2-surface-2), а это
    ровно тот же цвет, что у блока письма, — два блока сливались в один,
    и промежуток пропадал. Побайтовое сравнение снимков этого не показало
    и показать не могло: геометрия не менялась (CLAUDE.md §6.0.3).
    Отступ живёт ВНУТРИ анимируемого ряда по той же причине, что и нижний. */
-.history-item-inner { min-height: 0; overflow: hidden; padding-top: var(--space-3); padding-bottom: var(--space-4); }
+.history-item-inner { min-height: 0; overflow: hidden; padding-top: var(--v2-sp-3); padding-bottom: var(--v2-sp-4); }
 .history-letter-text {
   white-space: pre-wrap;
-  font-size: var(--text-body-sm);
-  color: var(--text);
+  font-size: var(--v2-fs-sm);
+  color: var(--v2-text);
   line-height: 1.65;
-  padding: var(--space-4);
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
+  padding: var(--v2-sp-4);
+  background: var(--v2-surface-2);
+  border-radius: var(--v2-r-sm);
+  border: 1px solid var(--v2-line-2);
 }
-.history-letter-text a { color: var(--tool-accent); }
-.history-copy-btn { margin-top: var(--space-2); }
+.history-letter-text a { color: var(--v2-tool); }
+.history-copy-btn { margin-top: var(--v2-sp-2); }
 
 /* ── Модалка конфликтов парсера ─────────────────────────────────────────────
    Оверлей, лист, шапка, заголовок и кнопка закрытия — компонент
@@ -845,17 +818,16 @@
 
 /* ── Адаптив ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  .result-panel { min-height: 360px; }
-  #job-input { min-height: 200px; }
-  /* `.result-header { flex-wrap: wrap; gap }` отсюда убрано 2026-08-11:
-     оба свойства с теми же значениями теперь стоят в базовом правиле,
-     то есть медиазапрос повторял его слово в слово и не делал ничего. */
-  /* Три кнопки в 390px в один ряд не помещаются — подписи обрезались.
-     Переносим: по две в ряду, третья уходит на вторую строку. */
-  .result-actions { width: 100%; gap: var(--space-2); flex-wrap: wrap; }
-  .result-actions button { flex: 1 1 calc(50% - var(--space-2)); }
-  .url-row { flex-wrap: wrap; }
-  .url-row .input { min-width: 0; }
+  .result-panel { min-height: 22.5rem; }
+  .hh-job-input { min-height: 12.5rem; }
+  /* Четыре кнопки в 390px в один ряд не помещаются — подписи обрезались.
+     Переносим: по две в ряду. Отжим «Нового письма» вправо при этом
+     пропадает сам (`margin-left: auto` в перенесённом ряду не работает),
+     и это верно: на узкой ширине он означал бы пустую строку. */
+  .hh-result-actions > .v2-btn { flex: 1 1 calc(50% - var(--v2-sp-2)); }
+  /* `.url-row` отсюда убран вместе с полем ссылки (письмо 3 задачи 352):
+     поле теперь ОДНО. Правило пережило свою разметку и держалось
+     в первом числе ряда §6.0.2 как переопределение системного `.input`. */
   .resume-footer { flex-direction: column; align-items: stretch; }
   .resume-actions { flex-direction: column; align-items: stretch; }
 }

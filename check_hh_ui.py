@@ -1,0 +1,531 @@
+"""HH-АССИСТЕНТ НАСКВОЗЬ (BACKLOG №352, письмо 3, блок 2).
+
+ПРОВЕРКА, код 1 при находке, 2 — замерить нечем (стенда нет).
+
+ЧТО СПРАШИВАЕТСЯ — путь, которым идёт человек, от первого нажатия
+до НАБЛЮДАЕМОГО результата (§6.3):
+  1. ОДНО ПОЛЕ. Вставили текст — он уходит в модель; вставили ссылку —
+     сама идёт та же загрузка, что раньше шла по кнопке «Загрузить»,
+     и статус виден ПОД полем. Отказ загрузки тоже виден.
+  2. ПИСЬМО. Сверка с резюме, генерация, копирование, правка,
+     перегенерация, «Новое письмо» — всё работает, как до правки.
+  3. ИСТОРИЯ. Раскрыть, скопировать, удалить с подтверждением.
+  4. ДОСЬЕ. Изменить поле, сохранить, перезагрузить — значение на месте.
+  5. ТОЧКИ ЗАПОЛНЕННОСТИ у вкладок «Досье» и «Резюме»: зелёная, когда
+     заполнено, и у неё есть имя (`title`), а не только цвет.
+
+ВЫЗОВОВ МОДЕЛИ НОЛЬ. `/api/generate-letter` и `/api/analyze-vacancy`
+подменяются в СТРАНИЦЕ (`page.route`): путь кода в браузере при этом
+тот же самый, а деньги и разброс живого ответа к вопросу «работает ли
+экран» отношения не имеют. Резюме и письма в пробе ВЫДУМАННЫЕ —
+настоящие в отчёт и в репозиторий не попадают (§5.1).
+
+ОРГАН СЧИТАЕТСЯ ЖИВЫМ, только если до него дотягивается нажатие
+(`elementFromPoint`), а не если он есть в дереве.
+
+КЛЮЧИ:
+  --контроль   четыре подлога В СТРАНИЦУ, кода не трогают:
+                 ссылка-не-грузится   — вставка ссылки не запускает загрузку;
+                 письмо-без-меток     — метки письма не собираются;
+                 точка-всегда-серая   — точка заполненности не зеленеет;
+                 сверка-таблетками    — пункты сверки не переносятся.
+"""
+import json
+import os
+import sys
+
+try:
+    import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.0.1)
+except ImportError:
+    pass
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import check_hover as ch  # noqa: E402
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+находок = 0
+пропусков = 0
+
+# ВЫДУМАННАЯ вакансия и выдуманное письмо: настоящих данных владельца
+# в пробе нет ни строки.
+ВАКАНСИЯ = (
+    "Требуется инженер по машинному зрению. Обязанности: сборка конвейера "
+    "разметки, дообучение моделей детекции, выкладка сервиса. Требования: "
+    "Python, PyTorch, опыт эксплуатации моделей в проде."
+)
+ССЫЛКА = "https://example.test/vacancy/1"
+ЗАГРУЖЕННЫЙ_ТЕКСТ = (
+    "Оператор складской техники. Обязанности: приём и отгрузка товара. "
+    "Требования: внимательность, готовность к сменному графику."
+)
+ПИСЬМО = (
+    "Здравствуйте! Увидел вашу вакансию и хочу предложить свою кандидатуру. "
+    "Собирал конвейеры разметки и выводил модели детекции в продакшн."
+)
+ОТВЕТ_АНАЛИЗА = {
+    "relevance_score": 8,
+    "relevance_reason": "Опыт совпадает с требованиями по ключевым пунктам.",
+    "key_matches": [
+        "опыт промышленной эксплуатации моделей детекции",
+        "Python и PyTorch",
+    ],
+    "missing_skills": ["формальный опыт работы с конвейерами разметки в командах от десяти человек"],
+    "job_title": "Инженер по машинному зрению",
+    "company_name": "ООО Пример",
+}
+
+
+def шаг(имя, условие, подробность="", собрано=None, отрицание=None):
+    """`собрано` — сколько собрано для замера; ноль — ПРОПУСК (проверка 33).
+
+    `отрицание` — причина, по которой пустой сбор ЗАКОНЕН (проверка 33).
+    """
+    global находок, пропусков
+    if собрано is not None and not собрано:
+        пропусков += 1
+        print("  %-7s %s — сбор пуст, мерить нечего" % ("ПРОПУСК", имя))
+        return
+    if not условие:
+        находок += 1
+    print("  %-4s %s%s" % ("OK" if условие else "ПЛОХО", имя,
+                           (" — " + подробность) if подробность else ""))
+
+
+ЖИВОЙ = """(с) => {
+  const э = document.querySelector(с);
+  if (!э) return {есть: false};
+  const r = э.getBoundingClientRect();
+  if (!r.width || !r.height) return {есть: true, видно: false};
+  const т = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  return {есть: true, видно: true,
+          дотянулись: !!т && (т === э || э.contains(т) || т.contains(э))};
+}"""
+
+
+def живой(стр, селектор):
+    стр.locator(селектор).first.scroll_into_view_if_needed(timeout=3000)
+    return стр.evaluate(ЖИВОЙ, селектор)
+
+
+def подделать(стр, ушло, перехвачено, подлог=None):
+    """Ответы модели и загрузки страницы — поддельные. Живых вызовов 0."""
+    def вакансия(route):
+        перехвачено.append(route.request.url)
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps({"text": ЗАГРУЖЕННЫЙ_ТЕКСТ, "source": "hh"},
+                                      ensure_ascii=False))
+
+    def анализ(route):
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps(ОТВЕТ_АНАЛИЗА, ensure_ascii=False))
+
+    def письмо(route):
+        тело = {"letter": ПИСЬМО, "analysis": ОТВЕТ_АНАЛИЗА, "letter_id": 424242}
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps(тело, ensure_ascii=False))
+
+    # Сохранение правки: письмо поддельное, и в базе стенда его нет —
+    # настоящий PATCH честно отвечал бы 404 на выдуманный `letter_id`,
+    # то есть проба сама заводила бы находку «ошибка в консоли». Тело
+    # запроса ЗАПОМИНАЕТСЯ: «правка сохранена» проверяется тем, что ушло
+    # на сервер, а не тем, что экран не ругнулся.
+    def правка(route):
+        try:
+            ушло.append(route.request.post_data or "")
+        except Exception:
+            ушло.append("")
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps({"ok": True}))
+
+    if подлог != "ссылка-не-грузится":
+        стр.route("**/api/fetch-url", вакансия)
+    стр.route("**/api/analyze-vacancy", анализ)
+    стр.route("**/api/generate-letter", письмо)
+    стр.route("**/api/cover-letters/424242", правка)
+
+
+ПОДЛОГИ_В_СТРАНИЦУ = {
+    "письмо-без-меток":
+        "addEventListener('DOMContentLoaded', () => {"
+        " window.показатьМеткиПисьма = () => {}; });",
+    "точка-всегда-серая":
+        "addEventListener('DOMContentLoaded', () => {"
+        " window.поставитьТочку = (id) => {"
+        "   const т = document.getElementById(id);"
+        "   if (т) т.className = 'hh-dot'; }; });",
+    "сверка-таблетками":
+        "addEventListener('DOMContentLoaded', () => {"
+        " const s = document.createElement('style');"
+        " s.textContent = '.hh-points li { white-space: nowrap;"
+        " overflow: hidden; text-overflow: ellipsis; }';"
+        " document.head.appendChild(s); });",
+}
+
+
+def доказать(стр, подлог, перехвачено=0):
+    """Независимый замер того, что подлог ИЗМЕНИЛ (§6.0.3).
+
+    Замер берётся НЕ из вердикта шагов: «находок стало больше» — это тот же
+    вердикт, напечатанный дважды. Спрашивается ровно то звено, в которое
+    метил подлог, и спрашивается так, чтобы ответ не зависел от того,
+    какая вкладка открыта в конце прохода.
+    """
+    if подлог == "ссылка-не-грузится":
+        return {"перехваченных запросов загрузки": перехвачено}
+    if подлог == "письмо-без-меток":
+        return {"длина показатьМеткиПисьма": стр.evaluate(
+            "() => (window.показатьМеткиПисьма || '').toString().length")}
+    if подлог == "точка-всегда-серая":
+        return {"поставитьТочку знает про is-on": стр.evaluate(
+            "() => (window.поставитьТочку || '').toString().includes('is-on')")}
+    if подлог == "сверка-таблетками":
+        # ВРЕМЕННЫЙ пункт: к концу прохода вкладка письма уже закрыта,
+        # и замер по живому пункту отвечал бы `null` — то есть молчал бы
+        # и при сработавшем подлоге, и при не сработавшем.
+        return {"white-space у пункта": стр.evaluate("""() => {
+            const ul = document.createElement('ul');
+            ul.className = 'hh-points';
+            const li = document.createElement('li');
+            li.textContent = 'проба';
+            ul.appendChild(li);
+            document.body.appendChild(ul);
+            const v = getComputedStyle(li).whiteSpace;
+            ul.remove();
+            return v;
+        }""")}
+    return {}
+
+
+def проход(подлог=None):
+    from playwright.sync_api import sync_playwright
+    global находок
+    ошибки = []
+    with sync_playwright() as p:
+        бр = p.chromium.launch()
+        к = бр.new_context(viewport={"width": 1600, "height": 1100})
+        if подлог in ПОДЛОГИ_В_СТРАНИЦУ:
+            к.add_init_script(ПОДЛОГИ_В_СТРАНИЦУ[подлог])
+        стр = к.new_page()
+        стр.on("console", lambda m: ошибки.append(m.text) if m.type == "error" else None)
+        стр.on("pageerror", lambda e: ошибки.append(str(e)))
+        # Отказы сети собираются С АДРЕСОМ: «404 в консоли» без адреса
+        # не говорит, что именно не приехало, и чинить его не по чему.
+        плохие = []
+        стр.on("response", lambda r: плохие.append("%d %s" % (r.status, r.url))
+               if r.status >= 400 else None)
+        ушло, перехвачено = [], []
+        подделать(стр, ушло, перехвачено, подлог)
+        ch._войти(стр)
+        стр.goto(ch.БАЗА + "/hh", wait_until="domcontentloaded")
+        стр.wait_for_timeout(400)
+
+        print("\n1. ОДНО ПОЛЕ: ТЕКСТ И ССЫЛКА")
+        шаг("поле-вакансии-живое", живой(стр, "#job-input").get("дотянулись"))
+        шаг("переключателя-текст-ссылка-НЕТ",
+            стр.locator("#tab-url, #url-input, #fetch-btn").count() == 0,
+            "органов прежнего переключателя: %d"
+            % стр.locator("#tab-url, #url-input, #fetch-btn").count())
+
+        стр.fill("#job-input", ВАКАНСИЯ)
+        стр.wait_for_timeout(300)
+        счётчик = стр.inner_text("#char-count")
+        шаг("счётчик-символов-считает",
+            счётчик.replace(" ", " ").replace(" ", "") == str(len(ВАКАНСИЯ)),
+            "на экране %s, в тексте %d" % (счётчик, len(ВАКАНСИЯ)))
+
+        # ССЫЛКА: вставляем и ждём, что загрузка пойдёт САМА
+        стр.fill("#job-input", ССЫЛКА)
+        стр.wait_for_timeout(1400)
+        статус = стр.inner_text("#fetch-status").strip()
+        шаг("ссылка-грузится-сама", "Загружено" in статус,
+            "статус под полем: %r" % (статус[:60] or "пусто"))
+        превью = стр.evaluate(
+            "() => { const p = document.getElementById('fetched-preview');"
+            " return {видно: p.classList.contains('visible'), длина: p.textContent.length}; }")
+        шаг("загруженное-описание-видно",
+            превью["видно"] and превью["длина"] > 50, str(превью))
+
+        # ОТКАЗ ЗАГРУЗКИ тоже виден
+        стр.unroute("**/api/fetch-url")
+        стр.route("**/api/fetch-url", lambda r: r.fulfill(
+            status=200, content_type="application/json",
+            body=json.dumps({"error": "hh не отдал страницу"}, ensure_ascii=False)))
+        стр.fill("#job-input", ССЫЛКА + "?2")
+        стр.wait_for_timeout(1400)
+        отказ = стр.inner_text("#fetch-status").strip()
+        шаг("отказ-загрузки-виден", "не отдал" in отказ, "на экране: %r" % отказ[:60])
+
+        print("\n2. ПИСЬМО")
+        стр.fill("#job-input", ВАКАНСИЯ)
+        стр.wait_for_timeout(300)
+        стр.click("#analyze-btn")
+        стр.wait_for_timeout(600)
+        сверка = стр.evaluate("""() => {
+          const к = document.getElementById('analysis-card');
+          const п = [...document.querySelectorAll('#analysis-matches li')];
+          const пропуски = [...document.querySelectorAll('#analysis-missing li')];
+          const плитка = document.getElementById('analysis-score-tile');
+          const самый = п.concat(пропуски).map(li => {
+            const cs = getComputedStyle(li);
+            return {строк: Math.round(li.getBoundingClientRect().height /
+                                      parseFloat(cs.lineHeight)),
+                    режется: cs.textOverflow === 'ellipsis' && cs.whiteSpace === 'nowrap'};
+          });
+          return {видно: к.classList.contains('visible'),
+                  оценка: document.getElementById('analysis-score-badge').textContent,
+                  класс: плитка ? плитка.className : '',
+                  совпадений: п.length, нехваток: пропуски.length,
+                  режется: самый.some(x => x.режется),
+                  многострочных: самый.filter(x => x.строк > 1).length};
+        }""")
+        шаг("сверка-показана", сверка["видно"], str(сверка)[:120])
+        шаг("оценка-плиткой-и-в-цвете",
+            сверка["оценка"] == "8/10" and "score-high" in сверка["класс"],
+            "оценка %s, класс %s" % (сверка["оценка"], сверка["класс"]))
+        шаг("пункты-сверки-переносятся",
+            not сверка["режется"] and сверка["многострочных"] >= 1,
+            "режется %s, многострочных %d из %d"
+            % (сверка["режется"], сверка["многострочных"],
+               сверка["совпадений"] + сверка["нехваток"]),
+            собрано=сверка["совпадений"] + сверка["нехваток"])
+
+        стр.click("#generate-btn")
+        стр.wait_for_selector("#letter-content", state="visible", timeout=8000)
+        стр.wait_for_timeout(400)
+        письмо = стр.inner_text("#letter-content")
+        шаг("письмо-показано", ПИСЬМО[:30] in письмо, письмо[:40])
+        метки = стр.evaluate(
+            "() => { const м = document.getElementById('letter-meta');"
+            " return {видно: !м.hidden, текст: м.innerText.replace(/\\n/g, ' | ')}; }")
+        шаг("метки-письма-из-данных",
+            метки["видно"] and "Инженер" in метки["текст"] and "символов" in метки["текст"],
+            метки["текст"][:90])
+
+        действия = стр.evaluate("""() => {
+          const р = document.getElementById('result-actions');
+          const к = [...р.querySelectorAll('button')];
+          const главных = к.filter(b => b.classList.contains('v2-btn-primary'));
+          const новое = document.getElementById('new-letter-btn');
+          const края = к.map(b => Math.round(b.getBoundingClientRect().right));
+          return {видно: !р.hidden, кнопок: к.length,
+                  главных: главных.map(b => b.textContent.trim()),
+                  новое_правее_всех: новое &&
+                    Math.round(новое.getBoundingClientRect().right) === Math.max(...края)};
+        }""")
+        шаг("действия-письма-внизу-и-живые",
+            действия["видно"] and действия["кнопок"] == 4, str(действия))
+        шаг("копировать-главная-новое-справа",
+            действия["главных"] == ["Копировать"] and действия["новое_правее_всех"],
+            str(действия))
+        шаг("кнопка-копировать-живая", живой(стр, "#copy-btn").get("дотянулись"))
+
+        # правка письма
+        стр.click("#edit-btn")
+        стр.wait_for_timeout(200)
+        правится = стр.evaluate(
+            "() => document.getElementById('letter-content').contentEditable")
+        стр.evaluate("() => { const л = document.getElementById('letter-content');"
+                     " л.innerText = л.innerText + ' Добавлено правкой.'; }")
+        стр.click("#edit-btn")
+        стр.wait_for_timeout(400)
+        после = стр.inner_text("#letter-content")
+        шаг("правка-письма-работает",
+            правится == "true" and "Добавлено правкой." in после,
+            "contentEditable=%s" % правится)
+        шаг("правка-уходит-на-сервер",
+            any("Добавлено правкой." in (тело or "") for тело in ушло),
+            "запросов сохранения: %d" % len(ушло), собрано=len(ушло))
+        метки2 = стр.inner_text("#letter-meta")
+        шаг("метки-пересчитаны-после-правки",
+            "Инженер" in метки2 and "символов" in метки2, метки2.replace("\n", " | ")[:80])
+
+        стр.click("#generate-btn")
+        стр.wait_for_selector("#letter-content", state="visible", timeout=8000)
+        стр.wait_for_timeout(300)
+        шаг("перегенерация-работает",
+            "Добавлено правкой." not in стр.inner_text("#letter-content"))
+
+        стр.click("#new-letter-btn")
+        стр.wait_for_timeout(300)
+        чисто = стр.evaluate("""() => ({
+          поле: document.getElementById('job-input').value,
+          письмо: getComputedStyle(document.getElementById('letter-content')).display,
+          пусто: getComputedStyle(document.getElementById('empty-state')).display,
+          метки: document.getElementById('letter-meta').hidden,
+        })""")
+        шаг("новое-письмо-чистит-экран",
+            not чисто["поле"] and чисто["письмо"] == "none"
+            and чисто["пусто"] != "none" and чисто["метки"], str(чисто))
+
+        print("\n3. ИСТОРИЯ ПИСЕМ")
+        стр.click('.v2-tab[data-view="history"]')
+        стр.wait_for_timeout(900)
+        строк = стр.locator(".history-item").count()
+        шаг("список-писем-есть", строк > 0, "строк: %d" % строк, собрано=строк)
+        счёт = стр.inner_text("#history-count-badge").strip()
+        шаг("счётчик-писем-рядом-с-заголовком", bool(счёт), "на экране: %r" % счёт)
+        if строк:
+            стр.locator(".history-item-head").first.click()
+            стр.wait_for_timeout(500)
+            раскрыто = стр.evaluate(
+                "() => { const т = document.querySelector('.history-item-body');"
+                " return {открыт: т.classList.contains('open'),"
+                "         высота: Math.round(т.getBoundingClientRect().height)}; }")
+            шаг("письмо-раскрывается",
+                раскрыто["открыт"] and раскрыто["высота"] > 40, str(раскрыто))
+            шаг("кнопка-копировать-в-раскрытом-живая",
+                живой(стр, ".history-copy-btn").get("дотянулись"))
+
+            было = стр.locator(".history-item").count()
+            стр.locator(".history-item-del").first.click()
+            стр.wait_for_timeout(500)
+            окно = стр.evaluate(
+                "() => { const м = [...document.querySelectorAll('.modal-ov')]"
+                ".find(m => m.classList.contains('open'));"
+                " return m => 0, м ? м.innerText.slice(0, 120) : null; }")
+            шаг("удаление-спрашивает", bool(окно), "окно: %r" % (окно or "нет"))
+            # отказ от удаления: письмо остаётся
+            стр.keyboard.press("Escape")
+            стр.wait_for_timeout(400)
+            шаг("отказ-от-удаления-оставляет-письмо",
+                стр.locator(".history-item").count() == было,
+                "было %d, стало %d" % (было, стр.locator(".history-item").count()))
+
+        print("\n4. ДОСЬЕ")
+        стр.click('.v2-tab[data-view="dossier"]')
+        стр.wait_for_timeout(500)
+        шаг("поле-досье-живое", живой(стр, "#d-profession").get("дотянулись"))
+        метка = "Проба %d" % os.getpid()
+        стр.fill("#d-profession", метка)
+        стр.click("#dosie-save-btn")
+        стр.wait_for_timeout(900)
+        стр.reload(wait_until="domcontentloaded")
+        стр.wait_for_timeout(700)
+        стр.click('.v2-tab[data-view="dossier"]')
+        стр.wait_for_timeout(500)
+        шаг("досье-сохранилось",
+            стр.input_value("#d-profession") == метка,
+            "в поле после перезагрузки: %r" % стр.input_value("#d-profession"))
+
+        print("\n5. ТОЧКИ ЗАПОЛНЕННОСТИ")
+        точки = стр.evaluate("""() => ['dosie-badge', 'resume-badge'].map(id => {
+          const т = document.getElementById(id);
+          if (!т) return {id, есть: false};
+          const cs = getComputedStyle(т);
+          return {id, есть: true, зелёная: т.classList.contains('is-on'),
+                  имя: т.title, размер: Math.round(parseFloat(cs.width))};
+        })""")
+        шаг("точки-на-месте-и-названы",
+            all(т["есть"] and т["имя"] for т in точки),
+            "; ".join("%s: %s %r" % (т["id"], т.get("зелёная"), т.get("имя"))
+                      for т in точки),
+            собрано=len(точки))
+        шаг("точка-зелёная-когда-заполнено",
+            all(т.get("зелёная") for т in точки),
+            "; ".join("%s=%s" % (т["id"], т.get("зелёная")) for т in точки),
+            собрано=len(точки))
+
+        доказательство = доказать(стр, подлог, len(перехвачено)) if подлог else {}
+        # Пустой список ошибок — ЗАКОННЫЙ исход, а не «мерить нечего»:
+        # страница отработала и не ругнулась. `отрицание` называет это
+        # прямо, иначе проверка 33 числит шаг непадающим (он и правда
+        # истинен на пустом сборе — но сбор здесь и должен быть пуст).
+        шаг("ошибок-в-консоли-нет", not ошибки,
+            "; ".join(ошибки[:2]) + (" | сеть: " + "; ".join(плохие[:3]) if плохие else ""),
+            отрицание="пустой список ошибок и есть искомый исход")
+        бр.close()
+    return доказательство
+
+
+def main():
+    print("HH-АССИСТЕНТ НАСКВОЗЬ — задача 352, письмо 3, блок 2")
+    print("=" * 70)
+    проход()
+    print("\nИТОГ: находок %d, пропусков %d" % (находок, пропусков))
+    return 1 if находок else 0
+
+
+def контроль():
+    global находок, пропусков
+    print("КОНТРОЛЬ — подлоги блока 2 (в СТРАНИЦУ, кода не трогают)")
+    print("=" * 70)
+    print("\nЧИСТЫЙ ПРОГОН")
+    проход()
+    чисто = находок
+    print("  находок без подлога: %d" % чисто)
+    if чисто:
+        print("  ОСНОВА ГРЯЗНАЯ: контроль недействителен (§6.0.3)")
+        return 2
+
+    итог = []
+    for подлог in ["ссылка-не-грузится", "письмо-без-меток",
+                   "точка-всегда-серая", "сверка-таблетками"]:
+        находок, пропусков = 0, 0
+        print("\nПОДЛОГ: %s" % подлог)
+        док = проход(подлог)
+        print("  ДОКАЗАТЕЛЬСТВО: %s" % док)
+        print("  находок: %d" % находок)
+        итог.append((подлог, находок > 0))
+
+    print("\n" + "=" * 70)
+    for имя, поймал in итог:
+        print("  %-22s %s" % (имя, "ЛОВИТ" if поймал else "НЕ ЛОВИТ"))
+    все = all(п for _, п in итог)
+    print("\nКОНТРОЛЬ: %s" % ("все подлоги пойманы" if все else "ЕСТЬ НЕПОЙМАННЫЕ"))
+    return 0 if все else 1
+
+
+def снимки(куда):
+    """Кадры всех вкладок в пустом и заполненном состоянии, 390 и 1920.
+
+    НЕ проверка: кадры смотрит человек. Письмо и сверка подделаны — живой
+    вызов показал бы не то, что увидит владелец, а разброс модели.
+    """
+    from playwright.sync_api import sync_playwright
+    os.makedirs(куда, exist_ok=True)
+    снято = 0
+    with sync_playwright() as p:
+        бр = p.chromium.launch()
+        for ш in (1920, 390):
+            к = бр.new_context(viewport={"width": ш, "height": 1300},
+                               has_touch=(ш == 390), is_mobile=(ш == 390))
+            стр = к.new_page()
+            ушло, перехвачено = [], []
+            подделать(стр, ушло, перехвачено)
+            ch._войти(стр)
+            стр.goto(ch.БАЗА + "/hh", wait_until="domcontentloaded")
+            стр.wait_for_timeout(500)
+            for вкладка in ("write", "history", "dossier", "resume"):
+                стр.evaluate("n => switchView(n)", вкладка)
+                стр.wait_for_timeout(400)
+                стр.screenshot(path=os.path.join(куда, "hh-%s-пусто-%d.png" % (вкладка, ш)),
+                               animations="disabled", full_page=(вкладка != "write"))
+                снято += 1
+            # заполненное состояние вкладки письма: сверка и письмо
+            стр.evaluate("n => switchView(n)", "write")
+            стр.fill("#job-input", ВАКАНСИЯ)
+            стр.wait_for_timeout(250)
+            стр.click("#analyze-btn")
+            стр.wait_for_timeout(500)
+            стр.click("#generate-btn")
+            стр.wait_for_selector("#letter-content", state="visible", timeout=8000)
+            стр.wait_for_timeout(400)
+            стр.screenshot(path=os.path.join(куда, "hh-write-заполнено-%d.png" % ш),
+                           animations="disabled", full_page=True)
+            снято += 1
+            к.close()
+        бр.close()
+    print("кадров: %d, каталог %s" % (снято, куда))
+    return 0 if снято else 2
+
+
+if __name__ == "__main__":
+    if "--контроль" in sys.argv:
+        sys.exit(контроль())
+    if "--снимки" in sys.argv:
+        sys.exit(снимки(sys.argv[sys.argv.index("--снимки") + 1]))
+    sys.exit(main())

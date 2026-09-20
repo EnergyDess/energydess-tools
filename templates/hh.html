@@ -18,14 +18,12 @@
   {% set has_resume = resume and resume.resume_text %}
   {% import '_page_head.html' as ph %}
   {# ШАПКА СТРАНИЦЫ v2 (BACKLOG №352, письмо 2). Крошек здесь нет с 2026-08-10
-     и быть не должно (design-system.md §10.3). Разделы — вкладками шапки,
-     «Новое письмо» — действие: открывает раздел письма и ставит курсор
-     в поле вакансии. Ассистента у HH нет — кнопки нет. #}
+     и быть не должно (design-system.md §10.3). Разделы — вкладками шапки.
+     Кнопок действий в шапке НЕТ: «Новое письмо» уехало в карточку готового
+     письма (решение владельца 2026-09-20) — в шапке оно предлагало начать
+     заново на экране, где начинать ещё нечего. Ассистента у HH нет. #}
   <header class="v2-page-head is-page">
     {{ ph.text(V2_TOOL.hh, 'Вставьте текст или ссылку на вакансию — получите сопроводительное письмо за 32 секунды') }}
-    <div class="v2-head-actions">
-      <button type="button" class="v2-btn v2-btn-primary" onclick="switchView('write'); document.getElementById('job-input').focus()">{{ значок('pen-line') }}Новое письмо</button>
-    </div>
     <nav class="v2-tabs hh-views" aria-label="Разделы HH-ассистента">
       <button type="button" class="v2-tab active is-active" aria-current="page" data-view="write" onclick="switchView('write')">
         {{ значок('pen-line') }} Написать письмо
@@ -35,15 +33,15 @@
       </button>
       <button type="button" class="v2-tab" data-view="dossier" onclick="switchView('dossier')">
         {{ значок('folder-open') }} Досье
-        <span class="resume-badge {{ 'resume-badge-ok' if has_dossier else 'resume-badge-warn' }}" id="dosie-badge">
-          {%- if has_dossier -%}✓{%- else -%}нет{%- endif -%}
-        </span>
+        <span class="hh-dot{{ ' is-on' if has_dossier }}" id="dosie-badge"
+              title="{{ 'Заполнено' if has_dossier else 'Не заполнено' }}"
+              aria-label="{{ 'Заполнено' if has_dossier else 'Не заполнено' }}"></span>
       </button>
       <button type="button" class="v2-tab" data-view="resume" onclick="switchView('resume')">
         {{ значок('file-text') }} Резюме
-        <span class="resume-badge {{ 'resume-badge-ok' if has_resume else 'resume-badge-warn' }}" id="resume-badge">
-          {%- if has_resume -%}✓{%- else -%}нет{%- endif -%}
-        </span>
+        <span class="hh-dot{{ ' is-on' if has_resume }}" id="resume-badge"
+              title="{{ 'Заполнено' if has_resume else 'Не заполнено' }}"
+              aria-label="{{ 'Заполнено' if has_resume else 'Не заполнено' }}"></span>
       </button>
     </nav>
   </header>
@@ -52,158 +50,151 @@
   <section class="hh-view active" id="view-write">
     <div class="workspace">
 
-      <!-- Левая колонка: ввод -->
-      <div class="panel">
-        <div class="card card-static vacancy-card">
-          <div class="panel-title">Вакансия</div>
+      <!-- Левая колонка: вакансия -->
+      <div class="v2-card hh-col" id="vacancy-card">
+        <h2 class="v2-card-title">Вакансия</h2>
 
-          <div class="segmented">
-            <button class="segmented-btn active" onclick="switchTab('text')">
-              {{ значок('clipboard-list') }} Текст
-            </button>
-            <button class="segmented-btn" onclick="switchTab('url')">
-              {{ значок('link') }} Ссылка
-            </button>
+        {# ОДНО ПОЛЕ НА ТЕКСТ И НА ССЫЛКУ (решение владельца 2026-09-20).
+           Переключателя «Текст / Ссылка» больше нет: сервер и до этого
+           принимал ТОЛЬКО текст (`/api/generate-letter` ждёт `job_text`),
+           а загрузка по ссылке была отдельным шагом в браузере. Вставили
+           ссылку — та же загрузка идёт сама; вставили текст — он и уходит
+           в модель. Серверная логика не тронута ни строкой. #}
+        <div class="v2-field">
+          <textarea class="v2-input v2-textarea hh-job-input" id="job-input"
+                    placeholder="Вставьте ссылку на вакансию или её текст — с HH или любого другого сайта...&#10;&#10;Чем полнее описание — тем точнее письмо."></textarea>
+          <div class="hh-field-foot">
+            <span class="v2-hint"><span id="char-count">0</span>&nbsp;символов</span>
+            <button type="button" class="hh-clear" id="clear-text-btn"
+                    onclick="clearJobText()" hidden>{{ значок('x') }} Очистить</button>
           </div>
+        </div>
 
-          <div class="tab-panel active" id="tab-text">
-            <textarea class="textarea" id="job-input" placeholder="Вставьте ссылку на вакансию или её текст — с HH или любого другого сайта...&#10;&#10;Чем полнее описание — тем точнее письмо."></textarea>
-            <div class="char-count">
-              <span id="char-count">0</span>&nbsp;символов
-              <button class="draft-clear-btn" id="clear-text-btn" onclick="clearJobText()" title="Очистить" style="display:none">✕ Очистить</button>
-            </div>
+        {# Статус загрузки и её отказы — ПОД полем, там же, куда вставили
+           ссылку. Человек не должен искать, чем кончилось то, что он сделал. #}
+        <div class="hh-fetch-status" id="fetch-status"></div>
+        {# Разбор прошёл, текст есть, но на описание вакансии не похож —
+           одни служебные плашки. Раньше это выглядело как успех: счётчик
+           показывал тысячи символов, а в модель уезжал куки-баннер. #}
+        <div class="hh-note hh-note-warn" id="fetch-warn" hidden>
+          {{ значок('alert-triangle') }}
+          <span><strong>Похоже, описание не загрузилось.</strong>
+          <span id="fetch-warn-msg"></span>
+          Откройте вакансию на сайте, скопируйте описание и вставьте
+          сюда же — иначе письмо будет написано по одному названию
+          должности.</span>
+        </div>
+        <div class="hh-preview" id="fetched-preview"></div>
+
+        {# Язык письма. Стоит рядом с кнопкой генерации, потому что это
+           последнее решение перед нажатием. Между генерациями выбор
+           не запоминается: каждая новая вакансия начинается с русского
+           либо с автоопределения по ней самой. #}
+        <div class="hh-lang">
+          <span class="v2-label">Язык письма</span>
+          <div class="v2-seg letter-lang-seg" role="group" aria-label="Язык письма">
+            <button class="v2-seg-btn active" type="button" data-lang="ru"
+                    onclick="setLetterLang('ru', true)">Русский</button>
+            <button class="v2-seg-btn" type="button" data-lang="en"
+                    onclick="setLetterLang('en', true)">English</button>
           </div>
+        </div>
+        {# Причина автоопределения — цитата из самой вакансии, а не наша
+           формулировка: человек должен опознать это место глазами #}
+        <div class="hh-note" id="lang-reason" hidden>
+          {{ значок('info') }}
+          <span>Английский выбран автоматически: в вакансии сказано
+            «<span class="lang-reason-quote" id="lang-reason-quote"></span>». Можно переключить обратно.</span>
+        </div>
 
-          <div class="tab-panel" id="tab-url">
-            <div class="url-row">
-              <input type="text" class="input input-compact" id="url-input" placeholder="https://hh.ru/vacancy/..."/>
-              <button class="btn-secondary fetch-btn" id="fetch-btn" onclick="fetchUrl()">
-                <span id="fetch-icon">↓</span> Загрузить
-              </button>
-            </div>
-            <div class="fetch-status" id="fetch-status"></div>
-            {# Разбор прошёл, текст есть, но на описание вакансии не похож —
-               одни служебные плашки. Раньше это выглядело как успех: счётчик
-               показывал тысячи символов, а в модель уезжал куки-баннер. #}
-            <div class="alert alert-warn" id="fetch-warn" style="display:none">
-              {{ значок('alert-triangle') }}
-              <span><strong>Похоже, описание не загрузилось.</strong>
-              <span id="fetch-warn-msg"></span>
-              Откройте вакансию на сайте, скопируйте описание и вставьте
-              на вкладке «Текст» — иначе письмо будет написано по одному
-              названию должности.</span>
-            </div>
-            <div class="fetched-preview" id="fetched-preview"></div>
-          </div>
-
-          <button class="btn-secondary analyze-btn" id="analyze-btn" onclick="analyzeVacancy()">
+        <div class="hh-actions">
+          <button class="v2-btn v2-btn-secondary" id="analyze-btn" onclick="analyzeVacancy()">
             <span id="analyze-icon"></span>
             <span id="analyze-text">Проверить совпадение с резюме</span>
           </button>
-
-          <div class="analysis-card" id="analysis-card">
-            <div class="analysis-score-row">
-              <span class="analysis-score-badge" id="analysis-score-badge"></span>
-              <span class="analysis-reason" id="analysis-reason"></span>
-            </div>
-            <div id="analysis-matches-wrap">
-              <div class="analysis-section-title">Совпадения</div>
-              <div class="analysis-tags" id="analysis-matches"></div>
-            </div>
-            <div id="analysis-missing-wrap">
-              <div class="analysis-section-title">Чего не хватает</div>
-              <div class="analysis-tags" id="analysis-missing"></div>
-            </div>
-          </div>
-
-          {# Язык письма. Стоит рядом с кнопкой генерации, потому что это
-             последнее решение перед нажатием. Компонент — системный
-             .segmented, тот же, что у переключателя «Текст / Ссылка» выше.
-             Между генерациями выбор не запоминается: каждая новая вакансия
-             начинается с русского либо с автоопределения по ней самой. #}
-          <div class="letter-lang">
-            <span class="field-label letter-lang-label">Язык письма</span>
-            <div class="segmented letter-lang-seg" role="group" aria-label="Язык письма">
-              <button class="segmented-btn active" type="button" data-lang="ru"
-                      onclick="setLetterLang('ru', true)">Русский</button>
-              <button class="segmented-btn" type="button" data-lang="en"
-                      onclick="setLetterLang('en', true)">English</button>
-            </div>
-          </div>
-          {# Причина автоопределения — цитата из самой вакансии, а не наша
-             формулировка: человек должен опознать это место глазами #}
-          <div class="lang-reason" id="lang-reason" style="display:none">
-            {{ значок('info') }}
-            <span>Английский выбран автоматически: в вакансии сказано
-              «<span class="lang-reason-quote" id="lang-reason-quote"></span>». Можно переключить обратно.</span>
-          </div>
-
-          <button class="btn-primary generate-btn" id="generate-btn" onclick="generateLetter()">
+          <button class="v2-btn v2-btn-primary" id="generate-btn" onclick="generateLetter()">
             <span id="btn-icon"></span>
             <span id="btn-text">Написать письмо</span>
           </button>
         </div>
 
-        <div class="card card-static tips">
-          <div class="tips-title">{{ значок('lightbulb') }} Советы</div>
-          <ul>
-            <li>Текст: вставляйте полное описание — требования, задачи, условия</li>
-            <li>Ссылка: работает для большинства сайтов с вакансиями</li>
+        {# РЕЗУЛЬТАТ СВЕРКИ — В ТОЙ ЖЕ КАРТОЧКЕ, ПОД КНОПКАМИ: он про
+           вакансию, а не про письмо. Оценка — плитка с крупной цифрой
+           (Unbounded), цвет по тем же порогам, что в истории писем:
+           7 и выше — зелёный, 4–6 — янтарь, ниже — красный.
+           Совпадения и нехватки — СТРОКИ СПИСКА с цветным маркером,
+           а не таблетки: пункты длинные и обязаны переноситься как
+           обычный текст. #}
+        <div class="hh-analysis" id="analysis-card">
+          <div class="hh-analysis-top">
+            <div class="v2-tile hh-score" id="analysis-score-tile">
+              <div class="v2-tile-num" id="analysis-score-badge"></div>
+              <div class="v2-tile-label">совпадение</div>
+            </div>
+            <p class="v2-text hh-analysis-reason" id="analysis-reason"></p>
+          </div>
+          <div class="hh-points-block" id="analysis-matches-wrap">
+            <div class="v2-label">Совпадения</div>
+            <ul class="hh-points hh-points-ok" id="analysis-matches"></ul>
+          </div>
+          <div class="hh-points-block" id="analysis-missing-wrap">
+            <div class="v2-label">Чего не хватает</div>
+            <ul class="hh-points hh-points-gap" id="analysis-missing"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Правая колонка: письмо -->
+      <div class="v2-card hh-col" id="result-panel">
+        <div class="hh-result-head">
+          <h2 class="v2-card-title">Сопроводительное письмо</h2>
+          {# МЕТКИ — ТОЛЬКО ИЗ ТОГО, ЧТО ЕСТЬ В ДАННЫХ: должность
+             и компания приходят разбором вакансии, длина считается
+             по самому письму. Пустых меток не рисуется. #}
+          <div class="hh-letter-meta" id="letter-meta" hidden></div>
+        </div>
+
+        {# ПУСТОЕ СОСТОЯНИЕ НЕСЁТ СОВЕТЫ (решение владельца 2026-09-20):
+           прежде они стояли отдельной карточкой под формой и занимали
+           место на каждом экране, включая тот, где письмо уже написано. #}
+        <div class="v2-empty" id="empty-state">
+          <div class="v2-empty-icon">{{ значок('sparkles') }}</div>
+          <h3 class="v2-empty-title">Здесь появится письмо</h3>
+          <p class="v2-empty-text">Вставьте текст или ссылку на вакансию и нажмите «Написать письмо»</p>
+          <ul class="hh-tips">
+            <li>Вставляйте полное описание — требования, задачи, условия</li>
+            <li>Ссылка работает для большинства сайтов с вакансиями</li>
             <li>HH.ru может блокировать загрузку — тогда скопируйте текст вручную</li>
             <li>Если в вакансии есть вопросы — ответы попадут в письмо</li>
             <li>Ctrl+Enter — быстрая генерация</li>
           </ul>
         </div>
-      </div>
-
-      <!-- Правая колонка: результат -->
-      <div class="card card-static result-panel" id="result-panel">
-        <div class="result-header">
-          <div class="panel-title panel-title-grow">Сопроводительное письмо</div>
-          <div class="result-actions" id="result-actions" style="display:none">
-            <button class="btn-secondary" id="copy-btn" onclick="copyLetter()">
-              {{ значок('copy') }}Копировать
-            </button>
-            <button class="btn-secondary" id="edit-btn" onclick="toggleLetterEdit()">
-              {{ значок('edit-3') }}<span id="edit-btn-label">Редактировать</span>
-            </button>
-            <button class="btn-secondary" onclick="generateLetter()">
-              {{ значок('refresh-cw') }}Перегенерировать
-            </button>
-          </div>
-        </div>
-
-        <div class="empty-state empty-state-hero" id="empty-state">
-          <div class="empty-state-icon">{{ значок('sparkles') }}</div>
-          <h3>Здесь появится письмо</h3>
-          <p>Вставьте текст или ссылку на вакансию и нажмите «Написать письмо»</p>
-        </div>
 
         <div class="loading-state" id="loading-state">
           <div class="spinner spinner-lg"></div>
-          <div class="meter meter-edge loading-bar"><div class="meter-fill meter-fill-loop"></div></div>
+          <div class="v2-progress hh-loading-bar"><div class="v2-progress-fill hh-loading-fill"></div></div>
           <div class="loading-text" id="loading-text">Анализирую вакансию и резюме...</div>
         </div>
 
         <div class="error-state" id="error-state">
-          <div class="alert alert-error">
+          <div class="hh-note hh-note-error">
             {{ значок('alert-circle') }}
             <span id="error-msg"></span>
           </div>
         </div>
 
-        <div id="warn-state" style="display:none">
-          <div class="warn-box">
-            <div class="warn-box-text" id="warn-msg"></div>
-            <div class="warn-box-score" id="warn-score"></div>
-            <button class="warn-force-btn" onclick="generateLetter(true)">Сгенерировать всё равно →</button>
+        <div id="warn-state" hidden>
+          <div class="v2-card-nested hh-warn-box">
+            <div class="hh-warn-text" id="warn-msg"></div>
+            <div class="hh-warn-score" id="warn-score"></div>
+            <button class="v2-btn v2-btn-secondary" onclick="generateLetter(true)">Сгенерировать всё равно →</button>
           </div>
         </div>
 
         {# Плашка появляется, только если анализ вакансии не отработал: письмо
            сгенерировано, но без разбора требований. Раньше единственным
            признаком был заголовок «Без названия» в истории. #}
-        <div class="alert alert-warn" id="analysis-fail-note" style="display:none">
+        <div class="hh-note hh-note-warn" id="analysis-fail-note" hidden>
           {{ значок('alert-triangle') }}
           <span><strong>Вакансия не разобрана.</strong> Письмо составлено по общему тексту,
           без учёта конкретных требований работодателя. Стоит сгенерировать заново.</span>
@@ -212,7 +203,7 @@
         {# Письмо на экране есть, но в историю не попало. Не пугаем и не
            перегенерируем — просто говорим, что делать прямо сейчас: скопировать.
            Иначе человек закроет вкладку и потеряет письмо, не зная об этом. #}
-        <div class="alert alert-warn" id="save-fail-note" style="display:none">
+        <div class="hh-note hh-note-warn" id="save-fail-note" hidden>
           {{ значок('save-off') }}
           <span><strong>Письмо не сохранилось в историю.</strong> Скопируйте его сейчас —
           после перезагрузки страницы оно пропадёт.</span>
@@ -220,15 +211,25 @@
 
         <div class="letter-content" id="letter-content"></div>
 
-        <div class="letter-stats" id="letter-stats">
-          <div class="stat">
-            <div class="stat-value" id="word-count">—</div>
-            <div class="stat-label">слов</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value" id="char-count-result">—</div>
-            <div class="stat-label">символов</div>
-          </div>
+        {# ДЕЙСТВИЯ ВНИЗУ, А НЕ В ШАПКЕ КАРТОЧКИ: они про готовое письмо,
+           и до него надо сначала дочитать. «Новое письмо» стоит справа
+           отдельно — оно уводит от написанного, остальные три с ним
+           работают. Кнопка уехала сюда из шапки СТРАНИЦЫ (решение
+           владельца 2026-09-20): там она предлагала начать заново
+           на экране, где начинать ещё нечего. #}
+        <div class="hh-result-actions" id="result-actions" hidden>
+          <button class="v2-btn v2-btn-primary" id="copy-btn" onclick="copyLetter()">
+            {{ значок('copy') }}Копировать
+          </button>
+          <button class="v2-btn v2-btn-secondary" id="edit-btn" onclick="toggleLetterEdit()">
+            {{ значок('edit-3') }}<span id="edit-btn-label">Редактировать</span>
+          </button>
+          <button class="v2-btn v2-btn-secondary" onclick="generateLetter()">
+            {{ значок('refresh-cw') }}Перегенерировать
+          </button>
+          <button class="v2-btn v2-btn-secondary hh-new-letter" id="new-letter-btn" onclick="startNewLetter()">
+            {{ значок('pen-line') }}Новое письмо
+          </button>
         </div>
       </div>
 
@@ -244,8 +245,8 @@
   <section class="hh-view" id="view-history" data-refresh="renderHistory">
     <div class="history-view">
       <div class="history-head">
-        <h2>История писем</h2>
-        <span class="history-count" id="history-count-badge"></span>
+        <h2 class="v2-card-title hh-hist-title">История писем</h2>
+        <span class="v2-chip-count" id="history-count-badge"></span>
       </div>
       <div class="history-list" id="history-list">
         <div class="history-note">Загрузка...</div>
@@ -255,7 +256,7 @@
 
   <!-- ── Вкладка: досье ────────────────────────────────────────────────── -->
   <section class="hh-view" id="view-dossier">
-    <div class="card card-static dosie-view-card">
+    <div class="v2-card dosie-view-card">
       <div class="dosie-head">
         <h2>Моё досье</h2>
       </div>
@@ -271,20 +272,20 @@
           <div class="ds-body-inner">
             <div class="dosie-row">
               <div class="dosie-field full">
-                <label class="field-label dosie-label">Профессия (одной строкой)</label>
-                <input class="input" id="d-profession" placeholder="AI Video Creator · Fullstack Developer">
+                <label class="v2-label dosie-label">Профессия (одной строкой)</label>
+                <input class="v2-input" id="d-profession" placeholder="AI Video Creator · Fullstack Developer">
               </div>
               <div class="dosie-field">
-                <label class="field-label dosie-label">Город / локация</label>
-                <input class="input" id="d-location" placeholder="Москва, Россия">
+                <label class="v2-label dosie-label">Город / локация</label>
+                <input class="v2-input" id="d-location" placeholder="Москва, Россия">
               </div>
               <div class="dosie-field">
-                <label class="field-label dosie-label">Часовой пояс</label>
-                <input class="input" id="d-timezone" placeholder="UTC+3">
+                <label class="v2-label dosie-label">Часовой пояс</label>
+                <input class="v2-input" id="d-timezone" placeholder="UTC+3">
               </div>
               <div class="dosie-field">
-                <label class="field-label dosie-label">Формат работы</label>
-                <select class="select" id="d-work-format">
+                <label class="v2-label dosie-label">Формат работы</label>
+                <select class="v2-select" id="d-work-format">
                   <option value="">— не указано —</option>
                   <option value="удалёнка">Удалёнка</option>
                   <option value="офис">Офис</option>
@@ -294,9 +295,9 @@
               </div>
             </div>
             <div class="dosie-field">
-              <label class="field-label dosie-label">Языки</label>
+              <label class="v2-label dosie-label">Языки</label>
               <div class="dosie-list" id="d-languages"></div>
-              <button class="dosie-add-btn" type="button" onclick="addLanguage()">+ Добавить язык</button>
+              <button class="v2-btn v2-btn-secondary dosie-add-btn" type="button" onclick="addLanguage()">+ Добавить язык</button>
             </div>
           </div>
         </div>
@@ -311,14 +312,14 @@
         <div class="ds-body">
           <div class="ds-body-inner">
             <div class="dosie-field">
-              <label class="field-label dosie-label">Общий срок в профессии</label>
-              <input class="input" id="d-years" placeholder="5 лет, из них 3 — в AI-видео">
+              <label class="v2-label dosie-label">Общий срок в профессии</label>
+              <input class="v2-input" id="d-years" placeholder="5 лет, из них 3 — в AI-видео">
             </div>
             <div class="dosie-field">
-              <label class="field-label dosie-label">Опыт вне резюме</label>
+              <label class="v2-label dosie-label">Опыт вне резюме</label>
               <p class="dosie-hint-sm">Дополнение к резюме: контекст, детали, связи, которые не влезли на hh.ru.</p>
               <div class="dosie-list" id="d-experience"></div>
-              <button class="dosie-add-btn" type="button" onclick="addExperience()">+ Добавить место работы</button>
+              <button class="v2-btn v2-btn-secondary dosie-add-btn" type="button" onclick="addExperience()">+ Добавить место работы</button>
             </div>
           </div>
         </div>
@@ -333,7 +334,7 @@
         <div class="ds-body">
           <div class="ds-body-inner">
             <div class="dosie-list" id="d-projects"></div>
-            <button class="dosie-add-btn" type="button" onclick="addProject()">+ Добавить проект</button>
+            <button class="v2-btn v2-btn-secondary dosie-add-btn" type="button" onclick="addProject()">+ Добавить проект</button>
           </div>
         </div>
       </div>
@@ -347,7 +348,7 @@
         <div class="ds-body">
           <div class="ds-body-inner">
             <div class="dosie-field">
-              <label class="field-label dosie-label">Навыки и инструменты</label>
+              <label class="v2-label dosie-label">Навыки и инструменты</label>
               <p class="dosie-hint-sm">Вводите через запятую или нажимайте Enter после каждого тега.</p>
               <div class="tag-wrap" id="d-skills-wrap" onclick="document.getElementById('d-skills-input').focus()">
                 <input class="tag-text-input" id="d-skills-input" placeholder="Python, FastAPI, Claude API..." autocomplete="off">
@@ -366,9 +367,9 @@
         <div class="ds-body">
           <div class="ds-body-inner">
             <div class="dosie-field">
-              <label class="field-label dosie-label">Методология и рабочий процесс</label>
+              <label class="v2-label dosie-label">Методология и рабочий процесс</label>
               <p class="dosie-hint-sm">Рабочий процесс, методика, принципы. Часто это выделяет из массы кандидатов.</p>
-              <textarea class="textarea" id="d-methodology" placeholder="Строю AI-продукты итерациями: прототип за день, затем шлифую по фидбэку. Пишу всё сам — без тяжёлых фреймворков, только то, что нужно задаче."></textarea>
+              <textarea class="v2-input v2-textarea" id="d-methodology" placeholder="Строю AI-продукты итерациями: прототип за день, затем шлифую по фидбэку. Пишу всё сам — без тяжёлых фреймворков, только то, что нужно задаче."></textarea>
             </div>
           </div>
         </div>
@@ -383,8 +384,8 @@
         <div class="ds-body">
           <div class="ds-body-inner">
             <div class="dosie-field">
-              <label class="field-label dosie-label">Что ещё важно учесть</label>
-              <textarea class="textarea" id="d-extra" placeholder="Например: ищу частичную занятость; готов к командировкам до 2 раз в год; предпочтительны стартапы на стадии роста."></textarea>
+              <label class="v2-label dosie-label">Что ещё важно учесть</label>
+              <textarea class="v2-input v2-textarea" id="d-extra" placeholder="Например: ищу частичную занятость; готов к командировкам до 2 раз в год; предпочтительны стартапы на стадии роста."></textarea>
             </div>
           </div>
         </div>
@@ -400,8 +401,8 @@
           <div class="ds-body-inner">
             <div class="dosie-row">
               <div class="dosie-field">
-                <label class="field-label dosie-label">Тон</label>
-                <select class="select" id="d-tone">
+                <label class="v2-label dosie-label">Тон</label>
+                <select class="v2-select" id="d-tone">
                   <option value="">— не указано —</option>
                   <option value="живой">Живой</option>
                   <option value="формально-деловой">Формально-деловой</option>
@@ -410,12 +411,12 @@
                 </select>
               </div>
               <div class="dosie-field">
-                <label class="field-label dosie-label">Что не упоминать в письмах</label>
-                <textarea class="textarea" id="d-never-mention" placeholder="Не упоминать ЗП; не писать про фриланс-опыт..."></textarea>
+                <label class="v2-label dosie-label">Что не упоминать в письмах</label>
+                <textarea class="v2-input v2-textarea" id="d-never-mention" placeholder="Не упоминать ЗП; не писать про фриланс-опыт..."></textarea>
               </div>
             </div>
             <div class="dosie-field">
-              <label class="field-label dosie-label">Концовка письма</label>
+              <label class="v2-label dosie-label">Концовка письма</label>
               <div class="dosie-checks">
                 <label class="dosie-check">
                   <input type="checkbox" id="d-suggest-call">
@@ -436,7 +437,7 @@
       </div>
 
       <div class="dosie-save-row">
-        <button class="btn-primary" id="dosie-save-btn" type="button" onclick="saveDosie()">Сохранить досье</button>
+        <button class="v2-btn v2-btn-primary" id="dosie-save-btn" type="button" onclick="saveDosie()">Сохранить досье</button>
       </div>
     </div>
   </section>
@@ -457,14 +458,14 @@
         <span class="upload-sep">или вставьте текст ниже</span>
         <span class="upload-status" id="upload-status"></span>
       </div>
-      <textarea class="textarea" id="resume-textarea"
+      <textarea class="v2-input v2-textarea" id="resume-textarea"
         placeholder="Имя, должность, опыт работы, навыки, проекты, ссылки на портфолио..."
         oninput="updateResumeChars()">{{ resume.resume_text if has_resume else '' }}</textarea>
       <div class="resume-footer">
         <span class="dosie-hint-sm">Резюме — база для генерации. Досье дополняет его деталями.</span>
         <div class="resume-actions">
-          <button class="btn-secondary" type="button" id="parse-dossier-btn" onclick="parseResumeToDossier()">Заполнить досье из резюме</button>
-          <button class="btn-primary" type="button" id="resume-save-btn" onclick="saveResume()">Сохранить резюме</button>
+          <button class="v2-btn v2-btn-secondary" type="button" id="parse-dossier-btn" onclick="parseResumeToDossier()">Заполнить досье из резюме</button>
+          <button class="v2-btn v2-btn-primary" type="button" id="resume-save-btn" onclick="saveResume()">Сохранить резюме</button>
         </div>
       </div>
     </div>
@@ -607,14 +608,7 @@
         body: JSON.stringify({ text }),
       });
       if (res.ok) {
-        const badge = document.getElementById('resume-badge');
-        if (text.trim()) {
-          badge.className = 'resume-badge resume-badge-ok';
-          badge.textContent = '✓';
-        } else {
-          badge.className = 'resume-badge resume-badge-warn';
-          badge.textContent = 'нет';
-        }
+        поставитьТочку('resume-badge', !!text.trim());
         document.getElementById('upload-status').textContent = '';
         showToast('✓ Резюме сохранено');
       } else {
@@ -808,8 +802,30 @@
   }
 
   // ── Вакансия ──
-  let activeTab  = 'text';
+  // ОДНО ПОЛЕ НА ТЕКСТ И НА ССЫЛКУ. `fetchedText` — описание, загруженное
+  // по ссылке; `fetchedUrl` — та ссылка, по которой его взяли. Пара нужна,
+  // чтобы отличить «в поле лежит ссылка, её описание уже загружено»
+  // от «в поле лежит другой текст»: без второй половины стёртая ссылка
+  // оставила бы загруженное описание в силе, и в модель ушла бы ЧУЖАЯ
+  // вакансия — молча, при полностью верном на вид экране.
   let fetchedText = '';
+  let fetchedUrl  = '';
+
+  // Ссылка — строка без пробелов, начинающаяся с http(s). Признак узкий
+  // намеренно: «hh.ru/vacancy/123» без схемы текстом вакансии тоже
+  // не является, но и грузить его нельзя — адрес неполон.
+  function этоСсылка(s) {
+    const v = (s || '').trim();
+    return /^https?:\/\/\S+$/.test(v);
+  }
+
+  // Что уйдёт в модель: загруженное описание, если в поле ровно та ссылка,
+  // по которой его взяли; иначе — сам текст поля.
+  function текстВакансии() {
+    const v = jobInput.value.trim();
+    if (fetchedText && fetchedUrl && v === fetchedUrl) return fetchedText;
+    return v;
+  }
 
   const jobInput      = document.getElementById('job-input');
   const charCountEl   = document.getElementById('char-count');
@@ -821,43 +837,55 @@
   const loadingText   = document.getElementById('loading-text');
   const errorState    = document.getElementById('error-state');
   const letterContent = document.getElementById('letter-content');
-  const letterStats   = document.getElementById('letter-stats');
   const resultActions = document.getElementById('result-actions');
   const errorMsg      = document.getElementById('error-msg');
 
   jobInput.addEventListener('input', () => {
     charCountEl.textContent = jobInput.value.length.toLocaleString('ru');
     localStorage.setItem('hh_draft_job_text', jobInput.value);
-    document.getElementById('clear-text-btn').style.display = jobInput.value ? '' : 'none';
+    document.getElementById('clear-text-btn').hidden = !jobInput.value;
+    // Поле изменилось и больше не равно загруженной ссылке — значит
+    // загруженное описание к нему отношения не имеет
+    if (fetchedUrl && jobInput.value.trim() !== fetchedUrl) сброситьЗагруженное();
     detectLetterLangSoon(jobInput.value);
+    загрузитьЕслиСсылка();
   });
 
-  function switchTab(tab) {
-    activeTab = tab;
-    document.querySelectorAll('.segmented .segmented-btn').forEach((b, i) => {
-      b.classList.toggle('active', (i === 0) === (tab === 'text'));
-    });
-    document.getElementById('tab-text').classList.toggle('active', tab === 'text');
-    document.getElementById('tab-url').classList.toggle('active', tab === 'url');
+  // Вставили ссылку — идёт ТА ЖЕ загрузка, что раньше шла по кнопке
+  // «Загрузить». Задержка нужна, чтобы не дёргать сеть на каждый знак,
+  // пока адрес ещё дописывают.
+  let _fetchTimer = null;
+  function загрузитьЕслиСсылка() {
+    const v = jobInput.value.trim();
+    if (_fetchTimer) clearTimeout(_fetchTimer);
+    if (!этоСсылка(v) || v === fetchedUrl) return;
+    _fetchTimer = setTimeout(() => fetchUrl(v), 400);
   }
 
-  async function fetchUrl() {
-    const url       = document.getElementById('url-input').value.trim();
-    if (!url) { document.getElementById('url-input').focus(); return; }
+  function сброситьЗагруженное() {
+    fetchedText = '';
+    fetchedUrl  = '';
+    const st = document.getElementById('fetch-status');
+    st.className = 'hh-fetch-status';
+    st.textContent = '';
+    document.getElementById('fetch-warn').hidden = true;
+    document.getElementById('fetched-preview').classList.remove('visible');
+  }
 
-    const fetchBtn  = document.getElementById('fetch-btn');
-    const fetchIcon = document.getElementById('fetch-icon');
+  async function fetchUrl(url) {
+    url = (url || '').trim();
+    if (!url) return;
+
     const status    = document.getElementById('fetch-status');
     const preview   = document.getElementById('fetched-preview');
     const warnBox   = document.getElementById('fetch-warn');
 
-    fetchBtn.disabled = true;
-    fetchIcon.innerHTML = '<span class="spinner spinner-sm"></span>';
-    status.className = 'fetch-status visible';
+    status.className = 'hh-fetch-status visible';
     status.textContent = 'Загружаю страницу...';
     preview.classList.remove('visible');
-    warnBox.style.display = 'none';
+    warnBox.hidden = true;
     fetchedText = '';
+    fetchedUrl  = '';
     // Загрузка новой ссылки — это новая вакансия: право автоопределения
     // возвращается, даже если по прошлой человек переключал язык руками
     resetLetterLang();
@@ -870,18 +898,19 @@
       });
       const data = await res.json();
       if (!res.ok || data.error) {
-        status.className = 'fetch-status visible err';
+        status.className = 'hh-fetch-status visible err';
         status.textContent = data.error;
       } else {
         fetchedText = data.text;
+        fetchedUrl  = url;
         const size = data.text.length.toLocaleString('ru');
         if (data.quality_warning) {
-          status.className = 'fetch-status visible warn';
+          status.className = 'hh-fetch-status visible warn';
           status.textContent = `Загружено ${size} символов, но описания в них нет`;
           document.getElementById('fetch-warn-msg').textContent = data.quality_warning + '.';
-          warnBox.style.display = '';
+          warnBox.hidden = false;
         } else {
-          status.className = 'fetch-status visible ok';
+          status.className = 'hh-fetch-status visible ok';
           status.textContent = `✓ Загружено ${size} символов`
             + (data.source === 'hh' ? ' — описание вакансии разобрано' : '');
         }
@@ -899,11 +928,8 @@
         detectLetterLang(data.text);
       }
     } catch {
-      status.className = 'fetch-status visible err';
+      status.className = 'hh-fetch-status visible err';
       status.textContent = 'Ошибка сети';
-    } finally {
-      fetchBtn.disabled = false;
-      fetchIcon.textContent = '↓';
     }
   }
 
@@ -912,35 +938,55 @@
     loadingState.style.display  = state === 'loading' ? 'flex'  : 'none';
     errorState.style.display    = state === 'error'   ? 'block' : 'none';
     letterContent.style.display = state === 'result'  ? 'block' : 'none';
-    letterStats.style.display   = state === 'result'  ? 'flex'  : 'none';
-    resultActions.style.display = state === 'result'  ? 'flex'  : 'none';
+    resultActions.hidden        = state !== 'result';
+    // Метки письма (должность, компания, длина) живут только вместе
+    // с письмом: над пустым экраном они говорили бы о прошлой вакансии.
+    if (state !== 'result') document.getElementById('letter-meta').hidden = true;
     // Плашка о несработавшем анализе живёт только вместе с письмом. Иначе она
     // осталась бы висеть при перегенерации (loading) и на экране ошибки.
-    document.getElementById('analysis-fail-note').style.display = 'none';
-    document.getElementById('save-fail-note').style.display = 'none';
-    if (state !== 'warn') document.getElementById('warn-state').style.display = 'none';
+    document.getElementById('analysis-fail-note').hidden = true;
+    document.getElementById('save-fail-note').hidden = true;
+    if (state !== 'warn') document.getElementById('warn-state').hidden = true;
+  }
+
+  // МЕТКИ СОБИРАЮТСЯ ТОЛЬКО ИЗ ТОГО, ЧТО ПРИШЛО В ДАННЫХ. Пустое поле
+  // метки не даёт вовсе — «Компания: —» не говорит ничего и занимает
+  // место наравне с настоящей.
+  function показатьМеткиПисьма(analysis, текст) {
+    const узел = document.getElementById('letter-meta');
+    const части = [];
+    const должность = (analysis && analysis.job_title || '').trim();
+    const компания  = (analysis && analysis.company_name || '').trim();
+    if (должность) части.push(['briefcase', должность]);
+    if (компания)  части.push(['building-2', компания]);
+    if (текст) {
+      const слов = текст.trim().split(/\s+/).filter(Boolean).length;
+      части.push(['type', `${слов} ${склонениеСлов(слов)} · ${текст.length.toLocaleString('ru')} символов`]);
+    }
+    узел.innerHTML = части
+      // Значок — `<i data-lucide>`: разметку собрал скрипт, и дорисовывает
+      // её наблюдатель `ui.js`. Серверный `значок()` сюда не дотянется.
+      .map(([з, т]) => `<span class="hh-meta-item"><i data-lucide="${з}"></i>${escHtml(т)}</span>`)
+      .join('');
+    узел.hidden = !части.length;
+  }
+
+  function склонениеСлов(n) {
+    const д = n % 10, с = n % 100;
+    if (д === 1 && с !== 11) return 'слово';
+    if (д >= 2 && д <= 4 && (с < 12 || с > 14)) return 'слова';
+    return 'слов';
   }
 
   async function generateLetter(force = false) {
     // сбросить режим редактирования если был активен
     if (letterEditing) toggleLetterEdit();
-    let text = '';
-    if (activeTab === 'text') {
-      text = jobInput.value.trim();
-      if (!text) {
-        jobInput.focus();
-        jobInput.style.borderColor = 'var(--error)';
-        setTimeout(() => { jobInput.style.borderColor = ''; }, 1500);
-        return;
-      }
-    } else {
-      if (!fetchedText) {
-        document.getElementById('url-input').focus();
-        document.getElementById('url-input').style.borderColor = 'var(--error)';
-        setTimeout(() => { document.getElementById('url-input').style.borderColor = ''; }, 1500);
-        return;
-      }
-      text = fetchedText;
+    const text = текстВакансии();
+    if (!text) {
+      jobInput.focus();
+      jobInput.classList.add('hh-field-bad');
+      setTimeout(() => jobInput.classList.remove('hh-field-bad'), 1500);
+      return;
     }
 
     generateBtn.disabled = true;
@@ -975,8 +1021,7 @@
         letterContent.innerHTML = html;
 
         const plain = data.letter;
-        document.getElementById('word-count').textContent = plain.trim().split(/\s+/).length;
-        document.getElementById('char-count-result').textContent = plain.length;
+        показатьМеткиПисьма(data.analysis, plain);
         // запоминаем id и текст для последующего сохранения правок
         lastGeneratedLetterId = data.letter_id || null;
         lastGeneratedLetterText = plain;
@@ -995,8 +1040,7 @@
           saveNote.title = data.save_error;
         }
         localStorage.removeItem('hh_draft_job_text');
-        localStorage.removeItem('hh_draft_job_url');
-        document.getElementById('clear-text-btn').style.display = 'none';
+        document.getElementById('clear-text-btn').hidden = true;
         // обновляем историю после успешной генерации
         if (historyLoaded) renderHistory();
       }
@@ -1028,47 +1072,61 @@
     setTimeout(() => t.classList.remove('show'), 2500);
   }
 
-  document.getElementById('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') fetchUrl(); });
-  document.getElementById('url-input').addEventListener('input', () => {
-    localStorage.setItem('hh_draft_job_url', document.getElementById('url-input').value);
-  });
   jobInput.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') generateLetter(); });
 
   // ── Черновик вакансии: восстановление из localStorage ────────────────────
   (function restoreDraft() {
+    // Ключ ОДИН: поле одно. Прежний `hh_draft_job_url` хранил вторую
+    // половину состояния и осиротел вместе с полем ссылки — оставленный,
+    // он молча подставлял бы адрес, которого на экране уже нет.
     const savedText = localStorage.getItem('hh_draft_job_text');
-    const savedUrl  = localStorage.getItem('hh_draft_job_url');
+    localStorage.removeItem('hh_draft_job_url');
     if (savedText) {
       jobInput.value = savedText;
       charCountEl.textContent = savedText.length.toLocaleString('ru');
-      document.getElementById('clear-text-btn').style.display = '';
+      document.getElementById('clear-text-btn').hidden = false;
       // Черновик — та же вакансия, что была вчера: язык определяем и по нему,
       // иначе восстановленный текст с требованием писать по-английски молча
       // ушёл бы на генерацию с русским
       detectLetterLang(savedText);
-    }
-    if (savedUrl) {
-      document.getElementById('url-input').value = savedUrl;
+      // Сохранённая ссылка грузится так же, как только что вставленная:
+      // иначе после перезагрузки поле показывало бы адрес, а описания
+      // за ним не было бы вовсе.
+      if (этоСсылка(savedText)) fetchUrl(savedText.trim());
     }
   })();
 
   function clearJobText() {
     jobInput.value = '';
     charCountEl.textContent = '0';
-    document.getElementById('clear-text-btn').style.display = 'none';
+    document.getElementById('clear-text-btn').hidden = true;
     localStorage.removeItem('hh_draft_job_text');
+    сброситьЗагруженное();
     resetLetterLang();
+  }
+
+  // «Новое письмо» — то же, что делала кнопка в шапке страницы: чистый
+  // экран письма и курсор в поле вакансии. Написанное письмо при этом
+  // НЕ ТРОГАЕТСЯ в истории — оно там уже сохранено.
+  function startNewLetter() {
+    switchView('write');
+    clearJobText();
+    setState('empty');
+    document.getElementById('letter-meta').hidden = true;
+    document.getElementById('analysis-card').classList.remove('visible');
+    cachedAnalysis = null;
+    jobInput.focus();
   }
 
   // ── Анализ вакансии ───────────────────────────────────────────────────────
   let cachedAnalysis = null;
 
   async function analyzeVacancy() {
-    let text = activeTab === 'text' ? jobInput.value.trim() : fetchedText;
+    let text = текстВакансии();
     if (!text) {
       jobInput.focus();
-      jobInput.style.borderColor = 'var(--error)';
-      setTimeout(() => { jobInput.style.borderColor = ''; }, 1500);
+      jobInput.classList.add('hh-field-bad');
+      setTimeout(() => jobInput.classList.remove('hh-field-bad'), 1500);
       return;
     }
 
@@ -1099,33 +1157,39 @@
     }
   }
 
+  // ПОРОГИ ЦВЕТА — ТЕ ЖЕ, ЧТО В ИСТОРИИ ПИСЕМ (7 и выше зелёный, 4–6
+  // янтарь, ниже красный). Правило ОДНО на два места: вторая копия
+  // разошлась бы с первой молча, и одна и та же оценка светилась бы
+  // на двух экранах разным цветом.
+  function классОценки(score) {
+    return score >= 7 ? 'score-high' : score >= 4 ? 'score-mid' : 'score-low';
+  }
+
   function renderAnalysisCard(data) {
     const score = data.relevance_score ?? 0;
     const badge = document.getElementById('analysis-score-badge');
     badge.textContent = score + '/10';
-    badge.className = 'analysis-score-badge ' + (score >= 7 ? 'score-high' : score >= 4 ? 'score-mid' : 'score-low');
+    document.getElementById('analysis-score-tile').className =
+      'v2-tile hh-score ' + классОценки(score);
 
     document.getElementById('analysis-reason').textContent = data.relevance_reason || '';
 
-    const matchesEl = document.getElementById('analysis-matches');
-    matchesEl.innerHTML = '';
-    (data.key_matches || []).forEach(m => {
-      const s = document.createElement('span');
-      s.className = 'chip chip-wrap tag-match';
-      s.textContent = m;
-      matchesEl.appendChild(s);
-    });
-    document.getElementById('analysis-matches-wrap').style.display = (data.key_matches || []).length ? '' : 'none';
-
-    const missingEl = document.getElementById('analysis-missing');
-    missingEl.innerHTML = '';
-    (data.missing_skills || []).forEach(m => {
-      const s = document.createElement('span');
-      s.className = 'chip chip-wrap tag-miss';
-      s.textContent = m;
-      missingEl.appendChild(s);
-    });
-    document.getElementById('analysis-missing-wrap').style.display = (data.missing_skills || []).length ? '' : 'none';
+    // СТРОКАМИ СПИСКА, А НЕ ТАБЛЕТКАМИ: пункты бывают длинными
+    // («опыт промышленной эксплуатации LLM-агентов»), и в таблетке
+    // такой пункт либо режется, либо растягивает её на всю ширину
+    // карточки. Маркер даёт цвет, перенос — обычный текстовый.
+    const строки = (список, узел) => {
+      узел.innerHTML = '';
+      (список || []).forEach(м => {
+        const li = document.createElement('li');
+        li.textContent = м;
+        узел.appendChild(li);
+      });
+    };
+    строки(data.key_matches, document.getElementById('analysis-matches'));
+    строки(data.missing_skills, document.getElementById('analysis-missing'));
+    document.getElementById('analysis-matches-wrap').hidden = !(data.key_matches || []).length;
+    document.getElementById('analysis-missing-wrap').hidden = !(data.missing_skills || []).length;
 
     document.getElementById('analysis-card').classList.add('visible');
   }
@@ -1153,10 +1217,11 @@
     } else {
       letterContent.contentEditable = 'false';
       label.textContent = 'Редактировать';
-      // обновляем счётчик слов по отредактированному тексту
+      // Метки пересчитываются по ОТРЕДАКТИРОВАННОМУ тексту: длина —
+      // свойство того письма, которое сейчас на экране. Должность
+      // и компания остаются прежними, они от правки текста не зависят.
       const plain = letterContent.innerText;
-      document.getElementById('word-count').textContent = plain.trim().split(/\s+/).filter(Boolean).length;
-      document.getElementById('char-count-result').textContent = plain.length;
+      показатьМеткиПисьма(cachedAnalysis, plain);
       // сохраняем если текст изменился
       if (lastGeneratedLetterId && plain.trim() !== lastGeneratedLetterText.trim()) {
         saveLetter(lastGeneratedLetterId, plain.trim());
@@ -1269,15 +1334,15 @@
     const item = document.createElement('div');
     item.className = 'dosie-item';
     item.innerHTML = `
-      <button class="btn-icon btn-icon-sm btn-icon-danger dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
+      <button class="v2-btn v2-btn-icon v2-btn-danger dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
       <div class="dosie-g2">
         <div class="dosie-field">
-          <label class="field-label dosie-label">Язык</label>
-          <input class="input input-nested lang-name" placeholder="Русский">
+          <label class="v2-label dosie-label">Язык</label>
+          <input class="v2-input input-nested lang-name" placeholder="Русский">
         </div>
         <div class="dosie-field">
-          <label class="field-label dosie-label">Уровень</label>
-          <input class="input input-nested lang-level" placeholder="C2 / Родной">
+          <label class="v2-label dosie-label">Уровень</label>
+          <input class="v2-input input-nested lang-level" placeholder="C2 / Родной">
         </div>
       </div>`;
     if (lang  != null) item.querySelector('.lang-name').value  = lang;
@@ -1299,32 +1364,32 @@
     const item = document.createElement('div');
     item.className = 'dosie-item';
     item.innerHTML = `
-      <button class="btn-icon btn-icon-sm btn-icon-danger dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
+      <button class="v2-btn v2-btn-icon v2-btn-danger dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
       <div class="dosie-g2">
         <div class="dosie-field">
-          <label class="field-label dosie-label">Компания</label>
-          <input class="input input-nested exp-company" placeholder="ООО Пример">
+          <label class="v2-label dosie-label">Компания</label>
+          <input class="v2-input input-nested exp-company" placeholder="ООО Пример">
         </div>
         <div class="dosie-field">
-          <label class="field-label dosie-label">Должность</label>
-          <input class="input input-nested exp-position" placeholder="AI Engineer">
-        </div>
-      </div>
-      <div class="dosie-g1">
-        <div class="dosie-field">
-          <label class="field-label dosie-label">Период</label>
-          <input class="input input-nested exp-period" placeholder="2022–2024">
+          <label class="v2-label dosie-label">Должность</label>
+          <input class="v2-input input-nested exp-position" placeholder="AI Engineer">
         </div>
       </div>
       <div class="dosie-g1">
         <div class="dosie-field">
-          <label class="field-label dosie-label">Что делал</label>
-          <textarea class="textarea textarea-nested textarea-compact textarea-grow exp-desc" rows="2" placeholder="Коротко об обязанностях..."></textarea>
+          <label class="v2-label dosie-label">Период</label>
+          <input class="v2-input input-nested exp-period" placeholder="2022–2024">
+        </div>
+      </div>
+      <div class="dosie-g1">
+        <div class="dosie-field">
+          <label class="v2-label dosie-label">Что делал</label>
+          <textarea class="v2-input v2-textarea textarea-nested textarea-grow exp-desc" rows="2" placeholder="Коротко об обязанностях..."></textarea>
         </div>
       </div>
       <div class="dosie-field">
-        <label class="field-label dosie-label">Достижения</label>
-        <textarea class="textarea textarea-nested textarea-compact textarea-grow exp-ach" rows="2" placeholder="Конкретные результаты с цифрами..."></textarea>
+        <label class="v2-label dosie-label">Достижения</label>
+        <textarea class="v2-input v2-textarea textarea-nested textarea-grow exp-ach" rows="2" placeholder="Конкретные результаты с цифрами..."></textarea>
       </div>`;
     item.querySelector('.exp-company').value  = d.company      || '';
     item.querySelector('.exp-position').value = d.position     || '';
@@ -1352,37 +1417,37 @@
     const item = document.createElement('div');
     item.className = 'dosie-item';
     item.innerHTML = `
-      <button class="btn-icon btn-icon-sm btn-icon-danger dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
+      <button class="v2-btn v2-btn-icon v2-btn-danger dosie-item-del" type="button" onclick="this.closest('.dosie-item').remove()">×</button>
       <div class="dosie-g2">
         <div class="dosie-field">
-          <label class="field-label dosie-label">Название</label>
-          <input class="input input-nested proj-title" placeholder="EnergyDess Tools">
+          <label class="v2-label dosie-label">Название</label>
+          <input class="v2-input input-nested proj-title" placeholder="EnergyDess Tools">
         </div>
         <div class="dosie-field">
-          <label class="field-label dosie-label">Тип</label>
-          <input class="input input-nested proj-type" placeholder="Web App / AI Tool / Video">
+          <label class="v2-label dosie-label">Тип</label>
+          <input class="v2-input input-nested proj-type" placeholder="Web App / AI Tool / Video">
         </div>
       </div>
       <div class="dosie-g1">
         <div class="dosie-field">
-          <label class="field-label dosie-label">URL</label>
-          <input class="input input-nested proj-url" placeholder="https://energydess.ru">
+          <label class="v2-label dosie-label">URL</label>
+          <input class="v2-input input-nested proj-url" placeholder="https://energydess.ru">
         </div>
       </div>
       <div class="dosie-g1">
         <div class="dosie-field">
-          <label class="field-label dosie-label">Описание</label>
-          <textarea class="textarea textarea-nested textarea-compact textarea-grow proj-desc" rows="2" placeholder="Что за проект и какую проблему решает..."></textarea>
+          <label class="v2-label dosie-label">Описание</label>
+          <textarea class="v2-input v2-textarea textarea-nested textarea-grow proj-desc" rows="2" placeholder="Что за проект и какую проблему решает..."></textarea>
         </div>
       </div>
       <div class="dosie-g2">
         <div class="dosie-field">
-          <label class="field-label dosie-label">Инструменты</label>
-          <input class="input input-nested proj-tools" placeholder="FastAPI, Claude API, SQLite">
+          <label class="v2-label dosie-label">Инструменты</label>
+          <input class="v2-input input-nested proj-tools" placeholder="FastAPI, Claude API, SQLite">
         </div>
         <div class="dosie-field">
-          <label class="field-label dosie-label">Теги (через запятую)</label>
-          <input class="input input-nested proj-tags" placeholder="AI, backend, fullstack">
+          <label class="v2-label dosie-label">Теги (через запятую)</label>
+          <input class="v2-input input-nested proj-tags" placeholder="AI, backend, fullstack">
         </div>
       </div>`;
     item.querySelector('.proj-title').value = d.title       || '';
@@ -1492,10 +1557,18 @@
   // «хватает для письма» считает сервер (dossier_ready в main.py),
   // здесь только рисование.
   function setDosieBadge(ready) {
-    const badge = document.getElementById('dosie-badge');
-    if (!badge) return;
-    badge.className   = 'resume-badge ' + (ready ? 'resume-badge-ok' : 'resume-badge-warn');
-    badge.textContent = ready ? '✓' : 'нет';
+    поставитьТочку('dosie-badge', ready);
+  }
+
+  // Точка заполненности: зелёная — заполнено, тусклая — нет. Подпись
+  // живёт в `title` и `aria-label` СРАЗУ: точка без имени — знак,
+  // о котором не у кого спросить.
+  function поставитьТочку(id, ready) {
+    const точка = document.getElementById(id);
+    if (!точка) return;
+    точка.className = 'hh-dot' + (ready ? ' is-on' : '');
+    точка.title = ready ? 'Заполнено' : 'Не заполнено';
+    точка.setAttribute('aria-label', точка.title);
   }
 
   // ── Сохранение досье ──
@@ -1594,10 +1667,10 @@
       let раскрыт = -1;
       items.forEach((item, idx) => {
         const score  = item.relevance_score;
-        const cls    = score >= 7 ? 'score-high' : score >= 4 ? 'score-mid' : 'score-low';
+        const cls    = классОценки(score);
         const title  = [item.job_title, item.company_name].filter(Boolean).join(' — ') || 'Без названия';
         const div    = document.createElement('div');
-        div.className = 'card card-static history-item';
+        div.className = 'v2-card v2-card-nested history-item';
         // Кнопка удаления лежит РЯДОМ с раскрывающей, а не внутри неё:
         // вложенная <button> в <button> — недопустимая разметка, браузер
         // разрывает внешнюю кнопку, и часть шапки перестаёт раскрывать карточку
@@ -1609,11 +1682,11 @@
               <div class="history-item-sub">${item.created_at}${item.edited ? ' · <span class="edited-mark">(отредактировано)</span>' : ''}</div>
             </div>
             ${item.analysis_error
-              ? `<span class="badge badge-warn" title="${escHtml(item.analysis_error)}">без анализа</span>`
+              ? `<span class="hh-hist-warn" title="${escHtml(item.analysis_error)}">без анализа</span>`
               : ''}
             ${score != null ? `<span class="history-item-score ${cls}">${score}/10</span>` : ''}
           </button>
-          <button class="btn-icon history-item-del" type="button"
+          <button class="v2-btn v2-btn-icon v2-btn-danger history-item-del" type="button"
                   title="Удалить письмо" aria-label="Удалить письмо"
                   onclick="askDeleteLetter(${item.id})">
             <i data-lucide="trash-2"></i>
@@ -1622,7 +1695,7 @@
           <div class="history-item-body" id="hist-body-${idx}">
             <div class="history-item-inner">
               <div class="history-letter-text">${escHtml(item.letter_text).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')}</div>
-              <button class="btn-secondary history-copy-btn" onclick="copyHistoryLetter(${idx})">Копировать</button>
+              <button class="v2-btn v2-btn-secondary history-copy-btn" onclick="copyHistoryLetter(${idx})">Копировать</button>
             </div>
           </div>`;
         div._letterText = item.letter_text;

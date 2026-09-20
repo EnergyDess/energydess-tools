@@ -2189,7 +2189,7 @@ Escape не закрывал ни одну из двенадцати (обраб
 ```
 
 ```html
-<div class="meter meter-edge loading-bar"><div class="meter-fill meter-fill-loop"></div></div>
+<div class="v2-progress hh-loading-bar"><div class="v2-progress-fill hh-loading-fill"></div></div>
 ```
 
 **Заведён сведением трёх полос ВНЕ дневника (BACKLOG №118).** Задача 96
@@ -5218,7 +5218,8 @@ id в разметке не было ни одного, а загрузка со
 **Полосы заполнения вне дневника сведены 2026-08-22** (задача 118):
 `.wk-progress-track`/`-bar` и `.wk-nutrition-bar`/`-fill` в тренировках —
 к `.meter`/`.meter-fill`, `.loading-bar` в HH — к тем же плюс варианту
-`.meter-fill-loop` (§2.17). Своё у экземпляров осталось: `flex`,
+`.meter-fill-loop` (§2.17); с письма 3 задачи 352 полоса HH
+перешла на `.v2-progress` и зовётся `.hh-loading-bar`. Своё у экземпляров осталось: `flex`,
 `--meter-h`, `width`, `transition`. Облик не изменился ни в одной
 из девяти замеренных строк.
 
