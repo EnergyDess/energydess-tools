@@ -263,54 +263,59 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
 .ds-day {
   display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
   background: none; border: none; padding: var(--space-1) 0; cursor: pointer;
-  color: var(--text-2); font-family: inherit;
+  color: var(--v2-text-2); font-family: inherit;
   -webkit-tap-highlight-color: transparent;
 }
 .ds-c {
   width: 2rem; height: 2rem; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--border); font-size: var(--text-caption); font-weight: 600;
+  border: 1px solid var(--v2-line-1); font-size: var(--text-caption); font-weight: 600;
+  color: var(--v2-text);
   font-variant-numeric: tabular-nums;
   transition: border-color .15s, background .15s, color .15s;
 }
 .ds-wd { font-size: var(--text-caption); line-height: 1.2; white-space: nowrap; }
 /* На узком экране под сегодняшним днём стоит день недели, как у соседей:
    слово «сегодня» там занимает 51px при ячейке 37 (замер) и наезжает
-   на соседние дни. Признак «сегодня» при этом не пропадает — его несёт
-   заливка кружка, а она видна при любой ширине */
+   на соседние дни. Признак «сегодня» при этом не пропадает — его несут
+   цифра, обводка и подпись цвета питания, видные при любой ширине */
 .ds-wd-today { display: none; }
-.ds-day.is-today .ds-wd { color: var(--tool-accent); }
 /* Точка занимает место всегда, даже когда её не видно: иначе кружки
    без записей стояли бы на 9px выше соседей и полоска дёргалась бы
    при каждой записи */
 .ds-dot { width: 0.3125rem; height: 0.3125rem; border-radius: 50%; background: transparent; }
-.ds-dot.is-on   { background: var(--text-2); }
-.ds-dot.is-plan { background: var(--tool-accent); }
+.ds-dot.is-on   { background: var(--v2-text-2); }
+.ds-dot.is-plan { background: var(--v2-tool); }
 
+/* СОСТОЯНИЯ ДНЯ — правило владельца (№352, «питание-2», блок 1.1).
+   Здесь стояло обратное: «сегодня» ЗАЛИТ, выбранный — обводкой. Замер
+   до правки: при выбранном 19-м залитым оставалось 21-е, и заливка
+   читалась как выбор; выбранный и «сегодня» путались.
+   · выбранный — ЗАЛИТ цветом питания, цифра тёмная;
+   · «сегодня», не выбранный, — цифра, подпись и полупрозрачная обводка
+     цвета питания, без заливки;
+   · будущий — та же сплошная обводка, цифра и подпись на ступень тусклее.
+     Прозрачности и пунктира больше нет: прозрачность 0.55 давала цифре
+     контраст 3.65 при пороге 4.5 (замер `check_nutrition_strip`), а будущее
+     отличается ступенью цвета, а не формой обводки. */
+.ds-day.is-fut .ds-c { color: var(--v2-text-2); }
+.ds-day.is-fut .ds-wd { color: var(--v2-text-faint); }
 .ds-day.is-today .ds-c {
-  background: var(--tool-accent); border-color: var(--tool-accent);
-  color: var(--tool-accent-ink); font-weight: 700;
+  color: var(--v2-tool); border-color: var(--v2-tool-line); font-weight: 700;
 }
+.ds-day.is-today .ds-wd { color: var(--v2-tool); }
 .ds-day.is-sel .ds-c {
-  border: 2px solid var(--tool-accent); color: var(--tool-accent);
+  background: var(--v2-tool); border-color: var(--v2-tool);
+  color: var(--v2-ink-on-tool);
 }
-/* Сегодня и выбран одновременно — заливка остаётся, обводка добавляется
-   снаружи: без этого выбранный сегодняшний день терял заливку и переставал
-   отличаться от выбранного вчерашнего */
-.ds-day.is-today.is-sel .ds-c {
-  background: var(--tool-accent); color: var(--tool-accent-ink);
-  box-shadow: 0 0 0 2px var(--surface-1), 0 0 0 4px var(--tool-accent);
-}
-.ds-day.is-sel .ds-wd { color: var(--tool-accent); }
-/* Будущий день: прозрачность И пунктир. Одной прозрачности на телефоне
-   при ярком свете не хватает — признак должен читаться формой, а не
-   только светлотой (design-system.md 1.1, тот же довод, что у контуров
-   на дорожках макросов) */
-.ds-day.is-fut { opacity: .55; }
-.ds-day.is-fut .ds-c { border-style: dashed; border-color: var(--border-strong); }
+.ds-day.is-sel .ds-wd { color: var(--v2-tool); }
+/* Наведение — только на КРУЖКЕ и только у невыбранного. Здесь стояло
+   `.ds-day:hover .ds-c`: зоной была вся колонка кнопки (замер: 159x78
+   при кружке 41x41 на 1600), и правило стояло НИЖЕ выбранного при равной
+   специфичности — мышь, оставшаяся на дне после клика, гасила его вид
+   (случай проверки 21). `:not(.is-sel)` снимает второе по построению. */
 @media (hover: hover) {
-  .ds-day:hover .ds-c { border-color: var(--border-strong); }
-  .ds-day.is-today:hover .ds-c { border-color: var(--tool-accent); }
+  .ds-day:not(.is-sel) .ds-c:hover { background: var(--v2-surface-hover); }
 }
 .ds-day:focus-visible { outline: none; }
 .ds-day:focus-visible .ds-c { outline: 2px solid var(--tool-accent); outline-offset: 2px; }

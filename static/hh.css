@@ -74,6 +74,23 @@
   color: var(--v2-text-2);
 }
 .hh-fetch-status.visible { display: flex; }
+/* Загрузка вакансии — ЗАМЕТНО: цвет инструмента и кегль подписи, кольцо
+   слева. Замер до правки: 13 px цветом `--v2-text-2`, сливалось с блоком
+   (№352, «питание-2», блок 1.2). */
+.hh-fetch-status.loading { color: var(--v2-tool); font-size: var(--v2-fs-sm); font-weight: var(--v2-fw-medium); }
+.hh-fetch-status.loading::before {
+  content: "";
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: var(--v2-icon);
+  height: var(--v2-icon);
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--v2-r-pill);
+  animation: v2-spin var(--v2-dur-enter) linear infinite;
+}
+.hh-fetch-status.err { font-size: var(--v2-fs-sm); }
+.hh-fetch-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--v2-sp-3); }
 .hh-fetch-status.ok  { color: var(--v2-ok); }
 .hh-fetch-status.err { color: var(--v2-danger); }
 /* Страница загрузилась, но описания в ней нет — это не ошибка сети и не успех */

@@ -72,7 +72,13 @@
 
         {# Статус загрузки и её отказы — ПОД полем, там же, куда вставили
            ссылку. Человек не должен искать, чем кончилось то, что он сделал. #}
-        <div class="hh-fetch-status" id="fetch-status"></div>
+        <div class="hh-fetch-row">
+          <div class="hh-fetch-status" id="fetch-status" role="status" aria-live="polite"></div>
+          {# Повтор загрузки — только на отказе. Вставить текст вручную можно
+             всегда: поле не блокируется ни на загрузке, ни на отказе. #}
+          <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" id="fetch-retry"
+                  onclick="fetchUrl(jobInput.value)" hidden>{{ значок('refresh-cw') }} Повторить</button>
+        </div>
         {# Разбор прошёл, текст есть, но на описание вакансии не похож —
            одни служебные плашки. Раньше это выглядело как успех: счётчик
            показывал тысячи символов, а в модель уезжал куки-баннер. #}
@@ -1089,8 +1095,27 @@
   function загрузитьЕслиСсылка() {
     const v = jobInput.value.trim();
     if (_fetchTimer) clearTimeout(_fetchTimer);
-    if (!этоСсылка(v) || v === fetchedUrl) return;
+    if (!этоСсылка(v) || v === fetchedUrl) { занятьЗагрузкой(false); return; }
+    // Кнопки заняты С ПЕРВОГО ЗНАКА ссылки, а не с ответа задержки: иначе
+    // 400 мс до начала загрузки оставались дырой, и нажатие уводило
+    // в модель одну ссылку (№352, «питание-2», блок 1.2).
+    занятьЗагрузкой(true);
     _fetchTimer = setTimeout(() => fetchUrl(v), 400);
+  }
+
+  // ПОКА ВАКАНСИЯ ГРУЗИТСЯ, ПИСЬМО НЕ ПИШЕТСЯ. Замер до правки: нажатие
+  // во время загрузки уводило в модель ОДНУ ССЫЛКУ (30 знаков вместо
+  // текста вакансии) — `текстВакансии()` отдаёт поле как есть, пока
+  // `fetchedText` пуст. Блокировка — `disabled` плюс `aria-busy`, и горячая
+  // клавиша поля упирается в ту же проверку внутри `generateLetter`.
+  let загрузкаСсылки = false;
+  function занятьЗагрузкой(да) {
+    загрузкаСсылки = да;
+    generateBtn.disabled = да;
+    generateBtn.setAttribute('aria-busy', да ? 'true' : 'false');
+    generateBtn.classList.toggle('is-loading', да);
+    btnText.textContent = да ? 'Загружаю вакансию…' : 'Написать письмо';
+    document.getElementById('analyze-btn').disabled = да;
   }
 
   function сброситьЗагруженное() {
@@ -1099,6 +1124,8 @@
     const st = document.getElementById('fetch-status');
     st.className = 'hh-fetch-status';
     st.textContent = '';
+    document.getElementById('fetch-retry').hidden = true;
+    if (!этоСсылка(jobInput.value)) занятьЗагрузкой(false);
     document.getElementById('fetch-warn').hidden = true;
     document.getElementById('fetched-preview').classList.remove('visible');
   }
@@ -1111,26 +1138,42 @@
     const preview   = document.getElementById('fetched-preview');
     const warnBox   = document.getElementById('fetch-warn');
 
-    status.className = 'hh-fetch-status visible';
-    status.textContent = 'Загружаю страницу...';
+    const retry = document.getElementById('fetch-retry');
+    status.className = 'hh-fetch-status visible loading';
+    status.textContent = 'Загружаю вакансию…';
+    retry.hidden = true;
     preview.classList.remove('visible');
     warnBox.hidden = true;
+    занятьЗагрузкой(true);
     fetchedText = '';
     fetchedUrl  = '';
     // Ручной выбор языка НЕ СБРАСЫВАЕТСЯ: загрузка ссылки — продолжение
     // того же действия, а не новая вакансия. Автоопределение ниже
     // (`detectLetterLang`) само уступает выбору человека.
 
+    // Потолок ожидания свой: у `fetch` таймаута нет, и молчащий сайт
+    // держал бы кнопку занятой без конца
+    const стоп = new AbortController();
+    const таймер = setTimeout(() => стоп.abort(), 25000);
+    const отказ = (текст) => {
+      status.className = 'hh-fetch-status visible err';
+      status.textContent = текст;
+      retry.hidden = false;
+    };
     try {
       const res  = await fetch('/api/fetch-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
+        signal: стоп.signal,
       });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        status.className = 'hh-fetch-status visible err';
-        status.textContent = data.error;
+      let data = null;
+      try { data = await res.json(); } catch { data = null; }
+      // Пока шла загрузка, поле могли поменять — ответ про прежнюю ссылку
+      // уже не нужен, а состояние кнопок решает обработчик поля
+      if (jobInput.value.trim() !== url) return;
+      if (!data || !res.ok || data.error) {
+        отказ((data && data.error) || `Сайт вакансии ответил ${res.status}. Вставьте текст вручную или повторите.`);
       } else {
         fetchedText = data.text;
         fetchedUrl  = url;
@@ -1159,8 +1202,13 @@
         detectLetterLang(data.text);
       }
     } catch {
-      status.className = 'hh-fetch-status visible err';
-      status.textContent = 'Ошибка сети';
+      if (jobInput.value.trim() !== url) return;
+      отказ(стоп.signal.aborted
+        ? 'Страница вакансии не ответила за 25 секунд. Повторите или вставьте текст вручную.'
+        : 'Не удалось загрузить вакансию: нет связи. Повторите или вставьте текст вручную.');
+    } finally {
+      clearTimeout(таймер);
+      if (jobInput.value.trim() === url) занятьЗагрузкой(false);
     }
   }
 
@@ -1225,6 +1273,10 @@
       setTimeout(() => jobInput.classList.remove('hh-field-bad'), 1500);
       return;
     }
+    if (загрузкаСсылки) return;
+    // В поле ссылка, а описания нет (загрузка упала): в модель ушла бы
+    // одна ссылка. Вместо этого — ещё одна попытка загрузки.
+    if (этоСсылка(text)) { fetchUrl(jobInput.value); return; }
 
     generateBtn.disabled = true;
     // Значка на кнопке нет намеренно: индикатор на экране ровно один —
@@ -1370,6 +1422,10 @@
       setTimeout(() => jobInput.classList.remove('hh-field-bad'), 1500);
       return;
     }
+    if (загрузкаСсылки) return;
+    // В поле ссылка, а описания нет (загрузка упала): в модель ушла бы
+    // одна ссылка. Вместо этого — ещё одна попытка загрузки.
+    if (этоСсылка(text)) { fetchUrl(jobInput.value); return; }
 
     const btn  = document.getElementById('analyze-btn');
     const icon = document.getElementById('analyze-icon');
