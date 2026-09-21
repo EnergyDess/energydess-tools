@@ -255,6 +255,40 @@
 .v2-btn-quiet:focus-visible,
 .v2-btn-quiet.is-focus { --v2-ring: var(--v2-danger); color: var(--v2-danger); }
 .v2-btn.is-hover { border-color: var(--v2-line-hover); background: var(--v2-surface-hover); }
+/* УДАЛЕНИЕ СТРОКИ — КРУГ С КРЕСТИКОМ (№352, письмо 5, решение владельца).
+   Всегда виден: серая рамка и серый крестик в покое, красные при
+   наведении и фокусе. Размер — мелкой кнопки (`--v2-ctl-sm-h`), область
+   нажатия добирается до `--v2-ctl-h-touch` невидимым слоем, видимый круг
+   не растёт. Место под круг резервирует карточка строки, а не сам орган:
+   ни круг, ни его обводка не заходят на поля ни в каком состоянии. */
+.v2-btn-del {
+  position: relative;
+  width: var(--v2-ctl-sm-h);
+  min-height: var(--v2-ctl-sm-h);
+  height: var(--v2-ctl-sm-h);
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: var(--v2-r-pill);
+  border-color: var(--v2-line-hover);
+  background: transparent;
+  color: var(--v2-text-faint);
+  --v2-ring: var(--v2-danger);
+}
+.v2-btn-del svg { width: var(--v2-sp-4); height: var(--v2-sp-4); }
+.v2-btn-del::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--v2-ctl-h-touch);
+  height: var(--v2-ctl-h-touch);
+  transform: translate(-50%, -50%);
+}
+.v2-btn-del:focus-visible, .v2-btn-del.is-focus, .v2-btn-del.is-hover {
+  border-color: var(--v2-danger);
+  color: var(--v2-danger);
+  background: transparent;
+}
 .v2-btn-primary.is-hover {
   border-color: var(--v2-tool, var(--v2-hh));
   background: color-mix(in srgb, var(--v2-tool, var(--v2-hh)) 86%, var(--v2-text-strong));
@@ -273,6 +307,7 @@
     background: color-mix(in srgb, var(--v2-tool, var(--v2-hh)) 86%, var(--v2-text-strong));
   }
   .v2-btn-danger:hover:not(:disabled) { border-color: var(--v2-danger); background: var(--v2-danger-dim); }
+  .v2-btn-del:hover:not(:disabled) { border-color: var(--v2-danger); color: var(--v2-danger); background: transparent; }
   .v2-btn-quiet:hover:not(:disabled) {
     border-color: transparent;
     background: var(--v2-danger-dim);

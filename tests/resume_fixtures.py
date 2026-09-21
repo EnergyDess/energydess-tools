@@ -84,6 +84,8 @@ Moon video
 Английский — B2 — Средне-продвинутый
 
 Навыки  Python      PyTorch      FastAPI      SQL      Docker      Git
+OpenCV      ONNX      Kubernetes      Linux
+CI/CD      Grafana
 
 Опыт вождения
 
