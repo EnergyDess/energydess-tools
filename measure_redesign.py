@@ -62,30 +62,34 @@ def прямые_значения(путь, текст=None):
     блока 1 и на сторож v2 (`check_v2_tokens.py`), второго нет (§6.0.7).
     Объявления `--имя:` не считаются: токен и есть место для значения.
     `текст` — подменённое содержимое файла (подлоги сторожа, без записи на диск)."""
+    # ВЕСЬ ТЕКСТ, А НЕ ПОСТРОЧНО (№354, письмо 5). Построчный счёт не видел
+    # объявления, чьё значение перенесено на следующую строку (`box-shadow:`
+    # и значение ниже): замер 2026-09-21 — 4 таких с литералом в файлах
+    # долга. Номер находки — строка СВОЙСТВА.
     найдено = []
     t = без_комм(читать(путь) if текст is None else текст)
-    for i, line in enumerate(t.split("\n"), 1):
-        for m in re.finditer(r"(?<![\w-])([a-z-]+)\s*:\s*([^;{}]+)", line):
-            prop, val = m.group(1), m.group(2)
-            if prop.startswith("--"):
+    for m in re.finditer(r"(?<![\w-])([a-z-]+)\s*:\s*([^;{}]+)", t):
+        i = t.count("\n", 0, m.start()) + 1
+        prop, val = m.group(1), m.group(2)
+        if prop.startswith("--"):
+            continue
+        v = очистить_var(val)
+        for в, (pp, rx) in ВИДЫ.items():
+            if not pp.match(prop):
                 continue
-            v = очистить_var(val)
-            for в, (pp, rx) in ВИДЫ.items():
-                if not pp.match(prop):
+            if в == "тень":
+                vv = v.strip()
+                if vv in ("none", "V", "inherit", "") or re.fullmatch(r"[V ,]+", vv):
                     continue
-                if в == "тень":
-                    vv = v.strip()
-                    if vv in ("none", "V", "inherit", "") or re.fullmatch(r"[V ,]+", vv):
-                        continue
-                    if not (ЦВЕТ.search(vv) or ЧИСЛО.search(vv)):
-                        continue
-                    hits = 1
-                elif в in ("отступ", "скругление"):
-                    hits = len([x for x in rx.finditer(v) if float(re.sub(r"[a-z]+", "", x.group(0)) or 0) != 0])
-                else:
-                    hits = len(rx.findall(v))
-                if hits:
-                    найдено.append((в, i, prop, val, hits))
+                if not (ЦВЕТ.search(vv) or ЧИСЛО.search(vv)):
+                    continue
+                hits = 1
+            elif в in ("отступ", "скругление"):
+                hits = len([x for x in rx.finditer(v) if float(re.sub(r"[a-z]+", "", x.group(0)) or 0) != 0])
+            else:
+                hits = len(rx.findall(v))
+            if hits:
+                найдено.append((в, i, prop, val, hits))
     return найдено
 
 
