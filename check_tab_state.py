@@ -126,11 +126,6 @@ import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.
     "weight": ("период графика «Всё время»",
                """async () => { document.querySelector("#wt-period [data-period='all']").click();
                                 await new Promise(r => setTimeout(r, 400)); }"""),
-    "assistant": ("набранный текст в поле",
-                  """async () => { const п = document.getElementById('assistant-chat-in');
-                                   п.value = 'сколько мне осталось';
-                                   п.dispatchEvent(new Event('input', {bubbles: true}));
-                                   await new Promise(r => setTimeout(r, 300)); }"""),
     "profile": ("правка поля возраста",
                 """async () => { const п = document.getElementById('p-age');
                                  if (п) { п.value = '41';

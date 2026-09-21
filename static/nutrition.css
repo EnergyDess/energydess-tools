@@ -111,60 +111,6 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
   background: var(--surface-1); border-bottom: 1px solid var(--border);
   position: relative; z-index: 10; flex-shrink: 0;
 }
-/* Вкладка ассистента целиком построена на position:fixed (top/bottom считает
-   сам браузер от реального вьюпорта — см. #tab-assistant.active и .nut-nav).
-   Это верно только при scrollY=0: иначе шапка/контент, которые в потоке,
-   уезжают вместе со страницей, а зафиксированные элементы остаются на месте —
-   получается рассинхрон (чёрная полоса, обрезанный текст, "пропадающая" шапка
-   сайта). Поэтому на время вкладки ассистента блокируем скролл страницы целиком —
-   внутри неё прокручивается только лента сообщений (.chat-msgs). */
-html.assistant-mode, html.assistant-mode body {
-  overflow: hidden;
-}
-/* ── ПОДВАЛ САЙТА ВНУТРИ ЧАТА. Найдено и починено 2026-08-21 ─────────────
-   Владелец: «на телефоне вкладка „Ассистент“ открывается сломанной,
-   контент не листается, внутри чата виден подвал сайта».
-
-   ПРИЧИНА НЕ В ВЫСОТЕ И НЕ В ПРОКРУТКЕ — замер это опроверг. Вкладка
-   `position: fixed` 118…780, лента `.chat-msgs` со своим `overflow: auto`
-   и scrollHeight 3705 при clientHeight 573, то есть прокручиваться ей
-   есть чем. Причина — ПОРЯДОК ОТРИСОВКИ:
-
-     · `static/style.css` содержит легаси-правило по ТЕГУ:
-       `.nav, main, footer, .auth-wrap` — position relative, z-index 1.
-       Фигурных скобок в цитате нет намеренно: проверка 1 ищет имя
-       системного класса на строке со скобкой и прозу от кода
-       не отличает (§6.0.2, признанные пробелы).
-       `.site-footer` — это `<footer>`, и он получает z-index 1;
-     · вкладка ассистента — `position: fixed` БЕЗ z-index, то есть auto (0);
-     · `<main>` на этой странице нет вовсе (`.nut-app` — обычный div),
-       так что оба элемента лежат в контексте наложения `<body>`,
-       и слой 1 закрывает слой 0.
-
-   Проверено не рассуждением: `document.elementFromPoint(195, 400)` —
-   середина ленты сообщений — возвращал `P.footer-desc`, а в точке
-   (195, 700) `DIV.site-footer-grid`. Палец попадал в подвал, а не в чат,
-   и страница при этом `overflow: hidden` — то есть не двигалось ничто.
-
-   СЛОМАЛОСЬ 2026-08-17 коммитом 0c6579e (задача 70, общий хвост
-   страницы): до него футера на `/nutrition` не было вовсе. Дефект жил
-   на обеих сборках — и до сведения дублей, и после, — поэтому пиксельный
-   диф про него молчал по построению: он сравнивает два состояния одного
-   экрана и одинаковый дефект в обоих видит как «расхождений нет».
-
-   ЛЕЧЕНИЕ ДВОЙНОЕ, и обе половины нужны:
-     1. пока открыт ассистент, подвала НЕТ. Не «он ниже» — его нельзя
-        достать в принципе: страница не прокручивается. Показывать
-        неподвижный подвал под наложенной панелью — значит рисовать
-        то, до чего не дойти;
-     2. вкладке дан свой слой. Без него любой следующий сосед
-        с `z-index: 1` повторил бы ровно это, и так же молча. */
-@media (max-width: 899px) {
-  html.assistant-mode .site-footer { display: none; }
-  /* Выше подвала (1) и ниже нижней панели (15): панель обязана остаться
-     нажимаемой, вкладка до неё и не достаёт — её низ считается от --nav-h. */
-  html.assistant-mode #tab-assistant.active { z-index: 5; }
-}
 .nut-hdr-back {
   width: 2.125rem; height: 2.125rem; border-radius: 0.5625rem;
   background: var(--surface-sunken); border: 1px solid var(--border);
@@ -189,55 +135,8 @@ html.assistant-mode, html.assistant-mode body {
 /* ── Tabs ── */
 .nut-tab { display: none; padding: var(--space-4) var(--space-4) var(--space-5); min-height: 100%; animation: fadeIn .2s ease; }
 .nut-tab.active { display: block; }
-#tab-assistant.active {
-  display: flex; flex-direction: column;
-  /* нижний паддинг = верхнему (--space-4 от .nut-tab) — без него .nut-tab даёт
-     --space-5 снизу, и вместе с паддингом .chat-input-row получался заметный
-     лишний зазор между полем ввода и нижней навигацией.
-     ЧИСЛО ЗДЕСЬ И ЧИСЛО ТАМ СВЯЗАНЫ, поэтому переведены вместе: перевести
-     одно из двух значило бы развязать их молча */
-  padding-bottom: var(--space-4);
-}
-/* Вкладка ассистента зафиксирована между шапкой .nut-hdr сверху и нижней
-   навигацией снизу — это даёт ей определённую высоту, без которой
-   .chat-msgs{flex:1} не может посчитать свою высоту и включить внутренний
-   скролл (через flex от .nut-app{min-height:...} высота не определена,
-   контент просто растягивает страницу, а overflow:hidden блокирует любой
-   скролл — ни страницы, ни чата). top считается не по захардкоженным
-   60px + var(--hdr-h) (на некоторых устройствах реальная высота .nav/.nut-hdr
-   отличалась на пару пикселей, и нижняя граница шапки обрезала текст), а
-   по реальной нижней границе .nut-hdr — JS пишет её в --assistant-top при
-   переключении на вкладку (см. goTab). Прокручивается только .chat-msgs. */
-@media (max-width: 899px) {
-  html.assistant-mode #tab-assistant.active {
-    position: fixed;
-    /* 64px — высота .site-header из style.css. Это одно из мест, где
-       вычитание осталось осмысленным: блок вырван из потока (position:
-       fixed), и отступ сверху обязан совпасть с высотой шапки — считать
-       его браузеру не из чего. В px, а не в rem: шапка объявлена в px
-       и с корневым кеглем не растёт, а 4rem на 4K стали бы 76px —
-       вычиталось бы то, чего нет. --hdr-h своя и в rem: она же задаёт
-       высоту .nut-hdr, обе величины растут вместе и разъехаться не могут.
-       См. design-system.md §4.1. */
-    top: var(--assistant-top, calc(64px + var(--hdr-h)));
-    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0));
-    /* ЦЕНТРИРОВАНИЕ ЧЕРЕЗ margin, А НЕ ЧЕРЕЗ transform, И ЭТО НЕ ВКУСОВЩИНА.
-       Здесь стояло `left: 50%; transform: translateX(-50%)`, и вкладка
-       на первые 200 мс уезжала за правый край экрана: `.nut-tab` играет
-       `animation: fadeIn`, а fadeIn объявляет СВОЙСТВО transform. Анимация
-       по каскаду сильнее обычного объявления, то есть на всё время
-       проигрывания translateX(-50%) подавлен — остаётся голый left: 50%,
-       и блок стоит левым краем на середине окна. Замер 2026-08-17 на 390
-       с дросселированием ×4: t=100 мс x=195 right=585 при окне 390,
-       13 кадров из 42 за краем; на 395 мс transform возвращался и блок
-       перескакивал на место.
-       margin: auto с left/right: 0 центрирует ровно так же, свойства
-       transform не касается вовсе, и подавлять анимации в нём нечего. */
-    left: 0; right: 0; margin-left: auto; margin-right: auto;
-    width: 100%; max-width: 33.75rem; min-height: 0;
-  }
-}
-/* ПОДЪЁМ ЗДЕСЬ — `translate`, А НЕ `transform`, ПО ТОЙ ЖЕ ПРИЧИНЕ.
+/* ПОДЪЁМ ЗДЕСЬ — `translate`, А НЕ `transform` (задача 101: `fadeIn`
+   подавлял `translateX` позиционирования вкладки на время анимации).
    Отдельное свойство `translate` компонуется с `transform`, а не заменяет
    его: анимация, объявляющая translate, больше не может отменить чужое
    позиционирование. Пока в keyframes стоял transform, любое правило
@@ -1287,21 +1186,6 @@ html.assistant-mode, html.assistant-mode body {
    сообщение не обрезано, оно первое, и растворять его нечестно — это
    сказало бы о продолжении, которого нет. Класс ставит скрипт по
    scrollTop (см. следящий за лентой обработчик). */
-/* ── Ассистент: обёртки колонок ──
-   НА УЗКОМ ЭКРАНЕ БОКСОВ У НИХ НЕТ. `display: contents` означает, что
-   элемент исчезает из дерева раскладки, а его дети становятся детьми
-   родителя, — то есть лента, превью и ряд ввода остаются прямыми flex-детьми
-   `#tab-assistant.active` ровно как до правки. Иначе `.chat-msgs { flex: 1 }`
-   считал бы долю от новой коробки, у которой высоты нет, и лента потеряла бы
-   внутренний скролл — тот самый набор багов, о котором предупреждает
-   комментарий к #tab-assistant.active выше.
-   Колонка цифр на узком экране не показывается: мобильная раскладка
-   не меняется (так согласован эскиз), а пять строк с полосами заняли бы
-   у ленты сообщений примерно треть её высоты — на экране, где высота
-   и есть самый дефицитный ресурс. */
-.as-cols, .as-chat { display: contents; }
-.as-today { display: none; }
-
 .chat-msgs {
   overflow-y: auto; padding: var(--space-3) 0; display: flex; flex-direction: column; gap: var(--space-3);
   flex: 1; min-height: 11.25rem;
@@ -2172,74 +2056,6 @@ html.assistant-mode, html.assistant-mode body {
   }
   .ap-date-note { margin-bottom: calc(0.75 * var(--nut-u)); }
 
-  /* ── АССИСТЕНТ: слева переписка, справа сегодняшние цифры ──────────────
-     Здесь стояло `max-width: 47.5rem; margin: 0 auto` — то есть колонка
-     чата 760px, посаженная по центру области в 1200px, и по 220px пустоты
-     с каждой стороны (замер 2026-08-17 на 1440: `#tab-assistant` w=760,
-     x=452.5). Ширина переписки ограничена и осталась ограниченной —
-     пустота справа теперь занята цифрами, а не воздухом.
-
-     МАСШТАБ — ТОЙ ЖЕ ЕДИНИЦЕЙ, что у дневника, «Добавить», «Истории»
-     и «Веса»: 63 единицы против прежних фиксированных 47.5rem. Между
-     вкладками ходят одним нажатием, и колонка, не растущая вместе
-     с соседними, видна сразу. */
-  #tab-assistant.active {
-    height: 100%; width: 100%;
-    max-width: calc(63 * var(--nut-u)); margin: 0 auto;
-    padding-bottom: var(--space-6);
-  }
-  .as-cols {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) calc(15 * var(--nut-u));
-    gap: calc(1.125 * var(--nut-u));
-    height: 100%; min-height: 0;
-  }
-  /* Колонка чата снова flex — ту роль, которую на узком экране играет сама
-     вкладка, здесь играет она: без этого `.chat-msgs { flex: 1 }` не от чего
-     считать высоту, и лента растянула бы страницу вместо внутреннего скролла */
-  .as-chat { display: flex; flex-direction: column; min-height: 0; height: 100%; }
-  #tab-assistant .chat-bubble { font-size: calc(0.92 * var(--nut-u)); }
-
-  /* Колонка липнет к верху: переписка длинная и прокручивается сама, цифры
-     обязаны оставаться на виду — иначе сверять ответ ассистента не с чем */
-  .as-today {
-    display: block; align-self: start; position: sticky; top: 0;
-    padding: var(--nut-u); overflow-y: auto; max-height: 100%;
-  }
-  .as-today-hd { font-size: calc(0.94 * var(--nut-u)); font-weight: 700; }
-  /* `capitalize` не ставим: он поднимает регистр У КАЖДОГО слова, и «пн, 17
-     августа» становилось «Пн, 17 Августа» — месяц с прописной по-русски
-     неверен. Первое слово поднимает ::first-letter, который берёт ровно
-     одну букву */
-  .as-today-date {
-    font-size: calc(0.8125 * var(--nut-u)); color: var(--text-2);
-    margin-top: var(--space-1);
-  }
-  .as-today-date::first-letter { text-transform: uppercase; }
-  .as-today-note {
-    margin-top: calc(0.625 * var(--nut-u));
-    font-size: calc(0.8125 * var(--nut-u)); line-height: 1.45;
-  }
-  .as-rows { margin-top: calc(0.75 * var(--nut-u)); }
-  .as-row { padding: calc(0.5 * var(--nut-u)) 0; border-top: 1px solid var(--border); }
-  .as-row:first-child { border-top: none; padding-top: 0; }
-  .as-row-hd {
-    display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2);
-    font-size: calc(0.8125 * var(--nut-u)); margin-bottom: var(--space-1);
-  }
-  .as-row-name { color: var(--text-2); font-weight: 600; }
-  .as-row-val { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  /* Дорожка — системная `.meter`; здесь только её толщина. Кромки
-     (`.meter-edge`) у неё нет намеренно: на 4px внутренняя рамка съедает
-     треть высоты */
-  .as-bar { --meter-h: 0.25rem; }
-  /* Цвета те же, что у дорожек макросов в дневнике: один показатель обязан
-     выглядеть одинаково на обоих экранах, иначе его опознают заново */
-  .as-bar-fill.is-cal  { background: var(--tool-accent); }
-  .as-bar-fill.is-pro  { background: var(--prot); }
-  .as-bar-fill.is-fat  { background: var(--fat); }
-  .as-bar-fill.is-carb { background: var(--carb); }
-  .as-bar-fill.is-wat  { background: var(--wat); }
   .search-back {
     display: inline-flex; align-items: center; gap: calc(0.5 * var(--nut-u)); margin-bottom: calc(1.125 * var(--nut-u));
     padding: calc(0.625 * var(--nut-u)) calc(1.125 * var(--nut-u)); border-radius: 0.625rem; background: var(--surface-1);
@@ -2397,3 +2213,14 @@ html.assistant-mode, html.assistant-mode body {
    плюс системный оригинал — одна группа мерки `py check_dupes.py`
    на четырёх местах. Теперь субъект системный, и странице писать
    нечего. */
+
+/* ── ПАНЕЛЬ AI-АССИСТЕНТА (№352, «питание-1», блок 2) ──────────────────
+   Панель — системная `.v2-assist-dock`; здесь лента и ряд ввода внутри неё.
+   Лента забирает остаток высоты и прокручивается САМА; `overscroll-behavior`
+   не отдаёт колесо странице, когда лента упёрлась в край. */
+.nut-assist-feed {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--space-3) var(--space-4);
+}
+.nut-assist-preview { margin: 0 var(--space-4); }
+.nut-assist-input { padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border); }

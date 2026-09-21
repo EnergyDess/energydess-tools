@@ -26,7 +26,7 @@
     {{ ph.text(V2_TOOL.nutrition, 'Дневник питания с подсчётом КБЖУ и штрих-код сканером.',
                '<span class="v2-head-date" id="sidebar-date"></span>' | safe) }}
     <div class="v2-head-actions">
-      <button type="button" class="v2-btn v2-btn-secondary nut-tabbtn" data-tab="assistant" onclick="switchTab(this)">{{ значок('sparkles') }}AI-ассистент</button>
+      <button type="button" class="v2-btn v2-btn-secondary" id="nut-assist-open" aria-controls="nut-assist" aria-expanded="false" onclick="открытьАссистента()">{{ значок('sparkles') }}AI-ассистент</button>
       <button type="button" class="v2-btn v2-btn-primary nut-tabbtn" data-tab="search" onclick="switchTab(this)">{{ значок('plus') }}Добавить</button>
     </div>
     <nav class="v2-tabs" aria-label="Разделы дневника питания">
@@ -707,23 +707,36 @@
       </div>
     </section>
 
-    <!-- ── TAB: ASSISTANT ──
-         Две обёртки, .as-cols и .as-chat, на узком экране объявлены
-         `display: contents` — то есть боксов у них нет, и лента, превью
-         и ряд ввода остаются прямыми flex-детьми вкладки ровно как раньше.
-         Это не осторожность: вокруг min-height этой вкладки собран набор
-         прошлых багов (см. комментарии к #tab-assistant.active в CSS),
-         и любая лишняя коробка в цепочке flex ломает высоту ленты. -->
-    <section class="nut-tab" id="tab-assistant">
-      <div class="as-cols">
-      <div class="as-chat">
-      <div class="chat-msgs" id="assistant-chat-msgs"></div>
-      <div class="chat-attach-preview" style="display:none">
-        <img class="chat-attach-img" alt="">
-        <span>Фото прикреплено</span>
-        <button onclick="clearChatAttachment()">×</button>
-      </div>
-      <div class="chat-input-row">
+
+  </div><!-- /nut-content -->
+
+</div><!-- /nut-app -->
+
+{# ── ПАНЕЛЬ AI-АССИСТЕНТА (№352, «питание-1», блок 2) ─────────────────
+   Решение владельца: ассистент — ПАНЕЛЬ СПРАВА, как у всех инструментов
+   v2, а не вкладка; в ней ТОЛЬКО переписка. Колонка «Сегодня» с КБЖУ
+   удалена: цифры живут в дневнике, и второй их показ рядом с чатом
+   был вторым местом, где они могли разойтись.
+   Прячется и показывается ОДНИМ механизмом — атрибутом `hidden`
+   (`[hidden] { display: none !important }` в style.css; авария 21.09).
+   Лента прокручивается сама: у панели фиксированная высота окна,
+   у ленты `flex: 1; min-height: 0; overflow-y: auto`. Прежде вкладка
+   брала `height: 100%` от родителя с высотой auto, лента росла
+   по содержимому, а прокрутка страницы была запрещена — не листалось
+   ничто (замер: scrollHeight 2302 = clientHeight 2302). #}
+<aside class="v2-assist v2-assist-dock nut-assist" id="nut-assist" aria-label="AI-ассистент" hidden>
+  <div class="v2-assist-head">
+    {{ значок('sparkles') }}<h2 class="v2-assist-title">AI-ассистент</h2>
+    <button type="button" class="v2-btn v2-btn-secondary v2-btn-icon" id="nut-assist-close"
+            aria-label="Закрыть" onclick="закрытьАссистента()">{{ значок('x') }}</button>
+  </div>
+  <div class="chat-msgs nut-assist-feed" id="assistant-chat-msgs"></div>
+  <div class="chat-attach-preview nut-assist-preview" style="display:none">
+    <img class="chat-attach-img" alt="">
+    <span>Фото прикреплено</span>
+    <button onclick="clearChatAttachment()">×</button>
+  </div>
+  <div class="chat-input-row nut-assist-input">
         <div class="attach-wrap">
           <input type="file" id="chat-photo-in" accept="image/*" style="display:none" onchange="onChatAttach(event)">
           <input type="file" id="chat-photo-cam" accept="image/*" capture="environment" style="display:none" onchange="onChatAttach(event)">
@@ -749,29 +762,8 @@
         <button class="btn-icon btn-icon-accent chat-send" onclick="sendChat('assistant-chat-in')">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
         </button>
-      </div>
-      </div><!-- /as-chat -->
-
-      <!-- Сегодняшние цифры рядом с перепиской. Это не украшение: ассистент
-           называет нормы и съеденное словами, и разойтись с дневником ему
-           нечем, только если числа видны на том же экране. Берутся тем же
-           запросом /nutrition/api/diary, что питает кольцо, — второй
-           источник разошёлся бы молча (CLAUDE.md §5.0.3). -->
-      <aside class="card card-static as-today" id="as-today">
-        <div class="as-today-hd">Сегодня</div>
-        <div class="as-today-date" id="as-today-date"></div>
-        <!-- Дневник открыт на другом дне: ассистент всё равно работает
-             с сегодняшним, и об этом надо сказать вслух — иначе колонка
-             читается как расхождение с дневником -->
-        <div class="alert alert-accent as-today-note" id="as-today-note" style="display:none"></div>
-        <div class="as-rows" id="as-today-rows"></div>
-      </aside>
-      </div><!-- /as-cols -->
-    </section>
-
-  </div><!-- /nut-content -->
-
-</div><!-- /nut-app -->
+  </div>
+</aside>
 
 {# Двенадцать модалок дневника собраны одним макросом. До него каркас лежал
    двенадцатью копиями, и вместе с ним копировались три дыры: Escape не работал
@@ -1080,7 +1072,6 @@ const S = {
   wtPeriod: 'month',
   // Сегодняшние цифры для колонки ассистента. Тот же эндпоинт, что питает
   // дневник, — второй источник разошёлся бы с кольцом молча
-  todayDiary: null,
 };
 let searchReqId = 0;
 
@@ -1122,6 +1113,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById(id)?.addEventListener('input', проверитьСменуНормы));
 });
 
+// ── ПАНЕЛЬ AI-АССИСТЕНТА (№352, «питание-1», блок 2) ──────────────────────
+// Открывается кнопкой шапки, закрывается крестиком и Esc. Переписка
+// перечитывается с сервера при КАЖДОМ открытии (BACKLOG №263: панель,
+// тянущая данные один раз, показывает первый кадр вместо текущего).
+// Видимость — ТОЛЬКО атрибутом `hidden`: второй механизм рядом
+// (`style.display`) проигрывает `[hidden]` молча — авария 21.09.
+function открытьАссистента() {
+  const п = document.getElementById('nut-assist');
+  if (!п.hidden) return;
+  п.hidden = false;
+  document.getElementById('nut-assist-open').setAttribute('aria-expanded', 'true');
+  document.documentElement.classList.add('v2-assist-lock');
+  loadChatHistory();
+  document.getElementById('assistant-chat-in').focus({ preventScroll: true });
+}
+
+function закрытьАссистента() {
+  const п = document.getElementById('nut-assist');
+  if (п.hidden) return;
+  п.hidden = true;
+  document.documentElement.classList.remove('v2-assist-lock');
+  const к = document.getElementById('nut-assist-open');
+  к.setAttribute('aria-expanded', 'false');
+  к.focus({ preventScroll: true });
+}
+
+// Esc закрывает панель, но не перебивает открытое поверх неё окно:
+// просмотр фото и окна дневника (`.modal-ov.open`) закрываются первыми.
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || document.getElementById('nut-assist').hidden) return;
+  if (document.querySelector('.modal-ov.open')) return;
+  закрытьАссистента();
+});
+
 // ── Navigation ────────────────────────────────────────────────────────────────
 function switchTab(btn) {
   goTab(btn.dataset.tab);
@@ -1136,13 +1161,7 @@ function goTab(tab) {
   S.activeTab = tab;
   document.querySelectorAll('.nut-tab').forEach(s => s.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
-  if (tab === 'assistant') {
-    window.scrollTo(0, 0);
-    const hdr = document.querySelector('.nut-hdr');
-    if (hdr) document.documentElement.style.setProperty('--assistant-top', hdr.getBoundingClientRect().bottom + 'px');
-  }
-  document.documentElement.classList.toggle('assistant-mode', tab === 'assistant');
-  const titles = {diary:'Дневник питания', search:'Добавить еду', history:'История', weight:'Вес & Замеры', profile:'Профиль', assistant:'AI-нутрициолог'};
+  const titles = {diary:'Дневник питания', search:'Добавить еду', history:'История', weight:'Вес & Замеры', profile:'Профиль'};
   document.getElementById('hdr-title').textContent = titles[tab] || '';
   document.getElementById('nut-content').scrollTop = 0;
   // СБРОС ДНЕВНИКА НА СЕГОДНЯ — ПО ДВУМ ПРИЧИНАМ, И ТОЛЬКО ПО НИМ.
@@ -1191,7 +1210,6 @@ function goTab(tab) {
   if (tab === 'weight')  loadWeightData();
   if (tab === 'profile') { loadProfileForm(); loadScaleStatus(); loadBodyPhotos(); }
   if (tab === 'search' && !document.getElementById('s-input').value) loadSearchTab(S.searchTab);
-  if (tab === 'assistant') { loadChatHistory(); загрузитьКолонкуСегодня(); }
 }
 
 // Переход на вкладку ИЗ КОДА: и содержимое, и подсветка в навигации.
@@ -1564,94 +1582,6 @@ async function loadDiary(date) {
   // Колонка ассистента показывает СЕГОДНЯ. Когда открытый день и есть
   // сегодняшний, берём тот же самый ответ — тогда два места на экране
   // не могут разойтись даже теоретически
-  if (date === S.today) отрисоватьКолонкуСегодня(data);
-}
-
-// ── Колонка сегодняшних цифр рядом с ассистентом ─────────────────────────────
-// ОДИН ИСТОЧНИК С ДНЕВНИКОМ, и это главное требование к блоку. Ассистент
-// уже получает нормы и съеденное из `nut_goals` на сервере (CLAUDE.md §5.0.3),
-// а колонка читает `/nutrition/api/diary` — тот же эндпоинт, что питает
-// кольцо. Посчитать пять чисел на клиенте было бы проще и означало бы третий
-// набор тех же величин: расхождение с ассистентом стало бы невидимым ровно
-// в том месте, ради которого колонка и заводится.
-// Видима ли колонка — СПРАШИВАЕМ У БРАУЗЕРА, а не сверяем ширину с числом.
-// Порог объявлен в CSS (`.as-today { display: none }` базово, раскладка
-// с колонкой — в `@media (min-width: 900px)`), и вторая копия числа 900
-// здесь разошлась бы с первой молча: подвинули медиазону — экран перестал
-// бы грузить видимый блок, и признака этого не было бы никакого.
-function колонкаВидна() {
-  const эл = document.getElementById('as-today');
-  return !!эл && getComputedStyle(эл).display !== 'none';
-}
-
-async function загрузитьКолонкуСегодня() {
-  // На узком экране колонки нет в раскладке — и запроса за ней тоже быть
-  // не должно. Прежде запрос уходил всегда: лишний /nutrition/api/diary
-  // на каждый вход в ассистента ради блока, которого не видно, — а вход
-  // туда с телефона и происходит по медленной сети.
-  if (!колонкаВидна()) return;
-  if (S.date === S.today && S.diary) { отрисоватьКолонкуСегодня(S.diary); return; }
-  const data = await api(`/nutrition/api/diary?date=${S.today}`);
-  if (data.error) { toast(data.error, false); return; }
-  отрисоватьКолонкуСегодня(data);
-}
-
-// Окно расширили до десктопного, стоя на вкладке ассистента: колонка
-// появилась в раскладке пустой, потому что данных за ней не ходили.
-// Догружаем по факту появления — тем же вопросом к браузеру, без числа.
-window.addEventListener('resize', () => {
-  if (S.activeTab === 'assistant' && колонкаВидна() && !S.todayDiary) загрузитьКолонкуСегодня();
-});
-
-const КОЛОНКА_СТРОКИ = [
-  ['calories', 'Калории', 'ккал', 'cal'],
-  ['protein',  'Белок',   'г',    'pro'],
-  ['fat',      'Жиры',    'г',    'fat'],
-  ['carbs',    'Углеводы','г',    'carb'],
-];
-
-function отрисоватьКолонкуСегодня(data) {
-  S.todayDiary = data;
-  // Колонка про СЕГОДНЯ, а у сегодняшнего дня норма есть всегда: журнал
-  // покрывает его по построению, а у того, кто анкету не сохранял, сервер
-  // отдаёт текущую (`норма_на_день`, исключение для сегодня и позже).
-  // Проверка оставлена не «на всякий случай», а чтобы отказ был громким:
-  // молча нарисовать колонку без знаменателей — это снова две правды
-  // на одном экране
-  const цели = data.goals, съедено = data.totals;
-  if (!цели) {
-    console.warn('[nut] у сегодняшнего дня нет нормы — этого быть не должно');
-    return;
-  }
-  // Только дата, без слова «сегодня»: оно уже стоит заголовком выше,
-  // и `подписьДаты` дала бы «Сегодня / Сегодня, 17 августа»
-  document.getElementById('as-today-date').textContent =
-    new Date(S.today + 'T00:00:00').toLocaleDateString('ru', {weekday:'short', day:'numeric', month:'long'});
-  // Дневник отмотан на другой день — говорим это вслух. Граница «ассистент
-  // работает с сегодняшним днём» названа в прошлых заходах и не меняется;
-  // без подписи колонка выглядела бы расхождением с дневником рядом
-  const note = document.getElementById('as-today-note');
-  if (S.date !== S.today) {
-    note.textContent = `Дневник открыт на ${подписьДаты(S.date)}. Ассистент и эти цифры — про сегодня.`;
-    note.style.display = '';
-  } else {
-    note.style.display = 'none';
-  }
-  const строки = КОЛОНКА_СТРОКИ.map(([ключ, имя, ед, цвет]) => {
-    const было = Math.round(съедено[ключ] || 0), норма = Math.round(цели[ключ] || 0);
-    return строкаКолонки(имя, `${было} / ${норма} ${ед}`, норма ? было / норма : 0, цвет);
-  });
-  строки.push(строкаКолонки('Вода', `${data.water_ml} / ${цели.water_ml} мл`,
-                            цели.water_ml ? data.water_ml / цели.water_ml : 0, 'wat'));
-  document.getElementById('as-today-rows').innerHTML = строки.join('');
-}
-
-function строкаКолонки(имя, значение, доля, цвет) {
-  const w = Math.min(Math.max(доля, 0), 1) * 100;
-  return `<div class="as-row">
-    <div class="as-row-hd"><span class="as-row-name">${имя}</span><span class="as-row-val">${значение}</span></div>
-    <div class="meter as-bar"><i class="meter-fill as-bar-fill is-${цвет}" style="width:${w.toFixed(1)}%"></i></div>
-  </div>`;
 }
 
 function renderRing(eaten, goal) {
@@ -3233,7 +3163,6 @@ async function saveFoodDraft() {
   // а loadDiary перечитывает открытый. Если дневник отмотан, колонка рядом
   // осталась бы с числами до записи — то есть экран показывал бы, что
   // блюдо сохранено, и тут же цифры, в которых его нет
-  if (S.date !== S.today) загрузитьКолонкуСегодня();
   обновитьМесяц(S.today);
   toast(data.failed?.length ? 'Записано не всё — смотрите ответ' : 'Записано в дневник', !data.failed?.length);
 }

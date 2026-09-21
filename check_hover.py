@@ -266,7 +266,8 @@ def доказать_подлог():
     ("/nutrition", "дневник · Добавить", "[data-tab='search']"),
     ("/nutrition", "дневник · История", "[data-tab='history']"),
     ("/nutrition", "дневник · Вес", "[data-tab='weight']"),
-    ("/nutrition", "дневник · Ассистент", "[data-tab='assistant']"),
+    # С «питание-1» (№352) ассистент — панель справа, а не вкладка.
+    ("/nutrition", "дневник · панель AI-ассистента", "#nut-assist-open"),
     ("/nutrition", "дневник · Профиль", "[data-tab='profile']"),
     ("/profile", "профиль · окно смены email", "[onclick*='modal-email']"),
     ("/profile", "профиль · окно смены пароля", "[onclick*='modal-password']"),
