@@ -799,81 +799,41 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
 .cal-wd, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-1); }
 .cal-wd { margin-bottom: var(--space-1); }
 .cal-wd span { font-size: var(--text-caption); color: var(--text-faint); text-align: center; }
+/* КЛЕТКА ДНЯ — ТОТ ЖЕ ЗНАК, ЧТО В ЛЕНТЕ ДНЕЙ (№352, «питание-3», блок 3;
+   правило — проверка 55). Число в кружке, под ним точка, если в дне есть
+   записи. Состояния: выбранный ЗАЛИТ цветом питания и наведением не
+   меняется; «сегодня» — цифра и обводка цвета питания без заливки;
+   будущий — та же сплошная обводка, цифра на ступень тусклее (без
+   прозрачности: прежние 0.35 у дней за окном давали цифре контраст ниже
+   порога). Зона наведения — кружок, а не вся клетка.
+   Прежняя рамка, залитая на долю от нормы (задача 129), снята письмом
+   владельца: доля — в сводке дня слева. */
 .cal-c {
   display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
-  /* НИЧЬЯ В ОКРУГЛЕНИИ РАЗРЕШЕНА ЗАМЕРОМ, а не порядком в словаре.
-     Было 6px по вертикали, а 6 стоит РОВНО посередине между
-     ступенями 4 и 8: сдвиг 2px в обе стороны. Механическое
-     «ближайшее» дало 4px и уронило клетку с 41×40 до 41×36 —
-     то есть увело её дальше от тач-таргета, названного границей
-     задачи 125. Ступень 8px даёт 41×44: по высоте требование
-     выполнено, по ширине клетка упирается в семь колонок
-     на 390px и остаётся границей, как и была. */
-  padding: var(--space-2) var(--space-1); border: 1px solid transparent; border-radius: 0.5rem;
-  background: none; color: var(--text-2); font-family: var(--font);
+  padding: var(--space-1) 0; border: none; background: none;
+  color: var(--v2-text-2); font-family: inherit;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
-  transition: background .15s, border-color .15s;
 }
 .cal-c.is-pad { pointer-events: none; }
-.cal-n { font-size: var(--text-caption); line-height: 1.2; }
-/* Полоска стоит В КАЖДОЙ клетке, даже пустой, и имеет высоту всегда.
-   Иначе клетка без записей на 7px ниже соседней, и ряды календаря
-   разъезжаются по вертикали — замер: 34 против 41px */
-/* РАМКА ПОСТОЯННОЙ ШИРИНЫ. Ширина — доля ширины клетки, а не число
-   в пикселях: на 390px клетка вдвое уже, чем на 2560, и рамка обязана
-   расти вместе с ней. Внутри одной ширины окна все рамки совпадают —
-   разброс меряется (`check_cal_mark.py`), и он меньше пикселя.
-
-   ВЫСОТА 6px, А НЕ 3px: в 3px внешний контур в 1px с каждой стороны
-   съедает две трети, и полоса читается сплошной линией. Плата — рост
-   карточки календаря, замерен и назван в отчёте.
-
-   `background: none` — у клетки БЕЗ записей рамки нет вовсе, а дорожка
-   `.meter` осталась бы залитой `--surface-sunken`. Контраст той заливки
-   к фону карточки 1.05, то есть глазом её нет, — но «почти невидимо»
-   и «нет» это разные утверждения, и второе проверяемо. */
-.cal-bar { --meter-h: 0.375rem; width: 78%; background: none; }
-/* МИНИМАЛЬНАЯ ЗАЛИВКА. Без неё день, где съедено ноль при известной
-   норме, выглядел бы РОВНО как день, у которого нормы нет вовсе: обе
-   рамки пустые. Заливка в 3px разводит эти два случая — «посчитано,
-   и вышло почти ничего» против «считать не от чего». Замер: 0 ккал
-   даёт 3px заливки, отсутствие знаменателя — 0px (элемента нет). */
-.cal-bar-f { min-width: 0.1875rem; }
-/* Засечка превышения у запланированного дня — цветом воды, а не акцента:
-   заливка у него тоже цветом воды, и тёмно-зелёная метка на голубой
-   полосе читалась бы как чужая. Субъект — свои классы страницы */
-.cal-bar-f.is-plan { --meter-over-ink: color-mix(in srgb, var(--wat) 60%, var(--surface-0)); }
-/* Запланированное на будущее — другим цветом, а не тем же приглушённым:
-   намерение и съеденное это разные вещи, и одинаковая полоска обещала бы,
-   что день уже прожит */
-.cal-bar-f.is-plan { background: var(--wat); }
-/* `.cal-bar-f.is-nogoal` УДАЛЁН 2026-08-21: правило описывало сочетание
-   классов, которого в разметке НЕТ НИ РАЗУ. Оно осталось от первой версии
-   задачи 95 — той, где день без своей нормы рисовался по сегодняшней
-   и приглушался; версию отвергли отрицательным контролем (прошлое всё
-   так же перерисовывалось), разметку переписали, правило забыли.
-   Ни одна проверка ряда такого не видит: класс `is-nogoal` в разметке
-   ЕСТЬ — только на дорожке, а не на заливке.
-   Сам `is-nogoal` из разметки тоже убран: факт «записи есть, нормы нет»
-   несёт ПУСТАЯ РАМКА, а приглушённая дорожка не значит ничего.
-
-   ТОЧКИ ПРИСУТСТВИЯ ЗДЕСЬ НЕТ — решение владельца 2026-08-21, отмена
-   решения того же дня. Точка отвечала «в дне есть записи», и рамка
-   отвечает ровно на это же и по тому же признаку. Замер по всей глубине
-   данных, живое дерево против базы: дней с записями 114, дней с рамкой
-   114, дней с точкой 114 — точка не несла ни одного факта сверх рамки.
-   Компонент `.ds-dot` из системы не удалён: он работает в полоске дней
-   на вкладке «Дневник». Убрано применение здесь. */
-.cal-c.is-today { border-color: var(--tool-accent); }
-.cal-c.is-sel { background: var(--tool-accent-dim); color: var(--tool-accent); }
-.cal-c.is-sel .cal-n { font-weight: 700; }
-.cal-c.is-fut .cal-n { color: var(--text-faint); }
-.cal-c.is-off { opacity: .35; cursor: default; }
-.cal-c:focus-visible { outline: 2px solid var(--tool-accent); outline-offset: 1px; }
-@media (hover: hover) {
-  .cal-c:not(:disabled):hover { background: var(--surface-2); }
-  .cal-c.is-sel:not(:disabled):hover { background: var(--tool-accent-dim); }
+.cal-n {
+  width: 2rem; height: 2rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--v2-line-1);
+  font-size: var(--text-caption); font-weight: 600; line-height: 1;
+  color: var(--v2-text); font-variant-numeric: tabular-nums;
+  transition: border-color .15s, background .15s, color .15s;
 }
+.cal-c.is-fut .cal-n { color: var(--v2-text-2); }
+.cal-c.is-today .cal-n { color: var(--v2-tool); border-color: var(--v2-tool-line); font-weight: 700; }
+.cal-c.is-sel .cal-n { background: var(--v2-tool); border-color: var(--v2-tool); color: var(--v2-ink-on-tool); }
+/* За окном планирования день не выбирается: обводки нет, цифра читается */
+.cal-c.is-off { cursor: default; }
+.cal-c.is-off .cal-n { border-color: transparent; }
+@media (hover: hover) {
+  .cal-c:not(.is-sel):not(:disabled) .cal-n:hover { background: var(--v2-surface-hover); }
+}
+.cal-c:focus-visible { outline: none; }
+.cal-c:focus-visible .cal-n { outline: 2px solid var(--tool-accent); outline-offset: 2px; }
 .cal-note { font-size: var(--text-caption); color: var(--text-faint); margin: var(--space-3) 0 0; }
 
 /* ── Сводка за месяц ── */
@@ -2139,7 +2099,7 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
      то есть дефект жил ровно на самой частой ширине и только на ней.
      Поймано замером кеглей по всем четырём ширинам, а не чтением. */
   .cal-wd span { font-size: calc(0.8125 * var(--nut-u)); }
-  .cal-c { padding: calc(0.375 * var(--nut-u)) calc(0.125 * var(--nut-u)); }
+  .cal-n { width: calc(2.375 * var(--nut-u)); height: calc(2.375 * var(--nut-u)); }
   .cal-note { font-size: calc(0.8125 * var(--nut-u)); }
   .mo { margin-top: calc(0.875 * var(--nut-u)); }
   .mo-title { font-size: calc(0.94 * var(--nut-u)); }
@@ -2399,6 +2359,38 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
    Слева анкета одной карточкой с «Сохранить», справа рассчитанные нормы
    и умные весы. Заголовки карточек — `.nut-card-title`, общий с «Весом».
    Только переменные v2 (сторож 47). */
+/* ═══ «ИСТОРИЯ» НА ЯЗЫКЕ v2 (№352, «питание-3», блок 3) ════════════════
+   Сводка дня, календарь и сводка месяца — карточками v2; стрелки и списки
+   месяца — `.v2-btn-icon` и `.v2-select`; клетка дня — знак ленты дней.
+   Только переменные v2 (сторож 47). */
+#tab-history { font-family: var(--v2-font); color: var(--v2-text); }
+#tab-history .hd-sum, #tab-history .cal, #tab-history .mo {
+  background: var(--v2-surface-1);
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-xl);
+  box-shadow: var(--v2-shadow-none);
+}
+#tab-history .hist-kcal-val {
+  font-family: var(--v2-font-display);
+  font-weight: var(--v2-fw-num);
+  letter-spacing: var(--v2-ls-display);
+  font-variant-numeric: tabular-nums;
+}
+#tab-history .hd-date, #tab-history .mo-title { color: var(--v2-text-strong); font-weight: var(--v2-fw-strong); }
+#tab-history .hd-macro-lbl, #tab-history .mo-lbl, #tab-history .mo-basis,
+#tab-history .cal-note, #tab-history .cal-wd span { color: var(--v2-text-2); }
+#tab-history .mo-row { border-top-color: var(--v2-line-2); }
+#tab-history .hd-open { margin-top: var(--v2-sp-3); }
+#tab-history .hd-open-note { margin: var(--v2-sp-3) 0 0; font-size: var(--v2-fs-sm); line-height: var(--v2-lh-body); color: var(--v2-text-2); }
+#tab-history .cal-hd { gap: var(--v2-sp-2); }
+#tab-history .cal-arrow:disabled { opacity: 0.45; }
+/* Число в кольце — Unbounded шире прежней гарнитуры: при прежнем кегле
+   «2780» выходило за обводку кольца (снимок 1600). Субъект — по id,
+   чтобы перебить десктопный кегль `#hist-kcal`. */
+#tab-history #hist-kcal { font-size: var(--v2-fs-lg); }
+/* Список месяца на 390 обрезал «Сентябрь»: поле v2 держит поля 16 px */
+#tab-history .cal-sel { padding-left: var(--v2-sp-3); padding-right: var(--v2-sp-3); font-size: var(--v2-fs-sm); }
+
 #tab-profile { font-family: var(--v2-font); color: var(--v2-text); }
 #tab-profile .p-card {
   background: var(--v2-surface-1);
