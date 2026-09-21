@@ -93,7 +93,7 @@
         <div class="hh-lang">
           <span class="v2-label">Язык письма</span>
           <div class="v2-seg letter-lang-seg" role="group" aria-label="Язык письма">
-            <button class="v2-seg-btn active" type="button" data-lang="ru"
+            <button class="v2-seg-btn is-active" type="button" data-lang="ru"
                     onclick="setLetterLang('ru', true)">Русский</button>
             <button class="v2-seg-btn" type="button" data-lang="en"
                     onclick="setLetterLang('en', true)">English</button>
@@ -183,11 +183,15 @@
           <div class="loading-text" id="loading-text">Пишу письмо — обычно около 30 секунд</div>
         </div>
 
+        {# У ОШИБКИ ЕСТЬ ХОД — повторить тот же запрос. Без кнопки человек
+           не знал, что делать дальше, кроме как нажать «Написать» ещё раз. #}
         <div class="error-state" id="error-state">
           <div class="hh-note hh-note-error">
             {{ значок('alert-circle') }}
             <span id="error-msg"></span>
           </div>
+          <button class="v2-btn v2-btn-secondary hh-error-retry" type="button" id="error-retry"
+                  onclick="generateLetter(lastForce)">Повторить</button>
         </div>
 
         <div id="warn-state" hidden>
@@ -985,7 +989,10 @@
       document.getElementById('lang-reason').hidden = true;
     }
     document.querySelectorAll('.letter-lang-seg [data-lang]').forEach(b => {
-      b.classList.toggle('active', b.dataset.lang === lang);
+      // КЛАСС КОМПОНЕНТА — `.is-active`. Здесь стояло `.active`, которого
+      // `.v2-seg-btn` не знает: нажатие меняло язык запроса, а подсветка
+      // не менялась никогда (авария 21.09, `check_hh_letter_states`).
+      b.classList.toggle('is-active', b.dataset.lang === lang);
       b.setAttribute('aria-pressed', b.dataset.lang === lang ? 'true' : 'false');
     });
   }
@@ -1170,7 +1177,11 @@
     // осталась бы висеть при перегенерации (loading) и на экране ошибки.
     document.getElementById('analysis-fail-note').hidden = true;
     document.getElementById('save-fail-note').hidden = true;
-    if (state !== 'warn') document.getElementById('warn-state').hidden = true;
+    // ПЛАШКА ПРЕДУПРЕЖДЕНИЯ — ТОЛЬКО АТРИБУТОМ `hidden`. Здесь её прятали
+    // атрибутом, а показывали `style.display = 'block'`, и правило
+    // `[hidden] { display: none !important }` побеждало: при низкой
+    // релевантности карточка оставалась ПУСТОЙ — авария на проде 21.09.
+    document.getElementById('warn-state').hidden = state !== 'warn';
   }
 
   // МЕТКИ СОБИРАЮТСЯ ТОЛЬКО ИЗ ТОГО, ЧТО ПРИШЛО В ДАННЫХ. Пустое поле
@@ -1202,7 +1213,9 @@
     return 'слов';
   }
 
+  let lastForce = false;
   async function generateLetter(force = false) {
+    lastForce = force;
     // сбросить режим редактирования если был активен
     if (letterEditing) toggleLetterEdit();
     const text = текстВакансии();
@@ -1227,18 +1240,28 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ job_text: text, force, lang: letterLang }),
       });
-      const data = await res.json();
+      // ОТВЕТ БЕЗ НАШЕГО ТЕЛА (502 и 504 прокси Fly отдают страницу, а не
+      // JSON) — это не «ошибка сети»: сеть ответила. Причина называется
+      // кодом, а не догадкой.
+      let data = null;
+      try { data = await res.json(); } catch { data = null; }
 
-      if (!res.ok || data.error) {
-        errorMsg.textContent = data.error || 'Неизвестная ошибка';
+      if (!data) {
+        errorMsg.textContent = `Сервер ответил ${res.status} без письма. Попробуйте ещё раз через минуту.`;
+        setState('error');
+      } else if (!res.ok || data.error) {
+        errorMsg.textContent = data.error || `Сервер ответил ${res.status}. Попробуйте ещё раз.`;
+        setState('error');
+      } else if (!data.warning && typeof data.letter !== 'string') {
+        // 200 без письма — немой отказ: прежде `data.letter.replace` падал
+        // и человек читал «Ошибка сети», которой не было
+        errorMsg.textContent = 'Сервер ответил, но письма в ответе нет. Попробуйте ещё раз.';
         setState('error');
       } else if (data.warning === 'low_relevance') {
         document.getElementById('warn-msg').textContent = data.message || 'Вакансия слабо соответствует резюме.';
         document.getElementById('warn-score').textContent = `Оценка релевантности: ${data.score}/10`;
-        document.getElementById('warn-state').style.display = 'block';
         setState('warn');
       } else {
-        document.getElementById('warn-state').style.display = 'none';
         const html = data.letter
           .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
           .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
@@ -1254,13 +1277,13 @@
         // требований. Порядок важен: setState сбрасывает плашку, показываем после
         if (data.analysis_error) {
           const failNote = document.getElementById('analysis-fail-note');
-          failNote.style.display = '';
+          failNote.hidden = false;
           failNote.title = data.analysis_error;
         }
         // письмо не попало в историю — подсказываем скопировать сейчас
         if (data.save_error) {
           const saveNote = document.getElementById('save-fail-note');
-          saveNote.style.display = '';
+          saveNote.hidden = false;
           saveNote.title = data.save_error;
         }
         localStorage.removeItem('hh_draft_job_text');

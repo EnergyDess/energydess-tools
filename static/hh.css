@@ -315,6 +315,7 @@
 .loading-text { font-size: var(--v2-fs-xs); color: var(--v2-text-2); }
 
 .error-state { display: none; }
+.hh-error-retry { margin-top: var(--v2-sp-3); }
 
 /* Вакансия слабо подходит: предупреждение и кнопка «всё равно». Карточка
    вложенная — системная `.v2-card-nested`; здесь раскладка и тон. */

@@ -23,3 +23,7 @@ jobs:
       - run: flyctl deploy --remote-only --build-arg GIT_COMMIT=${{ github.sha }}
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      # СБОРКА ЗАПРОСА ПИСЬМА НА ПРОДЕ, С ЕГО ПЕРЕМЕННЫМИ (авария 21.09, №352):
+      # оба пути × оба языка, модель не зовётся. Упала — выкладка красная.
+      # Ждёт свой коммит на `/version`; по HTTP, второго процесса на машине нет.
+      - run: python3 check_letter_build.py --коммит ${{ github.sha }}
