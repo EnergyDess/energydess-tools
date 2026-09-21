@@ -2293,3 +2293,180 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
   #tab-search .a-method-manual { margin-bottom: 0; }
   #tab-search .a-icon-method { display: none; }
 }
+
+/* ═══ «ВЕС» НА ЯЗЫКЕ v2 (№352, «питание-2», блок 2) ════════════════════
+   Раскладка: сверху ряд «карточка веса + график», ниже во всю ширину
+   «Состав тела» и «Прогресс тела» (переехал из «Профиля»). Вид — тот же
+   слой, что у «Дневника»: карточки с рамкой `--v2-line-1`, числа
+   Unbounded, заголовки карточек текстом, а не моноширинными прописными.
+   Только переменные v2 (сторож 47). */
+#tab-weight { font-family: var(--v2-font); color: var(--v2-text); }
+#tab-weight .wt-hero, #tab-weight .wt-measures, #tab-weight .chart-box,
+#tab-weight .wt-body, #tab-weight .wt-photos {
+  background: var(--v2-surface-1);
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-xl);
+  box-shadow: var(--v2-shadow-none);
+}
+/* Заголовок карточки — один класс на «Вес» и «Профиль»: прежний
+   системный `.field-label` моноширинный и прописной */
+.nut-card-title {
+  margin: 0 0 var(--v2-sp-3);
+  font-family: var(--v2-font);
+  font-size: var(--v2-fs-md);
+  font-weight: var(--v2-fw-strong);
+  color: var(--v2-text-strong);
+}
+#tab-weight .chart-hd .nut-card-title { margin: 0; }
+#tab-weight .wt-big, #tab-weight .wt-mval, #tab-weight .wt-bval {
+  font-family: var(--v2-font-display);
+  font-weight: var(--v2-fw-num);
+  letter-spacing: var(--v2-ls-display);
+  font-variant-numeric: tabular-nums;
+}
+#tab-weight .wt-mval.is-empty { font-family: var(--v2-font); font-weight: var(--v2-fw-text); color: var(--v2-text-2); }
+#tab-weight .wt-sub { color: var(--v2-text-2); font-weight: var(--v2-fw-medium); }
+#tab-weight .wt-delta { margin-top: var(--v2-sp-1); font-size: var(--v2-fs-sm); color: var(--v2-text-2); }
+#tab-weight .wt-delta.is-down { color: var(--v2-tool); }
+#tab-weight .wt-hero-btn { margin-top: var(--v2-sp-4); }
+
+/* Замеры тела — плитками внутри карточки, а не строками таблицы */
+#tab-weight .wt-measures { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
+#tab-weight .wt-mrow {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: var(--v2-sp-3);
+  background: var(--v2-surface-2);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-lg);
+}
+#tab-weight .wt-mrow:first-of-type { border-top: 1px solid var(--v2-line-2); }
+#tab-weight .wt-mname { color: var(--v2-text-2); font-weight: var(--v2-fw-medium); }
+
+/* Состав тела: клетки — вложенные окна v2; шкалы прежние */
+#tab-weight .wt-bcell {
+  background: var(--v2-surface-2);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-lg);
+}
+#tab-weight .wt-bname, #tab-weight .wt-bcmp, #tab-weight .wt-body-note,
+#tab-weight .wt-note, #tab-weight .wt-photos-note { color: var(--v2-text-2); }
+
+/* Прогресс тела */
+#tab-weight .wt-photos-note { margin: 0 0 var(--v2-sp-3); font-size: var(--v2-fs-sm); line-height: 1.5; }
+#tab-weight .wt-photos-sub { margin-top: var(--v2-sp-5); }
+#tab-weight .body-photo-slot { border-radius: var(--v2-r-lg); border-color: var(--v2-line-1); background: var(--v2-surface-2); color: var(--v2-text-2); }
+
+/* Во всю ширину — под рядом, с тем же потолком ширины, что у ряда */
+#tab-weight .wt-wide { margin-top: var(--v2-sp-4); }
+@media (min-width: 900px) {
+  #tab-weight .wt-wide { max-width: calc(87.5 * var(--nut-u)); margin-left: auto; margin-right: auto; }
+  /* Колонки ряда одной высоты: последняя карточка каждой растёт до низа
+     ряда. Специфичность — та же, что у правила `display: block` выше, и
+     стоит оно НИЖЕ по файлу. */
+  #tab-weight .w-cols { align-items: stretch; }
+  #tab-weight.active .d-left,
+  #tab-weight.active .d-right { display: flex; flex-direction: column; gap: var(--v2-sp-4); }
+  #tab-weight.active .d-left > :last-child,
+  #tab-weight.active .d-right > :last-child { flex: 1; margin-bottom: 0; }
+  #tab-weight .wt-hero, #tab-weight .chart-box { margin-bottom: 0; }
+  /* График занимает всю высоту своей карточки: размер холста читается
+     в момент отрисовки (`drawWeightChart` берёт `clientHeight`), и
+     растянутая карточка без этого несла пустоту под подписью */
+  #tab-weight .chart-box { display: flex; flex-direction: column; }
+  #tab-weight .wt-svg { flex: 1; height: auto; min-height: calc(14 * var(--nut-u)); }
+  /* Плитки замеров делят высоту карточки поровну: ряд тянет график,
+     и без этого под тремя плитками оставалась полоса пустоты */
+  #tab-weight .wt-measures .wt-mrow { flex: 1; align-items: center; }
+  /* Фото во всю ширину выходили по 480 px на ракурс (замер на 1600):
+     ячейки загрузки — в потолке полуширины, а сравнение — три ракурса
+     даты В РЯД, две даты рядом */
+  #tab-weight .body-photo-row, #tab-weight .wt-photos > .btn-primary { max-width: calc(36 * var(--nut-u)); }
+  #tab-weight .compare-col { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--v2-sp-2); align-content: start; }
+  #tab-weight .compare-col-label, #tab-weight .compare-col .empty-state { grid-column: 1 / -1; }
+}
+
+/* ═══ «ПРОФИЛЬ» НА ЯЗЫКЕ v2 (№352, «питание-2», блок 3) ═════════════════
+   Слева анкета одной карточкой с «Сохранить», справа рассчитанные нормы
+   и умные весы. Заголовки карточек — `.nut-card-title`, общий с «Весом».
+   Только переменные v2 (сторож 47). */
+#tab-profile { font-family: var(--v2-font); color: var(--v2-text); }
+#tab-profile .p-card {
+  background: var(--v2-surface-1);
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-xl);
+  box-shadow: var(--v2-shadow-none);
+  margin-bottom: var(--v2-sp-4);
+}
+#tab-profile .p-sec { margin-bottom: var(--v2-sp-5); }
+#tab-profile .p-sec:last-child { margin-bottom: 0; }
+/* Подписи полей — текстом, а не моноширинными прописными системного
+   `.field-label`: субъект — страничный `.f-label` на том же элементе */
+#tab-profile .f-label {
+  font-family: var(--v2-font);
+  font-size: var(--v2-fs-sm);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--v2-text-2);
+}
+#tab-profile .p-note, #tab-profile .p-note-inline { color: var(--v2-text-2); }
+
+/* Нормы — крупные числа Unbounded */
+#tab-profile .targets-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(calc(7 * var(--nut-u)), 100%), 1fr)); gap: var(--v2-sp-3); }
+#tab-profile .t-item {
+  padding: var(--v2-sp-3);
+  background: var(--v2-surface-2);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-lg);
+}
+#tab-profile .t-val {
+  font-family: var(--v2-font-display);
+  font-size: var(--v2-fs-2xl);
+  font-weight: var(--v2-fw-num);
+  letter-spacing: var(--v2-ls-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--v2-text-strong);
+}
+#tab-profile .t-lbl { font-size: var(--v2-fs-xs); color: var(--v2-text-2); text-transform: none; letter-spacing: 0; }
+
+/* Весы */
+#tab-profile .p-scale-state { font-weight: var(--v2-fw-strong); color: var(--v2-text-strong); }
+#tab-profile .scale-live {
+  background: var(--v2-surface-2);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-lg);
+  box-shadow: var(--v2-shadow-none);
+}
+#tab-profile .scale-reauth { flex-wrap: wrap; border-radius: var(--v2-r-lg); }
+#tab-profile .scale-reauth-btn { margin-left: auto; }
+
+@media (min-width: 900px) {
+  /* Прокручивается вкладка, а не каждая колонка: колонкам нужна общая
+     высота ряда, чтобы последняя карточка каждой дошла до его низа.
+     Селекторы те же, что у прежних правил выше, и стоят НИЖЕ по файлу. */
+  #tab-profile.active { display: block; overflow-y: auto; overflow-x: hidden; }
+  #tab-profile .p-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--v2-sp-5);
+    align-items: stretch;
+    max-width: calc(87.5 * var(--nut-u));
+    margin-left: auto; margin-right: auto;
+  }
+  #tab-profile.active .d-left,
+  #tab-profile.active .d-right {
+    display: flex; flex-direction: column;
+    height: auto; min-height: 0; overflow: visible; padding-right: 0;
+  }
+  #tab-profile.active .d-left > :last-child,
+  #tab-profile.active .d-right > :last-child { flex: 1; margin-bottom: 0; }
+  #tab-profile .f-label { font-size: var(--v2-fs-sm); }
+  /* Анкета короче: числовые поля по два в ряд. Пол — во всю строку */
+  #tab-profile .p-form .p-sec:first-child { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--v2-sp-4); }
+  #tab-profile .p-form .p-sec:first-child > .nut-card-title,
+  #tab-profile .p-form .p-sec:first-child > .f-field:first-of-type { grid-column: 1 / -1; }
+  /* Нормы: калории — крупной плиткой во всю ширину, остальное 2×2 */
+  #tab-profile .targets-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  #tab-profile .t-item { padding: var(--v2-sp-4); }
+  #tab-profile .t-item:first-child { grid-column: 1 / -1; padding: var(--v2-sp-6); }
+  #tab-profile .t-item:first-child .t-val { font-size: var(--v2-fs-3xl); color: var(--v2-tool); }
+}

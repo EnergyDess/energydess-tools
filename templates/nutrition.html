@@ -391,11 +391,20 @@
 
     <!-- ── TAB: WEIGHT ── -->
     <section class="nut-tab" id="tab-weight">
+      {# РАСКЛАДКА (№352, «питание-2», блок 2). Сверху ОДИН РЯД: карточка
+         веса с кнопкой «Записать замер» и замерами слева, график справа;
+         колонки одной высоты — последняя карточка каждой колонки растёт
+         до низа ряда. Замер до правки: под «Записать замер» 1166 px пустоты
+         на 1600 — «Состав тела» стоял в правой колонке и тянул её вниз.
+         Ниже во всю ширину «Состав тела» и «Прогресс тела». #}
       <div class="w-cols">
       <div class="d-left">
         <div class="card card-static wt-hero">
           <div class="wt-big"><span id="cur-wt">—</span> <span class="wt-unit">кг</span></div>
           <div class="wt-sub" id="wt-sub">Взвешивание не записано</div>
+          {# Изменение к прошлому взвешиванию — считает `loadWeightData`
+             из того же списка, что и цифру выше #}
+          <div class="wt-delta" id="wt-delta" hidden></div>
           <div class="wt-prog" id="wt-prog" style="display:none">
             <div class="wt-prog-lbl">
               <span id="wt-start">—</span>
@@ -412,19 +421,19 @@
               <button class="btn-secondary btn-block" onclick="поставитьНовуюЦель()">Поставить новую цель</button>
             </div>
           </div>
+          <button class="btn-primary btn-block save-btn-flush wt-hero-btn" onclick="открыть_модалку('modal-measure')">{{ значок('ruler') }} Записать замер</button>
         </div>
         <div class="card card-static wt-measures">
-          <div class="field-label">Замеры</div>
+          <h3 class="nut-card-title">Замеры тела</h3>
           <div class="wt-mrow"><span class="wt-mname">Талия</span><span class="wt-mval" id="m-waist">не записан</span></div>
           <div class="wt-mrow"><span class="wt-mname">Ягодицы</span><span class="wt-mval" id="m-hips">не записан</span></div>
           <div class="wt-mrow"><span class="wt-mname">Грудь</span><span class="wt-mval" id="m-chest">не записан</span></div>
         </div>
-        <button class="btn-primary btn-block save-btn-flush" onclick="открыть_модалку('modal-measure')">{{ значок('ruler') }} Записать замер</button>
       </div>
       <div class="d-right">
         <div class="card card-static chart-box">
           <div class="chart-hd">
-            <div class="field-label">График веса</div>
+            <h3 class="nut-card-title">График веса</h3>
             <div class="segmented" id="wt-period">
               <button class="segmented-btn active" data-period="month" onclick="выбратьПериодВеса(this)">Месяц</button>
               <button class="segmented-btn" data-period="all" onclick="выбратьПериодВеса(this)">Всё время</button>
@@ -436,68 +445,155 @@
                место, где можно сказать, что выводы делать рано -->
           <div class="wt-note" id="wt-note"></div>
         </div>
-        {# СОСТАВ ТЕЛА. Блока не было вовсе: показатели приезжали с весов,
-           ложились в базу и не показывались нигде — двенадцать колонок,
-           видимых только на /workout/profile тремя строками.
-
-           Скрыт ЦЕЛИКОМ, пока ни в одной записи состава нет. Пустой блок
-           с одиннадцатью прочерками читался бы как «весы сломались»,
-           хотя простые весы состав не мерят и это норма.
-
-           Показываются ТОЛЬКО пришедшие показатели: строки «нет данных»
-           тут не рисуются — в отличие от замеров тела выше, где строка
-           постоянная и пустота означает «вы не записали». Здесь пустота
-           означает «весы не измеряли», и это не задача пользователя.
-
-           ШКАЛЫ ПОЯВИЛИСЬ 2026-08-19. Здесь стояло «оценок вида
-           высокий/низкий нет и не будет: это суждение о здоровье».
-           Решение отменено владельцем, и отменено по делу: голое
-           «28.473255 %» не говорит человеку ничего, а приложение Zepp
-           рядом показывает ту же цифру с полосой и словом. Оценку при
-           этом мы по-прежнему не выносим — воспроизводим ту, которую
-           уже вынес Zepp: границы считаются по его же формулам
-           (`body_scales.py`, там же сверка с живым экраном), собирает
-           блок сервер, а не браузер.
-
-           Советов («вам стоит больше двигаться») нет и не будет: их
-           даёт приложение, и второй голос тут не нужен. #}
-        <div class="card card-static wt-body" id="wt-body" style="display:none">
-          <div class="chart-hd">
-            <div class="field-label">Состав тела</div>
-            <div class="p-note-inline" id="wt-body-date"></div>
-          </div>
-          {# Анкета неполна — часть полос не рисуется, и это НАЗЫВАЕТСЯ.
-             Без строки отсутствие полос читалось бы как «у этого
-             показателя шкалы не бывает» (§6.0.1) #}
-          <div class="alert alert-accent wt-body-gap" id="wt-body-gap" style="display:none"></div>
-          <div class="wt-body-grid" id="wt-body-grid"></div>
-          <p class="wt-body-note">Значения измерены весами. Границы норм — те же, что
-            показывает приложение Zepp Life: они считаются по полу, возрасту, росту
-            и весу. Это не медицинское заключение.</p>
-        </div>
       </div>
+      </div>
+      {# СОСТАВ ТЕЛА. Блока не было вовсе: показатели приезжали с весов,
+         ложились в базу и не показывались нигде — двенадцать колонок,
+         видимых только на /workout/profile тремя строками.
+
+         Скрыт ЦЕЛИКОМ, пока ни в одной записи состава нет. Пустой блок
+         с одиннадцатью прочерками читался бы как «весы сломались»,
+         хотя простые весы состав не мерят и это норма.
+
+         Показываются ТОЛЬКО пришедшие показатели: строки «нет данных»
+         тут не рисуются — в отличие от замеров тела выше, где строка
+         постоянная и пустота означает «вы не записали». Здесь пустота
+         означает «весы не измеряли», и это не задача пользователя.
+
+         ШКАЛЫ ПОЯВИЛИСЬ 2026-08-19. Здесь стояло «оценок вида
+         высокий/низкий нет и не будет: это суждение о здоровье».
+         Решение отменено владельцем, и отменено по делу: голое
+         «28.473255 %» не говорит человеку ничего, а приложение Zepp
+         рядом показывает ту же цифру с полосой и словом. Оценку при
+         этом мы по-прежнему не выносим — воспроизводим ту, которую
+         уже вынес Zepp: границы считаются по его же формулам
+         (`body_scales.py`, там же сверка с живым экраном), собирает
+         блок сервер, а не браузер.
+
+         Советов («вам стоит больше двигаться») нет и не будет: их
+         даёт приложение, и второй голос тут не нужен. #}
+      <div class="card card-static wt-wide wt-body" id="wt-body" style="display:none">
+        <div class="chart-hd">
+          <h3 class="nut-card-title">Состав тела</h3>
+          <div class="p-note-inline" id="wt-body-date"></div>
+        </div>
+        {# Анкета неполна — часть полос не рисуется, и это НАЗЫВАЕТСЯ.
+           Без строки отсутствие полос читалось бы как «у этого
+           показателя шкалы не бывает» (§6.0.1) #}
+        <div class="alert alert-accent wt-body-gap" id="wt-body-gap" style="display:none"></div>
+        <div class="wt-body-grid" id="wt-body-grid"></div>
+        <p class="wt-body-note">Значения измерены весами. Границы норм — те же, что
+          показывает приложение Zepp Life: они считаются по полу, возрасту, росту
+          и весу. Это не медицинское заключение.</p>
+      </div>
+      {# ПРОГРЕСС ТЕЛА ПЕРЕЕХАЛ ИЗ «ПРОФИЛЯ» (№352, «питание-2», блок 2).
+         Те же поля, те же обработчики и те же адреса сервера — сменилось
+         только место: снимки тела — про вес и форму, а не про анкету.
+         Сверка 53 обязана видеть органы живыми, а не пропавшими. #}
+      <div class="card card-static wt-wide wt-photos">
+        <h3 class="nut-card-title">Прогресс тела</h3>
+        <p class="wt-photos-note">Визуальный дневник прогресса. Для точного анализа состава тела используйте умные весы или обратитесь к специалисту.</p>
+        <div class="body-photo-row">
+          <div class="body-photo-col">
+            <input type="file" accept="image/*" id="photo-front" style="display:none" onchange="previewBodyPhoto(this,'front')">
+            <div class="body-photo-slot" onclick="document.getElementById('photo-front').click()" id="slot-front">+ Спереди</div>
+          </div>
+          <div class="body-photo-col">
+            <input type="file" accept="image/*" id="photo-side" style="display:none" onchange="previewBodyPhoto(this,'side')">
+            <div class="body-photo-slot" onclick="document.getElementById('photo-side').click()" id="slot-side">+ Сбоку</div>
+          </div>
+          <div class="body-photo-col">
+            <input type="file" accept="image/*" id="photo-back" style="display:none" onchange="previewBodyPhoto(this,'back')">
+            <div class="body-photo-slot" onclick="document.getElementById('photo-back').click()" id="slot-back">+ Сзади</div>
+          </div>
+        </div>
+        <button class="btn-primary btn-block" onclick="uploadBodyPhotos()">Сохранить фото за сегодня</button>
+        <div class="p-msg" id="body-photo-msg"></div>
+
+        <h3 class="nut-card-title wt-photos-sub">Сравнение по датам</h3>
+        <div class="compare-row">
+          <select class="select input-compact compare-select" id="compare-date-old" onchange="renderCompare()"></select>
+          <span class="compare-arrow">→</span>
+          <select class="select input-compact compare-select" id="compare-date-new" onchange="renderCompare()"></select>
+        </div>
+        <div class="compare-view" id="compare-view"></div>
       </div>
     </section>
 
     <!-- ── TAB: PROFILE ── -->
     <section class="nut-tab" id="tab-profile">
+      {# РАСКЛАДКА (№352, «питание-2», блок 3). Слева анкета одной
+         карточкой — личные данные, цель, активность и «Сохранить»; справа
+         рассчитанные нормы и умные весы. Замер до правки: справа под
+         «Сохранить» пустота 1884 px на 1600 — анкета, весы и фото стояли
+         слева, а справа три коротких блока. «Прогресс тела» переехал
+         во вкладку «Вес» (блок 2). #}
+      <div class="p-cols">
       <div class="d-left">
-        <div class="p-sec">
-          <div class="p-sec-title">Личные данные</div>
-          <div class="f-field">
-            <label class="field-label f-label">Пол</label>
-            <div class="segmented" id="rg-gender">
-              <button class="segmented-btn active" data-val="male"   onclick="setRad(this)">Мужской</button>
-              <button class="segmented-btn"       data-val="female" onclick="setRad(this)">Женский</button>
+        <div class="card card-static p-card p-form">
+          <div class="p-sec">
+            <h3 class="nut-card-title">Личные данные</h3>
+            <div class="f-field">
+              <label class="field-label f-label">Пол</label>
+              <div class="segmented" id="rg-gender">
+                <button class="segmented-btn active" data-val="male"   onclick="setRad(this)">Мужской</button>
+                <button class="segmented-btn"       data-val="female" onclick="setRad(this)">Женский</button>
+              </div>
+            </div>
+            <div class="f-field"><label class="field-label f-label">Возраст</label><input type="number" class="input input-compact" id="p-age"    placeholder="25" min="10" max="100"></div>
+            <div class="f-field"><label class="field-label f-label">Вес, кг</label><input type="number" class="input input-compact" id="p-weight" placeholder="70" min="30" max="250" step="0.1"></div>
+            <div class="f-field"><label class="field-label f-label">Рост, см</label><input type="number" class="input input-compact" id="p-height" placeholder="170" min="120" max="250"></div>
+            <div class="f-field"><label class="field-label f-label">Цель по весу, кг</label><input type="number" class="input input-compact" id="p-target" placeholder="65" min="30" max="250" step="0.1"></div>
+          </div>
+          <div class="p-sec">
+            <h3 class="nut-card-title">Цель</h3>
+            <div class="segmented" id="rg-goal">
+              <button class="segmented-btn"       data-val="lose"     onclick="setRad(this)">Похудение</button>
+              <button class="segmented-btn active" data-val="maintain" onclick="setRad(this)">Поддержание</button>
+              <button class="segmented-btn"       data-val="gain"     onclick="setRad(this)">Набор</button>
             </div>
           </div>
-          <div class="f-field"><label class="field-label f-label">Возраст</label><input type="number" class="input input-compact" id="p-age"    placeholder="25" min="10" max="100"></div>
-          <div class="f-field"><label class="field-label f-label">Вес, кг</label><input type="number" class="input input-compact" id="p-weight" placeholder="70" min="30" max="250" step="0.1"></div>
-          <div class="f-field"><label class="field-label f-label">Рост, см</label><input type="number" class="input input-compact" id="p-height" placeholder="170" min="120" max="250"></div>
-          <div class="f-field"><label class="field-label f-label">Цель по весу, кг</label><input type="number" class="input input-compact" id="p-target" placeholder="65" min="30" max="250" step="0.1"></div>
+          <div class="p-sec">
+            <h3 class="nut-card-title">Активность</h3>
+            {# BACKLOG №114: пять взаимоисключающих вариантов с длинными
+               подписями. Системный `.segmented` вариантом `.segmented-stack`,
+               а не свой `.act-btn`: роль та же, что у ряда, отличается
+               только направлением. #}
+            <div class="segmented segmented-stack" id="rg-act">
+            <button class="segmented-btn" data-val="sedentary"  onclick="setAct(this)">{{ значок('armchair') }} Сидячий — офис, мало движения</button>
+            <button class="segmented-btn" data-val="light"      onclick="setAct(this)">{{ значок('footprints') }} Лёгкий — прогулки, редкие тренировки</button>
+            <button class="segmented-btn active" data-val="moderate" onclick="setAct(this)">{{ значок('activity') }} Умеренный — тренировки 3-4 раза в неделю</button>
+            <button class="segmented-btn" data-val="active"     onclick="setAct(this)">{{ значок('dumbbell') }} Активный — тренировки 5-6 раз</button>
+            <button class="segmented-btn" data-val="very_active" onclick="setAct(this)">{{ значок('flame') }} Очень активный — ежедневно</button>
+            </div>
+          </div>
+          <!-- ИСТОРИИ НОРМ В БАЗЕ НЕТ, и это надо сказать вслух ДО сохранения.
+               Полоски долей от нормы в календаре истории и сводка за месяц
+               считаются по ТЕКУЩЕЙ норме — то есть смена цели перерисовывает
+               прошлые месяцы задним числом, молча и без единого признака.
+               Предупреждение показывается только когда пересчёт правда
+               случится: поле, не влияющее на норму, его не включает
+               (BACKLOG.md, задача 94 — история норм с привязкой к дате). -->
+          <div class="alert alert-accent p-warn" id="p-norm-warn" style="display:none">
+            <strong>Нормы пересчитаются.</strong> Истории норм пока нет: доли от нормы
+            в календаре и средние за прошлые месяцы считаются по текущей норме — после
+            сохранения показатели уже прожитых дней изменятся задним числом.
+          </div>
+          <button class="btn-primary btn-block" onclick="saveProfile()">Сохранить</button>
         </div>
-
-        <div class="p-sec">
+      </div>
+      <div class="d-right">
+        <div class="card card-static p-card p-norms" id="targets-box" style="display:none">
+          <h3 class="nut-card-title">Рассчитанные нормы</h3>
+          <div class="targets-row">
+            <div class="t-item"><div class="t-val" id="t-cal">—</div><div class="t-lbl">ккал/день</div></div>
+            <div class="t-item"><div class="t-val val-prot" id="t-prot">—г</div><div class="t-lbl">Белок</div></div>
+            <div class="t-item"><div class="t-val val-fat" id="t-fat">—г</div><div class="t-lbl">Жиры</div></div>
+            <div class="t-item"><div class="t-val val-carb" id="t-carb">—г</div><div class="t-lbl">Углеводы</div></div>
+            <div class="t-item"><div class="t-val val-wat" id="t-wat">—</div><div class="t-lbl">Вода, мл</div></div>
+          </div>
+        </div>
+        <div class="card card-static p-card p-scale">
           {# КНОПКА СПРАВКИ. Порядок работы неочевиден и был установлен
              живым замером владельца 2026-08-19: он встал на весы, сразу
              нажал «Синхронизировать» — и вес не изменился. Данные попали
@@ -507,7 +603,7 @@
              Bluetooth в телефон. Пока приложение не поговорило с весами,
              в облаке пусто, и синхронизировать нечего никаким кодом.
              Без этого объяснения экран выглядит сломанным. #}
-          <div class="p-sec-title p-sec-title-hint">Умные весы
+          <h3 class="nut-card-title p-sec-title-hint">Умные весы
             <span class="hint">
               <button type="button" class="hint-btn" aria-expanded="false" aria-label="Как приходят измерения">
                               </button>
@@ -526,7 +622,7 @@
                 в приложении сайт попросит пароль ещё раз. Так устроен сервис Zepp.
               </span>
             </span>
-          </div>
+          </h3>
           {# ЭКРАН ПОКАЗЫВАЕТ РОВНО ОДНО СОСТОЯНИЕ.
 
              Живой снимок 2026-08-18 показывал ЧЕТЫРЕ утверждения разом:
@@ -555,21 +651,27 @@
             <div class="alert alert-warn scale-reauth" id="scale-reauth" style="display:none">
               {{ значок('key-round') }}
               <span>Ключ доступа Zepp Life перестал действовать, и синхронизация остановилась. Это не поломка сайта: ключом распоряжается Zepp, и он может быть отозван на их стороне. Уже загруженные измерения на месте. Введите пароль ещё раз — он снова нужен только на один вход.</span>
+              {# Кнопка открывает ТУ ЖЕ форму ввода пароля ниже — логика входа
+                 не тронута (№352, «питание-2», блок 3) #}
+              <button type="button" class="btn-secondary scale-reauth-btn" id="scale-reauth-btn"
+                      onclick="открытьФормуВесов()">{{ значок('refresh-cw') }} Переподключить</button>
             </div>
-            <p class="p-note">Подключите весы Mi Body Composition Scale — вес и состав тела будут подтягиваться автоматически. Это неофициальная интеграция: если Zepp Life изменит свой API, синхронизация может прерваться — тогда просто продолжайте вводить вес вручную, ничего не сломается.</p>
-            <p class="p-note"><strong>Нужен собственный аккаунт Zepp Life — почта и пароль, которыми вы входите в приложение Zepp Life.</strong> Вход через аккаунт Xiaomi не подойдёт: Xiaomi требует подтвердить личность в своём приложении, и стороннему сервису этот путь закрыт. Если вы заходите в Zepp Life кнопкой «Xiaomi», заведите в приложении отдельный аккаунт по почте и привяжите весы к нему.</p>
-            <p class="p-note">Пароль нужен один раз — чтобы обменять его на ключ доступа. Мы его не сохраняем: в базе остаётся только ключ, который можно отозвать.</p>
-            <input type="email" class="input input-compact scale-input" id="scale-username" placeholder="почта аккаунта Zepp Life" autocomplete="username">
-            {# .input-wrap + .eye-btn — системная пара из style.css, та же,
-               что на входе и регистрации. Поведение (toggleEye) переехало
-               в ui.js: три копии одной функции в трёх шаблонах уже были #}
-            <div class="input-wrap scale-input">
-              <input type="password" class="input input-compact" id="scale-password" placeholder="пароль" autocomplete="current-password">
-              <button type="button" class="btn-icon eye-btn" onclick="toggleEye('scale-password', this)" tabindex="-1" aria-label="Показать пароль">
-                {{ значок('eye') }}
-              </button>
+            <div id="scale-form">
+              <p class="p-note">Подключите весы Mi Body Composition Scale — вес и состав тела будут подтягиваться автоматически. Это неофициальная интеграция: если Zepp Life изменит свой API, синхронизация может прерваться — тогда просто продолжайте вводить вес вручную, ничего не сломается.</p>
+              <p class="p-note"><strong>Нужен собственный аккаунт Zepp Life — почта и пароль, которыми вы входите в приложение Zepp Life.</strong> Вход через аккаунт Xiaomi не подойдёт: Xiaomi требует подтвердить личность в своём приложении, и стороннему сервису этот путь закрыт. Если вы заходите в Zepp Life кнопкой «Xiaomi», заведите в приложении отдельный аккаунт по почте и привяжите весы к нему.</p>
+              <p class="p-note">Пароль нужен один раз — чтобы обменять его на ключ доступа. Мы его не сохраняем: в базе остаётся только ключ, который можно отозвать.</p>
+              <input type="email" class="input input-compact scale-input" id="scale-username" placeholder="почта аккаунта Zepp Life" autocomplete="username">
+              {# .input-wrap + .eye-btn — системная пара из style.css, та же,
+                 что на входе и регистрации. Поведение (toggleEye) переехало
+                 в ui.js: три копии одной функции в трёх шаблонах уже были #}
+              <div class="input-wrap scale-input">
+                <input type="password" class="input input-compact" id="scale-password" placeholder="пароль" autocomplete="current-password">
+                <button type="button" class="btn-icon eye-btn" onclick="toggleEye('scale-password', this)" tabindex="-1" aria-label="Показать пароль">
+                  {{ значок('eye') }}
+                </button>
+              </div>
+              <button class="btn-primary btn-block" onclick="connectScale()" id="scale-connect-btn">Подключить весы</button>
             </div>
-            <button class="btn-primary btn-block" onclick="connectScale()" id="scale-connect-btn">Подключить весы</button>
             {# Кнопка отключения ПРИ ОТОЗВАННОМ КЛЮЧЕ. Она нужна и здесь:
                человек может не захотеть вводить пароль заново, и тогда
                единственный выход — убрать привязку.
@@ -589,7 +691,7 @@
           </div>
           <div class="card card-static scale-live" id="scale-connected" style="display:none">
             <div class="scale-live-hd">
-              <div class="field-label">Весы подключены</div>
+              <div class="p-scale-state">Весы подключены</div>
               <div class="p-note-inline" id="scale-last-sync">—</div>
             </div>
             {# Ошибка последней синхронизации — системным вариантом
@@ -626,82 +728,7 @@
             </div>
           </div>
         </div>
-
-        <div class="p-sec">
-          <div class="p-sec-title">Прогресс тела</div>
-          <p class="p-note-sm">Визуальный дневник прогресса. Для точного анализа состава тела используй умные весы или обратись к специалисту.</p>
-          <div class="body-photo-row">
-            <div class="body-photo-col">
-              <input type="file" accept="image/*" id="photo-front" style="display:none" onchange="previewBodyPhoto(this,'front')">
-              <div class="body-photo-slot" onclick="document.getElementById('photo-front').click()" id="slot-front">+ Спереди</div>
-            </div>
-            <div class="body-photo-col">
-              <input type="file" accept="image/*" id="photo-side" style="display:none" onchange="previewBodyPhoto(this,'side')">
-              <div class="body-photo-slot" onclick="document.getElementById('photo-side').click()" id="slot-side">+ Сбоку</div>
-            </div>
-            <div class="body-photo-col">
-              <input type="file" accept="image/*" id="photo-back" style="display:none" onchange="previewBodyPhoto(this,'back')">
-              <div class="body-photo-slot" onclick="document.getElementById('photo-back').click()" id="slot-back">+ Сзади</div>
-            </div>
-          </div>
-          <button class="btn-primary btn-block" onclick="uploadBodyPhotos()">Сохранить фото за сегодня</button>
-          <div class="p-msg" id="body-photo-msg"></div>
-
-          <div class="p-sec-title p-sec-title-gap">Сравнение по датам</div>
-          <div class="compare-row">
-            <select class="select input-compact compare-select" id="compare-date-old" onchange="renderCompare()"></select>
-            <span class="compare-arrow">→</span>
-            <select class="select input-compact compare-select" id="compare-date-new" onchange="renderCompare()"></select>
-          </div>
-          <div class="compare-view" id="compare-view"></div>
-        </div>
       </div>
-      <div class="d-right">
-        <div class="p-sec">
-          <div class="p-sec-title">Цель</div>
-          <div class="segmented" id="rg-goal">
-            <button class="segmented-btn"       data-val="lose"     onclick="setRad(this)">Похудение</button>
-            <button class="segmented-btn active" data-val="maintain" onclick="setRad(this)">Поддержание</button>
-            <button class="segmented-btn"       data-val="gain"     onclick="setRad(this)">Набор</button>
-          </div>
-        </div>
-        <div class="p-sec">
-          <div class="p-sec-title">Активность</div>
-          {# BACKLOG №114: пять взаимоисключающих вариантов с длинными
-             подписями. Системный `.segmented` вариантом `.segmented-stack`,
-             а не свой `.act-btn`: роль та же, что у ряда, отличается
-             только направлением. #}
-          <div class="segmented segmented-stack" id="rg-act">
-          <button class="segmented-btn" data-val="sedentary"  onclick="setAct(this)">{{ значок('armchair') }} Сидячий — офис, мало движения</button>
-          <button class="segmented-btn" data-val="light"      onclick="setAct(this)">{{ значок('footprints') }} Лёгкий — прогулки, редкие тренировки</button>
-          <button class="segmented-btn active" data-val="moderate" onclick="setAct(this)">{{ значок('activity') }} Умеренный — тренировки 3-4 раза в неделю</button>
-          <button class="segmented-btn" data-val="active"     onclick="setAct(this)">{{ значок('dumbbell') }} Активный — тренировки 5-6 раз</button>
-          <button class="segmented-btn" data-val="very_active" onclick="setAct(this)">{{ значок('flame') }} Очень активный — ежедневно</button>
-          </div>
-        </div>
-        <div class="accent-box accent-box-targets" id="targets-box" style="display:none">
-          <div class="targets-title">Расчётные нормы</div>
-          <div class="targets-row">
-            <div class="t-item"><div class="t-val" id="t-cal">—</div><div class="t-lbl">ккал/день</div></div>
-            <div class="t-item"><div class="t-val val-prot" id="t-prot">—г</div><div class="t-lbl">Белок</div></div>
-            <div class="t-item"><div class="t-val val-fat" id="t-fat">—г</div><div class="t-lbl">Жиры</div></div>
-            <div class="t-item"><div class="t-val val-carb" id="t-carb">—г</div><div class="t-lbl">Углеводы</div></div>
-            <div class="t-item"><div class="t-val val-wat" id="t-wat">—</div><div class="t-lbl">Вода, мл</div></div>
-          </div>
-        </div>
-        <!-- ИСТОРИИ НОРМ В БАЗЕ НЕТ, и это надо сказать вслух ДО сохранения.
-             Полоски долей от нормы в календаре истории и сводка за месяц
-             считаются по ТЕКУЩЕЙ норме — то есть смена цели перерисовывает
-             прошлые месяцы задним числом, молча и без единого признака.
-             Предупреждение показывается только когда пересчёт правда
-             случится: поле, не влияющее на норму, его не включает
-             (BACKLOG.md, задача 94 — история норм с привязкой к дате). -->
-        <div class="alert alert-accent p-warn" id="p-norm-warn" style="display:none">
-          <strong>Нормы пересчитаются.</strong> Истории норм пока нет: доли от нормы
-          в календаре и средние за прошлые месяцы считаются по текущей норме — после
-          сохранения показатели уже прожитых дней изменятся задним числом.
-        </div>
-        <button class="btn-primary btn-block" onclick="saveProfile()">Сохранить</button>
       </div>
     </section>
 
@@ -1166,8 +1193,8 @@ function goTab(tab) {
   // История показывает ТОТ ЖЕ выбранный день, что дневник, и берёт его
   // из того же loadDiary. Отдельной загрузки дня здесь нет намеренно
   if (tab === 'history') { if (S.profile) loadDiary(S.date); loadCalendar(); }
-  if (tab === 'weight')  loadWeightData();
-  if (tab === 'profile') { loadProfileForm(); loadScaleStatus(); loadBodyPhotos(); }
+  if (tab === 'weight')  { loadWeightData(); loadBodyPhotos(); }
+  if (tab === 'profile') { loadProfileForm(); loadScaleStatus(); }
   if (tab === 'search' && !document.getElementById('s-input').value) loadSearchTab(S.searchTab);
 }
 
@@ -3541,6 +3568,19 @@ async function loadWeightData() {
   document.getElementById('wt-sub').textContent = latest
     ? 'Обновлено: ' + датаДняМесяца(latest.date, 'long')
     : 'Взвешивание не записано';
+  // ИЗМЕНЕНИЕ К ПРОШЛОМУ ВЗВЕШИВАНИЮ. Знак пишется всегда, ноль — словом:
+  // «+0.0» читалось бы как рост
+  const дельта = document.getElementById('wt-delta');
+  const прошлое = logs[1];
+  if (latest && прошлое && latest.weight_kg != null && прошлое.weight_kg != null) {
+    const d = Math.round((latest.weight_kg - прошлое.weight_kg) * 10) / 10;
+    дельта.textContent = (d === 0 ? 'Без изменений' : (d > 0 ? '+' : '−') + Math.abs(d).toFixed(1) + ' кг')
+      + ' к ' + датаДняМесяца(прошлое.date, 'long');
+    дельта.className = 'wt-delta' + (d < 0 ? ' is-down' : d > 0 ? ' is-up' : '');
+    дельта.hidden = false;
+  } else {
+    дельта.hidden = true;
+  }
   отрисоватьЗамеры(logs);
   отрисоватьПрогрессВеса(data.start_weight, data.target_weight, latest?.weight_kg);
   отрисоватьГрафикВеса();
@@ -3962,7 +4002,15 @@ function показатьСостояниеВесов(состояние) {
   пок('scale-connected',    вид.живо);
   пок('scale-sync-btn',     вид.синхр);
   пок('scale-give-up',      вид.сброс);
+  // Отозванный ключ: плашка с кнопкой «Переподключить», форма свёрнута
+  // до нажатия. В остальных состояниях форма следует за `вид.форма`.
+  пок('scale-form',         вид.форма && !вид.отзыв);
   return вид;
+}
+
+function открытьФормуВесов() {
+  document.getElementById('scale-form').style.display = '';
+  document.getElementById('scale-password').focus();
 }
 
 async function loadScaleStatus() {

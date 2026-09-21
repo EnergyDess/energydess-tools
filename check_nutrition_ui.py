@@ -335,6 +335,252 @@ def облик(снимки=None, подлог=None):
     return 1 if итог_моно else 0
 
 
+# ── ВКЛАДКИ «ВЕС» И «ПРОФИЛЬ» (№352, «питание-2», блоки 2 и 3) ─────────
+# Пустота колонки — от низа её последнего видимого блока до низа самой
+# высокой колонки той же вкладки. Замер до правки: под «Записать замер»
+# на «Весе» и под «Сохранить» на «Профиле» стояли сотни пикселей пустоты.
+# Колонки — прямые дети вкладки либо её сетки (`.w-cols`, `.p-cols`),
+# у которых больше одного ребёнка в ряду: одна колонка пустоты не даёт.
+ПУСТОТЫ = """(вкладка) => {
+  const т = document.getElementById(вкладка); if (!т) return null;
+  const видим = e => e.checkVisibility({checkOpacity: true, checkVisibilityCSS: true})
+    && e.getBoundingClientRect().height > 0;
+  const сетка = т.querySelector(':scope > .w-cols, :scope > .p-cols') || т;
+  const колонки = [...сетка.children].filter(видим);
+  if (колонки.length < 2) return {колонок: колонки.length, пустота: 0, по_колонкам: []};
+  const ряды = {};
+  колонки.forEach(к => { const y = Math.round(к.getBoundingClientRect().top);
+    (ряды[y] = ряды[y] || []).push(к); });
+  let худшая = 0; const по = [];
+  Object.values(ряды).filter(р => р.length > 1).forEach(р => {
+    const низ = Math.max(...р.map(к => {
+      const д = [...к.children].filter(видим);
+      return д.length ? Math.max(...д.map(x => x.getBoundingClientRect().bottom)) : к.getBoundingClientRect().top; }));
+    р.forEach(к => { const д = [...к.children].filter(видим);
+      const свой = д.length ? Math.max(...д.map(x => x.getBoundingClientRect().bottom)) : к.getBoundingClientRect().top;
+      let п = Math.round(низ - свой);
+      // Пустота, перенесённая ВНУТРЬ растянутой последней карточки, — та же
+      // пустота: от низа её содержимого до низа её поля
+      const последняя = д[д.length - 1];
+      if (последняя) {
+        const вн = [...последняя.children].filter(видим);
+        if (вн.length) {
+          const пол = parseFloat(getComputedStyle(последняя).paddingBottom) || 0;
+          п += Math.max(0, Math.round(последняя.getBoundingClientRect().bottom - пол
+                 - Math.max(...вн.map(x => x.getBoundingClientRect().bottom))));
+        }
+      }
+      по.push((к.className.split(' ')[0] || к.tagName) + ':' + п);
+      худшая = Math.max(худшая, п); }); });
+  return {колонок: колонки.length, пустота: худшая, по_колонкам: по};
+}"""
+ВКЛАДКИ_ОБЛИКА = (("вес", "weight"), ("профиль", "profile"))
+
+
+def облик_вкладок(снимки=None, подлог=None, порог=24):
+    """Моноширинные, прописные и пустоты колонок на «Весе» и «Профиле»."""
+    from playwright.sync_api import sync_playwright
+    плохо = 0
+    with sync_playwright() as p:
+        бр = p.chromium.launch(headless=True)
+        try:
+            for ширина in (1600, 1280, 390):
+                ctx = бр.new_context(viewport={"width": ширина, "height": 900})
+                стр = ctx.new_page()
+                ch._войти(стр)
+                if подлог:
+                    стр.add_init_script(подлог)
+                for экран, вкладка in ВКЛАДКИ_ОБЛИКА:
+                    стр.goto(ch.БАЗА + "/nutrition", wait_until="domcontentloaded")
+                    стр.wait_for_timeout(1500)
+                    стр.click(".nut-tabbtn[data-tab=%s]" % вкладка)
+                    стр.wait_for_timeout(1500)
+                    стр.mouse.move(1, 1)
+                    о = стр.evaluate(ОБЛИК)
+                    п = стр.evaluate(ПУСТОТЫ, "tab-" + вкладка)
+                    пуст = п["пустота"] if п else None
+                    ок = not о["моно"] and пуст_ок(пуст, порог)
+                    плохо += not ок
+                    print("  %-8s %4d  моно %2d, прописных %2d, пустота колонки %s px %s  %s" % (
+                        экран, ширина, len(о["моно"]), len(о["прописные"]), пуст,
+                        п["по_колонкам"] if п else "", sorted(set(о["моно"]))[:5]))
+                    if снимки:
+                        os.makedirs(снимки, exist_ok=True)
+                        стр.screenshot(path=os.path.join(снимки, "%s-%d.png" % (экран, ширина)),
+                                       full_page=True, animations="disabled")
+                ctx.close()
+        finally:
+            бр.close()
+    print("ИТОГ ВКЛАДОК: плохих замеров %d из 6" % плохо)
+    return 1 if плохо else 0
+
+
+def _сделать_фото(путь):
+    """Сгенерированная картинка: заливка и фигуры, не фото человека (§5.1)."""
+    from PIL import Image, ImageDraw
+    к = Image.new("RGB", (600, 800), (70, 110, 150))
+    р = ImageDraw.Draw(к)
+    р.rectangle((200, 150, 400, 650), fill=(150, 190, 220))
+    р.ellipse((250, 60, 350, 160), fill=(200, 210, 230))
+    к.save(путь, "PNG")
+
+
+ТОЧКИ = "() => document.querySelectorAll('#wt-svg .wt-dot').length"
+
+
+def прогон_веса():
+    """Путь человека по «Весу»: замер → точка на графике; фото → сравнение
+    → удаление. ПИШЕТ В БАЗУ СТЕНДА; после — `py make_local_user.py --seed`."""
+    import tempfile
+    global находок, пропусков, _строки
+    находок = пропусков = 0
+    _строки = []
+    from playwright.sync_api import sync_playwright
+    фото = os.path.join(tempfile.gettempdir(), "nut_probe_body.png")
+    _сделать_фото(фото)
+    with sync_playwright() as p:
+        бр = p.chromium.launch(headless=True)
+        try:
+            ctx = бр.new_context(viewport={"width": 1600, "height": 900})
+            стр = ctx.new_page()
+            стр.on("dialog", lambda д: д.accept())
+            ch._войти(стр)
+            стр.goto(ch.БАЗА + "/nutrition", wait_until="domcontentloaded")
+            стр.wait_for_timeout(1200)
+            стр.click(".nut-tabbtn[data-tab=weight]")
+            стр.wait_for_timeout(1500)
+            было = стр.evaluate("() => ({n: S.weight.logs.length, w: (S.weight.logs[0]||{}).weight_kg,"
+                                " д: (S.weight.logs[0]||{}).date})")
+            точек_до = стр.evaluate(ТОЧКИ)
+            новый = round((было["w"] or 80) - 0.4, 1)
+            стр.click(".wt-hero-btn")
+            стр.wait_for_timeout(500)
+            стр.fill("#mw-kg", str(новый))
+            стр.click("#modal-measure button[onclick='saveMeasure()']")
+            стр.wait_for_timeout(1500)
+            стало = стр.evaluate("() => ({n: S.weight.logs.length, w: (S.weight.logs[0]||{}).weight_kg,"
+                                 " д: (S.weight.logs[0]||{}).date, сегодня: S.today})")
+            точек_после = стр.evaluate(ТОЧКИ)
+            шаг("замер-лёг-точкой-на-графике",
+                стало["w"] == новый and стало["д"] == стало["сегодня"]
+                and точек_после >= точек_до + (0 if было["д"] == стало["сегодня"] else 1),
+                "вес %s → %s, записей %d → %d, точек %d → %d" % (
+                    было["w"], стало["w"], было["n"], стало["n"], точек_до, точек_после))
+            шаг("цифра-карточки-обновилась",
+                стр.inner_text("#cur-wt").strip() == str(новый), стр.inner_text("#cur-wt"))
+
+            стр.set_input_files("#photo-front", фото)
+            стр.wait_for_timeout(800)
+            стр.click(".wt-photos > .btn-primary")
+            стр.wait_for_timeout(2000)
+            сегодня = стало["сегодня"]
+            есть = стр.evaluate("(д) => !!(bodyPhotosCache[д] || {}).front", сегодня)
+            шаг("фото-появилось", есть, "за %s" % сегодня)
+            даты = стр.evaluate("() => [...document.querySelectorAll('#compare-date-old option')].map(o => o.value)")
+            прошлые = [д for д in даты if д and д != сегодня]
+            if прошлые:
+                стр.select_option("#compare-date-old", прошлые[0])
+            стр.select_option("#compare-date-new", сегодня)
+            стр.wait_for_timeout(600)
+            снимков = стр.evaluate("() => document.querySelectorAll('#compare-view img').length")
+            подписи = стр.evaluate("() => [...document.querySelectorAll('#compare-view .compare-col-label')].map(e => e.textContent)")
+            шаг("сравнение-по-двум-датам",
+                len(set(подписи)) == 2 and сегодня in подписи and снимков >= 2,
+                "подписи %s, снимков %d" % (подписи, снимков), собрано=len(прошлые))
+            стр.evaluate("(д) => deleteBodyPhoto(д, 'front')", сегодня)
+            стр.wait_for_timeout(1500)
+            есть = стр.evaluate("(д) => !!(bodyPhotosCache[д] || {}).front", сегодня)
+            шаг("фото-удалено", not есть)
+        finally:
+            бр.close()
+    return находок, пропусков
+
+
+КОЛЬЦО = """() => ({норма: S.diary && S.diary.goals ? S.diary.goals.calories : null,
+  съедено: S.diary ? Math.round(S.diary.totals.calories) : null,
+  остаток: document.getElementById('ring-remain').textContent.trim()})"""
+
+
+def прогон_профиля():
+    """Цель → «Сохранить» → нормы пересчитаны → кольцо дневника с новой нормой;
+    «Переподключить» при отозванном ключе открывает прежнюю форму. Весы
+    живьём НЕ зовутся: состояние ставит `make_local_user.py --scale reauth`.
+    ПИШЕТ В БАЗУ СТЕНДА; после — `py make_local_user.py --seed`."""
+    import subprocess
+    global находок, пропусков, _строки
+    находок = пропусков = 0
+    _строки = []
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        бр = p.chromium.launch(headless=True)
+        try:
+            ctx = бр.new_context(viewport={"width": 1600, "height": 900})
+            стр = ctx.new_page()
+            ch._войти(стр)
+            стр.goto(ch.БАЗА + "/nutrition", wait_until="domcontentloaded")
+            стр.wait_for_timeout(1500)
+            кольцо_до = стр.evaluate(КОЛЬЦО)
+            стр.click(".nut-tabbtn[data-tab=profile]")
+            стр.wait_for_timeout(1500)
+            норма_до = стр.inner_text("#t-cal").strip()
+            цель_до = стр.evaluate("() => document.querySelector('#rg-goal .segmented-btn.active').dataset.val")
+            новая = "gain" if цель_до != "gain" else "lose"
+            стр.click("#rg-goal .segmented-btn[data-val=%s]" % новая)
+            стр.click(".p-form button[onclick='saveProfile()']")
+            стр.wait_for_timeout(2000)
+            норма_после = стр.inner_text("#t-cal").strip()
+            шаг("нормы-пересчитаны-после-сохранения", норма_после != норма_до and норма_после.isdigit(),
+                "цель %s → %s, ккал %s → %s" % (цель_до, новая, норма_до, норма_после))
+            стр.click(".nut-tabbtn[data-tab=diary]")
+            стр.wait_for_timeout(1500)
+            кольцо = стр.evaluate(КОЛЬЦО)
+            ожидаем = int(норма_после) - кольцо["съедено"] if норма_после.isdigit() else None
+            шаг("кольцо-дневника-с-новой-нормой",
+                кольцо["норма"] == int(норма_после or 0) and кольцо["остаток"] == str(ожидаем),
+                "норма кольца %s → %s, осталось «%s» → «%s»" % (
+                    кольцо_до["норма"], кольцо["норма"], кольцо_до["остаток"], кольцо["остаток"]))
+            ctx.close()
+        finally:
+            бр.close()
+
+    корень = os.path.dirname(os.path.abspath(__file__))
+    subprocess.run([sys.executable, os.path.join(корень, "make_local_user.py"), "--scale", "reauth"],
+                   capture_output=True, cwd=корень)
+    with sync_playwright() as p:
+        бр = p.chromium.launch(headless=True)
+        try:
+            ctx = бр.new_context(viewport={"width": 1600, "height": 900})
+            стр = ctx.new_page()
+            ch._войти(стр)
+            стр.goto(ch.БАЗА + "/nutrition", wait_until="domcontentloaded")
+            стр.wait_for_timeout(1200)
+            стр.click(".nut-tabbtn[data-tab=profile]")
+            стр.wait_for_timeout(1500)
+            кнопка = стр.evaluate(ВИДЕН_ЭЛ, "#scale-reauth-btn")
+            форма_до = стр.evaluate(ВИДЕН_ЭЛ, "#scale-password")
+            if кнопка:
+                стр.click("#scale-reauth-btn")
+                стр.wait_for_timeout(400)
+            форма = стр.evaluate(ВИДЕН_ЭЛ, "#scale-password")
+            фокус = стр.evaluate("() => document.activeElement && document.activeElement.id")
+            шаг("переподключить-открывает-форму", bool(кнопка) and not форма_до and bool(форма),
+                "кнопка %s, поле пароля до %s после %s, фокус %s" % (кнопка, форма_до, форма, фокус),
+                собрано=1 if кнопка is not None else 0)
+            ctx.close()
+        finally:
+            бр.close()
+    return находок, пропусков
+
+
+ВИДЕН_ЭЛ = """(с) => { const e = document.querySelector(с); if (!e) return null;
+  const r = e.getBoundingClientRect();
+  return e.checkVisibility({checkOpacity: true, checkVisibilityCSS: true}) && r.width > 0 && r.height > 0; }"""
+
+
+def пуст_ок(пуст, порог):
+    return пуст is not None and пуст <= порог
+
+
 # ── СКВОЗНОЙ ПРОГОН «ДНЕВНИК» И «ДОБАВИТЬ» (блок 3.4) ──────────────────
 # Путь человека, результат — из состояния страницы (S.diary, то есть ответ
 # /nutrition/api/diary после записи), а не из того, что экран не ругнулся.
@@ -466,6 +712,14 @@ def прогон_дневника():
 
 
 def main():
+    if "--прогон-профиля" in sys.argv:
+        н, п = прогон_профиля()
+        print("ИТОГ ПРОГОНА ПРОФИЛЯ: шагов %d, плохих %d, пропусков %d" % (len(_строки), н, п))
+        sys.exit(1 if н else (2 if п else 0))
+    if "--прогон-веса" in sys.argv:
+        н, п = прогон_веса()
+        print("ИТОГ ПРОГОНА ВЕСА: шагов %d, плохих %d, пропусков %d" % (len(_строки), н, п))
+        sys.exit(1 if н else (2 if п else 0))
     if "--прогон" in sys.argv:
         н, п = прогон_дневника()
         print("ИТОГ ПРОГОНА: шагов %d, плохих %d, пропусков %d" % (len(_строки), н, п))
@@ -478,6 +732,18 @@ def main():
           document.head.appendChild(s); });""")
         print("КОНТРОЛЬ ОБЛИКА:", "ЛОВИТ" if код == 1 else "НЕ ЛОВИТ")
         sys.exit(0 if код == 1 else 1)
+    if "--вкладки" in sys.argv and "--контроль" in sys.argv:
+        # Подлог: колонки ряда «Веса» снова не тянутся до общего низа —
+        # ровно раскладка до правки (`align-items: start`)
+        код = облик_вкладок(подлог="""addEventListener('DOMContentLoaded', () => {
+          const s = document.createElement('style');
+          s.textContent = '#tab-weight .w-cols, #tab-profile .p-cols { align-items: start !important; }';
+          document.head.appendChild(s); });""")
+        print("КОНТРОЛЬ ВКЛАДОК:", "ЛОВИТ" if код == 1 else "НЕ ЛОВИТ")
+        sys.exit(0 if код == 1 else 1)
+    if "--вкладки" in sys.argv:
+        снимки = sys.argv[sys.argv.index("--снимки") + 1] if "--снимки" in sys.argv else None
+        sys.exit(облик_вкладок(снимки))
     if "--облик" in sys.argv:
         снимки = sys.argv[sys.argv.index("--снимки") + 1] if "--снимки" in sys.argv else None
         sys.exit(облик(снимки))
@@ -487,6 +753,9 @@ def main():
     н, п = прогон()
     print("ОБЛИК «ДНЕВНИКА» И «ДОБАВИТЬ»")
     if облик():
+        н += 1
+    print("«ВЕС» И «ПРОФИЛЬ»")
+    if облик_вкладок():
         н += 1
     print("ИТОГ: шагов %d, плохих %d, пропусков %d" % (len(_строки) + 1, н, п))
     if п and not н:
