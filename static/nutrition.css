@@ -2448,6 +2448,21 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
 }
 #tab-profile .scale-reauth { flex-wrap: wrap; border-radius: var(--v2-r-lg); }
 #tab-profile .scale-reauth-btn { margin-left: auto; }
+/* НЕВЫБРАННАЯ АКТИВНОСТЬ ЧИТАЕТСЯ (№352, «питание-3», 2.5). Системный
+   сегмент красит невыбранный вариант `--text-faint`: замер к фону варианта —
+   4.28 у подписи и у значка при норме 4.5 для текста. Длинная подпись
+   анкеты — не метка в две буквы, её читают целиком. Свой класс варианта,
+   а не системный субъектом (§6.0.2); выбранный — прежний. */
+.act-opt:not(.active) { color: var(--v2-text-2); }
+/* «СТЕРЕТЬ ПРИВЯЗКУ» — НА ЛЕВОМ КРАЕ КАРТОЧКИ (№352, «питание-3», 2.6).
+   Призрачная кнопка без рамки и фона: видно только её текст, а он стоял
+   на поле кнопки — на 12 px правее абзаца над ней и полей формы. Текст
+   встаёт на край содержимого; наведение — подчёркиванием, без подложки,
+   которая показала бы коробку шире строки. */
+.scale-give-up .scale-drop { padding-left: 0; padding-right: 0; justify-content: flex-start; }
+@media (hover: hover) {
+  .scale-give-up .scale-drop:hover { background: transparent; border-color: transparent; text-decoration: underline; }
+}
 
 @media (min-width: 900px) {
   /* Прокручивается вкладка, а не каждая колонка: колонкам нужна общая

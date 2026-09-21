@@ -2261,6 +2261,7 @@ def startup():
     init_db()
     migrate_db()
     _import_exercises_if_empty()
+    _вес_профилей_из_журнала_все()
 
 
 # ── Демо-страница (тестовое задание, без авторизации) ─────────────────────────
@@ -7908,6 +7909,23 @@ async def nut_save_profile(request: Request, user=Depends(get_current_user), db:
 
     targets = _calc_tdee(gender, age, weight_kg, height_cm, activity_level, goal)
 
+    # СМЕНА ВЕСА В ПРОФИЛЕ — ЭТО ЗАМЕР ЗА СЕГОДНЯ (№352, «питание-3», 2.2).
+    # Сравнивается с ПОСЛЕДНИМ ЗАМЕРОМ, а не с полем профиля: поле —
+    # производное от журнала, и форма показывает ровно его. Замер за сегодня
+    # уже есть — он обновляется, дубля нет (строка одна на день).
+    последний = (db.query(WeightLog)
+                 .filter(WeightLog.user_id == user.id, WeightLog.weight_kg.isnot(None))
+                 .order_by(WeightLog.log_date.desc()).first())
+    if not последний or последний.weight_kg != weight_kg:
+        сегодня_д = _сегодня(user).strftime("%Y-%m-%d")
+        замер = db.query(WeightLog).filter(WeightLog.user_id == user.id,
+                                           WeightLog.log_date == сегодня_д).first()
+        if not замер:
+            замер = WeightLog(user_id=user.id, log_date=сегодня_д)
+            db.add(замер)
+        замер.weight_kg = weight_kg
+        замер.source = "manual"
+
     p = db.query(NutritionProfile).filter(NutritionProfile.user_id == user.id).first()
     if not p:
         p = NutritionProfile(user_id=user.id)
@@ -8962,6 +8980,66 @@ _WEIGHT_LOG_FLOAT_FIELDS = ["weight_kg", "waist_cm", "hips_cm", "chest_cm",
 _WEIGHT_LOG_INT_FIELDS = ["bmr", "body_age", "body_score"]
 
 
+def _вес_профиля_из_журнала(db: Session, user) -> bool:
+    """ВЕС ОДИН НА ВЕСЬ ИНСТРУМЕНТ (№352, «питание-3», 2.2, решение владельца).
+
+    ИСТОЧНИК ПРАВДЫ — ЖУРНАЛ ЗАМЕРОВ (`weight_logs`). Поле
+    `nutrition_profiles.weight_kg` — производное: его пишет ТОЛЬКО эта
+    функция, и значение у него одно — последний по дате замер, ручной он
+    или с весов. Смена веса в профиле пишется в журнал (замер за сегодня,
+    `nut_save_profile`), а сюда приходит уже оттуда.
+
+    До правки источников было три, и они расходились молча: ручной замер
+    ЛЮБОЙ даты переписывал вес профиля (задним числом тоже), синхронизация
+    весов профиль не трогала вовсе, а правка профиля не оставляла точки
+    на графике. Нормы при этом от нового веса не пересчитывались нигде,
+    кроме сохранения анкеты.
+
+    Вес изменился — нормы пересчитываются тем же `_calc_tdee`, что
+    у анкеты, и действуют С СЕГОДНЯШНЕГО ДНЯ (`записать_норму`): прошлое
+    не трогается (§5.0.9). Вес не изменился — не пишет ничего.
+
+    ВЫЗЫВАТЬ ПОСЛЕ `commit` журнала: сессия открыта с autoflush=False,
+    и незакоммиченная строка замера запросу не видна. Возвращает, изменился
+    ли вес; `commit` — за вызывающим."""
+    профиль = db.query(NutritionProfile).filter(NutritionProfile.user_id == user.id).first()
+    if not профиль:
+        return False
+    последний = (db.query(WeightLog)
+                 .filter(WeightLog.user_id == user.id, WeightLog.weight_kg.isnot(None))
+                 .order_by(WeightLog.log_date.desc()).first())
+    if not последний or последний.weight_kg == профиль.weight_kg:
+        return False
+    профиль.weight_kg = последний.weight_kg
+    if профиль.age and профиль.height_cm:
+        нормы = _calc_tdee(профиль.gender or "male", профиль.age, профиль.weight_kg,
+                           профиль.height_cm, профиль.activity_level or "moderate",
+                           профиль.goal or "maintain")
+        профиль.calorie_goal = нормы["calories"]
+        профиль.protein_goal = нормы["protein"]
+        профиль.fat_goal = нормы["fat"]
+        профиль.carb_goal = нормы["carbs"]
+        профиль.water_goal_ml = нормы["water_ml"]
+        записать_норму(db, user.id, _сегодня(user).strftime("%Y-%m-%d"), нормы)
+    return True
+
+
+def _вес_профилей_из_журнала_все() -> None:
+    """Одноразовая подстановка расхождения на старте (№352, «питание-3», 2.2):
+    у профилей, где вес разошёлся с последним замером, он приводится
+    к журналу. Идемпотентна — при совпадении не пишет ничего, поэтому
+    на каждом старте после первого ничего не делает. Ничего не удаляет."""
+    db = SessionLocal()
+    try:
+        for профиль in db.query(NutritionProfile).all():
+            владелец = db.query(User).filter(User.id == профиль.user_id).first()
+            if владелец and _вес_профиля_из_журнала(db, владелец):
+                print(f"[вес] профиль user_id={владелец.id} приведён к последнему замеру")
+        db.commit()
+    finally:
+        db.close()
+
+
 @app.post("/nutrition/api/weight")
 async def nut_log_weight(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not user:
@@ -8984,11 +9062,11 @@ async def nut_log_weight(request: Request, user=Depends(get_current_user), db: S
             setattr(existing, field, int(data[field]))
     existing.source = "manual"  # ручная правка всегда переводит запись в "manual"
     db.commit()
-    if data.get("weight_kg") is not None:
-        profile = db.query(NutritionProfile).filter(NutritionProfile.user_id == user.id).first()
-        if profile:
-            profile.weight_kg = float(data["weight_kg"])
-            db.commit()
+    # Вес профиля — последний ПО ДАТЕ замер, а не присланный в запросе:
+    # здесь стояло `profile.weight_kg = data["weight_kg"]`, и замер задним
+    # числом переписывал текущий вес (№352, «питание-3», 2.2)
+    if _вес_профиля_из_журнала(db, user):
+        db.commit()
     return JSONResponse({"ok": True})
 
 
@@ -9296,6 +9374,10 @@ def _sync_scale(db: Session, conn: ScaleConnection) -> dict:
     conn.last_sync_status = "ok"
     conn.last_sync_error = None
     db.commit()
+    # Замер с весов свежее ручного — профиль следует за ним (№352,
+    # «питание-3», 2.2). После commit: новые строки иначе не видны запросу
+    if владелец and _вес_профиля_из_журнала(db, владелец):
+        db.commit()
     # ИТОГ НАЗЫВАЕТ ПРИЧИНУ, А НЕ ТОЛЬКО ЧИСЛО. Раньше наружу уходило
     # «synced» плюс «empty», и живой случай 2026-08-18 показал, чего этого
     # не хватает: получено 2, записано 0, потому что на ту дату уже стояла

@@ -507,11 +507,15 @@
             <div class="body-photo-slot" onclick="document.getElementById('photo-back').click()" id="slot-back">+ Сзади</div>
           </div>
         </div>
-        <button class="btn-primary btn-block" onclick="uploadBodyPhotos()">Сохранить фото за сегодня</button>
+        {# Кнопка неактивна, пока ни один ракурс не выбран (№352, «питание-3», 2.4) #}
+        <button class="btn-primary btn-block" id="body-photo-save" onclick="uploadBodyPhotos()" disabled>Сохранить фото за сегодня</button>
         <div class="p-msg" id="body-photo-msg"></div>
 
         <h3 class="nut-card-title wt-photos-sub">Сравнение по датам</h3>
-        <div class="compare-row">
+        {# Пока фото нет, пустых списков дат нет — одна строка ниже
+           (№352, «питание-3», 2.3). Прячется атрибутом `hidden`, и тем же
+           атрибутом показывается: механизм один. #}
+        <div class="compare-row" id="compare-row" hidden>
           <select class="select input-compact compare-select" id="compare-date-old" onchange="renderCompare()"></select>
           <span class="compare-arrow">→</span>
           <select class="select input-compact compare-select" id="compare-date-new" onchange="renderCompare()"></select>
@@ -560,11 +564,11 @@
                а не свой `.act-btn`: роль та же, что у ряда, отличается
                только направлением. #}
             <div class="segmented segmented-stack" id="rg-act">
-            <button class="segmented-btn" data-val="sedentary"  onclick="setAct(this)">{{ значок('armchair') }} Сидячий — офис, мало движения</button>
-            <button class="segmented-btn" data-val="light"      onclick="setAct(this)">{{ значок('footprints') }} Лёгкий — прогулки, редкие тренировки</button>
-            <button class="segmented-btn active" data-val="moderate" onclick="setAct(this)">{{ значок('activity') }} Умеренный — тренировки 3-4 раза в неделю</button>
-            <button class="segmented-btn" data-val="active"     onclick="setAct(this)">{{ значок('dumbbell') }} Активный — тренировки 5-6 раз</button>
-            <button class="segmented-btn" data-val="very_active" onclick="setAct(this)">{{ значок('flame') }} Очень активный — ежедневно</button>
+            <button class="segmented-btn act-opt" data-val="sedentary"  onclick="setAct(this)">{{ значок('armchair') }} Сидячий — офис, мало движения</button>
+            <button class="segmented-btn act-opt" data-val="light"      onclick="setAct(this)">{{ значок('footprints') }} Лёгкий — прогулки, редкие тренировки</button>
+            <button class="segmented-btn act-opt active" data-val="moderate" onclick="setAct(this)">{{ значок('activity') }} Умеренный — тренировки 3-4 раза в неделю</button>
+            <button class="segmented-btn act-opt" data-val="active"     onclick="setAct(this)">{{ значок('dumbbell') }} Активный — тренировки 5-6 раз</button>
+            <button class="segmented-btn act-opt" data-val="very_active" onclick="setAct(this)">{{ значок('flame') }} Очень активный — ежедневно</button>
             </div>
           </div>
           <!-- ИСТОРИИ НОРМ В БАЗЕ НЕТ, и это надо сказать вслух ДО сохранения.
@@ -3758,21 +3762,30 @@ function поставитьНовуюЦель() {
   поле.focus();
 }
 
-function выбратьПериодВеса(btn) {
+// `авто` — период выбрал не человек, а правило пустого месяца ниже:
+// тогда человек ещё не выбирал, и следующая отрисовка вправе решить снова.
+function выбратьПериодВеса(btn, авто) {
   document.querySelectorAll('#wt-period .segmented-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   S.wtPeriod = btn.dataset.period;
+  if (!авто) S.wtPeriodChosen = true;
   отрисоватьГрафикВеса();
 }
 
 function отрисоватьГрафикВеса() {
   const данные = S.weight || {};
   const все = (данные.logs || []).filter(l => l.weight_kg).slice().reverse();  // по возрастанию даты
-  let ряд = все;
-  if (S.wtPeriod === 'month') {
-    const край = Date.now() - ПЕРИОД_МЕСЯЦ_ДНЕЙ * ДЕНЬ_МС;
-    ряд = все.filter(l => Date.parse(l.date + 'T00:00:00Z') >= край);
+  const заМесяц = () => все.filter(l =>
+    Date.parse(l.date + 'T00:00:00Z') >= Date.now() - ПЕРИОД_МЕСЯЦ_ДНЕЙ * ДЕНЬ_МС);
+  // ПУСТОЙ МЕСЯЦ ПО УМОЛЧАНИЮ — СРАЗУ «ВСЁ ВРЕМЯ» (№352, «питание-3», 2.1).
+  // Последний замер старше месяца — и карточка графика стояла пустой,
+  // читаясь как поломка. Правило действует, пока период не выбрал человек:
+  // его выбор «Месяц» остаётся, а подпись ниже объясняет пустоту.
+  if (S.wtPeriod === 'month' && !S.wtPeriodChosen && все.length && !заМесяц().length) {
+    выбратьПериодВеса(document.querySelector('#wt-period [data-period=all]'), true);
+    return;
   }
+  const ряд = S.wtPeriod === 'month' ? заМесяц() : все;
   drawWeightChart(ряд, данные.target_weight);
   подписатьГрафикВеса(ряд.length, все.length);
 }
@@ -4215,6 +4228,7 @@ async function previewBodyPhoto(input, angle) {
      Превью строится из ужатого — человек видит ровно то, что уедет. */
   const { blob, dataUrl } = await resizeImage(file, 1920, 0.9);
   bodyPhotoFiles[angle] = blob;
+  document.getElementById('body-photo-save').disabled = false;
   const slot = document.getElementById('slot-' + angle);
   if (dataUrl) { slot.innerHTML = '<img src="' + dataUrl + '">'; return; }
   const reader = new FileReader();
@@ -4244,8 +4258,22 @@ async function uploadBodyPhotos() {
   // приём, что у `показатьОтказВесов` выше (BACKLOG №18).
   msg.className = 'p-msg alert alert-success';
   msg.textContent = 'Сохранено за ' + today;
-  bodyPhotoFiles.front = bodyPhotoFiles.side = bodyPhotoFiles.back = undefined;
+  очиститьВыборФотоТела();
   loadBodyPhotos();
+}
+// ВЫБОР СБРАСЫВАЕТСЯ ЦЕЛИКОМ (№352, «питание-3», 2.4). Здесь стояло
+// `bodyPhotoFiles.front = … = undefined`: ключи оставались, и второе
+// «Сохранить» без нового выбора проходило проверку «выберите хотя бы одно»
+// и слало `undefined` тремя запросами. Ключи удаляются, поля файлов
+// и превью возвращаются к пустым, кнопка гаснет.
+const ПОДПИСИ_РАКУРСОВ = {front: '+ Спереди', side: '+ Сбоку', back: '+ Сзади'};
+function очиститьВыборФотоТела() {
+  for (const k of Object.keys(bodyPhotoFiles)) delete bodyPhotoFiles[k];
+  for (const [angle, подпись] of Object.entries(ПОДПИСИ_РАКУРСОВ)) {
+    document.getElementById('photo-' + angle).value = '';
+    document.getElementById('slot-' + angle).textContent = подпись;
+  }
+  document.getElementById('body-photo-save').disabled = true;
 }
 let bodyPhotosCache = {};
 async function loadBodyPhotos() {
@@ -4258,6 +4286,7 @@ async function loadBodyPhotos() {
   oldSel.innerHTML = opts;
   newSel.innerHTML = opts;
   if (dates.length) { oldSel.value = dates[dates.length - 1]; newSel.value = dates[0]; }
+  document.getElementById('compare-row').hidden = !dates.length;
   renderCompare();
 }
 const РАКУРСЫ = {front: 'спереди', side: 'сбоку', back: 'сзади'};
@@ -4266,7 +4295,7 @@ function renderCompare() {
   const oldDate = document.getElementById('compare-date-old').value;
   const newDate = document.getElementById('compare-date-new').value;
   const view = document.getElementById('compare-view');
-  if (!oldDate || !newDate) { view.innerHTML = '<p class="p-note-inline">Загрузите фото хотя бы за одну дату.</p>'; return; }
+  if (!oldDate || !newDate) { view.innerHTML = '<p class="p-note-inline">Загрузите фото хотя бы за одну дату</p>'; return; }
   function col(date) {
     const angles = bodyPhotosCache[date] || {};
     const imgs = Object.keys(РАКУРСЫ).filter(a => angles[a]).map(a => `
