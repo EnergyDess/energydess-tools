@@ -105,6 +105,13 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
 }
 
 /* ── App header ── */
+/* СТАРАЯ МОБИЛЬНАЯ ПОЛОСА ДНЕВНИКА ВНУТРИ КАРКАСА v2 НЕ РИСУЕТСЯ
+   (№352, «питание-3», блок 1). Она повторяла шапку инструмента —
+   «Дневник питания» и дату — и шла фоном во всю ширину, то есть
+   первым блоком содержимого шире шапки на 16 px с каждой стороны.
+   Дата уже стоит в ленте дней, выход — меню каркаса. Узел остаётся
+   в разметке: `#sidebar-date` по-прежнему пишет скрипт страницы. */
+.v2-shell-main .nut-hdr { display: none; }
 .nut-hdr {
   height: var(--hdr-h); min-height: var(--hdr-h);
   display: flex; align-items: center; gap: var(--space-3); padding: 0 var(--space-3);
@@ -1700,7 +1707,10 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
   }
   .nut-tab {
     height: 100%; min-height: 0; box-sizing: border-box;
-    padding: calc(1.875 * var(--nut-u)) calc(2.25 * var(--nut-u));
+    /* Боковое поле — ОДНО на шапку и вкладку, из каркаса v2
+       (№352, «питание-3», блок 1). Было 2.25·--nut-u (39.6 px на 1600)
+       при 24 px у шапки: заголовок стоял на 15.6 px левее первой карточки. */
+    padding: calc(1.875 * var(--nut-u)) var(--v2-gutter);
   }
 
   /* ── Each column scrolls on its own — the page itself never does ── */

@@ -139,6 +139,13 @@
      на 1920 две колонки HH выходят по 748 px против 530 px
      у прежнего контейнера. */
   --v2-content: 1600px;
+  /* ОДНО БОКОВОЕ ПОЛЕ колонки содержимого (№352, «питание-3», блок 1):
+     шапка, линия вкладок и первый блок содержимого стоят на нём одном.
+     До правки шапка держала 24 px, а вкладка дневника — 2.25·--nut-u
+     (39.6 px на 1600): заголовок был на 15.6 px левее первой карточки.
+     Узкое — ниже десктопа. Сторожит `check_v2_edges.py` (проверка 56). */
+  --v2-gutter: var(--v2-sp-5);
+  --v2-gutter-sm: var(--v2-sp-4);
   /* Насколько слой свечения шапки выходит за колонку содержимого в каждую
      сторону. Половина самой широкой мыслимой области минус самая узкая
      колонка — с запасом; точное значение не нужно, лишнее срезается. */
@@ -744,6 +751,29 @@
   pointer-events: none;
 }
 .v2-head-text { display: flex; flex-direction: column; gap: var(--v2-sp-2); min-width: 0; }
+/* КНОПКИ ДЕЙСТВИЙ — НА ЦЕНТРЕ СТРОКИ ЗАГОЛОВКА (№352, «питание-3», 1а).
+   Были прижаты к верху шапки, на уровне мелкой метки: замер 2026-09-21 —
+   центр группы на 25–33 px выше центра h1. Текстовая часть раскладывается
+   по строкам сетки самой шапки (`display: contents`): метка, заголовок
+   и описание — свои строки первой колонки, кнопки — ВТОРАЯ колонка
+   СТРОКИ ЗАГОЛОВКА с центровкой по ней. Числом смещение не считается:
+   высота метки и заголовка зависит от гарнитуры и ширины окна.
+   Зазоры прежние: между строками текста 8 px (был `gap` колонки текста),
+   от описания до вкладок 24 px (было 12 + 12). */
+/* Колонка текста не уже САМОГО ЗАГОЛОВКА (`min-content` — ширина h1
+   одним словом): при `minmax(0, …)` она сжималась, и кнопки аптечки
+   на 1280 налезали на «Аптечку». Теперь переносятся кнопки. Высоту
+   строки заголовка может задать и переносящаяся группа кнопок — тогда
+   заголовок встаёт на её середину, а не к верху. */
+.v2-page-head:has(> .v2-head-actions) {
+  grid-template-columns: minmax(min-content, max-content) minmax(0, 1fr);
+  row-gap: var(--v2-sp-2);
+}
+.v2-page-head:has(> .v2-head-actions) > .v2-head-text > .v2-head-title { align-self: center; }
+.v2-page-head:has(> .v2-head-actions) > .v2-head-text { display: contents; }
+.v2-page-head:has(> .v2-head-actions) > .v2-head-text > * { grid-column: 1; }
+.v2-page-head:has(> .v2-head-actions) > .v2-head-actions { grid-column: 2; grid-row: 2; align-self: center; }
+.v2-page-head:has(> .v2-head-actions) > .v2-tabs { margin-top: var(--v2-sp-4); }
 .v2-head-label {
   display: inline-flex;
   align-items: center;
@@ -924,7 +954,7 @@ html.v2-rail .v2-shell .v2-side-caret { display: none; }
    нижнюю линию даёт сама шапка. */
 .v2-page-wrap {
   margin: 0 auto;
-  padding: 0 var(--v2-sp-5);
+  padding: 0 var(--v2-gutter);
   font-family: var(--v2-font);
 }
 .v2-page-wrap .v2-page-head { margin-bottom: var(--v2-sp-5); }
@@ -993,13 +1023,17 @@ html.v2-rail .v2-shell .v2-side-caret { display: none; }
   .v2-top-burger { display: inline-flex; }
   /* «Инструменты» — раскрывающийся список на месте, без наведения */
   .v2-side-pop { position: static; min-width: 0; margin: var(--v2-sp-1) 0; box-shadow: var(--v2-shadow-none); }
-  .v2-page-wrap { padding: 0 var(--v2-sp-4); }
+  .v2-page-wrap { padding: 0 var(--v2-gutter-sm); }
 }
 @media (max-width: 768px) {
   .v2-top { padding: 0 var(--v2-sp-4); }
   .v2-top-burger { display: inline-flex; }
   .v2-page-head { grid-template-columns: 1fr; padding: var(--v2-sp-5) var(--v2-sp-4) 0; }
   .v2-head-actions { justify-content: flex-start; }
+  /* На телефоне кнопки — под текстом, как до правки: одна колонка,
+     зазор от описания прежние 12 px (8 строки + 4). */
+  .v2-page-head:has(> .v2-head-actions) { grid-template-columns: 1fr; }
+  .v2-page-head:has(> .v2-head-actions) > .v2-head-actions { grid-column: 1; grid-row: auto; margin-top: var(--v2-sp-1); }
   .v2-tabs { flex-wrap: nowrap; }
   .v2-tab { flex-shrink: 0; }
   .v2-assist { width: 100%; border-radius: var(--v2-r-lg); }

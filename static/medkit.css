@@ -133,8 +133,13 @@
 
    ПУСТОТА МЕЖДУ НИМИ НА 2560 — НЕ ДЕФЕКТ И ЗАПОЛНЯТЬ ЕЁ НЕЧЕМ: это
    решение владельца, названное вслух вместе с постановкой. */
-.apt-bar-act { display: flex; gap: var(--space-3); flex: 0 0 auto;
-               margin-left: auto; }
+.apt-bar-act { display: flex; gap: var(--space-3); flex: 0 1 auto;
+               margin-left: auto;
+               /* В ШАПКЕ v2 РЯД ПЕРЕНОСИТСЯ, А НЕ ВЫЛЕЗАЕТ ВЛЕВО
+                  (№352, «питание-3», блок 1). С `flex: 0 0 auto` и без
+                  переноса четыре кнопки на 1280 занимали 741 px при
+                  колонке 489 и налезали на заголовок «Аптечка». */
+               flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
 .apt-add { flex: 0 0 auto; }
 
 /* ── РАСХОД ЧУЖОГО СПРАВОЧНИКА ЗА МЕСЯЦ (BACKLOG №315) ─────────────

@@ -85,6 +85,20 @@
   display: flex; align-items: center; gap: var(--space-4);
 }
 .ens-headwrap { padding: 0 var(--space-5); }
+/* ПОЛОСА ПОИСКА — ШИРИНОЙ КОЛОНКИ, А НЕ КОНТЕЙНЕРА (№352, «питание-3»,
+   блок 1). Её фон шёл во всю колонку каркаса, а заголовок, поиск и сетка
+   стояли на поле раздела внутри: край полосы был на 48 px (1600) шире
+   шапки и карточек. Поле раздела объявлено ОДНОЙ величиной
+   `--ens-gutter` на трёх соседях; полоса вычитает его из своей ширины
+   вместо собственного отступа — фон, линия снизу и содержимое встают
+   на край шапки. Ширину и центровку колонке задаёт каркас
+   (`.v2-shell-main > .ens-bar`), поэтому и уточнение — тем же адресом. */
+.ens-headwrap, .ens-bar, .ens-main { --ens-gutter: var(--space-5); }
+.v2-shell-main > .ens-bar {
+  padding-left: 0; padding-right: 0;
+  width: calc(100% - 2 * var(--ens-gutter));
+  max-width: calc(var(--v2-content) - 2 * var(--ens-gutter));
+}
 /* Вторичная строка под заголовком — одна роль на два места: подпись
    раздела и подпись категории. Сведено в один селектор, а не написано
    дважды (BACKLOG №126: дубль внутри одного файла безопасен по
@@ -185,11 +199,13 @@
 @media (min-width: 1024px) {
   .ens-main { padding-left: var(--space-6); padding-right: var(--space-6); }
   .ens-bar  { padding-left: var(--space-6); padding-right: var(--space-6); }
+  .ens-headwrap, .ens-bar, .ens-main { --ens-gutter: var(--space-6); }
   .ens-headwrap { padding-left: var(--space-6); padding-right: var(--space-6); }
 }
 @media (min-width: 1600px) {
   .ens-main { padding-left: var(--space-7); padding-right: var(--space-7); }
   .ens-bar  { padding-left: var(--space-7); padding-right: var(--space-7); }
+  .ens-headwrap, .ens-bar, .ens-main { --ens-gutter: var(--space-7); }
   .ens-headwrap { padding-left: var(--space-7); padding-right: var(--space-7); }
 }
 .ens-sets { contain: layout paint; }
@@ -511,6 +527,7 @@
   .ens-bar { padding: var(--space-3) var(--space-4) 0; }
   .ens-bar-row { flex-wrap: wrap; gap: var(--space-2) var(--space-3); }
   .ens-headwrap { padding: 0 var(--space-4); }
+  .ens-headwrap, .ens-bar, .ens-main { --ens-gutter: var(--space-4); }
   .ens-search { order: 3; flex: none; width: 100%; max-width: none; }
   .ens-stats { margin-left: auto; }
   .ens-stat { padding: var(--space-1) var(--space-3); }
