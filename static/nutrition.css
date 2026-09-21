@@ -409,22 +409,8 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
    Своих правил у класса не осталось. */
 
 .water-btns { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.water-btn {
-  flex: 1; height: 2.125rem; background: rgba(56,189,248,.1); border: 1px solid rgba(56,189,248,.2);
-  border-radius: 0.5625rem; color: var(--wat); font-size: var(--text-caption); font-weight: 600;
-  cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .1s;
-}
-.water-btn:active { background: rgba(56,189,248,.22); }
-/* flex-basis: 100% вместо width: 100% — кнопка лежит внутри ряда и должна
-   занять всю его ширину, то есть перенестись на свою строку. Высота
-   и отступ те же, что были у неё соседним элементом */
-.water-btn-manual {
-  flex: 0 0 100%; height: 2.125rem; margin-top: 0; background: var(--surface-sunken);
-  border: 1px solid var(--border); border-radius: 0.5625rem; color: var(--text-2);
-  font-size: var(--text-caption); font-weight: 600; cursor: pointer;
-  -webkit-tap-highlight-color: transparent; transition: all .1s;
-}
-.water-btn-manual:active { color: var(--wat); border-color: rgba(56,189,248,.3); }
+/* Кнопки порций воды — чипы v2 `.nut-water-chip` (№352, «питание-1»);
+   прежние `.water-btn` и `.water-btn-manual` удалены вместе с разметкой. */
 
 /* ── Meals ── */
 /* BACKLOG №116. `overflow: hidden` и отсутствие паддинга переехали
@@ -1900,13 +1886,6 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
      там пять кнопок в ряд дали бы по 68px. Здесь места хватает, и по
      нижнему краю этого ряда выравнивается кнопка нутрициолога слева */
   .water-btns { gap: calc(0.5 * var(--nut-u)); }
-  .water-btn { height: calc(2.375 * var(--nut-u)); font-size: calc(0.8125 * var(--nut-u)); }
-  .water-btn-manual {
-    width: auto; flex: 1.4; height: calc(2.375 * var(--nut-u)); margin-top: 0;
-    font-size: calc(0.8125 * var(--nut-u));
-    display: inline-flex; align-items: center; justify-content: center; gap: calc(0.375 * var(--nut-u));
-  }
-  .water-btn-manual svg { width: 0.875rem; height: 0.875rem; }
   /* Полоска дней на десктопе чуть просторнее — место есть */
   .d-daystrip { padding: calc(0.75 * var(--nut-u)) calc(0.875 * var(--nut-u)); margin-bottom: calc(1.125 * var(--nut-u)); }
   .ds-hint { display: inline; font-size: calc(0.8125 * var(--nut-u)); }
@@ -2224,3 +2203,88 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
 }
 .nut-assist-preview { margin: 0 var(--space-4); }
 .nut-assist-input { padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border); }
+
+/* ═══ ДНЕВНИК И «ДОБАВИТЬ» НА ЯЗЫКЕ v2 (№352, «питание-1», блок 3) ═══════
+   Слой поверх прежней раскладки: коробки, отступы и сетки экранов
+   остаются, меняется ВИД — карточки с рамкой `--v2-line-1`, таблетки
+   и чипы, Unbounded у чисел, Manrope у текста, цвет инструмента
+   `--v2-nutrition`. Только переменные v2: новых прямых значений ноль
+   (сторож 47). */
+#tab-diary, #tab-search { font-family: var(--v2-font); color: var(--v2-text); }
+
+#tab-diary .d-daystrip, #tab-diary .ring-wrap, #tab-diary .macros-row,
+#tab-diary .meal-card, #tab-diary .water-card,
+#tab-search .a-box, #tab-search .a-panel-box, #tab-search .r-item {
+  background: var(--v2-surface-1);
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-xl);
+  box-shadow: var(--v2-shadow-none);
+}
+#tab-diary .macro-card { background: transparent; border: 0; box-shadow: var(--v2-shadow-none); }
+#tab-search .r-item { border-radius: var(--v2-r-lg); }
+
+/* ЧИСЛА — Unbounded */
+#tab-diary .ring-remain, #tab-diary .meal-kcal, #tab-diary .macro-val,
+#tab-diary .water-val, #tab-diary .food-kcal, #tab-diary .ds-num,
+#tab-search .r-kcal, #tab-search .calc-kcal {
+  font-family: var(--v2-font-display);
+  font-weight: var(--v2-fw-num);
+  letter-spacing: var(--v2-ls-display);
+  font-variant-numeric: tabular-nums;
+}
+#tab-diary .meal-kcal, #tab-search .r-kcal { color: var(--v2-nutrition); }
+#tab-diary .ring-lbl { text-transform: none; letter-spacing: 0; color: var(--v2-text-2); }
+#tab-diary .meal-name, #tab-diary .water-name { font-weight: var(--v2-fw-strong); color: var(--v2-text-strong); }
+#tab-diary .food-sub, #tab-diary .macros-cap, #tab-diary .ds-hint,
+#tab-search .r-brand, #tab-search .r-per { color: var(--v2-text-2); }
+
+/* Вода: чипы-таблетки v2 */
+#tab-diary .water-btns { display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); }
+#tab-diary .nut-water-chip { flex: 1 1 auto; justify-content: center; }
+
+/* «Добавить»: заголовки коробок — текстом, а не моноширинными прописными */
+#tab-search .a-box-title {
+  font-size: var(--v2-fs-sm);
+  font-weight: var(--v2-fw-strong);
+  color: var(--v2-text-strong);
+  text-transform: none;
+  letter-spacing: 0;
+}
+#tab-search .a-meals .chip, #tab-search .ap-meals .chip {
+  border-radius: var(--v2-r-pill);
+  border-color: var(--v2-line-1);
+  background: transparent;
+  color: var(--v2-text-2);
+}
+#tab-search .a-meals .chip.active, #tab-search .ap-meals .chip.active {
+  border-color: var(--v2-tool-line);
+  background: var(--v2-tool-dim);
+  color: var(--v2-text-strong);
+}
+#tab-search .a-method { width: 100%; min-height: var(--v2-ctl-h-touch); justify-content: flex-start; }
+#tab-search .s-tabs {
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-pill);
+  background: var(--v2-surface-field);
+  padding: var(--v2-sp-1);
+}
+#tab-search .s-tabs .segmented-btn { border-radius: var(--v2-r-pill); color: var(--v2-text-2); }
+#tab-search .s-tabs .segmented-btn.active { background: var(--v2-surface-hover); color: var(--v2-text-strong); }
+#tab-search #s-input { border-radius: var(--v2-r-pill); border-color: var(--v2-line-1); background: var(--v2-surface-field); }
+
+/* Карточка находки: строка КБЖУ и «+» */
+#tab-search .r-item { display: flex; align-items: center; gap: var(--v2-sp-3); }
+#tab-search .r-info { flex: 1; min-width: 0; }
+#tab-search .r-right { text-align: right; }
+#tab-search .r-macros { margin-top: var(--v2-sp-1); font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+#tab-search .r-add { flex-shrink: 0; }
+
+/* 390: приём пищи и способ ввода — сверху, коробками, а не значками в ряду поиска */
+@media (max-width: 899px) {
+  #tab-search .a-left { display: flex; flex-direction: column; gap: var(--v2-sp-3); order: 1; margin-bottom: var(--v2-sp-3); }
+  #tab-search .a-box { display: flex; flex-direction: column; gap: var(--v2-sp-2); padding: var(--v2-sp-4); }
+  #tab-search .a-box-title { display: block; }
+  #tab-search .a-meals { margin-bottom: 0; flex-wrap: wrap; overflow: visible; }
+  #tab-search .a-method-manual { margin-bottom: 0; }
+  #tab-search .a-icon-method { display: none; }
+}

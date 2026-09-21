@@ -282,12 +282,213 @@ def контроль():
     return 1 if беда else 0
 
 
+# ── ОБЛИК «ДНЕВНИКА» И «ДОБАВИТЬ» (блок 3) ─────────────────────────────
+# Считается у ВИДИМЫХ элементов со СВОИМ текстом (текстовый узел ребёнком),
+# вычисленным стилем: класс ничего не говорит о том, что нарисовано.
+ОБЛИК = """() => {
+  const видим = e => e.checkVisibility({checkOpacity: true, checkVisibilityCSS: true});
+  const свой = e => [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+  const все = [...document.querySelectorAll('.v2-page-wrap *, .nut-app *')]
+    .filter(e => видим(e) && свой(e));
+  const моно = все.filter(e => /mono/i.test(getComputedStyle(e).fontFamily));
+  const прописные = все.filter(e => getComputedStyle(e).textTransform === 'uppercase'
+    && !e.closest('.v2-head-label'));
+  const имя = e => (e.id ? '#' + e.id : '') + '.' + String(e.className).split(' ')[0];
+  return {моно: моно.map(имя), прописные: прописные.map(имя)};
+}"""
+ЭКРАНЫ_ОБЛИКА = (("дневник", None), ("добавить", ".nut-tabbtn[data-tab=search]"))
+
+
+def облик(снимки=None, подлог=None):
+    """Моноширинные и прописные подписи; код 1, если моноширинных больше нуля."""
+    from playwright.sync_api import sync_playwright
+    итог_моно = 0
+    with sync_playwright() as p:
+        бр = p.chromium.launch(headless=True)
+        try:
+            for ширина in (1600, 1280, 390):
+                ctx = бр.new_context(viewport={"width": ширина, "height": 900})
+                стр = ctx.new_page()
+                ch._войти(стр)
+                if подлог:
+                    стр.add_init_script(подлог)
+                for экран, кнопка in ЭКРАНЫ_ОБЛИКА:
+                    стр.goto(ch.БАЗА + "/nutrition", wait_until="domcontentloaded")
+                    стр.wait_for_timeout(1500)
+                    if кнопка:
+                        стр.click(кнопка)
+                        стр.wait_for_timeout(1200)
+                    стр.mouse.move(1, 1)
+                    о = стр.evaluate(ОБЛИК)
+                    итог_моно += len(о["моно"])
+                    print("  %-9s %4d  моноширинных %2d, прописных %2d  %s" % (
+                        экран, ширина, len(о["моно"]), len(о["прописные"]),
+                        sorted(set(о["моно"]))[:6]))
+                    if снимки:
+                        os.makedirs(снимки, exist_ok=True)
+                        стр.screenshot(path=os.path.join(снимки, "%s-%d.png" % (экран, ширина)),
+                                       full_page=True, animations="disabled")
+                ctx.close()
+        finally:
+            бр.close()
+    print("ИТОГ ОБЛИКА: моноширинных на двух экранах × трёх ширинах %d" % итог_моно)
+    return 1 if итог_моно else 0
+
+
+# ── СКВОЗНОЙ ПРОГОН «ДНЕВНИК» И «ДОБАВИТЬ» (блок 3.4) ──────────────────
+# Путь человека, результат — из состояния страницы (S.diary, то есть ответ
+# /nutrition/api/diary после записи), а не из того, что экран не ругнулся.
+# Модель не должна вызываться НИ РАЗУ: считается по `model_usage` стенда.
+# ПИШЕТ В БАЗУ СТЕНДА; после прогона: `py make_local_user.py --seed`.
+ИТОГИ = "() => ({ккал: Math.round(S.diary.totals.calories), вода: S.diary.water_ml,"         " обед: (S.diary.meals.lunch || []).length,"         " позиций: Object.values(S.diary.meals).reduce((a, m) => a + m.length, 0)})"
+
+
+def _вызовов_модели():
+    import sqlite3
+    база = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.db")
+    return sqlite3.connect(база).execute("SELECT COUNT(*) FROM model_usage").fetchone()[0]
+
+
+def _в_дневник(стр):
+    стр.evaluate("goTab('diary')")
+    стр.wait_for_timeout(1200)
+    return стр.evaluate(ИТОГИ)
+
+
+def _добавить_первую(стр, область, запрос=None):
+    стр.click(".nut-tabbtn[data-tab=search]")
+    стр.wait_for_timeout(900)
+    стр.click("#meal-chips [data-meal=lunch]")
+    стр.click("#st-" + область)
+    стр.wait_for_timeout(900)
+    if запрос:
+        стр.fill("#s-input", запрос)
+        стр.wait_for_timeout(2500)
+    карточка = стр.locator("#s-results .r-item").first
+    if not карточка.count():
+        return None
+    стр.locator("#s-results .r-item .r-add").first.click()
+    стр.wait_for_timeout(700)
+    ккал = стр.evaluate("parseFloat(document.getElementById('ap-kcal').textContent)")
+    стр.fill("#ap-grams", "100")
+    стр.dispatch_event("#ap-grams", "input")
+    стр.click(".ap-add")
+    стр.wait_for_timeout(1200)
+    return ккал
+
+
+def прогон_дневника():
+    global находок, пропусков, _строки
+    находок = пропусков = 0
+    _строки = []
+    from playwright.sync_api import sync_playwright
+    модель_до = _вызовов_модели()
+    with sync_playwright() as p:
+        бр = p.chromium.launch(headless=True)
+        try:
+            ctx = бр.new_context(viewport={"width": 1600, "height": 900})
+            стр = ctx.new_page()
+            ch._войти(стр)
+            стр.goto(ch.БАЗА + "/nutrition", wait_until="domcontentloaded")
+            стр.wait_for_timeout(1500)
+            было = стр.evaluate(ИТОГИ)
+
+            ккал = _добавить_первую(стр, "all", "Гречневая")
+            стало = _в_дневник(стр)
+            шаг("поиск-и-добавление-в-обед",
+                ккал is not None and стало["обед"] == было["обед"] + 1
+                and abs((стало["ккал"] - было["ккал"]) - ккал) <= 1,
+                "обед %s → %s, кольцо %s → %s ккал (+%s), продукт %s ккал"
+                % (было["обед"], стало["обед"], было["ккал"], стало["ккал"],
+                   стало["ккал"] - было["ккал"], ккал), собрано=0 if ккал is None else 1)
+
+            до = стало
+            кнопки = стр.locator(".meal-card .food-del:visible")
+            if кнопки.count():
+                кнопки.first.click()
+                стр.wait_for_timeout(600)
+                подтв = стр.locator(".modal-ov.open .btn-danger, .modal-ov.open [data-confirm]")
+                if подтв.count():
+                    подтв.first.click()
+                стр.wait_for_timeout(1200)
+            после = стр.evaluate(ИТОГИ)
+            шаг("удаление-позиции", после["позиций"] == до["позиций"] - 1,
+                "позиций %s → %s" % (до["позиций"], после["позиций"]), собрано=кнопки.count())
+
+            до = после
+            ккал = _добавить_первую(стр, "recent")
+            после = _в_дневник(стр)
+            шаг("добавление-из-недавних", ккал is not None and после["обед"] == до["обед"] + 1,
+                "обед %s → %s" % (до["обед"], после["обед"]), собрано=0 if ккал is None else 1)
+
+            до = после
+            стр.click(".nut-tabbtn[data-tab=search]")
+            стр.wait_for_timeout(800)
+            стр.click("#meal-chips [data-meal=lunch]")
+            стр.click(".a-method-manual")
+            стр.wait_for_timeout(600)
+            стр.fill("#cf-name", "Проба свой продукт")
+            стр.fill("#cf-cal", "123")
+            стр.click("#modal-custom .add-btn, #modal-custom .btn-primary")
+            стр.wait_for_timeout(1000)
+            # openPortion на десктопе открывает панель справа, на узком — окно
+            запись = стр.locator(".ap-add:visible, #por-add-btn:visible")
+            if запись.count():
+                запись.first.click()
+                стр.wait_for_timeout(1200)
+            после = _в_дневник(стр)
+            шаг("свой-продукт-записан", после["позиций"] == до["позиций"] + 1,
+                "позиций %s → %s" % (до["позиций"], после["позиций"]))
+
+            до = после
+            стр.click(".nut-water-chip >> text=+250")
+            стр.wait_for_timeout(1200)
+            после = стр.evaluate(ИТОГИ)
+            шаг("вода-плюс-250", после["вода"] == до["вода"] + 250,
+                "вода %s → %s мл" % (до["вода"], после["вода"]))
+
+            стр.click(".nut-tabbtn[data-tab=search]")
+            стр.wait_for_timeout(800)
+            with стр.expect_file_chooser(timeout=5000) as выбор:
+                стр.click(".a-method >> text=Фото")
+            шаг("фото-открывает-выбор-файла", выбор.value is not None)
+            стр.click(".a-method >> text=Штрихкод")
+            стр.wait_for_timeout(1200)
+            окно = стр.evaluate("[...document.querySelectorAll('.modal-ov.open')].map(e => e.id)")
+            шаг("штрихкод-открывает-окно", bool(окно), "открыто %s" % окно)
+            ctx.close()
+        finally:
+            бр.close()
+    модель_после = _вызовов_модели()
+    шаг("модель-не-вызывалась", модель_после == модель_до,
+        "model_usage %s → %s" % (модель_до, модель_после))
+    return находок, пропусков
+
+
 def main():
+    if "--прогон" in sys.argv:
+        н, п = прогон_дневника()
+        print("ИТОГ ПРОГОНА: шагов %d, плохих %d, пропусков %d" % (len(_строки), н, п))
+        sys.exit(1 if н else (2 if п else 0))
+    if "--облик" in sys.argv and "--контроль" in sys.argv:
+        # Подлог: вернуть моноширинную подпись заголовку коробки «Добавить»
+        код = облик(подлог="""addEventListener('DOMContentLoaded', () => {
+          const s = document.createElement('style');
+          s.textContent = '#tab-search .a-box-title { font-family: var(--v2-font-mono) !important; }';
+          document.head.appendChild(s); });""")
+        print("КОНТРОЛЬ ОБЛИКА:", "ЛОВИТ" if код == 1 else "НЕ ЛОВИТ")
+        sys.exit(0 if код == 1 else 1)
+    if "--облик" in sys.argv:
+        снимки = sys.argv[sys.argv.index("--снимки") + 1] if "--снимки" in sys.argv else None
+        sys.exit(облик(снимки))
     if "--контроль" in sys.argv:
         sys.exit(контроль())
     print("ПАНЕЛЬ AI-АССИСТЕНТА ДНЕВНИКА")
     н, п = прогон()
-    print("ИТОГ: шагов %d, плохих %d, пропусков %d" % (len(_строки), н, п))
+    print("ОБЛИК «ДНЕВНИКА» И «ДОБАВИТЬ»")
+    if облик():
+        н += 1
+    print("ИТОГ: шагов %d, плохих %d, пропусков %d" % (len(_строки) + 1, н, п))
     if п and not н:
         sys.exit(2)
     sys.exit(1 if н else 0)
