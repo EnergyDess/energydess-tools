@@ -2121,6 +2121,23 @@ async def version():
 СБОРКА_ОБЯЗАТЕЛЬНО = ("инструкция", "резюме", "досье", "вакансия", "примеры", "правила")
 СБОРКА_ЯЗЫК = {"ru": "Письмо пиши ПО-РУССКИ", "en": "ENTIRELY IN ENGLISH"}
 
+# ПОДПИСЬ ПИСЬМА — ПО ЯЗЫКУ ПИСЬМА (№352, письмо «питание-1», блок 1.4).
+# Подпись пишет МОДЕЛЬ по правилу промпта, код её не дописывает: имя
+# кандидата лежит в тексте резюме, а не в поле. Отсюда два слоя: правило
+# языка в запросе (строка ниже, её же ищет сборка `/version/letter-build`)
+# и проверка готового письма — `letter_facts.подпись_не_на_языке`,
+# нарушение пишется в `letter_checks` видом `подпись_не_на_языке`.
+# Русское правило прежнее: «С уважением, [имя]» стоит в `правила`.
+ПОДПИСЬ_ПИСЬМА = {
+    "ru": "Подпись: «С уважением,» и имя из резюме.",
+    "en": ("Sign-off: the letter ends with exactly two lines — \"Best regards,\" "
+           "and on the next line the candidate's full name in Latin letters "
+           "(transliterate it from the resume if the resume is in Cyrillic). "
+           "No Cyrillic anywhere in the sign-off; the line «С уважением» below "
+           "applies to Russian letters only."),
+}
+СБОРКА_ПОДПИСЬ = {"ru": "С уважением", "en": "Best regards,"}
+
 
 def _сборка_письма_проверка() -> dict:
     """Собрать запрос письма ОБОИМИ путями и на ОБОИХ языках, модель не зовя.
@@ -2165,8 +2182,10 @@ def _сборка_письма_проверка() -> dict:
                 else:
                     форма = isinstance(содержимое, str)
                 с.update({"язык_в_запросе": СБОРКА_ЯЗЫК[язык] in текст,
+                          "подпись_в_запросе": СБОРКА_ПОДПИСЬ[язык] in текст,
                           "пустые_части": пустые, "форма": форма})
-                с["ok"] = с["язык_в_запросе"] and not пустые and форма
+                с["ok"] = (с["язык_в_запросе"] and с["подпись_в_запросе"]
+                           and not пустые and форма)
             except Exception as e:  # сборка обязана назвать сбой, а не упасть
                 с["сбой"] = "%s: %s" % (type(e).__name__, str(e)[:200])
             случаи.append(с)
@@ -5569,7 +5588,7 @@ def _промпт_письма(resume_text: str, full_dossier: str, analysis: di
         "Write the letter ENTIRELY IN ENGLISH — greeting, body and sign-off. "
         "Всё остальное в этой инструкции остаётся в силе: правила подачи, "
         "запрещённые обороты и правило концовки применяются к английскому "
-        "тексту так же, как к русскому."
+        "тексту так же, как к русскому.\n" + ПОДПИСЬ_ПИСЬМА["en"]
     )
 
     голова = f"""Напиши сопроводительное письмо. Только текст письма — ничего лишнего. Никакого предисловия, никакого «Вот письмо:».
@@ -5686,11 +5705,13 @@ def _виды_находок(итог: dict) -> list:
         виды.append("вне_досье")
     if итог.get("нет_репозитория"):
         виды.append("нет_репозитория")
+    if итог.get("подпись_не_на_языке"):
+        виды.append("подпись_не_на_языке")
     return виды
 
 
 def _проверить_письмо(db, letter_id, letter, full_dossier, resume_text,
-                      job_text, группы_ссылок, profile) -> list:
+                      job_text, группы_ссылок, profile, lang="ru") -> list:
     """Проверка 44 над готовым письмом и журнал нарушений (`letter_checks`).
 
     НЕ РОНЯЕТ ГЕНЕРАЦИЮ НИ ПРИ КАКОМ ИСХОДЕ: письмо уже написано и оплачено.
@@ -5701,7 +5722,8 @@ def _проверить_письмо(db, letter_id, letter, full_dossier, resume
         итог = _письмо_факты.проверить(
             letter, full_dossier, resume_text, job_text, группы_ссылок,
             концовка=profile.ending_style if profile else None,
-            не_упоминать=(profile.never_mention or "") if profile else "")
+            не_упоминать=(profile.never_mention or "") if profile else "",
+            lang=lang)
         print(f"[letter-check] письмо {letter_id}: {_письмо_факты.строкой(итог)}")
         виды = _виды_находок(итог)
     except Exception as e:  # проверка не вправе уронить отдачу письма
@@ -5900,7 +5922,7 @@ relevant_portfolio_links — ищи релевантные ссылки в дв�
         # ПОСЛЕ сохранения: журналу нужен номер письма. Письмо человеку
         # отдаётся как есть при любом исходе проверки — решение за ним.
         _проверить_письмо(db, letter_id, letter, full_dossier, resume_text,
-                          job_text, группы_ссылок, profile)
+                          job_text, группы_ссылок, profile, lang)
 
         return JSONResponse({"letter": letter, "analysis": analysis, "letter_id": letter_id,
                              "analysis_error": analysis_error, "save_error": save_error})

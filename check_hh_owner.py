@@ -97,6 +97,10 @@ window.fetch = async (u, o) => {
       {status: 200, headers: {'Content-Type': 'application/json'}});
   if (адрес.includes('/api/generate-letter')) {
     if (window.__ЗАДЕРЖКА) await new Promise(r => setTimeout(r, window.__ЗАДЕРЖКА));
+    const запрос = тело ? JSON.parse(тело) : {};
+    if (window.__СЛАБОЕ && !запрос.force)
+      return ответ({warning: 'low_relevance', score: 3,
+                    message: 'Вакансия слабо соответствует резюме.'});
     return ответ({letter: window.__ПИСЬМО, letter_id: 424242, analysis: window.__АНАЛИЗ});
   }
   if (адрес.includes('/api/analyze-vacancy')) return ответ(window.__АНАЛИЗ);
@@ -436,6 +440,89 @@ def замечания_письма(бр, подлог=None):
     ctx.close()
 
 
+# ── №16. «ВСЁ РАВНО НАПИСАТЬ» НА ПЛАШКЕ СЛАБОГО СОВПАДЕНИЯ ──────────────
+# Письмо «питание-1», блок 1.3. Кнопка была до редизайна и стала невидимой
+# вместе с плашкой: `#warn-state` прятали атрибутом `hidden`, а показывали
+# `style.display` (авария 21.09). Видимость спрашивается ВЫЧИСЛЕННЫМ стилем
+# и размером, а не классом; нажатие — тем, что УШЛО в запрос (`force`).
+ВИДЕН = """(с) => { const e = document.querySelector(с); if (!e) return null;
+  const r = e.getBoundingClientRect(), st = getComputedStyle(e);
+  return {display: st.display, w: Math.round(r.width), h: Math.round(r.height),
+          видим: e.checkVisibility({checkOpacity: true, checkVisibilityCSS: true})}; }"""
+
+
+def замечание_всё_равно(бр, подлог=None):
+    ctx, стр = _страница(бр, подлог)
+    стр.goto(ch.БАЗА + "/hh", wait_until="domcontentloaded")
+    стр.wait_for_timeout(900)
+    стр.fill("#job-input", ВАКАНСИЯ)
+    стр.wait_for_timeout(700)
+    стр.evaluate("window.__СЛАБОЕ = true; window.__ЗАПРОСЫ = []")
+    стр.click("#generate-btn")
+    стр.wait_for_timeout(900)
+    плашка = стр.evaluate(ВИДЕН, "#warn-state")
+    кнопка = стр.evaluate(ВИДЕН, "#force-btn")
+    шаг(16, "плашка-слабого-совпадения-видна",
+        bool(плашка) and плашка["видим"] and плашка["h"] > 0,
+        "плашка %s" % плашка)
+    шаг(16, "кнопка-всё-равно-написать-видна",
+        bool(кнопка) and кнопка["видим"] and кнопка["w"] > 0 and кнопка["h"] > 0,
+        "кнопка %s" % кнопка)
+    стр.evaluate("window.__ЗАПРОСЫ = []")
+    if кнопка and кнопка["видим"]:
+        стр.click("#force-btn")
+        стр.wait_for_timeout(900)
+    ушло = стр.evaluate(
+        "window.__ЗАПРОСЫ.filter(з => з.адрес.includes('generate-letter'))"
+        ".map(з => JSON.parse(з.тело))")
+    шаг(16, "нажатие-уходит-с-обходом-порога",
+        bool(ушло) and ушло[0].get("force") is True,
+        "force=%s" % (ушло[0].get("force") if ушло else "запроса нет"),
+        собрано=len(ушло))
+    письмо = стр.evaluate(ВИДЕН, "#letter-content")
+    текст = стр.evaluate("document.getElementById('letter-content').innerText")
+    шаг(16, "письмо-нарисовано-после-обхода",
+        bool(письмо) and письмо["видим"] and "Здравствуйте" in (текст or ""),
+        "письмо %s, знаков %d" % (письмо, len(текст or "")), собрано=len(ушло))
+    ctx.close()
+
+
+# ── №17. КНОПКИ ПОД ПИСЬМОМ ПО ЦЕНТРУ КАРТОЧКИ ───────────────────────────
+# Письмо «питание-1», блок 1.5. Мера — разница центра КАЖДОЙ строки
+# кнопок (строка — общий `top`) и центра карточки письма; порог 2 px.
+ЦЕНТРЫ = """() => {
+  const к = document.getElementById('result-panel').getBoundingClientRect();
+  const ц = к.left + к.width / 2;
+  const строки = {};
+  [...document.querySelectorAll('#result-actions > button')]
+    .filter(b => b.checkVisibility()).forEach(b => {
+      const r = b.getBoundingClientRect(), y = Math.round(r.top);
+      (строки[y] = строки[y] || []).push(r); });
+  return Object.values(строки).map(ряд => {
+    const л = Math.min(...ряд.map(r => r.left)), п = Math.max(...ряд.map(r => r.right));
+    return Math.round(Math.abs((л + п) / 2 - ц) * 10) / 10; });
+}"""
+ШИРИНЫ_ЦЕНТРА = (1600, 1280, 390)
+
+
+def замечание_центра(бр, подлог=None):
+    for ширина in ШИРИНЫ_ЦЕНТРА:
+        ctx, стр = _страница(бр, подлог, ширина=ширина)
+        стр.goto(ch.БАЗА + "/hh", wait_until="domcontentloaded")
+        стр.wait_for_timeout(900)
+        стр.fill("#job-input", ВАКАНСИЯ)
+        стр.wait_for_timeout(700)
+        стр.click("#generate-btn")
+        стр.wait_for_selector("#letter-content", state="visible", timeout=9000)
+        стр.wait_for_timeout(300)
+        разницы = стр.evaluate(ЦЕНТРЫ)
+        шаг(17, "кнопки-письма-по-центру-%d" % ширина,
+            bool(разницы) and max(разницы) <= 2,
+            "строк %d, разница центров %s px" % (len(разницы), разницы),
+            собрано=len(разницы))
+        ctx.close()
+
+
 # ── №5. СВЕЧЕНИЕ ШАПКИ БЕЗ РЕЗКОГО КРАЯ ──────────────────────────────────
 ИНСТРУМЕНТЫ = [("/hh", "hh"), ("/nutrition", "nutrition"), ("/workout", "workout"),
                ("/medkit", "medkit"), ("/enshrouded", "enshrouded")]
@@ -581,8 +668,13 @@ def замечания_истории(бр, подлог=None):
         "         красный, w: Math.round(r.width), h: Math.round(r.height)};"
         "}")
     прозрачна = lambda ц: ц in ("rgba(0, 0, 0, 0)", "transparent")
+    # РЕШЕНИЕ ВЛАДЕЛЬЦА ПИСЬМА 5 (fcdd70c) СИЛЬНЕЕ ПИСЬМА 4: удаление —
+    # СЕРЫЙ круг, рамка в покое ВИДНА. Здесь стояло «рамка прозрачна»
+    # (письмо 4), и шаг краснел на исправном коде с fcdd70c. Тихим
+    # покой остаётся по цвету: ни рамка, ни крестик, ни фон не красные.
     шаг(7, "удаление-в-покое-тихое",
-        покой is not None and прозрачна(покой["рамка"])
+        покой is not None and not прозрачна(покой["рамка"])
+        and покой["рамка"] != покой["красный"]
         and прозрачна(покой["фон"]) and покой["цвет"] != покой["красный"],
         "рамка %s, фон %s, цвет %s" % (покой["рамка"], покой["фон"], покой["цвет"])
         if покой else "кнопки нет",
@@ -606,15 +698,23 @@ def замечания_истории(бр, подлог=None):
         "под курсором %s, красный %s" % (ховер["цвет"], ховер["красный"]))
 
     # Область нажатия не уменьшилась: снята рамка, а не размер.
+    # ОБЛАСТЬ НАЖАТИЯ, А НЕ КОРОБКА (§6.0.11): с письма 5 видимый круг
+    # 30 px, а до 44 добирает невидимый слой `::after`. Спрашивается,
+    # кому отдаёт `elementFromPoint` точки в 16 px от центра по 4 сторонам.
     касание = стр.evaluate(
         "() => {"
         " const к = document.querySelector('.history-item-del');"
         " const r = к.getBoundingClientRect();"
-        " return {w: Math.round(r.width), h: Math.round(r.height)};"
+        " const x = r.left + r.width / 2, y = r.top + r.height / 2;"
+        " const точки = [[x-16,y],[x+16,y],[x,y-16],[x,y+16]];"
+        " const наши = точки.filter(([a,b]) => { const e = document.elementFromPoint(a,b);"
+        "   return e && (e === к || к.contains(e)); }).length;"
+        " return {w: Math.round(r.width), h: Math.round(r.height), наши};"
         "}")
     шаг(7, "область-нажатия-удаления-цела",
-        касание["w"] >= 32 and касание["h"] >= 32,
-        "%dx%d" % (касание["w"], касание["h"]))
+        касание["наши"] == 4,
+        "круг %dx%d, точек в 16 px от центра своих %d из 4"
+        % (касание["w"], касание["h"], касание["наши"]))
 
     # Удаление работает как раньше — С ПОДТВЕРЖДЕНИЕМ и ДО БАЗЫ.
     было = стр.locator(".history-item").count()
@@ -1191,6 +1291,20 @@ def _текст_места(весь, номер):
 # и молчание про остальные замечания осталось бы непроверенным (§6.0.3).
 # ══════════════════════════════════════════════════════════════════════════
 ПОДЛОГИ = {
+    # Ровно форма аварии 21.09: спрятано `hidden`, «показано» `display`.
+    "всё-равно-через-hidden": """
+      addEventListener('DOMContentLoaded', () => {
+        const к = document.getElementById('force-btn');
+        if (!к) return;
+        к.hidden = true;
+        к.style.display = 'inline-flex';
+      });""",
+    "кнопки-письма-влево": """
+      addEventListener('DOMContentLoaded', () => {
+        const с = document.createElement('style');
+        с.textContent = '.hh-result-actions { justify-content: flex-start !important; }';
+        document.head.appendChild(с);
+      });""",
     # Ровно тот немой отказ, что нашёл владелец: подсветка ищет класс,
     # которого у кнопок нет.
     "подсветка-языка-мертва": """
@@ -1355,6 +1469,8 @@ def _текст_места(весь, номер):
 
 # Какая строка реестра обязана упасть от какого подлога.
 ЧЬЯ_СТРОКА = {
+    "всё-равно-через-hidden":  "кнопка-всё-равно-написать-видна",
+    "кнопки-письма-влево":     "кнопки-письма-по-центру-1600",
     "подсветка-языка-мертва":  "язык-английский-подсвечен",
     "ссылка-стирает-язык":     "ссылка-не-стирает-выбор-языка",
     "два-индикатора":          "индикатор-загрузки-один",
@@ -1390,6 +1506,10 @@ def прогон(подлог=None, только=None):
                 замечания_письма(бр, подлог)
             if только is None or 5 in только:
                 замечание_свечения(бр, подлог)
+            if только is None or 16 in только:
+                замечание_всё_равно(бр, подлог)
+            if только is None or 17 in только:
+                замечание_центра(бр, подлог)
             if только is None or {6, 7} & только:
                 замечания_истории(бр, подлог)
             if только is None or {8, 15} & только:
