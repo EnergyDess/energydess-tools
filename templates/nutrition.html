@@ -195,10 +195,10 @@
         <div class="card card-static a-box">
           <div class="a-box-title">Приём пищи</div>
           <div class="s-chips a-meals" id="meal-chips">
-            <button class="chip active" data-meal="breakfast" onclick="setSearchMeal(this)">{{ значок('sunrise') }} Завтрак</button>
-            <button class="chip" data-meal="lunch"     onclick="setSearchMeal(this)">{{ значок('sun') }} Обед</button>
-            <button class="chip" data-meal="dinner"    onclick="setSearchMeal(this)">{{ значок('moon') }} Ужин</button>
-            <button class="chip" data-meal="snack"     onclick="setSearchMeal(this)">{{ значок('apple') }} Перекус</button>
+            <button class="chip nut-meal-chip active" data-meal="breakfast" onclick="setSearchMeal(this)">{{ значок('sunrise') }} Завтрак</button>
+            <button class="chip nut-meal-chip" data-meal="lunch"     onclick="setSearchMeal(this)">{{ значок('sun') }} Обед</button>
+            <button class="chip nut-meal-chip" data-meal="dinner"    onclick="setSearchMeal(this)">{{ значок('moon') }} Ужин</button>
+            <button class="chip nut-meal-chip" data-meal="snack"     onclick="setSearchMeal(this)">{{ значок('apple') }} Перекус</button>
           </div>
         </div>
         {# Способы ввода. На десктопе названы словами — там есть место, и
@@ -226,13 +226,13 @@
            находки из справочника. Теперь запрос всегда работает внутри
            выбранной области, а подсказка в поле называет её вслух. #}
         <div class="segmented s-tabs" id="s-tabs">
-          <button class="segmented-btn active" id="st-all"      onclick="setSearchTab('all')">Вся база</button>
-          <button class="segmented-btn"        id="st-recent"   onclick="setSearchTab('recent')">Недавние</button>
-          <button class="segmented-btn"        id="st-frequent" onclick="setSearchTab('frequent')">Частые</button>
-          <button class="segmented-btn"        id="st-recipes"  onclick="setSearchTab('recipes')">Мои рецепты</button>
+          <button class="segmented-btn nut-scope-btn active" id="st-all"      onclick="setSearchTab('all')">Вся база</button>
+          <button class="segmented-btn nut-scope-btn"        id="st-recent"   onclick="setSearchTab('recent')">Недавние</button>
+          <button class="segmented-btn nut-scope-btn"        id="st-frequent" onclick="setSearchTab('frequent')">Частые</button>
+          <button class="segmented-btn nut-scope-btn"        id="st-recipes"  onclick="setSearchTab('recipes')">Мои рецепты</button>
         </div>
         <div class="s-bar">
-          <input type="search" class="input input-compact" id="s-input" placeholder="Поиск по всей базе"
+          <input type="search" class="input input-compact nut-search-input" id="s-input" placeholder="Поиск по всей базе"
                  oninput="onSearch(this.value)" autocomplete="off" enterkeyhint="search">
           <button class="btn-icon btn-icon-solid a-icon-method" onclick="openPhoto()" title="Фото">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -277,10 +277,10 @@
                запись ушла бы в приём, который человек видит невыбранным. #}
             <div class="a-box-title">Приём пищи</div>
             <div class="s-chips ap-meals" id="ap-meal-chips">
-              <button class="chip active" data-meal="breakfast" onclick="setSearchMeal(this)">{{ значок('sunrise') }} Завтрак</button>
-              <button class="chip" data-meal="lunch"     onclick="setSearchMeal(this)">{{ значок('sun') }} Обед</button>
-              <button class="chip" data-meal="dinner"    onclick="setSearchMeal(this)">{{ значок('moon') }} Ужин</button>
-              <button class="chip" data-meal="snack"     onclick="setSearchMeal(this)">{{ значок('apple') }} Перекус</button>
+              <button class="chip nut-meal-chip active" data-meal="breakfast" onclick="setSearchMeal(this)">{{ значок('sunrise') }} Завтрак</button>
+              <button class="chip nut-meal-chip" data-meal="lunch"     onclick="setSearchMeal(this)">{{ значок('sun') }} Обед</button>
+              <button class="chip nut-meal-chip" data-meal="dinner"    onclick="setSearchMeal(this)">{{ значок('moon') }} Ужин</button>
+              <button class="chip nut-meal-chip" data-meal="snack"     onclick="setSearchMeal(this)">{{ значок('apple') }} Перекус</button>
             </div>
             {# Четвёртое место, где видна дата: панель — последняя точка
                перед записью, ровно как строка над кнопкой в модалке #}

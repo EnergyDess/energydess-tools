@@ -2250,13 +2250,13 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
   text-transform: none;
   letter-spacing: 0;
 }
-#tab-search .a-meals .chip, #tab-search .ap-meals .chip {
+#tab-search .nut-meal-chip {
   border-radius: var(--v2-r-pill);
   border-color: var(--v2-line-1);
   background: transparent;
   color: var(--v2-text-2);
 }
-#tab-search .a-meals .chip.active, #tab-search .ap-meals .chip.active {
+#tab-search .nut-meal-chip.active {
   border-color: var(--v2-tool-line);
   background: var(--v2-tool-dim);
   color: var(--v2-text-strong);
@@ -2268,9 +2268,9 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
   background: var(--v2-surface-field);
   padding: var(--v2-sp-1);
 }
-#tab-search .s-tabs .segmented-btn { border-radius: var(--v2-r-pill); color: var(--v2-text-2); }
-#tab-search .s-tabs .segmented-btn.active { background: var(--v2-surface-hover); color: var(--v2-text-strong); }
-#tab-search #s-input { border-radius: var(--v2-r-pill); border-color: var(--v2-line-1); background: var(--v2-surface-field); }
+#tab-search .nut-scope-btn { border-radius: var(--v2-r-pill); color: var(--v2-text-2); }
+#tab-search .nut-scope-btn.active { background: var(--v2-surface-hover); color: var(--v2-text-strong); }
+#tab-search .nut-search-input { border-radius: var(--v2-r-pill); border-color: var(--v2-line-1); background: var(--v2-surface-field); }
 
 /* Карточка находки: строка КБЖУ и «+» */
 #tab-search .r-item { display: flex; align-items: center; gap: var(--v2-sp-3); }
