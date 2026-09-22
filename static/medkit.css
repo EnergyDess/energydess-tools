@@ -191,16 +191,6 @@
 .apt-scale-btn.active { background: var(--v2-surface-hover); }
 
 
-.chip.chip-warn {
-  border-color: color-mix(in srgb, var(--v2-warn) 45%, transparent);
-  color: var(--v2-warn);
-}
-.chip.chip-warn.active {
-  background: color-mix(in srgb, var(--v2-warn) 16%, transparent);
-  border-color: var(--v2-warn);
-}
-.chip.chip-warn .chip-n { color: inherit; }
-
 /* ── Ряд чипов отбора ──────────────────────────────────────────────
    ПОДЛОЖКА, А НЕ ПАНЕЛЬ ВО ВСЮ ШИРИНУ. Владелец просил «выделить, как
    в админке»; сделано НАМЕРЕННО ИНАЧЕ, и вот почему: в админке это
@@ -4359,7 +4349,11 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 .apt-who-row .avatar { margin-left: calc(-1 * var(--space-2)); }
 .apt-who-row .avatar:first-child { margin-left: 0; }
 .apt-who-row:focus-visible { outline: 2px solid var(--v2-ring-neutral); outline-offset: 2px; }
-@media (hover: hover) { .apt-who-row:hover .avatar { border-color: var(--v2-line-hover); } }
+/* ОТКЛИК НАВЕДЕНИЯ — У САМОЙ КНОПКИ, а не у лиц внутри: `.avatar` —
+   системный класс, и правка его субъектом задела бы каждый аватар
+   проекта (проверка 1). Лица рисует общий макрос, своего класса
+   у них нет. */
+@media (hover: hover) { .apt-who-row:hover { filter: brightness(1.15); } }
 
 /* СЧЁТЧИК У «ПЕРЕПРОВЕРИТЬ» — ЧИСЛО НЕПОЛНЫХ КАРТОЧЕК. Тон предупреждающий,
    а не акцентный: это не количество чего-то хорошего, а работа, которая

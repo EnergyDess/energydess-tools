@@ -1501,6 +1501,23 @@ button.chip, a.chip { cursor: pointer; }
   border-color: var(--error);
   color: var(--error);
 }
+
+/* ЧИП-ПРЕДУПРЕЖДЕНИЕ — брат `.chip-danger` (№352, «аптечка-1», 3.1).
+   «Истекает за месяц» — состояние между «всё хорошо» и «просрочено»,
+   и красным оно быть не может: красный уже занят и означает «выбросить».
+
+   ПОРЯДОК ОБЪЯВЛЕНИЯ — ЧАСТЬ ПРАВИЛА, ровно как у соседа: `.chip-warn`
+   (0,1,0) равен по весу `.chip`, а `.chip-warn.active` (0,2,0) —
+   `.chip.active`, и стоя ВЫШЕ они были бы перебиты молча. */
+.chip-warn {
+  border-color: color-mix(in srgb, var(--v2-warn) 45%, transparent);
+  color: var(--v2-warn);
+}
+.chip-warn.active {
+  background: color-mix(in srgb, var(--v2-warn) 16%, transparent);
+  border-color: var(--v2-warn);
+}
+.chip-warn .chip-n { color: inherit; }
 /* ОТКЛИК НА НАВЕДЕНИЕ У КРАСНОГО ЧИПА — СВОЙ, И БЕЗ НЕГО ВИД ПОЕХАЛ БЫ.
    Общий `button.chip:hover` (0,2,1) весит больше `.chip-danger` (0,1,0)
    и увёл бы надпись в `--text`, а рамку в `--border-strong`: красный
