@@ -879,7 +879,14 @@
 }
 .v2-head-desc { margin: 0; font-size: var(--v2-fs-md); line-height: var(--v2-lh-body); color: var(--v2-text-2); }
 .v2-head-actions { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-end; gap: var(--v2-sp-2); }
-.v2-page-head .v2-tabs { grid-column: 1 / -1; margin-top: var(--v2-sp-3); border-bottom: 1px solid var(--v2-line-2); }
+/* `min-width: 0` — ЧТОБЫ РЯД НЕ РАСПИРАЛ КОЛОНКУ. Элемент сетки
+   по умолчанию не уже своего содержимого (`min-width: auto`), и ряд
+   вкладок, чья сумма шире колонки, вылезал за неё вместе с линией:
+   замер аптечки на 390 — линия 388 px при содержимом 348, правый край
+   на 40 px дальше (проверка 56). Прокрутка `overflow-x` при этом
+   не включалась вовсе — распирать было разрешено. У питания четыре
+   вкладки помещались, и дефект не проявлялся. */
+.v2-page-head .v2-tabs { grid-column: 1 / -1; min-width: 0; margin-top: var(--v2-sp-3); border-bottom: 1px solid var(--v2-line-2); }
 
 /* Панель ассистента — справа; на телефоне на весь экран. */
 .v2-assist {
@@ -1111,11 +1118,16 @@ html.v2-rail .v2-shell .v2-side-caret { display: none; }
 @media (max-width: 768px) {
   .v2-top { padding: 0 var(--v2-sp-4); }
   .v2-top-burger { display: inline-flex; }
-  .v2-page-head { grid-template-columns: 1fr; padding: var(--v2-sp-5) var(--v2-sp-4) 0; }
+  /* `minmax(0, 1fr)`, А НЕ `1fr`: второе равно `minmax(auto, 1fr)`,
+     и трек не может стать уже содержимого — ряд вкладок, чья сумма
+     шире экрана, распирал колонку вместе с линией под ней (замер
+     аптечки на 390: линия 388 px при содержимом 348, проверка 56),
+     а `overflow-x` у ряда не включался вовсе */
+  .v2-page-head { grid-template-columns: minmax(0, 1fr); padding: var(--v2-sp-5) var(--v2-sp-4) 0; }
   .v2-head-actions { justify-content: flex-start; }
   /* На телефоне кнопки — под текстом, как до правки: одна колонка,
      зазор от описания прежние 12 px (8 строки + 4). */
-  .v2-page-head:has(> .v2-head-actions) { grid-template-columns: 1fr; }
+  .v2-page-head:has(> .v2-head-actions) { grid-template-columns: minmax(0, 1fr); }
   .v2-page-head:has(> .v2-head-actions) > .v2-head-actions { grid-column: 1; grid-row: auto; margin-top: var(--v2-sp-1); }
   .v2-tabs { flex-wrap: nowrap; }
   .v2-tab { flex-shrink: 0; }
