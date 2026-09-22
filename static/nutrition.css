@@ -811,7 +811,13 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
    Состояния дня — как у ленты дней (проверка 55): выбранный ЗАЛИТ цветом
    питания и наведением не меняется; «сегодня» — цифра цвета питания;
    будущий — цифра на ступень тусклее. Зона наведения — внутренний кружок. */
+/* РАЗМЕР КОЛЬЦА — ОТ КЛЕТКИ, А НЕ ТОЛЬКО ОТ КЕГЛЯ («питание-5», блок 1.4).
+   Кольцо было шире своей колонки (49.8 px при шаге 46.2 на 1600), соседи
+   накладывались на 3.6 px, и серые подложки сливались в полосу. Клетка —
+   контейнер, число берёт меньшее из своего размера и ширины клетки минус
+   поля кольца и 2 px: промежуток между кольцами не меньше шага сетки + 2. */
 .cal-c {
+  container-type: inline-size;
   display: flex; flex-direction: column; align-items: center;
   padding: var(--space-1) 0; border: none; background: none;
   color: var(--v2-text-2); font-family: inherit;
@@ -831,9 +837,18 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
   pointer-events: none;
 }
 .cal-ring[data-ring="over"] { --cal-ring-c: var(--v2-warn); }
+/* ПУСТОЙ ДЕНЬ — БЕЗ ЦВЕТА ПИТАНИЯ В ГРАДИЕНТЕ ВОВСЕ («питание-5», блок 1).
+   При доле 0 в `conic-gradient` оставался отрезок цвета питания нулевой
+   длины на шве 0° — ровно у верха кольца. Рисовать его или нет, решает
+   растеризатор; у владельца на проде он давал зелёную метку сверху
+   пустых дней. Пустое кольцо красится подложкой целиком, и цвету питания
+   неоткуда взяться, какой бы ни был движок */
+.cal-ring[data-ring="none"] { --cal-ring-c: var(--v2-line-1); }
 .cal-n {
   position: relative;
-  width: 2rem; height: 2rem; border-radius: 50%;
+  width: min(2rem, 100cqi - 2 * var(--v2-sp-1) - 2px);
+  height: min(2rem, 100cqi - 2 * var(--v2-sp-1) - 2px);
+  border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: var(--text-caption); font-weight: 600; line-height: 1;
   color: var(--v2-text); font-variant-numeric: tabular-nums;
@@ -2124,7 +2139,10 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
      то есть дефект жил ровно на самой частой ширине и только на ней.
      Поймано замером кеглей по всем четырём ширинам, а не чтением. */
   .cal-wd span { font-size: calc(0.8125 * var(--nut-u)); }
-  .cal-n { width: calc(2.375 * var(--nut-u)); height: calc(2.375 * var(--nut-u)); }
+  .cal-n {
+    width: min(2.375 * var(--nut-u), 100cqi - 2 * var(--v2-sp-1) - 2px);
+    height: min(2.375 * var(--nut-u), 100cqi - 2 * var(--v2-sp-1) - 2px);
+  }
   .cal-legend { font-size: calc(0.8125 * var(--nut-u)); }
   .mo { margin-top: calc(0.875 * var(--nut-u)); }
   .mo-title { font-size: calc(0.94 * var(--nut-u)); }
