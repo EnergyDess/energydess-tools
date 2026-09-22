@@ -106,8 +106,14 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="repla
     {"имя": "выбор участника «Отмечаю за»", "экран": "/medkit",
      "готовить": "[data-packs]", "жать": "#apt-packs-for-btn",
      "цель": "#apt-who-pick"},
-    {"имя": "список покупок «Купить»", "экран": "/medkit",
-     "жать": ".apt-buy-head", "цель": ".apt-buy-box"},
+    # «Купить» и «Лента» — вкладки раздела с «аптечка-1» (№352, блок 2.2);
+    # были сворачиваемым блоком и вкладкой окна «Общая аптечка»
+    {"имя": "вкладка «Купить»", "экран": "/medkit",
+     "жать": ".apt-tabbtn[data-tab=buy]", "цель": ".apt-buy-box",
+     "закрыть": ".apt-tabbtn[data-tab=items]"},
+    {"имя": "вкладка «Лента»", "экран": "/medkit",
+     "жать": ".apt-tabbtn[data-tab=feed]", "цель": "#tab-feed",
+     "закрыть": ".apt-tabbtn[data-tab=items]"},
     {"имя": "окно категорий", "экран": "/medkit",
      "жать": "[data-cats-open]", "цель": "#apt-cats", "закрыть": "escape"},
     {"имя": "панель участников (контроль: здорова)", "экран": "/medkit",

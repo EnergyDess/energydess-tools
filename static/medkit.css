@@ -142,66 +142,64 @@
                flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
 .apt-add { flex: 0 0 auto; }
 
-/* ── РАСХОД ЧУЖОГО СПРАВОЧНИКА ЗА МЕСЯЦ (BACKLOG №315) ─────────────
-   Перенесён из подвала раздела «Пользователи» решением владельца
-   2026-09-12. Вид ТОТ ЖЕ, что сделала задача 313: подпись, число
-   из предела, полоска, три порога цвета.
+/* РАСХОД ЧУЖОГО СПРАВОЧНИКА ПЕРЕЕХАЛ НА `/admin/usage` (№352,
+   «аптечка-1», блок 2.3, решение владельца). Здесь стояли правила
+   строки «Справочник лекарств за месяц 733/3000» с полоской и тремя
+   порогами цвета; вместе с разметкой ушли и они — класс без носителя
+   следующий заход прочтёт как рабочий (§7, история `.btn-sm`).
+   На экране осталось ПРЕДУПРЕЖДЕНИЕ при исчерпании предела: системный
+   `.alert-warn`, своего оформления не заводится. */
+.apt-ref-warn { margin: 0 0 var(--space-4); }
 
-   ПРИЖАТА К РЯДУ УПРАВЛЕНИЯ СВЕРХУ, А НЕ СТОИТ ОТДЕЛЬНЫМ БЛОКОМ:
-   она объясняет расход кнопки «Перепроверить» из этого ряда, и полный
-   отступ между ними читался бы как отдельная роль. Отступ снимается
-   у ряда через `:has(+ .apt-quota)`, а не отрицательным полем у самой
-   строки: отрицательные отступы ломаются от любой правки соседа,
-   а тут субъект — свой класс, и условие названо прямо.
+/* ЧИП «ИСТЕКАЕТ ЗА МЕСЯЦ» — ТОТ ЖЕ ПРИЁМ, ЧТО У «ПРОСРОЧЕНО»
+   (`.chip-danger` в компонентной базе), только янтарём: два чипа
+   состояния обязаны отличаться от категорий и друг от друга цветом,
+   потому что различаются СРОЧНОСТЬЮ, а не разделом. Значение берётся
+   у палитры v2, своего литерала здесь нет. */
+/* МОНОШИРИННЫХ НА ЭКРАНЕ АПТЕЧКИ НЕТ (№352, «аптечка-1», 3.3).
 
-   СПРАВА, ПОД ГРУППОЙ КНОПОК: слева в ряду стоит поиск, справа
-   управление, и число про расход управления принадлежит правой
-   половине (тот же довод, по которому задача 188 развела поиск
-   и действия по краям). */
-.apt-bar:has(+ .apt-quota) { margin-bottom: var(--space-2); }
-.apt-quota {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-4);
-  font-size: var(--text-caption);
-  color: var(--text-2);
+   Гарнитуру счётчику даёт СИСТЕМНЫЙ `.chip-n`, а бейджу рецептурности —
+   системный `.badge`; трогать их субъектом страница не вправе, да и
+   правка задела бы чипы админки, где решения о кегле никто не принимал
+   (§6.0.8). Поэтому у обоих РЯДОМ с системным стоит свой класс, и правит
+   он свой — тот же приём, что `.ds-arrow` на `.btn-icon`.
+
+   `font-variant-numeric` НЕ снимается: он про выравнивание цифр
+   в столбик, а не про моноширинную гарнитуру. */
+.apt-chip-n, .apt-rx { font-family: inherit; }
+
+/* ПОВЕРХНОСТИ ЭКРАНА — ПАЛИТРА v2 (№352, «аптечка-1», 3.3).
+
+   Проверка 60 спрашивает ЭКРАН, а не текст файлов, и называла одиннадцать
+   мест, где поверхность приезжала из СТАРОЙ палитры: поле поиска, ряд
+   чипов и сами чипы, карточка, плитка фото, бейдж рецептурности и шкала
+   тюбика. Цвет им дают СИСТЕМНЫЕ `.input`, `.chip`, `.card`, `.badge`,
+   `.segmented` — их правка задела бы админку и тренировки, где решения
+   о палитре никто не принимал (§6.0.8).
+
+   Поэтому субъект каждого правила — СВОЙ класс, стоящий на том же
+   элементе рядом с системным (приём `.ds-arrow` на `.btn-icon`);
+   у чипов ряда и кнопок шкалы свой класс добавлен разметкой.
+
+   ЧИП ПРОЗРАЧЕН, как `.v2-chip`: в v2 чип рисуется рамкой, а не
+   заливкой, и заливка осталась бы вторым мнением о том, что такое чип. */
+.apt-search-input { background: var(--v2-surface-field); }
+.apt-chip { background: transparent; }
+.apt-card { background: var(--v2-surface-1); }
+.apt-rx { background: var(--v2-surface-2); }
+.apt-scale { background: var(--v2-surface-2); }
+.apt-scale-btn.active { background: var(--v2-surface-hover); }
+
+
+.chip.chip-warn {
+  border-color: color-mix(in srgb, var(--v2-warn) 45%, transparent);
+  color: var(--v2-warn);
 }
-.apt-quota-t { white-space: nowrap; }
-.apt-quota-n {
-  font-family: var(--font-mono); font-weight: 600; color: var(--text);
-  white-space: nowrap;
+.chip.chip-warn.active {
+  background: color-mix(in srgb, var(--v2-warn) 16%, transparent);
+  border-color: var(--v2-warn);
 }
-.apt-quota-cap { color: var(--text-faint); font-weight: 400; }
-/* Дорожка — системный `.meter`; своя тут только ШИРИНА, то есть
-   раскладка экземпляра. Высота берётся ручкой компонента. */
-.apt-quota-meter { --meter-h: 6px; width: 7rem; flex: none; }
-
-/* ПОРОГИ ЦВЕТА ВЫВЕДЕНЫ ИЗ ЦЕНЫ ОДНОГО ОБХОДА, а не круглые
-   (BACKLOG №313, C.3). Перепроверка всей аптечки — около 2.6
-   обращения на позицию (замер задачи 201: 68 обращений на 26
-   позиций), то есть на боевых 77 упаковках ~200 за обход.
-
-     · до 70% (2100 из 3000) — хватает на четыре обхода и больше:
-       обычный тон, говорить не о чем;
-     · 70–90% — меньше чем на пять обходов: предупреждение;
-     · от 90% (2700) — остаток 300, то есть ПОЛТОРА обхода: красный.
-
-   ТОН — СВОЙ КЛАСС НА ТОЙ ЖЕ ЗАЛИВКЕ, а не системный `.meter-fill`
-   субъектом: страница не имеет права менять вид компонента (§6.0.2).
-   Тот же приём, что у остатка в аптечке (`.apt-qty-fill`).
-
-   ОБЫЧНОГО ТОНА НЕТ И НЕ НУЖНО: `.meter-fill` сам берёт
-   `var(--tool-accent, var(--accent-brand))`, а тема аптечки объявлена
-   на `<body>` (§4) — то есть акцент приезжает из системы. */
-.apt-quota-fill-warn { background: var(--warning); }
-.apt-quota-fill-hot  { background: var(--error); }
-.apt-quota.is-out .apt-quota-n { color: var(--error); }
-.apt-quota-out {
-  color: var(--error); font-weight: 600; white-space: nowrap;
-}
+.chip.chip-warn .chip-n { color: inherit; }
 
 /* ── Ряд чипов отбора ──────────────────────────────────────────────
    ПОДЛОЖКА, А НЕ ПАНЕЛЬ ВО ВСЮ ШИРИНУ. Владелец просил «выделить, как
@@ -222,7 +220,7 @@
   gap: var(--space-2);
   margin-bottom: var(--space-5);
   padding: var(--space-3);
-  background: var(--surface-1);
+  background: var(--v2-surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   /* ВО ВСЮ ШИРИНУ КОНТЕЙНЕРА — ОТМЕНА РЕШЕНИЯ 2026-08-25, ВЛАДЕЛЕЦ,
@@ -340,7 +338,7 @@
 .apt-ph {
   position: relative;
   aspect-ratio: 4 / 3;
-  background: var(--surface-3);
+  background: var(--v2-surface-2);
   overflow: hidden;
   margin: var(--space-3) var(--space-3) 0;
   border: 1px solid var(--border);
@@ -397,12 +395,20 @@
    13px/400 у вещества — почти один вес, хотя название ищут глазами,
    а вещество читают при необходимости. Стало 17px/700: ступень шкалы
    `--text-body-lg`, а не произвольное число. */
+/* НАЗВАНИЕ — ГЛАВНОЕ НА КАРТОЧКЕ (№352, «аптечка-1», блок 3.2): его
+   ищут глазами, и оно крупнее и тяжелее соседей. ДО ДВУХ СТРОК:
+   третья сдвигала бы вещество и съедала место у постоянного низа,
+   а длинное название целиком стоит в подсказке и в окне правки. */
 .apt-name {
-  font-size: var(--text-body-lg);
-  font-weight: 700;
+  font-size: var(--v2-fs-lg, var(--text-body-lg));
+  font-weight: var(--v2-fw-bold, 700);
   margin: 0;
-  line-height: 1.3;
+  line-height: 1.25;
   letter-spacing: -0.01em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 /* ── ВТОРИЧНАЯ СТРОКА-ПОЯСНЕНИЕ: ДВА МЕСТА, ОДНО ПРАВИЛО ───────────
    Вещество под названием на карточке и «чем подходит» под строкой
@@ -413,7 +419,19 @@
 
    Сведение пиксельно-тождественно по построению: файл один, контекст
    один, объявления те же. */
-.apt-mnn,
+/* ВЕЩЕСТВО — НИЖЕ, МЕЛЬЧЕ И ПРИГЛУШЕНО: его читают, когда название
+   уже нашли. ДВЕ СТРОКИ С МНОГОТОЧИЕМ — до этой правки состав
+   из пяти строк рос сколько угодно и отодвигал всё, что под ним. */
+.apt-mnn {
+  color: var(--v2-text-2, var(--text-2));
+  font-size: var(--v2-fs-sm, var(--text-caption));
+  margin: var(--space-1) 0 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .apt-ai-item-w {
   color: var(--text-2);
   font-size: var(--text-caption);
@@ -714,21 +732,28 @@
    Здесь `--font-mono` уместен целиком: содержимое — дата, то есть
    числа с точкой, и переменная ширина цифр в ней читается как
    дрожание при переходе между карточками. */
+/* БЕЗ МОНОШИРИННОГО (№352, «аптечка-1», блок 3.2, решение владельца):
+   моно выделял дату сильнее названия, хотя дату читают вторым взглядом.
+   Цифры выравнивает `tabular-nums` и без смены гарнитуры. */
 .apt-exp {
-  font-family: var(--font-mono);
   font-size: var(--text-caption);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.apt-exp-ok { color: var(--text-2); }
-.apt-exp-warn { color: var(--warning); }
-.apt-exp-bad { color: var(--error); font-weight: 600; }
+.apt-exp-ok { color: var(--v2-text-2, var(--text-2)); }
+/* ОРАНЖЕВЫЙ — «истекает за месяц», КРАСНЫЙ — «просрочено»: те же два
+   тона, что у чипов состояния, и решает их СЕРВЕР тем же полем */
+.apt-exp-warn { color: var(--v2-warn, var(--warning)); }
+.apt-exp-bad { color: var(--v2-danger, var(--error)); font-weight: 600; }
 .apt-qty-meter { --meter-h: 5px; }
 .apt-qty-fill { transition: width 0.35s ease; }
-.apt-qty-ok { background: var(--success); }
-.apt-qty-warn { background: var(--warning); }
-.apt-qty-low { background: var(--error); }
-.apt-qty-dead { background: var(--text-faint); }
+/* ДВА ТОНА ПОЛОСЫ, А НЕ ТРИ (№352, «аптечка-1», блок 3.2): зелёный
+   и жёлтый ниже 30 %. Красного у ОСТАТКА больше нет — красный
+   на этом экране означает СРОК (просрочено), и второе его значение
+   рядом читалось бы как то же самое. Порог считает сервер. */
+.apt-qty-ok { background: var(--v2-ok, var(--success)); }
+.apt-qty-low { background: var(--v2-warn, var(--warning)); }
+.apt-qty-dead { background: var(--v2-text-faint, var(--text-faint)); }
 
 /* ── ЗДЕСЬ БЫЛ РЯД БЕЙДЖЕЙ `.apt-badges` (снят заходом 249, B2) ──
    Срок переехал в строку остатка, рецептурная пометка — туда же.
@@ -806,10 +831,25 @@
 
 /* Кнопка приёма прижата к низу: у карточек ряда разное число строк,
    и без этого кнопки шли бы лесенкой — а нажимают их подряд */
+/* КНОПКА ПРИЁМА — ОБВОДКА, А НЕ ЗАЛИВКА (№352, «аптечка-1», блок 3.2,
+   решение владельца). Была `.btn-soft` — приглушённая заливка цветом
+   инструмента (задача 250, B): на экране с четырьмя карточками в ряду
+   она давала четыре цветных плашки подряд, и «главное действие»
+   перестало значить главное. Теперь цвет инструмента появляется
+   ТОЛЬКО под курсором — то есть там, где человек уже выбрал карточку.
+   На сенсорной ширине наведения нет, и кнопка остаётся обведённой:
+   иерархию там держит место (она одна во всю ширину) и текст. */
 .apt-take {
   margin-top: auto;
   width: 100%;
   justify-content: center;
+}
+@media (hover: hover) {
+  .apt-take:hover:not(:disabled) {
+    border-color: var(--v2-tool, var(--tool-accent));
+    color: var(--v2-tool, var(--tool-accent));
+    background: color-mix(in srgb, var(--v2-tool, var(--tool-accent)) 12%, transparent);
+  }
 }
 /* МИНУС — ЧАСТЬ КНОПКИ, А НЕ ЗНАК ПЕРЕД СЛОВОМ (задача 215, G.5).
 
@@ -2356,7 +2396,6 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 .apt-wrap.apt-blank .apt-add,
 /* Перепроверять в пустой аптечке нечего — по той же причине, по какой
    там прячется легенда: орган, которому нечего делать (BACKLOG №200, D) */
-.apt-wrap.apt-blank .apt-recheck-open,
 .apt-wrap.apt-blank .apt-legend { display: none; }
 
 /* ── ПЕРЕПРОВЕРИТЬ ВСЮ АПТЕЧКУ (BACKLOG №200, D; №229, блок C) ──────
@@ -3008,65 +3047,12 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
    `.btn-secondary`/`.btn-danger` с `.btn-sm`, поле ввода — `.input`.
    Здесь только раскладка экземпляра и то, чего в системе нет
    по построению: флажок и пометка источника. */
-.apt-buy {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-4);
-}
-/* Раскрытый блок отделяется от свёрнутого рамкой между шапкой и телом,
-   а не тенью: тень тут значила бы «поверх страницы», чего нет */
-.apt-buy[open] { border-color: var(--border-strong); }
-
-.apt-buy-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  cursor: pointer;
-  min-height: 44px;           /* тач-таргет: шапка и есть орган (§6.0.11) */
-  list-style: none;
-  user-select: none;
-}
-.apt-buy-head::-webkit-details-marker { display: none; }
-.apt-buy-ico { width: 18px; height: 18px; color: var(--tool-accent); flex: none; }
-.apt-buy-title { font-weight: 600; font-size: var(--text-body); }
-/* ЧИСЛО НА АКЦЕНТЕ, А НЕ СЕРОЕ: свёрнутый блок — одна строка, и число
-   в ней отвечает на единственный вопрос, который к ней есть */
-.apt-buy-n {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 var(--space-2);
-  border-radius: 11px;
-  background: var(--tool-accent);
-  color: var(--tool-accent-ink);
-  font-size: var(--text-caption);
-  font-weight: 600;
-}
-.apt-buy-n[hidden] { display: none; }
-.apt-buy-sub {
-  color: var(--text-faint);
-  font-size: var(--text-caption);
-  margin-left: auto;
-}
-/* Треугольник рисуем сами — родной `marker` в flex-подписи не встаёт
-   в строку и на разных платформах выглядит по-разному */
-.apt-buy-head::after {
-  content: "";
-  width: 8px; height: 8px;
-  border-right: 2px solid var(--text-faint);
-  border-bottom: 2px solid var(--text-faint);
-  transform: rotate(45deg);
-  transition: transform var(--dur-fast, .15s) ease;
-  flex: none;
-}
-.apt-buy[open] .apt-buy-head::after { transform: rotate(-135deg); }
-@media (hover: hover) {
-  .apt-buy-head:hover .apt-buy-title { color: var(--text-strong); }
-}
+/* ВКЛАДКА «КУПИТЬ» (№352, «аптечка-1», блок 2.2): здесь стояли
+   правила сворачиваемого блока — рамка, шапка `<summary>`, счётчик
+   на акценте и самодельный треугольник. Блок стал вкладкой раздела:
+   счётчик переехал в подпись вкладки, заголовок — в саму вкладку,
+   раскрывать больше нечего. Правила ушли вместе с разметкой. */
+.apt-buy-sub { margin: 0 0 var(--space-3); }
 
 .apt-buy-box {
   border-top: 1px solid var(--border);
@@ -3242,7 +3228,6 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
     margin-left: 0;
     padding-left: calc(22px + var(--space-3));
   }
-  .apt-buy-sub { display: none; }   /* в шапке остаётся число */
 }
 
 /* «В ПОКУПКИ» В ПОЛОСЕ ОТМЕНЫ — ВТОРИЧНАЯ РЯДОМ С «ВЕРНУТЬ».
@@ -4353,3 +4338,68 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
    без этого правила разорвал бы ряд кнопок пополам. */
 .undo-bar-pick { flex: 1 0 100%; }
 .undo-bar-pick .apt-who-pick { margin-top: var(--space-2); }
+
+/* ═══ ШАПКА, ВКЛАДКИ И ПАНЕЛЬ (№352, «аптечка-1», блоки 2.1–2.4) ═══
+   Кнопки шапки — системные `.v2-btn`, вкладки — `.v2-tabs`, панель —
+   `.v2-assist-dock`. Здесь только раскладка экземпляра и то, чего
+   в системе нет: ряд лиц участников и счётчик у кнопки. */
+
+/* ЛИЦА УЧАСТНИКОВ ОДНОЙ КНОПКОЙ, А НЕ РЯДОМ КНОПОК: нажатие у них
+   одно на всех — открыть окно «Общая аптечка», — и три кнопки подряд
+   с одним действием читались бы как три разных. Лица идут внахлёст:
+   при трёх и более ряд иначе шире кнопки «Добавить». */
+.apt-who-row {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.apt-who-row .avatar { margin-left: calc(-1 * var(--space-2)); }
+.apt-who-row .avatar:first-child { margin-left: 0; }
+.apt-who-row:focus-visible { outline: 2px solid var(--v2-ring-neutral); outline-offset: 2px; }
+@media (hover: hover) { .apt-who-row:hover .avatar { border-color: var(--v2-line-hover); } }
+
+/* СЧЁТЧИК У «ПЕРЕПРОВЕРИТЬ» — ЧИСЛО НЕПОЛНЫХ КАРТОЧЕК. Тон предупреждающий,
+   а не акцентный: это не количество чего-то хорошего, а работа, которая
+   ждёт. При нуле счётчика нет вовсе (`hidden` ставит сервер). */
+.apt-gaps-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 var(--v2-sp-1);
+  border-radius: var(--v2-r-pill);
+  /* Приглушённого янтаря в палитре v2 нет отдельным токеном, и заводить
+     его ради одного места незачем: `color-mix` выводит его из самого
+     `--v2-warn`, то есть второго значения рядом не появляется. */
+  background: color-mix(in srgb, var(--v2-warn) 16%, transparent);
+  color: var(--v2-warn);
+  font-size: var(--v2-fs-xs);
+  font-weight: var(--v2-fw-strong);
+}
+.apt-gaps-n[hidden] { display: none; }
+
+/* ВКЛАДКИ ПРЯЧУТ УЖЕ НАРИСОВАННОЕ: все три пришли первым кадром,
+   и второго построителя ни у одной нет (шапки `_medkit_buy.html`
+   и `_medkit_feed.html`). */
+.apt-pane[hidden] { display: none; }
+.apt-pane { padding-top: var(--space-4); }
+
+/* ПАНЕЛЬ «ЧЕГО НЕ ХВАТАЕТ» — системный `.v2-assist-dock`; тело
+   прокручивается, а шапка панели остаётся на месте. */
+.apt-recheck-panel .apt-recheck-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.apt-recheck-head-n {
+  margin: 0;
+  font-size: var(--v2-fs-md);
+  font-weight: var(--v2-fw-strong);
+  color: var(--v2-text-strong);
+}
+.apt-feed-note { margin: 0 0 var(--space-3); }

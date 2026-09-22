@@ -314,10 +314,10 @@ async def проход(pg):
     print("── D. ЛЕНТА ──")
     await pg.evaluate("() => закрыть_модалку('apt-packs-win')")
     await pg.wait_for_timeout(500)
-    await pg.click("#apt-circle-open")
+    # ЛЕНТА — ВКЛАДКА РАЗДЕЛА с «аптечка-1» (№352, блок 2.2), а была
+    # вкладкой окна «Общая аптечка»
+    await pg.click(".apt-tabbtn[data-tab=feed]")
     await pg.wait_for_timeout(900)
-    await pg.click("[data-ctab='feed']")
-    await pg.wait_for_timeout(600)
     лента = await pg.evaluate(ВИД_ЛЕНТЫ)
     шаг("карандаш-ТОЛЬКО-у-приёма",
         лента["с_карандашом"] == лента["приёмов"] and лента["приёмов"] > 0,

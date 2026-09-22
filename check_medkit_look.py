@@ -2473,7 +2473,7 @@ def печать_поля(итог):
 # не появляется, там растёт уже показанное.
 
 ПЛАШКА_ЗАМЕР = """() => {
-  const лист = document.querySelector('#apt-recheck-win .modal-sh');
+  const лист = document.getElementById('apt-recheck-panel');
   const пл = document.getElementById('apt-recheck-note');
   const кн = document.getElementById('apt-recheck-btn');
   if (!лист || !пл || !кн) return null;
@@ -2542,7 +2542,7 @@ async def прогон_плашки(подлог=False):
             кн = await стр.query_selector("#apt-recheck-open")
             if кн is None:
                 кн = await стр.query_selector(
-                    "[onclick*='apt-recheck-win']")
+                    "#apt-recheck-open")
             if кн is not None:
                 await кн.click()
                 await стр.wait_for_timeout(500)
@@ -3059,9 +3059,9 @@ def печать_карточки(из):
             граница: s.borderBottomWidth, гцвет: s.borderBottomColor};
   };
   const строки = [...document.querySelectorAll('.apt-debt-row-item')];
-  const окно = document.querySelector('#apt-recheck-win .modal-sh');
+  const окно = document.getElementById('apt-recheck-panel');
   const кор = окно ? окно.getBoundingClientRect() : null;
-  const тело = document.querySelector('#apt-recheck-win .modal-body');
+  const тело = document.querySelector('#apt-recheck-panel .apt-recheck-body');
   return {
     строк: строки.length,
     строка: вид(строки[0]),
@@ -3087,7 +3087,7 @@ def печать_карточки(из):
 # что лежит в точке центра раскрытого снимка
 ЗАМЕР_СЛОЯ = """() => {
   const в = document.getElementById('apt-img-viewer');
-  const о = document.getElementById('apt-recheck-win');
+  const о = document.getElementById('apt-recheck-panel');
   if (!в || !о) return null;
   const r = в.getBoundingClientRect();
   const x = Math.round(r.left + r.width / 2);
@@ -3147,7 +3147,7 @@ async def прогон_долгов(подлог=False):
                     " if (в) в.style.zIndex = '199'; });")
             await _войти(pg)
             await pg.goto(БАЗА + "/medkit", wait_until="networkidle")
-            await pg.evaluate("() => { открыть_модалку('apt-recheck-win');"
+            await pg.evaluate("() => { аптДолгиПанель();"
                               " аптДолгиЗагрузить(); }")
             await pg.wait_for_timeout(900)
             долги = await pg.evaluate(ЗАМЕР_ДОЛГОВ)

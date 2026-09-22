@@ -308,7 +308,7 @@ DB = os.environ.get("DB_PATH", "app.db")
         "    li.textContent = поле.name || '';"
         "    if (л.firstElementChild) л.firstElementChild.appendChild(li);"
         "    else l.appendChild(li);"
-        "    document.getElementById('apt-buy').open = true;"
+        "    document.querySelector('.apt-tabbtn[data-tab=buy]').click();"
         "    return {'уже_было': false};"
         "  }; });",
         "источник-руками"),
@@ -4201,8 +4201,10 @@ async def _покупки_насквозь(pg, о):
     await pg.add_style_tag(content="html, * { scroll-behavior: auto !important }")
     await pg.wait_for_timeout(300)
 
-    открыт = await pg.evaluate("() => { const d = document.getElementById('apt-buy');"
-                               " return d && d.open; }")
+    # ВКЛАДКА, А НЕ СВОРАЧИВАЕМЫЙ БЛОК («аптечка-1», блок 2.2): `?buy=1`
+    # по-прежнему открывает список сразу, только теперь это вкладка
+    открыт = await pg.evaluate("() => { const п = document.getElementById('tab-buy');"
+                               " return !!п && !п.hidden; }")
     о.шаг("покупки-открываются-адресом", открыт, "?buy=1")
 
     ж = await pg.evaluate(ЖИВОЙ, "#apt-buy-name")
@@ -7047,13 +7049,16 @@ async def прогон_перепроверки(ширина, о, подлог=N
         открыв = await pg.evaluate(ЖИВОЙ, "#apt-recheck-open")
         о.шаг("кнопка-перепроверки-в-ряду-живая", открыв.get("живой"),
               открыв.get("причина") or str(открыв.get("размер")))
-        await pg.evaluate("() => открыть_модалку('apt-recheck-win')")
+        # ПАНЕЛЬ СПРАВА, А НЕ ОКНО ПО ЦЕНТРУ («аптечка-1», блок 2.4)
+        await pg.evaluate("() => аптДолгиПанель()")
         await pg.wait_for_timeout(450)
-        о.шаг("окно-перепроверки-открылось",
-              await pg.evaluate(ОТКРЫТО, "apt-recheck-win"))
+        о.шаг("панель-перепроверки-открылась",
+              await pg.evaluate("() => { const п = document.getElementById"
+                                "('apt-recheck-panel');"
+                                " return !!п && !п.hidden && п.getBoundingClientRect().width > 0; }"))
         # ОБЕЩАНИЕ ПРО РУЧНЫЕ ЗАПИСИ СТОИТ ДО НАЖАТИЯ (задача 201, A.3)
         обещ = await pg.evaluate("""() => {
-          const в = document.querySelector('#apt-recheck-win .apt-recheck-vow');
+          const в = document.querySelector('#apt-recheck-panel .apt-recheck-vow');
           const к = document.getElementById('apt-recheck-btn');
           if (!в || !к) return null;
           return {текст: в.textContent.trim(),

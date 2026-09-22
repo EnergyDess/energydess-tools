@@ -66,11 +66,6 @@
       <span class="chip-n">{{ всего_пр }}</span>{% endif %}
     </button>
     <button class="tab-btn" type="button" role="tab" aria-selected="false"
-            data-ctab="feed">
-      {{ значок('history') }} Лента{% if лента %}
-      <span class="chip-n">{{ лента | length }}</span>{% endif %}
-    </button>
-    <button class="tab-btn" type="button" role="tab" aria-selected="false"
             data-ctab="block">
       {{ значок('lock') }} Блок{% if блок %}
       <span class="chip-n">{{ блок | length }}</span>{% endif %}
@@ -242,68 +237,6 @@
       <p class="empty-state-title">Приглашений нет</p>
       <p class="empty-state-sub">Ни отправленных, ни полученных.</p>
     </div>
-    {% endif %}
-  </div>
-
-  {# ── ЛЕНТА ИЗМЕНЕНИЙ ───────────────────────────────────────────── #}
-  <div class="apt-circle-pane is-off" data-cpane="feed">
-    {% if not общая %}
-    <div class="empty-state empty-state-hero empty-state-xl">
-      <span class="empty-state-icon">{{ значок('history') }}</span>
-      <p class="empty-state-title">Лента бывает у общей аптечки</p>
-      <p class="empty-state-sub">В личной записывать нечего: все
-        действия в списке — ваши.</p>
-    </div>
-    {% elif not лента %}
-    <div class="empty-state empty-state-hero empty-state-xl">
-      <span class="empty-state-icon">{{ значок('history') }}</span>
-      <p class="empty-state-title">Пока ничего не менялось</p>
-      <p class="empty-state-sub">Здесь появится, кто что завёл, списал
-        или выбросил.</p>
-    </div>
-    {% else %}
-    <ul class="apt-feed">
-      {% set ns = namespace(день='') %}
-      {% for с in лента %}
-      {% if с.день != ns.день %}
-      {% set ns.день = с.день %}
-      <li class="apt-feed-day">{{ с.подпись_дня }}</li>
-      {% endif %}
-      <li class="apt-feed-item" data-event="{{ с.id }}">
-        {# ЛИЦО — У ТОГО ЖЕ ЧЕЛОВЕКА, ЧТО И ИМЯ В СТРОКЕ (A.5).
-           Поле `за_кого` сервер отдаёт ВСЕГДА и равным `кто`, когда
-           лица совпадают, — то есть у семи видов событий из восьми
-           кадр не меняется ни на пиксель. Запасной вид (буква вместо
-           снимка) берёт тот же единственный построитель `ав.лицо`,
-           и участник без аватарки строку не ломает. #}
-        {{ ав.лицо(с.за_кого) }}
-        <span class="apt-feed-t">
-          <span class="apt-feed-txt">{{ с.текст }}</span>
-          {% if с.детали or с.отметил %}
-          <span class="apt-feed-d">{{ с.детали }}{% if с.детали and с.отметил %} · {% endif %}{% if с.отметил %}<span class="apt-feed-by">отметка: {{ с.отметил }}</span>{% endif %}</span>
-          {% endif %}
-        </span>
-        {# КАРАНДАШ ТОЛЬКО У ПРИЁМА (BACKLOG №260, D.1). Признак приходит
-           ПОЛЕМ С СЕРВЕРА, а не разбором вида события здесь: тот же
-           вопрос решает эндпоинт правки, и второе правило «что можно
-           поправить» разошлось бы с первым молча — карандаш стоял бы
-           у строки, которую сервер править отказывается (§6.0.7).
-
-           У правки карточки его нет по смыслу: «за кого» там
-           не существует, менять нечего. #}
-        {% if с.правится %}
-        <button class="btn-icon btn-icon-sm tap-44 apt-feed-edit" type="button"
-                data-event-who="{{ с.id }}" data-who-now="{{ с.за_кого.id }}"
-                aria-label="Поправить, за кого записан приём"
-                title="За кого записано">{{ значок('pencil') }}</button>
-        {% endif %}
-        <span class="apt-feed-time">{{ с.время }}</span>
-      </li>
-      {% endfor %}
-    </ul>
-    <p class="data-note">Лента хранится {{ лента_дней }} дней. Открытие
-      карточки, поиск и просмотр в неё не попадают — она про изменения
-      списка, а не про чужие действия.</p>
     {% endif %}
   </div>
 

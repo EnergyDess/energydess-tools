@@ -20,23 +20,62 @@
    одного макроса была бы тем же перечнем из трёх, только спрятанным. #}
 
 {% macro чипы_отбора(категории, счёт, значок) %}
-  <button type="button" class="chip tap-44 active" data-pick="all">
-    Все <span class="chip-n" data-n="all">{{ счёт.all }}</span></button>
-  {% for к in категории %}
-    {# Ни одного `hidden`: ряд категорий постоянен, разбор в medkit.html #}
-    <button type="button" class="chip tap-44" data-pick="{{ к.id }}">
-      {{ к.name }} <span class="chip-n" data-n="{{ к.id }}">{{ счёт.get(к.id|string, 0) }}</span></button>
-  {% endfor %}
-  <button type="button" class="chip chip-danger tap-44" data-pick="expired"
+  <button type="button" class="chip apt-chip tap-44 active" data-pick="all">
+    Все <span class="chip-n apt-chip-n" data-n="all">{{ счёт.all }}</span></button>
+  {# ── ЧИПЫ СОСТОЯНИЯ — ПЕРВЫМИ В РЯДУ (№352, «аптечка-1», блок 3.1) ──
+     «Просрочено» стояло ПОСЛЕДНИМ, после всех категорий; «Истекает
+     за месяц» не было вовсе. Решение владельца: оба идут первыми
+     и появляются только при ненулевом числе — чип состояния обещает
+     не раздел, а работу, и «Истекает 0» обещал бы её там, где её нет.
+
+     ЧИСЛА СЧИТАЕТ СЕРВЕР теми же полями, что красят карточку
+     (`_апт_данные`): «истекает» — это состояние `soon`, то есть ближе
+     `ДНЕЙ_ДО_ИСТЕЧЕНИЯ` и ещё не просрочено. Второго правила о сроке
+     в браузере нет (§6.0.7). #}
+  <button type="button" class="chip apt-chip chip-danger tap-44" data-pick="expired"
           {% if not счёт.expired %}hidden{% endif %}>
-    Просрочено <span class="chip-n" data-n="expired">{{ счёт.expired }}</span></button>
+    Просрочено <span class="chip-n apt-chip-n" data-n="expired">{{ счёт.expired }}</span></button>
+  <button type="button" class="chip apt-chip chip-warn tap-44" data-pick="soon"
+          {% if not счёт.soon %}hidden{% endif %}>
+    Истекает за месяц <span class="chip-n apt-chip-n" data-n="soon">{{ счёт.soon }}</span></button>
+  {# ── ДЛИННЫЙ ХВОСТ — ПОД «ЕЩЁ N» (№352, «аптечка-1», блок 3.1) ──
+     Замер до правки, стенд: чипов 18, ряд занимает ТРИ строки и на
+     1600, и на 1280. Владелец просил не больше двух.
+
+     СВОРАЧИВАЕТ СЕРВЕР, А НЕ БРАУЗЕР, и порог — В ЧИПАХ, а не в
+     пикселях. Измерить переполнение можно только после отрисовки,
+     то есть свернуть пришлось бы УЖЕ НАРИСОВАННОЕ: ряд прыгал бы
+     с трёх строк на две при каждой загрузке (§6.0.15). При пороге
+     в чипах первый кадр верен по построению, а число под кнопкой
+     считает то же место, что рисует ряд.
+
+     ЦЕНА НАЗВАНА: порог даёт две строки и на 1600, и на 1280 (замер),
+     а на 2560 ряд выйдет короче двух строк — часть чипов останется
+     под кнопкой там, где место для них есть. Обратная ошибка (три
+     строки) дороже: ради неё правило и заводилось.
+
+     На узкой ширине ряд не переносится, а листается вбок, и свёртка
+     там ничего не портит — кнопка просто стоит последней. #}
+  {% set хвост = категории[ЧИПОВ_В_РЯДУ:] if категории|length > ЧИПОВ_В_РЯДУ else [] %}
+  {% for к in категории %}
+    {# Ни одного `hidden` у видимой части: ряд категорий постоянен #}
+    <button type="button" class="chip apt-chip tap-44{{ ' apt-chip-tail' if loop.index0 >= ЧИПОВ_В_РЯДУ }}"
+            data-pick="{{ к.id }}"{% if loop.index0 >= ЧИПОВ_В_РЯДУ %} hidden{% endif %}>
+      {{ к.name }} <span class="chip-n apt-chip-n" data-n="{{ к.id }}">{{ счёт.get(к.id|string, 0) }}</span></button>
+  {% endfor %}
+  {% if хвост %}
+  <button type="button" class="chip apt-chip apt-chips-more tap-44" id="apt-chips-more"
+          aria-expanded="false" onclick="аптЧипыХвост(this)">
+    Ещё <span class="chip-n apt-chip-n">{{ хвост|length }}</span></button>
+  {% endif %}
+
   <button type="button" class="chip chip-dashed tap-44" data-cats-open>
     {{ значок('plus') }} Категория</button>
 {% endmacro %}
 
 {% macro чипы_формы(категории, значок) %}
   {% for к in категории %}
-  <button type="button" class="chip tap-44" data-cat="{{ к.id }}">{{ к.name }}</button>
+  <button type="button" class="chip apt-chip tap-44" data-cat="{{ к.id }}">{{ к.name }}</button>
   {% endfor %}
   <button type="button" class="chip chip-dashed tap-44" data-cats-open>
     {{ значок('plus') }} Своя</button>
