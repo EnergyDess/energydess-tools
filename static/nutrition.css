@@ -799,42 +799,65 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
 .cal-wd, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-1); }
 .cal-wd { margin-bottom: var(--space-1); }
 .cal-wd span { font-size: var(--text-caption); color: var(--text-faint); text-align: center; }
-/* КЛЕТКА ДНЯ — ТОТ ЖЕ ЗНАК, ЧТО В ЛЕНТЕ ДНЕЙ (№352, «питание-3», блок 3;
-   правило — проверка 55). Число в кружке, под ним точка, если в дне есть
-   записи. Состояния: выбранный ЗАЛИТ цветом питания и наведением не
-   меняется; «сегодня» — цифра и обводка цвета питания без заливки;
-   будущий — та же сплошная обводка, цифра на ступень тусклее (без
-   прозрачности: прежние 0.35 у дней за окном давали цифре контраст ниже
-   порога). Зона наведения — кружок, а не вся клетка.
-   Прежняя рамка, залитая на долю от нормы (задача 129), снята письмом
-   владельца: доля — в сводке дня слева. */
+/* КЛЕТКА ДНЯ: ЧИСЛО В КОЛЬЦЕ ДОЛИ НОРМЫ (№352, «питание-4», блок 1;
+   решение владельца — возврат смысла задачи 129, точка «питание-3» снята).
+   Кольцо — отдельный слой `.cal-ring` ВОКРУГ кружка числа: заливка
+   выбранного дня и подсветка наведения красят внутренний кружок `.cal-n`,
+   и кольцо снаружи остаётся видно в любом состоянии.
+   Состояние кольца — атрибут `data-ring` (part / over / none), доля — `--p`
+   от 0 до 1. Рисует `conic-gradient` под маской толщиной 3 px.
+   Состояния дня — как у ленты дней (проверка 55): выбранный ЗАЛИТ цветом
+   питания и наведением не меняется; «сегодня» — цифра цвета питания;
+   будущий — цифра на ступень тусклее. Зона наведения — внутренний кружок. */
 .cal-c {
-  display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
+  display: flex; flex-direction: column; align-items: center;
   padding: var(--space-1) 0; border: none; background: none;
   color: var(--v2-text-2); font-family: inherit;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .cal-c.is-pad { pointer-events: none; }
+.cal-ring {
+  --cal-ring-c: var(--v2-tool);
+  position: relative; display: inline-grid; place-items: center;
+  padding: var(--v2-sp-1); border-radius: 50%;
+}
+.cal-ring::before {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(var(--cal-ring-c) calc(var(--p, 0) * 1turn), var(--v2-line-1) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 3px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 3px));
+  pointer-events: none;
+}
+.cal-ring[data-ring="over"] { --cal-ring-c: var(--v2-warn); }
 .cal-n {
+  position: relative;
   width: 2rem; height: 2rem; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--v2-line-1);
   font-size: var(--text-caption); font-weight: 600; line-height: 1;
   color: var(--v2-text); font-variant-numeric: tabular-nums;
-  transition: border-color .15s, background .15s, color .15s;
+  transition: background .15s, color .15s;
 }
 .cal-c.is-fut .cal-n { color: var(--v2-text-2); }
-.cal-c.is-today .cal-n { color: var(--v2-tool); border-color: var(--v2-tool-line); font-weight: 700; }
-.cal-c.is-sel .cal-n { background: var(--v2-tool); border-color: var(--v2-tool); color: var(--v2-ink-on-tool); }
-/* За окном планирования день не выбирается: обводки нет, цифра читается */
+.cal-c.is-today .cal-n { color: var(--v2-tool); font-weight: 700; }
+.cal-c.is-sel .cal-n { background: var(--v2-tool); color: var(--v2-ink-on-tool); }
+/* За окном планирования день не выбирается */
 .cal-c.is-off { cursor: default; }
-.cal-c.is-off .cal-n { border-color: transparent; }
 @media (hover: hover) {
   .cal-c:not(.is-sel):not(:disabled) .cal-n:hover { background: var(--v2-surface-hover); }
 }
 .cal-c:focus-visible { outline: none; }
 .cal-c:focus-visible .cal-n { outline: 2px solid var(--tool-accent); outline-offset: 2px; }
-.cal-note { font-size: var(--text-caption); color: var(--text-faint); margin: var(--space-3) 0 0; }
+/* Легенда — тот же `.cal-ring`, меньшего размера и без числа внутри */
+.cal-ring-sm { width: 0.875rem; height: 0.875rem; padding: 0; }
+.cal-ring-sm::before {
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), black calc(100% - 2px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 2px), black calc(100% - 2px));
+}
+.cal-legend {
+  list-style: none; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4);
+  margin: var(--space-3) 0 0; padding: 0; font-size: var(--text-caption);
+}
+.cal-legend li { display: inline-flex; align-items: center; gap: var(--space-2); }
 
 /* ── Сводка за месяц ── */
 .mo { margin-top: var(--space-3); }
@@ -2100,7 +2123,7 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
      Поймано замером кеглей по всем четырём ширинам, а не чтением. */
   .cal-wd span { font-size: calc(0.8125 * var(--nut-u)); }
   .cal-n { width: calc(2.375 * var(--nut-u)); height: calc(2.375 * var(--nut-u)); }
-  .cal-note { font-size: calc(0.8125 * var(--nut-u)); }
+  .cal-legend { font-size: calc(0.8125 * var(--nut-u)); }
   .mo { margin-top: calc(0.875 * var(--nut-u)); }
   .mo-title { font-size: calc(0.94 * var(--nut-u)); }
   .mo-basis { font-size: calc(0.8125 * var(--nut-u)); }
@@ -2378,10 +2401,9 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
 }
 #tab-history .hd-date, #tab-history .mo-title { color: var(--v2-text-strong); font-weight: var(--v2-fw-strong); }
 #tab-history .hd-macro-lbl, #tab-history .mo-lbl, #tab-history .mo-basis,
-#tab-history .cal-note, #tab-history .cal-wd span { color: var(--v2-text-2); }
+#tab-history .cal-legend, #tab-history .cal-wd span { color: var(--v2-text-2); }
 #tab-history .mo-row { border-top-color: var(--v2-line-2); }
 #tab-history .hd-open { margin-top: var(--v2-sp-3); }
-#tab-history .hd-open-note { margin: var(--v2-sp-3) 0 0; font-size: var(--v2-fs-sm); line-height: var(--v2-lh-body); color: var(--v2-text-2); }
 #tab-history .cal-hd { gap: var(--v2-sp-2); }
 #tab-history .cal-arrow:disabled { opacity: 0.45; }
 /* Число в кольце — Unbounded шире прежней гарнитуры: при прежнем кегле
@@ -2389,7 +2411,9 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
    чтобы перебить десктопный кегль `#hist-kcal`. */
 #tab-history #hist-kcal { font-size: var(--v2-fs-lg); }
 /* Список месяца на 390 обрезал «Сентябрь»: поле v2 держит поля 16 px */
-#tab-history .cal-sel { padding-left: var(--v2-sp-3); padding-right: var(--v2-sp-3); font-size: var(--v2-fs-sm); }
+#tab-history .cal-sel-wrap { --v2-select-pad: var(--v2-sp-3); flex: 1 1 0; }
+#tab-history .cal-sel-wrap:last-child { flex: 0 1 auto; }
+#tab-history .cal-sel { padding-left: var(--v2-sp-3); font-size: var(--v2-fs-sm); }
 
 #tab-profile { font-family: var(--v2-font); color: var(--v2-text); }
 #tab-profile .p-card {

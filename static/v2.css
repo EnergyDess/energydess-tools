@@ -375,6 +375,32 @@
 }
 .v2-textarea { min-height: calc(var(--v2-ctl-h) * 3); resize: vertical; }
 .v2-select { appearance: none; cursor: pointer; }
+/* ВЫПАДАЮЩИЙ СПИСОК СО СТРЕЛКОЙ (№352, «питание-4», блок 1.2). `appearance:
+   none` снимает родную стрелку браузера, и без своей список не читается
+   как список. Стрелку рисует обёртка — у <select> псевдоэлементов нет.
+   Отступ стрелки — `--v2-select-pad` (по умолчанию поле поля), и справа
+   у списка ровно столько места, чтобы текст до неё не доходил.
+   Форма пилюли — вариант `.v2-select-pill`. */
+.v2-select-wrap { position: relative; display: inline-flex; min-width: 0; }
+.v2-select-wrap > .v2-select {
+  padding-right: calc(var(--v2-select-pad, var(--v2-sp-4)) + var(--v2-sp-4));
+}
+.v2-select-wrap::after {
+  content: '';
+  position: absolute;
+  right: var(--v2-select-pad, var(--v2-sp-4));
+  top: 50%;
+  width: var(--v2-sp-2);
+  height: var(--v2-sp-2);
+  border-right: 2px solid var(--v2-text-2);
+  border-bottom: 2px solid var(--v2-text-2);
+  transform: translateY(-75%) rotate(45deg);
+  pointer-events: none;
+}
+.v2-select-pill { border-radius: var(--v2-r-pill); }
+@media (hover: hover) {
+  .v2-select:hover { border-color: var(--v2-line-hover); background: var(--v2-surface-hover); }
+}
 .v2-select option { background: var(--v2-surface-pop); color: var(--v2-text); }
 .v2-input::placeholder, .v2-textarea::placeholder { color: var(--v2-text-faint); }
 .v2-input:focus, .v2-textarea:focus, .v2-select:focus {

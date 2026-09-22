@@ -9,13 +9,21 @@
   · «сегодня» при выбранном другом дне — цифра цвета питания, без заливки;
   · будущие дни читаются: контраст цифры к фону ≥ 4.5 (цвет с прозрачностью
     всей цепочки предков);
-  · у дня с записями видна точка;
+  · вокруг числа — КОЛЬЦО ДОЛИ НОРМЫ («питание-4», блок 1): доля в кольце
+    совпадает с сервером и со сводкой дня (дни 40 / 100 / 125 %), до 110 %
+    кольцо цветом питания, больше — оранжевым (`--v2-warn`), день без
+    записей — нейтральная подложка; точки под числом нет;
+  · вкладка открывается на ТЕКУЩЕМ месяце, даже если до этого листали;
+  · месяц и год — списки со стрелкой, отвечают на наведение и клавиатуру;
+  · снятых текстов («Точка — в дне есть записи…», «Считаем по N дням…»,
+    «Норма за этот день не записана…», «Дневник открывает дни в пределах
+    недели…») на вкладке нет ни в одном состоянии;
   · зона наведения — кружок: мышь в углу клетки вне кружка его не красит;
   · на 390 календарь без прокрутки вбок.
 ПРОГОН: день с записями в пределах недели → сводка слева совпадает
 с `/nutrition/api/diary` за этот день → «Открыть в дневнике» открывает
 вкладку «Дневник» на ЭТОМ дне (лента дней выделяет его, загружены его
-числа). День дальше недели — кнопки нет, стоит строка почему.
+числа). День дальше недели — кнопки нет (и строки «почему» нет).
 
 Браузер невидимый (вопрос не про ширину полосы прокрутки, §6.0.3), кроме
 замера 390 — там спрашивается прокрутка вбок, и окно видимое. В базу
@@ -43,10 +51,13 @@ except Exception:
 
 КЛЕТКИ = "() => {" + cw.ЦВЕТ + r"""
   return [...document.querySelectorAll('#cal-grid .cal-c:not(.is-pad)')].map(c => {
-    const n = c.querySelector('.cal-n'), st = getComputedStyle(n), т = c.querySelector('.ds-dot');
+    const n = c.querySelector('.cal-n'), st = getComputedStyle(n), к = c.querySelector('.cal-ring');
+    const кs = к ? getComputedStyle(к) : null;
     return {дата: c.dataset.date, классы: c.className, фон: st.backgroundColor,
       цвет: st.color, к_цифры: против(n, st.color),
-      точка: !!т && т.checkVisibility({opacityProperty: true}) && getComputedStyle(т).backgroundColor !== 'rgba(0, 0, 0, 0)',
+      кольцо: к ? к.dataset.ring : null, доля: кs ? parseFloat(кs.getPropertyValue('--p')) : null,
+      цвет_кольца: кs ? кs.getPropertyValue('--cal-ring-c').trim() : null,
+      точка: !!c.querySelector('.ds-dot'),
       записи: !!(S.calData.days[c.dataset.date])};
   });
 }"""
@@ -93,6 +104,10 @@ def замер(подлог=None):
             дальний = [к["дата"] for к in кл if к["записи"] and не_в_окне(стр, к["дата"])]
             и["будущие"] = [к for к in кл if "is-fut" in к["классы"]]
             и["с_записями"] = [к for к in кл if к["записи"]]
+            и["кольца"] = кольца(стр, кл)
+            и["тексты"] = [стр.evaluate(ТЕКСТ)]
+            и["списки"] = списки(стр)
+            и["месяц"] = месяц_при_открытии(стр)
             if not кандидаты:
                 return и
             день = кандидаты[-1]
@@ -135,8 +150,9 @@ def замер(подлог=None):
                 _открыть(стр)
                 стр.evaluate("(д) => histSelect(д)", дальний[0])
                 стр.wait_for_timeout(1200)
-                и["дальний"] = стр.evaluate("""() => ({кнопка: !document.getElementById('hd-open').hidden,
-                    строка: !document.getElementById('hd-open-note').hidden})""")
+                и["дальний"] = стр.evaluate("""() => ({кнопка: !document.getElementById('hd-open').hidden
+                    && document.getElementById('hd-open').checkVisibility()})""")
+                и["тексты"].append(стр.evaluate(ТЕКСТ))
             ctx.close()
         finally:
             бр.close()
@@ -158,6 +174,82 @@ def замер(подлог=None):
         finally:
             бр.close()
     return и
+
+
+ТЕКСТ = "() => document.getElementById('tab-history').innerText"
+СНЯТЫЕ = ["Точка — в дне есть записи", "Считаем по", "своя норма не записана",
+          "Норма за этот день не записана", "в пределах недели от сегодня"]
+
+
+def кольца(стр, кл):
+    """Дни 40 / 100 / 125 % — по данным СЕРВЕРА; их кольца и сводка дня."""
+    import re
+    сервер = стр.evaluate("() => fetch('/nutrition/api/history/month?month=' + S.calMonth).then(r => r.json())")
+    варн = стр.evaluate("() => getComputedStyle(document.body).getPropertyValue('--v2-warn').trim()")
+    по_дате = {к["дата"] for к in кл}
+    итог = {"варн": варн, "дни": {}}
+    for цель_доли in (0.40, 1.00, 1.25):
+        лучшие = [(abs(д["calories"] / д["goal"] - цель_доли), дата, д)
+                  for дата, д in сервер["days"].items() if д.get("goal") and дата in по_дате]
+        if not лучшие:
+            continue
+        откл, дата, д = min(лучшие)
+        if откл > 0.02:
+            continue
+        стр.evaluate("(д) => histSelect(д)", дата)
+        стр.wait_for_timeout(1000)
+        подпись = стр.evaluate("() => document.getElementById('h-date-lbl').textContent")
+        м = re.search(r"(\d+)% от нормы", подпись)
+        к = {x["дата"]: x for x in стр.evaluate(КЛЕТКИ)}[дата]
+        итог["дни"][цель_доли] = {"дата": дата, "сервер": round(д["calories"] / д["goal"] * 100),
+                                  "сводка": int(м.group(1)) if м else None,
+                                  "кольцо": к["кольцо"], "p": к["доля"], "цвет": к["цвет_кольца"]}
+    пустые = [к for к in кл if not к["записи"]]
+    итог["пустой"] = пустые[0] if пустые else None
+    итог["точек"] = sum(1 for к in кл if к["точка"])
+    return итог
+
+
+def списки(стр):
+    """Месяц и год: стрелка, форма пилюли, отклик на наведение, клавиатура."""
+    и = стр.evaluate("""() => { const s = document.getElementById('cal-month'),
+        a = getComputedStyle(s.parentElement, '::after');
+        return {стрелка: a.content !== 'none' && parseFloat(a.borderRightWidth) > 0,
+                радиус: parseFloat(getComputedStyle(s).borderTopLeftRadius)}; }""")
+    стр.mouse.move(2, 2)
+    стр.wait_for_timeout(200)
+    покой = стр.evaluate("() => getComputedStyle(document.getElementById('cal-month')).backgroundColor")
+    стр.locator("#cal-month").hover()
+    стр.wait_for_timeout(250)
+    и["наведение"] = стр.evaluate(
+        "() => getComputedStyle(document.getElementById('cal-month')).backgroundColor") != покой
+    было = стр.evaluate("() => S.calMonth")
+    стр.locator("#cal-month").focus()
+    стр.keyboard.press("ArrowUp")
+    стр.wait_for_timeout(1200)
+    и["клавиатура"] = стр.evaluate("() => S.calMonth") != было
+    стр.evaluate("() => { S.calMonth = S.today.slice(0, 7); return loadCalendar(); }")
+    стр.mouse.move(2, 2)
+    стр.wait_for_timeout(800)
+    return и
+
+
+def месяц_при_открытии(стр):
+    """Отлистать назад, уйти на «Дневник», вернуться — открыт текущий месяц."""
+    стр.evaluate("() => calShift(-1)")
+    стр.wait_for_timeout(900)
+    отлистан = стр.evaluate("() => S.calMonth")
+    стр.evaluate("() => document.querySelector('.v2-tab[data-tab=diary]').click()")
+    стр.wait_for_timeout(700)
+    стр.evaluate("() => document.querySelector('.v2-tab[data-tab=history]').click()")
+    стр.wait_for_timeout(1200)
+    итог = {"отлистан": отлистан, "открыт": стр.evaluate("() => S.calMonth"),
+            "сегодня": стр.evaluate("() => S.today")}
+    # Дальше проба ходит по дням ТЕКУЩЕГО месяца — возвращает его сама,
+    # иначе подлог этой строки ронял бы прогон на соседних
+    стр.evaluate("() => { S.calMonth = S.today.slice(0, 7); return loadCalendar(); }")
+    стр.wait_for_timeout(800)
+    return итог
 
 
 def не_в_окне(стр, д):
@@ -189,8 +281,32 @@ def проверка(подлог=None):
     буд = и.get("будущие", [])
     шаг("будущие-контраст-4.5", all(к["к_цифры"] >= 4.5 for к in буд),
         "худший %.2f" % min((к["к_цифры"] for к in буд), default=0), собрано=len(буд))
-    зап = и.get("с_записями", [])
-    шаг("точка-у-дней-с-записями", all(к["точка"] for к in зап), "дней %d" % len(зап), собрано=len(зап))
+    ко = и.get("кольца") or {"дни": {}}
+    дни = ко["дни"]
+    полно = len(дни) if len(дни) == 3 else 0
+    шаг("доля-в-кольце-равна-серверу-и-сводке",
+        all(round(д["p"] * 100) == min(д["сервер"], 100) and д["сводка"] == д["сервер"] for д in дни.values()),
+        "; ".join("%s: сервер %s%%, сводка %s%%, кольцо p=%.2f" % (д["дата"], д["сервер"], д["сводка"], д["p"])
+                  for д in дни.values()), собрано=полно)
+    шаг("кольцо-по-порогу-110",
+        all(д["кольцо"] == ("over" if ц > 1.10 else "part") for ц, д in дни.items())
+        and 1.25 in дни and дни[1.25]["цвет"].lower() == ко.get("варн", "").lower(),
+        ", ".join("%d%% → %s %s" % (round(ц * 100), д["кольцо"], д["цвет"]) for ц, д in дни.items()),
+        собрано=полно)
+    п = ко.get("пустой")
+    шаг("без-записей-нейтральное-кольцо", bool(п) and п["кольцо"] == "none", str(п and п["кольцо"]),
+        собрано=1 if п else 0)
+    шаг("точки-под-числом-нет", ко.get("точек", 1) == 0, "точек %s" % ко.get("точек"))
+    мс = и.get("месяц") or {}
+    шаг("открывается-текущий-месяц", мс.get("открыт") == (мс.get("сегодня") or "")[:7]
+        and мс.get("отлистан") != мс.get("открыт"), str(мс))
+    сп = и.get("списки") or {}
+    шаг("списки-стрелка-наведение-клавиатура", bool(сп.get("стрелка") and сп.get("наведение")
+        and сп.get("клавиатура") and сп.get("радиус", 0) >= 16), str(сп))
+    тексты = и.get("тексты") or []
+    найдено = sorted({ф for ф in СНЯТЫЕ for т in тексты if ф in т})
+    шаг("снятых-текстов-нет", not найдено, "состояний %d, найдено %s" % (len(тексты), найдено or 0),
+        собрано=len(тексты))
     if "день" not in и:
         шаг("прогон-дня", False, "на стенде нет дня с записями в пределах недели", собрано=0)
         return 0, 1
@@ -209,7 +325,7 @@ def проверка(подлог=None):
         and д["выбрана_в_ленте"] == и["день"], "день %s → вкладка %s, дата %s, лента %s"
         % (и["день"], д["вкладка"], д["дата"], д["выбрана_в_ленте"]))
     дл = и.get("дальний")
-    шаг("дальний-день-без-кнопки-со-строкой", bool(дл) and not дл["кнопка"] and дл["строка"],
+    шаг("дальний-день-без-кнопки", bool(дл) and not дл["кнопка"],
         str(дл), собрано=1 if дл else 0)
     м = и["390"]
     шаг("390-без-прокрутки-вбок", м["док"] <= 0 and м["кал"] <= 0 and м["край"] <= 0, str(м))
@@ -223,8 +339,22 @@ def проверка(подлог=None):
      _стиль("#cal-grid .cal-c:not(.is-sel):hover .cal-n { background: rgb(40, 80, 60) !important; }")),
     ("будущие прозрачностью 0.35", "будущие-контраст-4.5",
      _стиль("#cal-grid .cal-c.is-fut { opacity: .35 !important; }")),
-    ("точки нет", "точка-у-дней-с-записями",
-     _стиль("#cal-grid .ds-dot { display: none !important; }")),
+    ("порог 110% сломан — оранжевый с 100%", "кольцо-по-порогу-110",
+     "addEventListener('DOMContentLoaded', () => { window.кольцоДня = з => { const ц = з && з.goal;"
+     " if (!ц) return {вид: 'none', заливка: 0, доля: null}; const д = з.calories / ц;"
+     " return д >= 0.99 ? {вид: 'over', заливка: 1, доля: д}"
+     " : {вид: 'part', заливка: д.toFixed(3), доля: д}; }; });"),
+    ("доля от неверной нормы", "доля-в-кольце-равна-серверу-и-сводке",
+     "addEventListener('DOMContentLoaded', () => { window.кольцоДня = з => { const ц = з && з.goal * 1.2;"
+     " if (!ц) return {вид: 'none', заливка: 0, доля: null}; const д = з.calories / ц;"
+     " return д > 1.1 ? {вид: 'over', заливка: 1, доля: д}"
+     " : {вид: 'part', заливка: Math.min(д, 1).toFixed(3), доля: д}; }; });"),
+    ("открывается месяц последней просмотренной записи", "открывается-текущий-месяц",
+     "addEventListener('DOMContentLoaded', () => { window.месяцПриОткрытии = () => S.calMonth; });"),
+    ("снятый текст вернулся", "снятых-текстов-нет",
+     "addEventListener('DOMContentLoaded', () => { const о = window.renderMonthSummary;"
+     " window.renderMonthSummary = () => { о(); document.getElementById('mo-basis').textContent"
+     " += ' · Считаем по 17 дням'; }; });"),
     ("«Открыть в дневнике» сбрасывает на сегодня", "открыть-в-дневнике-этот-день",
      "addEventListener('DOMContentLoaded', () => { window.открытьВДневнике = () => перейтиНаВкладку('diary'); });"),
 ]
