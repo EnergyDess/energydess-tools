@@ -85,13 +85,21 @@ def _стиль(css):
 """
 
 АКТИВНОСТЬ = "() => {" + ЦВЕТ + r"""
-  return [...document.querySelectorAll('#rg-act .segmented-btn:not(.active)')].map(b => {
+  return [...document.querySelectorAll('#rg-act .v2-choice-item:not(.active)')].map(b => {
     const ик = b.querySelector('svg');
     return {подпись: b.textContent.trim().slice(0, 18),
       текст: против(b, getComputedStyle(b).color),
       значок: ик ? против(b, getComputedStyle(ик).stroke === 'none' ? getComputedStyle(ик).color : getComputedStyle(ик).stroke) : null};
   });
 }"""
+
+# ЗНАЧОК КЛЮЧА В ПЛАШКЕ ОТЗЫВА («питание-4», 3.2) — в одной строке с первым
+# словом: верх значка и верх первой строки текста ±2 px, значок левее текста
+КЛЮЧ = """() => { const a = document.getElementById('scale-reauth'); if (!a || !a.checkVisibility()) return null;
+  const i = a.querySelector('svg'), t = a.querySelector('span'), r = document.createRange();
+  r.setStart(t.firstChild, 0); r.setEnd(t.firstChild, 1); const л = r.getClientRects()[0];
+  return {разница: Math.round((i.getBoundingClientRect().top - л.top) * 10) / 10,
+          левее: i.getBoundingClientRect().right <= л.left}; }"""
 
 ЛЕВЫЕ_КРАЯ = r"""(вкладка) => {
   const R = e => e.getBoundingClientRect();
@@ -101,8 +109,8 @@ def _стиль(css):
         || !['rgba(0, 0, 0, 0)', 'transparent'].includes(c.backgroundColor); };
   const таб = document.getElementById(вкладка);
   const карточки = [...таб.querySelectorAll('*')].filter(e => вид(e) && блок(e) && R(e).width >= 160 && R(e).height >= 40
-    && !e.matches('input, select, textarea, button, a, svg, img, .segmented, .segmented-btn, .chip, .meter, .meter-fill, .scale, .scale *, .body-photo-slot, .compare-shot, .alert, .p-msg'));
-  const ЛИСТЬЯ = 'h1, h2, h3, h4, p, label, input, select, textarea, button, a, .f-label, .field-label, .nut-card-title, .segmented, .p-note, .p-note-inline';
+    && !e.matches('input, select, textarea, button, a, svg, img, .segmented, .segmented-btn, .v2-seg, .v2-seg-btn, .v2-choice, .v2-choice-item, .v2-select-wrap, .chip, .meter, .meter-fill, .scale, .scale *, .body-photo-slot, .compare-shot, .alert, .p-msg'));
+  const ЛИСТЬЯ = 'h1, h2, h3, h4, p, label, input, select, textarea, button, a, .f-label, .field-label, .nut-card-title, .segmented, .v2-seg, .v2-choice, .p-note, .p-note-inline';
   const итог = [], центр = [];
   for (const к of карточки) {
     const c = getComputedStyle(к), b = R(к);
@@ -140,7 +148,7 @@ def _стиль(css):
 }"""
 
 ПЕРИОД = r"""() => {
-  const акт = document.querySelector('#wt-period .segmented-btn.active');
+  const акт = document.querySelector('#wt-period .v2-seg-btn.active');
   const svg = document.getElementById('wt-svg');
   return {период: акт ? акт.dataset.period : null, точек: svg.querySelectorAll('circle').length,
           пусто: svg.innerHTML.trim() === ''};
@@ -219,6 +227,7 @@ def замер(подлог=None, ширины=ШИРИНЫ):
                         стр.evaluate("() => loadScaleStatus()")
                         стр.wait_for_timeout(900)
                         итог["края"].append((ш, "profile/ключ", стр.evaluate(ЛЕВЫЕ_КРАЯ, "tab-profile")))
+                        итог.setdefault("ключ", []).append((ш, стр.evaluate(КЛЮЧ)))
                         стр.unroute("**/nutrition/api/scale/status")
                     else:
                         итог["сравнение"].append((ш, "есть даты", стр.evaluate(СРАВНЕНИЕ)))
@@ -319,6 +328,9 @@ def проверка(подлог=None, печать=True):
         "худший %.2f" % min((x["текст"] for x in акт), default=0), собрано=len(акт))
     зн = [x["значок"] for x in акт if x["значок"] is not None]
     шаг("активность-значок-3", all(z >= 3 for z in зн), "худший %.2f" % min(зн, default=0), собрано=len(зн))
+    кл = [(ш, к) for ш, к in и.get("ключ", []) if к]
+    шаг("значок-ключа-в-строке-текста", all(abs(к["разница"]) <= 2 and к["левее"] for _, к in кл),
+        "; ".join("%d: %+.1f px, левее %s" % (ш, к["разница"], к["левее"]) for ш, к in кл), собрано=len(кл))
     замеров = sum(к["замеров"] for _, _, к in и["края"])
     смещ = [(ш, вкл, x) for ш, вкл, к in и["края"] for x in к["смещены"]]
     шаг("левый-край-в-карточках", not смещ,
@@ -335,7 +347,9 @@ def проверка(подлог=None, печать=True):
      """addEventListener('DOMContentLoaded', () => { window.очиститьВыборФотоТела = function () {
         bodyPhotoFiles.front = bodyPhotoFiles.side = bodyPhotoFiles.back = undefined; }; });"""),
     ("невыбранная активность прежним тусклым цветом", "активность-текст-4.5",
-     _стиль("#rg-act .segmented-btn:not(.active) { color: rgb(90, 96, 115) !important; }")),
+     _стиль("#rg-act .v2-choice-item:not(.active) { color: rgb(90, 96, 115) !important; }")),
+    ("значок ключа отдельной строкой (прежний flex-wrap)", "значок-ключа-в-строке-текста",
+     _стиль("#tab-profile .scale-reauth { display: flex !important; flex-wrap: wrap !important; }")),
     ("кнопка карточки весов на 8 px правее", "левый-край-в-карточках",
      _стиль("#tab-profile .btn-block, #tab-profile .scale-drop { margin-left: 8px !important; }")),
 ]

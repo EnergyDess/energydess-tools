@@ -58,10 +58,12 @@
    от системы незачем.
    Нужна граница плотнее — в системе для этого есть --border-strong. */
 :root {
-  --prot: #f472b6;
-  --fat:  #fbbf24;
-  --carb: #60a5fa;
-  --wat:  #38bdf8;
+  /* Значения — в v2.css (`--v2-macro-*`, `--v2-water`, «питание-4»);
+     прежние литералы здесь заменены ссылками, запасной — они же */
+  --prot: var(--v2-macro-prot, #f472b6);
+  --fat:  var(--v2-macro-fat, #fbbf24);
+  --carb: var(--v2-macro-carb, #60a5fa);
+  --wat:  var(--v2-water, #38bdf8);
   /* Нижней панели разделов с письма 2 задачи 352 нет: разделы — вкладки
      шапки страницы v2. Величина оставлена нулём, потому что на неё
      опираются отступ ленты, низ вкладки ассистента и тост. */
@@ -2211,7 +2213,7 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
 #tab-diary, #tab-search { font-family: var(--v2-font); color: var(--v2-text); }
 
 #tab-diary .d-daystrip, #tab-diary .ring-wrap, #tab-diary .macros-row,
-#tab-diary .meal-card, #tab-diary .water-card,
+#tab-diary .meal-card, #tab-diary .water-card, #tab-history .meal-card,
 #tab-search .a-box, #tab-search .a-panel-box, #tab-search .r-item {
   background: var(--v2-surface-1);
   border: 1px solid var(--v2-line-1);
@@ -2462,14 +2464,20 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
   border-radius: var(--v2-r-lg);
   box-shadow: var(--v2-shadow-none);
 }
-#tab-profile .scale-reauth { flex-wrap: wrap; border-radius: var(--v2-r-lg); }
-#tab-profile .scale-reauth-btn { margin-left: auto; }
-/* НЕВЫБРАННАЯ АКТИВНОСТЬ ЧИТАЕТСЯ (№352, «питание-3», 2.5). Системный
-   сегмент красит невыбранный вариант `--text-faint`: замер к фону варианта —
-   4.28 у подписи и у значка при норме 4.5 для текста. Длинная подпись
-   анкеты — не метка в две буквы, её читают целиком. Свой класс варианта,
-   а не системный субъектом (§6.0.2); выбранный — прежний. */
-.act-opt:not(.active) { color: var(--v2-text-2); }
+/* ПЛАШКА ОТЗЫВА КЛЮЧА (№352, «питание-4», 3.2): значок ключа — в одной
+   строке с первым словом текста. Было `flex-wrap`, и длинный текст
+   уходил строкой ниже значка — значок висел отдельной строкой. Сетка:
+   значок слева у верха первой строки, текст справа, кнопка под текстом
+   у правого края. */
+#tab-profile .scale-reauth {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--v2-sp-3); row-gap: var(--v2-sp-3); align-items: start;
+  border-radius: var(--v2-r-lg);
+}
+#tab-profile .scale-reauth > svg { margin: 0; }
+#tab-profile .scale-reauth-btn { grid-column: 2; justify-self: end; margin: 0; }
+/* Невыбранная активность — `--v2-text-2` компонента `.v2-choice`
+   («питание-4»); своё правило `.act-opt` («питание-3», 2.5) снято. */
 /* «СТЕРЕТЬ ПРИВЯЗКУ» — НА ЛЕВОМ КРАЕ КАРТОЧКИ (№352, «питание-3», 2.6).
    Призрачная кнопка без рамки и фона: видно только её текст, а он стоял
    на поле кнопки — на 12 px правее абзаца над ней и полей формы. Текст
@@ -2489,7 +2497,7 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: var(--v2-sp-5);
-    align-items: stretch;
+    align-items: start;
     max-width: calc(87.5 * var(--nut-u));
     margin-left: auto; margin-right: auto;
   }
@@ -2498,8 +2506,15 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
     display: flex; flex-direction: column;
     height: auto; min-height: 0; overflow: visible; padding-right: 0;
   }
+  /* КОЛОНКИ ПО ВЫСОТЕ СОДЕРЖИМОГО (№352, «питание-4», 3.3). Последняя
+     карточка колонки больше не растягивается до низа ряда: растянутая
+     анкета при отозванном ключе весов несла внутри себя пустую полосу
+     140 px (1600) и 157 (1280). Высота карточки весов зависит от её
+     состояния (пять состояний, §5.2), и раскладки, где две колонки
+     сходятся в 24 px при любом из них, нет — разница высот колонок
+     остаётся фоном страницы, а не пустотой внутри карточки. */
   #tab-profile.active .d-left > :last-child,
-  #tab-profile.active .d-right > :last-child { flex: 1; margin-bottom: 0; }
+  #tab-profile.active .d-right > :last-child { margin-bottom: 0; }
   #tab-profile .f-label { font-size: var(--v2-fs-sm); }
   /* Анкета короче: числовые поля по два в ряд. Пол — во всю строку */
   #tab-profile .p-form .p-sec:first-child { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--v2-sp-4); }

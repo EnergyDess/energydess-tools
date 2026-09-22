@@ -442,9 +442,9 @@
         <div class="card card-static chart-box">
           <div class="chart-hd">
             <h3 class="nut-card-title">График веса</h3>
-            <div class="segmented" id="wt-period">
-              <button class="segmented-btn active" data-period="month" onclick="выбратьПериодВеса(this)">Месяц</button>
-              <button class="segmented-btn" data-period="all" onclick="выбратьПериодВеса(this)">Всё время</button>
+            <div class="v2-seg v2-seg-tool" id="wt-period">
+              <button class="v2-seg-btn active" data-period="month" onclick="выбратьПериодВеса(this)">Месяц</button>
+              <button class="v2-seg-btn" data-period="all" onclick="выбратьПериодВеса(this)">Всё время</button>
             </div>
           </div>
           <svg class="wt-svg" id="wt-svg"></svg>
@@ -524,9 +524,9 @@
            (№352, «питание-3», 2.3). Прячется атрибутом `hidden`, и тем же
            атрибутом показывается: механизм один. #}
         <div class="compare-row" id="compare-row" hidden>
-          <select class="select input-compact compare-select" id="compare-date-old" onchange="renderCompare()"></select>
+          <span class="v2-select-wrap compare-select"><select class="v2-select v2-select-pill" id="compare-date-old" onchange="renderCompare()"></select></span>
           <span class="compare-arrow">→</span>
-          <select class="select input-compact compare-select" id="compare-date-new" onchange="renderCompare()"></select>
+          <span class="v2-select-wrap compare-select"><select class="v2-select v2-select-pill" id="compare-date-new" onchange="renderCompare()"></select></span>
         </div>
         <div class="compare-view" id="compare-view"></div>
       </div>
@@ -547,36 +547,35 @@
             <h3 class="nut-card-title">Личные данные</h3>
             <div class="f-field">
               <label class="field-label f-label">Пол</label>
-              <div class="segmented" id="rg-gender">
-                <button class="segmented-btn active" data-val="male"   onclick="setRad(this)">Мужской</button>
-                <button class="segmented-btn"       data-val="female" onclick="setRad(this)">Женский</button>
+              <div class="v2-seg v2-seg-tool" id="rg-gender">
+                <button class="v2-seg-btn active" data-val="male"   onclick="setRad(this)">Мужской</button>
+                <button class="v2-seg-btn"       data-val="female" onclick="setRad(this)">Женский</button>
               </div>
             </div>
-            <div class="f-field"><label class="field-label f-label">Возраст</label><input type="number" class="input input-compact" id="p-age"    placeholder="25" min="10" max="100"></div>
-            <div class="f-field"><label class="field-label f-label">Вес, кг</label><input type="number" class="input input-compact" id="p-weight" placeholder="70" min="30" max="250" step="0.1"></div>
-            <div class="f-field"><label class="field-label f-label">Рост, см</label><input type="number" class="input input-compact" id="p-height" placeholder="170" min="120" max="250"></div>
-            <div class="f-field"><label class="field-label f-label">Цель по весу, кг</label><input type="number" class="input input-compact" id="p-target" placeholder="65" min="30" max="250" step="0.1"></div>
+            <div class="f-field"><label class="field-label f-label">Возраст</label><input type="number" class="v2-input p-num" id="p-age"    placeholder="25" min="10" max="100"></div>
+            <div class="f-field"><label class="field-label f-label">Вес, кг</label><input type="number" class="v2-input p-num" id="p-weight" placeholder="70" min="30" max="250" step="0.1"></div>
+            <div class="f-field"><label class="field-label f-label">Рост, см</label><input type="number" class="v2-input p-num" id="p-height" placeholder="170" min="120" max="250"></div>
+            <div class="f-field"><label class="field-label f-label">Цель по весу, кг</label><input type="number" class="v2-input p-num" id="p-target" placeholder="65" min="30" max="250" step="0.1"></div>
           </div>
           <div class="p-sec">
             <h3 class="nut-card-title">Цель</h3>
-            <div class="segmented" id="rg-goal">
-              <button class="segmented-btn"       data-val="lose"     onclick="setRad(this)">Похудение</button>
-              <button class="segmented-btn active" data-val="maintain" onclick="setRad(this)">Поддержание</button>
-              <button class="segmented-btn"       data-val="gain"     onclick="setRad(this)">Набор</button>
+            <div class="v2-seg v2-seg-tool" id="rg-goal">
+              <button class="v2-seg-btn"       data-val="lose"     onclick="setRad(this)">Похудение</button>
+              <button class="v2-seg-btn active" data-val="maintain" onclick="setRad(this)">Поддержание</button>
+              <button class="v2-seg-btn"       data-val="gain"     onclick="setRad(this)">Набор</button>
             </div>
           </div>
           <div class="p-sec">
             <h3 class="nut-card-title">Активность</h3>
             {# BACKLOG №114: пять взаимоисключающих вариантов с длинными
-               подписями. Системный `.segmented` вариантом `.segmented-stack`,
-               а не свой `.act-btn`: роль та же, что у ряда, отличается
-               только направлением. #}
-            <div class="segmented segmented-stack" id="rg-act">
-            <button class="segmented-btn act-opt" data-val="sedentary"  onclick="setAct(this)">{{ значок('armchair') }} Сидячий — офис, мало движения</button>
-            <button class="segmented-btn act-opt" data-val="light"      onclick="setAct(this)">{{ значок('footprints') }} Лёгкий — прогулки, редкие тренировки</button>
-            <button class="segmented-btn act-opt active" data-val="moderate" onclick="setAct(this)">{{ значок('activity') }} Умеренный — тренировки 3-4 раза в неделю</button>
-            <button class="segmented-btn act-opt" data-val="active"     onclick="setAct(this)">{{ значок('dumbbell') }} Активный — тренировки 5-6 раз</button>
-            <button class="segmented-btn act-opt" data-val="very_active" onclick="setAct(this)">{{ значок('flame') }} Очень активный — ежедневно</button>
+               подписями. С «питание-4» — компонент v2 `.v2-choice` (список
+               выбора): выбранная строка цветом питания, как `.v2-seg-tool`. #}
+            <div class="v2-choice" id="rg-act">
+            <button class="v2-choice-item act-opt" data-val="sedentary"  onclick="setAct(this)">{{ значок('armchair') }} Сидячий — офис, мало движения</button>
+            <button class="v2-choice-item act-opt" data-val="light"      onclick="setAct(this)">{{ значок('footprints') }} Лёгкий — прогулки, редкие тренировки</button>
+            <button class="v2-choice-item act-opt active" data-val="moderate" onclick="setAct(this)">{{ значок('activity') }} Умеренный — тренировки 3-4 раза в неделю</button>
+            <button class="v2-choice-item act-opt" data-val="active"     onclick="setAct(this)">{{ значок('dumbbell') }} Активный — тренировки 5-6 раз</button>
+            <button class="v2-choice-item act-opt" data-val="very_active" onclick="setAct(this)">{{ значок('flame') }} Очень активный — ежедневно</button>
             </div>
           </div>
           <!-- ИСТОРИИ НОРМ В БАЗЕ НЕТ, и это надо сказать вслух ДО сохранения.
@@ -3730,7 +3729,7 @@ function поставитьНовуюЦель() {
 // `авто` — период выбрал не человек, а правило пустого месяца ниже:
 // тогда человек ещё не выбирал, и следующая отрисовка вправе решить снова.
 function выбратьПериодВеса(btn, авто) {
-  document.querySelectorAll('#wt-period .segmented-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#wt-period .v2-seg-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   S.wtPeriod = btn.dataset.period;
   if (!авто) S.wtPeriodChosen = true;
@@ -3944,9 +3943,9 @@ async function loadProfileForm() {
   document.getElementById('p-weight').value =data.weight_kg||'';
   document.getElementById('p-height').value =data.height_cm||'';
   document.getElementById('p-target').value =data.target_weight_kg||'';
-  document.querySelectorAll('#rg-gender .segmented-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.gender));
-  document.querySelectorAll('#rg-goal .segmented-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.goal));
-  document.querySelectorAll('#rg-act .segmented-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.activity_level));
+  document.querySelectorAll('#rg-gender .v2-seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.gender));
+  document.querySelectorAll('#rg-goal .v2-seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===data.goal));
+  document.querySelectorAll('#rg-act .v2-choice-item').forEach(b=>b.classList.toggle('active',b.dataset.val===data.activity_level));
   if (data.calorie_goal) showTargets({calories:data.calorie_goal,protein:data.protein_goal,fat:data.fat_goal,carbs:data.carb_goal,water_ml:data.water_goal_ml});
 }
 
@@ -4304,12 +4303,12 @@ async function deleteBodyPhoto(date, angle) {
 }
 
 function setRad(btn) {
-  btn.closest('.segmented').querySelectorAll('.segmented-btn').forEach(b=>b.classList.remove('active'));
+  btn.closest('.v2-seg').querySelectorAll('.v2-seg-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   проверитьСменуНормы();
 }
 function setAct(btn) {
-  document.querySelectorAll('#rg-act .segmented-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#rg-act .v2-choice-item').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   проверитьСменуНормы();
 }
@@ -4334,9 +4333,9 @@ const ПОЛЯ_НОРМЫ = ['gender', 'goal', 'activity_level', 'age', 'weight_
 
 function анкетаСФормы() {
   return {
-    gender: document.querySelector('#rg-gender .segmented-btn.active')?.dataset?.val || 'male',
-    goal:   document.querySelector('#rg-goal .segmented-btn.active')?.dataset?.val || 'maintain',
-    activity_level: document.querySelector('#rg-act .segmented-btn.active')?.dataset?.val || 'moderate',
+    gender: document.querySelector('#rg-gender .v2-seg-btn.active')?.dataset?.val || 'male',
+    goal:   document.querySelector('#rg-goal .v2-seg-btn.active')?.dataset?.val || 'maintain',
+    activity_level: document.querySelector('#rg-act .v2-choice-item.active')?.dataset?.val || 'moderate',
     age:       parseInt(document.getElementById('p-age').value) || 25,
     weight_kg: parseFloat(document.getElementById('p-weight').value) || 70,
     height_cm: parseFloat(document.getElementById('p-height').value) || 170,

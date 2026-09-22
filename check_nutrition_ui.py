@@ -351,14 +351,14 @@ def облик(снимки=None, подлог=None):
   const ряды = {};
   колонки.forEach(к => { const y = Math.round(к.getBoundingClientRect().top);
     (ряды[y] = ряды[y] || []).push(к); });
-  let худшая = 0; const по = [];
+  let худшая = 0, внутри_макс = 0; const по = [];
   Object.values(ряды).filter(р => р.length > 1).forEach(р => {
     const низ = Math.max(...р.map(к => {
       const д = [...к.children].filter(видим);
       return д.length ? Math.max(...д.map(x => x.getBoundingClientRect().bottom)) : к.getBoundingClientRect().top; }));
     р.forEach(к => { const д = [...к.children].filter(видим);
       const свой = д.length ? Math.max(...д.map(x => x.getBoundingClientRect().bottom)) : к.getBoundingClientRect().top;
-      let п = Math.round(низ - свой);
+      let п = Math.round(низ - свой), вн_п = 0;
       // Пустота, перенесённая ВНУТРЬ растянутой последней карточки, — та же
       // пустота: от низа её содержимого до низа её поля
       const последняя = д[д.length - 1];
@@ -366,13 +366,14 @@ def облик(снимки=None, подлог=None):
         const вн = [...последняя.children].filter(видим);
         if (вн.length) {
           const пол = parseFloat(getComputedStyle(последняя).paddingBottom) || 0;
-          п += Math.max(0, Math.round(последняя.getBoundingClientRect().bottom - пол
+          вн_п = Math.max(0, Math.round(последняя.getBoundingClientRect().bottom - пол
                  - Math.max(...вн.map(x => x.getBoundingClientRect().bottom))));
+          п += вн_п;
         }
       }
       по.push((к.className.split(' ')[0] || к.tagName) + ':' + п);
-      худшая = Math.max(худшая, п); }); });
-  return {колонок: колонки.length, пустота: худшая, по_колонкам: по};
+      худшая = Math.max(худшая, п); внутри_макс = Math.max(внутри_макс, вн_п); }); });
+  return {колонок: колонки.length, пустота: худшая, внутри: внутри_макс, по_колонкам: по};
 }"""
 # «История» — с письма «питание-3» (№352, блок 3)
 ВКЛАДКИ_ОБЛИКА = (("вес", "weight"), ("профиль", "profile"), ("история", "history"))
@@ -400,10 +401,18 @@ def облик_вкладок(снимки=None, подлог=None, порог=2
                     о = стр.evaluate(ОБЛИК)
                     п = стр.evaluate(ПУСТОТЫ, "tab-" + вкладка)
                     пуст = п["пустота"] if п else None
+                    # «ПРОФИЛЬ» — КОЛОНКИ ПО ВЫСОТЕ СОДЕРЖИМОГО («питание-4», 3.3,
+                    # решение письма): высота карточки весов зависит от её
+                    # состояния, и раскладки с разницей колонок ≤ 24 px при
+                    # любом из пяти нет. Там спрашивается пустота ВНУТРИ
+                    # растянутой карточки; разница колонок печатается рядом
+                    if вкладка == "profile" and п:
+                        пуст = п.get("внутри", 0)
                     ок = not о["моно"] and пуст_ок(пуст, порог)
                     плохо += not ок
-                    print("  %-8s %4d  моно %2d, прописных %2d, пустота колонки %s px %s  %s" % (
-                        экран, ширина, len(о["моно"]), len(о["прописные"]), пуст,
+                    print("  %-8s %4d  моно %2d, прописных %2d, пустота колонки %s px (внутри карточки %s) %s  %s" % (
+                        экран, ширина, len(о["моно"]), len(о["прописные"]), п["пустота"] if п else None,
+                        п.get("внутри") if п else None,
                         п["по_колонкам"] if п else "", sorted(set(о["моно"]))[:5]))
                     if снимки:
                         os.makedirs(снимки, exist_ok=True)
@@ -524,9 +533,9 @@ def прогон_профиля():
             стр.click(".nut-tabbtn[data-tab=profile]")
             стр.wait_for_timeout(1500)
             норма_до = стр.inner_text("#t-cal").strip()
-            цель_до = стр.evaluate("() => document.querySelector('#rg-goal .segmented-btn.active').dataset.val")
+            цель_до = стр.evaluate("() => document.querySelector('#rg-goal .v2-seg-btn.active').dataset.val")
             новая = "gain" if цель_до != "gain" else "lose"
-            стр.click("#rg-goal .segmented-btn[data-val=%s]" % новая)
+            стр.click("#rg-goal .v2-seg-btn[data-val=%s]" % новая)
             стр.click(".p-form button[onclick='saveProfile()']")
             стр.wait_for_timeout(2000)
             норма_после = стр.inner_text("#t-cal").strip()
@@ -738,10 +747,20 @@ def main():
         # ровно раскладка до правки (`align-items: start`)
         код = облик_вкладок(подлог="""addEventListener('DOMContentLoaded', () => {
           const s = document.createElement('style');
-          s.textContent = '#tab-weight .w-cols, #tab-profile .p-cols { align-items: start !important; }';
+          s.textContent = '#tab-weight .w-cols { align-items: start !important; }';
           document.head.appendChild(s); });""")
-        print("КОНТРОЛЬ ВКЛАДОК:", "ЛОВИТ" if код == 1 else "НЕ ЛОВИТ")
-        sys.exit(0 if код == 1 else 1)
+        print("КОНТРОЛЬ ВКЛАДОК («Вес»):", "ЛОВИТ" if код == 1 else "НЕ ЛОВИТ")
+        # Второй подлог («питание-4», 3.3): «Профиль» снова тянет последнюю
+        # карточку колонки до низа ряда — пустота уходит ВНУТРЬ карточки.
+        # Ловится только при состоянии весов, где колонки расходятся
+        # (стенд: `py make_local_user.py --scale reauth`)
+        код2 = облик_вкладок(подлог="""addEventListener('DOMContentLoaded', () => {
+          const s = document.createElement('style');
+          s.textContent = '#tab-profile .p-cols { align-items: stretch !important; }'
+            + ' #tab-profile.active .d-left > :last-child, #tab-profile.active .d-right > :last-child { flex: 1 !important; }';
+          document.head.appendChild(s); });""")
+        print("КОНТРОЛЬ ВКЛАДОК («Профиль»):", "ЛОВИТ" if код2 == 1 else "НЕ ЛОВИТ")
+        sys.exit(0 if код == 1 and код2 == 1 else 1)
     if "--вкладки" in sys.argv:
         снимки = sys.argv[sys.argv.index("--снимки") + 1] if "--снимки" in sys.argv else None
         sys.exit(облик_вкладок(снимки))

@@ -139,6 +139,32 @@
         </div>
         <p class="v2s-cap"><code>.v2-seg .v2-seg-btn.is-active</code> · <code>--v2-surface-hover</code>, <code>--v2-r-pill</code></p>
       </div>
+      {# «Питание-4», блок 3: выбор, который является ДАННЫМИ (пол, цель,
+         уровень активности), — цветом инструмента. Образцы под классом
+         инструмента питания: цвет выбора берётся из `--v2-tool`. #}
+      <div class="v2s-sample v2-tool-nutrition">
+        <span class="v2-label">Цель</span>
+        <div class="v2-seg v2-seg-tool" role="group" aria-label="Цель">
+          <button type="button" class="v2-seg-btn" aria-pressed="false">Похудение</button>
+          <button type="button" class="v2-seg-btn is-active" aria-pressed="true">Поддержание</button>
+          <button type="button" class="v2-seg-btn" aria-pressed="false">Набор</button>
+        </div>
+        <p class="v2s-cap"><code>.v2-seg.v2-seg-tool</code> · выбранный — <code>--v2-tool-dim</code>, <code>--v2-tool-line</code>, <code>--v2-tool</code></p>
+      </div>
+      <div class="v2s-sample v2-tool-nutrition">
+        <span class="v2-label">Активность</span>
+        <div class="v2-choice" role="group" aria-label="Активность">
+          <button type="button" class="v2-choice-item" aria-pressed="false">{{ значок('footprints') }} Лёгкий — прогулки</button>
+          <button type="button" class="v2-choice-item is-active" aria-pressed="true">{{ значок('activity') }} Умеренный — 3–4 раза в неделю</button>
+          <button type="button" class="v2-choice-item" aria-pressed="false">{{ значок('dumbbell') }} Активный — 5–6 раз</button>
+        </div>
+        <p class="v2s-cap"><code>.v2-choice .v2-choice-item.is-active</code> · список выбора, строка со значком</p>
+      </div>
+      <div class="v2s-sample">
+        <span class="v2-label">Месяц</span>
+        <span class="v2-select-wrap"><select class="v2-select v2-select-pill" aria-label="Месяц"><option>Сентябрь</option><option>Август</option></select></span>
+        <p class="v2s-cap"><code>.v2-select-wrap .v2-select.v2-select-pill</code> · стрелка обёртки, <code>--v2-select-pad</code></p>
+      </div>
     </div>
   </section>
 

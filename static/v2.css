@@ -63,6 +63,17 @@
   --v2-warn: #F59E0B;
   --v2-danger: #EF4444;
   --v2-danger-dim: rgba(239, 68, 68, 0.14);
+  /* ЦВЕТА ДАННЫХ ПИТАНИЯ (№352, «питание-4», блок 3) — прежние значения
+     дневника (`--prot`, `--fat`, `--carb`, `--wat` в nutrition.css
+     теперь ссылаются сюда) и зона «отлично» шкал состава тела
+     (`--success-strong` style.css, то же значение). Это цвета ДАННЫХ,
+     а не оформления: полоса белка на любой вкладке одного цвета.
+     Проверка 60 спрашивает палитру отсюда. */
+  --v2-macro-prot: #F472B6;
+  --v2-macro-fat: #FBBF24;
+  --v2-macro-carb: #60A5FA;
+  --v2-water: #38BDF8;
+  --v2-success-strong: #34D399;
 
   /* 4. ЦВЕТА ИНСТРУМЕНТОВ — прежние значения, новых нет. */
   --v2-hh: #4F8FFF;
@@ -436,7 +447,53 @@
   cursor: pointer;
   transition: background-color var(--v2-dur-fast) var(--v2-ease-out);
 }
-.v2-seg-btn.is-active { background: var(--v2-surface-hover); color: var(--v2-text-strong); }
+.v2-seg-btn.is-active, .v2-seg-btn.active { background: var(--v2-surface-hover); color: var(--v2-text-strong); }
+/* СЕГМЕНТЫ С ВЫБОРОМ ЦВЕТОМ ИНСТРУМЕНТА (№352, «питание-4», блок 3) —
+   вариант `.v2-seg-tool`: выбранный сегмент — полупрозрачная подложка,
+   надпись и тонкая обводка цвета инструмента. Нужен там, где выбор — это
+   ДАННЫЕ (пол, цель), а не режим показа. Потребители — «Профиль»
+   и период графика «Веса» питания; дальше аптечка и тренировки.
+   Состояние — класс `.is-active` либо `.active` (скрипты страниц
+   старого кода ставят второй). */
+.v2-seg-tool .v2-seg-btn { border: 1px solid transparent; }
+.v2-seg-tool .v2-seg-btn.is-active, .v2-seg-tool .v2-seg-btn.active {
+  background: var(--v2-tool-dim, var(--v2-surface-hover));
+  border-color: var(--v2-tool-line, var(--v2-line-2));
+  color: var(--v2-tool, var(--v2-text-strong));
+}
+/* СПИСОК ВЫБОРА (№352, «питание-4», блок 3) — выбор одного из нескольких
+   вариантов с длинной подписью (уровень активности). Строка — кнопка
+   во всю ширину со значком слева; выбранная — тем же языком, что
+   `.v2-seg-tool`. Невыбранная — `--v2-text-2` на `--v2-surface-field`. */
+.v2-choice { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
+.v2-choice-item {
+  display: flex;
+  align-items: center;
+  gap: var(--v2-sp-3);
+  width: 100%;
+  min-height: var(--v2-ctl-h);
+  padding: var(--v2-sp-2) var(--v2-sp-4);
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-md);
+  background: var(--v2-surface-field);
+  color: var(--v2-text-2);
+  font-family: var(--v2-font);
+  font-size: var(--v2-fs-sm);
+  font-weight: var(--v2-fw-medium);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--v2-dur-fast) var(--v2-ease-out), background-color var(--v2-dur-fast) var(--v2-ease-out);
+}
+.v2-choice-item svg { width: var(--v2-icon); height: var(--v2-icon); flex-shrink: 0; }
+.v2-choice-item.is-active, .v2-choice-item.active {
+  background: var(--v2-tool-dim, var(--v2-surface-hover));
+  border-color: var(--v2-tool-line, var(--v2-line-2));
+  color: var(--v2-tool, var(--v2-text-strong));
+}
+.v2-choice-item:focus-visible { outline: 2px solid var(--v2-tool, var(--v2-ring-neutral)); outline-offset: 0; }
+@media (hover: hover) {
+  .v2-choice-item:hover:not(.is-active):not(.active) { border-color: var(--v2-line-hover); color: var(--v2-text); }
+}
 .v2-seg-btn:focus-visible { outline: 2px solid var(--v2-ring-neutral); outline-offset: 0; }
 @media (hover: hover) { .v2-seg-btn:hover:not(.is-active) { color: var(--v2-text); } }
 
@@ -1008,7 +1065,7 @@ html.v2-rail .v2-shell .v2-side-caret { display: none; }
 @media (pointer: coarse) {
   .v2-btn, .v2-chip, .v2-input, .v2-select { min-height: var(--v2-ctl-h-touch); }
   .v2-btn-icon { width: var(--v2-ctl-h-touch); }
-  .v2-seg-btn { min-height: var(--v2-ctl-h-touch); }
+  .v2-seg-btn, .v2-choice-item { min-height: var(--v2-ctl-h-touch); }
 }
 /* Каркас ниже десктопа: меню за кнопкой в верхней строке, поверх страницы. */
 @media (max-width: 1023px) {
@@ -1072,4 +1129,16 @@ html.v2-rail .v2-shell .v2-side-caret { display: none; }
   .v2-input, .v2-textarea, .v2-select { transition: none; }
   .v2-btn.is-loading::before { animation: none; }
   .v2-btn:active:not(:disabled), .v2-btn.is-pressed { transform: none; }
+}
+
+/* ПОЛЕ ПОИСКА В ВЕРХНЕЙ СТРОКЕ КАРКАСА (№352, «питание-4», блок 3) —
+   поле v2, а не `--surface-1` старой системы: его показывает проверка 60
+   на каждом экране каркаса. Рамка и фокус — компонента `.input`. */
+.v2-shell .header-search .input { background: var(--v2-surface-field); border-color: var(--v2-line-1); }
+/* Кнопка справки `.hint-btn` на экранах питания — поверхность v2.
+   Только питание: остальные инструменты переводятся своими письмами. */
+.v2-shell.v2-tool-nutrition .hint-btn {
+  background: var(--v2-surface-2);
+  border-color: var(--v2-line-1);
+  color: var(--v2-text-2);
 }

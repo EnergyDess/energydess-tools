@@ -151,8 +151,8 @@ import probe_guard  # noqa: F401  ПРОПУСК вместо трассы (§6.
     приём:      S.searchMeal,
     запрос:     q('#s-input') ? q('#s-input').value : '',
     чат:        q('#assistant-chat-in') ? q('#assistant-chat-in').value : '',
-    период:     q('#wt-period .segmented-btn.active') ?
-                q('#wt-period .segmented-btn.active').dataset.period : '',
+    период:     q('#wt-period .v2-seg-btn.active') ?
+                q('#wt-period .v2-seg-btn.active').dataset.period : '',
     возраст:    q('#p-age') ? q('#p-age').value : '',
     is_sel:     дни.filter(b => b.classList.contains('is-sel')).length,
     залито:     дни.filter(b => getComputedStyle(b.querySelector('.ds-c'))
