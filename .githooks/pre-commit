@@ -1,0 +1,6 @@
+#!/bin/sh
+# ЗАМОК СТАРТОВЫХ ПРОВЕРОК (задача 352, «аптечка-1», блок 1).
+# Подключается один раз: git config core.hooksPath .githooks
+# Разбор и правила — шапка start_checks.py; обход — START_CHECKS_BYPASS=1,
+# каждое использование пишется в start_checks_bypass.log.
+exec py start_checks.py --hook

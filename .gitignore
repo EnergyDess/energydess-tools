@@ -102,3 +102,9 @@ stand_seed_ref.json
 # Числа карточки 03 главной — считаются при выкладке (landing_stats.py),
 # в git не лежат: число коммитов отставало бы на коммит, который их записал.
 landing_stats.json
+
+# СТАРТОВЫЕ ПРОВЕРКИ (задача 352, «аптечка-1»): отметка сессии,
+# журнал обходов замка и вывод стенда, поднятого start_checks.py
+.start_checks.json
+.start_checks_stand.log
+start_checks_bypass.log
