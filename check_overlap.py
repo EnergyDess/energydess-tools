@@ -223,7 +223,7 @@ def прогон(добавка_css="", тихо=False):
                     continue
                 стр.goto(f"{ch.БАЗА}{путь}", wait_until="domcontentloaded",
                          timeout=45000)
-                стр.wait_for_timeout(2200)
+                ch.дождаться_экрана(стр)
                 if добавка_css:
                     стр.add_style_tag(content=добавка_css)
                 if подготовка:

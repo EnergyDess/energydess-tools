@@ -594,7 +594,7 @@ def снять(добавка_css="", тихо=False, экраны=None, доб�
                 except Exception as e:
                     print("  %-30s НЕ ОТКРЫЛСЯ: %s" % (имя, type(e).__name__))
                     continue
-                стр.wait_for_timeout(1800)
+                ch.дождаться_экрана(стр)   # «питание-5», блок 2.2
                 if подготовка:
                     try:
                         стр.click(подготовка, timeout=4000)

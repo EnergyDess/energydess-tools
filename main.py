@@ -7891,6 +7891,9 @@ async def nut_get_profile(user=Depends(get_current_user), db: Session = Depends(
         "fat_goal": p.fat_goal, "carb_goal": p.carb_goal,
         "water_goal_ml": p.water_goal_ml,
         "target_weight_kg": p.target_weight_kg, "start_weight_kg": p.start_weight_kg,
+        # С какого дня у дней ЕСТЬ своя норма («питание-5», блок 2.3). Нужна
+        # предупреждению анкеты: «истории норм нет» было неправдой с задачи 95
+        "norms_since": next((п.effective_from for п in нормы_журнала(db, user.id)), None),
     })
 
 
