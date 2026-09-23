@@ -190,19 +190,10 @@
 .apt-scale { background: var(--v2-surface-2); }
 .apt-scale-btn.active { background: var(--v2-surface-hover); }
 
-/* КНОПКА «ПЕРЕПРОВЕРИТЬ» ПРИ НУЛЕ НЕПОЛНЫХ КАРТОЧЕК (№352,
-   «аптечка-2», блок 1.3). Работы нет — кнопка не зовёт: надпись
-   и рамка тусклее соседних. Нажатие при этом работает, и `disabled`
-   здесь было бы неправдой (разбор — в разметке шапки).
-
-   СВОЙ КЛАСС НА СИСТЕМНОЙ КНОПКЕ, а не правка `.v2-btn-secondary`:
-   вторичных кнопок в проекте десятки, и решения о их приглушении
-   никто не принимал (§6.0.8). Цвета — токены v2: панель и шапка
-   рисуются оболочкой, и чужой цвет здесь нашла бы проверка 60. */
-.apt-recheck-open.is-quiet {
-  border-color: var(--v2-line-3);
-  color: var(--v2-text-faint);
-}
+/* ПРИГЛУШЕНИЯ КНОПКИ «ПЕРЕПРОВЕРИТЬ» ПРИ НУЛЕ БОЛЬШЕ НЕТ (№352, «аптечка-3», 2.2):
+   тусклая кнопка читается как сломанная, а нажатие при нуле законно.
+   Правило снято ВМЕСТЕ С НОСИТЕЛЕМ — мёртвый класс следующий заход
+   прочтёт как рабочий (§7, история `.btn-sm`). */
 
 
 /* ── Ряд чипов отбора ──────────────────────────────────────────────
@@ -1359,19 +1350,52 @@
   overflow-wrap: anywhere;
 }
 
+/* РАЗДЕЛ ПАНЕЛИ ЛЕКАРСТВА (№352, «аптечка-3», 2.3).
+
+   Заголовок был ровно того же кегля, что основной текст (замер: 15
+   и 15 px), белым и без линии — разделы отличались друг от друга
+   только пустотой в 12 px. Теперь: КРУПНЕЕ текста, цветом
+   инструмента, с тонкой линией того же цвета под строкой; между
+   разделами — ступень шкалы, дающая не меньше 20 px.
+
+   Линия — на СТРОКЕ ЗАГОЛОВКА, а не рамкой вокруг раздела: рамок
+   в рамках на этой панели нет (правило «аптечки-2»), и владелец
+   назвал это прямо. */
 .apt-drug-sec { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
+.apt-drug-sec + .apt-drug-sec { margin-top: var(--v2-sp-5); }
+.apt-drug-sec-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--v2-sp-3);
+  padding-bottom: var(--v2-sp-1);
+  border-bottom: 1px solid var(--v2-tool-line);
+}
 .apt-drug-sec-h {
   margin: 0;
-  font-size: var(--v2-fs-sm);
+  font-size: var(--v2-fs-lg);
   font-weight: var(--v2-fw-strong);
-  color: var(--v2-text-strong);
+  color: var(--v2-tool);
 }
-.apt-drug-rec { display: flex; flex-direction: column; gap: var(--v2-sp-1); }
-.apt-drug-tag {
-  margin: 0;
+/* ССЫЛКА ПРАВКИ — КНОПКА БЕЗ ВИДА КНОПКИ: орган остаётся кнопкой
+   (её нажимают клавиатурой и читает программа чтения), а весом
+   становится ссылкой. Тач-таргет добирает системный слой там, где
+   он нужен, — на сенсорной ширине (§6.0.11). */
+.apt-drug-edit-link {
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
   font-size: var(--v2-fs-xs);
   color: var(--v2-text-2);
+  cursor: pointer;
 }
+@media (hover: hover) {
+  .apt-drug-edit-link:hover { color: var(--v2-tool); text-decoration: underline; }
+}
+.apt-drug-edit-link:focus-visible { color: var(--v2-tool); text-decoration: underline; }
+.apt-drug-rec { display: flex; flex-direction: column; gap: var(--v2-sp-1); }
 .apt-drug-txt {
   font-size: var(--v2-fs-sm);
   line-height: 1.55;
@@ -2649,9 +2673,17 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 /* Кнопка вызова панели. Стоит в ряду поиска рядом с «Добавить» */
 .apt-ai-open { flex: 0 0 auto; }
 
-/* Затемнение под панелью на узком экране: панель там во весь экран,
-   и подложка отделяет её от страницы */
+/* ЗАТЕМНЕНИЕ — ТОЛЬКО НА УЗКОМ ЭКРАНЕ, где панель занимает его весь
+   (№352, «аптечка-3», 2.1). На широком оно лежало `inset: 0` поверх
+   всей страницы и ПЕРЕХВАТЫВАЛО НАЖАТИЯ: замер на 1920 — под центром
+   кнопки «Перепроверить» (её рамка [1272, 1495], левее панели) лежал
+   `apt-ai-back`. То есть кнопка была видна, не накрыта панелью
+   и не нажималась — немой отказ (§6.0).
+
+   На широком у панели остаются крестик и Escape, как у двух соседних
+   панелей аптечки: клик мимо там не закрывает ничего и не закрывал. */
 .apt-ai-back {
+  display: none;
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, .45);
@@ -2661,6 +2693,7 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   transition: opacity .22s ease, visibility .22s ease;
 }
 .apt-ai-back.open { opacity: 1; visibility: visible; }
+@media (max-width: 768px) { .apt-ai-back { display: block; } }
 
 @media (max-width: 700px) {
   .apt-ai { top: 0; width: 100vw; }
@@ -2789,7 +2822,10 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   margin: var(--space-5) calc(var(--space-4) * -1)
           calc(var(--space-1) * -1);
   padding: var(--space-3) var(--space-4);
-  background: var(--surface-1);
+  /* ТОКЕН v2 (№352, «аптечка-3», 2.5): подвал прижат к низу листа
+     окна, и `--surface-1` старой палитры давал тут чужой тёмно-синий
+     (находка проверки 60). Цвет берётся тот же, что у листа окна. */
+  background: var(--v2-surface-pop);
   border-top: 1px solid var(--border);
   z-index: 2;
 }
