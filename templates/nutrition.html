@@ -753,7 +753,12 @@
    брала `height: 100%` от родителя с высотой auto, лента росла
    по содержимому, а прокрутка страницы была запрещена — не листалось
    ничто (замер: scrollHeight 2302 = clientHeight 2302). #}
-<aside class="v2-assist v2-assist-dock nut-assist" id="nut-assist" aria-label="AI-ассистент" hidden>
+{# МЕСТО У ПАНЕЛЕЙ ОДНО (№352, «аптечка-2», блок 1.1): `data-panel`
+   плюс имя функции закрытия, дальше общий слой `panel-solo.js`
+   закроет соседку, обработает Escape и вернёт фокус на кнопку. #}
+<aside class="v2-assist v2-assist-dock nut-assist" id="nut-assist" aria-label="AI-ассистент" hidden
+       data-panel data-panel-close="закрытьАссистента"
+       data-panel-opener="#nut-assist-open">
   <div class="v2-assist-head">
     {{ значок('sparkles') }}<h2 class="v2-assist-title">AI-ассистент</h2>
     <button type="button" class="v2-btn v2-btn-secondary v2-btn-icon" id="nut-assist-close"
@@ -1129,13 +1134,12 @@ function закрытьАссистента() {
   к.focus({ preventScroll: true });
 }
 
-// Esc закрывает панель, но не перебивает открытое поверх неё окно:
-// просмотр фото и окна дневника (`.modal-ov.open`) закрываются первыми.
-document.addEventListener('keydown', e => {
-  if (e.key !== 'Escape' || document.getElementById('nut-assist').hidden) return;
-  if (document.querySelector('.modal-ov.open')) return;
-  закрытьАссистента();
-});
+// ESCAPE ОБРАБАТЫВАЕТ ОБЩИЙ СЛОЙ (№352, «аптечка-2», блок 1.1).
+// Здесь стоял свой обработчик с условием «поверх панели нет открытой
+// модалки»; ровно такой же стоял в аптечке — дважды, для двух панелей.
+// Теперь это одно место (`static/panel-solo.js`): оно закрывает верхнюю
+// видимую панель, не перебивая открытое поверх неё окно, и возвращает
+// фокус на орган, которым панель открыли.
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 function switchTab(btn) {

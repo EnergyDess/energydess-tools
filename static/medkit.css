@@ -190,6 +190,20 @@
 .apt-scale { background: var(--v2-surface-2); }
 .apt-scale-btn.active { background: var(--v2-surface-hover); }
 
+/* КНОПКА «ПЕРЕПРОВЕРИТЬ» ПРИ НУЛЕ НЕПОЛНЫХ КАРТОЧЕК (№352,
+   «аптечка-2», блок 1.3). Работы нет — кнопка не зовёт: надпись
+   и рамка тусклее соседних. Нажатие при этом работает, и `disabled`
+   здесь было бы неправдой (разбор — в разметке шапки).
+
+   СВОЙ КЛАСС НА СИСТЕМНОЙ КНОПКЕ, а не правка `.v2-btn-secondary`:
+   вторичных кнопок в проекте десятки, и решения о их приглушении
+   никто не принимал (§6.0.8). Цвета — токены v2: панель и шапка
+   рисуются оболочкой, и чужой цвет здесь нашла бы проверка 60. */
+.apt-recheck-open.is-quiet {
+  border-color: var(--v2-line-3);
+  color: var(--v2-text-faint);
+}
+
 
 /* ── Ряд чипов отбора ──────────────────────────────────────────────
    ПОДЛОЖКА, А НЕ ПАНЕЛЬ ВО ВСЮ ШИРИНУ. Владелец просил «выделить, как
@@ -3171,12 +3185,18 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: .02em;
-  background: var(--surface-3);
-  color: var(--text-2);
+  /* ЦВЕТА v2 (№352, «аптечка-2», блок 1.2). Здесь стояли токены старой
+     системы (`--surface-3`, `--text-2`) — на вкладке, которую до этого
+     письма не спрашивала ни одна проверка: в списке экранов проверки 60
+     аптечка была ОДНИМ экраном, первой вкладкой. Красный и янтарный
+     остаются смыслом строки (просрочено, кончается) и берутся из палитры
+     v2, а не литералами. */
+  background: var(--v2-surface-2);
+  color: var(--v2-text-2);
 }
-.apt-buy-tag-ai { background: var(--tool-accent-dim); color: var(--tool-accent); }
-.apt-buy-tag-expired { background: rgba(239, 68, 68, .14); color: var(--error); }
-.apt-buy-tag-low { background: rgba(245, 158, 11, .14); color: var(--warning); }
+.apt-buy-tag-ai { background: var(--v2-tool-dim); color: var(--v2-tool); }
+.apt-buy-tag-expired { background: var(--v2-danger-dim); color: var(--v2-danger); }
+.apt-buy-tag-low { background: var(--v2-surface-2); color: var(--v2-warn); }
 
 .apt-buy-acts {
   display: flex;
@@ -4015,8 +4035,11 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   width: 48px;
   height: 36px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
+  /* ЦВЕТА v2 (№352, «аптечка-2», блок 1.2): панель долгов рисуется
+     поверх страницы оболочки, и старые `--border`/`--surface-2`
+     были на ней чужими. */
+  border: 1px solid var(--v2-line-2);
+  background: var(--v2-surface-2);
   /* ═══ `overflow: hidden` ЗДЕСЬ СТОЯЛ И ОБРЕЗАЛ ДОБОРНЫЙ СЛОЙ ═══
      BACKLOG №259. Плитка 48x36 — ниже сенсорного минимума 44,
      и `.tap-44` ей дописали; слой `::after` при этом не появлялся
