@@ -5685,8 +5685,8 @@ async def _формы_насквозь(pg, о):
         есть = await pg.locator(сел).count() > 0
         о.шаг("ряд-ступеней-есть", есть,
               "ступеней в ряду: %d"
-              % (await pg.locator(сел + " .segmented-btn").count()))
-        ж = await pg.evaluate(ЖИВОЙ, сел + " .segmented-btn:last-child")
+              % (await pg.locator(сел + " .v2-seg-btn").count()))
+        ж = await pg.evaluate(ЖИВОЙ, сел + " .v2-seg-btn:last-child")
         о.шаг("ступень-живая", ж.get("живой"),
               "нажатие доходит до кнопки" if ж.get("живой")
               else "не дотянуться: %s" % ж.get("причина"))
@@ -5712,7 +5712,7 @@ async def _формы_насквозь(pg, о):
         о.шаг("ступень-записалась-в-базу", в_базе == другая,
               "было %r, нажали %r, в базе %r" % (было_ступ, другая, в_базе))
         подсвечена = await pg.evaluate(
-            "(с) => {const a=document.querySelector(с+' .segmented-btn.active');"
+            "(с) => {const a=document.querySelector(с+' .v2-seg-btn.is-active');"
             " return a ? a.dataset.step : null;}", сел)
         о.шаг("ступень-подсвечена-на-экране", подсвечена == другая,
               "активная на экране %r" % подсвечена)

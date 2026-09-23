@@ -103,6 +103,27 @@ def главная():
                     стр.keyboard.press("Escape")
                     стр.wait_for_timeout(400)
 
+                # ОКНО ДОБАВЛЕНИЯ И ОКНО «ОБЩАЯ АПТЕЧКА» (блок 3).
+                # Прокручивается ВНУТРИ окна: форма длиннее экрана,
+                # и без прокрутки в кадр попадала бы только шапка.
+                if стр.locator("#apt-add").count():
+                    стр.click("#apt-add")
+                    стр.wait_for_timeout(700)
+                    кадр("добавление")
+                    стр.evaluate("() => { const b = document.querySelector"
+                                 "('#apt-form .modal-body');"
+                                 " if (b) b.scrollTop = b.scrollHeight; }")
+                    стр.wait_for_timeout(400)
+                    кадр("добавление-низ")
+                    стр.keyboard.press("Escape")
+                    стр.wait_for_timeout(500)
+                if стр.locator("#apt-circle-open").count():
+                    стр.click("#apt-circle-open")
+                    стр.wait_for_timeout(900)
+                    кадр("общая")
+                    стр.keyboard.press("Escape")
+                    стр.wait_for_timeout(500)
+
                 # СПИСОК ПОКУПОК: вкладка после редизайна, свёрнутый блок до
                 if стр.locator(".apt-tabbtn[data-tab=buy]").count():
                     стр.click(".apt-tabbtn[data-tab=buy]")

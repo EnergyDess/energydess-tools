@@ -324,7 +324,7 @@ async def _войти(pg):
     const г = э && э.closest('.form-group');
     return !!(г && г.classList.contains('apt-f-ai'));
   };
-  const шкала = document.querySelector('#apt-f-scale .segmented-btn.active');
+  const шкала = document.querySelector('#apt-f-scale .v2-seg-btn.is-active');
   return {
     поля: {name: зн('apt-f-name'), substance: зн('apt-f-sub'),
            form: зн('apt-f-form'), unit: зн('apt-f-unit'),

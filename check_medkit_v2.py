@@ -128,6 +128,94 @@ except Exception:
   };
 }"""
 
+
+ЗАМЕР_ФОРМЫ = r"""() => {
+  const ф = document.getElementById('apt-form');
+  if (!ф || !ф.classList.contains('open')) return {открыта: false};
+  const О = {opacityProperty: true, visibilityProperty: true};
+  const вид = e => (!e.checkVisibility || e.checkVisibility(О))
+    && e.getBoundingClientRect().width > 0;
+  const подписи = [...ф.querySelectorAll('label')].filter(вид);
+  return {
+    открыта: true,
+    /* НАЧЕРТАНИЕ СПРАШИВАЕТСЯ У ВЫЧИСЛЕННОГО СТИЛЯ: класс на месте
+       ещё не значит, что правило применилось (проверка 21). */
+    моно: [...ф.querySelectorAll('*')].filter(вид)
+      .filter(e => /mono/i.test(getComputedStyle(e).fontFamily)).length,
+    прописных: подписи
+      .filter(e => getComputedStyle(e).textTransform === 'uppercase').length,
+    подписей: подписи.length,
+    заголовки_групп: [...ф.querySelectorAll('.apt-fs-t')].filter(вид)
+      .map(e => getComputedStyle(e).textTransform),
+    старых: ф.querySelectorAll(
+      '.input, .select, .textarea, .btn, .btn-icon, .field-label').length,
+    нокат: (() => { const э = document.getElementById('apt-f-nocat');
+      return э ? !э.hidden && вид(э) : null; })(),
+    свёрнут_доп: (() => { const d = document.getElementById('apt-extra');
+      return d ? !d.open : null; })(),
+    полей: [...ф.querySelectorAll('input, select, textarea')]
+      .filter(e => e.type !== 'hidden').length,
+  };
+}"""
+
+ЗАМЕР_КРУГА = r"""() => {
+  const о = document.getElementById('apt-circle');
+  if (!о || !о.classList.contains('open')) return {открыто: false};
+  const О = {opacityProperty: true, visibilityProperty: true};
+  const вид = e => (!e.checkVisibility || e.checkVisibility(О))
+    && e.getBoundingClientRect().width > 0;
+  const лист = о.querySelector('.modal-sh');
+  const тело = о.querySelector('.modal-body');
+  /* ВЫСОТА ЛИСТА ПРОТИВ ВЫСОТЫ СОДЕРЖИМОГО, а не высота ТЕЛА.
+     Замер: инлайновый `height` у `.modal-body` не меняет ничего —
+     лист 371 px и тело 300 и с ним, и без него; высоту держит ЛИСТ
+     (`height: 70vh` у него даёт 700 и 629). То есть проба, мерившая
+     тело, не увидела бы растянутого окна вовсе — подлог был бы
+     не найден при состоявшемся дефекте. */
+  const дети = тело ? [...тело.children].filter(вид) : [];
+  const занято = дети.reduce((s, e) => {
+    const c = getComputedStyle(e);
+    return s + e.getBoundingClientRect().height
+      + parseFloat(c.marginTop) + parseFloat(c.marginBottom);
+  }, 0);
+  const c = тело ? getComputedStyle(тело) : null;
+  const поля = (c ? parseFloat(c.paddingTop) + parseFloat(c.paddingBottom) : 0)
+    + (лист && тело
+       ? лист.getBoundingClientRect().height
+         - тело.getBoundingClientRect().height : 0);
+  return {
+    открыто: true,
+    высота_окна: лист ? Math.round(лист.getBoundingClientRect().height) : 0,
+    запас: лист ? Math.round(лист.getBoundingClientRect().height
+                             - занято - поля) : 0,
+    прокрутка: тело ? тело.scrollHeight > тело.clientHeight + 1 : false,
+    вкладок: [...о.querySelectorAll('[data-ctab]')].filter(вид).length,
+    роли: [...о.querySelectorAll('.apt-role')].filter(вид)
+      .map(e => [e.textContent.trim(),
+                 getComputedStyle(e).textTransform,
+                 /mono/i.test(getComputedStyle(e).fontFamily)]),
+    моно: [...о.querySelectorAll('*')].filter(вид)
+      .filter(e => /mono/i.test(getComputedStyle(e).fontFamily)).length,
+    старых: о.querySelectorAll('.input, .btn, .badge, .field-label').length,
+    людей: о.querySelectorAll('.apt-person').length,
+  };
+}"""
+
+# НАБИВКА, А НЕ ПОДЛОГ: на стенде участников двое, и вопрос «растёт ли
+# окно по содержимому» на двух строках не задать — при любой вёрстке
+# они помещаются. Строки КЛОНИРУЮТСЯ (тот же приём, что у ленты круга
+# в `check_medkit_packs`) и убираются тем же действием: окно рисует
+# сервер, и вернуть его к прежнему виду можно перерисовкой.
+НАБИТЬ_КРУГ = r"""(сколько) => {
+  const список = document.querySelector('.apt-people');
+  if (!список) return 0;
+  const образец = список.querySelector('.apt-person');
+  if (!образец) return 0;
+  while (список.querySelectorAll('.apt-person').length < сколько)
+    список.appendChild(образец.cloneNode(true));
+  return список.querySelectorAll('.apt-person').length;
+}"""
+
 ПАНЕЛЬ_ОЖИДАНИЕ = {
     # имя позиции: (метки записей, пустые разделы)
     "Препарат П1": (["Ваша запись с упаковки", "Ваша запись с вкладыша"], []),
@@ -546,7 +634,7 @@ def прогон(база, подлог=None, ширины=None):
     ch.БАЗА, ch.ПОЧТА, ch.ПАРОЛЬ = база, ПОЧТА, ПАРОЛЬ
     ширины = ширины or ШИРИНЫ
     разбросы, моно, чипы_по_ширинам, панели = [], [], [], []
-    панели_лек = []
+    панели_лек, формы_замер, круг_замер = [], [], []
     ряды_чипов = []
     with sync_playwright() as p:
         бр = p.chromium.launch(headless=False)
@@ -609,6 +697,43 @@ def прогон(база, подлог=None, ширины=None):
                     панели_лек.append((ш, имя, стр.evaluate(ЗАМЕР_ПАНЕЛИ)))
                     стр.keyboard.press("Escape")
                     стр.wait_for_timeout(200)
+
+                # ── БЛОК 3: ОКНО ДОБАВЛЕНИЯ ───────────────────────
+                стр.click("#apt-add")
+                стр.wait_for_timeout(600)
+                формы_замер.append((ш, "до", стр.evaluate(ЗАМЕР_ФОРМЫ)))
+                # ПРЕДУПРЕЖДЕНИЕ О КАТЕГОРИИ — ОТВЕТ НА ПОПЫТКУ
+                # СОХРАНИТЬ. Нажимается НАСТОЯЩАЯ кнопка: форма
+                # отправляется обработчиком `submit`, и вызов функции
+                # проверял бы не тот путь.
+                # ОБЯЗАТЕЛЬНЫЕ ПОЛЯ ЗАПОЛНЯЮТСЯ, иначе до нашего кода
+                # дело не доходит вовсе: `required` у срока
+                # останавливает отправку силами браузера, и замер
+                # показывал бы «предупреждения нет» про форму,
+                # которую никто не пытался сохранить
+                стр.fill("#apt-f-name", "Препарат Б3")
+                стр.fill("#apt-f-exp", "2028-12")
+                стр.click("#apt-save")
+                стр.wait_for_timeout(900)
+                формы_замер.append((ш, "после", стр.evaluate(ЗАМЕР_ФОРМЫ)))
+                стр.keyboard.press("Escape")
+                стр.wait_for_timeout(500)
+
+                # ── БЛОК 3: ОКНО «ОБЩАЯ АПТЕЧКА» ──────────────────
+                if стр.locator("#apt-circle-open").count():
+                    стр.click("#apt-circle-open")
+                    стр.wait_for_timeout(900)
+                    круг_замер.append((ш, 2, стр.evaluate(ЗАМЕР_КРУГА)))
+                    стало = стр.evaluate(НАБИТЬ_КРУГ, 8)
+                    стр.wait_for_timeout(400)
+                    круг_замер.append((ш, стало, стр.evaluate(ЗАМЕР_КРУГА)))
+                    стр.keyboard.press("Escape")
+                    стр.wait_for_timeout(500)
+                    # ВОЗВРАТ: клоны живут в ДЕРЕВЕ, а окно круга
+                    # перечитывается с сервера при каждом открытии
+                    # (задача 260, D) — следующее открытие нарисует
+                    # настоящий список. Стенд при этом не тронут:
+                    # в базу не ушло ни строки.
 
                 if ш == ширины[0]:
                     # ── ПАНЕЛЬ «ЧЕГО НЕ ХВАТАЕТ» ──────────────────
@@ -754,6 +879,72 @@ def прогон(база, подлог=None, ширины=None):
     шаг("кнопка-приёма-без-заливки",
         all(ф.startswith("rgba(0, 0, 0, 0") for ф in фоны),
         ", ".join(sorted(set(фоны))[:3]), собрано=len(фоны))
+    # ── БЛОК 3.1: ОКНО ДОБАВЛЕНИЯ ───────────────────────────────────
+    формы = [(ш, к, о) for ш, к, о in формы_замер if о.get("открыта")]
+    до_нажатия = [(ш, о) for ш, к, о in формы if к == "до"]
+    после = [(ш, о) for ш, к, о in формы if к == "после"]
+    шаг("подписи-формы-обычным-регистром",
+        all(о["прописных"] == 0 and о["подписей"] > 0 for _, о in до_нажатия),
+        "; ".join("%d: прописных %d из %d"
+                  % (ш, о["прописных"], о["подписей"]) for ш, о in до_нажатия),
+        собрано=len(до_нажатия))
+    шаг("заголовки-групп-обычным-регистром",
+        all(all(т == "none" for т in о["заголовки_групп"])
+            for _, о in до_нажатия),
+        "; ".join("%d: %s" % (ш, set(о["заголовки_групп"]))
+                  for ш, о in до_нажатия),
+        собрано=len(до_нажатия))
+    шаг("моноширинных-в-форме-нет",
+        all(о["моно"] == 0 for _, о in до_нажатия),
+        "; ".join("%d: %d" % (ш, о["моно"]) for ш, о in до_нажатия if о["моно"]),
+        собрано=len(до_нажатия))
+    # ОРГАНОВ СТАРОЙ СИСТЕМЫ НЕТ: `.input`, `.btn`, `.field-label`
+    # на экране v2 держат своё оформление и читаются чужими
+    шаг("органов-старой-системы-в-форме-нет",
+        all(о["старых"] == 0 for _, о in до_нажатия),
+        "; ".join("%d: %d" % (ш, о["старых"]) for ш, о in до_нажатия
+                  if о["старых"]),
+        собрано=len(до_нажатия))
+    шаг("«Дополнительно»-свёрнуто",
+        all(о["свёрнут_доп"] for _, о in до_нажатия),
+        "; ".join("%d: %s" % (ш, о["свёрнут_доп"]) for ш, о in до_нажатия),
+        собрано=len(до_нажатия))
+    # ПРЕДУПРЕЖДЕНИЕ О КАТЕГОРИИ — ТОЛЬКО ПОСЛЕ ПОПЫТКИ СОХРАНИТЬ.
+    # Два замера одной формы: до нажатия скрыто, после — на виду
+    шаг("предупреждение-о-категории-при-сохранении",
+        bool(до_нажатия) and bool(после)
+        and all(о["нокат"] is False for _, о in до_нажатия)
+        and all(о["нокат"] for _, о in после),
+        "до: %s; после: %s" % ([о["нокат"] for _, о in до_нажатия],
+                               [о["нокат"] for _, о in после]),
+        собрано=len(до_нажатия) + len(после))
+
+    # ── БЛОК 3.2: ОКНО «ОБЩАЯ АПТЕЧКА» ──────────────────────────────
+    круги = [(ш, n, о) for ш, n, о in круг_замер if о.get("открыто")]
+    шаг("окно-общей-по-содержимому",
+        all(not о["прокрутка"] and о["запас"] <= 24 for _, _, о in круги),
+        "; ".join("%d при %d людях: запас %d px, прокрутка %s"
+                  % (ш, n, о["запас"], о["прокрутка"]) for ш, n, о in круги),
+        собрано=len(круги))
+    шаг("три-вкладки-общей",
+        all(о["вкладок"] == 3 for _, _, о in круги),
+        "; ".join("%d: %d" % (ш, о["вкладок"]) for ш, _, о in круги),
+        собрано=len(круги))
+    роли = [(ш, р) for ш, _, о in круги for р in о["роли"]]
+    шаг("метки-ролей-обычным-регистром",
+        bool(роли) and all(т == "none" and not м for _, (_, т, м) in роли),
+        "; ".join("%d: %s %s моно=%s" % (ш, п, т, м) for ш, (п, т, м) in роли),
+        собрано=len(роли))
+    шаг("моноширинных-в-общей-нет",
+        all(о["моно"] == 0 for _, _, о in круги),
+        "; ".join("%d: %d" % (ш, о["моно"]) for ш, _, о in круги if о["моно"]),
+        собрано=len(круги))
+    шаг("органов-старой-системы-в-общей-нет",
+        all(о["старых"] == 0 for _, _, о in круги),
+        "; ".join("%d: %d" % (ш, о["старых"]) for ш, _, о in круги
+                  if о["старых"]),
+        собрано=len(круги))
+
     # ── БЛОК 2: ПАНЕЛЬ ЛЕКАРСТВА ────────────────────────────────────
     открылись = [(ш, и, о) for ш, и, о in панели_лек if о.get("открыта")]
     шаг("панель-лекарства-открывается-с-карточки",
@@ -839,6 +1030,34 @@ def прогон(база, подлог=None, ширины=None):
 
 
 ПОДЛОГИ = [
+    # ── ПОДЛОГИ БЛОКА 3 ────────────────────────────────────────────
+    ("предупреждение о категории видно сразу",
+     "предупреждение-о-категории-при-сохранении",
+     """addEventListener('DOMContentLoaded', () => {
+        const было = window.аптКатегорииПроверить;
+        window.аптКатегорииПроверить = function () {
+          было();
+          const э = document.getElementById('apt-f-nocat');
+          if (э) э.hidden = !!document.querySelector(
+            '#apt-f-cats [data-cat].active');
+        }; });"""),
+    ("метки ролей снова прописными", "метки-ролей-обычным-регистром",
+     """addEventListener('DOMContentLoaded', () => { const s =
+        document.createElement('style');
+        s.textContent = '.apt-role { text-transform: uppercase }';
+        document.head.appendChild(s); });"""),
+    # ВЫСОТА СТАВИТСЯ ИНЛАЙНОМ, А НЕ ПРАВИЛОМ: `.modal-sh` — флекс,
+    # и высоту телу он считает сам; подложенное правило селектором
+    # проигрывало расчёту раскладки, то есть подлог НЕ СОСТОЯЛСЯ
+    # (замер: высота тела 299.6 px и с ним, и без него).
+    ("окно общей аптечки фиксированной высоты", "окно-общей-по-содержимому",
+     """addEventListener('DOMContentLoaded', () => {
+        const было = window.аптКругОткрыть;
+        window.аптКругОткрыть = async function () {
+          await было();
+          const л = document.querySelector('#apt-circle .modal-sh');
+          if (л) л.style.height = '70vh';
+        }; });"""),
     # ── ПОДЛОГИ БЛОКА 2 (панель лекарства) ─────────────────────────
     # Все три ломают ЗВЕНО ОТРИСОВКИ, а не вид: подмена идёт поверх
     # боевого построителя, и до неё панель рисуется как обычно.

@@ -126,7 +126,7 @@
               onclick="аптВкладка(this)">{{ значок('pill') }}Лекарства</button>
       <button type="button" class="v2-tab apt-tabbtn{{ ' active' if покупки_открыт }}" data-tab="buy"
               onclick="аптВкладка(this)">{{ значок('clipboard-list') }}Купить
-        <span class="apt-buy-n" id="apt-buy-n"
+        <span class="apt-tab-n apt-buy-n" id="apt-buy-n"
               {% if not покупок %}hidden{% endif %}>{{ осталось_купить }}</span></button>
       {% if общая %}
       <button type="button" class="v2-tab apt-tabbtn" data-tab="feed"
@@ -618,13 +618,13 @@
 
       <div class="apt-row apt-row-2">
         <div class="form-group">
-          <label class="field-label" for="apt-f-name">Название *<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
-          <input class="input" id="apt-f-name" maxlength="120" required
+          <label class="v2-label v2-label-plain" for="apt-f-name">Название *<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
+          <input class="v2-input" id="apt-f-name" maxlength="120" required
                  placeholder="Нурофен">
         </div>
         <div class="form-group">
-          <label class="field-label" for="apt-f-sub">Действующее вещество<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
-          <input class="input" id="apt-f-sub" maxlength="200"
+          <label class="v2-label v2-label-plain" for="apt-f-sub">Действующее вещество<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
+          <input class="v2-input" id="apt-f-sub" maxlength="200"
                  placeholder="Ибупрофен, 200 мг">
           {# ── ОТКУДА ВЗЯЛОСЬ ВЕЩЕСТВО (задача 251, блок C) ─────────
              Остаток C3 захода 250: показ из плитки сняли, а в форме
@@ -673,7 +673,7 @@
          просроченного). #}
       <div class="apt-dupe alert alert-accent" id="apt-dupe" hidden>
         <span class="apt-dupe-t" id="apt-dupe-text"></span>
-        <button class="btn btn-secondary btn-sm" type="button"
+        <button class="v2-btn v2-btn-secondary v2-btn-sm" type="button"
                 onclick="аптВтораяУпаковка()">Это вторая упаковка</button>
       </div>
 
@@ -691,18 +691,20 @@
          опасно и незаметно (§5.8). #}
       <div class="apt-dupe apt-arch alert alert-accent" id="apt-arch" hidden>
         <span class="apt-dupe-t" id="apt-arch-text"></span>
-        <button class="btn btn-secondary btn-sm" type="button"
+        <button class="v2-btn v2-btn-secondary v2-btn-sm" type="button"
                 onclick="аптИзАрхива()">Заполнить по ней</button>
       </div>
 
       <div class="apt-row apt-row-2">
         <div class="form-group">
-          <label class="field-label" for="apt-f-form">Форма выпуска *<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
-          <select class="select input" id="apt-f-form" onchange="аптФормаСменилась()">
-            {% for ф in формы %}
-            <option value="{{ ф.id }}">{{ ф.имя }}</option>
-            {% endfor %}
-          </select>
+          <label class="v2-label v2-label-plain" for="apt-f-form">Форма выпуска *<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
+          <span class="v2-select-wrap apt-sel-wrap">
+            <select class="v2-select" id="apt-f-form" onchange="аптФормаСменилась()">
+              {% for ф in формы %}
+              <option value="{{ ф.id }}">{{ ф.имя }}</option>
+              {% endfor %}
+            </select>
+          </span>
           {# ОТКУДА ВЗЯЛАСЬ ФОРМА (BACKLOG №239, B.3) — как у вещества
              выше, и тем же словарём источников. Подпись собирает
              СЕРВЕР: второй словарь имён источников разошёлся бы
@@ -710,13 +712,15 @@
           <p class="apt-src-note" id="apt-f-form-src" hidden></p>
         </div>
         <div class="form-group">
-          <label class="field-label" for="apt-f-place">Где лежит</label>
+          <label class="v2-label v2-label-plain" for="apt-f-place">Где лежит</label>
           <div class="apt-place">
-            <select class="select input" id="apt-f-place">
-              <option value="">не указано</option>
-              {% for м in места %}<option value="{{ м.id }}">{{ м.name }}</option>{% endfor %}
-            </select>
-            <button class="btn-icon btn-icon-outline tap-44" type="button"
+            <span class="v2-select-wrap apt-sel-wrap">
+              <select class="v2-select" id="apt-f-place">
+                <option value="">не указано</option>
+                {% for м in места %}<option value="{{ м.id }}">{{ м.name }}</option>{% endfor %}
+              </select>
+            </span>
+            <button class="v2-btn v2-btn-secondary v2-btn-icon tap-44" type="button"
                     onclick="аптПоказатьНовоеМесто()" aria-label="Добавить место"
                     title="Добавить место">{{ значок('plus') }}</button>
           </div>
@@ -735,12 +739,12 @@
                присматриваться. Слово «например» спутать со значением
                нельзя вовсе, и оно не зависит от внимательности. -->
           <div class="apt-place-new" id="apt-place-new" hidden>
-            <input class="input input-compact" id="apt-place-name" maxlength="60"
+            <input class="v2-input" id="apt-place-name" maxlength="60"
                    placeholder="например, Полка в ванной"
                    aria-label="Новое место хранения">
-            <button class="btn btn-secondary" type="button"
+            <button class="v2-btn v2-btn-secondary" type="button"
                     onclick="аптНовоеМесто()">Завести</button>
-            <button class="btn-icon btn-icon-outline tap-44 apt-place-x"
+            <button class="v2-btn v2-btn-secondary v2-btn-icon tap-44 apt-place-x"
                     type="button" onclick="аптСкрытьНовоеМесто()"
                     aria-label="Не заводить место" title="Отмена">
               {{ значок('x') }}</button>
@@ -809,9 +813,10 @@
          СТОИТ ПОД БЛОКОМ И ПОСЛЕ ОБЁРТКИ (B4): предупреждение
          относится ко всей группе, а не к ряду чипов, и внутри
          обёртки оно ездило бы вместе с раскрытием. #}
-      <p class="data-note apt-nocat" id="apt-f-nocat" hidden>
+      <p class="v2-hint apt-nocat" id="apt-f-nocat" hidden>
         Категория не выбрана — позиция не попадёт ни в один фильтр
-        и в ответы ассистента по категории.</p>
+        и в ответы ассистента по категории. Нажмите «Сохранить» ещё
+        раз, если так и задумано.</p>
     </div>
 
     {# ══ СКОЛЬКО ═════════════════════════════════════════════════ #}
@@ -832,20 +837,20 @@
            всего: чтобы завести начатый блистер, надо было пересчитать
            таблетки — и на этом форму бросают. #}
         <div class="form-group apt-only-exact">
-          <label class="field-label" for="apt-f-left">Осталось<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
-          <div class="apt-num"><input class="input apt-num-in" id="apt-f-left" type="number"
+          <label class="v2-label v2-label-plain" for="apt-f-left">Осталось<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
+          <div class="apt-num"><input class="v2-input apt-num-in" id="apt-f-left" type="number"
                  step="any" min="0" inputmode="decimal">
             <span class="apt-unit" id="apt-u-left"></span></div>
         </div>
         <div class="form-group apt-only-exact">
-          <label class="field-label" for="apt-f-total">Было в упаковке<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
-          <div class="apt-num"><input class="input apt-num-in" id="apt-f-total" type="number"
+          <label class="v2-label v2-label-plain" for="apt-f-total">Было в упаковке<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
+          <div class="apt-num"><input class="v2-input apt-num-in" id="apt-f-total" type="number"
                  step="any" min="0" inputmode="decimal">
             <span class="apt-unit" id="apt-u-total"></span></div>
         </div>
         <div class="form-group apt-only-exact">
-          <label class="field-label" for="apt-f-dose">Разовая доза</label>
-          <div class="apt-num"><input class="input apt-num-in" id="apt-f-dose" type="number"
+          <label class="v2-label v2-label-plain" for="apt-f-dose">Разовая доза</label>
+          <div class="apt-num"><input class="v2-input apt-num-in" id="apt-f-dose" type="number"
                  step="any" min="0" value="1" inputmode="decimal">
             <span class="apt-unit" id="apt-u-dose"></span></div>
         </div>
@@ -855,10 +860,16 @@
          которое пользователь введёт сам: в тюбике нет делений #}
       <div class="apt-row apt-row-1">
         <div class="form-group apt-only-scale" hidden>
-          <label class="field-label">Сколько осталось *</label>
-          <div class="segmented" id="apt-f-scale" role="group">
+          <label class="v2-label v2-label-plain">Сколько осталось *</label>
+          {# СЕГМЕНТЫ v2 С ЦВЕТОМ ИНСТРУМЕНТА (№352, «аптечка-2», 3.1).
+             `.v2-seg-tool` — тот же компонент, что на вкладках
+             дневника: выбранный сегмент подложкой цвета инструмента,
+             а не заливкой акцентом. Прежний `.segmented` — компонент
+             СТАРОЙ системы, и на экране v2 он единственный держал
+             своё оформление. #}
+          <div class="v2-seg v2-seg-tool" id="apt-f-scale" role="group">
             {% for ш in шкала %}
-            <button type="button" class="segmented-btn{{ ' active' if loop.first }}"
+            <button type="button" class="v2-seg-btn{{ ' is-active' if loop.first }}"
                     data-scale="{{ ш.id }}">{{ ш.имя }}</button>
             {% endfor %}
           </div>
@@ -880,8 +891,10 @@
            с одной допустимой единицей его не спрашивает: выбор
            из одного варианта — не выбор, а лишний орган на экране #}
         <div class="form-group" id="apt-f-unit-box" hidden>
-          <label class="field-label" for="apt-f-unit">Считать в</label>
-          <select class="select input" id="apt-f-unit"></select>
+          <label class="v2-label v2-label-plain" for="apt-f-unit">Считать в</label>
+          <span class="v2-select-wrap apt-sel-wrap">
+            <select class="v2-select" id="apt-f-unit"></select>
+          </span>
           {# ПОДСКАЗКА ОБЪЁМА ЛОЖКИ (задача 255, блок B). Список выбора
              называет объём у КАЖДОЙ ложки в своей строке («чайные
              ложки (5 мл)»), а строка ниже держит ОБЕ величины сразу —
@@ -910,8 +923,8 @@
 
       <div class="apt-row apt-row-3">
         <div class="form-group">
-          <label class="field-label" for="apt-f-exp">Годен до *<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
-          <input class="input apt-date" id="apt-f-exp" type="month" required>
+          <label class="v2-label v2-label-plain" for="apt-f-exp">Годен до *<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
+          <input class="v2-input apt-date" id="apt-f-exp" type="month" required>
         </div>
         <!-- ВСКРЫТИЕ ПОКАЗЫВАЕТСЯ У ВСЕХ ФОРМ. Здесь стояло обратное —
              «только у форм, которые от него портятся», — и владелец
@@ -923,16 +936,16 @@
              никто, кроме человека: ни форма, ни ассистент, ни кнопка
              приёма (постановка A.2) -->
         <div class="form-group" id="apt-f-open-box">
-          <label class="field-label" for="apt-f-open">Вскрыто</label>
-          <input class="input apt-date" id="apt-f-open" type="date">
+          <label class="v2-label v2-label-plain" for="apt-f-open">Вскрыто</label>
+          <input class="v2-input apt-date" id="apt-f-open" type="date">
         </div>
         <div class="form-group" id="apt-f-days-box">
-          <label class="field-label" for="apt-f-days">Годен после вскрытия</label>
+          <label class="v2-label v2-label-plain" for="apt-f-days">Годен после вскрытия</label>
           {# ЧИСЛО С ЕДИНИЦЕЙ ВНУТРИ ПОЛЯ, А НЕ В ПОДПИСИ. Подпись
              «Годен после вскрытия, дней» на трёхколоночной сетке
              занимала две строки и поднимала соседей; единица стоит
              там же, где у остальных чисел формы. #}
-          <div class="apt-num"><input class="input apt-num-in apt-num-wide"
+          <div class="apt-num"><input class="v2-input apt-num-in apt-num-wide"
                  id="apt-f-days"
                  type="number" min="1" max="3650" inputmode="numeric">
             <span class="apt-unit">дней</span></div>
@@ -976,7 +989,7 @@
       <div class="apt-exp-confirm" id="apt-exp-confirm">
         <span>Дату подставил ассистент. Сверьте её с упаковкой —
           без подтверждения карточка не сохранится.</span>
-        <button class="btn btn-secondary btn-sm" type="button"
+        <button class="v2-btn v2-btn-secondary v2-btn-sm" type="button"
                 onclick="аптПодтвердитьСрок()">Совпадает</button>
       </div>
     </div>
@@ -1009,7 +1022,7 @@
 
       <div class="apt-row apt-row-2">
         <div class="form-group">
-          <label class="field-label" for="apt-f-code">Штрих-код упаковки<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
+          <label class="v2-label v2-label-plain" for="apt-f-code">Штрих-код упаковки<span class="apt-ai-mark">{{ значок('sparkles') }}заполнил ассистент</span></label>
           {# СКАНЕР СТОИТ ЗДЕСЬ (BACKLOG №190, D.1).
 
              Прежде он жил в панели ассистента и предлагался как способ
@@ -1023,10 +1036,10 @@
              и сканер избавляет от ручного набора четырнадцати цифр. #}
           <div class="apt-code-row">
             <div class="input-wrap">
-              <input class="input" id="apt-f-code" inputmode="numeric"
+              <input class="v2-input" id="apt-f-code" inputmode="numeric"
                      maxlength="14" placeholder="04601234567890">
             </div>
-            <button class="btn-icon btn-icon-solid btn-icon-outline tap-44"
+            <button class="v2-btn v2-btn-secondary v2-btn-icon tap-44"
                     type="button" onclick="аптСканОткрыть('поле')"
                     id="apt-scan-field"
                     aria-label="Считать код с упаковки камерой"
@@ -1050,8 +1063,8 @@
            оно лежит внутри свёрнутого «Дополнительно», и второй слой
            сворачивания означал бы два нажатия до одного поля. #}
         <div class="form-group">
-          <label class="field-label" for="apt-f-url">Своя ссылка на инструкцию</label>
-          <input class="input" id="apt-f-url" type="url" maxlength="500"
+          <label class="v2-label v2-label-plain" for="apt-f-url">Своя ссылка на инструкцию</label>
+          <input class="v2-input" id="apt-f-url" type="url" maxlength="500"
                  placeholder="https://…">
         </div>
       </div>
@@ -1068,11 +1081,11 @@
            ПРЕВЬЮ КРУПНОЕ (задача 251, B11): 96×54 не давало разглядеть,
            та ли это пачка, — а именно за этим на него и смотрят. #}
         <div class="form-group">
-          <label class="field-label">Фото упаковки</label>
+          <label class="v2-label v2-label-plain">Фото упаковки</label>
           <div class="apt-photo-row">
             <div class="apt-photo-prev" id="apt-f-prev" hidden>
               <img id="apt-f-prev-img" alt="Фото упаковки">
-              <button class="btn-icon btn-icon-sm btn-icon-danger btn-icon-overlay tap-44"
+              <button class="v2-btn v2-btn-danger v2-btn-icon v2-btn-sm apt-ph-del tap-44"
                       type="button" onclick="аптУбратьФото()"
                       aria-label="Убрать фото">{{ значок('trash-2') }}</button>
             </div>
@@ -1094,7 +1107,7 @@
               <input type="file" id="apt-f-photo-cam" accept="image/*"
                      capture="environment" hidden
                      onchange="аптВыбралиФото(this)">
-              <button class="btn btn-secondary btn-sm tap-44" type="button"
+              <button class="v2-btn v2-btn-secondary v2-btn-sm tap-44" type="button"
                       onclick="toggleAttachMenu(this)">
                 {{ значок('camera') }}
                 <span id="apt-photo-name">Выбрать фото</span>
@@ -1112,7 +1125,7 @@
         </div>
 
         <div class="form-group">
-          <label class="field-label">Рецептурный</label>
+          <label class="v2-label v2-label-plain">Рецептурный</label>
           <label class="apt-switch">
             <span class="toggle"><input type="checkbox" id="apt-f-rx">
               <span class="track"></span></span>
@@ -1123,8 +1136,8 @@
 
       <div class="apt-row apt-row-1">
         <div class="form-group">
-          <label class="field-label" for="apt-f-note">Заметка</label>
-          <textarea class="textarea textarea-compact" id="apt-f-note" rows="3"
+          <label class="v2-label v2-label-plain" for="apt-f-note">Заметка</label>
+          <textarea class="v2-textarea" id="apt-f-note" rows="3"
                     maxlength="2000" placeholder="Что сказал врач, где купили…"></textarea>
         </div>
       </div>
@@ -1139,7 +1152,7 @@
          которого нечего сделать, неотличим от поломки) -->
     <div class="alert alert-error apt-err" id="apt-form-err" hidden>
       <span id="apt-form-err-t"></span>
-      <button class="btn btn-secondary apt-err-retry" type="button"
+      <button class="v2-btn v2-btn-secondary apt-err-retry" type="button"
               id="apt-form-err-retry" hidden
               onclick="аптПовторитьФото()">Повторить загрузку</button>
     </div>
@@ -1149,7 +1162,7 @@
          Показывается ТОЛЬКО когда форма открыта ИЗ окна упаковок:
          кнопка «вернуться» там, откуда не приходили, вела бы в окно,
          которого человек не открывал. #}
-      <button class="btn btn-ghost" type="button" id="apt-back-packs"
+      <button class="v2-btn v2-btn-ghost" type="button" id="apt-back-packs"
               hidden onclick="аптНазадКУпаковкам()">
         {{ значок('arrow-left') }} К упаковкам</button>
 
@@ -1173,7 +1186,7 @@
          занимал всегда; системный `.hint` (§2.19) открывается
          и наведением, и нажатием — на телефоне первого нет. #}
       <span class="apt-more-pack" id="apt-more-pack" hidden>
-        <button class="btn btn-secondary" type="button"
+        <button class="v2-btn v2-btn-secondary" type="button"
                 id="apt-more-pack-btn" onclick="аптЕщёУпаковка()">
           {{ значок('layers') }} Ещё упаковка</button>
         <span class="hint apt-more-hint">
@@ -1207,9 +1220,9 @@
          Вопрос и выбор «в покупки» те же — окно `apt-del`
          не тронуто ни строкой, и сверка 53 видит кнопку переехавшей,
          а не пропавшей. #}
-      <button class="btn btn-secondary apt-foot-right" type="button"
+      <button class="v2-btn v2-btn-secondary apt-foot-right" type="button"
               data-modal-close>Отмена</button>
-      <button class="btn btn-primary" type="submit" id="apt-save">Сохранить</button>
+      <button class="v2-btn v2-btn-primary" type="submit" id="apt-save">Сохранить</button>
     </div>
   </form>
 {% endcall %}
@@ -1980,8 +1993,8 @@ document.getElementById('apt-f-unit').addEventListener('change', () =>
 document.getElementById('apt-f-scale').addEventListener('click', e => {
   const б = e.target.closest('[data-scale]');
   if (!б) return;
-  document.querySelectorAll('#apt-f-scale .segmented-btn')
-    .forEach(x => x.classList.toggle('active', x === б));
+  document.querySelectorAll('#apt-f-scale .v2-seg-btn')
+    .forEach(x => x.classList.toggle('is-active', x === б));
 });
 
 /* ── ЕСТЬ ЛИ УЖЕ ТАКОЙ ПРЕПАРАТ (D.4) ────────────────────────────
@@ -2140,8 +2153,22 @@ function аптВтораяУпаковка() {
    иначе строка осталась бы висеть там, где категорию уже выбрали,
    и врала бы ровно так же, как её отсутствие. */
 function аптКатегорииПроверить() {
+  /* ПРЕДУПРЕЖДЕНИЕ ПОЯВЛЯЕТСЯ ПРИ ПОПЫТКЕ СОХРАНИТЬ, А НЕ СРАЗУ
+     (№352, «аптечка-2», блок 3.1).
+
+     Здесь оно стояло с открытия формы: человек заводит карточку,
+     ещё не дошёл до категорий — а форма уже говорит, что он что-то
+     сделал не так. Предупреждение, которое видно ДО действия,
+     читается как ошибка ввода и перестаёт читаться вовсе.
+
+     Следствие названо честно: до первого нажатия «Сохранить»
+     человек о последствии не узнает. Оно и не нужно раньше —
+     категория не обязательна, и сказать о ней надо ровно в тот
+     момент, когда карточка уходит в базу без неё. */
   const э = document.getElementById('apt-f-nocat');
-  if (э) э.hidden = !!document.querySelector('#apt-f-cats [data-cat].active');
+  const есть = !!document.querySelector('#apt-f-cats [data-cat].active');
+  if (есть) АПТ.катСпросили = false;
+  if (э) э.hidden = есть || !АПТ.катСпросили;
   аптКатегорииПодпись();
 }
 
@@ -2479,6 +2506,10 @@ function аптНазадКУпаковкам() {
 }
 
 function аптОткрытьФорму(поз, режим, изУпаковок) {
+  /* ПРИЗНАК СБРАСЫВАЕТСЯ НА КАЖДОЕ ОТКРЫТИЕ: предупреждение про
+     категорию — ответ на попытку сохранить ЭТУ карточку, а не память
+     о прошлой (блок 3.1). */
+  АПТ.катСпросили = false;
   /* РЕЖИМ «ОБЩЕЕ» — правка группы с карточки (задача 211, D.3).
      У группы количества, срок и вскрытие не свои: это СУММА и данные
      РАЗНЫХ упаковок. Показывать их правимыми значило бы обещать
@@ -2544,8 +2575,8 @@ function аптОткрытьФорму(поз, режим, изУпаковок
   const прев = document.getElementById('apt-f-prev');
   прев.hidden = !(поз && поз.photo);
   if (поз && поз.photo) document.getElementById('apt-f-prev-img').src = поз.photo;
-  document.querySelectorAll('#apt-f-scale .segmented-btn').forEach((б, i) =>
-    б.classList.toggle('active', поз ? б.dataset.scale === поз.scale : i === 0));
+  document.querySelectorAll('#apt-f-scale .v2-seg-btn').forEach((б, i) =>
+    б.classList.toggle('is-active', поз ? б.dataset.scale === поз.scale : i === 0));
   const свои = (поз && поз['категории']) || [];
   document.querySelectorAll('#apt-f-cats [data-cat]').forEach(ч =>
     ч.classList.toggle('active', свои.includes(+ч.dataset.cat)));
@@ -2723,12 +2754,37 @@ async function аптПовторитьФото() {
 
 async function аптСохранить(событие) {
   событие.preventDefault();
+  /* ПЕРВОЕ НАЖАТИЕ БЕЗ КАТЕГОРИИ ПОКАЗЫВАЕТ ПОСЛЕДСТВИЕ И ЖДЁТ
+     ВТОРОГО (№352, «аптечка-2», блок 3.1).
+
+     Предупреждение стояло с открытия формы: человек заводит карточку,
+     ещё не дошёл до категорий — а форма уже говорит, что он что-то
+     сделал не так. Предупреждение, которое видно ДО действия,
+     читается как ошибка ввода и перестаёт читаться вовсе.
+
+     ПОКАЗАТЬ И ТУТ ЖЕ СОХРАНИТЬ — НЕ РЕШЕНИЕ: форма закрывается,
+     и строку никто не прочитает. Поэтому первое нажатие показывает
+     последствие и останавливается, второе — сохраняет.
+
+     ЭТО НЕ ЗАПРЕТ: категория не обязательна (подходящей может
+     не быть), и второе нажатие проходит без единого условия.
+     Цена названа — на одно нажатие больше у того, кто категорию
+     не ставит сознательно. */
+  if (!АПТ.катСпросили
+      && !document.querySelector('#apt-f-cats [data-cat].active')) {
+    АПТ.катСпросили = true;
+    аптКатегорииПроверить();
+    const блок = document.getElementById('apt-cats-fold');
+    if (блок) блок.scrollIntoView({block: 'center', behavior: 'smooth'});
+    return false;
+  }
+  АПТ.катСпросили = true;
   const кнопка = document.getElementById('apt-save');
   кнопка.disabled = true;
   try {
     const ф = аптФорма();
     const шкала = ф && ф['счёт'] === 'шкала';
-    const выбрана = document.querySelector('#apt-f-scale .segmented-btn.active');
+    const выбрана = document.querySelector('#apt-f-scale .v2-seg-btn.is-active');
     const тело = {
       name: аптЗнач('apt-f-name'),
       substance: аптЗнач('apt-f-sub'),
@@ -3817,7 +3873,7 @@ function аптАИОтвет(тело) {
         сх.className = 'apt-ai-item-ind apt-ai-item-scheme';
         const м = document.createElement('span');
         м.className = 'apt-ai-item-ind-tag';
-        м.textContent = (п['схема_откуда'] || 'Схема приёма') + ': ';
+        м.textContent = (п['схема_откуда'] || 'Как принимать') + ': ';
         сх.appendChild(м);
         сх.appendChild(document.createTextNode(п['схема']));
         стр.appendChild(сх);
@@ -6109,7 +6165,7 @@ function аптПоказанияФормаСвоей(п) {
   const тело = document.getElementById('apt-drug-body');
   тело.innerHTML = '';
   const подпись = document.createElement('label');
-  подпись.className = 'field-label';
+  подпись.className = 'v2-label v2-label-plain';
   подпись.setAttribute('for', 'apt-ownind-in');
   подпись.textContent = 'Показания к применению — с вкладыша';
   тело.appendChild(подпись);
@@ -6343,9 +6399,9 @@ function аптДозыФормаСвоей(п) {
   тело.innerHTML = '';
 
   const подпись = document.createElement('label');
-  подпись.className = 'field-label';
+  подпись.className = 'v2-label v2-label-plain';
   подпись.setAttribute('for', 'apt-own-in');
-  подпись.textContent = 'Схема с упаковки';
+  подпись.textContent = 'Как принимать — с упаковки';
   тело.appendChild(подпись);
 
   const поле = document.createElement('textarea');

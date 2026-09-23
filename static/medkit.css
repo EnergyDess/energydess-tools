@@ -1334,7 +1334,7 @@
 .apt-drug-id { flex: 1; min-width: 0; }
 .apt-drug-name { font-size: var(--v2-fs-md); }
 .apt-drug-sub {
-  margin: 2px 0 0;
+  margin: var(--v2-sp-1) 0 0;
   font-size: var(--v2-fs-xs);
   color: var(--v2-text-2);
 }
@@ -1485,6 +1485,28 @@
   .apt-drug-acts { flex-wrap: wrap; }
   .apt-drug-acts #apt-drug-take { flex: 1 0 100%; }
 }
+/* ОБЁРТКА СПИСКА ТЯНЕТСЯ НА ВСЮ КОЛОНКУ. Системный
+   `.v2-select-wrap` — `inline-flex` по содержимому: в ряду формы
+   это давало список по ширине самого длинного пункта, а не колонки.
+   Субъект — СВОЙ класс на том же узле (§6.0.2). */
+/* РОЛЬ УЧАСТНИКА ОБЫЧНЫМ РЕГИСТРОМ (№352, «аптечка-2», блок 3.2).
+   Здесь стоял системный `.badge` СТАРОЙ системы: моноширинный,
+   прописными, с разрядкой — рядом с именем человека он читался
+   как ярлык системы, а не как его роль в круге. */
+.apt-role {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--v2-sp-1) var(--v2-sp-2);
+  border-radius: var(--v2-r-pill);
+  font-size: var(--v2-fs-xs);
+  font-weight: var(--v2-fw-strong);
+  white-space: nowrap;
+}
+.apt-role-own { background: var(--v2-tool-dim); color: var(--v2-tool); }
+.apt-role-guest { background: var(--v2-surface-2); color: var(--v2-text-2); }
+
+.apt-sel-wrap { display: flex; width: 100%; }
+.apt-sel-wrap > .v2-select { width: 100%; }
 .apt-own-in { width: 100%; }
 
 .apt-dose-hit {
@@ -1636,16 +1658,22 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
    под собой и воздухом над. */
 .apt-fs { display: flex; flex-direction: column; gap: var(--space-3); }
 .apt-fs + .apt-fs { margin-top: var(--space-5); }
+/* ЗАГОЛОВОК ГРУППЫ ОБЫЧНЫМ ШРИФТОМ И РЕГИСТРОМ (№352, «аптечка-2»,
+   блок 3.1). Здесь стояли `--font-mono`, `uppercase` и разрядка —
+   то же начертание, что у подписей полей под ними. Четыре заголовка
+   и двадцать подписей одним видом: структура группы держалась
+   ЛИНИЕЙ и воздухом, а начертание её не поддерживало вовсе.
+
+   Кегль поднят на ступень относительно подписи поля — заголовок
+   обязан быть заметнее того, что он возглавляет, и теперь это видно
+   размером, а не регистром. */
 .apt-fs-t {
   margin: 0;
-  padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border-strong);
-  font-family: var(--font-mono);
-  font-size: var(--text-caption);
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-2);
+  padding-bottom: var(--v2-sp-2);
+  border-bottom: 1px solid var(--v2-line-3);
+  font-size: var(--v2-fs-sm);
+  font-weight: var(--v2-fw-strong);
+  color: var(--v2-text-strong);
 }
 
 /* ── СВЁРНУТОЕ «ДОПОЛНИТЕЛЬНО» (задача 251, B10) ──────────────────
@@ -1691,10 +1719,18 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 /* СЧЁТЧИК — ЕДИНСТВЕННЫЙ СПОСОБ ОТЛИЧИТЬ ПУСТОЕ ОТ ЗАПОЛНЕННОГО
    у свёрнутого блока. Без него человек, правящий карточку со снимком
    и заметкой, не узнал бы о них, не раскрыв его */
+/* СЧЁТЧИК ВКЛАДКИ — ОДИН НА ТРИ МЕСТА: вкладки раздела, вкладки
+   окна «Общая аптечка» и свёрнутое «Дополнительно» в форме. Прежде
+   первые два носили системный `.chip-n` СТАРОЙ системы — моноширинный,
+   и на экране v2 числа выбивались начертанием (№352, «аптечка-2»). */
+.apt-tab-n {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--v2-fw-strong);
+  color: var(--v2-text-faint);
+}
 .apt-extra-n {
-  font-family: var(--font-mono);
-  font-size: var(--text-caption);
-  color: var(--text-faint);
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-text-faint);
   letter-spacing: 0;
   text-transform: none;
   flex: 0 0 auto;
@@ -3415,18 +3451,13 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
    уже одной ширины (разброс 0.0 на всех трёх ширинах), а лишние
    6 px минимума ровно и переполняли строку на 390. Разъезжались
    их ПРАВЫЕ КРАЯ — 1604.6 против 1599.4, — и толкала их кнопка. */
-.apt-person > .btn { min-width: 4.75rem; }
+.apt-person > .v2-btn { min-width: 4.75rem; }
 @media (max-width: 560px) {
   .apt-person { flex-wrap: wrap; }
   .apt-person-acts { width: 100%; }
 }
 /* Бейдж владельца круга. СВОЙ класс поверх системного `.badge`,
    а не переопределение `.badge`: акцент тут раздельный (§6.0.2) */
-.apt-badge-own {
-  background: var(--tool-accent-dim);
-  color: var(--tool-accent);
-  border: 1px solid var(--tool-accent);
-}
 
 /* ── ЛЕНТА ИЗМЕНЕНИЙ ────────────────────────────────────────────── */
 /* МЕСТО ПОД ПОЛОСУ ПРОКРУТКИ — ЗАДАЧА 215, G.1.

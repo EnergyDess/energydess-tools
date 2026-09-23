@@ -58,17 +58,17 @@
     <button class="tab-btn active" type="button" role="tab"
             aria-selected="true" data-ctab="people">
       {{ значок('users') }} Участники{% if общая %}
-      <span class="chip-n">{{ участники | length }}</span>{% endif %}
+      <span class="apt-tab-n">{{ участники | length }}</span>{% endif %}
     </button>
     <button class="tab-btn" type="button" role="tab" aria-selected="false"
             data-ctab="invites">
       {{ значок('mail') }} Приглашения{% set всего_пр = (отправленные | length) + (полученные | length) %}{% if всего_пр %}
-      <span class="chip-n">{{ всего_пр }}</span>{% endif %}
+      <span class="apt-tab-n">{{ всего_пр }}</span>{% endif %}
     </button>
     <button class="tab-btn" type="button" role="tab" aria-selected="false"
             data-ctab="block">
       {{ значок('lock') }} Блок{% if блок %}
-      <span class="chip-n">{{ блок | length }}</span>{% endif %}
+      <span class="apt-tab-n">{{ блок | length }}</span>{% endif %}
     </button>
   </div>
   </div>
@@ -103,11 +103,11 @@
     {% macro поле_приглашения() %}
     <form class="apt-circle-invite" onsubmit="return аптКругПозвать(event)">
       <div class="input-wrap">
-        <input class="input" id="apt-circle-who" maxlength="200"
+        <input class="v2-input" id="apt-circle-who" maxlength="200"
                placeholder="Почта или имя на сайте" autocomplete="off"
                aria-label="Кого позвать в общую аптечку">
       </div>
-      <button class="btn btn-primary" type="submit">
+      <button class="v2-btn v2-btn-primary" type="submit">
         {{ значок('user-plus') }} Пригласить</button>
     </form>
     {% endmacro %}
@@ -136,17 +136,17 @@
             пока он в участниках.</span>
           {% endif %}
         </span>
-        <span class="badge {{ 'apt-badge-own' if ч.владелец_круга else 'badge-muted' }}">
+        <span class="apt-role {{ 'apt-role-own' if ч.владелец_круга else 'apt-role-guest' }}">
           {{ 'владелец' if ч.владелец_круга else 'участник' }}</span>
         {# УБРАТЬ УЧАСТНИКА МОЖЕТ ТОЛЬКО ВЛАДЕЛЕЦ КРУГА, ВЫЙТИ — САМ
            УЧАСТНИК (A.5). Обе кнопки ведут в ОДНО окно с числами:
            расход считается одним правилом, и второе место, где решают,
            чьи позиции уходят, разошлось бы с первым молча. #}
         {% if ч.свой %}
-        <button class="btn btn-secondary btn-sm" type="button"
+        <button class="v2-btn v2-btn-secondary v2-btn-sm" type="button"
                 onclick="аптКругВыход({{ ч.id }})">Выйти</button>
         {% elif я_владелец %}
-        <button class="btn btn-danger btn-sm" type="button"
+        <button class="v2-btn v2-btn-danger v2-btn-sm" type="button"
                 onclick="аптКругВыход({{ ч.id }})">Убрать</button>
         {% endif %}
       </li>
@@ -174,7 +174,7 @@
   {# ── ПРИГЛАШЕНИЯ ───────────────────────────────────────────────── #}
   <div class="apt-circle-pane is-off" data-cpane="invites">
     {% if полученные %}
-    <p class="field-label">Вам прислали</p>
+    <p class="v2-label v2-label-plain">Вам прислали</p>
     <ul class="apt-people">
       {% for пр in полученные %}
       <li class="apt-person">
@@ -191,14 +191,14 @@
           {% endif %}
         </span>
         <span class="apt-person-acts">
-          <button class="btn btn-primary btn-sm" type="button"
+          <button class="v2-btn v2-btn-primary v2-btn-sm" type="button"
                   onclick="аптКругПринять({{ пр.id }})">Принять</button>
-          <button class="btn btn-secondary btn-sm" type="button"
+          <button class="v2-btn v2-btn-secondary v2-btn-sm" type="button"
                   onclick="аптКругСнять({{ пр.id }})">Отклонить</button>
           {# ЗАБЛОКИРОВАТЬ МОЖНО ПРЯМО ОТСЮДА (B.3) — иначе смысла
              в блокировке нет: спам уже пришёл, и «заблокировать»
              означало бы «убрать с глаз то, что уже показали» #}
-          <button class="btn btn-danger btn-sm" type="button"
+          <button class="v2-btn v2-btn-danger v2-btn-sm" type="button"
                   onclick="аптКругБлок({{ пр.id }})">Заблокировать</button>
         </span>
       </li>
@@ -207,7 +207,7 @@
     {% endif %}
 
     {% if отправленные %}
-    <p class="field-label">Вы отправили</p>
+    <p class="v2-label v2-label-plain">Вы отправили</p>
     <ul class="apt-people">
       {% for пр in отправленные %}
       <li class="apt-person">
@@ -224,7 +224,7 @@
             не увидит приглашения. Его откроет администратор сайта.</span>
           {% endif %}
         </span>
-        <button class="btn btn-secondary btn-sm" type="button"
+        <button class="v2-btn v2-btn-secondary v2-btn-sm" type="button"
                 onclick="аптКругСнять({{ пр.id }})">Отозвать</button>
       </li>
       {% endfor %}
@@ -251,7 +251,7 @@
           <span class="apt-person-n">{{ б.имя }}</span>
           <span class="apt-person-m">заблокирован {{ б.когда }}</span>
         </span>
-        <button class="btn btn-secondary btn-sm" type="button"
+        <button class="v2-btn v2-btn-secondary v2-btn-sm" type="button"
                 onclick="аптКругРазблок({{ б.id }})">Разблокировать</button>
       </li>
       {% endfor %}
