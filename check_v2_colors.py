@@ -258,6 +258,10 @@ def печать(итог, подробно=False):
      "document.getElementById('apt-circle-open').click()"),
     ("/medkit", "аптечка · ассистент",
      "document.getElementById('apt-ai-open').click()"),
+    # ПАНЕЛЬ ЛЕКАРСТВА (№352, «аптечка-2», блок 2). Открывается
+    # БОЕВЫМ путём — нажатием кнопки «Инструкция» на карточке.
+    ("/medkit", "аптечка · лекарство",
+     "document.querySelector('[data-doses]').click()"),
 ]
 
 

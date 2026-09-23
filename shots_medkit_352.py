@@ -86,6 +86,23 @@ def главная():
                     стр.keyboard.press("Escape")
                     стр.wait_for_timeout(500)
 
+                # ПАНЕЛЬ ЛЕКАРСТВА (№352, «аптечка-2», блок 2).
+                # Кадров ДВА, и одного мало: у позиции с обеими записями
+                # видны порядок разделов и метки, у позиции без записей —
+                # пустое состояние с двумя ходами. На одной карточке
+                # ни того ни другого не снять.
+                for сел, имя in ((".apt-card [data-doses]", "лекарство"),
+                                 (".apt-card:has(.apt-gap) [data-doses]",
+                                  "лекарство-пусто")):
+                    орган = стр.locator(сел).first
+                    if not орган.count():
+                        continue
+                    орган.click()
+                    стр.wait_for_timeout(700)
+                    кадр(имя)
+                    стр.keyboard.press("Escape")
+                    стр.wait_for_timeout(400)
+
                 # СПИСОК ПОКУПОК: вкладка после редизайна, свёрнутый блок до
                 if стр.locator(".apt-tabbtn[data-tab=buy]").count():
                     стр.click(".apt-tabbtn[data-tab=buy]")
