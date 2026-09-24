@@ -68,8 +68,18 @@ jobs:
             'BASE_URL=http://127.0.0.1:8899' \
             'DB_PATH=./app.db' > .env
 
+      # ПОСЕВ ОТДЕЛЬНЫМ ШАГОМ: `start_checks` сеет молча (вывод глушится),
+      # и ошибка посева выглядела бы как «стенд не поднялся».
+      - name: posev stenda
+        run: python make_local_user.py --seed
+
       - name: ryad proverok
         run: python start_checks.py --ci
+
+      # Стенд не поднялся — его журнал единственное, что об этом скажет.
+      - name: log stenda
+        if: failure()
+        run: tail -40 .start_checks_stand.log || echo "журнала стенда нет"
 
       # ЖИВЫХ ВЫЗОВОВ НОЛЬ, И ЭТО ЗАМЕР, А НЕ ОБЕЩАНИЕ. Признаков два:
       # ключа нет вовсе, и в учёте расхода (§2.7) ни одной строки с ценой
@@ -99,6 +109,9 @@ jobs:
         if: always()
         with:
           name: checks-log
+          # отметки начинаются с точки, а v4 скрытые файлы по умолчанию
+          # НЕ БЕРЁТ — артефакт выходил пустым
+          include-hidden-files: true
           path: |
             .start_checks_last.txt
             .start_checks.json
