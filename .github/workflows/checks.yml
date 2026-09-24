@@ -29,10 +29,26 @@ concurrency:
   group: checks-${{ github.ref }}
   cancel-in-progress: true
 
+# ДВЕ РАБОТЫ, А НЕ ОДНА. Основной ряд §6.0.2 читается без браузера,
+# ряд стенда водит chromium: порознь их времена не складываются, а берут
+# максимум, и медленный стенд не упирается в потолок работы.
 jobs:
   checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [row, stand]
+    name: checks (${{ matrix.part }})
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 40
+    env:
+      CHECKS_PART: ${{ matrix.part }}
+      # ПОТОЛОК ПРОВЕРКИ В CI НИЖЕ МЕСТНОГО (2400 с). Одна висящая проба
+      # съедала бы всю работу и роняла её по времени без единого имени;
+      # оборванная по потолку в CI считается КРАСНОЙ, а не «не прогнанной».
+      START_CHECKS_TIMEOUT: '600'
+      STAND_TIMEOUT: '600'
+      ROW_TIMEOUT: '600'
     steps:
       - uses: actions/checkout@v5
         with:
@@ -47,6 +63,15 @@ jobs:
           cache-dependency-path: requirements-dev.txt
 
       - run: pip install -r requirements-dev.txt
+
+      # `py` — ЧАСТЬ КОМАНД РЯДА. Грепы §6.0.2 зовут `py project_lists.py
+      # --names` внутри bash, и на Linux этой команды нет вовсе: ряд 1
+      # молча считал НЕ ТО (в CI «5 строк, долг 2» против «36, долг 0»
+      # на машине). Документ при этом прав — на Windows `python`
+      # перехватывает заглушка Store (§6.0.1), — значит площадка обязана
+      # дать `py`, а не документ поменять команду.
+      - name: py kak python
+        run: sudo ln -sf "$(command -v python)" /usr/local/bin/py
 
       # Кеш браузеров playwright: скачивание chromium — минута с лишним,
       # а меняется он только с версией пакета.
@@ -111,7 +136,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: checks-log
+          name: checks-log-${{ matrix.part }}
           # отметки начинаются с точки, а v4 скрытые файлы по умолчанию
           # НЕ БЕРЁТ — артефакт выходил пустым
           include-hidden-files: true
