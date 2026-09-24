@@ -1,17 +1,45 @@
+# ВЫКАТКА ИДЁТ ТОЛЬКО НА ЗЕЛЁНОМ ПРОГОНЕ ЭТОГО КОММИТА (BACKLOG №357).
+#
+# Прежде выкатка начиналась от `push` в `main` и о проверках не знала
+# ничего: замок стоял ТОЛЬКО на коммите (хук `start_checks --hook`),
+# то есть между отметкой и выкаткой ничего не проверялось.
+#
+# Теперь она зовётся ПО ЗАВЕРШЕНИИ `checks.yml` и первым шагом
+# спрашивает `deploy_gate.py`: у ЭТОГО коммита обязан быть завершённый
+# прогон, зелёный ВО ВСЕХ работах. Условия `if` у работы для этого мало —
+# оно не действует на ручном запуске, а скрипт спрашивает одинаково
+# на обоих путях и проверяется местным подлогом без выкатки на прод.
 name: Deploy
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: [Checks]
+    types: [completed]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # `main` и успех — быстрый отсев; настоящий замок ниже шагом
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.conclusion == 'success')
     steps:
       - uses: actions/checkout@v5
         with:
           # вся история: число коммитов карточки 03 главной (письмо 4 задачи 343)
           fetch-depth: 0
+          # КОММИТ БЕРЁТСЯ У ПРОГОНА, А НЕ У ВЕТКИ: пока checks идёт,
+          # в `main` может лечь следующий push, и выкатка увезла бы код,
+          # ряда для которого не было.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      # ЗАМОК: без зелёного прогона ЭТОГО коммита выкатка не начинается
+      - name: zamok CI
+        run: python3 deploy_gate.py --sha "$DEPLOY_SHA"
+        env:
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: superfly/flyctl-actions/setup-flyctl@master
       # ЧИСЛА КАРТОЧКИ 03 ГОСТЕВОЙ ГЛАВНОЙ считаются ПРИ ВЫКЛАДКЕ: в образе
       # нет ни .git/, ни *.md. Не посчиталось — выкладка останавливается.
@@ -20,10 +48,10 @@ jobs:
       # `.git/` в образ не едет, и без этого `/version` на проде
       # отвечал «unknown», а ось коммита в `check_deploy.py`
       # была слепа с первого дня.
-      - run: flyctl deploy --remote-only --build-arg GIT_COMMIT=${{ github.sha }}
+      - run: flyctl deploy --remote-only --build-arg GIT_COMMIT=${{ github.event.workflow_run.head_sha || github.sha }}
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       # СБОРКА ЗАПРОСА ПИСЬМА НА ПРОДЕ, С ЕГО ПЕРЕМЕННЫМИ (авария 21.09, №352):
       # оба пути × оба языка, модель не зовётся. Упала — выкладка красная.
       # Ждёт свой коммит на `/version`; по HTTP, второго процесса на машине нет.
-      - run: python3 check_letter_build.py --коммит ${{ github.sha }}
+      - run: python3 check_letter_build.py --коммит ${{ github.event.workflow_run.head_sha || github.sha }}

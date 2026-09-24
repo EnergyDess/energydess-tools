@@ -159,11 +159,47 @@ except Exception:
   //    По КАРТОЧКАМ, а не по первой попавшейся: строка, у которой
   //    порядок разъехался, может быть не первой.
   const строки = [...лента.querySelectorAll('.apt-ai-item')];
-  const порядок = [], ряды = [];
+  const порядок = [], ряды = [], поля = [], края = [], доли = [];
   for (const стр of строки) {
     const пок = стр.querySelector('.apt-ai-item-ind');
     const ещё = стр.querySelector('.apt-ai-more');
     const ряд = стр.querySelector('.apt-ai-item-acts');
+    // ── ПОЛЕ ПО КРАЯМ СТРОКИ (задача 357, 2.4). Мерится не объявление,
+    //    а ФАКТ: слева и справа между рамкой пузыря и содержимым.
+    //    Пузырь — родитель строки; берётся его внутренняя рамка.
+    const пуз = стр.closest('.apt-ai-msg');
+    if (пуз) {
+      const bс = стр.getBoundingClientRect();
+      const сп = getComputedStyle(пуз), bу = пуз.getBoundingClientRect();
+      const лев = bу.left + (parseFloat(сп.borderLeftWidth) || 0)
+                          + (parseFloat(сп.paddingLeft) || 0);
+      const прав = bу.right - (parseFloat(сп.borderRightWidth) || 0)
+                            - (parseFloat(сп.paddingRight) || 0);
+      const сс = getComputedStyle(стр);
+      поля.push({
+        слева: Math.round((parseFloat(сс.paddingLeft) || 0) * 10) / 10,
+        справа: Math.round((parseFloat(сс.paddingRight) || 0) * 10) / 10,
+        область: Math.round((bс.width - (parseFloat(сс.paddingLeft) || 0)
+                             - (parseFloat(сс.paddingRight) || 0)) * 10) / 10,
+        до_края_слева: Math.round((bс.left - лев) * 10) / 10,
+        до_края_справа: Math.round((прав - bс.right) * 10) / 10,
+      });
+    }
+    // ЛЕВАЯ ЛИНИЯ: текст показаний, кнопка «ещё» и ряд действий обязаны
+    // начинаться с одной вертикали — она и есть левый край области.
+    const текст = пок || стр.querySelector('.apt-ai-item-t');
+    if (текст) {
+      const л = х => Math.round(х.getBoundingClientRect().left * 10) / 10;
+      края.push({текст: л(текст), ещё: ещё ? л(ещё) : null,
+                 ряд: ряд ? л(ряд) : null});
+    }
+    // ШИРИНА РЯДА ПРОТИВ ОБЛАСТИ СТРОКИ: кнопки растянуты, а не по подписи
+    if (ряд) {
+      const сс = getComputedStyle(стр), bс = стр.getBoundingClientRect();
+      const обл = bс.width - (parseFloat(сс.paddingLeft) || 0)
+                           - (parseFloat(сс.paddingRight) || 0);
+      доли.push(Math.round((ряд.getBoundingClientRect().width - обл) * 10) / 10);
+    }
     if (пок && ещё) {
       const bп = пок.getBoundingClientRect();
       const bе = ещё.getBoundingClientRect();
@@ -184,7 +220,7 @@ except Exception:
     }
   }
   return {
-    порядок: порядок, ряды: ряды,
+    порядок: порядок, ряды: ряды, поля: поля, края: края, доли: доли,
     вложенность: Math.max(0, глубина - 1), самая: самая,
     прокруток: прокрутки.length, прокрутки: [...new Set(прокрутки)],
     моно: моно,
@@ -389,6 +425,32 @@ def разбор(итог):
                "; ".join(", ".join("%.1f" % х for х in ш) for ш in ряды)),
             собрано=len(ряды),
             отрицание="рядов из двух кнопок в ответе нет")
+        # ── ПОЛЕ ПО КРАЯМ СТРОКИ (задача 357, 2.4) ───────────────────
+        поля = зш.get("поля") or []
+        плохие_поля = [п for п in поля
+                       if п["слева"] < 8 or п["справа"] < 8
+                       or abs(п["слева"] - п["справа"]) > 1]
+        шаг("%d: у строки поле слева и справа" % w, not плохие_поля,
+            "строк %d%s" % (len(поля), "" if not поля else
+                            ", слева %s справа %s"
+                            % (поля[0]["слева"], поля[0]["справа"])),
+            собрано=len(поля), отрицание="строк в ответе нет")
+        # ЛЕВАЯ ЛИНИЯ ОДНА: «ещё» и ряд по краю текста, а не у рамки
+        края = [к for к in (зш.get("края") or []) if к["ещё"] is not None]
+        разъезд = [к for к in края if abs(к["ещё"] - к["текст"]) > 1]
+        шаг("%d: «ещё» по левой линии текста" % w, not разъезд,
+            "разъехалось %d из %d%s" % (
+                len(разъезд), len(края),
+                "" if not разъезд else " (текст %s, «ещё» %s)"
+                % (разъезд[0]["текст"], разъезд[0]["ещё"])),
+            собрано=len(края), отрицание="кнопки «ещё» в ответе нет")
+        # РЯД КНОПОК НА ВСЮ ОБЛАСТЬ, а не по самой длинной подписи
+        доли = зш.get("доли") or []
+        шаг("%d: ряд кнопок на всю область строки" % w,
+            bool(доли) and max(abs(д) for д in доли) <= 1.0,
+            "недобор до края %s" % (", ".join("%.1f" % д for д in доли)
+                                    if доли else "—"),
+            собрано=len(доли), отрицание="рядов действий в ответе нет")
     эт, гз = итог.get("эталон"), з.get("заголовок")
     if not эт or not гз:
         шаг("заголовок группы = заголовку раздела панели", False,
