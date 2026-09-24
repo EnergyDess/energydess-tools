@@ -128,7 +128,11 @@
   color: var(--v2-text);
 }
 .ens-search-input::placeholder { color: var(--v2-text-faint); }
-.ens-stats { margin-left: auto; display: flex; gap: var(--space-3); }
+/* РЯД СЧЁТЧИКОВ. `margin-left: auto` СНЯТ (№352, письмо «широкий
+   режим везде»): он прижимал плашку к правому краю ПОЛОСЫ ПОИСКА,
+   а в шапке выравнивание даёт общий `.v2-head-actions`
+   (`justify-content: flex-end`) — второе правило спорило бы с ним. */
+.ens-stats { display: flex; gap: var(--space-3); }
 .ens-stat {
   text-align: center;
   background: var(--v2-surface-1);
@@ -725,7 +729,6 @@
   .ens-headwrap { padding: 0 var(--space-4); }
   .ens-headwrap, .ens-bar, .ens-main { --ens-gutter: var(--space-4); }
   .ens-search { order: 3; flex: none; width: 100%; max-width: none; }
-  .ens-stats { margin-left: auto; }
   .ens-stat { padding: var(--space-1) var(--space-3); }
   .ens-main { padding: var(--space-5) var(--space-4); }
   /* ОДНОЙ КОЛОНКИ ТУТ БОЛЬШЕ НЕТ — она стала БАЗОЙ сетки («enshrouded-2»).

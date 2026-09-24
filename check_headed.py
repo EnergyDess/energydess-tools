@@ -69,7 +69,7 @@ sys.stdout.reconfigure(encoding="utf-8")
     "check_portfolio.py": "макет, фон, контраст, плавность и масштаб главной",
     "check_scrollbars.py": "ширина полосы прокрутки и резерв под неё",
     "check_usage_balance.py": "высота карточки остатка /admin/usage в четырёх состояниях — перенос текста сбоя зависит от ширины",
-    "shots_ens_wide.py": "снимки для приёмки глазами",
+    "shots_wide_all.py": "снимки для приёмки глазами",
     "shots_admin_312.py": "снимки для приёмки глазами",
     "shots_medkit_263.py": "снимки для приёмки глазами",
 }
