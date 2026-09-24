@@ -31,7 +31,7 @@
   <div class="ens-bar-row">
     <div class="ens-search">
       {{ значок('search', 'ens-search-ico') }}
-      <input class="input input-compact" type="text" id="searchInput"
+      <input class="input input-compact ens-search-input" type="text" id="searchInput"
              placeholder="Поиск по названию сета…" autocomplete="off"
              aria-label="Поиск по названию сета">
     </div>
@@ -46,33 +46,50 @@
       </div>
     </div>
   </div>
-  {# Вкладки — системный .segmented с вариантом .segmented-accent
-     (style.css, рядом с .segmented-stack). Цвет КАТЕГОРИИ живёт в значке,
-     цвет ВЫБОРА — заливка акцентом раздела. #}
-  <div class="segmented segmented-accent ens-tabs" role="tablist">
-    <button class="segmented-btn ens-tab active" data-cat="all" role="tab" aria-selected="true">
+  {# КАТЕГОРИИ — ЧИПЫ ОТБОРА v2, а не сегментированный переключатель
+     (№352, «enshrouded-1», блок 1.2). Сегменты `.segmented-accent`
+     рисовали тёмно-синюю плашку старой палитры и заливали выбранный
+     сегмент сплошным акцентом, на котором значок категории и число
+     пропадали (замер 2026-08-23: контраст 1.01…1.30).
+
+     Компонент тот же, что у чипов категорий аптечки, только там
+     системный `.chip` со своим классом, а тут `.v2-chip` напрямую:
+     у раздела старой системы на этой строке не осталось ничего,
+     и обходить её нечем.
+
+     `role="group"` и `aria-pressed`, а не `tablist`/`tab`: вкладка
+     меняет ПАНЕЛЬ, а эти кнопки ОТБИРАЮТ содержимое одного списка —
+     ровно то же, что делают чипы аптечки. #}
+  <div class="v2-chips ens-tabs" role="group" aria-label="Отбор по категории">
+    <button class="v2-chip ens-tab tap-44 is-active" type="button" data-cat="all"
+            aria-pressed="true">
       <span class="ens-tab-ico">{{ значок('layers') }}</span>
-      Все <span class="ens-tab-cnt" id="tc-all">0</span>
+      Все <span class="v2-chip-count ens-tab-cnt" id="tc-all">0</span>
     </button>
-    <button class="segmented-btn ens-tab" data-cat="blacksmith" role="tab" aria-selected="false">
+    <button class="v2-chip ens-tab tap-44" type="button" data-cat="blacksmith"
+            aria-pressed="false">
       <span class="ens-tab-ico">{{ значок('hammer') }}</span>
-      Кузнец <span class="ens-tab-cnt" id="tc-blacksmith">0</span>
+      Кузнец <span class="v2-chip-count ens-tab-cnt" id="tc-blacksmith">0</span>
     </button>
-    <button class="segmented-btn ens-tab" data-cat="huntress" role="tab" aria-selected="false">
+    <button class="v2-chip ens-tab tap-44" type="button" data-cat="huntress"
+            aria-pressed="false">
       <span class="ens-tab-ico">{{ значок('target') }}</span>
-      Охотница <span class="ens-tab-cnt" id="tc-huntress">0</span>
+      Охотница <span class="v2-chip-count ens-tab-cnt" id="tc-huntress">0</span>
     </button>
-    <button class="segmented-btn ens-tab" data-cat="alchemist" role="tab" aria-selected="false">
+    <button class="v2-chip ens-tab tap-44" type="button" data-cat="alchemist"
+            aria-pressed="false">
       <span class="ens-tab-ico">{{ значок('flask-conical') }}</span>
-      Алхимик <span class="ens-tab-cnt" id="tc-alchemist">0</span>
+      Алхимик <span class="v2-chip-count ens-tab-cnt" id="tc-alchemist">0</span>
     </button>
-    <button class="segmented-btn ens-tab" data-cat="world" role="tab" aria-selected="false">
+    <button class="v2-chip ens-tab tap-44" type="button" data-cat="world"
+            aria-pressed="false">
       <span class="ens-tab-ico">{{ значок('map') }}</span>
-      Мир <span class="ens-tab-cnt" id="tc-world">0</span>
+      Мир <span class="v2-chip-count ens-tab-cnt" id="tc-world">0</span>
     </button>
-    <button class="segmented-btn ens-tab" data-cat="special" role="tab" aria-selected="false">
+    <button class="v2-chip ens-tab tap-44" type="button" data-cat="special"
+            aria-pressed="false">
       <span class="ens-tab-ico">{{ значок('sparkles') }}</span>
-      Спецпредметы <span class="ens-tab-cnt" id="tc-special">0</span>
+      Спецпредметы <span class="v2-chip-count ens-tab-cnt" id="tc-special">0</span>
     </button>
   </div>
 </div>
@@ -118,18 +135,18 @@
      Прежнее display:none обрывало окно на середине — см. enshrouded.css. #}
   <div class="ens-fields" id="ensFields">
     <div class="ens-div"></div>
-    <div class="field-label">Редкость</div>
-    <div class="segmented segmented-stack" id="ensRar">
-      <button class="segmented-btn" type="button" data-r="common"><span class="r-dot" data-r="common"></span>Обычный</button>
-      <button class="segmented-btn" type="button" data-r="uncommon"><span class="r-dot" data-r="uncommon"></span>Необычный</button>
-      <button class="segmented-btn" type="button" data-r="rare"><span class="r-dot" data-r="rare"></span>Редкий</button>
-      <button class="segmented-btn" type="button" data-r="epic"><span class="r-dot" data-r="epic"></span>Эпический</button>
-      <button class="segmented-btn" type="button" data-r="legendary"><span class="r-dot" data-r="legendary"></span>Легендарный</button>
+    <div class="field-label ens-fld-lbl">Редкость</div>
+    <div class="segmented segmented-stack ens-rar" id="ensRar">
+      <button class="segmented-btn ens-rar-btn" type="button" data-r="common"><span class="r-dot" data-r="common"></span>Обычный</button>
+      <button class="segmented-btn ens-rar-btn" type="button" data-r="uncommon"><span class="r-dot" data-r="uncommon"></span>Необычный</button>
+      <button class="segmented-btn ens-rar-btn" type="button" data-r="rare"><span class="r-dot" data-r="rare"></span>Редкий</button>
+      <button class="segmented-btn ens-rar-btn" type="button" data-r="epic"><span class="r-dot" data-r="epic"></span>Эпический</button>
+      <button class="segmented-btn ens-rar-btn" type="button" data-r="legendary"><span class="r-dot" data-r="legendary"></span>Легендарный</button>
     </div>
     <div class="ens-div"></div>
-    <div class="field-label">Уровень предмета</div>
+    <div class="field-label ens-fld-lbl">Уровень предмета</div>
     <div class="ens-lvl-row">
-      <input class="input input-sm" id="ensLvl" type="number" min="1" max="100" placeholder="—"
+      <input class="input input-sm ens-lvl-input" id="ensLvl" type="number" min="1" max="100" placeholder="—"
              aria-label="Уровень найденного предмета">
     </div>
   </div>
@@ -172,6 +189,10 @@ const CRAFTERS = {{ ens_crafters|tojson }};
 const SETS = {{ ens_sets|tojson }};
 
 function getPieces(set) {
+  // У СВОИХ СЛОТОВ (`custom`, один сет из 90 — набор головных уборов)
+  // короткого названия нет: их пара «идентификатор + подпись» лежит
+  // в самой записи сета, и придумывать ей сокращение значило бы
+  // завести второй источник подписи. Короткого нет — берётся полное.
   if (set.custom) return set.custom.map(c=>({id:c.id,label:c.label,svg:SVG[c.svg||'head']}));
   const ids = set.pieces||['head','chest','gloves','legs','feet'];
   return ids.map(id=>({...SLOT_DEFS.find(s=>s.id===id),svg:SVG[id]}));
@@ -249,11 +270,16 @@ function renderMain() {
 
 function renderSection(cat,sets) {
   const c=CRAFTERS[cat];
+  // ЗАГОЛОВОК ГРУППЫ — тот же раздел, что в панели аптечки: значок
+  // цветом категории, название цветом инструмента обычным регистром,
+  // вторичное справа приглушённым, тонкая линия под строкой.
+  // Гасящей градиентной линии `.cat-line` больше нет — её роль
+  // взяла рамка самой строки.
   return `<section class="cat-sec" data-cat="${cat}">
     <div class="cat-hdr">
-      <div class="cat-ico"><i data-lucide="${c.ico}"></i></div>
-      <div><div class="cat-name">${c.name}</div><div class="cat-sub">${c.sub} · ${sets.length} ${pl(sets.length)}</div></div>
-      <div class="cat-line"></div>
+      <span class="cat-ico"><i data-lucide="${c.ico}"></i></span>
+      <h2 class="cat-name">${c.name}</h2>
+      <span class="cat-sub">${c.sub} · ${sets.length} ${pl(sets.length)}</span>
     </div>
     <div class="sets-grid">${sets.map(s=>renderCard(s)).join('')}</div>
   </section>`;
@@ -268,9 +294,12 @@ function slotHtml(set, sl) {
   const lvl=d.owned&&d.level&&!isSpecial?`<span class="slot-lvl">${d.level}</span>`:'';
   const dupe=d.duplicates>0?`<span class="slot-dupe">+${d.duplicates}</span>`:'';
   const состояние=d.owned?'есть в наличии':'нет';
+  // ПОДПИСЬ В РЯДУ — КОРОТКАЯ, в `aria-label` кнопки — ПОЛНАЯ:
+  // программа чтения называет слот так, как он зовётся в игре,
+  // а на экране он не рвётся по слогам (§5.6, блок 2.2).
   return `<div class="slot"${rar?` data-r="${rar}"`:''} data-set="${set.id}" data-slot="${sl.id}">
     <button class="slot-btn" type="button" aria-label="${esc(sl.label)} — ${состояние}">${sl.svg}${lvl}${dupe}</button>
-    <span class="slot-lbl">${esc(sl.label)}</span>
+    <span class="slot-lbl"${sl.short?'':' data-own'} title="${esc(sl.label)}">${esc(sl.short||sl.label)}</span>
   </div>`;
 }
 
@@ -427,9 +456,9 @@ document.getElementById('main').addEventListener('click',e=>{
 /* ── Вкладки и поиск ──────────────────────────────────── */
 document.querySelectorAll('.ens-tab').forEach(btn=>{
   btn.addEventListener('click',()=>{
-    document.querySelectorAll('.ens-tab').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-selected','false');});
-    btn.classList.add('active');
-    btn.setAttribute('aria-selected','true');
+    document.querySelectorAll('.ens-tab').forEach(b=>{b.classList.remove('is-active');b.setAttribute('aria-pressed','false');});
+    btn.classList.add('is-active');
+    btn.setAttribute('aria-pressed','true');
     activeTab=btn.dataset.cat;
     renderMain();
   });

@@ -28,16 +28,16 @@
    «Спецпредметах» тема пурпурная и «Эпический» пурпурный — цвет
    категории отнимал цвет у редкости ровно там, где они совпадали.
    Категория подписана словом и значком, редкость — только цветом. */
-.cat-sec[data-cat="blacksmith"] { --cat: #d48a2a; }
-.cat-sec[data-cat="huntress"]   { --cat: #5db86e; }
-.cat-sec[data-cat="alchemist"]  { --cat: #a870ce; }
-.cat-sec[data-cat="world"]      { --cat: #5a9fd4; }
-.cat-sec[data-cat="special"]    { --cat: #d469b8; }
-.ens-tab[data-cat="blacksmith"] { --cat: #d48a2a; }
-.ens-tab[data-cat="huntress"]   { --cat: #5db86e; }
-.ens-tab[data-cat="alchemist"]  { --cat: #a870ce; }
-.ens-tab[data-cat="world"]      { --cat: #5a9fd4; }
-.ens-tab[data-cat="special"]    { --cat: #d469b8; }
+.cat-sec[data-cat="blacksmith"] { --cat: var(--v2-ens-blacksmith); }
+.cat-sec[data-cat="huntress"]   { --cat: var(--v2-ens-huntress); }
+.cat-sec[data-cat="alchemist"]  { --cat: var(--v2-ens-alchemist); }
+.cat-sec[data-cat="world"]      { --cat: var(--v2-ens-world); }
+.cat-sec[data-cat="special"]    { --cat: var(--v2-ens-special); }
+.ens-tab[data-cat="blacksmith"] { --cat: var(--v2-ens-blacksmith); }
+.ens-tab[data-cat="huntress"]   { --cat: var(--v2-ens-huntress); }
+.ens-tab[data-cat="alchemist"]  { --cat: var(--v2-ens-alchemist); }
+.ens-tab[data-cat="world"]      { --cat: var(--v2-ens-world); }
+.ens-tab[data-cat="special"]    { --cat: var(--v2-ens-special); }
 
 /* ── ЦВЕТ РЕДКОСТИ. Игровая величина, поэтому литералами и здесь ───────
    Пять уровней, замер 2026-08-22: контраст к поверхности слота
@@ -45,19 +45,19 @@
    цветовое различие dE(CIE76) минимум 40.7 при пороге различимости
    глазом около 10. То есть цвета несут смысл и после снятия
    категорийных тем с карточек. */
-.slot[data-r="common"]     { --rar: #8a8a8a; }
-.slot[data-r="uncommon"]   { --rar: #4db86a; }
-.slot[data-r="rare"]       { --rar: #4a9fdf; }
-.slot[data-r="epic"]       { --rar: #b06fd4; }
-.slot[data-r="legendary"]  { --rar: #f5a623; }
+.slot[data-r="common"]     { --rar: var(--v2-ens-common); }
+.slot[data-r="uncommon"]   { --rar: var(--v2-ens-uncommon); }
+.slot[data-r="rare"]       { --rar: var(--v2-ens-rare); }
+.slot[data-r="epic"]       { --rar: var(--v2-ens-epic); }
+.slot[data-r="legendary"]  { --rar: var(--v2-ens-legendary); }
 /* «Спецпредметы» редкости не имеют вовсе — владение метится акцентом
    раздела, а не выдуманным уровнем. */
-.slot[data-r="owned"]      { --rar: var(--tool-accent); }
-.r-dot[data-r="common"]    { --rar: #8a8a8a; }
-.r-dot[data-r="uncommon"]  { --rar: #4db86a; }
-.r-dot[data-r="rare"]      { --rar: #4a9fdf; }
-.r-dot[data-r="epic"]      { --rar: #b06fd4; }
-.r-dot[data-r="legendary"] { --rar: #f5a623; }
+.slot[data-r="owned"]      { --rar: var(--v2-tool); }
+.r-dot[data-r="common"]    { --rar: var(--v2-ens-common); }
+.r-dot[data-r="uncommon"]  { --rar: var(--v2-ens-uncommon); }
+.r-dot[data-r="rare"]      { --rar: var(--v2-ens-rare); }
+.r-dot[data-r="epic"]      { --rar: var(--v2-ens-epic); }
+.r-dot[data-r="legendary"] { --rar: var(--v2-ens-legendary); }
 
 /* ── Панель раздела ───────────────────────────────────────────────────
    64px — высота липкой .site-header; панель прилипает под ней.
@@ -77,9 +77,9 @@
    ни заливки акцентом. */
 .ens-bar {
   position: sticky; top: 64px; z-index: 49;
-  background: var(--surface-1);
-  border-bottom: 1px solid var(--border);
-  padding: var(--space-4) var(--space-5) 0;
+  background: var(--v2-bg);
+  border-bottom: 1px solid var(--v2-line-3);
+  padding: var(--v2-sp-4) var(--space-5) var(--v2-sp-4);
 }
 .ens-bar-row {
   display: flex; align-items: center; gap: var(--space-4);
@@ -104,33 +104,56 @@
    дважды (BACKLOG №126: дубль внутри одного файла безопасен по
    построению, каскад у обоих один и тот же). */
 .cat-sub {
-  font-size: var(--text-caption); color: var(--text-faint);
-  margin-top: var(--space-1);
+  font-size: var(--v2-fs-xs); color: var(--v2-text-faint);
 }
+/* Подпись группы уходит к правому краю строки — как вторичное
+   в `.apt-sec-top`. Подпись РАЗДЕЛА (та же роль, другое место)
+   остаётся под заголовком: там она первая строка описания. */
+.cat-hdr .cat-sub { margin-left: auto; }
 .ens-search { position: relative; flex: 1; max-width: 360px; }
 .ens-search-ico {
   position: absolute; left: var(--space-3); top: 50%;
-  transform: translateY(-50%); color: var(--text-faint);
+  transform: translateY(-50%); color: var(--v2-text-faint);
   pointer-events: none; width: 16px; height: 16px;
 }
 .ens-search input { padding-left: var(--space-7); }
+/* ПОВЕРХНОСТЬ ПОЛЯ — ПАЛИТРА v2. Цвет ему даёт СИСТЕМНЫЙ `.input`,
+   и его правка задела бы админку и тренировки, где решения о палитре
+   никто не принимал (§6.0.8). Поэтому субъект — свой класс, стоящий
+   на том же элементе рядом с системным: приём `.apt-search-input`
+   в аптечке. */
+.ens-search-input {
+  background: var(--v2-surface-field);
+  border-color: var(--v2-line-1);
+  color: var(--v2-text);
+}
+.ens-search-input::placeholder { color: var(--v2-text-faint); }
 .ens-stats { margin-left: auto; display: flex; gap: var(--space-3); }
 .ens-stat {
   text-align: center;
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-4);
+  background: var(--v2-surface-1);
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-md);
+  padding: var(--v2-sp-2) var(--v2-sp-4);
 }
+/* ЧИСЛО — ГАРНИТУРОЙ ЗАГОЛОВКОВ, А НЕ МОНОШИРИННОЙ (№352,
+   «enshrouded-1», блок 1.1). Моноширинная стояла ради выравнивания
+   цифр в столбик, а счётчиков два и они стоят в РЯД — выравнивать
+   нечего. `font-variant-numeric` остаётся: он про равную ширину
+   цифр внутри одного числа, и от гарнитуры не зависит. */
 .ens-stat-v {
-  display: block; font-family: var(--font-mono);
-  font-size: var(--text-body-lg); font-weight: 700; line-height: 1;
-  font-variant-numeric: tabular-nums; color: var(--tool-accent);
+  display: block; font-family: var(--v2-font-display);
+  font-size: var(--v2-fs-lg); font-weight: var(--v2-fw-display);
+  line-height: 1; font-variant-numeric: tabular-nums;
+  color: var(--v2-tool);
 }
+/* ПОДПИСЬ ОБЫЧНЫМ РЕГИСТРОМ. Прописные с разрядкой — приём старой
+   системы; в v2 подпись под числом набирается как обычный текст
+   (тот же `.v2-label-plain`, что в окнах аптечки). */
 .ens-stat-l {
-  display: block; margin-top: var(--space-1);
-  font-size: var(--text-mono); font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--text-faint); white-space: nowrap;
+  display: block; margin-top: var(--v2-sp-1);
+  font-size: var(--v2-fs-xs); font-weight: var(--v2-fw-medium);
+  color: var(--v2-text-faint); white-space: nowrap;
 }
 
 /* ── Вкладки категорий ────────────────────────────────────────────────
@@ -138,18 +161,18 @@
    здесь только раскладка ряда: он шире экрана и прокручивается.
    Ни одного объявления вида системному классу тут нет. */
 .ens-tabs {
-  margin: var(--space-4) 0 0;
-  overflow-x: auto; scrollbar-width: none;
-  border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  display: flex; flex-wrap: wrap; gap: var(--v2-sp-2);
+  margin: var(--v2-sp-4) 0 0;
 }
-.ens-tabs::-webkit-scrollbar { height: 0; }
 .ens-tab { flex: none; }
-.ens-tab-ico { color: var(--cat, var(--text-faint)); display: flex; }
-.ens-tab-ico svg { width: 14px; height: 14px; }
-.ens-tab-cnt {
-  font-family: var(--font-mono); font-size: var(--text-mono);
-  color: var(--text-faint);
-}
+.ens-tab-ico { color: var(--cat, var(--v2-text-faint)); display: flex; }
+.ens-tab-ico svg { width: 16px; height: 16px; }
+/* ГАРНИТУРУ СЧЁТЧИКУ ДАЁТ СИСТЕМНЫЙ `.v2-chip-count`, и она
+   моноширинная. Трогать его субъектом страница не вправе — правка
+   задела бы чипы аптечки, где решения о гарнитуре никто не принимал
+   (§6.0.8). Поэтому РЯДОМ с системным стоит свой класс, и правит он
+   свой: тот же приём, что `.apt-chip-n` в аптечке. */
+.ens-tab-cnt { font-family: inherit; }
 /* ВЫБРАННАЯ ВКЛАДКА КРАСИТ ВСЕ ТРИ СВОИ ЧАСТИ, А НЕ ОДНУ.
 
    `.segmented-accent .segmented-btn.active` заливает вкладку акцентом
@@ -168,8 +191,12 @@
    Цвет один и тот же, `--tool-accent-ink`: значок на заливке — 3.19
    при пороге WCAG 1.4.11 для графики 3.0, число — ровно столько же,
    сколько подпись рядом с ним. */
-.ens-tab.active .ens-tab-ico,
-.ens-tab.active .ens-tab-cnt { color: var(--tool-accent-ink); }
+/* ВЫБРАННЫЙ ЧИП КРАСИТСЯ ЗАЛИВКОЙ И РАМКОЙ ЦВЕТА ИНСТРУМЕНТА —
+   это делает сам `.v2-chip.is-active`, и своих правил тут больше нет.
+   Значок КАТЕГОРИИ цвет сохраняет: заливка `--v2-tool-dim` полупрозрачна
+   (16 %), и цвет категории на ней читается — в отличие от сплошной
+   заливки старого `.segmented-accent`, на которой значок и число
+   пропадали (контраст 1.01…1.30, замер 2026-08-23). */
 
 /* ── Основная область ─────────────────────────────────────────────────
    contain: раздел — самая длинная страница проекта (12 000 px на 1440),
@@ -211,28 +238,46 @@
 .ens-sets { contain: layout paint; }
 .ens-loading { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); }
 .ens-source {
-  text-align: center; color: var(--text-faint);
-  font-size: var(--text-caption); padding-top: var(--space-5);
+  text-align: center; color: var(--v2-text-faint);
+  font-size: var(--v2-fs-xs); padding-top: var(--v2-sp-5);
 }
 
 /* ── Секция категории ─────────────────────────────────────────────────*/
-.cat-sec { margin-bottom: var(--space-7); }
-.cat-hdr { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+/* ЗАГОЛОВОК ГРУППЫ — ТОТ ЖЕ РАЗДЕЛ, ЧТО В ПАНЕЛИ АПТЕЧКИ (№352,
+   «enshrouded-1», блок 1.3). Компонент там называется `.apt-sec`,
+   и вид у него один: цвет инструмента, обычный регистр, тонкая линия
+   под строкой, вторичное справа приглушённым.
+
+   ПОЧЕМУ НЕ ОБЩИЙ КЛАСС НА ДВА РАЗДЕЛА. `.apt-sec` живёт
+   в `static/medkit.css` и носит имя аптечки; переезд его в систему —
+   правка компонента на трёх местах аптечки сразу, а решения об этом
+   никто не принимал (§6.0.8). Здесь повторены ЗНАЧЕНИЯ ТОКЕНОВ,
+   а не числа: разойдись они, разошлись бы и оба раздела разом.
+   Совпадение сторожит замер (`py check_ens_v2.py`), а не обещание.
+
+   ЦВЕТ ЗАГОЛОВКА — ИНСТРУМЕНТА, А НЕ КАТЕГОРИИ. Пять разноцветных
+   заголовков на одной странице читались как пять разных разделов;
+   цвет категории остаётся у ЗНАЧКА, то есть категория по-прежнему
+   узнаётся с одного взгляда. */
+.cat-sec { margin-bottom: var(--v2-sp-6); }
+.cat-hdr {
+  display: flex; align-items: baseline; gap: var(--v2-sp-3);
+  padding-bottom: var(--v2-sp-1);
+  border-bottom: 1px solid var(--v2-tool-line);
+  margin-bottom: var(--v2-sp-4);
+}
+/* КВАДРАТНОЙ РАМКИ ВОКРУГ ЗНАЧКА БОЛЬШЕ НЕТ (решение владельца):
+   плитка 32×32 с заливкой и рамкой повторяла роль заголовка и спорила
+   с линией под ним. Остался сам значок цветом категории. */
 .cat-ico {
-  width: 32px; height: 32px; border-radius: var(--radius-sm); flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; align-self: center; display: flex;
   color: var(--cat);
-  background: color-mix(in srgb, var(--cat) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--cat) 35%, transparent);
 }
-.cat-ico svg { width: 16px; height: 16px; }
+.cat-ico svg { width: 18px; height: 18px; }
 .cat-name {
-  font-size: var(--text-caption); font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.12em; color: var(--cat);
-}
-.cat-line {
-  flex: 1; height: 1px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--cat) 45%, transparent), transparent);
+  margin: 0;
+  font-size: var(--v2-fs-lg); font-weight: var(--v2-fw-strong);
+  color: var(--v2-tool);
 }
 
 /* ── Сетка карточек ───────────────────────────────────────────────────
@@ -246,7 +291,24 @@
    число РАСТЁТ: 3 на 1440, 4 на 1920, 5 на 2560. Постоянного числа
    тут нет и быть не должно — иначе на 2560 карточка стала бы
    непомерной. */
-.sets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(404px, 1fr)); gap: var(--space-4); }
+/* МИНИМУМ КОЛОНКИ ВЫВЕДЕН ИЗ РЕШЕНИЯ ВЛАДЕЛЬЦА, А НЕ НАЗНАЧЕН
+   (№352, «enshrouded-1», блок 2.1): четыре колонки на 1600, три
+   на 1280, одна на 390.
+
+   Считаем по ширине, которая достаётся сетке внутри каркаса
+   (viewport минус боковая панель 248, минус полоса прокрутки 15,
+   минус два поля раздела): 1600 даёт 1246, 1280 даёт 958.
+     четыре при 1246: (1246 − 3·16) / 4 = 299.5 — минимум не выше 299;
+     три  при  958:  (958 − 2·16) / 3 = 308.7 — минимум не выше 308,
+     и чтобы четвёртая НЕ влезла: (958 − 3·16) / 4 = 227.5 — минимум
+     не ниже 228.
+   Годится любое число из (228, 299]; взято 288 — с запасом от обеих
+   границ.
+
+   ПРЕЖНИЕ 404 БЫЛИ ВЫВЕДЕНЫ ИЗ РЯДА СЛОТОВ (5 × 68 + 4 × 8 + 32),
+   и это условие сняла та же правка: слот больше не держит постоянные
+   68 px, он делит ряд и упирается в потолок (см. .slot-btn ниже). */
+.sets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(288px, 1fr)); gap: var(--v2-sp-4); }
 /* ЧЕТЫРЕ КОЛОНКИ — ПОТОЛОК, И ПОРОГ ВЫВЕДЕН ИЗ ТОГО ЖЕ ЧИСЛА 404.
 
    Решение владельца 2026-08-23: на ОБОИХ его мониторах — 1920 и 2560 —
@@ -273,18 +335,34 @@
 /* ── Карточка сета ────────────────────────────────────────────────────
    Компонент системный: .card .card-flush. Здесь только собственное —
    отметка собранного сета и раскладка тела. */
-.set-card { position: relative; }
+/* НИЗ КАРТОЧЕК РЯДА ВРОВЕНЬ, КАК В АПТЕЧКЕ (№352, «enshrouded-1»,
+   блок 2.1). Сетка растягивает карточки по высоте ряда сама, а вот
+   содержимое внутри прижато к верху: название в две строки у одного
+   сета опускало его полосу прогресса и ряд слотов, а у соседа они
+   оставались выше. Тело карточки — колонка, и ряд слотов прижат
+   к низу `margin-top: auto`. */
+/* ПОВЕРХНОСТЬ КАРТОЧКИ — ПАЛИТРА v2. Цвет ей даёт СИСТЕМНЫЙ `.card`,
+   и его правка задела бы админку и тренировки (§6.0.8); субъект —
+   свой класс на том же элементе, приём `.apt-card`. */
+.set-card {
+  position: relative; display: flex; flex-direction: column;
+  background: var(--v2-surface-1); border-color: var(--v2-line-1);
+}
+.set-card .card-body { flex: 1; display: flex; flex-direction: column; }
+/* ПРИЖИМАЕТСЯ ПОЛОСА, А НЕ РЯД СЛОТОВ: слоты идут ПОСЛЕ неё, и прижми
+   мы только их — полоса осталась бы следовать за названием, то есть
+   разъезжалась бы у соседей по ряду (замер: разброс 28.8 px). */
+.set-card .ens-pbar { margin-top: auto; }
 
 /* СОБРАННЫЙ СЕТ — ТИХАЯ ОТМЕТКА. Обводка акцентом и значок в углу.
    ПОСТОЯННОЙ анимации нет намеренно: собранных сетов десятки, и сорок
    пульсирующих карточек в сетке — рябь, а не отметка. */
-.set-card.is-done { border-color: var(--tool-accent); }
+.set-card.is-done { border-color: var(--v2-tool); }
 .set-done-mark {
-  position: absolute; top: var(--space-3); right: var(--space-3); z-index: 1;
-  width: 26px; height: 26px; border-radius: 50%;
+  position: absolute; top: var(--v2-sp-3); right: var(--v2-sp-3); z-index: 1;
+  width: 26px; height: 26px; border-radius: var(--v2-r-pill);
   display: flex; align-items: center; justify-content: center;
-  color: var(--tool-accent-ink); background: var(--tool-accent);
-  box-shadow: var(--shadow-sm);
+  color: var(--v2-ink-on-tool); background: var(--v2-tool);
 }
 .set-done-mark svg { width: 15px; height: 15px; stroke-width: 2.5; }
 /* НАГРАДА ЗА ДЕЙСТВИЕ, А НЕ СОСТОЯНИЕ: класс вешается в момент, когда
@@ -293,8 +371,8 @@
 .set-card.just-done { animation: ens-done 700ms var(--ease-out) 1; }
 .set-card.just-done .set-done-mark { animation: ens-done-mark 700ms var(--ease-out) 1; }
 @keyframes ens-done {
-  0%   { box-shadow: 0 0 0 0 var(--tool-accent-dim); }
-  40%  { box-shadow: 0 0 0 10px var(--tool-accent-dim); }
+  0%   { box-shadow: 0 0 0 0 var(--v2-tool-dim); }
+  40%  { box-shadow: 0 0 0 10px var(--v2-tool-dim); }
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 @keyframes ens-done-mark {
@@ -336,38 +414,58 @@
    чтобы разнородность источников не бросалась в глаза. Их доля ширины
    растёт вместе с высотой пропорционально, и это всё, что тут можно
    сделать честно. */
+/* ПРОПОРЦИЯ 4/3 ВМЕСТО 16/9 (№352, «enshrouded-1», блок 2.1):
+   «изображение сета крупнее нынешнего».
+
+   СВОЙСТВО, РАДИ КОТОРОГО ВЫБИРАЛИ 16/9, СОХРАНЕНО. Оно звучало так:
+   мода соотношений каталога — 1.778 у 54 файлов из 90, и при коробке
+   1.778 они заполняют её ширину ЦЕЛИКОМ. При коробке 1.333 эти
+   54 файла ШИРЕ коробки по пропорции, то есть по-прежнему упираются
+   в её ширину и заполняют её целиком — меняется только поле сверху
+   и снизу.
+
+   ЧТО ВЫИГРЫВАЮТ ОСТАЛЬНЫЕ 36: у 27 файлов соотношение меньше единицы
+   (персонаж в рост, самый узкий 530×994 = 0.533), и они упираются
+   в ВЫСОТУ коробки. Высота при той же ширине растёт в 1.778/1.333 =
+   1.33 раза — ровно на столько эти картинки и становятся крупнее. */
 .card-banner {
-  aspect-ratio: 16 / 9; width: 100%; padding: 0;
-  background: var(--surface-sunken);
-  border: none; border-bottom: 1px solid var(--border);
+  aspect-ratio: 4 / 3; width: 100%; padding: 0;
+  background: var(--v2-surface-2);
+  border: none; border-bottom: 1px solid var(--v2-line-3);
   display: block; position: relative; overflow: hidden;
   cursor: default;
 }
-.card-banner:focus-visible { outline: 2px solid var(--tool-accent); outline-offset: -2px; }
+.card-banner:focus-visible { outline: 2px solid var(--v2-tool); outline-offset: -2px; }
 /* Курсор следует за ДЕЙСТВИЕМ, а не за классом: увеличение открывается
    у баннера с загруженной картинкой и больше ни у кого. */
 .card-banner.loaded { cursor: zoom-in; }
 
 /* ── Тело карточки ────────────────────────────────────────────────────*/
-.card-body { padding: var(--space-4); }
-.card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-3); }
-.card-name { font-size: var(--text-body); font-weight: 700; line-height: 1.25; color: var(--text); }
+.card-body { padding: var(--v2-sp-4); }
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--v2-sp-3); margin-bottom: var(--v2-sp-3); }
+.card-name { font-size: var(--v2-fs-md); font-weight: var(--v2-fw-strong); line-height: 1.25; color: var(--v2-text); }
 .card-meta {
-  display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
-  margin-top: var(--space-1); font-size: var(--text-caption); color: var(--text-faint);
+  display: flex; align-items: center; gap: var(--v2-sp-2); flex-wrap: wrap;
+  margin-top: var(--v2-sp-1); font-size: var(--v2-fs-xs); color: var(--v2-text-faint);
 }
+/* ПЛАШКА «РЕЦЕПТ УР. N» — ПОВЕРХНОСТЬ v2 И БЕЗ МОНОШИРИННОЙ. Число
+   там одно и в столбик ни с чем не выравнивается: моноширинная
+   гарнитура держалась привычкой, а не задачей. */
 .lvl-tag {
-  font-family: var(--font-mono); font-size: var(--text-mono);
-  color: var(--text-2); background: var(--surface-2);
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
-  padding: 0 var(--space-2);
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-text-2); background: var(--v2-surface-2);
+  border: 1px solid var(--v2-line-2); border-radius: var(--v2-r-sm);
+  padding: 0 var(--v2-sp-2);
 }
 .card-prog {
-  flex-shrink: 0; font-family: var(--font-mono); font-size: var(--text-caption);
-  font-weight: 700; color: var(--text-faint); font-variant-numeric: tabular-nums;
+  flex-shrink: 0; font-size: var(--v2-fs-xs);
+  font-weight: var(--v2-fw-num); color: var(--v2-text-faint);
+  font-variant-numeric: tabular-nums;
 }
-.card-prog.is-done { color: var(--tool-accent); }
-.ens-pbar { margin-bottom: var(--space-4); }
+.card-prog.is-done { color: var(--v2-tool); }
+/* ПОЛОСА ПРОГРЕССА — СИСТЕМНЫЙ `.meter`, поверхность дорожки своим
+   классом рядом с ним (приём `.apt-search-input`). */
+.ens-pbar { margin-bottom: var(--v2-sp-4); background: var(--v2-surface-2); }
 
 /* ── Слоты доспеха ────────────────────────────────────────────────────
    ВЫРАВНИВАНИЕ ВЛЕВО И ПОСТОЯННЫЙ РАЗМЕР. Было flex: 1 — сет из одного
@@ -405,7 +503,13 @@
      Значение выведено из замера, а не назначено: самая длинная подпись
      из девяти — «Менестрель», 73.2px; при слоте 68 и зазоре 8 худшая
      пара даёт зазор +11.8px вместо прежних −6.23. */
-  --ens-slot: 4.25rem;
+  /* ПОТОЛОК СЛОТА РАВЕН ЕГО ДОЛЕ ПРИ ПЯТИ ПРЕДМЕТАХ, и это
+     условие, а не круглое число: доля считается как
+     (тело − 4 зазора) / 5 и на трёх ширинах даёт 47.0 (1600),
+     48.9 (1280) и 56.8 (390). Потолок 46 меньше наименьшей из них,
+     значит слот упирается в него ВЕЗДЕ и у всех карточек одинаков —
+     а от этого зависит высота ряда слотов, то есть низ карточки. */
+  --ens-slot: 2.875rem;
   /* СЛОТЫ ЦЕНТРИРУЮТСЯ — решение владельца 2026-08-23, отмена прежнего.
      Здесь стояло `justify-content: flex-start`: владелец просил
      выравнивание влево, и на живом экране это дало «слева впритык,
@@ -421,7 +525,16 @@
      4 → 5, 5 → 74), и чем короче состав, тем больше дыра справа: сет
      из одного предмета отдавал ей пять шестых ряда. Центрирование
      делит остаток поровну и от состава не зависит по построению. */
-  display: flex; gap: var(--space-2); justify-content: center; flex-wrap: wrap;
+  display: flex; gap: var(--v2-sp-2); justify-content: center; flex-wrap: wrap;
+  /* РЯД СЛОТОВ ПОСТОЯННОЙ ВЫСОТЫ — иначе низ карточки зависит
+     от ЧИСЛА предметов в сете (№352, «enshrouded-1», блок 2.1).
+     Замер до правки: у сета из одного предмета слот упирается
+     в потолок 46, у сета из восьми делит ряд и выходит 26 —
+     ряд слотов на 19.6 px ниже, и низы карточек в ряду разъезжались
+     на 22.9 px. Высота выведена из слота, а не вписана: кнопка,
+     зазор и одна строка подписи. */
+  min-height: calc(var(--ens-slot) + var(--v2-sp-1) + 1.2 * var(--v2-fs-xs));
+  align-content: flex-start;
 }
 /* СЛОТ ДЕЛИТ РЯД, НО НЕ ШИРЕ ПОТОЛКА. `flex: 1 1 0` возвращает
    прежнее поведение (слоты делят ширину карточки поровну), а
@@ -435,11 +548,16 @@
   flex: 1 1 0; min-width: 0; max-width: var(--ens-slot);
   display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
 }
+/* КНОПКА СЛОТА ДЕЛИТ РЯД, А НЕ ДЕРЖИТ ПОСТОЯННЫЕ 54 px
+   (№352, «enshrouded-1», блок 2.2). Четыре колонки на 1600 дают
+   карточке около 300 px, ряду из пяти слотов — около 47 на слот,
+   и кнопка в 54 переполняла бы его. Ширина теперь по доле слота,
+   квадрат держит `aspect-ratio`, потолок остался прежним. */
 .slot-btn {
-  width: 54px; height: 54px; padding: 0;
-  border-radius: var(--radius-md);
-  border: 1.5px solid var(--border);
-  background: var(--surface-sunken);
+  width: 100%; max-width: 54px; aspect-ratio: 1; padding: 0;
+  border-radius: var(--v2-r-md);
+  border: 1.5px solid var(--v2-line-2);
+  background: var(--v2-surface-2);
   display: flex; align-items: center; justify-content: center;
   position: relative; cursor: pointer;
   color: var(--text-faint);
@@ -447,15 +565,21 @@
               color var(--dur-fast) var(--ease),
               background var(--dur-fast) var(--ease);
 }
-.slot-btn svg { width: 24px; height: 24px; }
+.slot-btn svg { width: 22px; height: 22px; }
 @media (hover: hover) {
-  .slot-btn:hover { border-color: var(--border-strong); color: var(--text-2); }
+  .slot-btn:hover { border-color: var(--v2-line-hover); color: var(--v2-text-2); }
 }
-.slot-btn:focus-visible { outline: 2px solid var(--tool-accent); outline-offset: 2px; }
-/* Предмет есть: цвет редкости. Одно правило на пять уровней. */
+.slot-btn:focus-visible { outline: 2px solid var(--v2-tool); outline-offset: 2px; }
+/* Предмет есть: цвет редкости. Одно правило на пять уровней.
+
+   ЗАЛИВКА СМЕШИВАЕТСЯ С ПРОЗРАЧНЫМ, А НЕ С ПОВЕРХНОСТЬЮ. Смесь
+   с непрозрачной подложкой даёт НОВЫЙ непрозрачный цвет, которого
+   в палитре нет, — пять таких давали пять находок проверки 60.
+   Смесь с `transparent` сохраняет тот же RGB с альфой 0.09, то есть
+   остаётся цветом редкости, а подложку даёт карточка под ним. */
 .slot[data-r] .slot-btn {
   border-color: color-mix(in srgb, var(--rar) 60%, transparent);
-  background: color-mix(in srgb, var(--rar) 9%, var(--surface-sunken));
+  background: color-mix(in srgb, var(--rar) 9%, transparent);
   color: var(--rar);
 }
 @media (hover: hover) {
@@ -468,16 +592,20 @@
   0%, 100% { box-shadow: 0 0 10px color-mix(in srgb, var(--rar) 30%, transparent); }
   50%      { box-shadow: 0 0 18px color-mix(in srgb, var(--rar) 55%, transparent); }
 }
+/* УРОВЕНЬ НАЙДЕННОГО ЭКЗЕМПЛЯРА — В УГЛУ СЛОТА. Моноширинной больше
+   нет: число стоит поверх значка и ни с чем в столбик не равняется. */
 .slot-lvl {
   position: absolute; bottom: 3px; right: 4px; line-height: 1;
-  font-family: var(--font-mono); font-size: var(--text-mono); font-weight: 700;
-  color: var(--tool-accent);
+  font-size: var(--v2-fs-xs); font-weight: var(--v2-fw-num);
+  color: var(--v2-tool);
 }
+/* ЗНАЧОК ДУБЛИКАТА — 13 px, как и всё мелкое в разделе. Прежние
+   0.625rem (10 px) стояли ниже абсолютного минимума проекта. */
 .slot-dupe {
-  position: absolute; top: 3px; left: 4px; line-height: 1.5;
-  border-radius: var(--radius-sm); padding: 0 3px;
-  font-size: 0.625rem; font-weight: 800;
-  color: var(--tool-accent-ink); background: var(--tool-accent);
+  position: absolute; top: 2px; left: 3px; line-height: 1.2;
+  border-radius: var(--v2-r-sm); padding: 0 3px;
+  font-size: var(--v2-fs-xs); font-weight: var(--v2-fw-num);
+  color: var(--v2-ink-on-tool); background: var(--v2-tool);
 }
 /* ПОДПИСЬ НЕ ШИРЕ СВОЕГО СЛОТА. `width: 100%` вместо ширины
    по содержимому — это и есть второй слой лечения: коробка подписи
@@ -485,35 +613,75 @@
    `overflow-wrap: anywhere` нужен ровно на случай имени длиннее слота:
    без него слово всё равно вылезло бы наружу, и клапан оказался бы
    декоративным. */
+/* ПОДПИСЬ — 13 px (минимум проекта) И В ОДНУ СТРОКУ. Прежние 12 px
+   (`--text-mono`) были ниже абсолютного минимума глобального
+   CLAUDE.md; перенос снят коротким названием слота (`short`
+   в `enshrouded_defs`), а `overflow-wrap` остаётся страховкой
+   на случай сета со своим длинным именем слота. */
 .slot-lbl {
-  width: 100%; overflow-wrap: anywhere; hyphens: auto;
-  font-size: var(--text-mono); font-weight: 600; color: var(--text-faint);
+  /* ОДНА СТРОКА ВСЕГДА. Короткое название слота (`short`
+     в `enshrouded_defs`) в 46 px помещается целиком; своё имя слота
+     у сета с набором головных уборов — нет («Менестрель» 73 px),
+     и оно усекается многоточием. Это не «обрезка вместо краткости»
+     (тот запрет — про ДАННЫЕ, §5.6): полное название стоит
+     в подсказке кнопки, в `aria-label` и в окне предмета. */
+  width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: var(--v2-fs-xs); font-weight: var(--v2-fw-medium);
+  color: var(--v2-text-faint);
   text-align: center; line-height: 1.2;
 }
 
 /* ── Окно предмета: только раскладка, компоненты системные ────────────*/
-.ens-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-4); }
-.ens-row-lbl { font-size: var(--text-body-sm); color: var(--text-2); }
-.ens-dupe { display: flex; align-items: center; gap: var(--space-2); }
+.ens-row { display: flex; align-items: center; justify-content: space-between; gap: var(--v2-sp-4); margin-bottom: var(--v2-sp-4); }
+.ens-row-lbl { font-size: var(--v2-fs-sm); color: var(--v2-text-2); }
+.ens-dupe { display: flex; align-items: center; gap: var(--v2-sp-2); }
+/* СЧЁТЧИК ДУБЛИКАТОВ — БЕЗ МОНОШИРИННОЙ: число одно, выравнивать
+   его в столбик не с чем. Ширина оставлена постоянной, чтобы кнопки
+   «−» и «+» не ездили при переходе 9 → 10. */
 .ens-dupe-v {
-  min-width: 24px; text-align: center; font-family: var(--font-mono);
-  font-size: var(--text-body); font-weight: 800; color: var(--tool-accent);
+  min-width: 24px; text-align: center;
+  font-size: var(--v2-fs-md); font-weight: var(--v2-fw-num);
+  font-variant-numeric: tabular-nums; color: var(--v2-tool);
 }
-.ens-div { height: 1px; background: var(--border); margin: var(--space-4) 0; }
+.ens-div { height: 1px; background: var(--v2-line-3); margin: var(--v2-sp-4) 0; }
 /* БЛОКИ «РЕДКОСТЬ» И «УРОВЕНЬ ПРЕДМЕТА» ПОКАЗЫВАЮТСЯ ВСЕГДА. Было
    display:none при выключенном тумблере — окно обрывалось на середине
    и читалось как поломка. Приглушение вместо пропажи: видно, что тут
    есть, и видно, что оно пока не действует. */
 .ens-fields.is-off { opacity: 0.45; }
-.r-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: var(--rar); }
-.ens-lvl-row { display: flex; align-items: center; gap: var(--space-3); }
+/* ТОЧКА РЕДКОСТИ СОХРАНЕНА — это цвет ДАННЫХ, и он единственное,
+   чем уровни различаются на глаз (замер 2026-08-22: попарное
+   различие dE минимум 40.7). */
+.r-dot { width: 9px; height: 9px; border-radius: var(--v2-r-pill); flex-shrink: 0; background: var(--rar); }
+.ens-lvl-row { display: flex; align-items: center; gap: var(--v2-sp-3); }
 .ens-lvl-row .input { width: 96px; }
+/* НАЗВАНИЕ СЕТА НАД СЛОТОМ — ОБЫЧНЫМ РЕГИСТРОМ (№352, «enshrouded-1»,
+   блок 2.4). Прописные с разрядкой — приём старой системы. */
 .ens-set-name {
-  font-size: var(--text-mono); font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--text-faint); margin-bottom: var(--space-2);
+  font-size: var(--v2-fs-xs); font-weight: var(--v2-fw-medium);
+  color: var(--v2-text-faint); margin-bottom: var(--v2-sp-2);
 }
-.ens-slot-name { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-body); font-weight: 700; color: var(--text); margin-bottom: var(--space-4); }
+.ens-slot-name { display: flex; align-items: center; gap: var(--v2-sp-2); font-size: var(--v2-fs-md); font-weight: var(--v2-fw-strong); color: var(--v2-text); margin-bottom: var(--v2-sp-4); }
 .ens-slot-name svg { width: 18px; height: 18px; }
+/* ПОЛЯ И СЕГМЕНТЫ ОКНА — ПОВЕРХНОСТИ v2, своим классом рядом
+   с системным: правка `.input` и `.segmented` задела бы админку
+   и тренировки (§6.0.8). */
+.ens-lvl-input { background: var(--v2-surface-field); border-color: var(--v2-line-1); color: var(--v2-text); }
+.ens-rar-btn { background: transparent; border-color: var(--v2-line-2); color: var(--v2-text-2); }
+.ens-rar-btn.active { background: var(--v2-tool-dim); border-color: var(--v2-tool-line); color: var(--v2-text-strong); }
+.ens-rar { background: transparent; border-color: var(--v2-line-2); }
+/* ПОДПИСЬ ПОЛЯ — ОБЫЧНЫМ РЕГИСТРОМ И НЕ МОНОШИРИННОЙ. Системный
+   `.field-label` набран моноширинной прописными, а `.v2-label-plain`
+   этого не снимает: гарнитуру он не трогает вовсе, а `text-transform`
+   у обоих (0,1,0) — и `style.css` подключён ПОСЛЕ `v2.css`, то есть
+   выигрывает старый. Лечится своим классом в файле раздела, который
+   подключён последним: правка `.field-label` задела бы админку
+   и тренировки (§6.0.8). */
+.ens-fld-lbl {
+  font-family: inherit; text-transform: none;
+  letter-spacing: normal; font-size: var(--v2-fs-sm);
+  color: var(--v2-text-2);
+}
 
 /* КАРТИНКА БАННЕРА ВПИСЫВАЕТСЯ В КОРОБКУ — правило СИСТЕМНОЕ,
    `.img-zoom-box` в style.css, и баннер носит этот класс в разметке.
@@ -552,6 +720,6 @@
      `--space-*`, а доля слота выводится из них. На телефоне уже 360px
      доля станет 58px и подпись перенесётся снова — это правильно
      и безопасно: зажим шириной не даёт ей столкнуться с соседкой. */
-  .slots { gap: var(--space-1); }
-  .card-body { padding: var(--space-3); }
+  .slots { gap: var(--v2-sp-2); }
+  .card-body { padding: var(--v2-sp-4); }
 }

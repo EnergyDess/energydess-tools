@@ -54,6 +54,9 @@ sys.stdout.reconfigure(encoding="utf-8")
     # она получила письмом 2, а органы правит это письмо, и сравнивать
     # надо с тем, что видел владелец перед ним.
     "medkit": {"шаблон": "templates/medkit.html", "до": "4a652fa"},
+    # Enshrouded: «до» — коммит ПЕРЕД письмом «enshrouded-1» (№352).
+    # Каркас v2 раздел получил письмом 2, органы правит это письмо.
+    "enshrouded": {"шаблон": "templates/enshrouded.html", "до": "7eb4d0a"},
 }
 
 КАРКАС = {"_header.html", "_meta.html", "_page_end.html", "_footer.html",

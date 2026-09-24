@@ -38,6 +38,8 @@ PY = ["*.py"]                 # корень проекта: main.py, database.p
            "static/*.js", "main.py"]
 HH = ["templates/hh.html", "static/hh.css", "static/*.js", "main.py",
       "resume_sections.py", "letter_facts.py"]
+ENSHROUDED = ["templates/enshrouded.html", "static/enshrouded.css",
+              "static/*.js", "main.py", "enshrouded_defs.py"]
 ЛЕНДИНГ = ["templates/landing.html", "static/landing.css", "static/landing.js",
            "landing_*.py", "main.py"]
 V2 = ["static/v2*.css", "static/v2-*.js", "templates/*"]
@@ -139,6 +141,7 @@ def _п(*группы):
                                   "static/profile.css", "main.py"]),
                  "полный", False),
     "стенд:65": (АПТЕЧКА, "полный", True),
+    "стенд:66": (_п(ENSHROUDED, V2), "полный", True),
     # отдельные скрипты и тесты
     "скрипт:check_hh_owner.py":    (_п(ВЁРСТКА, ["main.py"]), "полный", False),
     "скрипт:check_v2_showcase.py": (_п(V2, ["main.py"]), "полный", True),
