@@ -103,6 +103,20 @@ def ключ_позиции():
 ОБЩИЙ_ПЕРЕМЕННАЯ = "BROWSER_SHARED_CDP"
 
 
+def окон_нет():
+    """Есть ли на этой площадке чем показать окно (задача 357).
+
+    В CI дисплея нет вовсе: `headless=False` там падает «Missing X server
+    or $DISPLAY», и первой же пробой валился весь ряд стенда. Спрашивается
+    ФАКТ площадки, а не имя площадки: под `xvfb-run` дисплей есть, и окно
+    снова поднимается. Общий браузер существует ради ОДНОГО окна
+    на прогон (§6.0.3); там, где окон нет, поднимать его нечем и не за чем.
+    """
+    if os.name == "nt":
+        return False
+    return not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
 def _в_журнал(событие):
     """Строка в журнал окон пробы (`BROWSER_WINDOW_LOG`), если он задан.
 
@@ -236,6 +250,9 @@ class общий_браузер:
         self._свой = None
         if os.environ.get(ОБЩИЙ_ПЕРЕМЕННАЯ):
             return os.environ[ОБЩИЙ_ПЕРЕМЕННАЯ]
+        if окон_нет():
+            print("[окно] дисплея нет — пробы идут невидимым браузером")
+            return None
         from playwright.sync_api import sync_playwright
         порт = _свободный_порт()
         self._пв = sync_playwright().start()
