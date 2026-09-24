@@ -63,10 +63,13 @@ jobs:
       # с причиной, не тратя денег. Секретов в этот файл не попадает.
       - name: okruzhenie stenda
         run: |
-          printf '%s\n' \
-            'SECRET_KEY=ci-stand-not-a-secret' \
-            'BASE_URL=http://127.0.0.1:8899' \
-            'DB_PATH=./app.db' > .env
+          {
+            echo 'SECRET_KEY=ci-stand-not-a-secret'
+            echo 'AGENT_WEBHOOK_KEY=ci-stand-not-a-secret'
+            echo 'BASE_URL=http://127.0.0.1:8899'
+            echo 'DB_PATH=./app.db'
+          } > .env
+          cat .env
 
       # ПОСЕВ ОТДЕЛЬНЫМ ШАГОМ: `start_checks` сеет молча (вывод глушится),
       # и ошибка посева выглядела бы как «стенд не поднялся».
