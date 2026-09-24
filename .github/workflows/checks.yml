@@ -1,0 +1,106 @@
+# РЯД ПРОВЕРОК В GITHUB ACTIONS (BACKLOG №357).
+#
+# ЗАЧЕМ. Полный местный ряд — 69 проверок и около сорока минут перед
+# каждой выкаткой. Время и контекст сессии уходили на прогон того, чего
+# никто не трогал, а впереди ещё три инструмента редизайна.
+#
+# ЧТО ЗДЕСЬ. Состав CI ВЫВОДИТСЯ, а не перечисляется:
+# `checks_registry.только_местно` называет исключения (видимое окно
+# вёрстки, боевые данные, `.env`), всё остальное идёт сюда. Новая
+# проверка попадает в CI сама — умолчание «не гонять» молча вывело бы
+# её из-под единственного ряда, который идёт на каждый push.
+#
+# ДАННЫЕ ТОЛЬКО ВЫДУМАННЫЕ (§8.0, §5.1). Боевой базы и её копий здесь
+# нет ни в каком виде: стенд сеет `make_local_user.py --seed`. Ключей
+# моделей нет вовсе — значит живой вызов невозможен по построению,
+# и это отдельный шаг, а не обещание.
+name: Checks
+
+# Ветки `ci/**` — чтобы прогнать ряд, не выкатывая прод: деплой идёт
+# только с `main`. Там же проверяются подлоги (§6.0.3).
+on:
+  push:
+    branches: [main, 'ci/**']
+  workflow_dispatch:
+
+# Прогон на коммит один: догоняющий push отменяет предыдущий, чтобы
+# замок деплоя не ждал устаревшую очередь.
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # вся история: её читают проверка 9 (статус задачи против
+          # коммитов) и `check_medkit_names.py` (прежняя функция из HEAD)
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - run: pip install -r requirements-dev.txt
+
+      # Кеш браузеров playwright: скачивание chromium — минута с лишним,
+      # а меняется он только с версией пакета.
+      - uses: actions/cache@v4
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('requirements-dev.txt') }}
+
+      - run: python -m playwright install --with-deps chromium
+
+      # ОКРУЖЕНИЕ СТЕНДА — ВЫДУМАННОЕ. Ключей моделей и сервисов здесь
+      # нет: `or_key.выбрать_ключ` отдаёт пусто, и место вызова отказывает
+      # с причиной, не тратя денег. Секретов в этот файл не попадает.
+      - name: okruzhenie stenda
+        run: |
+          printf '%s\n' \
+            'SECRET_KEY=ci-stand-not-a-secret' \
+            'BASE_URL=http://127.0.0.1:8899' \
+            'DB_PATH=./app.db' > .env
+
+      - name: ryad proverok
+        run: python start_checks.py --ci
+
+      # ЖИВЫХ ВЫЗОВОВ НОЛЬ, И ЭТО ЗАМЕР, А НЕ ОБЕЩАНИЕ. Признаков два:
+      # ключа нет вовсе, и в учёте расхода (§2.7) ни одной строки с ценой
+      # либо номером генерации — их отдаёт только настоящий сервис.
+      - name: zhivyh vyzovov nol
+        if: always()
+        run: |
+          python - <<'PY'
+          import os, sqlite3, sys
+          import or_key
+          ключ, причина = or_key.выбрать_ключ(os.environ)
+          if ключ:
+              sys.exit("ключ модели в CI НЕ ДОЛЖЕН быть задан, а он есть")
+          print("ключ: пусто —", причина)
+          if not os.path.exists("app.db"):
+              sys.exit("базы стенда нет — прогон не состоялся")
+          с = sqlite3.connect("app.db")
+          живые = с.execute("SELECT COUNT(*) FROM model_usage "
+                            "WHERE cost IS NOT NULL OR gen_id IS NOT NULL"
+                            ).fetchone()[0]
+          всего = с.execute("SELECT COUNT(*) FROM model_usage").fetchone()[0]
+          print("расход: строк %d, из них живых %d" % (всего, живые))
+          sys.exit(1 if живые else 0)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checks-log
+          path: |
+            .start_checks_last.txt
+            .start_checks.json
+            .start_checks_stand.log
+          retention-days: 14
