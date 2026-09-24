@@ -483,9 +483,19 @@
 
      `overscroll-behavior: contain` — иначе докрутив показание
      до конца, палец продолжает крутить ленту ответа под ним. */
-  max-height: 6lh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  /* ── ПРОКРУТКИ ЗДЕСЬ БОЛЬШЕ НЕТ (№352, «аптечка-4», 2.3) ────────
+
+     ЗДЕСЬ СТОЯЛО `max-height: 6lh; overflow-y: auto;
+     overscroll-behavior: contain` с доводом «карточку от растягивания
+     держит потолок». Довод верен, а средство оказалось тем самым,
+     на что жаловался владелец: окошко с прокруткой ВНУТРИ
+     прокручиваемой ленты, по одному на каждое лекарство (замер
+     до правки — три области на три карточки).
+
+     Теперь текст сворачивается ДВУМЯ СТРОКАМИ и раскрывается кнопкой
+     «ещё» прямо в строке (`аптСтрокаСвернуть`): потолок остался,
+     прокрутка ушла. Число строк ставит браузер
+     (`-webkit-line-clamp`), а не наша арифметика по длине. */
 }
 /* ── ГРУППА ОТВЕТА: ЗАГОЛОВОК ВНУТРИ, А НЕ НАД ПУСТОТОЙ (C.1) ──────
 
@@ -498,33 +508,28 @@
    (`--surface-2` под `--surface-1`), то есть отличается тем же
    способом, каким в проекте отличается любая вложенность (§2 общего
    CLAUDE.md: два соседних вложенных элемента не одного цвета). */
-.apt-ai-group {
-  border: 1px solid var(--border-contrast);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  margin: var(--space-3) 0 0;
-}
-.apt-ai-group-h {
-  margin: 0;
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border-contrast);
-  font-size: var(--text-caption);
-  font-weight: 600;
-  color: var(--text);
-}
+/* ── ГРУППУ ОТДЕЛЯЕТ ЗАГОЛОВОК, А НЕ РАМКА (№352, «аптечка-4», 2.1)
+
+   ЗДЕСЬ СТОЯЛИ `.apt-ai-group` с рамкой и `.apt-ai-group-h`
+   с подложкой. Замер до правки: рамок одна в другой ЧЕТЫРЕ уровня
+   (пузырь → группа → карточка → плитка фото), и владелец назвал это
+   прямо — «рамка в рамке в рамке».
+
+   Группу теперь рисует `.apt-sec` — ТОТ ЖЕ раздел, что в панели
+   лекарства: заголовок цвета инструмента, тонкая линия под строкой,
+   отступ сверху. Одно правило на два места; правил вида у группы
+   больше нет вовсе, осталась только окраска состояния ниже. */
 /* ТОН ШАПКИ СЛЕДУЕТ СОСТОЯНИЮ, а не заводит третий вид блока
    (BACKLOG №248, C.2). Просроченное красится тем же `--error`, что
    бейдж срока на карточке: одно состояние — один цвет на весь
    инструмент. Раскладка при этом у всех шапок ОДНА, и это её
    единственное отличие */
-.apt-ai-group-h-bad { color: var(--error); }
-.apt-ai-group-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-}
+.apt-sec-bad .apt-sec-h { color: var(--error); }
+.apt-sec-bad .apt-sec-top { border-bottom-color: var(--error); }
+/* `.apt-ai-group-body` УДАЛЁН ВМЕСТЕ С НОСИТЕЛЕМ (2.1): карточки
+   лежат прямо в разделе, отдельной коробки под них больше нет,
+   а правило без носителя читается следующим заходом как рабочее
+   (§7, история `.btn-sm`). */
 /* РАМКА КАРТОЧКИ ВНУТРИ ГРУППЫ НЕ ОСЛАБЛЯЕТСЯ, И ЭТО ОТМЕНА МОЕЙ ЖЕ
    ПЕРВОЙ ВЕРСИИ. Здесь стояло `border-color: var(--border-strong)`
    с доводом «внутри группы карточка уже обведена рамкой группы».
@@ -1361,9 +1366,16 @@
    Линия — на СТРОКЕ ЗАГОЛОВКА, а не рамкой вокруг раздела: рамок
    в рамках на этой панели нет (правило «аптечки-2»), и владелец
    назвал это прямо. */
-.apt-drug-sec { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
-.apt-drug-sec + .apt-drug-sec { margin-top: var(--v2-sp-5); }
-.apt-drug-sec-top {
+/* РАЗДЕЛ — ОБЩИЙ КОМПОНЕНТ ПАНЕЛИ (№352, «аптечка-4», блок 2.1).
+   Здесь он звался `.apt-drug-sec`, и имя врало с появлением второго
+   потребителя: тем же разделом теперь разделяются группы в ответе
+   ассистента. Правило ОДНО на два места — две копии одного вида
+   разошлись бы при первой правке, и увидеть это можно было бы,
+   только сложив две панели рядом (§6.0.7, довод пары
+   `.apt-doses-box, .apt-own`). */
+.apt-sec { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
+.apt-sec + .apt-sec { margin-top: var(--v2-sp-5); }
+.apt-sec-top {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -1371,7 +1383,7 @@
   padding-bottom: var(--v2-sp-1);
   border-bottom: 1px solid var(--v2-tool-line);
 }
-.apt-drug-sec-h {
+.apt-sec-h {
   margin: 0;
   font-size: var(--v2-fs-lg);
   font-weight: var(--v2-fw-strong);
@@ -2348,18 +2360,33 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 
 .apt-ai {
   position: fixed;
-  /* 64px — высота `.site-header`. Пятое место, где число участвует
-     в расчёте осознанно (design-system.md §4.1): элемент вырван
-     из потока, браузеру считать остаток не из чего. Перечень там
-     объявлен полным, и это место внесено туда тем же коммитом. */
-  top: 64px;
+  /* ГЕОМЕТРИЮ ЗАДАЁТ ОБОЛОЧКА, А НЕ ЭТА ПАНЕЛЬ (№352, «аптечка-4»).
+
+     ЗДЕСЬ СТОЯЛИ СВОИ ЧИСЛА — `top: 64px` (высота `.site-header`)
+     и `width: min(27rem, 100vw)`. Довод про 64 был верен, пока
+     аптечка жила на старом каркасе; на v2 панель стоит рядом
+     с тремя системными (`.v2-assist-dock`), а те начинаются
+     от нуля и шириной 420. Замер до правки на 1600: эта панель
+     432/64, соседи 420/0 — переключение двигало содержимое
+     на 12 px и переставляло панель по вертикали на 64, и это
+     видел владелец.
+
+     Числа `27rem` при корневом кегле, растущем `clamp`, вдобавок
+     не были постоянными: на 1600 они дают 432, на 2560 больше.
+     Сторожит проверка 63 — расхождением МЕЖДУ панелями, а не
+     сверкой с вписанным числом. */
+  top: var(--v2-assist-top);
   right: 0;
   bottom: 0;
-  width: min(27rem, 100vw);
+  width: var(--v2-assist-w);
+  max-width: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--surface-1);
-  border-left: 1px solid var(--border);
+  /* ТОКЕНЫ ОБОЛОЧКИ, А НЕ СТАРОЙ СИСТЕМЫ (№352, «аптечка-4», 2.1):
+     панель стоит рядом с тремя системными и красилась `--surface-1`
+     при их `--v2-surface-pop` — принятый долг проверки 60. */
+  background: var(--v2-surface-pop);
+  border-left: 1px solid var(--v2-line-1);
   /* Выше подвала и шапки страницы, ниже модалок: карточку правят
      В МОДАЛКЕ, и она обязана лечь поверх панели */
   z-index: 90;
@@ -2456,13 +2483,13 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 }
 .apt-ai-msg-me {
   align-self: flex-end;
-  background: var(--tool-accent-dim);
-  border: 1px solid var(--tool-accent);
+  background: var(--v2-tool-dim);
+  border: 1px solid var(--v2-tool-line);
 }
 .apt-ai-msg-ai {
   align-self: flex-start;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--v2-surface-2);
+  border: 1px solid var(--v2-line-2);
 }
 .apt-ai-msg-bad {
   align-self: stretch;
@@ -2517,14 +2544,54 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
      `--border-contrast` (альфа 0.36), и он даёт **3.28** к подложке
      пузыря — норма взята, а не приближена. Разбор значения и таблица
      по четырём поверхностям — у самого токена в `style.css`. */
-  border: 1px solid var(--border-contrast);
-  border-radius: var(--radius-sm);
-  padding: var(--space-3);
+  /* ── РАМКИ У СТРОКИ НЕТ (№352, «аптечка-4», 2.1) ────────────────
+
+     ЗДЕСЬ СТОЯЛА `border: 1px solid var(--border-contrast)` с разбором
+     контраста (задачи 246 E.1 и 247 C.3). Разбор верен и остаётся
+     в силе ТАМ, ГДЕ РАМКА НУЖНА; здесь она была третьим контуром
+     подряд — внутри рамки группы, внутри рамки пузыря.
+
+     Строки в ленте разделяет ВОЗДУХ и линия заголовка группы над
+     ними, а не контур вокруг каждой. */
+  padding: var(--space-2) 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
+/* Строки одной группы разделяет волосяная линия, а не рамка каждой */
+.apt-ai-item + .apt-ai-item { border-top: 1px solid var(--border); }
+/* ФАКТЫ И КАТЕГОРИИ ПОД НАЗВАНИЕМ (2.2): мельче и приглушённее —
+   название в строке одно, а это то, чем пачки различаются */
+.apt-ai-item-facts {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--text-caption);
+}
+.apt-ai-item-cats {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: var(--text-caption);
+}
+/* КНОПКА РАСКРЫТИЯ ТЕКСТА В СТРОКЕ. Системная `.v2-btn-ghost`;
+   здесь только её место в столбце и кегль подписи (§6.0.2) */
+.apt-ai-more {
+  align-self: flex-start;
+  padding: 0;
+  min-height: 0;
+  font-size: var(--text-caption);
+}
+/* СВЁРТКА ПО ЧИСЛУ СТРОК. Потолок ставит браузер по фактической
+   раскладке; число приходит переменной от `аптСтрокаСвернуть` */
+.apt-cut {
+  display: -webkit-box;
+  -webkit-line-clamp: var(--apt-cut, 2);
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* РАЗДЕЛЫ ИНСТРУКЦИИ, РАСКРЫТЫЕ В СТРОКЕ (2.2). Своего вида
+   не заводят: рисует их тот же построитель, что панель лекарства */
+.apt-ai-item-ins { width: 100%; margin-top: var(--space-2); }
 /* ЛЕВАЯ ПОЛОСА НАЗЫВАЕТ КУЧУ. Три состояния ответа различаются не
    словом в заголовке, а тоном у каждой строки: заголовок уезжает
    вверх при длинном списке, а полоса стоит рядом со своей строкой */
@@ -2647,7 +2714,10 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   display: block;
   margin-top: var(--space-2);
   padding: 0;
-  border: 1px solid var(--border);
+  /* РАМКИ НЕТ (№352, «аптечка-4», 2.1): снимок лежит ВНУТРИ пузыря
+     реплики, и его контур был вторым подряд — тот же довод, что
+     у плитки в строке ответа. Край картинки держит скругление. */
+  border: 0;
   border-radius: var(--radius-sm);
   background: none;
   cursor: pointer;
@@ -2695,8 +2765,14 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 .apt-ai-back.open { opacity: 1; visibility: visible; }
 @media (max-width: 768px) { .apt-ai-back { display: block; } }
 
-@media (max-width: 700px) {
-  .apt-ai { top: 0; width: 100vw; }
+/* ПОРОГ 768, А НЕ 700, И ЭТО ТОТ ЖЕ ПОРОГ, ЧТО У `.v2-assist-dock`
+   (№352, «аптечка-4»). При 700 на ширинах 701–768 эта панель
+   оставалась доком в 420 px, а три системные уже разворачивались
+   во весь экран — полоса в 68 px, где панели опять расходились.
+   Медиазапрос переменной не принимает, поэтому число одно и оно
+   названо здесь; сторожит проверка 63 на 390. */
+@media (max-width: 768px) {
+  .apt-ai { top: 0; width: 100%; }
   .apt-ai-open { flex: 1 1 100%; justify-content: center; }
 }
 
@@ -3779,7 +3855,9 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   aspect-ratio: 4 / 3;
   object-fit: cover;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
+  /* РАМКИ НЕТ (№352, «аптечка-4», 2.1): плитка лежит внутри пузыря
+     реплики, и её контур был ТРЕТЬИМ подряд. Границу снимка держит
+     скругление и подложка под ним — на пустой плитке она и видна. */
   background: var(--surface-2);
 }
 /* ── ПЛИТКА — КНОПКА, А НЕ КАРТИНКА (BACKLOG №245, C.2) ───────────

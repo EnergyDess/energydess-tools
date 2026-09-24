@@ -88,7 +88,7 @@ except Exception:
       parseFloat(c['border' + s + 'Width']) > 0
       && c['border' + s + 'Style'] !== 'none');
     return фон || рамка; };
-  const секции = [...п.querySelectorAll('.apt-drug-sec')];
+  const секции = [...п.querySelectorAll('.apt-sec')];
   const записи = [...п.querySelectorAll('.apt-drug-rec')];
   /* СВОЯ ЗАПИСЬ ОПОЗНАЁТСЯ ПО МЕТКЕ, а не по порядку: порядок — ровно
      то, что проверяет соседний шаг, и опираться на него значило бы
@@ -103,7 +103,7 @@ except Exception:
     открыта: true,
     секции: секции.map(s => s.dataset.sec),
     заголовки: секции.map(s =>
-      (s.querySelector('.apt-drug-sec-h') || {}).textContent || ''),
+      (s.querySelector('.apt-sec-h') || {}).textContent || ''),
     метки: записи.map(r => ((r.querySelector('.apt-drug-src') || {})
       .textContent || '').split(' · ')[0]),
     источников: записи.map(r => r.querySelectorAll('.apt-drug-src').length),
@@ -1075,7 +1075,7 @@ def прогон(база, подлог=None, ширины=None):
         window.аптЛекарствоНарисовать = function (п, с) {
           было(п, с);
           const т = document.getElementById('apt-drug-body');
-          const сек = [...т.querySelectorAll('.apt-drug-sec')];
+          const сек = [...т.querySelectorAll('.apt-sec')];
           if (сек.length > 1) т.appendChild(сек[0]);
         }; });"""),
     ("дозировка выделена и в записи с упаковки",
