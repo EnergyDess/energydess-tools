@@ -292,6 +292,19 @@
 @container aptbox (min-width: 1100px) {
   .apt-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+/* ПЯТАЯ КОЛОНКА НА ШИРОКОЙ СЕТКЕ (№352, письмо «широкий режим везде»).
+   Колонка содержимого поднята до 1920, и на 2560 сетка выходит 1824 px:
+   четыре карточки по 444 px — это уже не карточка, а полоса. Порог
+   взят от МИНИМУМА КОЛОНКИ, как у соседнего правила: при 1700 пять
+   карточек выходят по 327 px, то есть шире объявленных 260, и правило
+   не может дать карточку уже минимума ни на одной ширине.
+
+   Замер до и после (ширина окна -> сетка -> колонок, карточка):
+   1440 -> 1102 -> 4 по 263; 1600 -> 1262 -> 4 по 303;
+   1920 -> 1582 -> 4 по 383 (было 368); 2560 -> 1824 -> 5 по 352. */
+@container aptbox (min-width: 1700px) {
+  .apt-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
 
 .apt-card {
   display: flex;
@@ -1859,7 +1872,10 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 .apt-cats-fold:not(.open) .apt-chips { min-height: 1.9em; }
 .apt-cats-fold.open .apt-chips { min-height: 0; }
 
+/* МЕРА ЧИТАЕМОСТИ (№352, письмо «широкий режим везде»): подсказка
+   росла вместе с колонкой — 74 знака на 1440 против 133 на 2560. */
 .apt-hint {
+  max-width: min(100%, var(--v2-measure));
   color: var(--text-faint);
   font-size: var(--text-caption);
   margin: var(--space-1) 0 0;

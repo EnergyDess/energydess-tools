@@ -33,6 +33,10 @@
     .doc-lead { font-style: italic; font-size: var(--text-body-lg); color: var(--text-2); line-height: 1.6; margin-bottom: var(--space-6); }
     .doc-body { font-size: var(--text-body); color: var(--text-2); line-height: 1.7; }
     .doc-body h2 { font-size: var(--text-h3); color: var(--text); margin: var(--space-6) 0 var(--space-3); }
+    /* Мера читаемости: страница живёт в общей колонке содержимого,
+       а та с письма «широкий режим везде» шире — замер проверки 67
+       дал 91 знак в строке при пороге 90. */
+    .doc-body p, .doc-body li { max-width: min(100%, var(--v2-measure)); }
     .doc-body p { margin-bottom: var(--space-4); }
     .doc-body ul { margin: 0 0 var(--space-4) var(--space-5); }
     .doc-body li { margin-bottom: var(--space-2); }
@@ -199,7 +203,7 @@
     }
     .doc-tools-icon svg { width: 20px; height: 20px; stroke-width: 1.5; }
     .doc-tools-name { display: block; font-weight: 600; color: var(--text); font-size: var(--text-body); }
-    .doc-tools-desc { display: block; font-size: var(--text-caption); color: var(--text-2); line-height: 1.5; margin-top: 2px; }
+    .doc-tools-desc { display: block; max-width: min(100%, var(--v2-measure)); font-size: var(--text-caption); color: var(--text-2); line-height: 1.5; margin-top: 2px; }
 
     @media (max-width: 480px) {
       /* Обтекание на 390px бессмысленно: рядом с фото поместилось бы
