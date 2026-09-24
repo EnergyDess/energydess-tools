@@ -125,6 +125,22 @@ except Exception:
   const кб = б ? б.getBoundingClientRect() : null;
   const кк = карточки.length ? карточки[0].getBoundingClientRect() : null;
 
+  // СТРОКА ПОИСКА И СЧЁТЧИКИ. На узкой ширине счётчики обязаны стоять
+  // ОТДЕЛЬНОЙ строкой (поиск занимает свою целиком), на десктопе —
+  // в одной строке с поиском; перелива ряда нет нигде.
+  const пс = document.querySelector('.ens-search');
+  const сч = document.querySelector('.ens-stats');
+  const рд = document.querySelector('.ens-bar-row');
+  const кор = э => { const b = э.getBoundingClientRect();
+    return {y: +b.y.toFixed(1), h: +b.height.toFixed(1),
+            правый: +(b.x + b.width).toFixed(1)}; };
+  const полоса = пс && сч && рд ? {
+    в_одной_строке: кор(пс).y < кор(сч).y + кор(сч).h
+                    && кор(сч).y < кор(пс).y + кор(пс).h,
+    перелив: +(рд.scrollWidth - рд.clientWidth).toFixed(1),
+    за_краем: +(кор(сч).правый - document.documentElement.clientWidth).toFixed(1),
+  } : null;
+
   const зг = document.querySelector('.cat-name');
   const шапка = document.querySelector('.cat-hdr');
   const з = зг ? getComputedStyle(зг) : null;
@@ -134,6 +150,7 @@ except Exception:
     колонок, карточек: карточки.length, рядов,
     ширина_карточки: кк ? +кк.width.toFixed(1) : 0,
     разброс: +разброс.toFixed(1),
+    полоса,
     подписей: подписи.length, многострочные: [...new Set(многострочные)],
     усечённые: [...new Set(усечённые)],
     баннер: кб && кк ? {высота: +кб.height.toFixed(1),
@@ -327,6 +344,17 @@ def прогон(база, подлог=None, ширины=None):
         # равен `--v2-tool` своей страницы.
         шаг("цвет-заголовка-инструмента", свой and свой["цвет"] == цвет,
             "заголовок %s, --v2-tool %s" % (свой["цвет"] if свой else None, цвет))
+
+    # СЧЁТЧИКИ НЕ ЛОМАЮТ СТРОКУ С ПОИСКОМ (блок 1.1). На 390 они
+    # обязаны стоять ОТДЕЛЬНОЙ строкой, на десктопе — в одной с полем;
+    # перелива ряда нет ни на одной ширине.
+    полосы = [(ш, з["полоса"]) for ш, з in замеры if з["полоса"]]
+    сломано = [(ш, п) for ш, п in полосы
+               if п["перелив"] > 0 or п["за_краем"] > 0
+               or п["в_одной_строке"] != (ш >= 640)]
+    шаг("строка-поиска-и-счётчиков", not сломано,
+        "; ".join("%d: %s" % (ш, п) for ш, п in (сломано or полосы)),
+        собрано=len(полосы))
 
     if окно is None or not окно.get("открыто"):
         шаг("окно-предмета-на-v2", bool(окно), "окно не открылось",
