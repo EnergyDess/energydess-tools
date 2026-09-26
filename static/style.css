@@ -3807,7 +3807,9 @@ textarea::placeholder, input::placeholder { color: var(--text-faint); }
 .undo-bar {
   position: fixed;
   left: var(--space-5);
-  bottom: var(--space-5);
+  /* над нижней панелью разделов на телефоне (№352, «мобильный-1»):
+     `--v2-dock-space` объявляет страница с панелью, иначе 0 */
+  bottom: calc(var(--space-5) + var(--v2-dock-space, 0px));
   /* ═══ СЛОЙ ВЫШЕ ОКОН, И ЭТО ПОЧИНКА, А НЕ ВКУС ═══════════════════
      Было `z-index: 100`, то есть НИЖЕ модалок (200) и просмотра фото
      (218). Пока действие делалось со страницы, разницы не было;

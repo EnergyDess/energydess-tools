@@ -92,7 +92,11 @@ except Exception:
   const out = {шапки: true,
     шапка: [hb.left + parseFloat(s.paddingLeft), hb.right - parseFloat(s.paddingRight)],
     h1: [тб.left, тб.right], центр_h1: (стр.top + стр.bottom) / 2};
-  const tabs = [...h.querySelectorAll('.v2-tabs')].find(вид);
+  // ЗАКРЕПЛЁННЫЙ РЯД НЕ СПРАШИВАЕТСЯ: на телефоне у HH, питания
+  // и аптечки ряд вкладок — нижняя панель во всю ширину окна
+  // (№352, «мобильный-1»), её сторожит проверка 68. Ряд в потоке
+  // шапки спрашивается как прежде.
+  const tabs = [...h.querySelectorAll('.v2-tabs')].find(e => вид(e) && getComputedStyle(e).position !== 'fixed');
   if (tabs) { const b = R(tabs); out.вкладки = [b.left, b.right];
     // РЯД ПРОТИВ КОНТЕЙНЕРА, а не против содержимого: при `1fr`
     // вместо `minmax(0, 1fr)` колонка кнопок растёт содержимым

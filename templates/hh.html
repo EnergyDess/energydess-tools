@@ -24,24 +24,27 @@
      заново на экране, где начинать ещё нечего. Ассистента у HH нет. #}
   <header class="v2-page-head is-page">
     {{ ph.text(V2_TOOL.hh, 'Вставьте текст или ссылку на вакансию — получите сопроводительное письмо за 32 секунды') }}
-    <nav class="v2-tabs hh-views" aria-label="Разделы HH-ассистента">
+    {# НА ТЕЛЕФОНЕ ЭТОТ ЖЕ РЯД — НИЖНЯЯ ПАНЕЛЬ (№352, «мобильный-1», 1.1),
+       с короткими подписями. МЕТКА У «ДОСЬЕ» И «РЕЗЮМЕ» — ТОЛЬКО КОГДА
+       ЧЕГО-ТО НЕ ХВАТАЕТ (1.3, правило владельца). Прежде точка горела
+       всегда: зелёная — «хватает для письма» (досье: `dossier_ready`,
+       резюме: текст есть), тусклая — нет. Заполненное молчит. #}
+    <nav class="v2-tabs v2-tabs-dock hh-views" aria-label="Разделы HH-ассистента">
       <button type="button" class="v2-tab active is-active" aria-current="page" data-view="write" onclick="switchView('write')">
-        {{ значок('pen-line') }} Написать письмо
+        {{ значок('pen-line') }} <span class="v2-tab-long">Написать письмо</span><span class="v2-tab-short">Письмо</span>
       </button>
       <button type="button" class="v2-tab" data-view="history" onclick="switchView('history')">
-        {{ значок('history') }} История писем
+        {{ значок('history') }} <span class="v2-tab-long">История писем</span><span class="v2-tab-short">История</span>
       </button>
       <button type="button" class="v2-tab" data-view="dossier" onclick="switchView('dossier')">
-        {{ значок('folder-open') }} Досье
-        <span class="hh-dot{{ ' is-on' if has_dossier }}" id="dosie-badge"
-              title="{{ 'Заполнено' if has_dossier else 'Не заполнено' }}"
-              aria-label="{{ 'Заполнено' if has_dossier else 'Не заполнено' }}"></span>
+        {{ значок('folder-open') }} <span>Досье</span>
+        <span class="hh-dot v2-tab-mark" id="dosie-badge"{{ ' hidden' if has_dossier }}
+              title="Не заполнено" aria-label="Не заполнено"></span>
       </button>
       <button type="button" class="v2-tab" data-view="resume" onclick="switchView('resume')">
-        {{ значок('file-text') }} Резюме
-        <span class="hh-dot{{ ' is-on' if has_resume }}" id="resume-badge"
-              title="{{ 'Заполнено' if has_resume else 'Не заполнено' }}"
-              aria-label="{{ 'Заполнено' if has_resume else 'Не заполнено' }}"></span>
+        {{ значок('file-text') }} <span>Резюме</span>
+        <span class="hh-dot v2-tab-mark" id="resume-badge"{{ ' hidden' if has_resume }}
+              title="Не заполнено" aria-label="Не заполнено"></span>
       </button>
     </nav>
   </header>
@@ -1857,15 +1860,13 @@
     поставитьТочку('dosie-badge', ready);
   }
 
-  // Точка заполненности: зелёная — заполнено, тусклая — нет. Подпись
-  // живёт в `title` и `aria-label` СРАЗУ: точка без имени — знак,
-  // о котором не у кого спросить.
+  // Метка «не хватает»: видна ТОЛЬКО когда раздел не заполнен
+  // (№352, «мобильный-1», 1.3). Заполненное молчит — точка, горящая
+  // всегда, перестаёт читаться на третий день.
   function поставитьТочку(id, ready) {
     const точка = document.getElementById(id);
     if (!точка) return;
-    точка.className = 'hh-dot' + (ready ? ' is-on' : '');
-    точка.title = ready ? 'Заполнено' : 'Не заполнено';
-    точка.setAttribute('aria-label', точка.title);
+    точка.hidden = !!ready;
   }
 
   // ── Сохранение досье ──

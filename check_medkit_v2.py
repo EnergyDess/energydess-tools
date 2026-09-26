@@ -456,7 +456,9 @@ def _поднять():
             h: +b.height.toFixed(1), центр: +(b.top + b.height / 2).toFixed(1)}; };
   const видно = э => !!э && getComputedStyle(э).display !== 'none'
                   && э.getBoundingClientRect().height > 0;
-  const кнопки = [...document.querySelectorAll('.apt-bar-act > *')].map(э => ({
+  // С «мобильного-1» (№352, 1.2) кнопки лежат в двух группах —
+  // боковой и основной; порядок в документе прежний
+  const кнопки = [...document.querySelectorAll('.apt-bar-act > .v2-head-side > *, .apt-bar-act > .v2-head-main > *')].map(э => ({
     id: э.id, текст: (э.innerText || '').replace(/\s+/g, ' ').trim(),
     класс: э.className, x: +э.getBoundingClientRect().x.toFixed(1),
     фон: getComputedStyle(э).backgroundColor,

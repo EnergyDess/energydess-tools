@@ -27,11 +27,11 @@
        дата уже стоит в ленте дней, и моноширинный повтор был вторым
        местом, где она могла разойтись с первым. #}
     {{ ph.text(V2_TOOL.nutrition, 'Дневник питания с подсчётом КБЖУ и штрих-код сканером.') }}
-    <div class="v2-head-actions">
+    <div class="v2-head-actions v2-head-fill">
       <button type="button" class="v2-btn v2-btn-secondary" id="nut-assist-open" aria-controls="nut-assist" aria-expanded="false" onclick="открытьАссистента()">{{ значок('sparkles') }}AI-ассистент</button>
       <button type="button" class="v2-btn v2-btn-primary nut-tabbtn" data-tab="search" onclick="switchTab(this)">{{ значок('plus') }}Добавить</button>
     </div>
-    <nav class="v2-tabs" aria-label="Разделы дневника питания">
+    <nav class="v2-tabs v2-tabs-dock" aria-label="Разделы дневника питания">
       <button type="button" class="v2-tab nut-tabbtn active" data-tab="diary" onclick="switchTab(this)">{{ значок('clipboard-list') }}Дневник</button>
       <button type="button" class="v2-tab nut-tabbtn" data-tab="history" onclick="switchTab(this)">{{ значок('history') }}История</button>
       <button type="button" class="v2-tab nut-tabbtn" data-tab="weight" onclick="switchTab(this)">{{ значок('scale') }}Вес</button>

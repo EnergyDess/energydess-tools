@@ -224,14 +224,16 @@
    столько же, сколько подпись вкладки, и спорил с ней за внимание. Имя
    точки живёт в `title` и `aria-label` — знак без имени не у кого
    спросить. */
+/* С «мобильного-1» (№352, 1.3) — МЕТКА НЕХВАТКИ: видна только у
+   незаполненного раздела, цвет предупреждения. Зелёной «всё в порядке»
+   больше нет: заполненное молчит. */
 .hh-dot {
   width: 8px;
   height: 8px;
   flex-shrink: 0;
   border-radius: var(--v2-r-pill);
-  background: var(--v2-text-faint);
+  background: var(--v2-warn);
 }
-.hh-dot.is-on { background: var(--v2-ok); }
 
 /* ── Панель результата ──────────────────────────────────────────────────── */
 .result-panel { min-height: 31rem; }
@@ -973,8 +975,10 @@
 /* ── Toast ──────────────────────────────────────────────────────────────── */
 .toast {
   position: fixed;
-  bottom: var(--space-5);
+  /* над нижней панелью разделов на телефоне (№352, «мобильный-1») */
+  bottom: calc(var(--space-5) + var(--v2-dock-space, 0px));
   right: var(--space-5);
+  max-width: calc(100vw - 2 * var(--space-5));
   background: var(--surface-1);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);

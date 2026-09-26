@@ -133,6 +133,12 @@
    а в шапке выравнивание даёт общий `.v2-head-actions`
    (`justify-content: flex-end`) — второе правило спорило бы с ним. */
 .ens-stats { display: flex; gap: var(--space-3); }
+/* НА ТЕЛЕФОНЕ — ДВЕ РАВНЫЕ ПЛИТКИ ВО ВСЮ ШИРИНУ под описанием (№352,
+   «мобильный-1», 1.2). Группа занимает всю строку по общему правилу
+   `.v2-head-fill`; делят её сами плитки. */
+@media (max-width: 768px) {
+  .ens-stats { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--v2-sp-2); }
+}
 .ens-stat {
   text-align: center;
   background: var(--v2-surface-1);

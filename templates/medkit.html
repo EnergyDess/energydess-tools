@@ -70,6 +70,11 @@
     {{ ph.text(V2_TOOL.medkit, 'Что лежит дома, сколько осталось и что пора выбросить') }}
     <div class="v2-head-actions">
     <div class="apt-bar-act">
+      {# ДВЕ ГРУППЫ (№352, «мобильный-1», 1.2): на телефоне лица и
+         «Перепроверить» встают в строку заголовка справа, «AI-ассистент»
+         и «Добавить» — ниже, двумя равными долями. На десктопе обе группы
+         стоят рядом в прежнем порядке. #}
+      <div class="v2-head-side apt-head-side">
       {% if общая %}
       {# ЛИЦА — ОДНИМ ПОСТРОИТЕЛЕМ `ав.лицо`, тем же, что в ленте
          и на карточке: запасной вид (буква вместо снимка) и тон
@@ -111,6 +116,8 @@
         <span class="apt-gaps-n" id="apt-gaps-n"
               {{ '' if долгов else 'hidden' }}>{{ долгов }}</span>
       </button>
+      </div>
+      <div class="v2-head-main apt-head-main">
       <button class="v2-btn v2-btn-secondary apt-ai-open" type="button"
               id="apt-ai-open" onclick="аптАИОткрыть()">
         {{ значок('sparkles') }} <span class="apt-ai-lbl">AI-ассистент</span>
@@ -119,6 +126,7 @@
               id="apt-add" onclick="аптОткрытьФорму()">
         {{ значок('plus') }} Добавить
       </button>
+      </div>
     </div>
     </div>
     {# ── ВКЛАДКИ (блок 2.2) ────────────────────────────────────────
@@ -126,12 +134,12 @@
        окна «Общая аптечка»; обе стали вкладками раздела. Поведение
        прежнее, построители те же (`_medkit_buy.html`, `_medkit_feed.html`).
        Вкладка по умолчанию — «Лекарства». #}
-    <nav class="v2-tabs" aria-label="Разделы аптечки">
+    <nav class="v2-tabs v2-tabs-dock" aria-label="Разделы аптечки">
       <button type="button" class="v2-tab apt-tabbtn{{ '' if покупки_открыт else ' active' }}" data-tab="items"
               onclick="аптВкладка(this)">{{ значок('pill') }}Лекарства</button>
       <button type="button" class="v2-tab apt-tabbtn{{ ' active' if покупки_открыт }}" data-tab="buy"
               onclick="аптВкладка(this)">{{ значок('clipboard-list') }}Купить
-        <span class="apt-tab-n apt-buy-n" id="apt-buy-n"
+        <span class="apt-tab-n apt-buy-n v2-tab-mark" id="apt-buy-n"
               {% if not покупок %}hidden{% endif %}>{{ осталось_купить }}</span></button>
       {% if общая %}
       <button type="button" class="v2-tab apt-tabbtn" data-tab="feed"

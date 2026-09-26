@@ -1364,11 +1364,17 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
 
 /* ── Toast ── */
 .toast {
-  position: fixed; bottom: calc(var(--nav-h) + 0.875rem); left: 50%;
+  /* НАД НИЖНЕЙ ПАНЕЛЬЮ И НЕ ШИРЕ ЭКРАНА (№352, «мобильный-1», 1.1 и 2.3).
+     `--v2-dock-space` объявляет страница с нижней панелью, иначе 0.
+     Было `white-space: nowrap` по центру окна: длинное сообщение
+     вылезало за ОБА края — ровно то, что видел владелец. Теперь
+     строка переносится внутри окна с полями (проверка 69). */
+  position: fixed; bottom: calc(var(--nav-h) + var(--v2-dock-space, 0px) + 0.875rem); left: 50%;
+  width: max-content; max-width: calc(100vw - 2 * var(--space-4)); text-align: center;
   transform: translateX(-50%) translateY(0.875rem);
   background: var(--surface-sunken); border: 1px solid var(--border); border-radius: 0.6875rem;
   padding: var(--space-2) var(--space-4); font-size: var(--text-caption); font-weight: 600;
-  opacity: 0; transition: all .22s; z-index: 300; white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: all .22s; z-index: 300; pointer-events: none;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.green { border-color: color-mix(in srgb, var(--tool-accent) 35%, transparent); color: var(--tool-accent); }
