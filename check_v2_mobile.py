@@ -86,13 +86,15 @@ except Exception:
   const имя = e => (e.id ? '#' + e.id : '') + '.' + String(e.className && e.className.baseVal !== undefined
     ? e.className.baseVal : e.className || e.tagName).trim().split(/\s+/).slice(0, 2).join('.');
   const чужое = e => e.closest('.v2-top, .v2-top-bar, .site-header, .v2-side, .v2-side-scrim, footer, .site-footer, .modal-ov:not(.open), [hidden]');
-  // обрезан своей прокруткой либо `overflow` предка (не страницы)
+  // ЗАКОННО ТОЛЬКО В СВОЕЙ ПРОКРУТКЕ ВБОК (лента вкладок, таблица
+  // в обёртке): до края там дотягивается палец. Срез краем `hidden` /
+  // `clip` — НЕ законно: каркас держит `overflow-x: clip` (под свечение
+  // шапки), и элемент шире окна под ним просто теряет край молча —
+  // подлог №2 первой версии это и показал (заголовок в 140vw — 0 находок)
   const обрезан = e => { let п = e.parentElement;
     while (п && п !== document.body && п !== document.documentElement) {
       const c = getComputedStyle(п);
-      if (c.overflowX !== 'visible' && п.scrollWidth > п.clientWidth + 1) return true;
-      if (c.overflowX === 'hidden' || c.overflowX === 'clip') {
-        const b = R(п); if (b.left >= -0.5 && b.right <= W + 0.5) return true; }
+      if ((c.overflowX === 'auto' || c.overflowX === 'scroll') && п.scrollWidth > п.clientWidth + 1) return true;
       п = п.parentElement; }
     return false; };
   const out = {W, прокрутка: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -106,6 +108,10 @@ except Exception:
     if (чужое(e) || !вид(e)) continue;
     const b = R(e);
     if (b.left < -1 || b.right > W + 1) { if (обрезан(e)) continue;
+      // объявленное многоточие — законный срез (бренд в строке еды)
+      let мн = false, а = e; while (а && а !== document.body) {
+        if (getComputedStyle(а).textOverflow === 'ellipsis') { мн = true; break; } а = а.parentElement; }
+      if (мн) continue;
       out.шире.push([имя(e), Math.round(b.left), Math.round(b.right)]); }
   }
   // 2. края рядов: ряд = контейнер, края = крайние видимые дети либо сама коробка
@@ -373,8 +379,10 @@ def _экраны(стр, ш):
         ряды = [x for x in з["края"] if not (x[2] <= 0.5 and x[3] <= 0.5)]
         плохие = [x for x in ряды if abs(x[2] - x[3]) > 1]
         левые = sorted(set(x[2] for x in ряды))
+        # и ОДИН НА ВСЕ ЭКРАНЫ: `--v2-gutter-sm` (16) — поле колонки
+        # каркаса; внутри карточек ряды законно глубже и сюда не входят
         шаг("%d %s: один боковой отступ" % (ш, имя),
-            not плохие and (not левые or левые[-1] - левые[0] <= 1),
+            not плохие and (not левые or (левые[-1] - левые[0] <= 1 and abs(левые[0] - 16) <= 1)),
             "рядов %d, левые %s%s" % (len(ряды), левые[:4],
                                        "; несимметричны: " + ", ".join(
                                            "%s %s Л%s П%s" % tuple(x) for x in плохие[:2]) if плохие else ""),

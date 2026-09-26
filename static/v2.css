@@ -1248,6 +1248,11 @@ html.v2-rail .v2-shell .v2-side-caret { display: none; }
   .v2-btn, .v2-chip, .v2-input, .v2-select { min-height: var(--v2-ctl-h-touch); }
   .v2-btn-icon { width: var(--v2-ctl-h-touch); }
   .v2-seg-btn, .v2-choice-item { min-height: var(--v2-ctl-h-touch); }
+  /* КРУГ УДАЛЕНИЯ НЕ РАСТЁТ (№352, «мобильный-1», 2.5): строка выше
+     поднимала ему высоту до 44 при ширине 30 — овал вместо круга
+     (замер досье на 390: 30×44). Область нажатия 44 у него своя,
+     невидимым слоем `::after`. */
+  .v2-btn-del { min-height: var(--v2-ctl-sm-h); }
 }
 /* Каркас ниже десктопа: меню за кнопкой в верхней строке, поверх страницы. */
 @media (max-width: 1023px) {
@@ -1308,6 +1313,16 @@ html.v2-rail .v2-shell .v2-side-caret { display: none; }
   .v2-tab { flex-shrink: 0; }
   .v2-assist { width: 100%; border-radius: var(--v2-r-lg); }
   .v2-card { padding: var(--v2-sp-4); }
+  /* СЕГМЕНТЫ НЕ ШИРЕ СТРОКИ (№352, «мобильный-1», 2.3): `inline-flex`
+     с подписями в строку давал переключатель цели в «Профиле» питания
+     шириной 346 px при месте 318 на 360 — край срезал `overflow-x: clip`
+     каркаса молча. На телефоне ряд занимает строку, доли — по подписям,
+     длинная подпись переносится. */
+  .v2-seg { display: flex; max-width: 100%; }
+  /* кнопка не уже самого длинного СЛОВА (`min-width: auto`): иначе
+     «Поддержание» выходило за свою долю на 5 px — переносится только
+     подпись из нескольких слов */
+  .v2-seg-btn { flex: 1 1 auto; padding: 0 var(--v2-sp-2); white-space: normal; text-align: center; }
 
   /* ── КНОПКИ ШАПКИ НА ТЕЛЕФОНЕ — ВО ВСЮ ШИРИНУ, РАВНЫМИ ДОЛЯМИ
      (№352, «мобильный-1», блок 1.2). Замер «до» на 390: правый край
@@ -1407,6 +1422,16 @@ html.v2-rail .v2-shell .v2-side-caret { display: none; }
   :root { --v2-dock-space: calc(var(--v2-dock-h) + env(safe-area-inset-bottom, 0px)); }
   body:has(.v2-tabs-dock) { padding-bottom: var(--v2-dock-space); }
 }
+/* ФОН ПОД ПАНЕЛЬЮ ВО ВЕСЬ ЭКРАН НЕ ДВИЖЕТСЯ (№352, «мобильный-1», 2.4).
+   Класс ставит слой `panel-solo.js` по факту видимости. Тот же приём,
+   что у модалок (`html.modal-open`): `overflow: hidden` на корне
+   положение прокрутки сохраняет, `position: fixed` на body сбрасывал бы
+   его. `overscroll-behavior` — вторая половина: прокрутка внутри панели,
+   дойдя до края, не передаётся наружу. */
+html.v2-panel-lock, html.v2-panel-lock body { overflow: hidden; }
+[data-panel], [data-panel] * { overscroll-behavior: contain; }
+.modal-ov, .modal-ov * { overscroll-behavior: contain; }
+
 /* Короткая подпись раздела — только в нижней панели */
 .v2-tab-short { display: none; }
 @media (max-width: 768px) {

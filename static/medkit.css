@@ -950,6 +950,15 @@
    `flex: 1 1 0` осталось: это РАСКЛАДКА экземпляра — три равные доли
    ряда, — и она принадлежит месту применения, а не компоненту. */
 .apt-scale .segmented-btn { flex: 1 1 0; min-width: 0; }
+/* «Заканчивается» на 360 не помещалось в треть ряда: текст 96 px при
+   доле 89 (проверка 69). На самых узких экранах доли идут ПО ПОДПИСЯМ —
+   50 + 63 + 96 px из 267, — и ни одна подпись не выходит за кнопку. */
+@media (max-width: 400px) {
+  .apt-scale .segmented-btn { flex: 1 1 auto; }
+  /* поле — СВОИМ классом того же элемента, а не системным (§6.0.2,
+     проверка 1: поле — вид компонента, а не раскладка) */
+  .apt-scale .apt-scale-btn { padding-inline: var(--space-1); }
+}
 
 .apt-acts {
   display: flex;
@@ -1559,6 +1568,11 @@
   white-space: nowrap;
 }
 .apt-role-own { background: var(--v2-tool-dim); color: var(--v2-tool); }
+/* РОЛЬ И «ВЫЙТИ»/«УБРАТЬ» В СТРОКЕ УЧАСТНИКА — ОДНОЙ ШИРИНЫ (№352,
+   «мобильный-1», 2.5): стояли по своим подписям, 78 и 76 px. Ширина
+   одна на обе — по самой длинной подписи («участник»). */
+.apt-person > .apt-role,
+.apt-person > .v2-btn { flex: 0 0 6rem; width: 6rem; justify-content: center; text-align: center; box-sizing: border-box; }
 .apt-role-guest { background: var(--v2-surface-2); color: var(--v2-text-2); }
 
 .apt-sel-wrap { display: flex; width: 100%; }
@@ -3007,6 +3021,12 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
 .apt-buy-box {
   border-top: 1px solid var(--border);
   padding: var(--space-3) var(--space-4) var(--space-4);
+}
+/* ОДИН БОКОВОЙ ОТСТУП (№352, «мобильный-1», 2.2): поле стояло в 32 px
+   от края при 16 у шапки и вкладок — поле блока осталось с тех пор,
+   когда «Купить» был сворачиваемым блоком над списком. */
+@media (max-width: 768px) {
+  .apt-buy-box { padding-inline: 0; }
 }
 .apt-buy-none {
   margin: 0;
