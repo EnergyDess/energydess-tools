@@ -1403,6 +1403,48 @@ function shiftDayWindow(шаг) {
   renderDayStrip();
 }
 
+// ЛЕНТА ДНЕЙ ЛИСТАЕТСЯ ПАЛЬЦЕМ (№352, «мобильный-2», 2.5). Смахивание
+// двигает ТО ЖЕ окно из семи дней, что стрелки: вторая модель ленты —
+// все пятнадцать дней в прокрутке — разошлась бы с проверками 23 и 55,
+// которые считают выбранную клетку в окне. Дней — по пройденному пальцем
+// пути, клетка на её ширину. Стрелки остаются.
+//
+// НАЖАТИЕ ПОСЛЕ СМАХИВАНИЯ ДНЁМ НЕ СЧИТАЕТСЯ: клик ловится на ленте
+// в фазе погружения и до кнопки дня не доходит. Флаг снимает следующее
+// касание — иначе смахивание, после которого браузер клика не прислал,
+// съело бы первое честное нажатие. Мышь листает стрелками: жест —
+// только для пальца и пера. `touch-action: pan-y` — в nutrition.css.
+(function () {
+  const лента = document.getElementById('ds-days');
+  if (!лента) return;
+  const ПОРОГ = 24;   // px: ближе — это нажатие с дрожью пальца, а не жест
+  let старт = null, смахнули = false;
+  лента.addEventListener('pointerdown', e => {
+    // флаг снимает ЛЮБОЕ касание, и мышью тоже: иначе смахивание без
+    // клика на сенсорном ноутбуке съело бы следующий клик мышью
+    смахнули = false;
+    старт = e.pointerType === 'mouse' ? null : {x: e.clientX, y: e.clientY};
+  });
+  лента.addEventListener('pointercancel', () => { старт = null; });
+  лента.addEventListener('pointerup', e => {
+    if (!старт) return;
+    const dx = e.clientX - старт.x, dy = e.clientY - старт.y;
+    старт = null;
+    if (Math.abs(dx) < ПОРОГ || Math.abs(dx) <= Math.abs(dy)) return;
+    смахнули = true;
+    const клетка = лента.querySelector('.ds-day');
+    const ширина = клетка ? клетка.getBoundingClientRect().width : 48;
+    const дней = Math.max(1, Math.round(Math.abs(dx) / ширина));
+    shiftDayWindow(dx < 0 ? дней : -дней);
+  });
+  лента.addEventListener('click', e => {
+    if (!смахнули) return;
+    смахнули = false;
+    e.stopPropagation();
+    e.preventDefault();
+  }, true);
+})();
+
 function renderDayStrip() {
   const центр = S.dayOffset;
   const предел = S.dayRange - 3;

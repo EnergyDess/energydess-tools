@@ -1472,6 +1472,13 @@ html.v2-panel-lock, html.v2-panel-lock body { overflow: hidden; }
    поле v2, а не `--surface-1` старой системы: его показывает проверка 60
    на каждом экране каркаса. Рамка и фокус — компонента `.input`. */
 .v2-shell .header-search .input { background: var(--v2-surface-field); border-color: var(--v2-line-1); }
+/* ПОЛЕ ВВОДА ПАНЕЛИ АССИСТЕНТА ПИТАНИЯ (№352, «мобильный-2», 2.4) — тот же
+   приём: фон и текст v2 всегда, рамка v2 — вне фокуса. Фон был `--surface-2`
+   старой системы, rgb(30, 32, 48) — тёмно-синий. В фокусе рамка и кольцо
+   остаются компонента `.input` (цвет инструмента): перебей их правило
+   весом (0,3,0), фокус стал бы неотличим от покоя. */
+.v2-shell .nut-assist .input { background: var(--v2-surface-field); color: var(--v2-text); }
+.v2-shell .nut-assist .input:not(:focus) { border-color: var(--v2-line-1); }
 /* Кнопка справки `.hint-btn` на экранах питания — поверхность v2.
    Только питание: остальные инструменты переводятся своими письмами. */
 .v2-shell.v2-tool-nutrition .hint-btn {

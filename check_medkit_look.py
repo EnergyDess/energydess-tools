@@ -1011,7 +1011,7 @@ def _круг_убрать():
           const ряд = окно.querySelector('.apt-circle-tabs');
           if (!ряд) return null;
           const rr = ряд.getBoundingClientRect();
-          return [...ряд.querySelectorAll('.tab-btn')].map(б => {
+          return [...ряд.querySelectorAll('[role=tab]')].map(б => {
             const r = б.getBoundingClientRect();
             const видно = Math.max(0, Math.min(r.right, rr.right)
                                       - Math.max(r.left, rr.left));

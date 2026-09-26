@@ -458,7 +458,12 @@
                    и под значком «?»: там места достаточно, и читать
                    это надо один раз, а подсказка висит всегда. #}
                 placeholder="Сообщение"></textarea>
-      <button class="btn-icon btn-icon-round tap-44 apt-ai-mic" type="button"
+      {# МИКРОФОН — В ТОЙ ЖЕ РАМКЕ, ЧТО СКРЕПКА И ШТРИХКОД («мобильный-2»,
+         2.3): тот же вариант `.btn-icon-solid .btn-icon-outline`, что
+         у соседей и у микрофона переписки дневника. Здесь стоял
+         `.btn-icon-round` — круг без рамки и подложки среди квадратов
+         в рамке (замер: рамка 0 px и радиус 50 % против 1 px и 8 px). #}
+      <button class="btn-icon btn-icon-solid btn-icon-outline tap-44 apt-ai-mic" type="button"
               id="apt-ai-mic" data-voice-box=".apt-ai-row"
               aria-label="Продиктовать" title="Продиктовать">
         {{ значок('mic') }}</button>
@@ -6752,6 +6757,8 @@ function аптКругВкладка(имя) {
   корень.querySelectorAll('[data-ctab]').forEach(к => {
     const он = к.dataset.ctab === имя;
     /* ИМЯ КЛАССА — `active`, И ЭТО НЕ ВКУС (BACKLOG №189, A.1).
+       С «мобильного-2» (2.2) вкладки окна — системные `.v2-tab`: они
+       знают и `.active`, и `.is-active`, ставится по-прежнему `active`.
        Здесь стояло `is-active`, а системный компонент `.tab-btn`
        знает ТОЛЬКО `.active` (style.css). Класс ставился, разметка
        выглядела осмысленной, правило не применялось ни разу: замер

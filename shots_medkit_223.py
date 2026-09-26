@@ -126,12 +126,12 @@ async def кадры(ширина, pw):
             print("   ПРОПУЩЕНЫ вкладки — кнопки участников нет")
         else:
             вкладки = await pg.evaluate(
-                "() => [...document.querySelectorAll('.apt-circle-tabs .tab-btn')]"
+                "() => [...document.querySelectorAll('.apt-circle-tabs [role=tab]')]"
                 "  .map(в => в.textContent.trim())")
             for i, имя in enumerate(вкладки):
                 await pg.evaluate(
                     "(i) => document.querySelectorAll("
-                    "'.apt-circle-tabs .tab-btn')[i].click()", i)
+                    "'.apt-circle-tabs [role=tab]')[i].click()", i)
                 await pg.wait_for_timeout(350)
                 await _снять(pg, "круг-вкладка-%d" % (i + 1), ширина,
                              "#apt-circle .modal-sh")

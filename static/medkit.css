@@ -2178,6 +2178,16 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   }
   .apt-chips::-webkit-scrollbar { display: none; }
   .apt-chips .chip { flex: 0 0 auto; }
+  /* В ОКНЕ ПРАВКИ КАТЕГОРИИ ИДУТ РЯДАМИ ВНИЗ, как на компьютере
+     («мобильный-2», 2.1). Лента выше заведена для ОТБОРА над списком;
+     в форме категорию ВЫБИРАЮТ, и чип за краем окна выбирается только
+     прокруткой, которой не видно. Замер до правки на 360: 15 чипов
+     в одну строку, 13 за краем, прокрутка вбок 1485 px. */
+  .apt-chips.apt-form-cats {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    padding: var(--space-3);
+  }
 
   .apt-bar { flex-wrap: wrap; }
   .apt-search { max-width: none; flex: 1 1 100%; }
@@ -2224,11 +2234,29 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   .apt-legend { gap: var(--space-3); flex-direction: column; }
   .apt-foot { flex-direction: column-reverse; align-items: stretch; }
   .apt-foot .btn { width: 100%; justify-content: center; }
-  /* НА УЗКОМ ПОДВАЛ СТОЛБИКОМ, и «Ещё упаковка» с подсказкой —
-     одной строкой: `margin-right: auto` в столбике не значит ничего,
-     а кнопка обязана занимать ту же ширину, что соседи */
+  /* ПОДВАЛ ФОРМЫ — ПО ПРАВИЛАМ v2 («мобильный-2», 2.1): главная кнопка
+     забирает всю оставшуюся ширину, «Отмена» рядом, служебные
+     («Ещё упаковка» с подсказкой, «К упаковкам») — строками ниже,
+     каждая во всю строку.
+
+     ПУСТОТУ СПРАВА ДАВАЛ КАСКАД, А НЕ ШИРИНА: столбик выше писан под
+     `.btn` старой системы, кнопки формы с «аптечки-2» — `.v2-btn`,
+     а настольное `.apt-foot .apt-more-pack { margin-right: auto }`
+     (0,2,0) перебивало здешнее `margin-right: 0` (0,1,0) — и «Ещё
+     упаковка» стояла по подписи. Замер до правки на 360: справа
+     от «?» пусто 94.5 px. Поля сброшены тем же весом, что их ставил. */
+  .apt-form .apt-foot {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+  .apt-form .apt-foot > * { margin: 0; }
+  .apt-form .apt-foot > #apt-back-packs { margin: 0; grid-column: 1 / -1; }
+  .apt-form .apt-foot > [data-modal-close] { grid-area: 1 / 1; }
+  .apt-form .apt-foot > [type="submit"] { grid-area: 1 / 2; }
+  .apt-form .apt-foot > .apt-more-pack { grid-column: 1 / -1; }
   .apt-more-pack { display: flex; margin-right: 0; }
-  .apt-more-pack .btn { flex: 1; }
+  .apt-more-pack > .v2-btn { flex: 1; }
 }
 
 
@@ -2611,11 +2639,14 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
   color: var(--text-faint);
   font-size: var(--text-caption);
 }
-/* КНОПКА РАСКРЫТИЯ ТЕКСТА В СТРОКЕ. Системная `.v2-btn-ghost`;
-   здесь только её место в столбце и кегль подписи (§6.0.2) */
+/* КНОПКА РАСКРЫТИЯ ТЕКСТА В СТРОКЕ. Системная `.v2-btn`: место
+   в столбце, кегль подписи и ПОЛЯ ВОКРУГ СЛОВА («мобильный-2», 2.3).
+   Здесь стояло `padding: 0`, и рамка кнопки шла впритык к слову
+   (замер до правки: 0 px слева и справа); поле — 12 px по бокам,
+   4 px сверху и снизу. */
 .apt-ai-more {
   align-self: flex-start;
-  padding: 0;
+  padding: var(--space-1) var(--space-3);
   min-height: 0;
   font-size: var(--text-caption);
 }
@@ -3409,23 +3440,31 @@ li.apt-dose-hit { list-style: none; margin-left: calc(-1 * var(--space-5)); }
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
+    /* ТЕНЬ — ЦВЕТОМ ЛИСТА ОКНА v2 («мобильный-2», 2.2): была
+       `--surface-2` старой палитры, тёмно-синяя */
     background:
-      linear-gradient(to left, var(--surface-2), rgba(0, 0, 0, 0)) right
+      linear-gradient(to left, var(--v2-surface-pop), transparent) right
         / 24px 100% no-repeat local;
   }
   .apt-circle-tabs::-webkit-scrollbar { display: none; }
-  .apt-circle-tabs .tab-btn { flex: 0 0 auto; }
+  .apt-circle-tabs .v2-tab { flex: 0 0 auto; }
 
   /* ── ШАПКА ОТДЕЛЕНА ПОДЛОЖКОЙ (F3) ────────────────────────────
      На ступень светлее тела окна: без неё ряд вкладок висел
      на общем фоне, и разделения между «шапкой» и содержимым
      не читалось вовсе (замер: фон шапки `rgba(0,0,0,0)`).
 
-     Поля отрицательные — подложка идёт во всю ширину листа,
-     а тело окна даёт свои 16 px по краям. */
+     ОТРИЦАТЕЛЬНЫХ ПОЛЕЙ БОЛЬШЕ НЕТ («мобильный-2», 2.2). Они стояли
+     под тело окна с отступом 16 px по краям, а окно с задачи 264 —
+     `modal-ov-flush`, у тела своих полей нет. Ряд выходил за тело
+     на 16 px с каждой стороны: первая вкладка вставала вплотную
+     к левому краю (0 вместо 16), а тело листалось вбок на 16 px.
+     Подложка и так идёт во всю ширину листа — поле даёт свой паддинг. */
   .apt-circle-tabsrow {
-    background: var(--surface-2);
-    margin: 0 calc(-1 * var(--space-4));
+    /* ПОДЛОЖКА — ступень v2 («мобильный-2», 2.2): здесь стоял
+       `--surface-2` старой палитры, rgb(30, 32, 48) — тёмно-синий ряд
+       под вкладками, который и читался «синим подчёркиванием» */
+    background: var(--v2-surface-2);
     padding: var(--space-2) var(--space-4) 0;
   }
   /* ЭТАЖ ПУСТОТЫ УБРАН (F4): 63 px между заголовком и вкладками

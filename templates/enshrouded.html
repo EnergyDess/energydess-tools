@@ -541,6 +541,26 @@ document.getElementById('ensLvl').addEventListener('change',e=>{
    Странице теперь достаточно атрибута `data-zoom` на баннере
    (см. renderCard) и подключённого скрипта в хвосте. */
 
+/* ПРИЛИПЛА ЛИ ПОЛОСА ПОИСКА (№352, «мобильный-2», 2.6). Затемнение под
+   ней видно только в прилипшем состоянии: вверху страницы под полосой
+   стоят сетка и заголовок раздела, и затемнять их незачем. Своего
+   состояния `position: sticky` в CSS не отдаёт — оно выводится
+   из геометрии: верх полосы стоит на своём `top`. Сверка — раз в кадр,
+   а не на каждое событие прокрутки. */
+(function () {
+  const полоса = document.querySelector('.ens-bar');
+  if (!полоса) return;
+  let ждём = false;
+  const сверить = () => {
+    ждём = false;
+    const верх = parseFloat(getComputedStyle(полоса).top) || 0;
+    полоса.classList.toggle('is-stuck', scrollY > 0 && полоса.getBoundingClientRect().top <= верх + 0.5);
+  };
+  addEventListener('scroll', () => { if (!ждём) { ждём = true; requestAnimationFrame(сверить); } }, {passive: true});
+  addEventListener('resize', сверить);
+  сверить();
+})();
+
 /* ── Init ─────────────────────────────────────────────── */
 loadState();
 </script>

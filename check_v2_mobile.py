@@ -33,11 +33,25 @@
 Браузер ВИДИМЫЙ (§6.0.3): меряются ширины и полоса прокрутки. В базу
 не пишет.
 
+  8. ПРАВКИ «МОБИЛЬНОГО-2» (блок 2) — окна и панели, которые письмо
+     трогало: ничто не шире окна (и тело окна не листается вбок, если
+     оно не лента), моноширинных нет, боковые отступы одинаковые — от
+     края области содержимого, без резерва под полосу прокрутки
+     (на телефоне полосы накладные). Плюс по пунктам: категории формы
+     рядами без прокрутки вбок, подвал формы по правилам v2 от края
+     до края ±1, подчёркивание вкладки «Общей аптечки» цветом
+     инструмента, рамка микрофона как у скрепки и штрихкода, плавный
+     переход под прилипшей полосой Enshrouded (прокрутка колесом туда
+     и обратно, пиксели у края перехода — фон страницы ±8), поле уровня
+     предмета не ближе 16 px к низу окна.
+
   --замер     таблица чисел без вердикта (код 0) — замер «до/после»
-  --полосы    только вопрос 7 (так же `--экраны`, `--сообщения`, …)
-  --контроль  подлоги №2 (элемент шире экрана) и №3 (прокрутка фона)
-              и «мобильный-2» №1 (полосы полупрозрачны); с `--полосы` —
-              только чистый проход полос и их подлог
+  --полосы    только вопрос 7 (так же `--экраны`, `--сообщения`,
+              `--правки`, …)
+  --контроль  подлоги №2 (элемент шире экрана) и №3 (прокрутка фона),
+              «мобильный-2» №1 (полосы полупрозрачны) и №3 (категории
+              формы лентой — доказательство `flex-wrap`); с ключом
+              раздела — только чистый проход раздела и его подлог
 """
 import os
 import sys
@@ -397,6 +411,139 @@ def печать_замера(итог):
     + ' .v2-tabs-dock { background: rgba(255, 255, 255, 0.02) !important; }';
   document.head.appendChild(s); });"""
 
+# 8. ПРАВКИ «МОБИЛЬНОГО-2» (блок 2): окна и панели, которые письмо
+# трогало. Перечень закрывает СЦЕНЫ («чем открыть»), а не множество
+# элементов: какое нажатие открывает окно, из разметки не выводится
+# (§6.0.7). (путь, имя, что нажать, корень окна для замера)
+ПРАВКИ = [
+    ("/medkit", "аптечка · правка", "[data-edit]", "#apt-form .modal-sh"),
+    ("/medkit", "аптечка · общая", "#apt-circle-open", "#apt-circle .modal-sh"),
+    ("/medkit", "аптечка · ассистент", "#apt-ai-open", "#apt-ai"),
+    ("/nutrition", "питание · ассистент", "#nut-assist-open", "#nut-assist"),
+    ("/nutrition", "питание · дневник", None, "#tab-diary"),
+    ("/enshrouded", "enshrouded", None, "main.ens-main"),
+    ("/enshrouded", "enshrouded · предмет", ".slot", "#ens-item .modal-sh"),
+]
+
+# ОКНО: моноширинные, «вбок» и боковые отступы. ОТСТУП СЧИТАЕТСЯ ОТ КРАЯ
+# ОБЛАСТИ СОДЕРЖИМОГО — клиентской коробки ближайшего прокручиваемого
+# предка либо самого окна, БЕЗ резерва под полосу прокрутки. Замер
+# захода: при открытом окне лист кончался на 380 из 390, тело окна
+# держало ещё 10 px (`scrollbar-gutter: stable`), и отступы выходили
+# 16 слева против 36 справа. На телефоне полосы НАКЛАДНЫЕ и места
+# не занимают — такое «расхождение» было бы находкой про эмуляцию
+# настольного браузера, а не про экран владельца.
+#
+# «ВБОК» — прокручиваемый блок, который листается вбок, НЕ БУДУЧИ
+# ЛЕНТОЙ (лента — дети в одну строку: вкладки, чипы). Замер захода:
+# тело окна «Общая аптечка» листалось вбок на 16 px — ряд вкладок
+# с отрицательными полями выходил за тело без полей (`modal-ov-flush`),
+# и общий замер «шире экрана» его не видел: элемент в своей прокрутке
+# вбок он считает законно обрезанным.
+ОКНО_ПРАВКИ = r"""(корень) => {
+  const к = document.querySelector(корень); if (!к) return null;
+  const R = e => e.getBoundingClientRect();
+  const вид = e => e.checkVisibility({opacityProperty: true, visibilityProperty: true}) && R(e).width > 0 && R(e).height > 0;
+  const имя = e => (e.id ? '#' + e.id : '') + '.' + String(e.className).trim().split(/\s+/).slice(0, 2).join('.');
+  const вбок_можно = e => { const c = getComputedStyle(e);
+    return (c.overflowX === 'auto' || c.overflowX === 'scroll') && e.scrollWidth > e.clientWidth + 1; };
+  const лента = e => { const д = [...e.children].filter(вид); if (д.length < 2) return false;
+    return Math.max(...д.map(x => R(x).top)) < Math.min(...д.map(x => R(x).bottom)); };
+  const своя = e => { for (let п = e.parentElement; п && п !== к.parentElement; п = п.parentElement)
+    if (вбок_можно(п) && лента(п)) return true; return false; };
+  const опора = e => { for (let п = e.parentElement; п && п !== к; п = п.parentElement) {
+      const c = getComputedStyle(п); if (c.overflowY === 'auto' || c.overflowY === 'scroll') return п; }
+    return к; };
+  const моно = [], вбок = [], органы = [];
+  for (const e of [к, ...к.querySelectorAll('*')]) {
+    if (!вид(e)) continue;
+    if ([...e.childNodes].some(n => n.nodeType === 3 && n.data.trim()) && /mono/i.test(getComputedStyle(e).fontFamily))
+      моно.push(имя(e));
+    if (вбок_можно(e) && !лента(e)) вбок.push(имя(e) + ' +' + (e.scrollWidth - e.clientWidth));
+    if (e.matches('input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select, button, .v2-chip, .chip, .v2-card, .card')
+        && !e.closest('.modal-hdr, .v2-assist-head, .apt-ai-head, .modal-drag, .hint-pop') && !своя(e)) {
+      const о = опора(e), bо = R(о), b = R(e);
+      const л = bо.left + о.clientLeft, п = л + о.clientWidth;
+      органы.push([имя(e), Math.round((b.left - л) * 10) / 10, Math.round((п - b.right) * 10) / 10]); }
+  }
+  const L = органы.length ? Math.min(...органы.map(x => x[1])) : null;
+  const Rr = органы.length ? Math.min(...органы.map(x => x[2])) : null;
+  return {моно, вбок, органов: органы.length, L, R: Rr,
+          лев: органы.find(x => x[1] === L), прав: органы.find(x => x[2] === Rr)};
+}"""
+
+# 2.1: категории формы рядами, без прокрутки вбок; подвал по рядам —
+# ряд = кнопки, чьи коробки перекрываются по вертикали (подсказка «?»
+# ниже кнопки ростом, и равенство верха разнесло бы её в свой «ряд»)
+ФОРМА_ПРАВКИ = r"""() => {
+  const R = e => e.getBoundingClientRect();
+  const вид = e => e.checkVisibility({opacityProperty: true, visibilityProperty: true}) && R(e).width > 0;
+  const out = {};
+  const к = document.getElementById('apt-f-cats');
+  if (к && вид(к)) { const ч = [...к.querySelectorAll('.chip')].filter(вид);
+    out.кат = {прокрутка: к.scrollWidth - к.clientWidth, рядов: new Set(ч.map(e => Math.round(R(e).top))).size,
+               чипов: ч.length, за_краем: ч.filter(e => R(e).right > R(к).right + 1).length,
+               wrap: getComputedStyle(к).flexWrap}; }
+  const ф = document.querySelector('#apt-form .apt-foot');
+  if (ф && вид(ф)) { const c = getComputedStyle(ф), b = R(ф);
+    const лев = b.left + parseFloat(c.borderLeftWidth) + parseFloat(c.paddingLeft);
+    const прав = b.right - parseFloat(c.borderRightWidth) - parseFloat(c.paddingRight);
+    const ряды = [];
+    for (const e of [...ф.querySelectorAll('button')].filter(вид).sort((a, b) => R(a).top - R(b).top)) {
+      const bb = R(e), р = ряды.find(р => bb.top < р.низ - 1 && bb.bottom > р.верх + 1);
+      if (р) { р.эл.push(e); р.низ = Math.max(р.низ, bb.bottom); } else ряды.push({верх: bb.top, низ: bb.bottom, эл: [e]}); }
+    out.подвал = ряды.map(р => ({
+      кнопки: р.эл.map(e => (e.textContent.trim() || e.getAttribute('aria-label') || '?').slice(0, 14)),
+      главная: р.эл.some(e => e.type === 'submit'), отмена: р.эл.some(e => e.hasAttribute('data-modal-close')),
+      слева: Math.round((Math.min(...р.эл.map(e => R(e).left)) - лев) * 10) / 10,
+      справа: Math.round((прав - Math.max(...р.эл.map(e => R(e).right))) * 10) / 10})); }
+  return out;
+}"""
+
+# 2.2: подчёркивание выбранной вкладки — цвет инструмента. Цвет
+# инструмента раскрывает браузер (элемент с `color: var(--v2-tool)`
+# внутри окна), а не строка из файла: разойдись они, сверка печатала бы
+# «совпало» про другой цвет.
+ВКЛАДКА_ПРАВКИ = r"""() => {
+  const в = [...document.querySelectorAll('#apt-circle [data-ctab]')].find(e => e.checkVisibility() && e.classList.contains('active'));
+  if (!в) return null;
+  const т = document.createElement('i'); т.style.color = 'var(--v2-tool)';
+  т.style.background = 'var(--v2-surface-2)'; в.parentElement.appendChild(т);
+  const инстр = getComputedStyle(т).color, ступень = getComputedStyle(т).backgroundColor; т.remove();
+  const c = getComputedStyle(в), р = в.closest('.apt-circle-tabsrow');
+  // подложка ряда вкладок — ступень v2 (на телефоне; на 1600 её нет,
+  // и проверка 60 там её не видит): была `--surface-2` старой палитры
+  return {подчёркивание: c.borderBottomColor, толщина: c.borderBottomWidth, инструмент: инстр,
+          подложка: р ? getComputedStyle(р).backgroundColor : null, ступень};
+}"""
+
+# 2.3: рамка микрофона — как у скрепки и штрихкода
+РАМКИ_ПРАВКИ = r"""() => {
+  const в = s => { const e = [...document.querySelectorAll(s)].find(x => x.checkVisibility() && x.getBoundingClientRect().width > 0);
+    if (!e) return null; const c = getComputedStyle(e), b = e.getBoundingClientRect();
+    return {w: Math.round(b.width * 10) / 10, h: Math.round(b.height * 10) / 10,
+            рамка: c.borderTopWidth + ' ' + c.borderTopColor, радиус: c.borderTopLeftRadius}; };
+  return {скрепка: в('.apt-ai-att .btn-icon'), штрихкод: в('.apt-ai-scan'), микрофон: в('.apt-ai-mic')};
+}"""
+
+# 2.6: полоса поиска Enshrouded — прилипла ли, видно ли затемнение под ней
+ПОЛОСА_ENS = r"""() => { const e = document.querySelector('.ens-bar'); if (!e) return null;
+  const c = getComputedStyle(e), п = getComputedStyle(e, '::after'), b = e.getBoundingClientRect();
+  return {y: Math.round(scrollY), прилипла: e.classList.contains('is-stuck'), x: b.left, w: b.width, низ: b.bottom,
+          линия: c.borderBottomColor, переход: п.backgroundImage.startsWith('linear-gradient'), видно: parseFloat(п.opacity),
+          высота: parseFloat(п.height) || 0, фон: getComputedStyle(document.body).getPropertyValue('--v2-bg').trim()}; }"""
+НИЗ_ОКНА_ENS = r"""() => { const в = document.getElementById('ensLvl'), л = document.querySelector('#ens-item .modal-sh');
+  if (!в || !л) return null;
+  return Math.round((л.getBoundingClientRect().bottom - в.getBoundingClientRect().bottom) * 10) / 10; }"""
+
+# «мобильный-2» №3: категориям формы возвращена лента — ровно прежний
+# дефект (15 чипов в строку, прокрутка вбок)
+ПОДЛОГ_КАТЕГОРИИ = """addEventListener('DOMContentLoaded', () => { const s = document.createElement('style');
+  s.textContent = '.apt-chips.apt-form-cats { flex-wrap: nowrap !important; overflow-x: auto !important; }';
+  document.head.appendChild(s); });"""
+# доказательство подлога №3 — `flex-wrap` категорий, снятый на каждой ширине
+_доказ = {}
+
 _шаги = []
 
 
@@ -590,6 +737,169 @@ def _полосы(стр, ш):
                 % (сдвиг, n, всего, 100.0 * (n or 0) / max(всего, 1), макс), собрано=сдвинуто)
 
 
+def _след_перехода(стр, п, dpr):
+    """ЧТО ПЕРЕХОД ДЕЛАЕТ С КАРТИНКОЙ: один и тот же кадр прокрутки
+    С переходом и БЕЗ него (переход на миг гасится стилем и сразу
+    возвращается). Разница по строкам под полосой через 2 px — средний
+    худший канал по ширине полосы. Переход нарисован поверх карточек
+    и гаснет книзу — разница сверху большая и сходит на нет; переход
+    под карточками — разницы нет вовсе.
+
+    Одной строкой «у края цвет фона ±N» это не меряется: переход
+    начинается от низа ПОЛЯ полосы, над её линией, и уже на 2 px ниже
+    линии сквозь него видно 8 % карточки — замер первой версии дал
+    18–19 на исправном переходе."""
+    к1 = _кадр(стр)
+    стр.evaluate("""() => { const s = document.createElement('style'); s.id = 'probe-no-fade';
+      s.textContent = '.ens-bar::after { display: none !important; }'; document.head.appendChild(s); }""")
+    стр.wait_for_timeout(150)
+    к2 = _кадр(стр)
+    стр.evaluate("() => document.getElementById('probe-no-fade').remove()")
+    стр.wait_for_timeout(150)
+    x0, x1 = round(п["x"] * dpr), round((п["x"] + п["w"]) * dpr)
+    y0 = round(п["низ"] * dpr)
+    ряды = []
+    for r in range(0, round(п["высота"] * dpr), round(2 * dpr)):
+        y = y0 + r
+        if y >= к1.size[1]:
+            break
+        s = n = 0
+        for x in range(x0, x1, 3):
+            а, б = к1.getpixel((x, y)), к2.getpixel((x, y))
+            s += max(abs(а[i] - б[i]) for i in range(3))
+            n += 1
+        ряды.append(round(s / max(n, 1), 1))
+    return ряды
+
+
+def _правки(стр, ш):
+    for путь, имя, кнопка, корень in ПРАВКИ:
+        открыть(стр, путь, None)
+        if кнопка and not _жать(стр, кнопка):
+            шаг("%d %s: окно открылось" % (ш, имя), False, "открыть нечем", собрано=0)
+            continue
+        if имя == "аптечка · правка":
+            # категории в правке свёрнуты до выбранных — раскрыть, как рукой
+            тк = стр.locator("#apt-cats-more")
+            if тк.count() and тк.is_visible() and "Выбрать" in (тк.text_content() or ""):
+                тк.click(timeout=5000)
+                стр.wait_for_timeout(500)
+        стр.wait_for_timeout(400)
+        о = стр.evaluate(ОКНО_ПРАВКИ, корень)
+        if о is None:
+            шаг("%d %s: окно открылось" % (ш, имя), False, "корня %s нет" % корень, собрано=0)
+            continue
+        з = стр.evaluate(ЗАМЕР)
+        шаг("%d %s: ничто не шире окна" % (ш, имя),
+            not з["шире"] and з["прокрутка"] <= 0 and not о["вбок"],
+            "шире %d, прокрутка %d, вбок %s %s" % (len(з["шире"]), з["прокрутка"], о["вбок"][:2] or "—",
+                                                   з["шире"][:2]))
+        шаг("%d %s: моноширинных нет" % (ш, имя), not о["моно"], "%d %s" % (len(о["моно"]), о["моно"][:2]))
+        шаг("%d %s: боковые отступы одинаковые" % (ш, имя),
+            о["L"] is not None and abs(о["L"] - о["R"]) <= 1,
+            "органов %d, слева %s (%s), справа %s (%s)" % (
+                о["органов"], о["L"], (о["лев"] or ["—"])[0], о["R"], (о["прав"] or ["—"])[0]),
+            собрано=о["органов"])
+        if имя == "аптечка · правка":
+            ф = стр.evaluate(ФОРМА_ПРАВКИ)
+            кат = ф.get("кат")
+            _доказ.setdefault("категории", []).append(кат["wrap"] if кат else None)
+            ч = (кат["чипов"], кат["рядов"], кат["прокрутка"], кат["за_краем"]) if кат else ("—",) * 4
+            шаг("%d %s: категории рядами, без прокрутки вбок" % (ш, имя),
+                bool(кат) and кат["прокрутка"] <= 0 and кат["рядов"] >= 2 and кат["за_краем"] == 0,
+                "чипов %s, рядов %s, прокрутка %s, за краем %s" % ч,
+                собрано=кат["чипов"] if кат else 0)
+            ряды = ф.get("подвал") or []
+            первый = ряды[0] if ряды else {}
+            шаг("%d %s: подвал — «Сохранить» и «Отмена» рядом, служебные ниже" % (ш, имя),
+                bool(первый.get("главная") and первый.get("отмена"))
+                and not any(р["главная"] or р["отмена"] for р in ряды[1:]),
+                "; ".join("%s" % "+".join(р["кнопки"]) for р in ряды), собрано=len(ряды))
+            шаг("%d %s: кнопки подвала от края до края ±1" % (ш, имя),
+                bool(ряды) and all(abs(р["слева"]) <= 1 and abs(р["справа"]) <= 1 for р in ряды),
+                "; ".join("%s: слева %s справа %s" % (р["кнопки"][0], р["слева"], р["справа"]) for р in ряды),
+                собрано=len(ряды))
+        elif имя == "аптечка · общая":
+            в = стр.evaluate(ВКЛАДКА_ПРАВКИ)
+            шаг("%d %s: подчёркивание вкладки — цвет инструмента" % (ш, имя),
+                bool(в) and в["подчёркивание"] == в["инструмент"] and в["толщина"] != "0px",
+                "подчёркивание %s %s, инструмент %s" % ((в["толщина"], в["подчёркивание"], в["инструмент"])
+                                                        if в else ("—",) * 3),
+                собрано=1 if в else 0)
+            шаг("%d %s: подложка ряда вкладок — ступень v2" % (ш, имя),
+                bool(в) and в["подложка"] == в["ступень"],
+                "подложка %s, ступень %s" % ((в["подложка"], в["ступень"]) if в else ("—",) * 2),
+                собрано=1 if в and в["подложка"] else 0)
+        elif имя == "аптечка · ассистент":
+            р = стр.evaluate(РАМКИ_ПРАВКИ)
+            эт, м = [р.get("скрепка"), р.get("штрихкод")], р.get("микрофон")
+            ок = bool(м) and all(э and abs(э["w"] - м["w"]) <= 1 and abs(э["h"] - м["h"]) <= 1
+                                 and э["рамка"] == м["рамка"] and э["радиус"] == м["радиус"] for э in эт)
+            шаг("%d %s: микрофон в рамке, как скрепка и штрихкод" % (ш, имя), ок,
+                "микрофон %s; скрепка %s" % (м, эт[0]), собрано=sum(1 for э in эт + [м] if э))
+        elif имя == "enshrouded":
+            # как рукой: вниз колесом на 2000 px, затем обратно
+            п0 = стр.evaluate(ПОЛОСА_ENS)
+            стр.mouse.move(ш / 2, 600)
+            for _ in range(ПРОКРУТКА_ПОЛОС // 500):
+                стр.mouse.wheel(0, 500)
+                стр.wait_for_timeout(150)
+            стр.wait_for_timeout(500)
+            # под переходом обязана оказаться карточка, а не щель между
+            # ними: сравнивать фон с фоном нечем. Не она — ещё колесом
+            под_карточкой = False
+            for _ in range(6):
+                п1 = стр.evaluate(ПОЛОСА_ENS)
+                под_карточкой = bool(п1) and стр.evaluate(
+                    "([x, y]) => !!(document.elementFromPoint(x, y) || document.body).closest('.card')",
+                    [п1["x"] + п1["w"] / 2, п1["низ"] + 8])
+                if not п1 or под_карточкой:
+                    break
+                стр.mouse.wheel(0, 150)
+                стр.wait_for_timeout(300)
+            п1 = стр.evaluate(ПОЛОСА_ENS)
+            ряды = _след_перехода(стр, п1, стр.evaluate("devicePixelRatio")) if п1 else []
+            прокручено = п1 and п0 and п1["y"] - п0["y"] >= 300
+            шаг("%d %s: вверху затемнения нет, линия на месте" % (ш, имя),
+                bool(п0) and not п0["прилипла"] and п0["видно"] == 0,
+                "прилипла %s, видно %s, линия %s" % ((п0["прилипла"], п0["видно"], п0["линия"]) if п0 else ("—",) * 3))
+            шаг("%d %s: под прилипшей полосой затемнение, линии нет" % (ш, имя),
+                bool(п1) and п1["прилипла"] and п1["переход"] and п1["видно"] == 1 and п1["высота"] >= 16
+                and п1["линия"] in ("rgba(0, 0, 0, 0)", "transparent"),
+                "прокрутка %s, прилипла %s, переход %s, видно %s, высота %s, линия %s" % (
+                    п1 and п1["y"], п1 and п1["прилипла"], п1 and п1["переход"], п1 and п1["видно"],
+                    п1 and п1["высота"], п1 and п1["линия"]),
+                собрано=1 if прокручено else 0)
+            # затемнение ВИДНО и ПЛАВНОЕ: сверху разница с кадром без
+            # перехода есть, книзу сходит на нет
+            шаг("%d %s: затемнение поверх карточек и гаснет книзу" % (ш, имя),
+                len(ряды) >= 4 and max(ряды[:3]) >= 1 and max(ряды[-3:]) <= max(ряды[:3]) / 2,
+                "разница по строкам через 2 px: %s" % ряды,
+                собрано=1 if прокручено and под_карточкой else 0)
+            for _ in range(ПРОКРУТКА_ПОЛОС // 500):
+                стр.mouse.wheel(0, -500)
+                стр.wait_for_timeout(150)
+            стр.wait_for_timeout(500)
+            п2 = стр.evaluate(ПОЛОСА_ENS)
+            шаг("%d %s: наверху затемнение снова погасло" % (ш, имя),
+                bool(п2) and not п2["прилипла"] and п2["видно"] == 0,
+                "прокрутка %s, прилипла %s, видно %s" % ((п2["y"], п2["прилипла"], п2["видно"]) if п2 else ("—",) * 3),
+                собрано=1 if прокручено else 0)
+        elif имя == "enshrouded · предмет":
+            бокс = стр.locator("#ens-item .modal-sh").bounding_box()
+            if бокс:
+                # низ окна — прокруткой внутри листа, как рукой
+                стр.mouse.move(бокс["x"] + бокс["width"] / 2, бокс["y"] + бокс["height"] / 2)
+                стр.mouse.wheel(0, 1500)
+                стр.wait_for_timeout(400)
+            н = стр.evaluate(НИЗ_ОКНА_ENS)
+            шаг("%d %s: «Уровень предмета» не ближе 16 px к низу окна" % (ш, имя),
+                н is not None and н >= 16, "до низа окна %s px" % н, собрано=1 if н is not None else 0)
+        if кнопка:
+            стр.keyboard.press("Escape")
+            стр.wait_for_timeout(300)
+
+
 def проверка(подлог=None, печать=True, только=None):
     from playwright.sync_api import sync_playwright
     import browser_window  # noqa: F401  окно — на втором мониторе
@@ -613,6 +923,8 @@ def проверка(подлог=None, печать=True, только=None):
                     _окна(стр, ш)
                 if только in (None, "полосы"):
                     _полосы(стр, ш)
+                if только in (None, "правки"):
+                    _правки(стр, ш)
                 ctx.close()
         finally:
             бр.close()
@@ -621,6 +933,13 @@ def проверка(подлог=None, печать=True, только=None):
     if печать:
         print("\nИТОГ: шагов %d, плохих %d, пропусков %d" % (len(_шаги), плохих, пропусков))
     return плохих, пропусков
+
+
+def _доказ_категорий():
+    """Подлог №3 состоялся, если `flex-wrap` категорий на всех ширинах
+    стал `nowrap` — независимо от вердикта шага."""
+    в = _доказ.get("категории") or []
+    return bool(в) and all(x == "nowrap" for x in в), "flex-wrap по ширинам: %s" % в
 
 
 def контроль(только=None):
@@ -636,15 +955,22 @@ def контроль(только=None):
             # доказательство — АЛЬФА ФОНА: подлог обязан её опустить, иначе
             # «снимки разошлись» значило бы что угодно, кроме подлога
             ("мобильный-2 №1: полосы полупрозрачны", ПОДЛОГ_ПОЛОСЫ, "полосы", "не просвечивает",
-             "непрозрачна")):
+             "непрозрачна"),
+            # доказательство — `flex-wrap` категорий, а не упавший шаг
+            ("мобильный-2 №3: категории формы лентой", ПОДЛОГ_КАТЕГОРИИ, "правки",
+             "категории рядами", _доказ_категорий)):
         if только and раздел != только:
             continue
         print("\nПОДЛОГ %s" % имя)
+        _доказ.clear()
         проверка(код, печать=False, только=раздел)
         упало = [и for и, х in _шаги if х == "ПЛОХО" and признак in и]
         print("  упало шагов «%s»: %d" % (признак, len(упало)))
         состоялся = True
-        if доказ:
+        if callable(доказ):
+            состоялся, текст = доказ()
+            print("  доказательство — %s%s" % (текст, "" if состоялся else " (ПОДЛОГ НЕ СОСТОЯЛСЯ)"))
+        elif доказ:
             n = sum(1 for и, х in _шаги if х == "ПЛОХО" and доказ in и)
             состоялся = n > 0
             print("  доказательство — шагов «%s» упало: %d%s" % (
@@ -659,7 +985,7 @@ def main():
         печать_замера(замер())
         sys.exit(0)
     только = None
-    for к in ("экраны", "сообщения", "группы", "окна", "полосы"):
+    for к in ("экраны", "сообщения", "группы", "окна", "полосы", "правки"):
         if "--" + к in sys.argv:
             только = к
     if "--контроль" in sys.argv:

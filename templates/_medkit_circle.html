@@ -54,18 +54,18 @@
      ряда: кнопку справки внутри списка вкладок программа чтения
      объявила бы ещё одной вкладкой. #}
   <div class="apt-circle-tabsrow">
-  <div class="tab-bar apt-circle-tabs" role="tablist">
-    <button class="tab-btn active" type="button" role="tab"
+  <div class="v2-tabs apt-circle-tabs" role="tablist">
+    <button class="v2-tab apt-circle-tab active" type="button" role="tab"
             aria-selected="true" data-ctab="people">
       {{ значок('users') }} Участники{% if общая %}
       <span class="apt-tab-n">{{ участники | length }}</span>{% endif %}
     </button>
-    <button class="tab-btn" type="button" role="tab" aria-selected="false"
+    <button class="v2-tab apt-circle-tab" type="button" role="tab" aria-selected="false"
             data-ctab="invites">
       {{ значок('mail') }} Приглашения{% set всего_пр = (отправленные | length) + (полученные | length) %}{% if всего_пр %}
       <span class="apt-tab-n">{{ всего_пр }}</span>{% endif %}
     </button>
-    <button class="tab-btn" type="button" role="tab" aria-selected="false"
+    <button class="v2-tab apt-circle-tab" type="button" role="tab" aria-selected="false"
             data-ctab="block">
       {{ значок('lock') }} Блок{% if блок %}
       <span class="apt-tab-n">{{ блок | length }}</span>{% endif %}

@@ -269,6 +269,11 @@ body { --nut-glow: color-mix(in srgb, var(--tool-accent) 25%, transparent); }
 .ds-arrow svg { width: 1.125rem; height: 1.125rem; }
 .ds-arrow:disabled { opacity: .3; cursor: default; }
 .ds-days { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-1); }
+/* ЛЕНТА ЛИСТАЕТСЯ ПАЛЬЦЕМ («мобильный-2», 2.5): вертикальную прокрутку
+   страницы браузер оставляет себе, горизонтальное смахивание отдаёт
+   странице (обработчик — у `shiftDayWindow` в разметке). Без этого жест
+   забирал бы браузер: `pointercancel`, и до кода смахивание не доходило. */
+.ds-days { touch-action: pan-y; }
 .ds-day {
   display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
   background: none; border: none; padding: var(--space-1) 0; cursor: pointer;
