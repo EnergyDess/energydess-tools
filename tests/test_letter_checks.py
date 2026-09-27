@@ -64,7 +64,7 @@ def стенд(monkeypatch):
 
 def _счёт_на_странице(к, вид):
     html = к.get("/admin/usage").text
-    м = re.search(r'data-violation="%s"><td>[^<]*</td><td class="usage-n">(\d+)</td>' % вид, html)
+    м = re.search(r'data-violation="%s"><td[^>]*>[^<]*</td><td class="usage-num"[^>]*>(\d+)</td>' % вид, html)
     return int(м.group(1)) if м else 0
 
 

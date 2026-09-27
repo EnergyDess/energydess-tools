@@ -1610,6 +1610,44 @@ class LetterCheck(Base):
     kind = Column(String, nullable=False)
 
 
+class BalanceHistory(Base):
+    """ИСТОРИЯ ОСТАТКА OPENROUTER: ОДНА СТРОКА НА СУТКИ (№352, письмо «Расход», 1.1).
+
+    Пишет `balance_check.py` — тот же суточный запуск, что проверяет порог
+    (`balance.yml`, 06:00 UTC). Страница расхода эту таблицу только читает.
+
+    СУТКИ — МОСКОВСКИЕ, как всё время на странице расхода. Ключ `day`
+    уникален: повторный запуск в те же сутки строку не добавляет
+    (`INSERT OR IGNORE`) — в истории остаётся первый замер суток,
+    то есть утренний плановый, и шаг у ряда ровный.
+
+    СТАРЫХ ЗНАЧЕНИЙ НЕТ И НЕ БУДЕТ: история начинается с первого запуска
+    после выкатки. Восстанавливать её по кабинету OpenRouter значило бы
+    выдумать числа, которых никто не записывал.
+    """
+
+    __tablename__ = "balance_history"
+    id = Column(Integer, primary_key=True, index=True)
+    day = Column(String, nullable=False, unique=True)   # МСК, ГГГГ-ММ-ДД
+    created_at = Column(DateTime, nullable=False)       # UTC, момент замера
+    remaining = Column(Float, nullable=False)           # $, остаток на момент замера
+
+
+class FixedCost(Base):
+    """ПОСТОЯННЫЕ РАСХОДЫ ПРОЕКТА — НАСТРОЙКИ ВЛАДЕЛЬЦА (№352, «Расход», 1.4).
+
+    Три строки по ключу: `server`, `domain`, `other`, сумма в $ за месяц.
+    Правит только администратор со страницы `/admin/usage`. Строки нет —
+    сумма не задана, и страница говорит это словами, а не нулём: «ноль
+    за сервер» и «не вписано» — разные ответы про себестоимость.
+    """
+
+    __tablename__ = "fixed_costs"
+    key = Column(String, primary_key=True)             # server | domain | other
+    usd_month = Column(Float, nullable=False)
+    updated_at = Column(DateTime, nullable=True)       # UTC
+
+
 class MedkitEvent(Base):
     """ЛЕНТА ИЗМЕНЕНИЙ ОБЩЕЙ АПТЕЧКИ (постановка C).
 
@@ -2659,6 +2697,10 @@ PRIVACY_NOT_PERSONAL = {
     # Места медиа новой главной (BACKLOG №325). Содержимое страницы
     # владельца — ролики и картинки лендинга, одинаковые для всех.
     "landing_media": "места медиа главной страницы, одинаковые для всех",
+    # История остатка OpenRouter и постоянные расходы (№352, «Расход»):
+    # деньги проекта, а не человека — ни user_id, ни привязки к нему.
+    "balance_history": "остаток счёта OpenRouter по суткам — деньги проекта",
+    "fixed_costs": "постоянные расходы проекта (сервер, домен) — настройки владельца",
 }
 
 

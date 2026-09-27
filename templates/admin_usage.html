@@ -8,176 +8,468 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="{{ st('style.css') }}">
   <link rel="stylesheet" href="{{ st('admin.css') }}">
+  <link rel="stylesheet" href="{{ st('usage.css') }}">
 </head>
 <body class="has-site-header page-column">
 
-{% import '_admin_head.html' as ah %}
 {% include '_admin_nav.html' %}
 
 {% set active = 'usage' %}
 {% include '_admin_subnav.html' %}
 
-{# РАСХОД НА МОДЕЛИ (BACKLOG №346). Только чтение `model_usage` плюс один
-   запрос остатка. Числа печатаются так, чтобы их нельзя было прочитать
-   как больше или меньше, чем есть: строка без цены — отдельно, пустой
-   период — словами, время — по Москве с подписью. #}
-<div class="admin-wrap page-fill">
+{# РАСХОД НА МОДЕЛИ (№346; редизайн — №352, письмо «Расход»). Страница
+   ТОЛЬКО ЧИТАЕТ учёт `model_usage`, историю остатка и постоянные расходы
+   плюс один запрос остатка OpenRouter; модель не вызывается ни разу.
 
-  {{ ah.head('Расход', 'Сколько стоят вызовы моделей — по учёту на нашей стороне',
-             отбор, 'Инструмент или модель') }}
+   ОДИН ПЕРИОД И ОДИН ОТБОР — параметрами адреса (`?p=7|30|all&tool=…`):
+   всё, что зависит от отбора, собрано сервером из одних и тех же строк,
+   и сумма плитки, столбики графика и таблицы разойтись не могут.
 
-  <div class="usage-top">
-    <div class="card usage-stat">
-      <p class="field-label">Остаток OpenRouter</p>
+   ЧЕСТНОСТЬ ЧИСЕЛ ВАЖНЕЕ ВИДА: строка без цены в сумму не входит и
+   называется числом; пустой период — словами, а не «0 $»; время —
+   московское, с подписью. #}
+
+{%- macro деньги(x, точно=false) -%}
+{%- if x is none -%}—{%- elif точно or x < 0.1 -%}{{ '%.4f' % x }}&nbsp;${%- else -%}{{ '%.2f' % x }}&nbsp;${%- endif -%}
+{%- endmacro -%}
+{%- macro число(n) -%}{{ '{:,}'.format(n | int).replace(',', ' ') }}{%- endmacro -%}
+{%- macro доля(x) -%}{{ '%.0f' % x if x is not none else '—' }}{%- endmacro -%}
+
+<main class="v2-page-wrap page-fill usage" id="usage">
+
+  <header class="v2-page-head is-page is-notabs">
+    <div class="v2-head-text">
+      <span class="v2-head-label">{{ значок('bar-chart-3') }}Админ · расход</span>
+      <h1 class="v2-head-title">Расход</h1>
+      <p class="v2-head-desc">Сколько стоят вызовы моделей — по учёту на нашей стороне. Время московское.</p>
+    </div>
+  </header>
+
+  {# ── 2.1 ОТБОР ОДНОЙ СТРОКОЙ ─────────────────────────────────────
+     Форма GET, а не скрипт: период — кнопки отправки, инструмент —
+     список, и без скриптов отбор тоже работает. Смена списка отправляет
+     форму с кнопкой ВЫБРАННОГО периода — иначе период терялся бы. #}
+  <form class="usage-filters" method="get" action="/admin/usage" id="usage-filters">
+    <div class="v2-seg" role="group" aria-label="Период">
+      {% for код, подпись, _ in периоды %}
+      <button type="submit" class="v2-seg-btn {{ 'is-active' if код == сводка.код }}"
+              name="p" value="{{ код }}" data-period="{{ код }}"
+              aria-pressed="{{ 'true' if код == сводка.код else 'false' }}">{{ подпись }}</button>
+      {% endfor %}
+    </div>
+    <label class="v2-select-wrap usage-tool">
+      <span class="usage-sr">Инструмент</span>
+      <select class="v2-select v2-select-pill" name="tool" id="usage-tool">
+        <option value="">Все инструменты</option>
+        {% for г, п in сводка.группы %}
+        <option value="{{ г }}" {{ 'selected' if г == сводка.инструмент }}>{{ п }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <p class="v2-hint usage-since" id="usage-since">Период с {{ сводка.с_дня }} · учёт ведётся с {{ сводка.учёт_с }}. Потраченное раньше видно только в кабинете OpenRouter.</p>
+  </form>
+
+  {# ── 2.2 ЧЕТЫРЕ ПЛИТКИ ────────────────────────────────────────── #}
+  <section class="usage-tiles" aria-label="Сводка">
+    <div class="v2-tile usage-tile" id="usage-balance-tile">
+      <span class="v2-tile-label">Остаток OpenRouter</span>
       {% if остаток.остаток is not none %}
-      <p class="usage-big" id="usage-balance">{{ '%.2f' % остаток.остаток }} $</p>
-      <p class="data-note usage-balance-note" id="usage-balance-note">обновлено {{ остаток.при_мск }} (МСК)</p>
+      <span class="v2-tile-num" id="usage-balance">{{ '%.2f' % остаток.остаток }}&nbsp;$</span>
+      {# ВЫСОТА ПРИМЕЧАНИЯ ОДНА ВО ВСЕХ СОСТОЯНИЯХ (№346, заход 7):
+         под него отведено ровно три строки, лишнее обрезается, полный
+         текст — в подсказке. Прежде текст сбоя растил плитку и сдвигал
+         всё ниже, вплоть до подвала (проверка 46). #}
+      <p class="usage-note usage-balance-note" id="usage-balance-note"
+         title="обновлено {{ остаток.при_мск }} (МСК)">{% if остаток.хватит is not none %}Хватит примерно на {{ '%.0f' % остаток.хватит }} сут. при {{ деньги(остаток.в_сутки) }} в сутки (темп за 7 дней).{% else %}Расхода за 7 дней нет — темп не посчитан.{% endif %} Обновлено {{ остаток.при_мск }}.</p>
       {% else %}
-      {# ВЫСОТА КАРТОЧКИ ОДНА ВО ВСЕХ СОСТОЯНИЯХ (№346, заход 7): под
-         примечание отведено ровно три строки, лишнее обрезается, полный
-         текст — в подсказке. Прежде текст сбоя растил карточку и сдвигал
-         всё ниже, вплоть до подвала. #}
-      <p class="usage-big usage-none" id="usage-balance">не получен</p>
-      <p class="data-note usage-balance-note" id="usage-balance-note"
+      <span class="v2-tile-num usage-none" id="usage-balance">не получен</span>
+      <p class="usage-note usage-balance-note" id="usage-balance-note"
          title="{{ остаток.причина }}{% if остаток.подробно %} ({{ остаток.подробно }}){% endif %} {{ остаток.последний_текст }}">{{ остаток.причина }} {{ остаток.последний_текст }}</p>
       {% endif %}
+      <p class="usage-note usage-history" id="usage-history" data-days="{{ остаток.история_дней }}">{{ остаток.история | capitalize }}</p>
     </div>
-    {% for п in сводка.периоды %}
-    <div class="card usage-stat">
-      <p class="field-label">{{ п.подпись }}</p>
-      {% if п.вызовов %}
-      <p class="usage-big" data-sum="{{ п.код }}">{{ '%.4f' % п.сумма }} $</p>
-      <p class="data-note">вызовов {{ п.вызовов }}{% if п.без_цены %}, <b class="usage-warn" data-missing="{{ п.код }}">без цены {{ п.без_цены }} — в сумму не входят</b>{% endif %}{% if п.ошибок %}, неудачных {{ п.ошибок }}{% endif %}</p>
+
+    <div class="v2-tile usage-tile">
+      <span class="v2-tile-label">Потрачено · {{ сводка.подпись | lower }}</span>
+      {% if сводка.вызовов %}
+      <span class="v2-tile-num" id="usage-spent" data-sum="{{ сводка.сумма }}">{{ деньги(сводка.сумма) }}</span>
+      <p class="usage-note">Вызовов {{ число(сводка.вызовов) }}{% if сводка.ошибок %} · неудачных {{ сводка.ошибок }}{% endif %}{% if сводка.без_цены %} · <b class="usage-warn" data-missing="{{ сводка.код }}">без цены {{ сводка.без_цены }} — в сумму не входят</b>{% endif %}</p>
       {% else %}
-      <p class="usage-big usage-none" data-sum="{{ п.код }}">данных нет</p>
-      <p class="data-note">вызовов за период не было</p>
+      <span class="v2-tile-num usage-none" id="usage-spent" data-sum="0">данных нет</span>
+      <p class="usage-note">Вызовов модели за период не было.</p>
       {% endif %}
     </div>
-    {% endfor %}
-  </div>
-{# ── ЧУЖОЙ СПРАВОЧНИК ЛЕКАРСТВ (№352, «аптечка-1», блок 2.3) ──
-     Переехал сюда со страницы аптечки (решение владельца): там числа
-     стояли над списком у каждого открытия раздела и отвечали
-     на вопрос, который задают раз в месяц.
 
-     СТРОКОЙ, А НЕ КАРТОЧКОЙ: это не деньги — обращений к vidal.ru
-     не стоят ничего, и предел у них про вежливость к чужому сайту,
-     а не про расход. Карточка рядом с суммами в долларах читалась бы
-     как ещё один счёт. #}
-  <p class="data-note usage-ref" id="usage-ref">Справочник лекарств:
-    {{ ref_месяц }} из {{ ref_предел }} за месяц{% if not ref_осталось %} —
-    предел исчерпан, поиск схем не работает до начала следующего месяца{% endif %}.</p>
-  <p class="data-note usage-since">Учёт ведётся с {{ сводка.учёт_с }} (МСК). Всё, что потрачено раньше, здесь не видно — только в кабинете OpenRouter. Время на странице — московское.</p>
+    <div class="v2-tile usage-tile">
+      <span class="v2-tile-label">Средняя операция</span>
+      <span class="v2-tile-num" id="usage-op">{{ деньги(сводка.средняя) if сводка.средняя is not none else 'данных нет' }}</span>
+      <p class="usage-note">Письмо {{ деньги(сводка.письмо) }} · разбор вакансии {{ деньги(сводка.разбор) }}{% if сводка.мало %} · данных мало: {{ сводка.вызовов }} при пороге {{ мало }}{% endif %}</p>
+    </div>
 
-  {% for п in сводка.периоды %}
-  <section class="usage-period" data-period="{{ п.код }}" {% if not loop.first %}hidden{% endif %}>
-    {% if not п.вызовов %}
-    <p class="empty-state admin-empty">За {{ п.подпись | lower }} вызовов модели не было — данных нет</p>
-    {% else %}
-    {% if п.мало %}
-    <p class="alert alert-warn">Данных мало: {{ п.вызовов }} вызовов при пороге {{ мало }}. Доли и средние по ним ненадёжны.</p>
-    {% endif %}
-    {% for вид, строки in (('По инструментам', п.по_инструментам), ('По моделям', п.по_моделям)) %}
-    {# Признак вида таблицы — ДО вложенного цикла: внутри него `loop`
-       уже цикл строк, и колонка «одна операция» съезжала (снимок приёмки). #}
-    {% set инстр = loop.first %}
-    <h2 class="usage-h2">{{ вид }}</h2>
-    <div class="card admin-panel">
-      <div class="table-scroll">
-        <table class="admin-table admin-table-usage">
-          <thead><tr>
-            <th>{{ 'Инструмент' if инстр else 'Модель' }}</th><th>Вызовов</th><th>Токенов</th><th>Сумма, $</th><th>Доля</th>
-            {% if инстр %}<th>Одна операция, $</th>{% endif %}
-          </tr></thead>
+    <div class="v2-tile usage-tile">
+      <span class="v2-tile-label">Экономия на кэше</span>
+      {% set к = сводка.кэш %}
+      <span class="v2-tile-num" id="usage-cache" data-saved="{{ к.сэкономлено }}">{{ деньги(к.сэкономлено) if к.строк else 'кэша не было' }}</span>
+      <p class="usage-note">{% if к.строк %}Без кэша было бы {{ деньги(к.без_кэша) }} · из кэша {{ число(к.из_кэша) }} ток.{% if к.не_посчитано %} · не посчитано строк: {{ к.не_посчитано }} (модель не Claude){% endif %}{% else %}Вызовов с кэшем промпта за период нет.{% endif %}</p>
+    </div>
+  </section>
+
+  {% if not сводка.вызовов %}
+  <section class="v2-card usage-card">
+    <div class="v2-empty">
+      <span class="v2-empty-icon">{{ значок('bar-chart-3') }}</span>
+      <p class="v2-empty-title">Данных нет</p>
+      <p class="v2-empty-text">За {{ сводка.подпись | lower }}{% if сводка.инструмент %} по выбранному инструменту{% endif %} вызовов модели не было — графику и таблицам не из чего строиться.</p>
+    </div>
+  </section>
+  {% else %}
+
+  {# ── 2.3 ГРАФИК ПО ДНЯМ ───────────────────────────────────────────
+     Столбик — сумма суток, внутри доли инструментов их цветами. День
+     без вызовов — столбик нулевой высоты с чертой у основания, а не
+     пропуск: пропуск сдвинул бы подписи оси. Подписей над столбиками
+     нет; сумма и доли — в подсказке по наведению, касанию и фокусу. #}
+  <section class="v2-card usage-card usage-chart" id="usage-chart">
+    <div class="usage-card-head">
+      <h2 class="v2-card-title">Расход по дням</h2>
+      <ul class="usage-legend" aria-label="Цвета инструментов">
+        {% for г, п in сводка.легенда %}
+        <li><span class="usage-sw usage-g-{{ г }}"></span>{{ п }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="usage-plot" id="usage-plot">
+      <p class="v2-hint usage-plot-max">Максимум {{ деньги(сводка.макс) }} за сутки</p>
+      <div class="usage-bars" aria-label="Столбики по суткам">
+        {% for с in сводка.столбики %}
+        <button type="button" class="usage-bar {{ 'is-zero' if not с.всего }}"
+                data-i="{{ loop.index0 }}" data-total="{{ с.всего }}"
+                aria-label="{{ с.подпись }}: {{ '%.4f' % с.всего }} $">
+          <span class="usage-stack" style="--h: {{ '%.3f' % с.высота }}%">
+            {% for д in с.доли %}<span class="usage-seg usage-g-{{ д.группа }}" style="--p: {{ '%.4f' % д.процент }}%"></span>{% endfor %}
+          </span>
+        </button>
+        {% endfor %}
+      </div>
+      {% set первый = сводка.столбики | first %}
+      {% set последний = сводка.столбики | last %}
+      <div class="usage-axis"><span>{{ первый.подпись }}</span><span>{{ последний.подпись }}</span></div>
+      <div class="usage-tip" id="usage-tip" role="status" hidden></div>
+    </div>
+    <script type="application/json" id="usage-days">{{ сводка.столбики | tojson }}</script>
+  </section>
+
+  {# ── 2.4 ТАБЛИЦЫ ПО ИНСТРУМЕНТАМ И МОДЕЛЯМ ──────────────────────────
+     На узком экране строка таблицы становится карточкой: подписи колонок
+     встают в строку значения (`data-label`), ширина — по экрану. #}
+  <div class="usage-pair">
+    <section class="v2-card usage-card" id="usage-tools">
+      <h2 class="v2-card-title">По операциям</h2>
+      <div class="usage-scroll">
+        <table class="usage-table">
+          <thead><tr><th>Операция</th><th class="usage-num">Вызовов</th><th class="usage-num">Сумма</th><th>Доля</th><th class="usage-num">Одна операция</th></tr></thead>
           <tbody>
-          {% for г in строки %}
-          <tr data-name="{{ (г.подпись ~ ' ' ~ г.имя) | lower }}">
-            <td>{{ г.подпись }}{% if г.без_цены %} <span class="usage-warn">без цены {{ г.без_цены }}</span>{% endif %}{% if г.ошибок %} <span class="data-note">неудачных {{ г.ошибок }}</span>{% endif %}</td>
-            <td class="usage-n">{{ г.вызовов }}</td>
-            <td class="usage-n">{{ г.токенов }}</td>
-            <td class="usage-n">{{ '%.4f' % г.сумма if г.с_ценой else '—' }}</td>
-            <td class="usage-n">{{ '%.0f %%' % г.доля if г.доля is not none else '—' }}</td>
-            {% if инстр %}<td class="usage-n">{% if г.средняя is not none %}{{ '%.4f' % г.средняя }} <span class="data-note">{{ г.операция }}</span>{% else %}—{% endif %}</td>{% endif %}
+          {% for г in сводка.по_инструментам %}
+          <tr class="usage-row-{{ г.группа }} {{ 'v2-tool-' ~ г.группа if г.группа != 'other' }}" data-tool="{{ г.имя }}" data-sum="{{ г.сумма }}">
+            <td data-label="Операция"><span class="usage-name"><span class="usage-sw usage-g-{{ г.группа }}"></span>{{ г.подпись }}</span>{% if г.без_цены %} <span class="usage-warn">без цены {{ г.без_цены }}</span>{% endif %}{% if г.ошибок %} <span class="usage-faint">неудачных {{ г.ошибок }}</span>{% endif %}</td>
+            <td class="usage-num" data-label="Вызовов">{{ число(г.вызовов) }}</td>
+            <td class="usage-num" data-label="Сумма">{{ деньги(г.сумма, true) if г.с_ценой else '—' }}</td>
+            <td data-label="Доля"><span class="usage-share"><span class="v2-progress"><span class="v2-progress-fill" style="--v2-value: {{ '%.2f' % (г.доля or 0) }}%"></span></span><span class="usage-num">{{ доля(г.доля) }}&nbsp;%</span></span></td>
+            <td class="usage-num" data-label="Одна операция">{% if г.средняя is not none %}{{ деньги(г.средняя, true) }} <span class="usage-faint">{{ г.операция }}</span>{% else %}—{% endif %}</td>
           </tr>
           {% endfor %}
           </tbody>
         </table>
       </div>
+    </section>
+
+    <section class="v2-card usage-card" id="usage-models">
+      <h2 class="v2-card-title">По моделям</h2>
+      <div class="usage-scroll">
+        <table class="usage-table usage-table-models">
+          <thead><tr><th>Модель</th><th class="usage-num">Вызовов</th><th class="usage-num">Токенов</th><th class="usage-num">Сумма</th><th>Доля</th></tr></thead>
+          <tbody>
+          {% for г in сводка.по_моделям %}
+          <tr data-model="{{ г.имя }}" data-sum="{{ г.сумма }}">
+            <td data-label="Модель" class="usage-break">{{ г.имя }}{% if г.без_цены %} <span class="usage-warn">без цены {{ г.без_цены }}</span>{% endif %}</td>
+            <td class="usage-num" data-label="Вызовов">{{ число(г.вызовов) }}</td>
+            <td class="usage-num" data-label="Токенов">{{ число(г.токенов) }}</td>
+            <td class="usage-num" data-label="Сумма">{{ деньги(г.сумма, true) if г.с_ценой else '—' }}</td>
+            <td data-label="Доля"><span class="usage-share"><span class="v2-progress"><span class="v2-progress-fill" style="--v2-value: {{ '%.2f' % (г.доля or 0) }}%"></span></span><span class="usage-num">{{ доля(г.доля) }}&nbsp;%</span></span></td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  {# ── 2.5 ЛЮДИ ─────────────────────────────────────────────────────
+     Почты видны только здесь, в админке. Строка «без аккаунта» — остаток
+     учёта удалённых аккаунтов: в таблице она есть, в «активных» и
+     процентилях — нет. Процентиль — по ближайшему рангу, то есть сумма
+     настоящего человека, а не число, которого нет ни у кого. #}
+  {% set л = сводка.пользователи %}
+  <section class="v2-card usage-card" id="usage-people">
+    <h2 class="v2-card-title">Люди</h2>
+    <dl class="usage-kv">
+      <div><dt>Активных</dt><dd id="usage-active">{{ л.активных }}</dd></div>
+      <div><dt>Медиана на человека</dt><dd>{{ деньги(л.медиана) }}</dd></div>
+      <div><dt>90-й процентиль</dt><dd>{{ деньги(л.п90) }}</dd></div>
+      <div><dt>Максимум</dt><dd>{{ деньги(л.максимум) }}</dd></div>
+    </dl>
+    <div class="usage-scroll">
+      <table class="usage-table usage-table-people">
+        <thead><tr><th>Пользователь</th><th class="usage-num">Операций</th><th class="usage-num">Токенов</th><th class="usage-num">Сумма</th><th class="usage-num">Средняя операция</th><th>Доля</th></tr></thead>
+        <tbody>
+        {% for г in л.строки %}
+        <tr data-user="{{ г.id if г.id is not none else 'none' }}" data-sum="{{ г.сумма }}">
+          <td data-label="Пользователь" class="usage-break">{{ г.подпись }}</td>
+          <td class="usage-num" data-label="Операций">{{ число(г.операций) }}</td>
+          <td class="usage-num" data-label="Токенов">{{ число(г.токенов) }}</td>
+          <td class="usage-num" data-label="Сумма">{{ деньги(г.сумма, true) if г.с_ценой else '—' }}</td>
+          <td class="usage-num" data-label="Средняя операция">{{ деньги(г.средняя, true) }}</td>
+          <td data-label="Доля"><span class="usage-share"><span class="v2-progress"><span class="v2-progress-fill" style="--v2-value: {{ '%.2f' % (г.доля or 0) }}%"></span></span><span class="usage-num">{{ доля(г.доля) }}&nbsp;%</span></span></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
     </div>
-    {% endfor %}
-    {% endif %}
   </section>
-  {% endfor %}
-
-  <h2 class="usage-h2">Неудачные вызовы за 7 дней</h2>
-  {% if сводка.неудачи %}
-  <div class="card admin-panel">
-    <div class="table-scroll">
-      <table class="admin-table admin-table-usage">
-        <thead><tr><th>Код</th><th>Сколько</th><th>Последний (МСК)</th></tr></thead>
-        <tbody>
-        {% for н in сводка.неудачи %}
-        <tr data-name="{{ н.код | lower }}"><td>{{ н.код }}</td><td class="usage-n">{{ н.n }}</td><td class="usage-n">{{ н.последний }}</td></tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% else %}
-  <p class="data-note">Неудачных вызовов за 7 дней нет.</p>
   {% endif %}
 
-  <h2 class="usage-h2">Нарушения в письмах HH за 7 дней</h2>
-  {% if сводка.нарушения %}
-  <div class="card admin-panel">
-    <div class="table-scroll">
-      <table class="admin-table admin-table-usage" id="usage-violations">
-        <thead><tr><th>Находка</th><th>Писем</th><th>Последнее (МСК)</th></tr></thead>
-        <tbody>
-        {% for н in сводка.нарушения %}
-        <tr data-name="{{ н.вид | lower }}" data-violation="{{ н.вид }}"><td>{{ н.вид }}</td><td class="usage-n">{{ н.n }}</td><td class="usage-n">{{ н.последний }}</td></tr>
+  {# ── 2.6 ПОЛНАЯ СЕБЕСТОИМОСТЬ ────────────────────────────────────
+     Окно — последние 30 московских суток по ВСЕМ инструментам: постоянные
+     расходы общие, и делить их по отбору страницы было бы неправдой.
+     Учёт короче месяца приводится к месяцу по темпу, и это сказано. #}
+  {% set э = экономика %}
+  <div class="usage-pair">
+    <section class="v2-card usage-card" id="usage-cost">
+      <h2 class="v2-card-title">Полная себестоимость</h2>
+      <form class="usage-fixed" id="usage-fixed" novalidate>
+        {% for ключ, подпись in постоянные_поля %}
+        <label class="v2-field usage-fixed-field">
+          <span class="v2-label v2-label-plain">{{ подпись }}, $ в месяц</span>
+          <input class="v2-input" type="text" inputmode="decimal" name="{{ ключ }}" id="usage-fixed-{{ ключ }}"
+                 value="{{ '%g' % э.постоянные[ключ] if ключ in э.постоянные else '' }}" placeholder="не задано">
+        </label>
         {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% else %}
-  <p class="data-note" id="usage-violations-none">Нарушений в письмах за 7 дней нет.</p>
-  {% endif %}
+        <div class="usage-fixed-foot">
+          <button type="submit" class="v2-btn v2-btn-primary" id="usage-fixed-save">Сохранить</button>
+          <p class="usage-note" id="usage-fixed-msg" role="status"></p>
+        </div>
+      </form>
+      <hr class="v2-divider">
+      {% if э.есть %}
+      <dl class="usage-rows" id="usage-cost-rows">
+        <div><dt>Модели за месяц{% if э.приведено %} <span class="usage-faint">(учёт {{ э.окно }} сут., приведено к месяцу)</span>{% endif %}</dt><dd>{{ деньги(э.модели) }}</dd></div>
+        <div><dt>Постоянные</dt><dd>{{ деньги(э.постоянные_сумма) if э.постоянные else 'не заданы' }}</dd></div>
+        <div class="usage-rows-total"><dt>Итого в месяц</dt><dd id="usage-cost-total">{{ деньги(э.всего) }}</dd></div>
+        <div><dt>Письмо с долей постоянных</dt><dd>{{ деньги(э.письмо_полное) }}</dd></div>
+        <div><dt>На активного пользователя</dt><dd>{{ деньги(э.на_пользователя) }}</dd></div>
+      </dl>
+      {% else %}
+      <p class="usage-note">Учёта за 30 суток нет — себестоимость не из чего считать.</p>
+      {% endif %}
+    </section>
 
-  {% call ah.foot() %}{% endcall %}
-</div>
+    {# ── 2.7 КАЛЬКУЛЯТОР ПОДПИСКИ ─────────────────────────────────────
+       Считает браузер из чисел сервера: доля постоянных на человека
+       и цена операции живого пользователя медианы и 90-го процентиля. #}
+    <section class="v2-card usage-card" id="usage-calc"
+             data-fixed="{{ э.доля_постоянных if э.есть else 0 }}">
+      <h2 class="v2-card-title">Калькулятор подписки</h2>
+      {% if э.есть and э.профили %}
+      <div class="usage-calc-in">
+        <label class="v2-field">
+          <span class="v2-label v2-label-plain">Цена подписки, $ в месяц</span>
+          <input class="v2-input" type="text" inputmode="decimal" id="usage-price" value="5">
+        </label>
+        <label class="v2-field">
+          <span class="v2-label v2-label-plain">Предел операций в месяц</span>
+          <input class="v2-input" type="text" inputmode="numeric" id="usage-limit" value="100">
+        </label>
+      </div>
+      <dl class="usage-rows usage-calc-out">
+        {% for п in э.профили %}
+        <div class="usage-profile" data-op="{{ п.цена_операции }}" data-ops="{{ п.операций_мес }}">
+          <dt>{{ п.имя }} <span class="usage-faint">· операция {{ деньги(п.цена_операции, true) }}, {{ '%.0f' % п.операций_мес }} операций в месяц</span></dt>
+          <dd><output data-out="ops">—</output> <span class="usage-faint">операций покрывает цена</span></dd>
+          <dd><output data-out="price">—</output> <span class="usage-faint">безубыточная цена при пределе</span></dd>
+        </div>
+        {% endfor %}
+      </dl>
+      <p class="usage-note">Доля постоянных на человека — {{ деньги(э.доля_постоянных) }} в месяц; она вычитается из цены прежде, чем считать операции.</p>
+      {% else %}
+      <div class="v2-empty">
+        <p class="v2-empty-title">Считать не из чего</p>
+        <p class="v2-empty-text">Нужны люди с удачными вызовами за 30 суток — медиана и 90-й процентиль берутся по ним.</p>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+
+  {# ── 2.8 ЧТО ТРЕБУЕТ ВНИМАНИЯ ─────────────────────────────────────── #}
+  {% set в = внимание %}
+  <section class="v2-card usage-card" id="usage-attention">
+    <h2 class="v2-card-title">Что требует внимания</h2>
+    {% if в.пороги %}
+    <ul class="usage-alerts">
+      {% for п in в.пороги %}<li class="usage-alert is-{{ п.тон }}">{{ п.текст }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% if в.тихо %}<p class="usage-note" id="usage-quiet">{{ в.тихо }}. Порог остатка — {{ '%.0f' % в.остаток_порог }}&nbsp;$.</p>{% endif %}
+
+    <div class="usage-attn-grid">
+      <div>
+        <h3 class="usage-h3">Неудачные вызовы · {{ сводка.подпись | lower }}</h3>
+        {% if в.неудачи %}
+        <table class="usage-table usage-table-small">
+          <thead><tr><th>Код</th><th class="usage-num">Сколько</th><th class="usage-num">Последний</th></tr></thead>
+          <tbody>
+          {% for н in в.неудачи %}<tr data-fail="{{ н.код }}"><td data-label="Код">{{ н.код }}</td><td class="usage-num" data-label="Сколько">{{ н.n }}</td><td class="usage-num" data-label="Последний">{{ н.последний }}</td></tr>{% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="usage-note">Неудачных вызовов за {{ сводка.подпись | lower }} нет.</p>
+        {% endif %}
+      </div>
+      <div>
+        <h3 class="usage-h3">Нарушения в письмах HH · {{ сводка.подпись | lower }}</h3>
+        {% if в.нарушения %}
+        <table class="usage-table usage-table-small" id="usage-violations">
+          <thead><tr><th>Находка</th><th class="usage-num">Писем</th><th class="usage-num">Последнее</th></tr></thead>
+          <tbody>
+          {% for н in в.нарушения %}<tr data-violation="{{ н.вид }}"><td data-label="Находка">{{ н.вид }}</td><td class="usage-num" data-label="Писем">{{ н.n }}</td><td class="usage-num" data-label="Последнее">{{ н.последний }}</td></tr>{% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="usage-note" id="usage-violations-none">Нарушений в письмах за {{ сводка.подпись | lower }} нет.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ЧУЖОЙ СПРАВОЧНИК ЛЕКАРСТВ (№352, «аптечка-1», 2.3): обращения
+       к vidal.ru не стоят денег, предел — про вежливость к чужому сайту.
+       Поэтому строка с полоской, а не плитка рядом с суммами. #}
+    <div class="usage-ref v2-tool-medkit">
+      <p class="usage-note" id="usage-ref">Справочник лекарств: {{ в.ref_месяц }} из {{ в.ref_предел }} обращений за месяц{% if в.ref_месяц >= в.ref_предел %} — предел исчерпан, поиск схем не работает до начала следующего месяца{% endif %}.</p>
+      <span class="v2-progress"><span class="v2-progress-fill" style="--v2-value: {{ '%.2f' % в.ref_доля }}%"></span></span>
+    </div>
+  </section>
+</main>
 
 <script>
 (function () {
-  const чипы = document.querySelectorAll('.admin-bar [data-pick]');
-  const поле = document.getElementById('admin-q');
-  let период = чипы.length ? чипы[0].dataset.pick : '7';
-  function показать() {
-    const q = (поле.value || '').trim().toLowerCase();
-    let видно = 0;
-    document.querySelectorAll('[data-period]').forEach(с => {
-      с.hidden = с.dataset.period !== период;
-      if (с.hidden) return;
-      с.querySelectorAll('tr[data-name]').forEach(tr => {
-        tr.hidden = !!q && !tr.dataset.name.includes(q);
-        if (!tr.hidden) видно++;
+  // Смена инструмента отправляет форму с кнопкой ВЫБРАННОГО периода
+  const форма = document.getElementById('usage-filters');
+  const список = document.getElementById('usage-tool');
+  список.addEventListener('change', () => {
+    форма.requestSubmit(форма.querySelector('.v2-seg-btn.is-active'));
+  });
+
+  // ── Подсказка графика: ОДИН узел на весь график, положение
+  //    зажато краями области — подсказка у крайнего столбика не шире
+  //    экрана. Текст — узлами, не разметкой строкой.
+  const поле = document.getElementById('usage-plot');
+  const данные = document.getElementById('usage-days');
+  if (поле && данные) {
+    const дни = JSON.parse(данные.textContent);
+    const tip = document.getElementById('usage-tip');
+    const $ = x => (x < 0.1 ? x.toFixed(4) : x.toFixed(2)) + ' $';
+    function показать(ст) {
+      const д = дни[+ст.dataset.i];
+      tip.textContent = '';
+      const з = document.createElement('p');
+      з.className = 'usage-tip-head';
+      з.textContent = д.подпись + ' · ' + (д.всего ? $(д.всего) : 'вызовов не было');
+      tip.append(з);
+      д.доли.slice().reverse().forEach(ч => {
+        const р = document.createElement('p');
+        р.className = 'usage-tip-row';
+        р.dataset.v = ч.сумма;          // точное значение — для сверки пробой 70
+        const о = document.createElement('span');
+        о.className = 'usage-sw usage-g-' + ч.группа;
+        const и = document.createElement('span');
+        и.textContent = ч.подпись;
+        const с = document.createElement('span');
+        с.className = 'usage-num';
+        с.textContent = $(ч.сумма);
+        р.append(о, и, с);
+        tip.append(р);
       });
+      tip.hidden = false;
+      const п = поле.getBoundingClientRect(), б = ст.getBoundingClientRect();
+      const ш = tip.offsetWidth;
+      let x = б.left - п.left + б.width / 2 - ш / 2;
+      x = Math.max(0, Math.min(x, п.width - ш));
+      tip.style.left = x + 'px';
+      поле.querySelectorAll('.usage-bar.is-on').forEach(э => э.classList.remove('is-on'));
+      ст.classList.add('is-on');
+    }
+    function скрыть() {
+      tip.hidden = true;
+      поле.querySelectorAll('.usage-bar.is-on').forEach(э => э.classList.remove('is-on'));
+    }
+    поле.querySelectorAll('.usage-bar').forEach(ст => {
+      ст.addEventListener('pointerenter', () => показать(ст));
+      ст.addEventListener('focus', () => показать(ст));
+      ст.addEventListener('click', () => показать(ст));
+      ст.addEventListener('blur', скрыть);
     });
-    const нота = document.getElementById('note');
-    нота.textContent = '';
-    const чип = document.querySelector('.admin-bar [data-pick="' + период + '"]');
-    нота.append(нотаПункт('Период: ', чип.firstChild.textContent.trim()),
-      нотаПункт('Строк в таблицах: ', нотаЧисло(видно)),
-      нотаВажно('Строки без цены в суммы не входят'));
+    поле.addEventListener('pointerleave', скрыть);
   }
-  чипы.forEach(ч => ч.addEventListener('click', () => {
-    чипы.forEach(х => х.classList.toggle('active', х === ч));
-    период = ч.dataset.pick;
-    показать();
-  }));
-  поле.addEventListener('input', показать);
-  показать();
+
+  // ── Постоянные расходы: пустое поле — «не задано», ноль — ноль.
+  const пост = document.getElementById('usage-fixed');
+  if (пост) {
+    пост.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const нота = document.getElementById('usage-fixed-msg');
+      const тело = {};
+      new FormData(пост).forEach((v, k) => { тело[k] = String(v); });
+      const кн = document.getElementById('usage-fixed-save');
+      кн.disabled = true;
+      try {
+        const о = await fetch('/admin/api/usage/fixed', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(тело)});
+        const д = await о.json().catch(() => ({}));
+        if (!о.ok) { нота.textContent = д.error || ('Не сохранено: HTTP ' + о.status); return; }
+        нота.textContent = 'Сохранено — пересчитываю';
+        location.reload();
+      } catch (err) {
+        нота.textContent = 'Сеть не ответила — не сохранено';
+      } finally {
+        кн.disabled = false;
+      }
+    });
+  }
+
+  // ── Калькулятор подписки. Числа — из разметки сервера.
+  const кальк = document.getElementById('usage-calc');
+  const цена = document.getElementById('usage-price');
+  const предел = document.getElementById('usage-limit');
+  if (кальк && цена && предел) {
+    const пост_на = parseFloat(кальк.dataset.fixed) || 0;
+    const числом = s => parseFloat(String(s).replace(',', '.').trim());
+    function счёт() {
+      const ц = числом(цена.value), л = числом(предел.value);
+      кальк.querySelectorAll('.usage-profile').forEach(п => {
+        const оп = parseFloat(п.dataset.op);
+        const вых_оп = п.querySelector('[data-out="ops"]');
+        const вых_ц = п.querySelector('[data-out="price"]');
+        if (!isFinite(ц) || ц < 0 || !(оп > 0)) вых_оп.textContent = '—';
+        else if (ц <= пост_на) вых_оп.textContent = 'цена не покрывает постоянные';
+        else вых_оп.textContent = Math.floor((ц - пост_на) / оп).toLocaleString('ru-RU');
+        if (!isFinite(л) || л < 0 || !(оп > 0)) вых_ц.textContent = '—';
+        else вых_ц.textContent = (л * оп + пост_на).toFixed(2) + ' $';
+      });
+    }
+    цена.addEventListener('input', счёт);
+    предел.addEventListener('input', счёт);
+    счёт();
+  }
 })();
 </script>
 

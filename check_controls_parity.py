@@ -57,6 +57,9 @@ sys.stdout.reconfigure(encoding="utf-8")
     # Enshrouded: «до» — коммит ПЕРЕД письмом «enshrouded-1» (№352).
     # Каркас v2 раздел получил письмом 2, органы правит это письмо.
     "enshrouded": {"шаблон": "templates/enshrouded.html", "до": "7eb4d0a"},
+    # Страница «Расход» админки: «до» — коммит ПЕРЕД письмом «Расход»
+    # (№352), страница на старой системе.
+    "admin-usage": {"шаблон": "templates/admin_usage.html", "до": "5a3bd82"},
 }
 
 КАРКАС = {"_header.html", "_meta.html", "_page_end.html", "_footer.html",

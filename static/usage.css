@@ -1,0 +1,384 @@
+/* @v2 — СТРАНИЦА «РАСХОД» `/admin/usage` (№352, письмо «Расход»).
+   Раскладка страницы и её собственные узлы: отбор, плитки, график,
+   таблицы, калькулятор. Вид компонентов (`.v2-tile`, `.v2-seg`,
+   `.v2-card`, `.v2-progress`, `.v2-empty`) — `static/v2.css`, здесь
+   их не переопределяют. Прямых значений нет, только `var(--v2-*)`
+   (проверка 47). Моноширинной гарнитуры нет нигде: числа выравниваются
+   `tabular-nums`, а не моноширинным шрифтом (прежняя страница была
+   моноширинной целиком — «старые моноширинные», письмо, 2.10). */
+
+.usage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-sp-5);
+  padding-bottom: var(--v2-sp-7);
+}
+.usage .v2-page-head { margin-bottom: 0; }
+
+/* Подпись поля для чтения экранным чтецом — на экране её заменяет
+   сам список («Все инструменты»). */
+.usage-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── 2.1 ОТБОР ОДНОЙ СТРОКОЙ ────────────────────────────────────────
+   На узком экране строка переносится: период, под ним список, под ним
+   подпись учёта. Ничто не шире окна — у списка `min-width: 0`. */
+.usage-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--v2-sp-3) var(--v2-sp-4);
+}
+.usage-filters .v2-seg { flex-wrap: wrap; }
+.usage-tool { min-width: 0; max-width: 100%; }
+.usage-tool .v2-select { min-width: 14rem; max-width: 100%; }
+.usage-since { flex: 1 1 18rem; margin: 0; min-width: 0; }
+/* На телефоне список стоит своей строкой — и занимает её целиком.
+   `min-width: 14rem` оставлял справа 110–180 px пустоты, и проверка 69
+   («один боковой отступ») называла ряд несимметричным на 360/390/430
+   (замер 2026-09-27: Л16 П110 / П140 / П180). Переключатель периода
+   остаётся компактным: он сам по себе ряд не задаёт. */
+@media (max-width: 640px) {
+  .usage-tool { flex: 1 1 100%; }
+  .usage-tool .v2-select { width: 100%; min-width: 0; }
+}
+
+/* ── 2.2 ПЛИТКИ ───────────────────────────────────────────────────── */
+.usage-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--v2-sp-4);
+}
+.usage-tile { min-width: 0; }
+.usage-tile .v2-tile-num { overflow-wrap: anywhere; }
+.usage-none { color: var(--v2-text-2); }
+.usage-note {
+  margin: 0;
+  font-size: var(--v2-fs-xs);
+  line-height: var(--v2-lh-body);
+  color: var(--v2-text-2);
+  overflow-wrap: anywhere;
+}
+/* ПРИМЕЧАНИЕ ПОД ОСТАТКОМ — ОДНОЙ ВЫСОТЫ В ЛЮБОМ СОСТОЯНИИ (№346, заход 7):
+   «хватит на … сут.» занимает строку-две, текст сбоя — до трёх, и без
+   резерва плитка меняла высоту, сдвигая всё ниже.
+   ВЫСОТА = строка + ЦЕЛОЕ число пикселей не меньше двух строк, а не
+   3lh. Строка дробная, и 3lh сдвигал всё ниже на долю пикселя: подвал
+   вставал иначе, и область «Cookies» мерилась 80×24 вместо 80×25 —
+   ровно на пороге площади проверки 20. Целая добавка оставляет
+   дробную часть раскладки ниже прежней. Переехало из `admin.css`
+   вместе со страницей, довод прежний. */
+.usage-balance-note {
+  height: calc(1lh + round(up, 2lh, 1px));
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.usage-history { color: var(--v2-text-faint); }
+.usage-warn { color: var(--v2-warn); font-weight: var(--v2-fw-medium); }
+.usage-faint { color: var(--v2-text-faint); font-size: var(--v2-fs-xs); }
+
+/* ── ОБЩЕЕ У КАРТОЧЕК ────────────────────────────────────────────── */
+.usage-card { min-width: 0; }
+.usage-card .v2-card-title { margin-bottom: var(--v2-sp-4); }
+.usage-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--v2-sp-2) var(--v2-sp-5);
+}
+.usage-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 36rem), 1fr));
+  gap: var(--v2-sp-5);
+  align-items: start;
+}
+.usage-h3 {
+  margin: 0 0 var(--v2-sp-3);
+  font-size: var(--v2-fs-sm);
+  font-weight: var(--v2-fw-strong);
+  color: var(--v2-text);
+}
+
+/* ── 2.3 ГРАФИК ───────────────────────────────────────────────────── */
+.usage-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--v2-sp-2) var(--v2-sp-4);
+  margin: 0 0 var(--v2-sp-4);
+  padding: 0;
+  list-style: none;
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-text-2);
+}
+.usage-legend li { display: inline-flex; align-items: center; gap: var(--v2-sp-2); }
+.usage-sw {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--v2-r-pill);
+}
+/* Цвета инструментов — токены v2; у «Общего» (голос и фото зовут
+   несколько инструментов) — нейтральный, ничей. */
+.usage-g-hh        { background: var(--v2-hh); }
+.usage-g-nutrition { background: var(--v2-nutrition); }
+.usage-g-medkit    { background: var(--v2-medkit); }
+.usage-g-workout   { background: var(--v2-workout); }
+.usage-g-other     { background: var(--v2-ring-neutral); }
+
+.usage-plot { position: relative; }
+.usage-plot-max { margin: 0 0 var(--v2-sp-2); }
+.usage-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--v2-sp-1);
+  height: 13rem;
+  border-bottom: 1px solid var(--v2-line-2);
+}
+.usage-bar {
+  display: flex;
+  align-items: flex-end;
+  flex: 1 1 0;
+  min-width: 2px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--v2-r-sm) var(--v2-r-sm) 0 0;
+  background: transparent;
+  cursor: pointer;
+}
+.usage-bar:focus-visible { outline: 2px solid var(--v2-ring-neutral); outline-offset: 0; }
+.usage-bar.is-on { background: var(--v2-surface-hover); }
+@media (hover: hover) {
+  .usage-bar:hover { background: var(--v2-surface-hover); }
+}
+/* Доли — снизу вверх в порядке легенды; высота столбика — доля
+   от максимума периода (`--h`), высота доли — от суммы суток (`--p`). */
+.usage-stack {
+  display: flex;
+  flex-direction: column-reverse;
+  width: 100%;
+  height: var(--h, 0%);
+  border-radius: var(--v2-r-sm) var(--v2-r-sm) 0 0;
+  overflow: hidden;
+}
+.usage-seg { display: block; flex: none; height: var(--p, 0%); }
+/* ДЕНЬ БЕЗ ВЫЗОВОВ — ЧЕРТА У ОСНОВАНИЯ, А НЕ ПУСТОЕ МЕСТО: пропуск
+   читался бы как «данные потеряны», черта — как «ноль в этот день». */
+.usage-bar.is-zero .usage-stack { height: 2px; border-radius: 0; background: var(--v2-line-1); }
+.usage-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--v2-sp-2);
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-text-faint);
+}
+.usage-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: max-content;
+  min-width: 12rem;
+  max-width: min(18rem, 100%);
+  padding: var(--v2-sp-3);
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-md);
+  background: var(--v2-surface-pop);
+  box-shadow: var(--v2-shadow-pop);
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-text);
+  pointer-events: none;
+}
+.usage-tip p { margin: 0; }
+.usage-tip-head { margin-bottom: var(--v2-sp-2); font-weight: var(--v2-fw-strong); color: var(--v2-text-strong); }
+.usage-tip-row { display: flex; align-items: center; gap: var(--v2-sp-2); }
+.usage-tip-row .usage-num { margin-left: auto; }
+
+/* ── 2.4–2.5 ТАБЛИЦЫ ─────────────────────────────────────────────── */
+.usage-scroll { max-width: 100%; overflow-x: auto; }
+.usage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--v2-fs-sm);
+  color: var(--v2-text);
+}
+.usage-table th {
+  padding: var(--v2-sp-2) var(--v2-sp-3);
+  border-bottom: 1px solid var(--v2-line-2);
+  font-size: var(--v2-fs-xs);
+  font-weight: var(--v2-fw-strong);
+  color: var(--v2-text-faint);
+  text-align: left;
+  white-space: nowrap;
+}
+.usage-table td {
+  padding: var(--v2-sp-3);
+  border-bottom: 1px solid var(--v2-line-3);
+  vertical-align: middle;
+}
+.usage-table tbody tr:last-child td { border-bottom: 0; }
+.usage-table th:first-child, .usage-table td:first-child { padding-left: 0; }
+.usage-table th:last-child, .usage-table td:last-child { padding-right: 0; }
+.usage-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.usage-table th.usage-num { text-align: right; }
+.usage-name { display: inline-flex; align-items: center; gap: var(--v2-sp-2); }
+.usage-break { overflow-wrap: anywhere; }
+.usage-share {
+  display: grid;
+  grid-template-columns: minmax(4rem, 1fr) auto;
+  align-items: center;
+  gap: var(--v2-sp-2);
+  min-width: 8rem;
+}
+/* Полоска доли — цветом инструмента строки; у моделей, людей
+   и «Общего» — нейтральная. */
+.usage-row-other,
+.usage-table-models,
+.usage-table-people { --v2-tool: var(--v2-ring-neutral); }
+.usage-table-small { font-size: var(--v2-fs-xs); }
+
+/* ЛЮДИ: сводка четырьмя числами над таблицей */
+.usage-kv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: var(--v2-sp-3);
+  margin: 0 0 var(--v2-sp-4);
+}
+.usage-kv div {
+  padding: var(--v2-sp-3) var(--v2-sp-4);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-md);
+  background: var(--v2-surface-2);
+}
+.usage-kv dt { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+.usage-kv dd {
+  margin: var(--v2-sp-1) 0 0;
+  font-size: var(--v2-fs-lg);
+  font-weight: var(--v2-fw-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--v2-text-strong);
+}
+
+/* ── 2.6 СЕБЕСТОИМОСТЬ И 2.7 КАЛЬКУЛЯТОР ─────────────────────────── */
+.usage-fixed {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: var(--v2-sp-3);
+}
+.usage-fixed-field { min-width: 0; }
+.usage-fixed-foot {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--v2-sp-3);
+}
+.usage-rows { display: flex; flex-direction: column; gap: var(--v2-sp-2); margin: 0; }
+.usage-rows > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--v2-sp-1) var(--v2-sp-3);
+}
+.usage-rows dt { min-width: 0; font-size: var(--v2-fs-sm); color: var(--v2-text-2); }
+.usage-rows dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--v2-fw-strong);
+  color: var(--v2-text);
+}
+.usage-rows-total dt, .usage-rows-total dd { color: var(--v2-text-strong); }
+.usage-calc-in {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--v2-sp-3);
+  margin-bottom: var(--v2-sp-4);
+}
+.usage-calc-out { margin-bottom: var(--v2-sp-3); }
+.usage-profile {
+  padding: var(--v2-sp-3) 0;
+  border-top: 1px solid var(--v2-line-3);
+}
+.usage-profile dt { flex: 1 1 100%; }
+.usage-profile dd { flex: 1 1 12rem; }
+
+/* ── 2.8 ВНИМАНИЕ ─────────────────────────────────────────────────── */
+.usage-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-sp-2);
+  margin: 0 0 var(--v2-sp-3);
+  padding: 0;
+  list-style: none;
+}
+.usage-alert {
+  padding: var(--v2-sp-3) var(--v2-sp-4);
+  border: 1px solid var(--v2-line-2);
+  border-left: 3px solid var(--v2-text-2);
+  border-radius: var(--v2-r-md);
+  background: var(--v2-surface-2);
+  font-size: var(--v2-fs-sm);
+  color: var(--v2-text);
+}
+.usage-alert.is-danger { border-left-color: var(--v2-danger); }
+.usage-alert.is-warn { border-left-color: var(--v2-warn); }
+.usage-attn-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--v2-sp-5);
+  margin: var(--v2-sp-4) 0;
+}
+.usage-ref { display: flex; flex-direction: column; gap: var(--v2-sp-2); }
+
+/* ── ТЕЛЕФОН: СТРОКА ТАБЛИЦЫ — КАРТОЧКА ────────────────────────────
+   Колонок пять-шесть, а места 358 px: таблица либо ехала бы вбок, либо
+   сжимала подписи в столбик по букве. Здесь строка становится блоком,
+   подпись колонки встаёт в строку значения (`data-label`), и ширина
+   строки — ширина экрана по построению (подлог №3 пробы 70 снимает
+   именно это правило). */
+@media (max-width: 640px) {
+  .usage-scroll { overflow-x: visible; }
+  .usage-table, .usage-table tbody, .usage-table tr, .usage-table td { display: block; width: 100%; }
+  /* Шапка на телефоне не нужна: подпись колонки стоит у каждого
+     значения. Спрятанная «в один пиксель» она оставляла ячейки
+     за краем экрана — проба 70 их находила. */
+  .usage-table thead { display: none; }
+  .usage-table tr { padding: var(--v2-sp-3) 0; border-bottom: 1px solid var(--v2-line-3); }
+  .usage-table tbody tr:last-child { border-bottom: 0; }
+  .usage-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--v2-sp-3);
+    padding: var(--v2-sp-1) 0;
+    border: 0;
+    text-align: right;
+    white-space: normal;
+  }
+  .usage-table td::before {
+    content: attr(data-label);
+    flex: none;
+    font-size: var(--v2-fs-xs);
+    color: var(--v2-text-faint);
+    text-align: left;
+  }
+  .usage-table td:first-child {
+    display: block;
+    padding-bottom: var(--v2-sp-2);
+    font-weight: var(--v2-fw-strong);
+    text-align: left;
+  }
+  .usage-table td:first-child::before { content: none; }
+  .usage-share { min-width: 0; flex: 1 1 auto; max-width: 14rem; }
+}

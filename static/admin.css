@@ -93,9 +93,17 @@
    чужое `flex-direction: column`. Ровно то столкновение имён, что чинила
    задача 110 у `.hint`: две разные вещи под одним именем, и какое
    правило применится — решает порядок строк в файле. */
+/* ПОДЛОЖКА — ТОКЕН v2, и это письмо «Расход» (№352, 2026-09-26):
+   страница `/admin/usage` ушла на v2, а панель разделов стоит над ней
+   и осталась единственной находкой проверки 60 — `--surface-1` против
+   `--v2-surface-pop`, ΔE 3.1 при допуске 3. Панель ОДНА на все пять
+   разделов, и перекрашена она у всех сразу: своя подложка на одной
+   вкладке прыгала бы при переключении. Сдвиг цвета глазом не виден
+   (#141520 → #16171e); остальные старые цвета админки — следующее
+   письмо «профиль и админка». */
 .admin-nav-bar {
   position: sticky; top: 64px; z-index: 49;
-  background: var(--surface-1);
+  background: var(--v2-surface-pop);
   border-bottom: 1px solid var(--border);
 }
 .admin-tabs {
@@ -1248,46 +1256,3 @@
   margin-top: var(--space-4);
 }
 .admin-foot-side { flex: 0 0 auto; margin: 0; }
-
-/* РАСХОД НА МОДЕЛИ — /admin/usage (BACKLOG №346). Карточки сводки
-   рядом, числа моноширинные: суммы с четырьмя знаками дёргали бы
-   строку в пропорциональной гарнитуре. */
-.usage-top {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
-  gap: var(--space-4);
-  margin-bottom: var(--space-3);
-}
-.usage-stat { padding: var(--space-5); }
-.usage-big {
-  font-family: var(--font-mono);
-  font-size: var(--text-h3);
-  font-weight: 600;
-  color: var(--text);
-  margin: var(--space-1) 0;
-}
-.usage-none { color: var(--text-2); }
-/* Примечание под остатком — ОДНОЙ высоты в любом состоянии (№346,
-   заход 7): «обновлено …» занимает строку, текст сбоя — до трёх, и без
-   резерва карточка меняла высоту, сдвигая всё ниже.
-   ВЫСОТА = строка + ЦЕЛОЕ число пикселей не меньше двух строк, а не
-   3lh. Строка дробная (13.8 × 1.5 = 20.7 px), и 3lh сдвигал всё ниже
-   на долю пикселя: подвал вставал иначе, и область «Cookies» мерилась
-   80×24 вместо 80×25 — ровно на пороге площади проверки 20. Целая
-   добавка оставляет дробную часть раскладки ниже прежней. */
-.usage-balance-note {
-  height: calc(1lh + round(up, 2lh, 1px));
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-.usage-warn { color: var(--warning); font-weight: 500; }
-.usage-since { margin-bottom: var(--space-6); }
-.usage-h2 {
-  font-size: var(--text-h3);
-  font-weight: 600;
-  margin: var(--space-6) 0 var(--space-3);
-}
-.admin-table-usage { table-layout: auto; }
-.usage-n { font-family: var(--font-mono); white-space: nowrap; }
