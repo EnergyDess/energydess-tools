@@ -619,6 +619,14 @@ def тесты():
                            errors='replace', timeout=900)
         m = re.search(r'(\d+) passed', r.stdout or '')
         f = re.search(r'(\d+) failed', r.stdout or '')
+        # КАКОЙ ТЕСТ УПАЛ — ИМЕНЕМ, А НЕ ЧИСЛОМ (заход 2026-09-27). CI
+        # печатал «прошло 1431, упало 1» и больше ничего: вывод pytest
+        # выбрасывался, а артефакт несёт одну отметку — чинить было нечего
+        # (прогон 36300870807). Строки `FAILED`/`ERROR` краткой сводки
+        # pytest печатаются как есть: их видят и журнал CI, и человек.
+        for строка in (r.stdout or '').splitlines():
+            if строка.startswith(('FAILED ', 'ERROR ')):
+                print('    ' + строка[:400], flush=True)
         return (m.group(1) if m else '?'), (f.group(1) if f else '0'), r.returncode
     except (OSError, subprocess.SubprocessError) as e:
         return f'не запустился: {e}', '?', '?'
