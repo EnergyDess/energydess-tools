@@ -21,19 +21,37 @@
    ТОЛЬКО ЧИТАЕТ учёт `model_usage`, историю остатка и постоянные расходы
    плюс один запрос остатка OpenRouter; модель не вызывается ни разу.
 
-   ОДИН ПЕРИОД И ОДИН ОТБОР — параметрами адреса (`?p=7|30|all&tool=…`):
-   всё, что зависит от отбора, собрано сервером из одних и тех же строк,
+   ОДИН ОТРЕЗОК И ОДИН ОТБОР — параметрами адреса: пресет `?p=7|30|90|all`
+   либо свой период `?from=ГГГГ-ММ-ДД&to=ГГГГ-ММ-ДД`, отбор `&tool=…`,
+   ручная группировка столбиков `&g=day|week|month` («Расход-2», 1.1–1.2).
+   Всё, что зависит от отбора, собрано сервером из одних и тех же строк,
    и сумма плитки, столбики графика и таблицы разойтись не могут.
 
    ЧЕСТНОСТЬ ЧИСЕЛ ВАЖНЕЕ ВИДА: строка без цены в сумму не входит и
    называется числом; пустой период — словами, а не «0 $»; время —
-   московское, с подписью. #}
+   московское, с подписью; процента к прошлому отрезку, которого нет
+   в учёте, не бывает — «нет данных за прошлый период». #}
 
 {%- macro деньги(x, точно=false) -%}
 {%- if x is none -%}—{%- elif точно or x < 0.1 -%}{{ '%.4f' % x }}&nbsp;${%- else -%}{{ '%.2f' % x }}&nbsp;${%- endif -%}
 {%- endmacro -%}
 {%- macro число(n) -%}{{ '{:,}'.format(n | int).replace(',', ' ') }}{%- endmacro -%}
 {%- macro доля(x) -%}{{ '%.0f' % x if x is not none else '—' }}{%- endmacro -%}
+{#- Тренд по дням в плитке (1.4): путь собран сервером, пустой — места
+    столько же, а линии нет (одна точка тренда не показывает). -#}
+{%- macro линия(т, подпись, ид) -%}
+<div class="usage-spark-box"><svg class="usage-spark" id="{{ ид }}" viewBox="0 0 {{ т.w }} 20" preserveAspectRatio="none" role="img"
+     aria-label="{{ подпись if т.d else 'Тренда нет: меньше двух дней с данными' }}"
+     data-empty="{{ 'false' if т.d else 'true' }}">{% if т.d %}<path d="{{ т.d }}"/>{% endif %}</svg></div>
+{%- endmacro -%}
+{#- Изменение к прошлому отрезку ТОЙ ЖЕ длины (1.3): текст и тон решает
+    сервер; прошлого отрезка нет в учёте — слова, а не выдуманный процент. -#}
+{%- macro дельта(д, ид) -%}
+{%- if д.текст -%}
+<p class="usage-delta{{ ' is-' ~ д.тон if д.тон }}" id="{{ ид }}" data-delta="{{ д.знач if д.знач is not none else '' }}"
+   title="Прошлый отрезок той же длины: {{ сводка.сравнение.отрезок }}">{{ д.текст }}</p>
+{%- endif -%}
+{%- endmacro -%}
 
 <main class="v2-page-wrap page-fill usage" id="usage">
 
@@ -45,36 +63,117 @@
     </div>
   </header>
 
-  {# ── 2.1 ОТБОР ОДНОЙ СТРОКОЙ ─────────────────────────────────────
-     Форма GET, а не скрипт: период — кнопки отправки, инструмент —
-     список, и без скриптов отбор тоже работает. Смена списка отправляет
-     форму с кнопкой ВЫБРАННОГО периода — иначе период терялся бы. #}
-  <form class="usage-filters" method="get" action="/admin/usage" id="usage-filters">
-    <div class="v2-seg" role="group" aria-label="Период">
-      {% for код, подпись, _ in периоды %}
-      <button type="submit" class="v2-seg-btn {{ 'is-active' if код == сводка.код }}"
-              name="p" value="{{ код }}" data-period="{{ код }}"
-              aria-pressed="{{ 'true' if код == сводка.код else 'false' }}">{{ подпись }}</button>
+  {# ── 1.1 ПЕРИОД ОДНОЙ СТРОКОЙ ─────────────────────────────────────
+     Форма GET: пресет — кнопка отправки, инструмент — список, и без
+     скриптов отбор работает. Свой период — календарь ниже (скрипт) и поля
+     `from`/`to`; ПРЕСЕТ СИЛЬНЕЕ своего периода (форма везёт обе пары,
+     нажатая кнопка побеждает — решает сервер). Смена списка отправляет
+     форму с кнопкой ВЫБРАННОГО пресета — иначе период терялся бы. #}
+  <div class="usage-filters" id="usage-filters">
+    <form class="usage-form" method="get" action="/admin/usage" id="usage-form">
+      <div class="v2-seg usage-periods" role="group" aria-label="Период">
+        {% for код, подпись, _ in периоды %}
+        <button type="submit" class="v2-seg-btn {{ 'is-active' if код == сводка.код }}"
+                name="p" value="{{ код }}" data-period="{{ код }}"
+                aria-pressed="{{ 'true' if код == сводка.код else 'false' }}">{{ подпись }}</button>
+        {% endfor %}
+        <button type="button" class="v2-seg-btn usage-custom {{ 'is-active' if сводка.код == 'custom' }}"
+                id="usage-custom" data-period="custom" aria-controls="usage-cal" aria-expanded="false"
+                aria-pressed="{{ 'true' if сводка.код == 'custom' else 'false' }}">{{ значок('calendar-clock') }}Свой период</button>
+      </div>
+      {% if сводка.код == 'custom' %}
+      <input type="hidden" name="from" value="{{ сводка.с_iso }}">
+      <input type="hidden" name="to" value="{{ сводка.по_iso }}">
+      {% endif %}
+      {% if сводка.группировка_выбор %}<input type="hidden" name="g" value="{{ сводка.группировка_выбор }}">{% endif %}
+      <label class="v2-select-wrap usage-tool">
+        <span class="usage-sr">Инструмент</span>
+        <select class="v2-select v2-select-pill" name="tool" id="usage-tool">
+          <option value="">Все инструменты</option>
+          {% for г, п in сводка.группы %}
+          <option value="{{ г }}" {{ 'selected' if г == сводка.инструмент }}>{{ п }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </form>
+
+    {# Стрелки листают отрезок ЦЕЛИКОМ (при 30 днях — предыдущие 30);
+       вперёд за сегодня не уходят — «вперёд» от отрезка, кончающегося
+       сегодня, выключена, а последний шаг прижат к сегодня (сервер). #}
+    <div class="usage-range" id="usage-range" data-from="{{ сводка.с_iso }}" data-to="{{ сводка.по_iso }}"
+         data-today="{{ сводка.сегодня_iso }}" data-days="{{ сводка.дней }}">
+      {% if сводка.назад %}
+      <a class="v2-btn v2-btn-icon usage-arrow" id="usage-prev" href="{{ сводка.назад }}"
+         aria-label="Предыдущие {{ сводка.дней_текст }}" title="Предыдущие {{ сводка.дней_текст }}">{{ значок('chevron-left') }}</a>
+      {% else %}
+      <button type="button" class="v2-btn v2-btn-icon usage-arrow" id="usage-prev" disabled
+              aria-label="Назад нельзя" title="{{ 'У «всего времени» прошлого отрезка нет' if сводка.код == 'all' else 'Глубже десяти лет не листаем' }}">{{ значок('chevron-left') }}</button>
+      {% endif %}
+      <p class="usage-range-text"><span id="usage-range-dates">{{ сводка.отрезок_полно }}</span> <span class="usage-faint">· {{ сводка.дней_текст }}</span></p>
+      {% if сводка.вперёд %}
+      <a class="v2-btn v2-btn-icon usage-arrow" id="usage-next" href="{{ сводка.вперёд }}"
+         aria-label="Следующие {{ сводка.дней_текст }}" title="Следующие {{ сводка.дней_текст }}">{{ значок('chevron-right') }}</a>
+      {% else %}
+      <button type="button" class="v2-btn v2-btn-icon usage-arrow" id="usage-next" disabled
+              aria-label="Вперёд нельзя" title="{{ 'У «всего времени» следующего отрезка нет' if сводка.код == 'all' else 'Отрезок кончается сегодня — вперёд учёта нет' }}">{{ значок('chevron-right') }}</button>
+      {% endif %}
+    </div>
+
+    {# 1.2 ГРУППИРОВКА СТОЛБИКОВ: сама — по длине отрезка; ручной выбор
+       сильнее, пока столбиков не больше предела (там кнопка выключена
+       и говорит почему). Ссылки, а не кнопки формы: у формы свой пресет,
+       и два «g» в одном запросе спорили бы, какой взять. #}
+    <div class="v2-seg usage-grouping" role="group" aria-label="Столбики графика">
+      <a class="v2-seg-btn usage-seg-link {{ 'is-active' if not сводка.группировка_выбор }}" data-group="auto"
+         href="{{ сводка.группировка_авто_адрес }}" aria-current="{{ 'true' if not сводка.группировка_выбор else 'false' }}"
+         title="Сама: до 45 дней — по дням, до года — по неделям, дальше — по месяцам">Авто</a>
+      {% for г in сводка.группировки %}
+      {% if г.можно %}
+      <a class="v2-seg-btn usage-seg-link {{ 'is-active' if г.код == сводка.группировка_выбор }}" data-group="{{ г.код }}"
+         href="{{ г.адрес }}" aria-current="{{ 'true' if г.код == сводка.группировка_выбор else 'false' }}">{{ г.подпись }}</a>
+      {% else %}
+      <span class="v2-seg-btn usage-seg-link is-disabled" data-group="{{ г.код }}" aria-disabled="true"
+            title="Больше {{ предел_столбиков }} столбиков — не прочесть">{{ г.подпись }}</span>
+      {% endif %}
       {% endfor %}
     </div>
-    <label class="v2-select-wrap usage-tool">
-      <span class="usage-sr">Инструмент</span>
-      <select class="v2-select v2-select-pill" name="tool" id="usage-tool">
-        <option value="">Все инструменты</option>
-        {% for г, п in сводка.группы %}
-        <option value="{{ г }}" {{ 'selected' if г == сводка.инструмент }}>{{ п }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <p class="v2-hint usage-since" id="usage-since">Период с {{ сводка.с_дня }} · учёт ведётся с {{ сводка.учёт_с }}. Потраченное раньше видно только в кабинете OpenRouter.</p>
-  </form>
+    <p class="v2-hint usage-since" id="usage-since">Учёт ведётся с {{ сводка.учёт_с }}. Потраченное раньше видно только в кабинете OpenRouter.</p>
+    {% if сводка.замечание %}<p class="usage-note usage-warn" id="usage-period-note" role="status">{{ сводка.замечание }}</p>{% endif %}
+  </div>
 
-  {# ── 2.2 ЧЕТЫРЕ ПЛИТКИ ────────────────────────────────────────── #}
+  {# СВОЙ ПЕРИОД: первое касание — начало, второе — конец, «Показать».
+     Дни позже сегодня и раньше выбранного начала выключены: конец
+     раньше начала не выбрать. Третье касание начинает выбор заново.
+     Сетку дней строит скрипт при открытии — до открытия её не видно. #}
+  <div class="usage-cal v2-card-nested" id="usage-cal" hidden role="group" aria-labelledby="usage-cal-title"
+       data-today="{{ сводка.сегодня_iso }}" data-min="{{ сводка.мин_iso }}" data-to="{{ сводка.по_iso }}"
+       data-tool="{{ сводка.инструмент }}" data-g="{{ сводка.группировка_выбор }}">
+    <p class="usage-cal-title" id="usage-cal-title">Свой период</p>
+    <div class="usage-cal-head">
+      <button type="button" class="v2-btn v2-btn-icon" id="usage-cal-prev" aria-label="Предыдущий месяц">{{ значок('chevron-left') }}</button>
+      <p class="usage-cal-month" id="usage-cal-month" aria-live="polite"></p>
+      <button type="button" class="v2-btn v2-btn-icon" id="usage-cal-next" aria-label="Следующий месяц">{{ значок('chevron-right') }}</button>
+    </div>
+    <div class="usage-cal-grid" id="usage-cal-grid"></div>
+    <p class="usage-note" id="usage-cal-pick" aria-live="polite">Выберите начало периода</p>
+    <div class="usage-cal-foot">
+      <button type="button" class="v2-btn v2-btn-secondary" id="usage-cal-cancel">Отмена</button>
+      <button type="button" class="v2-btn v2-btn-primary" id="usage-cal-show" disabled>Показать</button>
+    </div>
+  </div>
+
+  {# ── ЧЕТЫРЕ ПЛИТКИ (1.3–1.4) ─────────────────────────────────────
+     Под числом — изменение к прошлому отрезку ТОЙ ЖЕ длины, внизу —
+     тренд по дням выбранного отрезка. Остаток ниже порога — само число
+     цветом предупреждения. #}
+  {% set ср = сводка.сравнение %}
   <section class="usage-tiles" aria-label="Сводка">
     <div class="v2-tile usage-tile" id="usage-balance-tile">
       <span class="v2-tile-label">Остаток OpenRouter</span>
       {% if остаток.остаток is not none %}
-      <span class="v2-tile-num" id="usage-balance">{{ '%.2f' % остаток.остаток }}&nbsp;$</span>
+      <span class="v2-tile-num{{ ' usage-low' if остаток.низкий }}" id="usage-balance"
+            data-low="{{ 'true' if остаток.низкий else 'false' }}"
+            {% if остаток.низкий %}title="Ниже порога {{ '%.0f' % остаток.порог }}&nbsp;$ — пора пополнить"{% endif %}>{{ '%.2f' % остаток.остаток }}&nbsp;$</span>
       {# ВЫСОТА ПРИМЕЧАНИЯ ОДНА ВО ВСЕХ СОСТОЯНИЯХ (№346, заход 7):
          под него отведено ровно три строки, лишнее обрезается, полный
          текст — в подсказке. Прежде текст сбоя растил плитку и сдвигал
@@ -87,30 +186,41 @@
          title="{{ остаток.причина }}{% if остаток.подробно %} ({{ остаток.подробно }}){% endif %} {{ остаток.последний_текст }}">{{ остаток.причина }} {{ остаток.последний_текст }}</p>
       {% endif %}
       <p class="usage-note usage-history" id="usage-history" data-days="{{ остаток.история_дней }}">{{ остаток.история | capitalize }}</p>
+      {{ линия(сводка.тренды.остаток, 'Остаток по дням', 'usage-spark-balance') }}
     </div>
 
-    <div class="v2-tile usage-tile">
+    {# data-prev-* — сумма прошлого отрезка и его границы: проба 70 сверяет
+       их с прямым запросом к базе за отрезок ТОЙ ЖЕ длины (подлог №1). #}
+    <div class="v2-tile usage-tile" id="usage-spent-tile" data-prev-from="{{ ср.с }}" data-prev-to="{{ ср.по }}"
+         data-prev-days="{{ ср.дней }}" data-prev-sum="{{ ср.прошлое.сумма if ср.покрыт else '' }}">
       <span class="v2-tile-label">Потрачено · {{ сводка.подпись | lower }}</span>
       {% if сводка.вызовов %}
       <span class="v2-tile-num" id="usage-spent" data-sum="{{ сводка.сумма }}">{{ деньги(сводка.сумма) }}</span>
+      {{ дельта(ср.сумма, 'usage-spent-delta') }}
       <p class="usage-note">Вызовов {{ число(сводка.вызовов) }}{% if сводка.ошибок %} · неудачных {{ сводка.ошибок }}{% endif %}{% if сводка.без_цены %} · <b class="usage-warn" data-missing="{{ сводка.код }}">без цены {{ сводка.без_цены }} — в сумму не входят</b>{% endif %}</p>
       {% else %}
       <span class="v2-tile-num usage-none" id="usage-spent" data-sum="0">данных нет</span>
       <p class="usage-note">Вызовов модели за период не было.</p>
       {% endif %}
+      {{ линия(сводка.тренды.сумма, 'Потрачено по дням', 'usage-spark-spent') }}
     </div>
 
-    <div class="v2-tile usage-tile">
+    <div class="v2-tile usage-tile" id="usage-op-tile">
       <span class="v2-tile-label">Средняя операция</span>
       <span class="v2-tile-num" id="usage-op">{{ деньги(сводка.средняя) if сводка.средняя is not none else 'данных нет' }}</span>
+      {{ дельта(ср.средняя, 'usage-op-delta') }}
       <p class="usage-note">Письмо {{ деньги(сводка.письмо) }} · разбор вакансии {{ деньги(сводка.разбор) }}{% if сводка.мало %} · данных мало: {{ сводка.вызовов }} при пороге {{ мало }}{% endif %}</p>
+      {{ линия(сводка.тренды.средняя, 'Средняя операция по дням', 'usage-spark-op') }}
     </div>
 
-    <div class="v2-tile usage-tile">
+    <div class="v2-tile usage-tile" id="usage-cache-tile">
       <span class="v2-tile-label">Экономия на кэше</span>
       {% set к = сводка.кэш %}
       <span class="v2-tile-num" id="usage-cache" data-saved="{{ к.сэкономлено }}">{{ деньги(к.сэкономлено) if к.строк else 'кэша не было' }}</span>
-      <p class="usage-note">{% if к.строк %}Без кэша было бы {{ деньги(к.без_кэша) }} · из кэша {{ число(к.из_кэша) }} ток.{% if к.не_посчитано %} · не посчитано строк: {{ к.не_посчитано }} (модель не Claude){% endif %}{% else %}Вызовов с кэшем промпта за период нет.{% endif %}</p>
+      {% if сводка.доля_кэша is not none %}<p class="usage-note" id="usage-cache-share" data-share="{{ сводка.доля_кэша }}">Доля кэша — {{ '%.0f' % сводка.доля_кэша }}&nbsp;% промпта</p>{% endif %}
+      {{ дельта(ср.доля_кэша, 'usage-cache-delta') }}
+      <p class="usage-note">{% if к.строк %}Без кэша было бы {{ деньги(к.без_кэша) }}{% if к.не_посчитано %} · не посчитано строк: {{ к.не_посчитано }} (модель не Claude){% endif %}{% else %}Вызовов с кэшем промпта за период нет.{% endif %}</p>
+      {{ линия(сводка.тренды.кэш, 'Доля кэша по дням', 'usage-spark-cache') }}
     </div>
   </section>
 
@@ -129,9 +239,10 @@
      без вызовов — столбик нулевой высоты с чертой у основания, а не
      пропуск: пропуск сдвинул бы подписи оси. Подписей над столбиками
      нет; сумма и доли — в подсказке по наведению, касанию и фокусу. #}
-  <section class="v2-card usage-card usage-chart" id="usage-chart">
+  {% set по_чему = {'day': 'дням', 'week': 'неделям', 'month': 'месяцам'}[сводка.группировка] %}
+  <section class="v2-card usage-card usage-chart" id="usage-chart" data-group="{{ сводка.группировка }}">
     <div class="usage-card-head">
-      <h2 class="v2-card-title">Расход по дням</h2>
+      <h2 class="v2-card-title">Расход по {{ по_чему }}</h2>
       <ul class="usage-legend" aria-label="Цвета инструментов">
         {% for г, п in сводка.легенда %}
         <li><span class="usage-sw usage-g-{{ г }}"></span>{{ п }}</li>
@@ -139,7 +250,7 @@
       </ul>
     </div>
     <div class="usage-plot" id="usage-plot">
-      <p class="v2-hint usage-plot-max">Максимум {{ деньги(сводка.макс) }} за сутки</p>
+      <p class="v2-hint usage-plot-max">Максимум {{ деньги(сводка.макс) }} за {{ {'day': 'сутки', 'week': 'неделю', 'month': 'месяц'}[сводка.группировка] }}</p>
       <div class="usage-bars" aria-label="Столбики по суткам">
         {% for с in сводка.столбики %}
         <button type="button" class="usage-bar {{ 'is-zero' if not с.всего }}"
@@ -361,12 +472,111 @@
 
 <script>
 (function () {
-  // Смена инструмента отправляет форму с кнопкой ВЫБРАННОГО периода
-  const форма = document.getElementById('usage-filters');
+  // Смена инструмента отправляет форму с кнопкой ВЫБРАННОГО пресета;
+  // у своего периода кнопки отправки нет — едут скрытые `from`/`to`
+  const форма = document.getElementById('usage-form');
   const список = document.getElementById('usage-tool');
   список.addEventListener('change', () => {
-    форма.requestSubmit(форма.querySelector('.v2-seg-btn.is-active'));
+    const пресет = форма.querySelector('button[name="p"].is-active');
+    if (пресет) форма.requestSubmit(пресет); else форма.requestSubmit();
   });
+
+  // ── Свой период: первое касание — начало, второе — конец, «Показать».
+  //    Даты — строки ГГГГ-ММ-ДД в UTC: сравниваются как строки, и пояс
+  //    браузера день не сдвигает. Позже сегодня и раньше начала — выкл.
+  const кал = document.getElementById('usage-cal');
+  const свой = document.getElementById('usage-custom');
+  if (кал && свой) {
+    const сегодня = кал.dataset.today, мин = кал.dataset.min;
+    const сетка = document.getElementById('usage-cal-grid');
+    const месяц_имя = document.getElementById('usage-cal-month');
+    const выбрано = document.getElementById('usage-cal-pick');
+    const показать = document.getElementById('usage-cal-show');
+    const раньше = document.getElementById('usage-cal-prev');
+    const позже = document.getElementById('usage-cal-next');
+    const МЕСЯЦЫ = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль',
+                    'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+    const РОД = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля',
+                 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    const ДНИ = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    let нач = '', кон = '', год = 0, мес = 0;
+    const iso = (г, м, д) => new Date(Date.UTC(г, м, д)).toISOString().slice(0, 10);
+    const датой = s => s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4);
+    function нарисовать() {
+      месяц_имя.textContent = МЕСЯЦЫ[мес] + ' ' + год;
+      сетка.textContent = '';
+      ДНИ.forEach(имя => {
+        const s = document.createElement('span');
+        s.className = 'usage-cal-wd';
+        s.setAttribute('aria-hidden', 'true');
+        s.textContent = имя;
+        сетка.append(s);
+      });
+      const сдвиг = (new Date(Date.UTC(год, мес, 1)).getUTCDay() + 6) % 7;   // пн — 0
+      for (let i = 0; i < сдвиг; i++) сетка.append(document.createElement('span'));
+      const дней = new Date(Date.UTC(год, мес + 1, 0)).getUTCDate();
+      for (let д = 1; д <= дней; д++) {
+        const день = iso(год, мес, д);
+        const б = document.createElement('button');
+        б.type = 'button';
+        б.className = 'usage-cal-day';
+        б.dataset.day = день;
+        б.textContent = String(д);
+        б.setAttribute('aria-label', д + ' ' + РОД[мес] + ' ' + год);
+        б.disabled = день > сегодня || день < мин || Boolean(нач && !кон && день < нач);
+        б.classList.toggle('is-today', день === сегодня);
+        б.classList.toggle('is-start', день === нач);
+        б.classList.toggle('is-end', день === кон);
+        б.classList.toggle('is-in', Boolean(нач && кон && день > нач && день < кон));
+        б.setAttribute('aria-pressed', день === нач || день === кон ? 'true' : 'false');
+        сетка.append(б);
+      }
+      раньше.disabled = iso(год, мес, 1) <= мин.slice(0, 8) + '01';
+      позже.disabled = iso(год, мес, 1) >= сегодня.slice(0, 8) + '01';
+      выбрано.textContent = !нач ? 'Выберите начало периода'
+        : !кон ? 'Начало ' + датой(нач) + ' — выберите конец'
+        : датой(нач) + ' — ' + датой(кон);
+      показать.disabled = !(нач && кон);
+    }
+    function открыть() {
+      нач = ''; кон = '';
+      const до = кал.dataset.to || сегодня;
+      год = +до.slice(0, 4);
+      мес = +до.slice(5, 7) - 1;
+      кал.hidden = false;
+      свой.setAttribute('aria-expanded', 'true');
+      нарисовать();
+      (сетка.querySelector('.usage-cal-day:not(:disabled)') || раньше).focus();
+    }
+    function закрыть() {
+      кал.hidden = true;
+      свой.setAttribute('aria-expanded', 'false');
+      свой.focus();
+    }
+    свой.addEventListener('click', () => (кал.hidden ? открыть() : закрыть()));
+    document.getElementById('usage-cal-cancel').addEventListener('click', закрыть);
+    кал.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { e.preventDefault(); закрыть(); }
+    });
+    раньше.addEventListener('click', () => { if (--мес < 0) { мес = 11; год--; } нарисовать(); });
+    позже.addEventListener('click', () => { if (++мес > 11) { мес = 0; год++; } нарисовать(); });
+    сетка.addEventListener('click', e => {
+      const б = e.target.closest('.usage-cal-day');
+      if (!б || б.disabled) return;
+      const день = б.dataset.day;
+      // третье касание начинает выбор заново
+      if (!нач || кон) { нач = день; кон = ''; } else { кон = день; }
+      нарисовать();
+      const тот = сетка.querySelector('[data-day="' + день + '"]');
+      if (тот) тот.focus();
+    });
+    показать.addEventListener('click', () => {
+      const арг = new URLSearchParams({from: нач, to: кон});
+      if (кал.dataset.tool) арг.set('tool', кал.dataset.tool);
+      if (кал.dataset.g) арг.set('g', кал.dataset.g);
+      location.assign('/admin/usage?' + арг.toString());
+    });
+  }
 
   // ── Подсказка графика: ОДИН узел на весь график, положение
   //    зажато краями области — подсказка у крайнего столбика не шире
@@ -382,7 +592,10 @@
       tip.textContent = '';
       const з = document.createElement('p');
       з.className = 'usage-tip-head';
-      з.textContent = д.подпись + ' · ' + (д.всего ? $(д.всего) : 'вызовов не было');
+      з.textContent = д.полно + ' · ' + (д.всего ? $(д.всего)
+        : !д.учёт ? 'учёт ещё не вёлся'
+        : д.вызовов ? 'расхода нет: вызовов ' + д.вызовов + ', без цены или неудачных'
+        : 'записей нет');
       tip.append(з);
       д.доли.slice().reverse().forEach(ч => {
         const р = document.createElement('p');
