@@ -136,7 +136,9 @@ def test_подлог_цена_нулём_в_сумме_замечен(стен�
         # и группировкой («Расход-2»), и подлог обязан их пропустить
         с = настоящая(db, *арг, **кв)
         с["без_цены"] = 0
-        for г in с["по_инструментам"] + с["по_моделям"]:
+        # «Расход-2», 2.4: операции свёрнуты по инструменту, и у строки
+        # инструмента свой счётчик — подлог обязан обнулить и его
+        for г in с["по_инструментам"] + с["по_моделям"] + с["по_группам"]:
             г["без_цены"] = 0
         return с
 
@@ -515,3 +517,103 @@ def test_тренд_по_дням_в_плитках(стенд):
     html = к["админ"].get("/admin/usage?p=7").text
     assert 'id="usage-spark-spent"' in html
     assert 'id="usage-spark-balance"' in html and 'data-empty="true"' in html
+
+
+# ── «РАСХОД-2», БЛОК 2: ГРАФИК ПО МАКЕТУ, ТОКЕНЫ, ТАБЛИЦЫ ─────────────────
+
+def test_таблица_мин_средняя_макс_и_свёртка_по_инструменту(стенд):
+    """Цена ОДНОЙ операции — мин, средняя, макс; строка без цены в минимум
+    не попадает. Строка инструмента — сумма своих операций."""
+    db, _ = стенд
+    _строка(db, created_at=_мск(0), tool="hh-letter", cost=0.1)
+    _строка(db, created_at=_мск(1), tool="hh-letter", cost=0.3)
+    _строка(db, created_at=_мск(1), tool="hh-analyze", cost=0.2)
+    _строка(db, created_at=_мск(2), tool="hh-analyze", cost=None, cost_missing=True)
+    _строка(db, created_at=_мск(2), tool="nut-chat", cost=0.05)
+    с = main.расход_сводка(db, "7")
+    письмо = next(г for г in с["по_инструментам"] if г["имя"] == "hh-letter")
+    assert (письмо["мин"], письмо["макс"]) == (pytest.approx(0.1), pytest.approx(0.3))
+    разбор = next(г for г in с["по_инструментам"] if г["имя"] == "hh-analyze")
+    assert разбор["мин"] == pytest.approx(0.2) and разбор["без_цены"] == 1
+    группы = с["по_группам"]
+    assert [г["группа"] for г in группы] == ["hh", "nutrition"]      # по сумме
+    hh = группы[0]
+    assert hh["сумма"] == pytest.approx(0.6) and hh["средняя"] == pytest.approx(0.2)
+    assert (hh["мин"], hh["макс"]) == (pytest.approx(0.1), pytest.approx(0.3))
+    assert sum(о["сумма"] for о in hh["операции"]) == pytest.approx(hh["сумма"])
+    assert sum(г["сумма"] for г in группы) == pytest.approx(с["сумма"])
+
+
+def test_шапка_столбика_называет_причину_нуля(стенд):
+    """Нулевой столбик — словами и по причине: до начала учёта, вызовы
+    без цены, записей нет."""
+    db, _ = стенд
+    _строка(db, created_at=_мск(3), cost=0.2)                       # первая в учёте
+    _строка(db, created_at=_мск(1), cost=None, cost_missing=True)   # вызов без цены
+    с = main.расход_сводка(db, "7")
+    шапки = {д["день"]: д["шапка"] for д in с["столбики"]}
+    assert шапки[_день(6)].endswith("учёт ещё не вёлся")
+    assert шапки[_день(1)].endswith("расхода нет: без цены или неудачные (вызовов 1)")
+    assert шапки[_день(0)].endswith("записей нет")
+    assert шапки[_день(3)].endswith("0.20 $")
+    подсказки = с["подсказки"]
+    assert len(подсказки) == 7 and подсказки[3]["ч"][0]["v"] == pytest.approx(0.2)
+
+
+def test_токены_по_частям_и_доля_кэша_одним_счётом(стенд):
+    """Части — промпт без кэша, из кэша, ответ; неудачный вызов не входит.
+    Доля кэша в подписи карточки — то же число, что на плитке."""
+    db, к = стенд
+    _строка(db, created_at=_мск(0), prompt_tokens=1000, cached_tokens=400, completion_tokens=500)
+    _строка(db, created_at=_мск(0), prompt_tokens=900, completion_tokens=100, ok=False, cost=None)
+    с = main.расход_сводка(db, "7")
+    т = с["токены"]
+    сегодня = т["столбики"][-1]
+    assert сегодня["всего"] == 1500
+    assert [(ч["к"], ч["v"]) for ч in сегодня["части"]] == [
+        ("usage-t-prompt", 600), ("usage-t-cache", 400), ("usage-t-out", 500)]
+    assert т["всего"] == 1500 and [к for к, _ in т["легенда"]] == ["prompt", "cache", "out"]
+    html = к["админ"].get("/admin/usage?p=7").text
+    плитка = re.search(r'id="usage-cache-share" data-share="([^"]+)"', html).group(1)
+    подпись = re.search(r'id="usage-tok-cache" data-share="([^"]*)"', html).group(1)
+    assert плитка == подпись and float(плитка) == pytest.approx(40.0)
+    assert "Из кэша — 40&nbsp;% промпта" in html
+
+
+def test_график_подпись_под_каждым_засечка_и_легенда(стенд):
+    """Под КАЖДЫМ столбиком подпись; день без расхода — засечка, отрезок
+    до начала учёта — нет; легенда есть, даже если цен нет вовсе."""
+    db, к = стенд
+    _строка(db, created_at=_мск(3), cost=None, cost_missing=True)
+    _строка(db, created_at=_мск(1), cost=None, cost_missing=True)
+    html = к["админ"].get("/admin/usage?p=7").text
+    деньги = html.split('id="usage-plot"')[1].split('id="usage-days"')[0]
+    кнопки = re.findall(r'<button type="button" class="usage-bar([^"]*)"', деньги)
+    assert len(кнопки) == 7 and деньги.count('class="usage-xl"') == 7
+    assert sum("is-before" in к for к in кнопки) == 3        # −6…−4: учёта ещё не было
+    assert sum("is-zero" in к for к in кнопки) == 4          # −3…0: ноль в учёте
+    assert not any("is-zero" in к and "is-before" in к for к in кнопки)
+    легенда = html.split('id="usage-legend"')[1].split("</ul>")[0]
+    assert легенда.count("<li") == len(main.РАСХОД_ГРУППЫ)   # цен нет — все инструменты
+
+
+def test_ось_значений_делится_на_4_5_круглых_шагов():
+    for макс in (0.0123, 0.2638, 1.0, 7.3, 98765.0, 0.0):
+        ш = main._расход_шкала(макс, "usd")
+        шагов = len(ш["деления"]) - 1
+        assert шагов in (4, 5) and ш["верх"] >= макс
+        assert ш["деления"][0]["подпись"] == "0" and ш["деления"][-1]["доля"] == 100
+
+
+def test_в_пересчёте_на_месяц_и_доля_постоянных_только_при_постоянных(стенд):
+    db, к = стенд
+    _строка(db, created_at=_мск(9), cost=0.3, user_id=к["ид"]["админ"])
+    _строка(db, created_at=_мск(0), cost=0.1, user_id=к["ид"]["админ"])
+    html = к["админ"].get("/admin/usage").text
+    assert "в пересчёте на месяц" in html and "приведено к месяцу" not in html
+    assert re.search(r'id="usage-monthly" title="Учёт идёт 10 сут\.', html)
+    assert 'id="usage-fixed-share"' not in html        # постоянные не заданы
+    db.add(database.FixedCost(key="server", usd_month=6.0))
+    db.commit()
+    html = к["админ"].get("/admin/usage").text
+    assert 'id="usage-fixed-share"' in html

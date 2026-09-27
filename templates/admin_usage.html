@@ -52,6 +52,42 @@
    title="Прошлый отрезок той же длины: {{ сводка.сравнение.отрезок }}">{{ д.текст }}</p>
 {%- endif -%}
 {%- endmacro -%}
+{#- ГРАФИК СТОЛБИКАМИ — ОДИН ПОСТРОИТЕЛЬ НА ДВЕ КАРТОЧКИ («Расход-2», 2.1–2.2):
+    расход по инструментам и токены по частям. Слева ось значений с 4–5
+    делениями, под КАЖДЫМ столбиком подпись отрезка, выходные — на ступень
+    ярче; столбик не шире `--v2-chart-bar`, между частями `--v2-chart-gap`.
+    День без расхода — засечка у нуля; отрезок целиком до начала учёта —
+    пусто, а в подсказке «учёт ещё не вёлся». `атр` — атрибут итога
+    столбика: у расхода `total` (его суммирует проба 70), у токенов `tok`.
+    Подписи не влезают в ряд — встают лесенкой (`расходПодписи`, сразу
+    за графиком, до первой отрисовки). -#}
+{%- macro график(ид, столбики, шкала, атр, данные_ид, подпись) -%}
+<div class="usage-plot" id="{{ ид }}" data-src="{{ данные_ид }}">
+  <div class="usage-yaxis" aria-hidden="true">
+    {%- for д in шкала.деления %}<span class="usage-ytick" data-v="{{ д.знач }}">{{ д.подпись }}</span>{% endfor -%}
+  </div>
+  <div class="usage-area">
+    <div class="usage-grid" aria-hidden="true">
+      {%- for д in шкала.деления %}<span class="usage-gline{{ ' is-base' if loop.first }}"></span>{% endfor -%}
+    </div>
+    <div class="usage-bars" role="group" aria-label="{{ подпись }}">
+      {%- for с in столбики %}
+      <div class="usage-col{{ ' is-weekend' if с.выходной }}">
+        <button type="button" class="usage-bar{{ ' is-zero' if not с.всего and с.учёт }}{{ ' is-before' if not с.учёт }}"
+                data-i="{{ loop.index0 }}" data-{{ атр }}="{{ с.всего }}" aria-label="{{ с.шапка }}">
+          <span class="usage-stack" style="--h: {{ '%.3f' % с.высота }}%">
+            {%- for ч in с.части %}<span class="usage-seg {{ ч.к }}" style="--w: {{ '%.4f' % ч.w }}"></span>{% endfor -%}
+          </span>
+        </button>
+        <span class="usage-xl" aria-hidden="true">{{ с.подпись }}</span>
+      </div>
+      {%- endfor %}
+    </div>
+  </div>
+  <div class="usage-tip" role="status" hidden></div>
+</div>
+<script>расходПодписи(document.getElementById('{{ ид }}'));</script>
+{%- endmacro -%}
 
 <main class="v2-page-wrap page-fill usage" id="usage">
 
@@ -234,86 +270,126 @@
   </section>
   {% else %}
 
-  {# ── 2.3 ГРАФИК ПО ДНЯМ ───────────────────────────────────────────
-     Столбик — сумма суток, внутри доли инструментов их цветами. День
-     без вызовов — столбик нулевой высоты с чертой у основания, а не
-     пропуск: пропуск сдвинул бы подписи оси. Подписей над столбиками
-     нет; сумма и доли — в подсказке по наведению, касанию и фокусу. #}
+  {# ── 2.1 ГРАФИК РАСХОДА («Расход-2», макет владельца) ─────────────
+     Столбик — сумма отрезка группировки, внутри доли инструментов их
+     цветами; сумма и доли — в подсказке по наведению, касанию и фокусу.
+     Построитель общий с карточкой «Токены» (макрос `график`). #}
   {% set по_чему = {'day': 'дням', 'week': 'неделям', 'month': 'месяцам'}[сводка.группировка] %}
+  <script>
+  // ПОДПИСИ ПОД КАЖДЫМ СТОЛБИКОМ: не влезают в ряд — встают лесенкой,
+  // каждая R-я в своём ряду. R — наименьшее, при котором соседи ряда
+  // не касаются: шаг столбика × R не меньше самой широкой подписи плюс
+  // зазор. Считает браузер (ширина подписи — свойство шрифта); зовётся
+  // сразу за графиком — до первой отрисовки, — и заново при смене ширины.
+  function расходПодписи(поле) {
+    if (!поле) return;
+    const метки = поле.querySelectorAll('.usage-xl');
+    const ряд = поле.querySelector('.usage-bars');
+    const ширина = ряд ? ряд.getBoundingClientRect().width : 0;
+    if (!метки.length || !ширина) return;
+    const шаг = ширина / метки.length;
+    let самая = 0;
+    метки.forEach(м => { самая = Math.max(самая, м.getBoundingClientRect().width); });
+    const зазор = parseFloat(getComputedStyle(поле).getPropertyValue('--v2-sp-1')) || 4;
+    const рядов = Math.max(1, Math.ceil((самая + зазор) / шаг));
+    поле.dataset.rows = рядов;
+    метки.forEach((м, i) => м.style.setProperty('--row', i % рядов));
+  }
+  </script>
   <section class="v2-card usage-card usage-chart" id="usage-chart" data-group="{{ сводка.группировка }}">
     <div class="usage-card-head">
       <h2 class="v2-card-title">Расход по {{ по_чему }}</h2>
-      <ul class="usage-legend" aria-label="Цвета инструментов">
+      <ul class="usage-legend" id="usage-legend" aria-label="Цвета инструментов">
         {% for г, п in сводка.легенда %}
-        <li><span class="usage-sw usage-g-{{ г }}"></span>{{ п }}</li>
+        <li data-group="{{ г }}"><span class="usage-sw usage-g-{{ г }}"></span>{{ п }}</li>
         {% endfor %}
       </ul>
     </div>
-    <div class="usage-plot" id="usage-plot">
-      <p class="v2-hint usage-plot-max">Максимум {{ деньги(сводка.макс) }} за {{ {'day': 'сутки', 'week': 'неделю', 'month': 'месяц'}[сводка.группировка] }}</p>
-      <div class="usage-bars" aria-label="Столбики по суткам">
-        {% for с in сводка.столбики %}
-        <button type="button" class="usage-bar {{ 'is-zero' if not с.всего }}"
-                data-i="{{ loop.index0 }}" data-total="{{ с.всего }}"
-                aria-label="{{ с.подпись }}: {{ '%.4f' % с.всего }} $">
-          <span class="usage-stack" style="--h: {{ '%.3f' % с.высота }}%">
-            {% for д in с.доли %}<span class="usage-seg usage-g-{{ д.группа }}" style="--p: {{ '%.4f' % д.процент }}%"></span>{% endfor %}
-          </span>
-        </button>
-        {% endfor %}
-      </div>
-      {% set первый = сводка.столбики | first %}
-      {% set последний = сводка.столбики | last %}
-      <div class="usage-axis"><span>{{ первый.подпись }}</span><span>{{ последний.подпись }}</span></div>
-      <div class="usage-tip" id="usage-tip" role="status" hidden></div>
-    </div>
-    <script type="application/json" id="usage-days">{{ сводка.столбики | tojson }}</script>
+    <p class="v2-hint usage-plot-max">Максимум {{ деньги(сводка.макс) }} за {{ {'day': 'сутки', 'week': 'неделю', 'month': 'месяц'}[сводка.группировка] }}</p>
+    {{ график('usage-plot', сводка.столбики, сводка.шкала, 'total', 'usage-days', 'Расход по ' ~ по_чему) }}
+    <script type="application/json" id="usage-days">{{ сводка.подсказки | tojson }}</script>
   </section>
 
-  {# ── 2.4 ТАБЛИЦЫ ПО ИНСТРУМЕНТАМ И МОДЕЛЯМ ──────────────────────────
+  {# ── 2.2 ТОКЕНЫ ──────────────────────────────────────────────────
+     Те же отрезки, что у графика расхода: промпт без кэша, промпт
+     из кэша и ответ. Доля кэша в подписи — тем же счётом, что на плитке
+     «Экономия на кэше»: два числа разойтись не могут. #}
+  {% set ток = сводка.токены %}
+  <section class="v2-card usage-card usage-chart" id="usage-tokens" data-group="{{ сводка.группировка }}">
+    <div class="usage-card-head">
+      <h2 class="v2-card-title">Токены по {{ по_чему }}</h2>
+      <ul class="usage-legend" aria-label="Части токенов">
+        {% for к, п in ток.легенда %}
+        <li data-part="{{ к }}"><span class="usage-sw usage-t-{{ к }}"></span>{{ п }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <p class="v2-hint usage-plot-max" id="usage-tok-cache" data-share="{{ сводка.доля_кэша if сводка.доля_кэша is not none else '' }}">{% if сводка.доля_кэша is not none %}Из кэша — {{ '%.0f' % сводка.доля_кэша }}&nbsp;% промпта за {{ сводка.подпись | lower }}{% else %}Промпта за {{ сводка.подпись | lower }} нет — доли кэша нет{% endif %}</p>
+    {{ график('usage-plot-tok', ток.столбики, ток.шкала, 'tok', 'usage-data-tok', 'Токены по ' ~ по_чему) }}
+    <script type="application/json" id="usage-data-tok">{{ ток.подсказки | tojson }}</script>
+  </section>
+
+  {# ── 2.3–2.4 ТАБЛИЦЫ ПО ИНСТРУМЕНТАМ И МОДЕЛЯМ ─────────────────────
+     Цена ОДНОЙ операции — мин, средняя и макс (макс — своей колонкой:
+     дорогой выброс видно сразу). «По операциям» свёрнуты по инструменту:
+     строка инструмента с суммой, операции внутри — раскрываются нажатием.
      На узком экране строка таблицы становится карточкой: подписи колонок
      встают в строку значения (`data-label`), ширина — по экрану. #}
-  <div class="usage-pair">
-    <section class="v2-card usage-card" id="usage-tools">
-      <h2 class="v2-card-title">По операциям</h2>
-      <div class="usage-scroll">
-        <table class="usage-table">
-          <thead><tr><th>Операция</th><th class="usage-num">Вызовов</th><th class="usage-num">Сумма</th><th>Доля</th><th class="usage-num">Одна операция</th></tr></thead>
-          <tbody>
-          {% for г in сводка.по_инструментам %}
-          <tr class="usage-row-{{ г.группа }} {{ 'v2-tool-' ~ г.группа if г.группа != 'other' }}" data-tool="{{ г.имя }}" data-sum="{{ г.сумма }}">
-            <td data-label="Операция"><span class="usage-name"><span class="usage-sw usage-g-{{ г.группа }}"></span>{{ г.подпись }}</span>{% if г.без_цены %} <span class="usage-warn">без цены {{ г.без_цены }}</span>{% endif %}{% if г.ошибок %} <span class="usage-faint">неудачных {{ г.ошибок }}</span>{% endif %}</td>
+  <section class="v2-card usage-card" id="usage-tools">
+    <h2 class="v2-card-title">По операциям</h2>
+    <div class="usage-scroll">
+      <table class="usage-table usage-table-ops">
+        <thead><tr><th>Инструмент и операция</th><th class="usage-num">Вызовов</th><th class="usage-num">Сумма</th><th>Доля</th><th class="usage-num">Мин</th><th class="usage-num">Средняя</th><th class="usage-num">Макс</th></tr></thead>
+        {% for т in сводка.по_группам %}
+        <tbody class="usage-tgroup {{ 'v2-tool-' ~ т.группа if т.группа != 'other' else 'usage-row-other' }}" data-group="{{ т.группа }}">
+          <tr class="usage-trow" data-group-sum="{{ т.сумма }}">
+            <td data-label="Инструмент"><button type="button" class="usage-tgl" aria-expanded="false">{{ значок('chevron-right') }}<span class="usage-sw usage-g-{{ т.группа }}"></span>{{ т.подпись }}</button> <span class="usage-faint">операций {{ т.операции | length }}</span>{% if т.без_цены %} <span class="usage-warn">без цены {{ т.без_цены }}</span>{% endif %}{% if т.ошибок %} <span class="usage-faint">неудачных {{ т.ошибок }}</span>{% endif %}</td>
+            <td class="usage-num" data-label="Вызовов">{{ число(т.вызовов) }}</td>
+            <td class="usage-num" data-label="Сумма">{{ деньги(т.сумма, true) if т.с_ценой else '—' }}</td>
+            <td data-label="Доля"><span class="usage-share"><span class="v2-progress"><span class="v2-progress-fill" style="--v2-value: {{ '%.2f' % (т.доля or 0) }}%"></span></span><span class="usage-num">{{ доля(т.доля) }}&nbsp;%</span></span></td>
+            <td class="usage-num" data-label="Мин">{{ деньги(т.мин, true) }}</td>
+            <td class="usage-num" data-label="Средняя">{{ деньги(т.средняя, true) }}</td>
+            <td class="usage-num" data-label="Макс">{{ деньги(т.макс, true) }}</td>
+          </tr>
+          {% for г in т.операции %}
+          <tr class="usage-op" data-tool="{{ г.имя }}" data-sum="{{ г.сумма }}" data-min="{{ г.мин if г.мин is not none else '' }}" data-max="{{ г.макс if г.макс is not none else '' }}" hidden>
+            <td data-label="Операция"><span class="usage-op-name">{{ г.подпись }}</span> <span class="usage-faint">· {{ г.операция }}</span>{% if г.без_цены %} <span class="usage-warn">без цены {{ г.без_цены }}</span>{% endif %}{% if г.ошибок %} <span class="usage-faint">неудачных {{ г.ошибок }}</span>{% endif %}</td>
             <td class="usage-num" data-label="Вызовов">{{ число(г.вызовов) }}</td>
             <td class="usage-num" data-label="Сумма">{{ деньги(г.сумма, true) if г.с_ценой else '—' }}</td>
             <td data-label="Доля"><span class="usage-share"><span class="v2-progress"><span class="v2-progress-fill" style="--v2-value: {{ '%.2f' % (г.доля or 0) }}%"></span></span><span class="usage-num">{{ доля(г.доля) }}&nbsp;%</span></span></td>
-            <td class="usage-num" data-label="Одна операция">{% if г.средняя is not none %}{{ деньги(г.средняя, true) }} <span class="usage-faint">{{ г.операция }}</span>{% else %}—{% endif %}</td>
+            <td class="usage-num" data-label="Мин">{{ деньги(г.мин, true) }}</td>
+            <td class="usage-num" data-label="Средняя">{{ деньги(г.средняя, true) }}</td>
+            <td class="usage-num" data-label="Макс">{{ деньги(г.макс, true) }}</td>
           </tr>
           {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
+        </tbody>
+        {% endfor %}
+      </table>
+    </div>
+  </section>
 
-    <section class="v2-card usage-card" id="usage-models">
-      <h2 class="v2-card-title">По моделям</h2>
-      <div class="usage-scroll">
-        <table class="usage-table usage-table-models">
-          <thead><tr><th>Модель</th><th class="usage-num">Вызовов</th><th class="usage-num">Токенов</th><th class="usage-num">Сумма</th><th>Доля</th></tr></thead>
-          <tbody>
-          {% for г in сводка.по_моделям %}
-          <tr data-model="{{ г.имя }}" data-sum="{{ г.сумма }}">
-            <td data-label="Модель" class="usage-break">{{ г.имя }}{% if г.без_цены %} <span class="usage-warn">без цены {{ г.без_цены }}</span>{% endif %}</td>
-            <td class="usage-num" data-label="Вызовов">{{ число(г.вызовов) }}</td>
-            <td class="usage-num" data-label="Токенов">{{ число(г.токенов) }}</td>
-            <td class="usage-num" data-label="Сумма">{{ деньги(г.сумма, true) if г.с_ценой else '—' }}</td>
-            <td data-label="Доля"><span class="usage-share"><span class="v2-progress"><span class="v2-progress-fill" style="--v2-value: {{ '%.2f' % (г.доля or 0) }}%"></span></span><span class="usage-num">{{ доля(г.доля) }}&nbsp;%</span></span></td>
-          </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </div>
+  <section class="v2-card usage-card" id="usage-models">
+    <h2 class="v2-card-title">По моделям</h2>
+    <div class="usage-scroll">
+      <table class="usage-table usage-table-models">
+        <thead><tr><th>Модель</th><th class="usage-num">Вызовов</th><th class="usage-num">Токенов</th><th class="usage-num">Сумма</th><th>Доля</th><th class="usage-num">Мин</th><th class="usage-num">Средняя</th><th class="usage-num">Макс</th></tr></thead>
+        <tbody>
+        {% for г in сводка.по_моделям %}
+        <tr data-model="{{ г.имя }}" data-sum="{{ г.сумма }}" data-min="{{ г.мин if г.мин is not none else '' }}" data-max="{{ г.макс if г.макс is not none else '' }}">
+          <td data-label="Модель" class="usage-break">{{ г.имя }}{% if г.без_цены %} <span class="usage-warn">без цены {{ г.без_цены }}</span>{% endif %}</td>
+          <td class="usage-num" data-label="Вызовов">{{ число(г.вызовов) }}</td>
+          <td class="usage-num" data-label="Токенов">{{ число(г.токенов) }}</td>
+          <td class="usage-num" data-label="Сумма">{{ деньги(г.сумма, true) if г.с_ценой else '—' }}</td>
+          <td data-label="Доля"><span class="usage-share"><span class="v2-progress"><span class="v2-progress-fill" style="--v2-value: {{ '%.2f' % (г.доля or 0) }}%"></span></span><span class="usage-num">{{ доля(г.доля) }}&nbsp;%</span></span></td>
+          <td class="usage-num" data-label="Мин">{{ деньги(г.мин, true) }}</td>
+          <td class="usage-num" data-label="Средняя">{{ деньги(г.средняя, true) }}</td>
+          <td class="usage-num" data-label="Макс">{{ деньги(г.макс, true) }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 
   {# ── 2.5 ЛЮДИ ─────────────────────────────────────────────────────
      Почты видны только здесь, в админке. Строка «без аккаунта» — остаток
@@ -373,7 +449,9 @@
       <hr class="v2-divider">
       {% if э.есть %}
       <dl class="usage-rows" id="usage-cost-rows">
-        <div><dt>Модели за месяц{% if э.приведено %} <span class="usage-faint">(учёт {{ э.окно }} сут., приведено к месяцу)</span>{% endif %}</dt><dd>{{ деньги(э.модели) }}</dd></div>
+        {# «В ПЕРЕСЧЁТЕ НА МЕСЯЦ» («Расход-2», 2.4) — коротко, подробности
+           по наведению: сколько суток учёта и на что умножено. #}
+        <div><dt>Модели за месяц{% if э.приведено %} <span class="usage-faint usage-monthly" id="usage-monthly" title="Учёт идёт {{ э.окно }} сут. — сумма за них приведена к 30 суткам по темпу: × 30 / {{ э.окно }}">в пересчёте на месяц</span>{% endif %}</dt><dd>{{ деньги(э.модели) }}</dd></div>
         <div><dt>Постоянные</dt><dd>{{ деньги(э.постоянные_сумма) if э.постоянные else 'не заданы' }}</dd></div>
         <div class="usage-rows-total"><dt>Итого в месяц</dt><dd id="usage-cost-total">{{ деньги(э.всего) }}</dd></div>
         <div><dt>Письмо с долей постоянных</dt><dd>{{ деньги(э.письмо_полное) }}</dd></div>
@@ -410,7 +488,9 @@
         </div>
         {% endfor %}
       </dl>
-      <p class="usage-note">Доля постоянных на человека — {{ деньги(э.доля_постоянных) }} в месяц; она вычитается из цены прежде, чем считать операции.</p>
+      {# Пока постоянные не заданы, доли на человека нет — строка не нужна
+         («Расход-2», 2.4): «0.00 $» читалось бы как «постоянные — ноль». #}
+      {% if э.постоянные %}<p class="usage-note" id="usage-fixed-share">Доля постоянных на человека — {{ деньги(э.доля_постоянных) }} в месяц; она вычитается из цены прежде, чем считать операции.</p>{% endif %}
       {% else %}
       <div class="v2-empty">
         <p class="v2-empty-title">Считать не из чего</p>
@@ -578,36 +658,34 @@
     });
   }
 
-  // ── Подсказка графика: ОДИН узел на весь график, положение
-  //    зажато краями области — подсказка у крайнего столбика не шире
-  //    экрана. Текст — узлами, не разметкой строкой.
-  const поле = document.getElementById('usage-plot');
-  const данные = document.getElementById('usage-days');
-  if (поле && данные) {
-    const дни = JSON.parse(данные.textContent);
-    const tip = document.getElementById('usage-tip');
-    const $ = x => (x < 0.1 ? x.toFixed(4) : x.toFixed(2)) + ' $';
+  // ── Подсказка графика: ОДИН узел на график, положение зажато краями
+  //    области — у крайнего столбика она не шире экрана. Шапку и части
+  //    (сверху вниз) собрал сервер, здесь их только показывают; текст —
+  //    узлами, не разметкой строкой. Графиков два, код один.
+  document.querySelectorAll('.usage-plot[data-src]').forEach(поле => {
+    const источник = document.getElementById(поле.dataset.src);
+    const tip = поле.querySelector('.usage-tip');
+    if (!источник || !tip) return;
+    const данные = JSON.parse(источник.textContent);
     function показать(ст) {
-      const д = дни[+ст.dataset.i];
+      const д = данные[+ст.dataset.i];
+      if (!д) return;
       tip.textContent = '';
       const з = document.createElement('p');
       з.className = 'usage-tip-head';
-      з.textContent = д.полно + ' · ' + (д.всего ? $(д.всего)
-        : !д.учёт ? 'учёт ещё не вёлся'
-        : д.вызовов ? 'расхода нет: вызовов ' + д.вызовов + ', без цены или неудачных'
-        : 'записей нет');
+      з.textContent = д.ш;
       tip.append(з);
-      д.доли.slice().reverse().forEach(ч => {
+      д.ч.slice().reverse().forEach(ч => {
         const р = document.createElement('p');
         р.className = 'usage-tip-row';
-        р.dataset.v = ч.сумма;          // точное значение — для сверки пробой 70
+        р.dataset.v = ч.v;          // точное значение — для сверки пробой 70
         const о = document.createElement('span');
-        о.className = 'usage-sw usage-g-' + ч.группа;
+        о.className = 'usage-sw ' + ч.к;
         const и = document.createElement('span');
-        и.textContent = ч.подпись;
+        и.textContent = ч.п;
         const с = document.createElement('span');
         с.className = 'usage-num';
-        с.textContent = $(ч.сумма);
+        с.textContent = ч.т;
         р.append(о, и, с);
         tip.append(р);
       });
@@ -631,7 +709,23 @@
       ст.addEventListener('blur', скрыть);
     });
     поле.addEventListener('pointerleave', скрыть);
-  }
+  });
+
+  // ── Подписи под столбиками пересчитываются при смене ширины и когда
+  //    доехал шрифт: ширина подписи — его свойство.
+  const подписи = () => document.querySelectorAll('.usage-plot[data-src]').forEach(расходПодписи);
+  let кадр = 0;
+  addEventListener('resize', () => { cancelAnimationFrame(кадр); кадр = requestAnimationFrame(подписи); });
+  if (document.fonts) document.fonts.ready.then(подписи);
+
+  // ── «По операциям»: строка инструмента раскрывает свои операции.
+  document.querySelectorAll('.usage-tgl').forEach(кн => {
+    кн.addEventListener('click', () => {
+      const открыть = кн.getAttribute('aria-expanded') !== 'true';
+      кн.setAttribute('aria-expanded', открыть ? 'true' : 'false');
+      кн.closest('tbody').querySelectorAll('.usage-op').forEach(р => { р.hidden = !открыть; });
+    });
+  });
 
   // ── Постоянные расходы: пустое поле — «не задано», ноль — ноль.
   const пост = document.getElementById('usage-fixed');

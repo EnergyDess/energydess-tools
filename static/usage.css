@@ -238,21 +238,66 @@
 .usage-g-workout   { background: var(--v2-workout); }
 .usage-g-other     { background: var(--v2-ring-neutral); }
 
-.usage-plot { position: relative; }
+/* Части токенов — цвета данных v2 (снизу вверх: промпт, из кэша, ответ;
+   порядок держит различимость соседей — `РАСХОД_ТОКЕНЫ_ЧАСТИ`). */
+.usage-t-prompt { background: var(--v2-tok-prompt); }
+.usage-t-cache  { background: var(--v2-tok-cache); }
+.usage-t-out    { background: var(--v2-tok-out); }
+
 .usage-plot-max { margin: 0 0 var(--v2-sp-2); }
-.usage-bars {
+/* ГРАФИК («Расход-2», 2.1–2.2): слева ось значений, справа поле столбиков.
+   Деления оси и линии сетки стоят РАВНЫМИ ПРОМЕЖУТКАМИ — строки нулевой
+   высоты под `space-between`: шкала сервера делит верх на 4–5 равных
+   шагов, и линия встаёт ровно на своё значение, а подпись — центром
+   на линию. Одна раскладка на обе карточки (макрос `график`). */
+.usage-plot {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--v2-sp-2);
+  padding-top: var(--v2-sp-2);
+}
+.usage-yaxis,
+.usage-grid {
   display: flex;
-  align-items: flex-end;
-  gap: var(--v2-sp-1);
-  height: 13rem;
-  border-bottom: 1px solid var(--v2-line-2);
+  flex-direction: column-reverse;
+  justify-content: space-between;
+  height: var(--v2-chart-h);
+}
+.usage-ytick {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 0;
+  font-size: var(--v2-fs-xs);
+  line-height: var(--v2-lh-snug);
+  color: var(--v2-text-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.usage-area { position: relative; min-width: 0; }
+.usage-grid { position: absolute; top: 0; left: 0; right: 0; pointer-events: none; }
+.usage-gline { height: 0; border-top: 1px solid var(--v2-line-3); }
+.usage-gline.is-base { border-top-color: var(--v2-line-1); }
+/* Колонка — столбик и подпись под ним: подписей столько же, сколько
+   столбиков, и встают они по центру своего столбика ПО ПОСТРОЕНИЮ.
+   Промежуток между столбиками — пятая часть шага, но столбик не шире
+   `--v2-chart-bar`: на сотне столбиков узкого экрана ряд не вылезает
+   за край, на семи столбиках широкого — не растекается. */
+.usage-bars { position: relative; display: flex; align-items: flex-start; }
+.usage-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
 }
 .usage-bar {
   display: flex;
   align-items: flex-end;
-  flex: 1 1 0;
-  min-width: 2px;
-  height: 100%;
+  justify-content: center;
+  align-self: stretch;
+  height: var(--v2-chart-h);
   padding: 0;
   border: 0;
   border-radius: var(--v2-r-sm) var(--v2-r-sm) 0 0;
@@ -264,27 +309,41 @@
 @media (hover: hover) {
   .usage-bar:hover { background: var(--v2-surface-hover); }
 }
-/* Доли — снизу вверх в порядке легенды; высота столбика — доля
-   от максимума периода (`--h`), высота доли — от суммы суток (`--p`). */
+/* Части — снизу вверх; высота столбика — доля от верха шкалы (`--h`),
+   доля части — вес `--w` (проценты итога). Промежуток между частями —
+   `--v2-chart-gap` цвета карточки: сумма частей по-прежнему делит высоту
+   столбика в своей пропорции (вес, а не высота, — и зазор не съедает
+   верхнюю часть). */
 .usage-stack {
   display: flex;
   flex-direction: column-reverse;
-  width: 100%;
+  gap: var(--v2-chart-gap);
+  width: min(var(--v2-chart-bar), 80%);
   height: var(--h, 0%);
-  border-radius: var(--v2-r-sm) var(--v2-r-sm) 0 0;
+  border-radius: var(--v2-chart-r) var(--v2-chart-r) 0 0;
   overflow: hidden;
 }
-.usage-seg { display: block; flex: none; height: var(--p, 0%); }
-/* ДЕНЬ БЕЗ ВЫЗОВОВ — ЧЕРТА У ОСНОВАНИЯ, А НЕ ПУСТОЕ МЕСТО: пропуск
-   читался бы как «данные потеряны», черта — как «ноль в этот день». */
-.usage-bar.is-zero .usage-stack { height: 2px; border-radius: 0; background: var(--v2-line-1); }
-.usage-axis {
-  display: flex;
-  justify-content: space-between;
-  margin-top: var(--v2-sp-2);
-  font-size: var(--v2-fs-xs);
-  color: var(--v2-text-faint);
+.usage-seg { display: block; flex: var(--w, 1) 1 0; min-height: 0; }
+/* ДЕНЬ БЕЗ РАСХОДА — ТОНКАЯ ЗАСЕЧКА У НУЛЯ, а не пустое место: пустота
+   читалась бы как «данные потеряны», засечка — как «ноль в этот день».
+   Отрезок целиком ДО начала учёта (`is-before`) засечки не получает:
+   она утверждала бы, что трат не было, а их просто не считали. */
+.usage-bar.is-zero .usage-stack {
+  height: 2px;
+  border-radius: 0;
+  background: var(--v2-line-strong);
 }
+/* ПОДПИСЬ ПОД КАЖДЫМ СТОЛБИКОМ; не влезают в ряд — лесенкой: номер
+   ряда (`--row`) ставит `расходПодписи`. Выходные — на ступень ярче. */
+.usage-xl {
+  margin-top: calc(var(--v2-sp-1) + var(--row, 0) * var(--v2-fs-xs) * var(--v2-lh-snug));
+  font-size: var(--v2-fs-xs);
+  line-height: var(--v2-lh-snug);
+  color: var(--v2-text-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.usage-col.is-weekend .usage-xl { color: var(--v2-text-2); }
 .usage-tip {
   position: absolute;
   top: 0;
@@ -349,6 +408,36 @@
 .usage-table-models,
 .usage-table-people { --v2-tool: var(--v2-ring-neutral); }
 .usage-table-small { font-size: var(--v2-fs-xs); }
+/* «ПО ОПЕРАЦИЯМ», СВЁРНУТЫЕ ПО ИНСТРУМЕНТУ («Расход-2», 2.4): строка
+   инструмента — кнопка раскрытия, операции — отступом под ней. */
+.usage-tgl {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--v2-sp-2);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--v2-text);
+  font: inherit;
+  font-weight: var(--v2-fw-strong);
+  text-align: left;
+  cursor: pointer;
+}
+.usage-tgl svg {
+  flex: none;
+  width: var(--v2-icon);
+  height: var(--v2-icon);
+  color: var(--v2-text-faint);
+  transition: transform var(--v2-dur-fast) var(--v2-ease-out);
+}
+.usage-tgl[aria-expanded="true"] svg { transform: rotate(90deg); }
+.usage-tgl:focus-visible { outline: 2px solid var(--v2-ring-neutral); outline-offset: var(--v2-sp-1); border-radius: var(--v2-r-sm); }
+@media (hover: hover) {
+  .usage-tgl:hover { color: var(--v2-text-strong); }
+}
+@media (pointer: coarse) { .usage-tgl { min-height: var(--v2-ctl-h-touch); } }
+.usage-table .usage-op td:first-child { padding-left: var(--v2-sp-6); }
+.usage-op td { color: var(--v2-text-2); }
 
 /* ЛЮДИ: сводка четырьмя числами над таблицей */
 .usage-kv {
