@@ -23,11 +23,18 @@ BACKLOG №346, заход 3, блок 2. Пробы, звавшие живую 
 Отдельным процессом (для стенда): `py model_stub.py --port 8931
 --журнал путь.jsonl` — в журнал пишется ТОЛЬКО устройство запроса
 (модель, потолок, политика, число сообщений, размер), без текста.
+
+GET отвечает `ответ_get(запрос)` — тем же сервером (№352, письмо
+«Админка», блок 2): предварительная проверка роликов спрашивает
+у YouTube `videos.list`, и вторая заглушка рядом с этой была бы ровно
+тем, против чего модуль заведён. Запрос GET — `{"path", "query"}`,
+в журнал он не пишется: в строке запроса ходит ключ.
 """
 import argparse
 import json
 import sys
 import threading
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ПУТЬ_ЧАТА = "/api/v1/chat/completions"
@@ -76,13 +83,31 @@ class Заглушка:
 
     def __init__(self, порт: int = 0, журнал: str | None = None):
         self.запросы: list[dict] = []
+        self.запросы_get: list[dict] = []
         self.ответ = lambda запрос: тело("{}")
+        self.ответ_get = lambda запрос: (404, {"error": "stub: ответ на GET не задан"})
         self.журнал = журнал
         заглушка = self
 
         class Обработчик(BaseHTTPRequestHandler):
             def log_message(self, *a):
                 pass
+
+            def _отдать(self, код, т):
+                данные = json.dumps(т, ensure_ascii=False).encode("utf-8")
+                self.send_response(код)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(данные)))
+                self.end_headers()
+                self.wfile.write(данные)
+
+            def do_GET(self):
+                разбор = urllib.parse.urlsplit(self.path)
+                запрос = {"path": разбор.path,
+                          "query": dict(urllib.parse.parse_qsl(разбор.query))}
+                заглушка.запросы_get.append(запрос)
+                р = заглушка.ответ_get(запрос)
+                self._отдать(*(р if isinstance(р, tuple) else (200, р)))
 
             def do_POST(self):
                 длина = int(self.headers.get("Content-Length") or 0)

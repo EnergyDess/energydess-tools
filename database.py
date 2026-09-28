@@ -738,6 +738,14 @@ class Exercise(Base):
     youtube_id = Column(String, nullable=True)  # id видео техники выполнения, null = не найдено / не импортировано
     video_status = Column(String, nullable=False, default="unchecked")  # unchecked/approved/wrong/no_video — ручная модерация в админке
     video_replaced_at = Column(DateTime, nullable=True)  # когда админ последний раз заменил youtube_id
+    # МЕТКА ПРЕДВАРИТЕЛЬНОЙ ПРОВЕРКИ РОЛИКА МОДЕЛЬЮ (№352, письмо «Админка»,
+    # блок 2). ПРЕДЛОЖЕНИЕ, а не решение: `video_status` она не трогает
+    # и в «Проверено» не входит. match | mismatch | unsure — ответ модели;
+    # nodata — YouTube не отдал сведений о ролике, модель не вызывалась.
+    # Замена ролика метку стирает: она была про прежний.
+    model_verdict = Column(String, nullable=True)
+    model_reason = Column(String, nullable=True)      # короткая причина — модели либо наша у nodata
+    model_checked_at = Column(DateTime, nullable=True)  # UTC
 
 
 class WorkoutProfile(Base):
@@ -1648,6 +1656,42 @@ class FixedCost(Base):
     updated_at = Column(DateTime, nullable=True)       # UTC
 
 
+class VideoCheckRun(Base):
+    """ПРОГОН ПРЕДВАРИТЕЛЬНОЙ ПРОВЕРКИ РОЛИКОВ (№352, письмо «Админка», блок 2).
+
+    Состояние фоновой задачи — В БАЗЕ, а не в памяти процесса: страница
+    спрашивает ход прогона, и после перезапуска машины строка говорит,
+    где он встал. Идёт ли он НА САМОМ ДЕЛЕ, решает реестр задач процесса
+    (`main._видео_задачи`): строка «running» без живой задачи — прогон
+    прерван, и «Продолжить» ведёт его дальше с тем же пределом и расходом.
+
+    КУРСОР (`last_id`) — id последнего разобранного упражнения. Прогон идёт
+    по id по возрастанию и ставит курсор ДО вызова модели: оборвись
+    процесс посреди вызова, второй раз это упражнение в прогоне
+    не выберется. Отсюда «не больше одного вызова на упражнение».
+
+    Ни user_id, ни привязки к человеку: деньги и счётчики проекта.
+    """
+
+    __tablename__ = "video_check_runs"
+    id = Column(Integer, primary_key=True, index=True)
+    state = Column(String, nullable=False)             # running | stopping | stopped | done | limit | error
+    started_at = Column(DateTime, nullable=False)      # UTC
+    finished_at = Column(DateTime, nullable=True)      # UTC
+    limit_usd = Column(Float, nullable=False)          # предел денег на прогон
+    spent_usd = Column(Float, nullable=False, default=0.0)
+    max_call_usd = Column(Float, nullable=False, default=0.0)  # самый дорогой вызов прогона
+    calls = Column(Integer, nullable=False, default=0)          # вызовов модели
+    unpriced = Column(Integer, nullable=False, default=0)       # из них без цены — посчитаны по оценке
+    labelled = Column(Integer, nullable=False, default=0)       # меток «похоже / не похоже / не уверена»
+    nodata = Column(Integer, nullable=False, default=0)         # «нет данных» — без вызова модели
+    rejected = Column(Integer, nullable=False, default=0)       # ответ вне трёх слов — в базу не лёг
+    errors = Column(Integer, nullable=False, default=0)         # сбой сервиса либо сети
+    errors_in_row = Column(Integer, nullable=False, default=0)
+    last_id = Column(String, nullable=True)
+    note = Column(String, nullable=True)
+
+
 class MedkitEvent(Base):
     """ЛЕНТА ИЗМЕНЕНИЙ ОБЩЕЙ АПТЕЧКИ (постановка C).
 
@@ -1871,6 +1915,12 @@ def migrate_db():
         # BACKLOG №346, заход 3: кэш промпта — сколько прочитано и записано
         "ALTER TABLE model_usage ADD COLUMN cached_tokens INTEGER",
         "ALTER TABLE model_usage ADD COLUMN cache_write_tokens INTEGER",
+        # №352, письмо «Админка», блок 2: метка предварительной проверки
+        # ролика моделью. Существующие строки остаются NULL — «не размечено»:
+        # метку ставит только прогон. Таблица прогонов — `create_all`
+        "ALTER TABLE exercises ADD COLUMN model_verdict VARCHAR",
+        "ALTER TABLE exercises ADD COLUMN model_reason VARCHAR",
+        "ALTER TABLE exercises ADD COLUMN model_checked_at DATETIME",
     ]:
         try:
             conn.execute(col)
@@ -2701,6 +2751,10 @@ PRIVACY_NOT_PERSONAL = {
     # деньги проекта, а не человека — ни user_id, ни привязки к нему.
     "balance_history": "остаток счёта OpenRouter по суткам — деньги проекта",
     "fixed_costs": "постоянные расходы проекта (сервер, домен) — настройки владельца",
+    # Прогоны предварительной проверки роликов справочника (№352, письмо
+    # «Админка», блок 2): состояние, курсор и деньги прогона. Кто нажал,
+    # не пишется: строка расхода с номером человека лежит в `model_usage`.
+    "video_check_runs": "прогоны проверки роликов справочника: состояние, счётчики, деньги",
 }
 
 

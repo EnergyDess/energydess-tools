@@ -260,6 +260,7 @@
 .usage-g-nutrition { background: var(--v2-nutrition); }
 .usage-g-medkit    { background: var(--v2-medkit); }
 .usage-g-workout   { background: var(--v2-workout); }
+.usage-g-admin     { background: var(--v2-admin); }
 .usage-g-other     { background: var(--v2-ring-neutral); }
 
 /* Части токенов — цвета данных v2 (снизу вверх: промпт, из кэша, ответ;

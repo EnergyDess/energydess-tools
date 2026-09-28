@@ -55,11 +55,11 @@ import httpx
 import base64
 import enshrouded_defs as _енш_опр
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_, func
+from sqlalchemy import or_, and_, func, case
 from sqlalchemy.exc import SQLAlchemyError
 
 from database import (get_db, init_db, migrate_db, DB_PATH, SessionLocal, ModelUsage, LetterCheck, User, Resume, ToolAccess, EnshroudedSlot,
-                      BalanceHistory, FixedCost,
+                      BalanceHistory, FixedCost, VideoCheckRun,
                       EnshroudedSet, enshrouded_img, ENSHROUDED_DIR,
                       HHProfile, CoverLetter, NutritionProfile, NutritionGoalPeriod,
                       FoodLog, CustomFood, CustomRecipe, RecipeIngredient,
@@ -686,6 +686,11 @@ MEDKIT_MAX_TOKENS   = int(os.getenv("MEDKIT_MAX_TOKENS",   "900"))   # карт�
 # 77 позиций — около 4000 знаков, ~1630 токенов при 2.45 знака
 # на токен, §2.1) — 1.5x.
 MEDKIT_QUERY_MAX_TOKENS = int(os.getenv("MEDKIT_QUERY_MAX_TOKENS", "2500"))
+# МЕТКА РОЛИКА (№352, письмо «Админка», блок 2): JSON из вердикта и одной
+# короткой фразы причины. Потолок низкий намеренно: вызовов на прогон —
+# сотни, а OpenRouter резервирует бюджет под `max_tokens` до генерации
+# (замер 402 выше). Фактический расход — §2.1, строка VIDEO_CHECK_MAX_TOKENS.
+VIDEO_CHECK_MAX_TOKENS = int(os.getenv("VIDEO_CHECK_MAX_TOKENS", "200"))
 
 # ── ПОЛИТИКА ДАННЫХ OPENROUTER — ОДНО МЕСТО НА ВСЕ ВЫЗОВЫ ────────────────────
 #
@@ -3892,13 +3897,40 @@ async def admin_products_page(request: Request, user=Depends(get_current_user), 
 # только решением владельца, а не сам собой. Метка модели (предварительная
 # проверка, письмо «Админка», блок 2) сюда НЕ входит и входить не должна.
 УПР_ПРОВЕРЕНО = ("approved", "wrong")
+# МЕТКИ МОДЕЛИ (блок 2). Ответ модели — строго одно из трёх слов, иначе
+# в базу он не ложится; коды латиницей — машинный слой (§6.0). «Нет
+# данных» модель не ставит: его ставит прогон, когда YouTube о ролике
+# не ответил, — и модель тогда не зовётся вовсе.
+ВИДЕО_ВЕРДИКТЫ = {"похоже": "match", "не похоже": "mismatch", "не уверена": "unsure"}
+ВИДЕО_МЕТКИ = {"match": "похоже", "mismatch": "не похоже", "unsure": "не уверена",
+               "nodata": "нет данных"}
 
 
 def _упр_проверка(db) -> dict:
+    """Полоса, шапка, чипы и счёт меток модели — ОДНИМ запросом.
+
+    Чипы «Модель: …» — ОЧЕРЕДЬ РАБОТЫ: метка есть, владелец ещё
+    не проверял. Оценил — карточка уходит из отбора, число убывает,
+    как у «Не проверено». Сколько меток всего — поле `модель.метки`
+    (панель предварительной проверки). В `готово` метки не входят:
+    считает оно только `УПР_ПРОВЕРЕНО`."""
     статус = func.coalesce(Exercise.video_status, "unchecked")
+    ролик = case((and_(Exercise.youtube_id.isnot(None), Exercise.youtube_id != ""), 1),
+                 else_=0)
     счёт = dict.fromkeys(УПР_СТАТУСЫ, 0)
-    for с, n in db.query(статус, func.count()).group_by(статус).all():
+    метки = dict.fromkeys(ВИДЕО_МЕТКИ, 0)
+    очередь = {"m-" + к: 0 for к in ВИДЕО_ВЕРДИКТЫ.values()}
+    к_разбору = размечено = 0
+    for с, м, р, n in (db.query(статус, Exercise.model_verdict, ролик, func.count())
+                         .group_by(статус, Exercise.model_verdict, ролик).all()):
         счёт[с] = счёт.get(с, 0) + n
+        if м in метки:
+            метки[м] += n
+        if с == "unchecked" and р:
+            к_разбору += n
+            размечено += n if м in метки else 0
+            if "m-" + str(м) in очередь:
+                очередь["m-" + м] += n
     всего = sum(счёт.values())
     готово = sum(счёт[с] for с in УПР_ПРОВЕРЕНО)
     return {"готово": готово, "всего": всего,
@@ -3909,7 +3941,11 @@ def _упр_проверка(db) -> dict:
                       % (счёт["approved"], счёт["wrong"], счёт["unchecked"],
                          счёт["no_video"]),
             # ЧИСЛА ЧИПОВ — ИЗ ТОГО ЖЕ ЗАПРОСА: ключи — `data-pick` чипов.
-            "счёт": {"all": всего, **счёт}}
+            "счёт": {"all": всего, **счёт, **очередь},
+            # К РАЗБОРУ — непроверенные владельцем С РОЛИКОМ: ровно то,
+            # что прогон отдаёт модели; `размечено` — из них с меткой.
+            "модель": {"метки": метки, "к_разбору": к_разбору,
+                       "размечено": размечено}}
 
 
 @app.get("/admin/exercises")
@@ -3942,6 +3978,10 @@ async def admin_exercises_page(request: Request, user=Depends(get_current_user),
             "has_instructions": bool(e.instructions_ru),
             "youtube_id": e.youtube_id or "",
             "video_status": status,
+            # МЕТКА МОДЕЛИ С ПРИЧИНОЙ (блок 2) — в первом кадре, а не
+            # догрузкой: карточка не дорисовывается после отрисовки (§6.0.15)
+            "model_verdict": e.model_verdict or "",
+            "model_reason": e.model_reason or "",
         })
 
     # Порядок чипов — порядок работы: сперва «сколько всего», потом «что
@@ -3958,6 +3998,10 @@ async def admin_exercises_page(request: Request, user=Depends(get_current_user),
              {"id": "approved",  "label": "Одобрено",      "n": счёт["approved"]},
              {"id": "wrong",     "label": "Неверное",      "n": счёт["wrong"]},
              {"id": "no_video",  "label": "Без видео",     "n": счёт["no_video"]}]
+    # ЧИПЫ МЕТОК МОДЕЛИ (блок 2) — очередь работы: метка есть, владелец
+    # ещё не проверял. Тот же ряд и тот же запрос, что у статусов.
+    отбор += [{"id": "m-" + код, "label": "Модель: " + ВИДЕО_МЕТКИ[код], "n": счёт["m-" + код]}
+              for код in ВИДЕО_ВЕРДИКТЫ.values()]
 
     # ОТБОР ПРИ ЗАГРУЗКЕ — «Не проверено» («Расход-3», 3.2): это и есть
     # работа на экране, и оценённая карточка уходит из списка сама.
@@ -3965,7 +4009,7 @@ async def admin_exercises_page(request: Request, user=Depends(get_current_user),
     # удалённого дашборда (BACKLOG №147), и чужие закладки не ломаются.
     # Выбор решает СЕРВЕР: выбранный чип нарисован в первом кадре.
     выбран = request.query_params.get("status")
-    if выбран not in УПР_СТАТУСЫ:
+    if выбран not in {ч["id"] for ч in отбор}:
         выбран = "unchecked"
 
     return templates.TemplateResponse(request=request, name="admin_exercises.html",
@@ -3974,6 +4018,8 @@ async def admin_exercises_page(request: Request, user=Depends(get_current_user),
                                                "отбор": отбор,
                                                "выбран": выбран,
                                                "прогресс": прогресс,
+                                               "предпроверка": _видео_сводка(db, прогресс),
+                                               "видео_метки": ВИДЕО_МЕТКИ,
                                                "muscle_groups": MUSCLE_GROUP_LABELS_RU,
                                                "equipment_labels": EXERCISE_EQUIPMENT_LABELS_RU})
 
@@ -4103,9 +4149,481 @@ async def admin_exercise_replace_video(exercise_id: str, request: Request, user=
     ex.youtube_id = video_id
     ex.video_status = "unchecked"
     ex.video_replaced_at = datetime.utcnow()
+    # МЕТКА МОДЕЛИ — ПРО ПРЕЖНИЙ РОЛИК (блок 2): оставь её, и новый ролик
+    # носил бы чужую метку с чужой причиной. Следующий прогон спросит о нём.
+    ex.model_verdict = ex.model_reason = ex.model_checked_at = None
     db.commit()
     return JSONResponse({"ok": True, "youtube_id": ex.youtube_id, "video_status": ex.video_status,
-                         "проверка": _упр_проверка(db)})
+                         "model_verdict": "", "проверка": _упр_проверка(db)})
+
+
+# ── ПРЕДВАРИТЕЛЬНАЯ ПРОВЕРКА РОЛИКОВ МОДЕЛЬЮ (№352, письмо «Админка», блок 2) ──
+#
+# 852 ролика вручную не пересмотреть. Модель раскладывает непроверенные
+# на три стопки — «похоже», «не похоже», «не уверена», — а решение
+# («Одобрено» либо «Неверное») остаётся за владельцем: метка лежит
+# отдельным полем (`model_verdict`), `video_status` не трогает
+# и в «Проверено» не входит (`УПР_ПРОВЕРЕНО`).
+#
+# «ДАННЫЕ РОЛИКА» БЕРУТСЯ У YOUTUBE, потому что в базе их нет: импорт
+# (`import_youtube_videos.py`) спрашивал `part=snippet` и хранил только
+# id. Возьми письмо буквально — все ролики получили бы «нет данных»,
+# и модель не вызвалась бы ни разу. Поэтому прогон спрашивает заголовок,
+# канал и описание тем же ключом `YOUTUBE_API_KEY` (`videos.list`,
+# 50 роликов за запрос, 1 единица квоты) и в базе их не хранит: они
+# нужны ровно на время вопроса. Ролика нет в ответе — удалён или закрыт —
+# это и есть «нет данных», модель не зовётся. Запрос к YouTube
+# не удался — сети нет, ключа нет, квота кончилась — прогон встаёт
+# со сбоем и причиной: «нет данных» — ответ YouTube о ролике, а не
+# наша авария, и ставить его за аварию нельзя (§6.0.1).
+#
+# КАНДИДАТ — упражнение БЕЗ ОТМЕТКИ ВЛАДЕЛЬЦА (статус «не проверено»)
+# с роликом и без метки. Отмеченные владельцем модель не видит: решение
+# уже принято, и платить за подсказку к нему незачем.
+#
+# ПРЕДОХРАНИТЕЛИ — В КОДЕ, А НЕ В ПРОМПТЕ:
+#   · предел денег на прогон (`VIDEO_CHECK_LIMIT_USD`, $1) проверяется
+#     ДО вызова: потрачено + цена следующего > предела — прогон встаёт
+#     и пишет, сколько успел. Цена следующего — дороже из двух: самый
+#     дорогой вызов прогона и оценка (`VIDEO_CHECK_CALL_ESTIMATE_USD`);
+#   · вызов, на который сервис ответил без цены, считается ПО ОЦЕНКЕ —
+#     иначе предел молча перестал бы действовать; таких прогон считает;
+#   · не больше одного вызова на упражнение: курсор прогона ставится
+#     своей транзакцией ДО вызова — ни «Продолжить», ни перезапуск
+#     машины то же упражнение в прогоне второй раз не выберут;
+#   · ответ вне трёх слов либо без причины в базу не ложится;
+#   · `ВИДЕО_ОШИБОК_ПОДРЯД` сбоев либо отказов подряд — прогон встаёт
+#     со сбоем, а не перебирает справочник впустую.
+#
+# СОЕДИНЕНИЕ К БАЗЕ НА ВРЕМЯ СЕТИ НЕ ДЕРЖИТСЯ (проверка 27): база —
+# в коротких синхронных помощниках со своей сессией, сеть — между ними.
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
+# Адрес — ПЕРЕМЕННОЙ, по той же причине, что OPENROUTER_URL: ветку
+# «YouTube ответил не так» иначе нечем прогнать (§6.0.1).
+YOUTUBE_VIDEOS_URL = os.getenv("YOUTUBE_VIDEOS_URL",
+                               "https://www.googleapis.com/youtube/v3/videos")
+ВИДЕО_ПРЕДЕЛ_USD = float(os.getenv("VIDEO_CHECK_LIMIT_USD", "1"))
+# Цена ОДНОГО вызова сверху — пока в прогоне нет ни одной настоящей.
+# Замер живого вызова — §2.1, строка VIDEO_CHECK_MAX_TOKENS.
+ВИДЕО_ОЦЕНКА_ВЫЗОВА_USD = float(os.getenv("VIDEO_CHECK_CALL_ESTIMATE_USD", "0.003"))
+ВИДЕО_ПАЧКА = 50                # роликов в одном `videos.list` — предел YouTube
+ВИДЕО_ОПИСАНИЕ_ЗНАКОВ = 600     # хвост описаний — ссылки и реклама, модели не нужен
+ВИДЕО_ПРИЧИНА_ЗНАКОВ = 200      # длиннее — не «короткая причина», в базу не ложится
+ВИДЕО_ОШИБОК_ПОДРЯД = 5
+ВИДЕО_НЕТ_ДАННЫХ = "YouTube не отдал сведений о ролике: удалён, закрыт или без заголовка"
+_видео_задачи: dict = {}        # номер прогона → задача; ссылка держит её от сборщика мусора
+
+ВИДЕО_ПРОМПТ = (
+    "Ты помогаешь владельцу справочника упражнений проверить подобранные "
+    "ролики YouTube. По названию упражнения и сведениям о ролике реши, "
+    "показывает ли ролик ИМЕННО ЭТО упражнение — технику его выполнения.\n"
+    "Ответь строго одним объектом JSON без текста вокруг:\n"
+    '{"verdict": "похоже" | "не похоже" | "не уверена", '
+    '"reason": "одна короткая фраза по-русски, до 15 слов"}\n'
+    "«похоже» — заголовок или описание называют это упражнение либо его "
+    "прямой синоним.\n"
+    "«не похоже» — ролик про другое упражнение, другую часть тела, другой "
+    "вид спорта или вовсе не про тренировку.\n"
+    "«не уверена» — сведений мало, они общие («тренировка ног за 20 минут») "
+    "или противоречат друг другу.\n"
+    "Опирайся только на присланные сведения."
+)
+
+
+def _видео_вопрос(у: dict, сведения: tuple) -> str:
+    заголовок, канал, описание = сведения
+    return ("Упражнение: %s (англ. %s)\nЗаголовок ролика: %s\nКанал: %s\n"
+            "Описание: %s" % (у["name_ru"], у["name"] or "—", заголовок,
+                              канал or "—", описание or "—"))
+
+
+def _видео_разобрать(текст: str) -> tuple:
+    """(код метки, причина, беда). Метки вне трёх слов в базе быть
+    не должно: она не легла бы ни в одну стопку и читалась бы как
+    выдумка. Регистр и лишние пробелы прощаются, всё остальное — нет."""
+    try:
+        данные = _extract_json(текст)
+    except (ValueError, TypeError):
+        return None, "", "ответ не JSON"
+    if not isinstance(данные, dict):
+        return None, "", "ответ не объект JSON"
+    вердикт = " ".join(str(данные.get("verdict") or "").split()).lower()
+    код = ВИДЕО_ВЕРДИКТЫ.get(вердикт)
+    if not код:
+        return None, "", "вердикт вне трёх допустимых: %r" % вердикт[:40]
+    причина = " ".join(str(данные.get("reason") or "").split())
+    if not причина:
+        return None, "", "нет причины"
+    if len(причина) > ВИДЕО_ПРИЧИНА_ЗНАКОВ:
+        return None, "", "причина длиннее %d знаков" % ВИДЕО_ПРИЧИНА_ЗНАКОВ
+    return код, причина, None
+
+
+async def _видео_сведения(client, ids: list) -> tuple:
+    """({youtube_id: (заголовок, канал, описание)}, причина сбоя | None).
+    Ролика нет в ответе — нет и в словаре: YouTube о нём молчит, и это
+    «нет данных», а не авария. Ключ уходит параметром и НЕ печатается."""
+    if not YOUTUBE_API_KEY:
+        return {}, "ключа YouTube нет (YOUTUBE_API_KEY) — спросить о роликах нечем"
+    try:
+        r = await client.get(YOUTUBE_VIDEOS_URL, params={
+            "part": "snippet", "id": ",".join(ids), "key": YOUTUBE_API_KEY,
+            "maxResults": len(ids)})
+    except httpx.HTTPError as e:
+        return {}, "YouTube не ответил (%s)" % type(e).__name__
+    if r.status_code != 200:
+        return {}, "YouTube ответил HTTP %d" % r.status_code
+    try:
+        тело = r.json()
+    except ValueError:
+        return {}, "YouTube ответил не JSON"
+    элементы = тело.get("items") if isinstance(тело, dict) else None
+    if not isinstance(элементы, list):
+        return {}, "YouTube ответил телом без списка items"
+    итог = {}
+    for э in элементы:
+        if not isinstance(э, dict) or not isinstance(э.get("id"), str):
+            continue
+        с = э.get("snippet") if isinstance(э.get("snippet"), dict) else {}
+        заголовок = " ".join(str(с.get("title") or "").split())[:300]
+        if заголовок:        # без заголовка судить не по чему — «нет данных»
+            итог[э["id"]] = (заголовок, " ".join(str(с.get("channelTitle") or "").split())[:200],
+                             " ".join(str(с.get("description") or "").split())[:ВИДЕО_ОПИСАНИЕ_ЗНАКОВ])
+    # НОЛЬ ИЗ ПАЧКИ — СБОЙ, А НЕ ПАЧКА УДАЛЁННЫХ РОЛИКОВ. Иначе пустой
+    # по ошибке сервиса ответ пометил бы «нет данных» десятки роликов
+    # разом, и следующий прогон их уже не спросил бы.
+    if len(ids) > 1 and not итог:
+        return {}, ("YouTube не вернул ни одного ролика из %d — похоже на сбой, "
+                    "а не на удалённые ролики" % len(ids))
+    return итог, None
+
+
+async def _видео_спросить(client, у: dict, сведения: tuple, user_id) -> dict:
+    """ОДИН вызов модели на упражнение. `цена` — для предела: у удачного
+    ответа без цены — None (прогон посчитает по оценке)."""
+    итог = {"код": None, "причина": "", "цена": 0.0, "без_цены": False,
+            "беда": None, "отказ": False}
+    if not OPENROUTER_API_KEY:
+        итог["беда"] = _без_ключа("модель не настроена: API ключ OpenRouter не задан")
+        return итог
+    try:
+        resp = await _модель_post(
+            client, "admin-video-check", user_id, OPENROUTER_URL,
+            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                     "HTTP-Referer": "https://energydess.ru",
+                     "X-Title": "EnergyDess Admin"},
+            json={**ПОЛИТИКА_ЗАПРОСА, "model": MODEL,
+                  "messages": [{"role": "system", "content": ВИДЕО_ПРОМПТ},
+                               {"role": "user", "content": _видео_вопрос(у, сведения)}],
+                  "temperature": 0, "max_tokens": VIDEO_CHECK_MAX_TOKENS})
+    except httpx.HTTPError as e:
+        итог["беда"] = "сеть: %s" % type(e).__name__
+        return итог
+    расход = _разобрать_расход(resp)
+    if расход["cost"] is not None:
+        итог["цена"] = расход["cost"]
+    elif расход["ok"]:
+        итог["без_цены"] = True
+    try:
+        тело = resp.json()
+    except ValueError:
+        итог["беда"] = "сервис ответил не JSON (HTTP %d)" % resp.status_code
+        return итог
+    if not isinstance(тело, dict):
+        итог["беда"] = "сервис ответил не объектом JSON"
+        return итог
+    текст, сбой = _model_output(тело, "video-check", VIDEO_CHECK_MAX_TOKENS)
+    if сбой:
+        итог["беда"] = сбой
+        return итог
+    итог["код"], итог["причина"], беда = _видео_разобрать(текст)
+    if беда:
+        итог["беда"], итог["отказ"] = "ответ отвергнут: " + беда, True
+    return итог
+
+
+# ── БАЗА: КОРОТКИЕ ПОМОЩНИКИ СО СВОЕЙ СЕССИЕЙ ─────────────────────────
+
+def _видео_кандидат(db, ид: str, youtube_id: str):
+    """Упражнение, если оно ВСЁ ЕЩЁ кандидат: владелец мог отметить его
+    или заменить ролик, пока прогон шёл к нему."""
+    e = db.get(Exercise, ид)
+    if (e is None or (e.video_status or "unchecked") != "unchecked"
+            or e.youtube_id != youtube_id or e.model_verdict):
+        return None
+    return e
+
+
+def _видео_пачка(run_id: int) -> list:
+    """Следующие кандидаты после курсора прогона — не больше пачки."""
+    db = SessionLocal()
+    try:
+        курсор = db.get(VideoCheckRun, run_id).last_id or ""
+        return [{"id": e.id, "youtube_id": e.youtube_id, "name_ru": e.name_ru,
+                 "name": e.name or ""}
+                for e in (db.query(Exercise)
+                          .filter(Exercise.id > курсор,
+                                  func.coalesce(Exercise.video_status, "unchecked") == "unchecked",
+                                  Exercise.youtube_id.isnot(None), Exercise.youtube_id != "",
+                                  Exercise.model_verdict.is_(None))
+                          .order_by(Exercise.id).limit(ВИДЕО_ПАЧКА).all())]
+    finally:
+        db.close()
+
+
+def _видео_шаг(run_id: int, у: dict, без_вызова: bool) -> tuple:
+    """Курсор на упражнение — ДО вызова, своей транзакцией. Возвращает
+    (состояние прогона, потрачено, дороже всех, предел, кандидат ли ещё).
+    Предел проверяется здесь же: `без_вызова` — «нет данных», денег нет."""
+    db = SessionLocal()
+    try:
+        п = db.get(VideoCheckRun, run_id)
+        состояние = (п.state, п.spent_usd or 0.0, п.max_call_usd or 0.0, п.limit_usd)
+        if п.state != "running":
+            return состояние + (False,)
+        кандидат = _видео_кандидат(db, у["id"], у["youtube_id"]) is not None
+        if not кандидат:
+            п.last_id = у["id"]
+            db.commit()
+            return состояние + (False,)
+        цена_следующего = max(п.max_call_usd or 0.0, ВИДЕО_ОЦЕНКА_ВЫЗОВА_USD)
+        if not без_вызова and (п.spent_usd or 0.0) + цена_следующего > п.limit_usd:
+            return ("limit",) + состояние[1:] + (False,)
+        п.last_id = у["id"]
+        db.commit()
+        return состояние + (True,)
+    finally:
+        db.close()
+
+
+def _видео_записать(run_id: int, у: dict, код, причина: str, ответ) -> int:
+    """Итог по упражнению и счётчики прогона — одной транзакцией.
+    `ответ` — итог вызова модели либо None (вызова не было). Возвращает
+    число сбоев и отказов подряд."""
+    db = SessionLocal()
+    try:
+        п = db.get(VideoCheckRun, run_id)
+        e = _видео_кандидат(db, у["id"], у["youtube_id"])
+        if код and e is not None:
+            e.model_verdict, e.model_reason, e.model_checked_at = код, причина, datetime.utcnow()
+        if ответ is not None:
+            п.calls = (п.calls or 0) + 1
+            цена = ответ["цена"]
+            if ответ["без_цены"]:
+                п.unpriced = (п.unpriced or 0) + 1
+                цена = max(п.max_call_usd or 0.0, ВИДЕО_ОЦЕНКА_ВЫЗОВА_USD)
+            else:
+                п.max_call_usd = max(п.max_call_usd or 0.0, цена)
+            п.spent_usd = (п.spent_usd or 0.0) + цена
+            if ответ["беда"]:
+                if ответ["отказ"]:
+                    п.rejected = (п.rejected or 0) + 1
+                else:
+                    п.errors = (п.errors or 0) + 1
+                п.errors_in_row = (п.errors_in_row or 0) + 1
+                п.note = ("Последний сбой: %s" % ответ["беда"])[:300]
+            else:
+                п.errors_in_row = 0
+        if код == "nodata":
+            п.nodata = (п.nodata or 0) + 1
+        elif код:
+            п.labelled = (п.labelled or 0) + 1
+        db.commit()
+        return п.errors_in_row or 0
+    finally:
+        db.close()
+
+
+def _видео_сколько(п) -> str:
+    """Сколько сделано — одной строкой: её пишет прогон при остановке."""
+    return ("меток %d, нет данных %d, отвергнуто %d, сбоев %d; вызовов модели %d, "
+            "потрачено $%.4f из $%.2f"
+            % (п.labelled or 0, п.nodata or 0, п.rejected or 0, п.errors or 0,
+               п.calls or 0, п.spent_usd or 0.0, п.limit_usd))
+
+
+def _видео_конец(run_id: int, состояние: str, заметка: str | None = None) -> None:
+    db = SessionLocal()
+    try:
+        п = db.get(VideoCheckRun, run_id)
+        п.state = состояние
+        п.finished_at = datetime.utcnow()
+        if состояние == "limit":
+            п.note = ("Остановлена по пределу $%.2f: следующий вызов мог его превысить. "
+                      "Успела: %s" % (п.limit_usd, _видео_сколько(п)))[:300]
+        elif заметка:
+            п.note = заметка[:300]
+        db.commit()
+        print("[video-check] прогон %d: %s — %s" % (run_id, состояние, _видео_сколько(п)),
+              flush=True)
+    finally:
+        db.close()
+
+
+# ── САМ ПРОГОН ────────────────────────────────────────────────────────
+
+async def _видео_прогон(run_id: int, user_id) -> None:
+    """Задача прогона. Сбой — строкой в журнале и состоянием «сбой»
+    на странице, а не молча (§6.0.1)."""
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            while True:
+                пачка = _видео_пачка(run_id)
+                if not пачка:
+                    return _видео_конец(run_id, "done")
+                сведения, сбой = await _видео_сведения(client, [у["youtube_id"] for у in пачка])
+                if сбой:
+                    return _видео_конец(run_id, "error",
+                                        "Сведения о роликах не получены: %s" % сбой)
+                for у in пачка:
+                    есть = сведения.get(у["youtube_id"])
+                    состояние, *_, кандидат = _видео_шаг(run_id, у, без_вызова=not есть)
+                    if состояние == "limit":
+                        return _видео_конец(run_id, "limit")
+                    if состояние != "running":
+                        return _видео_конец(run_id, "stopped")
+                    if not кандидат:
+                        continue
+                    if not есть:
+                        _видео_записать(run_id, у, "nodata", ВИДЕО_НЕТ_ДАННЫХ, None)
+                        continue
+                    ответ = await _видео_спросить(client, у, есть, user_id)
+                    if ответ["беда"]:
+                        print("[video-check] прогон %d, %s: %s"
+                              % (run_id, у["id"], ответ["беда"][:200]), flush=True)
+                    подряд = _видео_записать(run_id, у, ответ["код"], ответ["причина"], ответ)
+                    if подряд >= ВИДЕО_ОШИБОК_ПОДРЯД:
+                        return _видео_конец(
+                            run_id, "error",
+                            "%d сбоев или отказов модели подряд — прогон остановлен. "
+                            "Последний: %s" % (подряд, (ответ["беда"] or "")[:160]))
+    except Exception as e:
+        print("[video-check] прогон %d упал: %s: %s"
+              % (run_id, type(e).__name__, str(e)[:200]), flush=True)
+        _видео_конец(run_id, "error", "Сбой прогона: %s" % type(e).__name__)
+
+
+def _видео_последний(db):
+    return db.query(VideoCheckRun).order_by(VideoCheckRun.id.desc()).first()
+
+
+def _видео_идёт(run_id) -> bool:
+    """Идёт ли прогон НА САМОМ ДЕЛЕ — есть ли живая задача в этом процессе."""
+    задача = _видео_задачи.get(run_id)
+    return задача is not None and not задача.done()
+
+
+# СОСТОЯНИЕ ПРОГОНА НА СТРАНИЦЕ: подпись, действие кнопки и её текст.
+# «Прервана» — строка в базе «идёт», а задачи в процессе нет: машину
+# перезапускали, и продолжить можно тот же прогон.
+ВИДЕО_СОСТОЯНИЯ = {
+    "none":        ("Не запускалась", "start", "Предварительная проверка"),
+    "running":     ("Идёт", "stop", "Остановить"),
+    "stopping":    ("Останавливается", "", "Останавливается…"),
+    "stopped":     ("Остановлена", "start", "Продолжить"),
+    "interrupted": ("Прервана: сервер перезапускался", "start", "Продолжить"),
+    "done":        ("Завершена", "start", "Предварительная проверка"),
+    "limit":       ("Остановлена по пределу", "start", "Предварительная проверка"),
+    "error":       ("Сбой", "start", "Предварительная проверка"),
+}
+
+
+def _видео_сводка(db, проверка=None) -> dict:
+    """Что показать на странице. Числа меток — из `_упр_проверка`, того же
+    запроса, что полоса и чипы: второго счёта нет."""
+    проверка = проверка or _упр_проверка(db)
+    п = _видео_последний(db)
+    if п is None:
+        сост = "none"
+    elif п.state in ("running", "stopping") and not _видео_идёт(п.id):
+        сост = "interrupted"
+    else:
+        сост = п.state
+    подпись, действие, кнопка = ВИДЕО_СОСТОЯНИЯ[сост]
+    м = проверка["модель"]
+    к_разбору, размечено = м["к_разбору"], м["размечено"]
+    строка = "%s · похоже %d · не похоже %d · не уверена %d · нет данных %d" % (
+        подпись, м["метки"]["match"], м["метки"]["mismatch"], м["метки"]["unsure"],
+        м["метки"]["nodata"])
+    if п is not None:
+        строка += " · вызовов модели %d, потрачено $%.4f из $%.2f" % (
+            п.calls or 0, п.spent_usd or 0.0, п.limit_usd)
+    заметки = []
+    if п is not None and п.unpriced:
+        заметки.append("У %d вызовов сервис не назвал цену — они посчитаны по оценке "
+                       "$%.3f за вызов." % (п.unpriced, ВИДЕО_ОЦЕНКА_ВЫЗОВА_USD))
+    if п is not None and п.note:
+        заметки.append(п.note)
+    return {"состояние": сост, "подпись": подпись, "действие": действие,
+            "кнопка": кнопка, "к_разбору": к_разбору, "размечено": размечено,
+            "доля": round(100 * размечено / к_разбору, 1) if к_разбору else 0,
+            "строка": строка, "заметка": " ".join(заметки),
+            "сейчас": datetime.utcnow().isoformat()}
+
+
+def _видео_метки_после(db, с: str | None) -> list:
+    """Метки, поставленные с момента `с` (ISO, UTC сервера): страница
+    дописывает их в карточки на месте, не перерисовывая сетку."""
+    if not с:
+        return []
+    try:
+        момент = datetime.fromisoformat(с)
+    except ValueError:
+        return []
+    return [{"id": e.id, "verdict": e.model_verdict, "reason": e.model_reason or ""}
+            for e in db.query(Exercise).filter(Exercise.model_checked_at >= момент)
+                                       .order_by(Exercise.id)]
+
+
+@app.get("/admin/api/video-check")
+async def admin_video_check_status(request: Request, user=Depends(get_current_user),
+                                   db: Session = Depends(get_db)):
+    if not _admin_guard(user):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+    # СВОДКА ДО МЕТОК: момент `сейчас` снят раньше запроса меток, и метка,
+    # легшая между ними, приедет и сейчас, и в следующий раз — не потеряется.
+    проверка = _упр_проверка(db)
+    сводка = _видео_сводка(db, проверка)
+    return JSONResponse({**сводка, "проверка": проверка,
+                         "метки": _видео_метки_после(db, request.query_params.get("since"))})
+
+
+@app.post("/admin/api/video-check/start")
+async def admin_video_check_start(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Старт либо продолжение. Остановленный и прерванный прогон
+    ПРОДОЛЖАЕТСЯ — с тем же курсором, пределом и расходом; завершённый,
+    вставший по пределу или со сбоем — нет: заводится новый."""
+    if not _admin_guard(user):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+    uid = user.id
+    п = _видео_последний(db)
+    if п is not None and _видео_идёт(п.id):
+        return JSONResponse({**_видео_сводка(db), "error": "Проверка уже идёт"}, status_code=409)
+    if п is not None and п.state in ("running", "stopping", "stopped"):
+        п.state, п.finished_at, п.errors_in_row = "running", None, 0
+    else:
+        п = VideoCheckRun(state="running", started_at=datetime.utcnow(),
+                          limit_usd=ВИДЕО_ПРЕДЕЛ_USD, spent_usd=0.0, max_call_usd=0.0,
+                          calls=0, unpriced=0, labelled=0, nodata=0, rejected=0,
+                          errors=0, errors_in_row=0)
+        db.add(п)
+    db.commit()
+    run_id = п.id
+    _видео_задачи[run_id] = asyncio.create_task(_видео_прогон(run_id, uid))
+    return JSONResponse(_видео_сводка(db))
+
+
+@app.post("/admin/api/video-check/stop")
+async def admin_video_check_stop(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not _admin_guard(user):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+    п = _видео_последний(db)
+    if п is None or п.state != "running":
+        return JSONResponse({**_видео_сводка(db), "error": "Проверка не идёт"}, status_code=409)
+    # Задачи нет — прогон прерван: останавливать нечего, отмечаем сразу
+    п.state = "stopping" if _видео_идёт(п.id) else "stopped"
+    db.commit()
+    return JSONResponse(_видео_сводка(db))
 
 
 # ── Enshrouded Трекер ─────────────────────────────────────────────────────────
@@ -4817,6 +5335,7 @@ def _лнд_сводка(места):
     "medkit-assist":   ("Аптечка: ассистент",       "один ответ"),
     "medkit-photo":    ("Аптечка: фото упаковки",   "один разбор фото"),
     "medkit-gaps":     ("Аптечка: категории",       "одно предложение"),
+    "admin-video-check": ("Админка: проверка роликов", "одна метка ролика"),
 }
 
 # ИНСТРУМЕНТ СТРАНИЦЫ — ДЛЯ ГРАФИКА, ЛЕГЕНДЫ И ОТБОРА (№352, «Расход», 2.1–2.3).
@@ -4826,15 +5345,23 @@ def _лнд_сводка(места):
 # Голос и разбор фото зовут несколько инструментов сразу — их место
 # «Общее», у него нейтральный цвет: приписать их одному инструменту
 # значило бы соврать про долю остальных.
+#
+# СЛУЖЕБНЫЕ ОПЕРАЦИИ АДМИНКИ — СВОЯ ГРУППА (№352, письмо «Админка», блок 2):
+# проверка роликов справочника — расход проекта, а не голос и не фото,
+# и в «Общем» её подпись была бы неправдой. Цвет — стальной акцент
+# служебных экранов (`--v2-admin`); от нейтрального «Общего» он недалеко,
+# поэтому группа стоит между аптечкой и тренировками: в стопке столбика
+# эти два серых соседями не бывают.
 РАСХОД_ГРУППЫ = (
     ("hh", "HH-ассистент"),
     ("nutrition", "Дневник питания"),
     ("medkit", "Аптечка"),
+    ("admin", "Админка"),
     ("workout", "Тренировки"),
     ("other", "Общее: голос и фото"),
 )
 _РАСХОД_ПРЕФИКСЫ = (("hh-", "hh"), ("nut-", "nutrition"), ("medkit-", "medkit"),
-                    ("wk-", "workout"))
+                    ("wk-", "workout"), ("admin-", "admin"))
 # ПЕРИОД — МОСКОВСКИЕ КАЛЕНДАРНЫЕ СУТКИ, а не скользящие 24×N часов:
 # график идёт по дням, и первый столбик неполных суток читался бы как
 # «в тот день тратили мало». «7 дней» — сегодня и шесть предыдущих.

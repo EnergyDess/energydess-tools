@@ -776,6 +776,16 @@
 .ex-card-name { font-size: var(--v2-fs-sm); font-weight: 600; color: var(--v2-text); line-height: 1.3; }
 .ex-card-name-en { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); margin-top: var(--v2-sp-1); font-style: italic; }
 .ex-card-meta { font-size: var(--v2-fs-xs); color: var(--v2-text-2); margin: var(--v2-sp-2) 0 var(--v2-sp-3); }
+/* МЕТКА МОДЕЛИ (№352, письмо «Админка», блок 2) — подсказка с причиной
+   под строкой свойств. Тон слова — тон стопки: «похоже» зелёным,
+   «не похоже» красным, «не уверена» янтарём, «нет данных» — вторичным
+   текстом. Сама строка вторичная: это не решение, решают кнопки ниже. */
+.ex-card-model { margin: 0 0 var(--v2-sp-3); font-size: var(--v2-fs-xs); color: var(--v2-text-2); line-height: 1.4; }
+.ex-card-model b { font-weight: var(--v2-fw-strong); }
+.ex-model-match b    { color: var(--v2-ok); }
+.ex-model-mismatch b { color: var(--v2-danger); }
+.ex-model-unsure b   { color: var(--v2-warn); }
+.ex-model-nodata b   { color: var(--v2-text-2); }
 
 .ex-card-actions { display: flex; gap: var(--v2-sp-2); flex-wrap: wrap; }
 /* Кнопки карточки — `.v2-btn .v2-btn-sm` («Расход-3», блок 3). Своё —
@@ -1227,6 +1237,14 @@
 @media (max-width: 640px) {
   .admin-progress { padding: var(--v2-sp-3) var(--v2-sp-4); }
 }
+/* ПРЕДВАРИТЕЛЬНАЯ ПРОВЕРКА МОДЕЛЬЮ (письмо «Админка», блок 2) — вторая
+   карточка той же формы (`.admin-progress`) сразу под полосой «Проверено».
+   Своё — кнопка в строке заголовка (не сжимается и встаёт по центру
+   строки, а не по базовой линии текста) и заметка о сбое или пределе
+   обычным цветом текста: это предупреждение, а не пояснение. */
+.admin-precheck .admin-progress-row { align-items: center; }
+.admin-precheck-btn { flex: none; }
+.admin-precheck-note { color: var(--v2-text); }
 
 /* ПРЕДОСТЕРЕЖЕНИЕ — ПУНКТ, КОТОРЫЙ НЕ ОБЪЯСНЯЕТ ТАБЛИЦУ, А ПРЕДУПРЕЖДАЕТ
    о последствии действия: пропавшие отметки, несохранённая правка,

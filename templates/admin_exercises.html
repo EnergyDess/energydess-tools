@@ -25,8 +25,34 @@
      читаться сплошным перечнем — то есть отбор стал бы хуже, а не лучше.
      Чипы взяли СТАТУС: там пять значений, они взаимоисключающие и это
      главная ось работы на экране. #}
+  {# ПРЕДВАРИТЕЛЬНАЯ ПРОВЕРКА РОЛИКОВ МОДЕЛЬЮ (№352, письмо «Админка», блок 2).
+     Карточка той же формы, что полоса «Проверено», и сразу под ней: это
+     подсказка к той же работе, а не отдельный инструмент. Числа, строку
+     и кнопку собирает СЕРВЕР (`_видео_сводка`) — в первом кадре и в каждом
+     ответе опроса; здесь они только подставляются. #}
+  {% set пк = предпроверка %}
+  {% set панель_пк %}
+  <section class="v2-card admin-progress admin-precheck" id="precheck" aria-labelledby="pc-title">
+    <div class="admin-progress-row">
+      <p class="admin-progress-title" id="pc-title">Предварительная проверка моделью: размечено
+        <b class="admin-foot-n" id="pc-done">{{ пк.размечено }}</b> из
+        <b class="admin-foot-n" id="pc-total">{{ пк.к_разбору }}</b> непроверенных с роликом</p>
+      <button type="button" class="v2-btn v2-btn-sm v2-btn-secondary admin-precheck-btn" id="pc-btn"
+              data-action="{{ пк.действие }}"{{ ' disabled' if not пк.действие }}>{{ пк.кнопка }}</button>
+    </div>
+    <div class="v2-progress admin-progress-bar" id="pc-bar" role="progressbar"
+         aria-labelledby="pc-title" aria-valuemin="0"
+         aria-valuemax="{{ пк.к_разбору }}" aria-valuenow="{{ пк.размечено }}">
+      <div class="v2-progress-fill" id="pc-fill" style="--v2-value: {{ пк.доля }}%"></div>
+    </div>
+    <p class="v2-hint admin-progress-sub" id="pc-line">{{ пк.строка }}</p>
+    <p class="v2-hint admin-progress-sub admin-precheck-note" id="pc-note"{{ ' hidden' if not пк.заметка }}>{{ пк.заметка }}</p>
+    <p class="v2-hint admin-progress-sub">Метка модели — подсказка, а не решение: «Проверено» считает только ваши «Одобрено» и «Неверное».</p>
+  </section>
+  {% endset %}
   {% call ah.head('Упражнения', 'Проверка видео для ' ~ total ~ ' упражнений программы тренировок',
-                  отбор, 'Поиск', icon='dumbbell', выбран=выбран, прогресс=прогресс) %}
+                  отбор, 'Поиск', icon='dumbbell', выбран=выбран, прогресс=прогресс,
+                  панель=панель_пк) %}
     <span class="v2-select-wrap admin-select"><select class="v2-select" id="filter-muscle" aria-label="Группа мышц">
       <option value="all">Все группы мышц</option>
       {% for key, label in muscle_groups.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
@@ -71,6 +97,8 @@ const EXERCISES = {{ exercises | tojson }};
 const MUSCLE_LABELS = {{ muscle_groups | tojson }};
 const EQUIPMENT_LABELS = {{ equipment_labels | tojson }};
 const STATUS_LABELS = {unchecked: 'Не проверено', approved: 'Одобрено', wrong: 'Неверное', no_video: 'Без видео'};
+// Подписи меток модели — с сервера (`ВИДЕО_МЕТКИ`), второго словаря здесь нет.
+const МОДЕЛЬ_МЕТКИ = {{ видео_метки | tojson }};
 const PAGE_SIZE = 30;
 
 // ОТБОР ПРИ ЗАГРУЗКЕ ВЫБИРАЕТ СЕРВЕР («Расход-3», 3.2): по умолчанию
@@ -93,9 +121,14 @@ function escHtml(str) {
 
 function getFiltered() {
   const s = state.q.trim().toLowerCase();
+  // ЧИП «МОДЕЛЬ: …» — ОЧЕРЕДЬ: метка модели есть, владелец ещё не проверял
+  // (блок 2). Тем же условием считает число чипа сервер (`_упр_проверка`).
+  const метка = state.pick.startsWith('m-') ? state.pick.slice(2) : null;
   return EXERCISES.filter(e => {
     if (state.muscle !== 'all' && e.muscle_group !== state.muscle) return false;
-    if (state.pick !== 'all' && e.video_status !== state.pick) return false;
+    if (метка) {
+      if (e.video_status !== 'unchecked' || e.model_verdict !== метка) return false;
+    } else if (state.pick !== 'all' && e.video_status !== state.pick) return false;
     if (state.equipment !== 'all' && e.equipment !== state.equipment) return false;
     if (s && !e.name_ru.toLowerCase().includes(s)) return false;
     return true;
@@ -117,6 +150,17 @@ function renderChips() {
   });
   админЧип(state.pick);
   return СЧЁТ;
+}
+
+// МЕТКА МОДЕЛИ НА КАРТОЧКЕ (блок 2) — подсказка с причиной под строкой
+// свойств; кнопки владельца ниже не тронуты. Узел есть у КАЖДОЙ карточки
+// (пустой — скрыт): опрос хода прогона дописывает метку на месте, не
+// перерисовывая сетку, — открытое поле замены ролика не потеряется.
+function модельHtml(e) {
+  const код = e.model_verdict;
+  if (!код) return `<p class="ex-card-model" data-model-for="${escHtml(e.id)}" hidden></p>`;
+  return `<p class="ex-card-model ex-model-${escHtml(код)}" data-model-for="${escHtml(e.id)}">`
+    + `<b>Модель: ${escHtml(МОДЕЛЬ_МЕТКИ[код] || код)}</b> — ${escHtml(e.model_reason)}</p>`;
 }
 
 function cardHtml(e) {
@@ -171,6 +215,7 @@ function cardHtml(e) {
         <div class="ex-card-name">${escHtml(e.name_ru)}</div>
         ${nameEn}
         <div class="ex-card-meta">${metaParts.join(' · ')}</div>
+        ${модельHtml(e)}
         <div class="ex-card-actions">
           <button type="button" class="v2-btn v2-btn-sm ex-btn ex-btn-approve ${e.video_status === 'approved' ? 'active' : ''}" onclick="setStatus('${escHtml(e.id)}', 'approved')">Одобрено</button>
           <button type="button" class="v2-btn v2-btn-sm ex-btn ex-btn-wrong ${e.video_status === 'wrong' ? 'active' : ''}" onclick="setStatus('${escHtml(e.id)}', 'wrong')">Неверное</button>
@@ -237,7 +282,7 @@ function подпись(нашлось, страниц, counts) {
   if (страниц > 1) нота.append(нотаПункт('страница ', нотаЧисло(state.page),
                                          ' из ', нотаЧисло(страниц)));
   const части = [];
-  if (state.pick !== 'all') части.push('статус «' + имя + '»');
+  if (state.pick !== 'all') части.push((state.pick.startsWith('m-') ? 'очередь «' : 'статус «') + имя + '»');
   if (state.muscle !== 'all') части.push('группа мышц «' + MUSCLE_LABELS[state.muscle] + '»');
   if (state.equipment !== 'all') части.push('оборудование «' + EQUIPMENT_LABELS[state.equipment] + '»');
   if (state.q.trim()) части.push('поиск «' + state.q.trim() + '»');
@@ -312,6 +357,91 @@ function прогресс(п) {
   бар.setAttribute('aria-valuemax', п.всего);
   document.getElementById('progress-fill').style.setProperty('--v2-value', п.доля + '%');
 }
+
+// ── ПРЕДВАРИТЕЛЬНАЯ ПРОВЕРКА МОДЕЛЬЮ (письмо «Админка», блок 2) ──
+// Прогон идёт на сервере фоном; страница спрашивает его ход раз в две
+// секунды, пока он идёт. Состояние, строку и кнопку собирает сервер
+// (`_видео_сводка`); метки, легшие с прошлого опроса, приходят списком
+// и дописываются в карточки на месте. Полоса «Проверено» и числа чипов —
+// из того же ответа (`проверка`), то есть из базы, как и после оценки.
+let ПК = {{ предпроверка | tojson }};
+let пкТаймер = null;
+const пкИдёт = с => с.состояние === 'running' || с.состояние === 'stopping';
+
+function пкПоказать(с) {
+  ПК = с;
+  document.getElementById('pc-done').textContent = с.размечено;
+  document.getElementById('pc-total').textContent = с.к_разбору;
+  const бар = document.getElementById('pc-bar');
+  бар.setAttribute('aria-valuenow', с.размечено);
+  бар.setAttribute('aria-valuemax', с.к_разбору);
+  document.getElementById('pc-fill').style.setProperty('--v2-value', с.доля + '%');
+  document.getElementById('pc-line').textContent = с.строка;
+  const нота = document.getElementById('pc-note');
+  нота.textContent = с.заметка || '';
+  нота.hidden = !с.заметка;
+  const к = document.getElementById('pc-btn');
+  к.textContent = с.кнопка;
+  к.dataset.action = с.действие;
+  к.disabled = !с.действие;
+}
+
+function пкМетки(метки) {
+  for (const м of метки || []) {
+    const ex = EXERCISES.find(e => e.id === м.id);
+    if (!ex) continue;
+    ex.model_verdict = м.verdict || '';
+    ex.model_reason = м.reason || '';
+    const узел = document.querySelector('[data-model-for="' + CSS.escape(м.id) + '"]');
+    if (узел) узел.outerHTML = модельHtml(ex);
+  }
+}
+
+async function пкОпросить() {
+  пкТаймер = null;
+  let д;
+  try {
+    const r = await fetch('/admin/api/video-check?since=' + encodeURIComponent(ПК.сейчас));
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    д = await r.json();
+  } catch (e) {
+    // ОТКАЗ ОПРОСА НЕ МОЛЧИТ: прогон мог идти дальше, а экран стоял бы (§6.0.1)
+    const нота = document.getElementById('pc-note');
+    нота.textContent = 'Не удалось узнать ход проверки (' + (e.message || e) + '), повторяем.';
+    нота.hidden = false;
+    пкТаймер = setTimeout(пкОпросить, 5000);
+    return;
+  }
+  const шёл = пкИдёт(ПК);
+  пкМетки(д.метки);
+  прогресс(д.проверка);
+  renderChips();
+  пкПоказать(д);
+  if (пкИдёт(д)) пкТаймер = setTimeout(пкОпросить, 2000);
+  else if (шёл) renderGrid();   // прогон встал — очереди по меткам пересобираются один раз
+}
+
+async function пкНажать() {
+  const к = document.getElementById('pc-btn');
+  const действие = к.dataset.action;
+  if (!действие) return;
+  к.disabled = true;
+  try {
+    const r = await fetch('/admin/api/video-check/' + действие, {method: 'POST'});
+    const д = await r.json();
+    if (д.error) showToast(д.error);
+    пкПоказать({...д, сейчас: ПК.сейчас});
+  } catch {
+    showToast('Ошибка сети — команда не дошла');
+    к.disabled = false;
+    return;
+  }
+  if (пкТаймер) clearTimeout(пкТаймер);
+  пкОпросить();
+}
+
+document.getElementById('pc-btn').addEventListener('click', пкНажать);
+if (пкИдёт(ПК)) пкТаймер = setTimeout(пкОпросить, 2000);
 
 // ── Действия над карточкой ──
 async function setStatus(id, status) {
@@ -396,7 +526,9 @@ async function saveReplace(id) {
       return;
     }
     const ex = EXERCISES.find(e => e.id === id);
-    if (ex) { ex.youtube_id = data.youtube_id; ex.video_status = data.video_status; }
+    // Метка модели была про прежний ролик — сервер её стёр, стираем и здесь
+    if (ex) { ex.youtube_id = data.youtube_id; ex.video_status = data.video_status;
+              ex.model_verdict = data.model_verdict || ''; ex.model_reason = ''; }
     прогресс(data.проверка);
     input.value = '';
     showToast('Видео заменено');
