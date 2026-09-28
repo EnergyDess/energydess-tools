@@ -62,9 +62,16 @@
 {%- set _нашли = namespace(id='') %}
 {%- for т in V2_TOOLS if _путь == т.url or _путь.startswith(т.url ~ '/') %}{% set _нашли.id = т.id %}{% endfor %}
 {%- set инструмент = _нашли.id %}
+{#- СЛУЖЕБНЫЙ ЭКРАН — профиль аккаунта и вся админка (№352, «Расход-3»,
+   блок 2): инструмента нет, акцент стальной (`.v2-tool-admin`). Тоже
+   по адресу, по той же причине. В `data-tool` он НЕ уходит: оттуда
+   берутся «последние открытые», а служебный экран инструментом не станет.
+   То же правило (пути `/profile` и `/admin`) спрашивает проверка 60. -#}
+{%- set служебный = not инструмент and (_путь == '/profile' or _путь.startswith('/profile/')
+                                        or _путь == '/admin' or _путь.startswith('/admin/')) %}
 {%- if каркас %}
 <script>try{if(localStorage.getItem('v2-rail')==='1')document.documentElement.classList.add('v2-rail')}catch(e){}</script>
-<div class="v2-shell{{ ' v2-tool-' ~ инструмент if инструмент }}" id="v2-shell" data-tool="{{ инструмент }}">
+<div class="v2-shell{{ ' v2-tool-' ~ инструмент if инструмент }}{{ ' v2-tool-admin' if служебный }}" id="v2-shell" data-tool="{{ инструмент }}">
   <nav class="v2-side" id="v2-side" aria-label="Основное меню">
     <div class="v2-side-brandrow">
       <a href="/" class="v2-side-brand"><span class="v2-side-brand-mark" aria-hidden="true">⚡</span><span class="v2-side-brand-word">EnergyDess</span></a>

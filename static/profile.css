@@ -1,412 +1,207 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   profile.css — страница профиля. База и токены — static/style.css.
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* @v2 — ПРОФИЛЬ АККАУНТА `/profile` (№352, «Расход-3», блок 2).
+   Раскладка страницы и её собственные узлы. Вид компонентов (`.v2-card`,
+   `.v2-input`, `.v2-select`, `.v2-seg`, `.v2-btn`) — из `static/v2.css`,
+   здесь только их место. Акцент — СТАЛЬНОЙ служебный (`--v2-admin`):
+   класс `.v2-tool-admin` ставит `_header.html` на каркас по адресу, и
+   все органы, берущие `--v2-tool`, получают его сами. Своих цветов
+   страница не заводит.
 
-.profile-wrap {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: var(--space-7) var(--space-5);
+   ИМЕНА `.avatar-upload-btn`, `.tz-row` и `.setting-sub` СОХРАНЕНЫ
+   НАМЕРЕННО: на них стоят подлоги проверки 16 (`check_regress`) и мерки
+   подстановок (`check_shift_causes`). Переименовать их значило бы
+   молча выключить два контроля. */
+
+/* ОДНА КОЛОНКА НА ШАПКУ И КАРТОЧКИ. Настройки читаются строкой «подпись —
+   орган», и во всю ширину колонки (1920) подпись и её орган оказались бы
+   на разных краях экрана. Узкой стоит вся страница, а не только
+   карточки: проверка 56 требует, чтобы края шапки совпадали с краями
+   содержимого под ней. 45rem — прежние 720 px колонки профиля. */
+.profile-page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--v2-sp-5);
+  max-width: calc(45rem + 2 * var(--v2-gutter));
+  padding-bottom: var(--v2-sp-7);
 }
-/* ОДИН БОКОВОЙ ОТСТУП НА ТЕЛЕФОНЕ (№352, «мобильный-1», 2.2): карточки
-   профиля стояли в 24 px от края при 16 у всех инструментов оболочки. */
-@media (max-width: 768px) {
-  .profile-wrap { padding-inline: var(--space-4); }
-}
-.profile-wrap h1 { font-size: var(--text-h1); font-weight: 700; }
-.profile-wrap .subtitle { color: var(--text-2); font-size: var(--text-body-sm); margin-top: calc(-1 * var(--space-3)); }
+/* Отбивку между шапкой, плашками и карточками даёт `gap` колонки —
+   тот же приём, что у страницы «Расход». */
+.profile-page .v2-page-head { margin-bottom: 0; }
+.profile-lead { margin: 0 0 var(--v2-sp-4); line-height: var(--v2-lh-body); }
 
-.profile-card h2 { font-size: var(--text-h3); font-weight: 600; margin-bottom: var(--space-1); }
-/* ЗДЕСЬ БЫЛИ `.hint` и `.hint-under` — ИМЕНА СИСТЕМНОГО КОМПОНЕНТА.
-   Переименованы 2026-08-19, и это не косметика.
-
-   19 августа в систему завели `.hint` — обёртку кнопки-значка справки
-   с всплывающей подсказкой (design-system.md §2.19, `.hint-btn`,
-   `.hint-pop`, `.hint-h`, `.hint-steps`). Здешний `.hint` — совсем
-   другое: абзац пояснения под заголовком. Одно имя на две разные вещи.
-
-   ПЕРЕОПРЕДЕЛЕНИЕМ ЭТО НЕ БЫЛО НИ ОДНИМ СВОЙСТВОМ, и замер это
-   показал: система объявляет position/display/vertical-align, страница
-   объявляла font-size/color/margin-bottom/line-height — пересечение
-   пустое. То есть «различие задумано» тут нечему быть: это столкновение
-   имён, а не вариант компонента, и лечится оно переименованием
-   страничного, а не переездом в систему.
-
-   Цена молчания была не нулевой, а отложенной: поставь кто-нибудь
-   кнопку справки на /profile — она получила бы лишний нижний отступ
-   в var(--space-4) и кегль подписи; напиши кто-нибудь <p class="hint">
-   на /nutrition — абзац стал бы inline-flex без всякого оформления.
-   Ни то ни другое не выглядело бы как ошибка в CSS.
-
-   Проверка 1 §6.0.2 про это молчала со дня заведения компонента — имя
-   `hint` было в `names` в CLAUDE.md, но `check_metrics.py` держал свою
-   копию списка, отставшую на 23 имени (BACKLOG №110). */
-/* Без предка: пояснение встречается и в карточке, и в теле модалки. Было
-   двумя одинаковыми правилами — .profile-card .profile-hint и .modal
-   .profile-hint; второе держалось на том, что модалки страницы лежали
-   внутри своего .modal. После перехода на компонент такого предка нет,
-   а дублировать правило под .modal-body значило бы цепляться
-   за системный класс из страничного файла. */
-.profile-hint { font-size: var(--text-caption); color: var(--text-2); margin-bottom: var(--space-4); line-height: 1.5; }
-/* Подсказка, идущая сразу ПОД полем, а не над блоком: прижата к полю
-   и снизу ничего не отодвигает. Была инлайновым style="margin:6px 0 0" */
-.profile-hint-under { margin: var(--space-2) 0 0; }
-
-/* ── Секция: аватар и имя ───────────────────────────────────────────────── */
-.identity-row { display: flex; align-items: center; gap: var(--space-5); flex-wrap: wrap; }
-.identity-fields { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: var(--space-2); }
-/* align-items: center — иначе кнопка растягивалась по высоте инпута
-   (stretch по умолчанию) и была на 4px выше остальных кнопок страницы */
-.name-row { display: flex; gap: var(--space-2); align-items: center; }
-.name-row .input { flex: 1; }
-.name-status { font-size: var(--text-caption); min-height: 1.2em; }
-.name-status.ok  { color: var(--success); }
-.name-status.err { color: var(--error); }
-
-/* ── Секция: строки настроек ────────────────────────────────────────────── */
-.setting-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-3) 0;
-  flex-wrap: wrap;
-}
-.setting-row + .setting-row { border-top: 1px solid var(--border-hairline); }
-.setting-label { font-size: var(--text-body-sm); color: var(--text); font-weight: 500; }
-.setting-sub { font-size: var(--text-caption); color: var(--text-faint); margin-top: 2px; }
-.setting-value {
-  font-family: var(--font-mono);
-  font-size: var(--text-caption);
-  color: var(--text-2);
-}
-
-/* Тумблер переехал в style.css. Здесь он был не переопределением —
-   в системе компонента не существовало вовсе, и профиль объявлял его
-   у себя. Второй экземпляр живёт в _admin_styles.html (38×22 вместо 40×22):
-   два расходящихся тумблера — ровно то, ради чего компонент и заводят
-   в системе. Админский остаётся долгом, он вне этого этапа. */
-
-/* ── Опасная зона ───────────────────────────────────────────────────────── */
-.danger-card { border-color: color-mix(in srgb, var(--error) 25%, transparent); }
-
-/* КАРТОЧКА УДАЛЕНИЯ НЕ МЕНЯЕТ ВЫСОТУ НИ ПРИ КАКОЙ ГАРНИТУРЕ.
-
-   BACKLOG №222, блок E. Решение владельца: делать резерв.
-
-   ЧТО ЗАМЕРЕНО. Абзац «Все данные — резюме, досье, письма,
-   программы тренировок — будут удалены безвозвратно.» занимает
-   622 px ширины карточки почти впритык, и запасная гарнитура шире
-   основной на пару процентов. Этого хватает, чтобы строка
-   переломилась надвое:
-
-     ширина 2560  Manrope 1 строка (21 px)  запасной 2 строки (41 px)
-                  карточка 168 -> 188 px, всё ниже уезжает на 21 px
-     ширина 1920  1 строка обеими — кегль там 13 px против 13.8
-     ширина 390   3 строки обеими — ширина 277 px, ломается всё равно
-
-   Это и был ВЕСЬ максимум сдвига от шрифта на `/profile`: замер
-   `check_font_shift` показывал 20.7 px и назвал уехавшим `MAIN.`
-
-   РЕЗЕРВ ДВЕ СТРОКИ, и он ведёт себя правильно на всех трёх ширинах:
-   на 2560 закрывает перелом, на 390 не значит ничего (там строк три,
-   и `min-height` меньше фактической высоты), на 1920 добавляет
-   пустую строку — это и есть цена резерва, названная владельцем
-   при постановке.
-
-   ЕДИНИЦА `em`, А НЕ ПИКСЕЛИ: межстрочный тут 1.5, две строки — 3em,
-   и при правке шкалы кеглей резерв поедет вместе с текстом.
-   В пикселях он разъехался бы молча. */
-.danger-card .profile-hint { min-height: 3em; }
-/* `.btn-danger` ПЕРЕЕХАЛ В `style.css` 2026-08-23. Здесь он был
-   не переопределением — компонент объявлялся у страницы, а носили его
-   ТРИ шаблона, и на /admin/enshrouded (где этот файл не подключён)
-   кнопка «Удалить сет» рисовалась голой кнопкой браузера. Тот же
-   случай, что был у тумблера строкой выше. */
-
-/* ── Содержимое модалок ──────────────────────────────────────────────────
-   Сам оверлей, шапка, заголовок и кнопка закрытия — компонент
-   (_modal.html + modal.js + .modal-* в style.css). Здесь только начинка.
-
-   Что отсюда убрано и почему:
-     .profile-modal-overlay        — свой оверлей, заменён компонентом
-     .profile-modal-overlay .modal — то же
-     .modal h3                     — заголовок теперь в шапке компонента
-     .modal .hint                  — дубль правила выше, поднят до .profile-hint
-   Три из них цеплялись за системный .modal из страничного файла. Греп
-   §6.0.2 их не ловил: проверка 1 ищет `.modal` в начале строки перед
-   `{`, `,` или `:`, а `.modal h3` — это селектор потомка. */
-.form-col { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-5); }
-/* Не .modal-actions: в системе весь префикс .modal-* занят компонентом
-   (.modal-hdr, .modal-body, .modal-x…), и класс с таким именем читался бы
-   как его часть, не будучи ею. Ряд кнопок под формой — страничный. */
-.form-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
-
-/* ── Аватар: загрузка и удаление ─────────────────────────────────────────── */
+/* ── Аватар и имя ─────────────────────────────────────────────────────── */
+.identity-row { display: flex; align-items: center; gap: var(--v2-sp-5); flex-wrap: wrap; }
+.identity-fields { flex: 1; min-width: 15rem; }
 .avatar-edit { position: relative; flex-shrink: 0; }
-/* Субъект — тег, а не системный класс, и это не косметика правила:
-   `object-fit: cover` здесь ПОВТОРЯЛ объявленное системой
-   (`img.avatar` в style.css), а `display: block` — раскладка
-   экземпляра: снимает базовый зазор у картинки внутри обёртки. */
-.avatar-edit > img { display: block; }
+/* Крупный аватар — свой узел, а не системный `.avatar` старой системы:
+   тот красит букву синим брендом, а у служебного экрана акцент стальной. */
+.profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 6rem;
+  height: 6rem;
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-pill);
+  background: var(--v2-tool-dim, var(--v2-surface-2));
+  color: var(--v2-tool, var(--v2-text-strong));
+  font-family: var(--v2-font-display);
+  font-size: var(--v2-fs-xl);
+  font-weight: var(--v2-fw-num);
+  object-fit: cover;
+}
 /* Кнопка поверх аватара: на телефоне попасть в неё проще, чем искать
-   отдельную кнопку ниже, поэтому дублируем действие в двух местах */
+   отдельную кнопку ниже. Фон НЕПРОЗРАЧНЫЙ (`--v2-surface-pop`): лежит
+   поверх фотографии. Положение `absolute` — предмет подлога проверки 16. */
 .avatar-upload-btn {
   position: absolute; right: -2px; bottom: -2px;
-  width: 32px; height: 32px; border-radius: 50%;
-  background: var(--surface-2); border: 1px solid var(--border-strong);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; color: var(--text-2);
-  transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  display: grid; place-items: center;
+  width: 2rem; height: 2rem;
+  border: 1px solid var(--v2-line-hover);
+  border-radius: var(--v2-r-pill);
+  background: var(--v2-surface-pop);
+  color: var(--v2-text-2);
+  cursor: pointer;
+  transition: border-color var(--v2-dur-fast) var(--v2-ease-out), color var(--v2-dur-fast) var(--v2-ease-out);
 }
 @media (hover: hover) {
-  .avatar-upload-btn:hover { border-color: var(--accent-brand); color: var(--accent-brand); }
+  .avatar-upload-btn:hover { border-color: var(--v2-tool, var(--v2-line-strong)); color: var(--v2-tool, var(--v2-text)); }
 }
-.avatar-upload-btn svg { width: 16px; height: 16px; stroke-width: 1.75; }
+.avatar-upload-btn svg { width: var(--v2-sp-4); height: var(--v2-sp-4); }
 
-
-.avatar-hint { font-size: var(--text-caption); color: var(--text-faint); }
-.avatar-hint.ok  { color: var(--success); }
-.avatar-hint.err { color: var(--error); }
-
-/* ── Часовой пояс ────────────────────────────────────────────────────────── */
-.tz-row { align-items: center; gap: var(--space-4); }
-
-/* ЛЕВАЯ КОЛОНКА РЯДА ЗАБИРАЕТ ОСТАТОК, А НЕ РАСТЁТ ПО ТЕКСТУ.
-
-   BACKLOG №222, блок C.2. `.setting-row` объявлен `flex-wrap: wrap`,
-   и пока левая колонка росла по своему содержимому, ЛЮБОЕ удлинение
-   текста в ней выдавливало правый орган на следующую строку. Живой
-   случай — часовой пояс: разметка приезжает с «Определяется…»,
-   скрипт ставит «Определён автоматически: Europe/Moscow», и выпадашка
-   переезжает из ряда ПОД подпись.
-
-   ЗАМЕР (`py check_shift_causes.py --подстановки`, ширина 2560):
-   от одной этой подстановки сдвигалось 137 элементов, максимум
-   261.0 px, и уезжал именно `DIV.select-wrap`. На 390 дефекта нет
-   по построению — там ряд и так в столбик (медиазапрос ниже).
-
-   ПОЧЕМУ НЕ «ЗАРЕЗЕРВИРОВАТЬ МЕСТО ПОД САМЫЙ ДЛИННЫЙ ВАРИАНТ».
-   Имя пояса приходит от браузера, и длину его мы не знаем: список
-   зон в профиле насчитывает десятки имён разной длины, а определить
-   браузер может и то, которого в нашем списке нет вовсе (§5.0.6).
-   Резерв «на глаз» либо оставит дыру, либо однажды не хватит.
-
-   ТОЛЬКО `.tz-row`, А НЕ ВСЕ РЯДЫ НАСТРОЕК — И ЭТО ОТКАТ ПО ЗАМЕРУ.
-   Класс тут виден («текст в левой колонке меняется» плюс «ряд умеет
-   переносить»), и первая версия правила была написана на
-   `.setting-row` целиком, по §6.0.7. `check_regress` показал цену:
-   у ряда «Обращение» высота уходила 136 -> 97 px (-29 %), а подпись
-   под ним 22 -> 44 (+100 %) — то есть менялся облик ряда, о котором
-   постановки не было, и менялся сильнее порога §6.0.8.
-
-   Дефект при этом закрыт полностью: наблюдатель подстановок
-   (`check_shift_causes --подстановки`) нашёл на `/profile` РОВНО ОДНО
-   место, где текст меняется скриптом, — этот самый пояс. Класс
-   без второго члена — это пока экземпляр; расширить правило
-   на остальные ряды можно будет тогда, когда второй появится,
-   и это будет решение об облике, а не о поясе.
-
-   ОСНОВА ИМЕННО `0`, А НЕ `auto`, И ЭТО ЗАМЕР, А НЕ ВКУС. Первая
-   версия правки писала `flex: 1 1 auto` — и сделала ХУЖЕ: 261 px
-   превратились в 377. При `flex-wrap: wrap` браузер сперва
-   раскладывает элементы по строкам ПО ИХ ОСНОВЕ, и только потом
-   растит; основа `auto` — это ширина содержимого, то есть ровно та
-   величина, которая от текста и зависит. Замер геометрии на 2560:
-   левая колонка 245 -> 622 px (во всю строку), выпадашка уехала
-   с x=1223 на следующую строку, высота ряда 77 -> 143.
-   При основе `0` в строку они попадают ВСЕГДА, и длина текста
-   на раскладку не влияет вовсе.
-
-   ПОЛ У КОЛОНКИ ОБЯЗАТЕЛЕН, И ЭТО ВТОРАЯ ПРАВКА ПО ЗАМЕРУ. Версия
-   с `min-width: 0` чинила 2560 и РАЗНОСИЛА 390: там ряд узкий,
-   колонка с основой 0 сжималась до сотни пикселей, а `overflow-wrap`
-   рвал в ней текст по буквам. Замер `check_font_shift`: профиль
-   на 390 ушёл с 38 сдвинутых элементов и максимума 7.4 px
-   на 144 и 1585.4 px, высота страницы 2715 -> 4241.
-
-   Пол в 12rem это чинит, не возвращая прежнего: пока ряд шире
-   «пол плюс орган», оба стоят в строку и длина текста ни на что
-   не влияет; как только уже — колонка честно переносится на свою
-   строку и занимает её целиком, ровно как до всей правки.
-
-   `overflow-wrap` оставляет длинному слову возможность разорваться
-   внутри колонки вместо того, чтобы толкать соседа. */
-.tz-row > :first-child { flex: 1 1 12rem; min-width: 12rem; }
-.tz-row > :first-child { overflow-wrap: anywhere; }
-
-/* МЕСТО ПОД ПОДПИСЬ ДЕРЖИТСЯ ЗАРАНЕЕ — ВТОРАЯ ПОЛОВИНА ТОЙ ЖЕ ПРАВКИ.
-
-   Одной основы `0` мало. Выпадашка после неё стоит намертво, а сама
-   подпись переходит с одной строки на две — и ряд растёт: замер
-   2560/1920 давал высоту 77 -> 96 и 76 -> 92, то есть 19 и 16 px
-   уезжало всё, что ниже. Меньше прежних 261, но не ноль.
-
-   СКОЛЬКО СТРОК РЕЗЕРВИРОВАТЬ — СЧИТАНО, А НЕ ВЗЯТО НА ГЛАЗ. Строка
-   складывается из «Определён автоматически: » (24 знака) и имени
-   зоны. Самое длинное имя в нашем списке — America/Los_Angeles (19),
-   но браузер вправе назвать и то, которого в списке нет вовсе
-   (§5.0.6): America/Argentina/Buenos_Aires — это 30 знаков, всего 54.
-   При кегле подписи и ширине колонки в 245 px это ровно две строки.
-
-   ДВЕ И РЕЗЕРВИРУЕМ. Пустоты в устоявшемся состоянии от этого
-   не появляется: «Europe/Moscow» тоже занимает две строки. Она
-   видна лишь те миллисекунды, пока стоит «Определяется…», — то есть
-   ровно там, где раньше был прыжок.
-
-   ЕДИНИЦА `em`, А НЕ ПИКСЕЛИ: резерв обязан следовать за кеглем,
-   иначе он разъедется при первой же правке шкалы. `lh` был бы точнее,
-   но межстрочный тут задан рядом, и произведение считается честно.
-
-   НА УЗКОМ ЭКРАНЕ РЕЗЕРВА НЕТ, и это не забывчивость: там ряд
-   в столбик, подпись занимает всю ширину карточки, и «Определяется…»
-   -> «Определён автоматически: Europe/Moscow» помещается в одну
-   строку — замер на 390 даёт «НЕ ДВИНУЛОСЬ». Резерв дал бы там
-   пустую строку под текстом ни за что, и дал бы её на экране,
-   где вертикали и так меньше всего.
-
-   ЧТО ЭТО НЕ ЗАКРЫВАЕТ, И ЭТО НАЗВАНО: на 390 имя зоны длиннее
-   примерно сорока знаков всё-таки переносится, и ряд растёт
-   на 18 px. Замер: Europe/Moscow — 136 px и до, и после;
-   America/Argentina/Buenos_Aires — 154 px. Такое имя браузер
-   назвать вправе (в нашем списке его нет), но выбор тут между
-   редким прыжком и постоянной пустой строкой у всех, и сделан он
-   в пользу второго. Полное решение — не резерв, а строка,
-   которой хватает ширины: это правка облика ряда, и она
-   за владельцем (§6.0.8). */
-.tz-row .setting-sub { line-height: 1.4; min-height: 2.8em; }
-
-.tz-warning { margin-top: var(--space-3); }
-
-/* ── Модалка удаления: что именно будет удалено ──────────────────────────── */
-.delete-preview {
-  background: var(--surface-sunken);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
-  max-height: 220px; overflow-y: auto;
-}
-.delete-preview-title {
-  font-size: var(--text-caption); color: var(--text-faint);
-  text-transform: uppercase; letter-spacing: 0.06em;
-  font-family: var(--font-mono); margin-bottom: var(--space-3);
-}
-.delete-preview ul { list-style: none; margin: 0; padding: 0; }
-.delete-preview li {
-  display: flex; justify-content: space-between; gap: var(--space-3);
-  padding: 6px 0; font-size: var(--text-body-sm); color: var(--text-2);
-  border-bottom: 1px solid var(--border-hairline);
-}
-.delete-preview li:last-child { border-bottom: none; }
-.delete-preview li b { color: var(--text); font-variant-numeric: tabular-nums; }
-
-@media (max-width: 480px) {
-  /* На узком экране селектор во всю ширину, иначе длинные названия зон
-     выдавливают карточку и появляется горизонтальный скролл */
-  /* Ряд здесь КОЛОНКА, и `flex-basis: 0` относился бы к ВЫСОТЕ.
-     Возвращаем содержимому его собственный размер: переносить тут
-     нечего — орган и так под подписью, и от длины текста
-     не зависит ничего. */
-  .tz-row { flex-direction: column; align-items: flex-start; }
-  .tz-row > :first-child { flex: 0 0 auto; width: 100%; }
-  .tz-row .setting-sub { min-height: 0; }
-  .tz-select { max-width: 100%; width: 100%; }
-  .avatar-actions { width: 100%; }
-  .avatar-actions .btn-secondary, .avatar-actions .btn-ghost { flex: 1; }
-  .avatar-hint { width: 100%; }
-  /* Правило про собственный скролл модалки убрано: компонент делает это сам
-     и на всех ширинах — .modal-sh ограничен 92vh, .modal-body прокручивается
-     (style.css). Оставить страничную копию значило бы завести второй источник
-     той же величины: 88vh против 92vh, и расходиться они начали бы молча. */
-  .delete-preview { max-height: 140px; }
-}
-
-/* ── Убрать фото: ссылка, а не равноправная кнопка ───────────────────────── */
+/* Убрать фото — ссылка, а не равноправная кнопка: действие другого веса,
+   чем загрузить. `align-self` обязателен — в колонке поля кнопка иначе
+   растягивалась на всю ширину и стояла посреди карточки. */
 .avatar-remove-link {
-  /* align-self обязателен: в flex-колонке .identity-fields кнопка иначе
-     растягивается на всю ширину, а текст внутри button центрируется —
-     ссылка оказывалась посреди карточки вместо левого края */
   align-self: flex-start;
-  background: none; border: none; padding: 0;
-  margin-top: var(--space-3);
-  font-family: var(--font); font-size: var(--text-caption);
-  color: var(--text-faint); cursor: pointer;
-  text-decoration: underline; text-underline-offset: 3px;
-}
-@media (hover: hover) {
-  .avatar-remove-link:hover { color: var(--error); }
-}
-.avatar-remove-link[hidden] { display: none; }
-
-/* ── Селектор: свой вид вместо нативного ─────────────────────────────────── */
-.select-wrap { position: relative; display: inline-flex; align-items: center; }
-.select-styled {
-  appearance: none; -webkit-appearance: none; -moz-appearance: none;
-  padding-right: 40px;          /* место под свою стрелку */
-  min-width: 300px;
+  margin-top: var(--v2-sp-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--v2-font);
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-text-faint);
+  text-decoration: underline;
+  text-underline-offset: 3px;
   cursor: pointer;
 }
-/* Список вариантов рисует система, но фон ей задать можно —
-   иначе в тёмной теме он белый */
-.select-styled option, .select-styled optgroup { background: var(--surface-2); color: var(--text); }
-.select-arrow {
-  position: absolute; right: 12px;
-  width: 16px; height: 16px;
-  color: var(--text-faint); pointer-events: none;
-}
-@media (hover: hover) {
-  .select-wrap:hover .select-arrow { color: var(--text-2); }
-}
-
-/* ── Кнопки в строках настроек одной ширины ──────────────────────────────
-   Текст у них разной длины («Изменить email» / «Сменить пароль»), и без
-   общей ширины они расходятся по правому краю в вертикальном списке */
-.setting-btn { min-width: 190px; justify-content: center; }
-
-/* ── Панель сохранения ───────────────────────────────────────────────────── */
-.save-bar {
-  display: flex; align-items: center; gap: var(--space-4);
-  margin-top: var(--space-5); padding-top: var(--space-5);
-  border-top: 1px solid var(--border-hairline);
-  flex-wrap: wrap;
-}
-.save-status { font-size: var(--text-caption); color: var(--text-faint); }
-.save-status.dirty { color: var(--warning); }
-.save-status.ok    { color: var(--success); }
-.save-status.err   { color: var(--error); }
-
-@media (max-width: 480px) {
-  .select-wrap { width: 100%; }
-  .select-styled { min-width: 0; width: 100%; }
-  .setting-btn { min-width: 0; width: 100%; }
-  .save-bar { flex-direction: column; align-items: stretch; }
-  .save-bar .btn-primary { width: 100%; }
-  .save-status { text-align: center; }
-}
-
-/* ДОБОР ТАЧ-ТАРГЕТА — СИСТЕМНЫМ КЛАССОМ `.tap-44` В РАЗМЕТКЕ
-   (BACKLOG №151). Здесь стояла копия системного правила с оговоркой
-   «субъект СВОЙ, а не системный», и таких копий по проекту было три
-   плюс системный оригинал — одна группа мерки `py check_dupes.py`
-   на четырёх местах. Теперь субъект системный, и странице писать
-   нечего.
-
-   ОСТАЛЬНЫЕ доборы в этом файле НЕ СВЕДЕНЫ и это не недосмотр: у них
-   ДРУГОЕ тело — `width: 100%` вместо 44 (растянуть по хозяину, добрать
-   только высоту) либо якорь у левого края вместо центра. Мерка их
-   в одну группу и не собирает. */
-
-/* ДОБОР ТАЧ-ТАРГЕТА до 44×44 — невидимой областью, видимый размер прежний.
-   Правило-близнец системного «ДОБОР ТАЧ-ТАРГЕТА» в style.css; здесь оно
-   написано отдельно потому, что субъект СВОЙ, а не системный: правило
-   на системный класс из страничного файла запрещено (§6.0.2). */
+@media (hover: hover) { .avatar-remove-link:hover { color: var(--v2-danger); } }
+.avatar-remove-link[hidden] { display: none; }
+/* Добор области касания до 44 по высоте (свой субъект, §6.0.2): ширину
+   ссылка берёт свою — у неё нет соседей по ряду. */
 @media (pointer: coarse) {
   .avatar-remove-link { position: relative; }
   .avatar-remove-link::after {
     content: ''; position: absolute; left: 50%; top: 50%;
-    width: 100%; height: 44px; transform: translate(-50%, -50%);
+    width: 100%; height: var(--v2-ctl-h-touch); transform: translate(-50%, -50%);
   }
 }
+
+/* Строки состояния: подсказка аватара, сохранение, ошибка удаления. */
+.avatar-hint, .save-status { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+.avatar-hint.ok, .save-status.ok { color: var(--v2-ok); }
+.avatar-hint.err, .save-status.err { color: var(--v2-danger); }
+.save-status.dirty { color: var(--v2-warn); }
+
+/* ── Строки настроек ──────────────────────────────────────────────────── */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--v2-sp-4);
+  padding: var(--v2-sp-3) 0;
+  flex-wrap: wrap;
+}
+.setting-row + .setting-row, .identity-row + .setting-row { border-top: 1px solid var(--v2-line-3); }
+.identity-row + .setting-row { margin-top: var(--v2-sp-4); }
+.setting-label { font-size: var(--v2-fs-sm); font-weight: var(--v2-fw-medium); color: var(--v2-text); }
+.setting-sub { margin-top: var(--v2-sp-1); font-size: var(--v2-fs-xs); line-height: var(--v2-lh-snug); color: var(--v2-text-faint); }
+/* Адрес входа — обычной гарнитурой: моноширинных на экранах v2 нет. */
+.setting-value { margin-top: var(--v2-sp-1); font-size: var(--v2-fs-sm); color: var(--v2-text-2); overflow-wrap: anywhere; }
+/* Кнопки строк одной ширины: подписи разной длины («Изменить email»,
+   «Сменить пароль»), и без общей ширины правый край списка рвётся. */
+.setting-btn { min-width: 12rem; }
+
+/* ЧАСОВОЙ ПОЯС: ЛЕВАЯ КОЛОНКА ЗАБИРАЕТ ОСТАТОК, А НЕ РАСТЁТ ПО ТЕКСТУ
+   (BACKLOG №222, C.2 — разбор и замеры в истории этого файла).
+   Скрипт меняет «Определяется…» на «Определён автоматически: <зона>»,
+   и колонка, растущая по тексту, выдавливала выпадашку на следующую
+   строку: 137 элементов и 261 px сдвига на 2560. Основа `0` (с `auto`
+   стало хуже — 377 px), пол 12rem (без него 390 разносило: 1585 px),
+   место под подпись в две строки держится заранее — `2lh`, то есть
+   ровно две строки при любом межстрочном. */
+.tz-row { gap: var(--v2-sp-4); }
+.tz-row > :first-child { flex: 1 1 12rem; min-width: 12rem; overflow-wrap: anywhere; }
+.tz-row .setting-sub { min-height: 2lh; }
+.tz-select-wrap { min-width: 18.75rem; }
+.tz-warning { margin: var(--v2-sp-3) 0 0; }
+
+/* ── Сохранение ───────────────────────────────────────────────────────── */
+.save-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--v2-sp-4);
+  flex-wrap: wrap;
+  margin-top: var(--v2-sp-5);
+  padding-top: var(--v2-sp-5);
+  border-top: 1px solid var(--v2-line-3);
+}
+
+/* ── Удаление аккаунта ────────────────────────────────────────────────── */
+.profile-danger { border-color: color-mix(in srgb, var(--v2-danger) 32%, transparent); }
+/* РЕЗЕРВ ДВЕ СТРОКИ (BACKLOG №222, блок E, решение владельца): абзац
+   занимает ширину карточки почти впритык, и запасная гарнитура
+   переламывала его надвое — карточка росла на строку, всё ниже уезжало.
+   `2lh` — ровно две строки при любом кегле. */
+.profile-danger .profile-lead { min-height: 2lh; }
+
+/* ── Содержимое окон ──────────────────────────────────────────────────── */
+.profile-modal-text { margin: 0 0 var(--v2-sp-4); }
+.form-col { display: flex; flex-direction: column; gap: var(--v2-sp-3); margin-bottom: var(--v2-sp-5); }
+/* Не `.modal-actions`: префикс `.modal-*` занят компонентом окна. */
+.form-actions { display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); justify-content: flex-end; }
+.delete-error { min-height: 1lh; margin: 0 0 var(--v2-sp-3); }
+
+/* Что будет удалено — вложенная карточка с прокруткой. */
+.delete-preview {
+  max-height: 13.75rem;
+  overflow-y: auto;
+  margin-bottom: var(--v2-sp-4);
+  padding: var(--v2-sp-4);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-md);
+  background: var(--v2-surface-2);
+}
+.delete-preview-title { margin-bottom: var(--v2-sp-2); font-size: var(--v2-fs-xs); font-weight: var(--v2-fw-strong); color: var(--v2-text-faint); }
+.delete-preview ul { margin: 0; padding: 0; list-style: none; }
+.delete-preview li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--v2-sp-3);
+  padding: var(--v2-sp-2) 0;
+  border-bottom: 1px solid var(--v2-line-3);
+  font-size: var(--v2-fs-sm);
+  color: var(--v2-text-2);
+}
+.delete-preview li:last-child { border-bottom: 0; }
+.delete-preview li b { color: var(--v2-text-strong); font-variant-numeric: tabular-nums; }
+
+/* ── Узкий экран ──────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  /* Ряд пояса — КОЛОНКА, и основа `0` относилась бы к высоте: содержимому
+     возвращается свой размер, резерв под подпись снят — во всю ширину
+     карточки она помещается в строку. */
+  .tz-row { flex-direction: column; align-items: stretch; }
+  .tz-row > :first-child { flex: 0 0 auto; width: 100%; min-width: 0; }
+  .tz-row .setting-sub { min-height: 0; }
+  .tz-select-wrap { min-width: 0; width: 100%; }
+  /* Три сегмента обращения на 390 не влезают в карточку по своей ширине:
+     ряд занимает строку целиком, сегменты делят её поровну. */
+  .gender-seg { display: flex; width: 100%; }
+  .gender-seg .v2-seg-btn { flex: 1 1 0; padding: 0 var(--v2-sp-2); }
+  .setting-btn { min-width: 0; width: 100%; }
+  .save-bar { flex-direction: column; align-items: stretch; }
+  .save-status { text-align: center; }
+  .delete-preview { max-height: 8.75rem; }
+}
+/* Незавершённая смена адреса — строка под адресом (половина защиты:
+   смену из угнанной сессии владелец увидит здесь так же, как в письме). */
+.profile-pending { margin: var(--v2-sp-2) 0 0; }

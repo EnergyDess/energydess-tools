@@ -60,6 +60,9 @@ sys.stdout.reconfigure(encoding="utf-8")
     # Страница «Расход» админки: «до» — коммит ПЕРЕД письмом «Расход»
     # (№352), страница на старой системе.
     "admin-usage": {"шаблон": "templates/admin_usage.html", "до": "5a3bd82"},
+    # Профиль аккаунта: «до» — коммит ПЕРЕД блоком 2 письма «Расход-3»
+    # (№352), страница на старой системе.
+    "profile": {"шаблон": "templates/profile.html", "до": "e3a9b34"},
 }
 
 КАРКАС = {"_header.html", "_meta.html", "_page_end.html", "_footer.html",

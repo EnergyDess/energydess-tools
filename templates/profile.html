@@ -13,10 +13,20 @@
 
 {% include '_header.html' %}
 
-<main>
-<div class="profile-wrap">
-  <h1>Профиль</h1>
-  <p class="subtitle">Аккаунт и настройки</p>
+{# ПРОФИЛЬ НА КОМПОНЕНТАХ v2 (№352, «Расход-3», блок 2). Акцент —
+   стальной служебный: класс `.v2-tool-admin` ставит `_header.html`
+   на каркас по адресу, и кнопка сохранения, выбранный сегмент, метка
+   шапки и фокус полей берут его сами — синий HH сюда больше не попадает.
+   Ид, обработчики и адреса запросов прежние: сверка органов «до/после»
+   (проверка 53) спрашивает именно их. #}
+<main class="v2-page-wrap profile-page" id="profile">
+  <header class="v2-page-head is-page is-notabs">
+    <div class="v2-head-text">
+      <span class="v2-head-label">{{ значок('user') }}Аккаунт</span>
+      <h1 class="v2-head-title">Профиль</h1>
+      <p class="v2-head-desc">Аккаунт и настройки</p>
+    </div>
+  </header>
 
   {# Итог смены адреса приезжает параметром — сюда возвращает ссылка
      из письма (GET /change-email/{token}). Причина отказа названа
@@ -56,18 +66,18 @@
      загрузке, и случайный клик применялся сразу. Email и пароль сюда
      НЕ входят: у них своя проверка (подтверждение на новый адрес, ввод
      старого пароля), поэтому они вынесены в отдельную карточку ниже. #}
-  <div class="card card-static profile-card">
-    <h2>Настройки</h2>
-    <p class="profile-hint">Изменения применяются кнопкой внизу</p>
+  <section class="v2-card profile-card" aria-labelledby="pf-settings-h">
+    <h2 class="v2-card-title" id="pf-settings-h">Настройки</h2>
+    <p class="v2-hint profile-lead">Изменения применяются кнопкой внизу</p>
 
     <div class="identity-row">
       {# Фолбэк на букву-инициал: если аватара нет, показывается он #}
       <div class="avatar-edit">
         {% if user.avatar_updated_at %}
         <img src="/avatar/{{ user.id }}?v={{ user.avatar_updated_at.timestamp()|int }}"
-             alt="Аватар" class="avatar avatar-lg" id="avatar-img">
+             alt="Аватар" class="profile-avatar" id="avatar-img">
         {% else %}
-        <span class="avatar avatar-lg" id="avatar-letter">{{ (user.display_name or user.email)[:1]|upper }}</span>
+        <span class="profile-avatar" id="avatar-letter">{{ (user.display_name or user.email)[:1]|upper }}</span>
         {% endif %}
         <label class="avatar-upload-btn tap-44" for="avatar-file" title="Сменить фото">
           {{ значок('camera') }}
@@ -75,13 +85,13 @@
         <input type="file" id="avatar-file" accept="image/png,image/jpeg,image/webp"
                hidden onchange="pickAvatar(this)">
       </div>
-      <div class="identity-fields">
-        <label class="setting-label" for="display-name-input">Отображаемое имя</label>
-        <input type="text" id="display-name-input" class="input"
+      <div class="v2-field identity-fields">
+        <label class="v2-label v2-label-plain" for="display-name-input">Отображаемое имя</label>
+        <input type="text" id="display-name-input" class="v2-input"
                value="{{ user.display_name or '' }}"
                placeholder="{{ user.email.split('@')[0] }}"
                maxlength="30" oninput="markDirty()">
-        <p class="profile-hint profile-hint-under">Так сайт будет к вам обращаться. Если не указать — используется часть email.</p>
+        <p class="v2-hint">Так сайт будет к вам обращаться. Если не указать — используется часть email.</p>
         {# Ссылка, а не кнопка в ряд: убрать фото — действие другого веса,
            чем загрузить. И появляется только когда есть что убирать #}
         <button type="button" class="avatar-remove-link" id="avatar-remove"
@@ -97,11 +107,10 @@
         <div class="setting-label">Часовой пояс</div>
         <div class="setting-sub" id="tz-auto">Определяется…</div>
       </div>
-      {# Свой стиль вместо нативного select: у родного стрелка прижата
-         к краю и отступы несимметричные. На мобильном при этом остаётся
-         родной барабан выбора — элемент тот же, изменено только оформление #}
-      <div class="select-wrap">
-        <select class="input select-styled" id="tz-select" onchange="markDirty()">
+      {# Системный список v2: стрелку рисует обёртка, на мобильном
+         остаётся родной барабан выбора — элемент тот же. #}
+      <div class="v2-select-wrap tz-select-wrap">
+        <select class="v2-select" id="tz-select" onchange="markDirty()" aria-label="Часовой пояс">
           {% for группа, зоны in timezones %}
           <optgroup label="{{ группа }}">
             {% for код, подпись in зоны %}
@@ -110,7 +119,6 @@
           </optgroup>
           {% endfor %}
         </select>
-        {{ значок('chevron-down', 'select-arrow') }}
       </div>
     </div>
     {# ОБРАЩЕНИЕ — ТОЛЬКО ПРО ФОРМУЛИРОВКУ, И ЭТО СКАЗАНО ВСЛУХ
@@ -127,34 +135,36 @@
         <div class="setting-sub">Влияет только на формулировки:
           «Принял», «Приняла» или нейтральное «Списать».</div>
       </div>
-      <div class="segmented" id="gender-seg" role="group"
+      {# Выбор — ДАННЫЕ, а не режим показа: вариант `.v2-seg-tool`,
+         выбранный сегмент берёт акцент экрана (стальной). #}
+      <div class="v2-seg v2-seg-tool gender-seg" id="gender-seg" role="group"
            aria-label="Как обращаться">
-        <button type="button" class="segmented-btn{{ ' active' if not user.gender }}"
+        <button type="button" class="v2-seg-btn{{ ' is-active' if not user.gender }}"
                 data-gender="">Не указан</button>
-        <button type="button" class="segmented-btn{{ ' active' if user.gender == 'm' }}"
+        <button type="button" class="v2-seg-btn{{ ' is-active' if user.gender == 'm' }}"
                 data-gender="m">Мужской</button>
-        <button type="button" class="segmented-btn{{ ' active' if user.gender == 'f' }}"
+        <button type="button" class="v2-seg-btn{{ ' is-active' if user.gender == 'f' }}"
                 data-gender="f">Женский</button>
       </div>
     </div>
 
-    <p class="profile-hint tz-warning">
+    <p class="v2-hint tz-warning">
       После смены пояса записи прошлых дней могут показываться в соседних сутках.
       Данные не теряются — меняется только граница дня.
     </p>
 
     <div class="save-bar">
-      <button type="button" class="btn-primary" id="save-btn" onclick="saveSettings()" disabled>
+      <button type="button" class="v2-btn v2-btn-primary" id="save-btn" onclick="saveSettings()" disabled>
         Сохранить изменения
       </button>
       <span class="save-status" id="save-status"></span>
     </div>
-  </div>
+  </section>
 
   <!-- ── Вход и безопасность ── -->
-  <div class="card card-static profile-card">
-    <h2>Вход и безопасность</h2>
-    <p class="profile-hint">Email и пароль меняются отдельно — каждое действие подтверждается</p>
+  <section class="v2-card profile-card" aria-labelledby="pf-security-h">
+    <h2 class="v2-card-title" id="pf-security-h">Вход и безопасность</h2>
+    <p class="v2-hint profile-lead">Email и пароль меняются отдельно — каждое действие подтверждается</p>
 
     <div class="setting-row">
       <div>
@@ -163,13 +173,13 @@
         {% if user.pending_email %}
         {# Незавершённая заявка видна, и это половина защиты: смену, начатую
            из угнанной сессии, владелец увидит здесь так же, как в письме. #}
-        <div class="profile-hint profile-hint-under">
+        <p class="v2-hint profile-pending">
           Ждёт подтверждения на <b>{{ user.pending_email }}</b> — до перехода
           по ссылке из письма адрес входа остаётся прежним.
-        </div>
+        </p>
         {% endif %}
       </div>
-      <button class="btn-secondary setting-btn" onclick="открыть_модалку('modal-email')">Изменить email</button>
+      <button type="button" class="v2-btn v2-btn-secondary setting-btn" onclick="открыть_модалку('modal-email')">Изменить email</button>
     </div>
 
     <div class="setting-row">
@@ -182,9 +192,9 @@
           {% if pwd_changed %}Последнее изменение: {{ pwd_changed }}{% else %}Пароль ни разу не менялся{% endif %}
         </div>
       </div>
-      <button class="btn-secondary setting-btn" onclick="открыть_модалку('modal-password')">Сменить пароль</button>
+      <button type="button" class="v2-btn v2-btn-secondary setting-btn" onclick="открыть_модалку('modal-password')">Сменить пароль</button>
     </div>
-  </div>
+  </section>
 
   {# Блок уведомлений убран: за тумблерами ничего не стояло, и состояние даже
      не сохранялось между заходами. Живой на вид переключатель, который ничего
@@ -193,12 +203,13 @@
      (BACKLOG №15). #}
 
   <!-- ── Опасная зона ── -->
-  <div class="card card-static profile-card danger-card">
-    <h2>Удаление аккаунта</h2>
-    <p class="profile-hint">Все данные — резюме, досье, письма, программы тренировок — будут удалены безвозвратно.</p>
-    <button class="btn-danger" onclick="openDeleteModal()">Удалить аккаунт</button>
-  </div>
-</div>
+  {# Опасная зона — красная и на v2: рамка карточки и кнопка в цвете
+     опасности, стальной акцент сюда не заходит. #}
+  <section class="v2-card profile-card profile-danger" aria-labelledby="pf-danger-h">
+    <h2 class="v2-card-title" id="pf-danger-h">Удаление аккаунта</h2>
+    <p class="v2-hint profile-lead">Все данные — резюме, досье, письма, программы тренировок — будут удалены безвозвратно.</p>
+    <button type="button" class="v2-btn v2-btn-danger" onclick="openDeleteModal()">Удалить аккаунт</button>
+  </section>
 </main>
 
 {# Футер выводит _page_end.html в конце файла — как на всех страницах.
@@ -213,14 +224,14 @@
 {% import '_modal.html' as m %}
 
 {% call m.modal('modal-email', 'Изменить email') %}
-    <p class="profile-hint">
+    <p class="v2-text profile-modal-text">
       Подтверждение придёт <b>на новый адрес</b>. Пока вы не перейдёте
       по ссылке, вход остаётся на {{ user.email }}.
     </p>
     <div class="form-col">
-      <input type="email" class="input" id="email-new" placeholder="Новый email"
+      <input type="email" class="v2-input" id="email-new" placeholder="Новый email"
              autocomplete="email" oninput="сброситьОшибкуПочты()">
-      <input type="password" class="input" id="email-pass" placeholder="Текущий пароль"
+      <input type="password" class="v2-input" id="email-pass" placeholder="Текущий пароль"
              autocomplete="current-password" oninput="сброситьОшибкуПочты()"
              onkeydown="if(event.key==='Enter')отправитьСменуПочты()">
     </div>
@@ -231,23 +242,23 @@
       {{ значок('mail-check') }}<span id="email-done-text"></span>
     </div>
     <div class="form-actions">
-      <button class="btn-ghost" type="button" data-modal-close>Закрыть</button>
-      <button class="btn-primary" type="button" id="email-send"
+      <button class="v2-btn v2-btn-secondary" type="button" data-modal-close>Закрыть</button>
+      <button class="v2-btn v2-btn-primary" type="button" id="email-send"
               onclick="отправитьСменуПочты()">Отправить подтверждение</button>
     </div>
 {% endcall %}
 
 {% call m.modal('modal-password', 'Сменить пароль') %}
-    <p class="profile-hint">
+    <p class="v2-text profile-modal-text">
       Минимум {{ min_password }} символов. После смены остальные устройства
       выйдут из аккаунта — на этом вы останетесь.
     </p>
     <div class="form-col">
-      <input type="password" class="input" id="pwd-current" placeholder="Текущий пароль"
+      <input type="password" class="v2-input" id="pwd-current" placeholder="Текущий пароль"
              autocomplete="current-password" oninput="сброситьОшибкуПароля()">
-      <input type="password" class="input" id="pwd-new" placeholder="Новый пароль"
+      <input type="password" class="v2-input" id="pwd-new" placeholder="Новый пароль"
              autocomplete="new-password" oninput="сброситьОшибкуПароля()">
-      <input type="password" class="input" id="pwd-new2" placeholder="Новый пароль ещё раз"
+      <input type="password" class="v2-input" id="pwd-new2" placeholder="Новый пароль ещё раз"
              autocomplete="new-password" oninput="сброситьОшибкуПароля()"
              onkeydown="if(event.key==='Enter')отправитьСменуПароля()">
     </div>
@@ -258,31 +269,31 @@
       {{ значок('check-circle') }}<span id="pwd-done-text"></span>
     </div>
     <div class="form-actions">
-      <button class="btn-ghost" type="button" data-modal-close>Закрыть</button>
-      <button class="btn-primary" type="button" id="pwd-send"
+      <button class="v2-btn v2-btn-secondary" type="button" data-modal-close>Закрыть</button>
+      <button class="v2-btn v2-btn-primary" type="button" id="pwd-send"
               onclick="отправитьСменуПароля()">Сменить</button>
     </div>
 {% endcall %}
 
 {% call m.modal('modal-delete', 'Удалить аккаунт') %}
-    <p class="profile-hint">Действие необратимо. Восстановить данные будет нельзя.</p>
+    <p class="v2-text profile-modal-text">Действие необратимо. Восстановить данные будет нельзя.</p>
 
     {# Человек должен видеть цену действия до того, как его подтвердит #}
     <div class="delete-preview" id="delete-preview">
       <div class="delete-preview-title">Будет удалено:</div>
-      <ul id="delete-list"><li class="profile-hint">Считаю…</li></ul>
+      <ul id="delete-list"><li class="v2-hint">Считаю…</li></ul>
     </div>
 
-    <div class="form-col">
-      <label class="setting-label" for="delete-password">Введите пароль для подтверждения</label>
-      <input type="password" class="input" id="delete-password" autocomplete="current-password"
+    <div class="v2-field form-col">
+      <label class="v2-label v2-label-plain" for="delete-password">Введите пароль для подтверждения</label>
+      <input type="password" class="v2-input" id="delete-password" autocomplete="current-password"
              onkeydown="if(event.key==='Enter')confirmDelete()">
     </div>
-    <div id="delete-error" class="name-status err"></div>
+    <p id="delete-error" class="v2-error delete-error" role="alert"></p>
 
     <div class="form-actions">
-      <button class="btn-ghost" type="button" data-modal-close>Отмена</button>
-      <button class="btn-danger" id="delete-btn" onclick="confirmDelete()">Удалить навсегда</button>
+      <button class="v2-btn v2-btn-secondary" type="button" data-modal-close>Отмена</button>
+      <button class="v2-btn v2-btn-danger" type="button" id="delete-btn" onclick="confirmDelete()">Удалить навсегда</button>
     </div>
 {% endcall %}
 
@@ -427,7 +438,7 @@ const статусСохранения = document.getElementById('save-status');
 function естьИзменения() {
   const имя = document.getElementById('display-name-input').value.trim();
   const пояс = document.getElementById('tz-select').value;
-  const пол = (document.querySelector('#gender-seg .segmented-btn.active')
+  const пол = (document.querySelector('#gender-seg .v2-seg-btn.is-active')
                || {}).dataset?.gender ?? '';
   return имя !== исходно.имя || пояс !== исходно.пояс || пол !== исходно.пол
          || выбранныйФайл !== null || аватарУдалить;
@@ -469,16 +480,16 @@ if (авто && [...tzSelect.options].some(o => o.value === авто)) tzSelect.
 
 // ── Обращение (пол) ──
 const полРяд = document.getElementById('gender-seg');
-исходно.пол = (полРяд.querySelector('.segmented-btn.active') || {}).dataset?.gender ?? '';
+исходно.пол = (полРяд.querySelector('.v2-seg-btn.is-active') || {}).dataset?.gender ?? '';
 полРяд.addEventListener('click', (e) => {
   const б = e.target.closest('[data-gender]');
   if (!б) return;
-  полРяд.querySelectorAll('.segmented-btn').forEach(x => x.classList.remove('active'));
-  б.classList.add('active');
+  полРяд.querySelectorAll('.v2-seg-btn').forEach(x => x.classList.remove('is-active'));
+  б.classList.add('is-active');
   markDirty();
 });
 function выбранныйПол() {
-  const а = полРяд.querySelector('.segmented-btn.active');
+  const а = полРяд.querySelector('.v2-seg-btn.is-active');
   return а ? а.dataset.gender : '';
 }
 
@@ -502,7 +513,7 @@ async function pickAvatar(input) {
     const буква = document.getElementById('avatar-letter');
     img = document.createElement('img');
     img.id = 'avatar-img';
-    img.className = 'avatar avatar-lg';
+    img.className = 'profile-avatar';
     img.alt = 'Аватар';
     буква.replaceWith(img);
   }
@@ -520,7 +531,7 @@ function markAvatarRemoved() {
   if (img) {
     const буква = document.createElement('span');
     буква.id = 'avatar-letter';
-    буква.className = 'avatar avatar-lg';
+    буква.className = 'profile-avatar';
     буква.textContent = {{ ((user.display_name or user.email)[:1]|upper)|tojson }};
     img.replaceWith(буква);
   }
@@ -633,18 +644,18 @@ async function openDeleteModal() {
   document.getElementById('delete-password').value = '';
   document.getElementById('delete-error').textContent = '';
   const список = document.getElementById('delete-list');
-  список.innerHTML = '<li class="profile-hint">Считаю…</li>';
+  список.innerHTML = '<li class="v2-hint">Считаю…</li>';
   try {
     const r = await fetch('/api/delete-account/preview');
     const данные = await r.json();
     if (!данные.items || !данные.items.length) {
-      список.innerHTML = '<li class="profile-hint">Кроме самого аккаунта — ничего, данных пока нет.</li>';
+      список.innerHTML = '<li class="v2-hint">Кроме самого аккаунта — ничего, данных пока нет.</li>';
       return;
     }
     список.innerHTML = данные.items
       .map(п => `<li><span>${п['название']}</span><b>${п['сколько']}</b></li>`).join('');
   } catch {
-    список.innerHTML = '<li class="profile-hint">Не удалось посчитать — данные всё равно будут удалены.</li>';
+    список.innerHTML = '<li class="v2-hint">Не удалось посчитать — данные всё равно будут удалены.</li>';
   }
 }
 
