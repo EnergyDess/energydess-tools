@@ -102,19 +102,21 @@ function getFiltered() {
   });
 }
 
-// Числа в чипах — ЖИВЫЕ: одобрил видео, и «Не проверено» стало меньше
-// на единицу в ту же секунду. Первый расчёт пришёл с сервера (разметка),
-// дальше пересчитывается тут по тем же данным, что рисуют карточки, —
-// второго источника чисел нет.
+// ЧИСЛА В ЧИПАХ — С СЕРВЕРА, А НЕ ИЗ ПАМЯТИ ВКЛАДКИ (письмо «Админка», 1.1).
+// Здесь стоял пересчёт по `EXERCISES`, то есть ВТОРОЙ источник тех же
+// чисел рядом с полосой, которую считает база. `СЧЁТ` приходит из того
+// же запроса, что полоса и число в шапке (`_упр_проверка`): в разметке
+// первого кадра и в ответе каждой оценки. Одобрил видео — «Не проверено»
+// меньше на единицу в ту же секунду, потому что так ответила база.
+let СЧЁТ = {{ прогресс.счёт | tojson }};
+
 function renderChips() {
-  const counts = {all: EXERCISES.length, unchecked: 0, approved: 0, wrong: 0, no_video: 0};
-  EXERCISES.forEach(e => { counts[e.video_status] = (counts[e.video_status] || 0) + 1; });
   document.querySelectorAll('[data-pick]').forEach(b => {
     const n = b.querySelector('.admin-chip-n');
-    if (n && counts[b.dataset.pick] !== undefined) n.textContent = counts[b.dataset.pick];
+    if (n && СЧЁТ[b.dataset.pick] !== undefined) n.textContent = СЧЁТ[b.dataset.pick];
   });
   админЧип(state.pick);
-  return counts;
+  return СЧЁТ;
 }
 
 function cardHtml(e) {
@@ -301,6 +303,7 @@ document.getElementById('admin-q').addEventListener('input', function() {
 // с первым молча (§6.0.7).
 function прогресс(п) {
   if (!п) return;
+  if (п.счёт) СЧЁТ = п.счёт;
   document.getElementById('progress-done').textContent = п.готово;
   document.getElementById('progress-total').textContent = п.всего;
   document.getElementById('progress-sub').textContent = п.состав;

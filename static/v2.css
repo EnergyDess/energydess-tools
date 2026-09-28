@@ -774,6 +774,15 @@ a.v2-tab { text-decoration: none; }
    на служебном экране тумблер красился цветом HH. Здесь включённое —
    акцент экрана (`--v2-tool`), у служебных экранов стальной.
 
+   ВИД ПО МАКЕТУ ВЛАДЕЛЬЦА (письмо «Админка», 1.2): включённый ЗАЛИТ
+   акцентом, бегунок справа и тёмный; выключенный — КОНТУР без заливки,
+   бегунок слева. Здесь стояло «включённый — рамка и бегунок цвета
+   инструмента, дорожка `--v2-tool-dim`», и состояния различались почти
+   одним оттенком: замер пикселями — заливка включённого к фону 1.27,
+   к заливке выключенного 1.11, рамка выключенного к фону 1.74. Контур —
+   `--v2-line-strong`, «граница, обязанная дать 3.0». Меряет
+   `check_admin_toggles.py` (проверка 72).
+
    ГЕОМЕТРИЯ ПРЕЖНЯЯ — 40×22, бегунок 16 — и объявлена ЗДЕСЬ ЦЕЛИКОМ,
    без класса старой системы рядом: `.toggle .track` из `style.css`
    подключён ПОСЛЕ этого файла и при равном весе перебил бы цвета
@@ -795,9 +804,9 @@ a.v2-tab { text-decoration: none; }
 .v2-toggle-track {
   position: absolute;
   inset: 0;
-  border: 1px solid var(--v2-line-1);
+  border: 1px solid var(--v2-line-strong);
   border-radius: var(--v2-r-pill);
-  background: var(--v2-surface-hover);
+  background: none;
   transition: background-color var(--v2-dur-fast) var(--v2-ease-out),
               border-color var(--v2-dur-fast) var(--v2-ease-out);
 }
@@ -815,11 +824,11 @@ a.v2-tab { text-decoration: none; }
 }
 .v2-toggle input:checked + .v2-toggle-track {
   border-color: var(--v2-tool, var(--v2-hh));
-  background: var(--v2-tool-dim, var(--v2-surface-hover));
+  background: var(--v2-tool, var(--v2-hh));
 }
 .v2-toggle input:checked + .v2-toggle-track::after {
   transform: translateX(18px);
-  background: var(--v2-tool, var(--v2-hh));
+  background: var(--v2-ink-on-tool);
 }
 .v2-toggle input:focus-visible + .v2-toggle-track { outline: 2px solid var(--v2-ring-neutral); outline-offset: 2px; }
 @media (pointer: coarse) {

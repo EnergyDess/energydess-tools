@@ -149,6 +149,12 @@ def _п(*группы):
     "стенд:70": (["templates/admin_usage.html", "static/usage.css", "static/admin.css",
                   "static/v2.css", "main.py", "balance_check.py", "database.py"],
                  "полный", True),
+    "стенд:71": (["templates/admin_exercises.html", "templates/_admin_head.html",
+                  "static/admin.css", "main.py", "database.py"],
+                 "полный", False),
+    "стенд:72": (["templates/admin_users.html", "static/admin.css", "static/v2.css",
+                  "main.py"],
+                 "полный", False),
     # отдельные скрипты и тесты
     "скрипт:check_hh_owner.py":    (_п(ВЁРСТКА, ["main.py"]), "полный", False),
     "скрипт:check_v2_showcase.py": (_п(V2, ["main.py"]), "полный", True),
