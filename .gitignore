@@ -108,3 +108,8 @@ landing_stats.json
 .start_checks.json
 .start_checks_stand.log
 start_checks_bypass.log
+# Подробности прогона — строка на проверку («Расход-3», 1.6). Лежал в git
+# и делал дерево грязным после КАЖДОГО прогона, а закоммитить его было
+# нельзя: пуш в main запускает повторную выкатку. Замок сверяет отметку
+# `.start_checks.json`, этот файл ему не нужен.
+.start_checks_last.txt

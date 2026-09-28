@@ -37,17 +37,26 @@
 {%- endmacro -%}
 {%- macro число(n) -%}{{ '{:,}'.format(n | int).replace(',', ' ') }}{%- endmacro -%}
 {%- macro доля(x) -%}{{ '%.0f' % x if x is not none else '—' }}{%- endmacro -%}
-{#- Тренд по дням в плитке (1.4): путь собран сервером, пустой — места
-    столько же, а линии нет (одна точка тренда не показывает). -#}
+{#- Тренд по дням в плитке (1.4): путь собран сервером. Точек меньше
+    `тренд_точек` — линии нет, вместо неё «мало данных» («Расход-3», 1.1):
+    огрызок по двум точкам читался как настоящий тренд. Место под линию
+    то же, и плитки ряда стоят вровень. -#}
 {%- macro линия(т, подпись, ид) -%}
-<div class="usage-spark-box"><svg class="usage-spark" id="{{ ид }}" viewBox="0 0 {{ т.w }} 20" preserveAspectRatio="none" role="img"
-     aria-label="{{ подпись if т.d else 'Тренда нет: меньше двух дней с данными' }}"
-     data-empty="{{ 'false' if т.d else 'true' }}">{% if т.d %}<path d="{{ т.d }}"/>{% endif %}</svg></div>
+<div class="usage-spark-box">
+{%- if т.d -%}
+<svg class="usage-spark" id="{{ ид }}" viewBox="0 0 {{ т.w }} 20" preserveAspectRatio="none" role="img"
+     aria-label="{{ подпись }}" data-empty="false" data-points="{{ т.точек }}"><path d="{{ т.d }}"/></svg>
+{%- else -%}
+<p class="usage-spark-few" id="{{ ид }}" data-empty="true" data-points="{{ т.точек }}"
+   title="{{ подпись }}: дней с данными {{ т.точек }}, линия рисуется с {{ тренд_точек }}">мало данных</p>
+{%- endif -%}
+</div>
 {%- endmacro -%}
 {#- Изменение к прошлому отрезку ТОЙ ЖЕ длины (1.3): текст и тон решает
-    сервер; прошлого отрезка нет в учёте — слова, а не выдуманный процент. -#}
+    сервер. «Нет данных за прошлый период» в плитке НЕ ПИШЕТСЯ — одной
+    строкой под фильтрами («Расход-3», 1.5). -#}
 {%- macro дельта(д, ид) -%}
-{%- if д.текст -%}
+{%- if д.текст and not д.нет_данных -%}
 <p class="usage-delta{{ ' is-' ~ д.тон if д.тон }}" id="{{ ид }}" data-delta="{{ д.знач if д.знач is not none else '' }}"
    title="Прошлый отрезок той же длины: {{ сводка.сравнение.отрезок }}">{{ д.текст }}</p>
 {%- endif -%}
@@ -105,18 +114,23 @@
      `from`/`to`; ПРЕСЕТ СИЛЬНЕЕ своего периода (форма везёт обе пары,
      нажатая кнопка побеждает — решает сервер). Смена списка отправляет
      форму с кнопкой ВЫБРАННОГО пресета — иначе период терялся бы. #}
+  {# ОДНА ВЫСОТА СТРОКИ («Расход-3», 1.3): пресеты, «Свой период», список,
+     стрелки и группировка — органной высоты (40, на сенсорном 44). Сегменты —
+     вариант `.v2-seg-flush`: без внутреннего поля, иначе они выше соседей
+     на 10 px. «Свой период» — отдельной кнопкой: он открывает календарь,
+     а не выбирает пресет, и без него пресеты на 390 встают в одну строку. #}
   <div class="usage-filters" id="usage-filters">
     <form class="usage-form" method="get" action="/admin/usage" id="usage-form">
-      <div class="v2-seg usage-periods" role="group" aria-label="Период">
+      <div class="v2-seg v2-seg-flush usage-periods" role="group" aria-label="Период">
         {% for код, подпись, _ in периоды %}
         <button type="submit" class="v2-seg-btn {{ 'is-active' if код == сводка.код }}"
                 name="p" value="{{ код }}" data-period="{{ код }}"
                 aria-pressed="{{ 'true' if код == сводка.код else 'false' }}">{{ подпись }}</button>
         {% endfor %}
-        <button type="button" class="v2-seg-btn usage-custom {{ 'is-active' if сводка.код == 'custom' }}"
-                id="usage-custom" data-period="custom" aria-controls="usage-cal" aria-expanded="false"
-                aria-pressed="{{ 'true' if сводка.код == 'custom' else 'false' }}">{{ значок('calendar-clock') }}Свой период</button>
       </div>
+      <button type="button" class="v2-btn v2-btn-secondary usage-custom {{ 'is-active' if сводка.код == 'custom' }}"
+              id="usage-custom" data-period="custom" aria-controls="usage-cal" aria-expanded="false"
+              aria-pressed="{{ 'true' if сводка.код == 'custom' else 'false' }}">{{ значок('calendar-clock') }}Свой период</button>
       {% if сводка.код == 'custom' %}
       <input type="hidden" name="from" value="{{ сводка.с_iso }}">
       <input type="hidden" name="to" value="{{ сводка.по_iso }}">
@@ -159,7 +173,7 @@
        сильнее, пока столбиков не больше предела (там кнопка выключена
        и говорит почему). Ссылки, а не кнопки формы: у формы свой пресет,
        и два «g» в одном запросе спорили бы, какой взять. #}
-    <div class="v2-seg usage-grouping" role="group" aria-label="Столбики графика">
+    <div class="v2-seg v2-seg-flush usage-grouping" role="group" aria-label="Столбики графика">
       <a class="v2-seg-btn usage-seg-link {{ 'is-active' if not сводка.группировка_выбор }}" data-group="auto"
          href="{{ сводка.группировка_авто_адрес }}" aria-current="{{ 'true' if not сводка.группировка_выбор else 'false' }}"
          title="Сама: до 45 дней — по дням, до года — по неделям, дальше — по месяцам">Авто</a>
@@ -174,6 +188,10 @@
       {% endfor %}
     </div>
     <p class="v2-hint usage-since" id="usage-since">Учёт ведётся с {{ сводка.учёт_с }}. Потраченное раньше видно только в кабинете OpenRouter.</p>
+    {# ОДИН РАЗ, А НЕ В КАЖДОЙ ПЛИТКЕ («Расход-3», 1.5): для чего сравнения
+       нет — перечислено; нет ни для чего — только отрезок. #}
+    {% set нет = сводка.сравнение.нет_данных %}
+    {% if нет %}<p class="v2-hint usage-since usage-prev-none" id="usage-prev-none" data-missing="{{ нет | length }}">Нет данных за прошлый период ({{ сводка.сравнение.отрезок }}){% if нет | length < 3 %} для {{ нет | join(' и ') }}{% endif %} — изменение к нему не показано.</p>{% endif %}
     {% if сводка.замечание %}<p class="usage-note usage-warn" id="usage-period-note" role="status">{{ сводка.замечание }}</p>{% endif %}
   </div>
 
@@ -252,7 +270,14 @@
     <div class="v2-tile usage-tile" id="usage-cache-tile">
       <span class="v2-tile-label">Экономия на кэше</span>
       {% set к = сводка.кэш %}
-      <span class="v2-tile-num" id="usage-cache" data-saved="{{ к.сэкономлено }}">{{ деньги(к.сэкономлено) if к.строк else 'кэша не было' }}</span>
+      {# ЭКОНОМИЯ БЫВАЕТ ОТРИЦАТЕЛЬНОЙ («Расход-3», 1.4): запись в кэш
+         стоит 1.25 входа, и пока из кэша не читают, он в минус. Такое
+         число — цветом предупреждения и с причиной, а не как достижение.
+         Формула прежняя (`_расход_кэш`). #}
+      {% set в_минус = к.строк and к.сэкономлено < 0 %}
+      <span class="v2-tile-num{{ ' usage-minus' if в_минус }}" id="usage-cache" data-saved="{{ к.сэкономлено }}"
+            data-minus="{{ 'true' if в_минус else 'false' }}">{{ деньги(к.сэкономлено) if к.строк else 'кэша не было' }}</span>
+      {% if в_минус %}<p class="usage-note usage-warn" id="usage-cache-minus">Кэш пока в минус: запись в кэш оплачена, а доля чтения из кэша — {{ '%.0f' % (сводка.доля_кэша or 0) }}&nbsp;%.</p>{% endif %}
       {% if сводка.доля_кэша is not none %}<p class="usage-note" id="usage-cache-share" data-share="{{ сводка.доля_кэша }}">Доля кэша — {{ '%.0f' % сводка.доля_кэша }}&nbsp;% промпта</p>{% endif %}
       {{ дельта(ср.доля_кэша, 'usage-cache-delta') }}
       <p class="usage-note">{% if к.строк %}Без кэша было бы {{ деньги(к.без_кэша) }}{% if к.не_посчитано %} · не посчитано строк: {{ к.не_посчитано }} (модель не Claude){% endif %}{% else %}Вызовов с кэшем промпта за период нет.{% endif %}</p>
@@ -690,10 +715,19 @@
         tip.append(р);
       });
       tip.hidden = false;
+      // СБОКУ ОТ КОЛОНКИ, А НЕ НАД НЕЙ («Расход-3», 1.2): подсказка
+      // по центру закрывала верх подсвеченной колонки, а её тень ложилась
+      // на столбик и ТЕМНИЛА его — замер: бирюзовый 6,182,212 под
+      // наведением становился 4,141,164. Справа, если влезает; иначе
+      // слева; иначе — по центру, зажатая краями области (узкий экран).
       const п = поле.getBoundingClientRect(), б = ст.getBoundingClientRect();
       const ш = tip.offsetWidth;
-      let x = б.left - п.left + б.width / 2 - ш / 2;
-      x = Math.max(0, Math.min(x, п.width - ш));
+      const зазор = parseFloat(getComputedStyle(поле).getPropertyValue('--v2-sp-2')) || 8;
+      let x = б.right - п.left + зазор;
+      if (x + ш > п.width) {
+        x = б.left - п.left - зазор - ш;
+        if (x < 0) x = Math.max(0, Math.min(б.left - п.left + б.width / 2 - ш / 2, п.width - ш));
+      }
       tip.style.left = x + 'px';
       поле.querySelectorAll('.usage-bar.is-on').forEach(э => э.classList.remove('is-on'));
       ст.classList.add('is-on');

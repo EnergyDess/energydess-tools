@@ -487,8 +487,31 @@ def test_прошлого_отрезка_нет_в_учёте_процент_н�
     for ключ in ("сумма", "средняя", "доля_кэша"):
         assert ср[ключ]["знач"] is None
     assert ср["сумма"]["текст"] == "нет данных за прошлый период"
+    assert ср["нет_данных"] == ["расхода", "средней операции", "доли кэша"]
     html = к["админ"].get("/admin/usage?p=7").text
-    assert "нет данных за прошлый период" in html and 'data-prev-sum=""' in html
+    assert 'data-prev-sum=""' in html
+    # «Расход-3», 1.5: ОДИН раз строкой под фильтрами, в плитках — ни разу
+    assert html.lower().count("нет данных за прошлый период") == 1
+    строка = re.search(r'<p [^>]*id="usage-prev-none"[^>]*>(.*?)</p>', html, re.S)
+    assert строка and "Нет данных за прошлый период" in строка.group(1)
+    плитки = html.split('<section class="usage-tiles"', 1)[1].split("</section>", 1)[0]
+    assert "нет данных за прошлый период" not in плитки.lower()
+
+
+def test_нет_данных_только_для_части_плиток_названо_поимённо(стенд):
+    """Прошлый отрезок в учёте, но операций с ценой в нём нет: расход был
+    нулевым («в прошлом периоде расхода не было» — в плитке), средней
+    операции нет — она названа под фильтрами, а не в своей плитке."""
+    db, к = стенд
+    _строка(db, created_at=_мск(0), cost=0.3)
+    _строка(db, created_at=_мск(10), cost=None, cost_missing=True)
+    _строка(db, created_at=_мск(20), cost=0.1)        # учёт старше прошлого отрезка
+    ср = main.расход_сводка(db, "7")["сравнение"]
+    assert ср["покрыт"] and "средней операции" in ср["нет_данных"]
+    html = к["админ"].get("/admin/usage?p=7").text
+    строка = re.search(r'<p [^>]*id="usage-prev-none"[^>]*>(.*?)</p>', html, re.S)
+    assert строка and "для средней операции" in строка.group(1)
+    assert html.lower().count("нет данных за прошлый период") == 1
 
 
 def test_остаток_ниже_порога_число_цветом_предупреждения(стенд, monkeypatch):
@@ -513,10 +536,30 @@ def test_тренд_по_дням_в_плитках(стенд):
     assert т["сумма"]["d"].startswith("M0 ") and т["сумма"]["w"] == 6
     assert т["остаток"]["d"] == ""               # истории остатка нет — линии нет
     # день без операций у средней — разрыв, а не ноль
-    assert main._расход_линия([1.0, None, 3.0])["d"].count("M") == 2
+    assert main._расход_линия([1.0, 2.0, None, 3.0, 4.0, 5.0])["d"].count("M") == 2
     html = к["админ"].get("/admin/usage?p=7").text
     assert 'id="usage-spark-spent"' in html
     assert 'id="usage-spark-balance"' in html and 'data-empty="true"' in html
+
+
+def test_тренд_рисуется_только_с_пяти_точек(стенд):
+    """«Расход-3», 1.1: по двум-четырём точкам линия — огрызок; вместо неё
+    «мало данных». С пяти — линия, и вершин в ней ровно столько, сколько
+    точек."""
+    db, к = стенд
+    assert main.РАСХОД_ТРЕНД_ТОЧЕК == 5
+    for n in (0, 1, 2, 4):
+        л = main._расход_линия([1.0 + i for i in range(n)] + [None])
+        assert л["d"] == "" and л["точек"] == n
+    л = main._расход_линия([1.0, 2.0, 3.0, 4.0, 5.0])
+    assert л["точек"] == 5 and len(re.findall(r"[ML]", л["d"])) == 5
+    _засеять_сравнение(db)
+    сегодня = datetime.now(МСК).date()
+    html = к["админ"].get("/admin/usage?from=%s&to=%s"
+                          % (сегодня - timedelta(days=1), сегодня)).text
+    assert 'id="usage-spark-spent" data-empty="true" data-points="2"' in html
+    плитки = html.split('<section class="usage-tiles"', 1)[1].split("</section>", 1)[0]
+    assert плитки.count("мало данных") == 4 and "<path" not in плитки
 
 
 # ── «РАСХОД-2», БЛОК 2: ГРАФИК ПО МАКЕТУ, ТОКЕНЫ, ТАБЛИЦЫ ─────────────────
