@@ -474,6 +474,10 @@ def _стенд(база, заглушка):
     порт = _порт()
     env = dict(os.environ)
     env.update({"DB_PATH": база, "PYTHONIOENCODING": "utf-8", **окружение(заглушка)})
+    # ключ подписи — тот же, что у процесса пробы, выпускающего токен
+    # (разбор — `check_usage_balance._стенд`, прогон 36486120393)
+    import auth
+    env["SECRET_KEY"] = auth.SECRET_KEY
     env.pop("FLY_APP_NAME", None)
     журнал = open(os.path.join(os.path.dirname(база), "stand_%d.log" % порт), "w",
                   encoding="utf-8", errors="replace")

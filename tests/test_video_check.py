@@ -80,8 +80,13 @@ def test_метки_модели_не_растят_проверено_и_оче�
     assert (п["модель"]["к_разбору"], п["модель"]["размечено"]) == (4, 3)
 
 
-def test_замена_ролика_стирает_метку(db, monkeypatch):
+def test_замена_ролика_стирает_метку(monkeypatch):
     """Метка была про прежний ролик — после замены её быть не должно."""
+    движок = create_engine("sqlite://", connect_args={"check_same_thread": False},
+                           poolclass=StaticPool)
+    database.Base.metadata.create_all(движок)
+    Сессия = sessionmaker(bind=движок)
+    db = Сессия()
     _упр(db, "a", "unchecked", "yt1", "mismatch")
     db.commit()
     e = db.get(database.Exercise, "a")
@@ -94,6 +99,12 @@ def test_замена_ролика_стирает_метку(db, monkeypatch):
     db.add(админ)
     db.commit()
     main.app.dependency_overrides[main.get_db] = lambda: db
+    # ГЕЙТ ПОДТВЕРЖДЁННОЙ ПОЧТЫ — middleware (§5.3): зависимостей он не видит
+    # и берёт пользователя через `SessionLocal`. Без подмены тест зависел
+    # от общей базы: в CI там засеянный стенд, где пользователь с тем же
+    # номером не подтверждён, — гейт ответил 428 (прогон 36486120393),
+    # локально прошло. Тот же случай, что у `test_admin_usage`
+    monkeypatch.setattr(main, "SessionLocal", Сессия)
     try:
         к = TestClient(main.app)
         к.cookies.set("access_token", create_token(админ.id))
@@ -105,6 +116,7 @@ def test_замена_ролика_стирает_метку(db, monkeypatch):
     db.expire_all()
     e = db.get(database.Exercise, "a")
     assert (e.youtube_id, e.model_verdict, e.model_reason) == ("dQw4w9WgXcQ", None, None)
+    db.close()
 
 
 # ── 3. Выгрузка справочника: метки модели — осознанно вне снимка ──────
