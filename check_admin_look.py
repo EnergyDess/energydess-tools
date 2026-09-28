@@ -58,10 +58,24 @@ sys.stdout.reconfigure(encoding="utf-8")
 #  · ВКЛАДКИ ВЫРОВНЕНЫ С СОДЕРЖИМЫМ. Первая вкладка обязана начинаться
 #    там же, где первая колонка таблицы: ряд, съехавший к краю экрана
 #    относительно того, чем он управляет, читается как чужой элемент.
+# ── «Расход-3» (№352, блок 3): ОЖИДАНИЯ ПЕРЕСМОТРЕНЫ (§6.0.3) ─────────
+#   ПРЕЖНЯЯ ФОРМУЛИРОВКА: полоса во всю ширину СТРАНИЦЫ; вкладка
+#     не ниже 56 px и кегль не мельче 16 (крупнее прежних 51.5 / 15.94).
+#   НОВАЯ: полоса во всю ширину ШАПКИ САЙТА (шаг «полоса уже шапки» ниже
+#     остаётся); вкладка — системная `.v2-tab`: не ниже 44 px (её высота
+#     и сенсорный минимум), кегль не мельче 15.
+#   ПОЧЕМУ ПРЕЖНЯЯ НЕГОДНА: 1) решение владельца в письме «Расход-3» —
+#     ряд разделов админки собран ОБЩИМ компонентом вкладок v2, как у всех
+#     инструментов; крупная вкладка задачи 150 этим отменена; 2) страница
+#     в оболочке v2, слева полоса иконок: шапка сайта и полоса начинаются
+#     после неё (x=248 на 1920 и 2560), и «доля страницы» 87–90% печаталась
+#     нарушением ещё до письма (замер старой мерой на стенде «до»: 2 из 2
+#     — именно эти), при полосе, равной шапке до пикселя.
+#   ОТРИЦАТЕЛЬНЫЙ КОНТРОЛЬ НА НОВОЙ: `--контроль`, четыре подлога.
 ОЖИДАНИЯ = {
-    "доля_экрана": 1.0,
-    "высота_вкладки_мин": 56.0,       # было 51.5 на 2560
-    "кегль_вкладки_мин": 16.0,        # было 15.94
+    "доля_экрана": 1.0,               # от ширины ШАПКИ сайта
+    "высота_вкладки_мин": 44.0,       # `.v2-tab`; было 56 (задача 150)
+    "кегль_вкладки_мин": 15.0,        # `.v2-tab`; было 16
     "разбег_с_контентом": 1.0,        # px
 }
 
@@ -76,7 +90,7 @@ sys.stdout.reconfigure(encoding="utf-8")
   // про исправную панель.
   const бар = document.querySelector('.admin-nav-bar');
   const ряд = document.querySelector('.admin-tabs');
-  const вкладки = [...document.querySelectorAll('.admin-tabs .tab-btn')];
+  const вкладки = [...document.querySelectorAll('.admin-tabs .v2-tab')];
   const первая = вкладки[0];
   const обёртка = document.querySelector('.admin-wrap');
   const заголовок = document.querySelector('.admin-wrap h1');
@@ -130,7 +144,7 @@ sys.stdout.reconfigure(encoding="utf-8")
   addEventListener('DOMContentLoaded', () => {
     const ряд = document.querySelector('.admin-tabs');
     if (!ряд) return;
-    const образец = ряд.querySelector('.tab-btn');
+    const образец = ряд.querySelector('.v2-tab');
     ['Письма', 'Обращения', 'Платежи', 'Журнал'].slice(0, %d).forEach(имя => {
       const a = образец.cloneNode(true);
       a.classList.remove('active');
@@ -168,9 +182,9 @@ def _проверить(о):
     плохо = []
     if not о.get("бар"):
         return ["панели `.admin-nav-bar` в дереве НЕТ"]
-    доля = о["бар"]["w"] / о["экран"]
+    доля = о["бар"]["w"] / (о.get("шапка") or о["экран"])
     if доля < ОЖИДАНИЯ["доля_экрана"] - 0.001:
-        плохо.append("полоса занимает %.1f%% ширины страницы, а не всю"
+        плохо.append("полоса занимает %.1f%% ширины шапки сайта, а не всю"
                      % (доля * 100))
     if о.get("шапка") and abs(о["бар"]["w"] - о["шапка"]) > 1:
         плохо.append("полоса уже шапки сайта: %.1f против %.1f"
@@ -260,7 +274,7 @@ addEventListener('DOMContentLoaded', () => {
 });""",
     "вкладка мелкая": """
 addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.admin-tabs .tab-btn').forEach(в => {
+  document.querySelectorAll('.admin-tabs .v2-tab').forEach(в => {
     в.style.padding = '2px 6px'; в.style.fontSize = '11px';
   });
 });""",
@@ -301,8 +315,8 @@ addEventListener('DOMContentLoaded', () => {
         "цвет подложки панели"),
     "вкладка мелкая": (
         """() => {
-          const в = document.querySelector('.admin-tabs .tab-btn');
-          if (!в) return 'вкладок .tab-btn нет';
+          const в = document.querySelector('.admin-tabs .v2-tab');
+          if (!в) return 'вкладок .v2-tab нет';
           const r = в.getBoundingClientRect();
           return 'вкладка: ' + Math.round(r.width) + 'x' + Math.round(r.height)
                + ' кегль ' + getComputedStyle(в).fontSize;

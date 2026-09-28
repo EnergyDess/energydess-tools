@@ -30,7 +30,7 @@
   <td>{{ с.lvl if с.lvl is not none else '—' }}</td>
   <td>{{ состав_словами(с) }}</td>
   <td>{{ с.marks or 0 }}</td>
-  <td><button class="btn-secondary ens-a-edit" type="button"
+  <td><button class="v2-btn v2-btn-secondary v2-btn-sm ens-a-edit" type="button"
               onclick="открыть('{{ с.id }}')">Править</button></td>
 </tr>
 {% endfor %}

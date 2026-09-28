@@ -26,10 +26,10 @@
    МЕСТ ДВАДЦАТЬ ШЕСТЬ, И ОНИ НЕ ДОБАВЛЯЮТСЯ ОТСЮДА. Решение владельца:
    фиксированные места вместо свободного списка, чтобы замена файла
    не двигала раскладку. Панель меняет только содержимое места. #}
-<div class="admin-wrap page-fill">
+<main class="v2-page-wrap page-fill admin-wrap">
 
   {{ ah.head('Главная', 'Ролики и картинки новой главной — по местам, заданным раскладкой',
-             отбор, 'Поиск') }}
+             отбор, 'Поиск', icon='layout-grid') }}
 
   {% for с in sections %}
   <section class="landing-section" data-section-block="{{ с.id }}">
@@ -39,7 +39,7 @@
     </div>
   </section>
   {% endfor %}
-  <p class="empty-state admin-empty" id="empty" hidden>Под текущий отбор не попало ни одно место</p>
+  <div class="v2-empty admin-empty" id="empty" hidden><p class="v2-empty-text">Под текущий отбор не попало ни одно место</p></div>
 
   {% call ah.foot() %}
   <p class="data-note admin-foot-side" id="volume">
@@ -48,13 +48,13 @@
     из <b class="admin-foot-n">{{ сводка.disk_total }}</b>
   </p>
   {% endcall %}
-</div>
+</main>
 
 {% call m.modal('landing-del', 'Убрать файл?', icon='alert-triangle', icon_tone='warning') %}
   <p id="landing-del-text"></p>
   <div class="landing-del-actions">
-    <button class="btn-secondary" type="button" data-modal-close>Отмена</button>
-    <button class="btn-danger" type="button" id="landing-del-go">Убрать</button>
+    <button class="v2-btn v2-btn-secondary" type="button" data-modal-close>Отмена</button>
+    <button class="v2-btn v2-btn-danger" type="button" id="landing-del-go">Убрать</button>
   </div>
 {% endcall %}
 
@@ -121,7 +121,7 @@ function заменитьКарточку(slot, html, сводка) {
     ЗАПОЛНЕНО = сводка.filled;
     document.getElementById('vol-used').textContent = сводка.used;
     document.getElementById('vol-free').textContent = сводка.free;
-    const чип = document.querySelector('[data-pick="empty"] .chip-n');
+    const чип = document.querySelector('[data-pick="empty"] .admin-chip-n');
     if (чип) чип.textContent = ВСЕГО - сводка.filled;
   }
   отобрать();
@@ -201,8 +201,7 @@ document.getElementById('landing-del-go').addEventListener('click', async () => 
 });
 
 document.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => {
-  document.querySelectorAll('[data-pick]').forEach(x => x.classList.remove('active'));
-  b.classList.add('active');
+  админЧип(b.dataset.pick);
   state.pick = b.dataset.pick;
   отобрать();
 }));

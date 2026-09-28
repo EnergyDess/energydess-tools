@@ -586,7 +586,7 @@ def _панель_на_пустых(sync_playwright, BytesIO, Image):
             шаг("B: места карточки 03 в панели не показаны",
                 len(все) == ОЖИДАНИЕ_В_ПАНЕЛИ and СНЯТЫ_С_ПАНЕЛИ.isdisjoint(все),
                 "карточек %d, из снятых показаны: %s" % (len(все), sorted(СНЯТЫ_С_ПАНЕЛИ & set(все)) or "нет"))
-            полоса = стр.evaluate("() => !!document.querySelector('.admin-wrap .admin-bar .chip')")
+            полоса = стр.evaluate("() => !!document.querySelector('.admin-wrap .admin-bar .v2-chip')")
             подвал = стр.evaluate("() => { const п = document.querySelector('.admin-foot #note');"
                                   " return п ? п.textContent.trim().length : 0; }")
             шаг("D: полоса отбора из общего макроса", полоса, "чипы в .admin-bar")

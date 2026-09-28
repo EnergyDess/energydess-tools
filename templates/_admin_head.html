@@ -28,12 +28,50 @@
    там нечего; параметр снят бы вместе со слоем, а слой нужен
    следующему полю. Потребителей у него сейчас ноль, и это состояние,
    а не долг. #}
-{% macro head(title, subtitle, отбор, placeholder, narrow='') %}
-<h1>{{ title }}</h1>
-<p class="subtitle">{{ subtitle }}</p>
+{# НА КОМПОНЕНТАХ v2 (№352, «Расход-3», блок 3): шапка страницы —
+   `.v2-page-head` той же формы, что у «Расхода» (метка «Админ · раздел»
+   значком раздела, заголовок обычным регистром, одна строка описания),
+   чипы — `.v2-chip`, поиск — `.v2-input`. Акцент стальной: класс
+   `.v2-tool-admin` ставит `_header.html` на каркас по адресу.
+
+   `icon` — значок раздела, тот же, что у его вкладки в ряду разделов
+   (`_admin_subnav.html`): раздел опознаётся одним знаком в обоих местах.
+   `метка` — слово раздела в метке шапки; по умолчанию заголовок строчными,
+   имя собственное («Enshrouded») раздел передаёт сам.
+   `выбран` — чип, выбранный при загрузке; по умолчанию первый. Выбор
+   рисует СЕРВЕР: поставь его скрипт после загрузки — первый кадр
+   показывал бы другой отбор и перерисовывался на глазах (§6.0.15).
+   `прогресс` — полоса «сделано N из M» над рядом отбора (словарь
+   `готово`, `всего`, `доля`, `подпись`, `состав`). Числа и подпись
+   собирает сервер из базы; раздел, которому полоса не нужна, её
+   не передаёт. Потребитель — «Упражнения» («Расход-3», 3.2). #}
+{% macro head(title, subtitle, отбор, placeholder, narrow='', icon='shield', метка=none, выбран=none, прогресс=none) %}
+<header class="v2-page-head is-page is-notabs admin-head">
+  <div class="v2-head-text">
+    <span class="v2-head-label">{{ значок(icon) }}Админ · {{ метка or (title | lower) }}</span>
+    <h1 class="v2-head-title">{{ title }}</h1>
+    <p class="v2-head-desc">{{ subtitle }}</p>
+  </div>
+</header>
+
+{% if прогресс %}
+<section class="v2-card admin-progress" id="admin-progress" aria-labelledby="progress-title">
+  <div class="admin-progress-row">
+    <p class="admin-progress-title" id="progress-title">{{ прогресс.подпись }}
+      <b class="admin-foot-n" id="progress-done">{{ прогресс.готово }}</b> из
+      <b class="admin-foot-n" id="progress-total">{{ прогресс.всего }}</b></p>
+    <p class="v2-hint admin-progress-sub" id="progress-sub">{{ прогресс.состав }}</p>
+  </div>
+  <div class="v2-progress admin-progress-bar" id="progress-bar" role="progressbar"
+       aria-labelledby="progress-title" aria-valuemin="0"
+       aria-valuemax="{{ прогресс.всего }}" aria-valuenow="{{ прогресс.готово }}">
+    <div class="v2-progress-fill" id="progress-fill" style="--v2-value: {{ прогресс.доля }}%"></div>
+  </div>
+</section>
+{% endif %}
 
 <div class="admin-bar">
-  <div class="chip-row" role="group" aria-label="Отбор">
+  <div class="v2-chips chip-row" role="group" aria-label="Отбор">
     {% for ч in отбор %}
     {# `tap-44` — согласие на добор области касания до 44×44 невидимым
        слоем (design-system.md §2.7). Здесь чип ОРГАН УПРАВЛЕНИЯ: им
@@ -42,8 +80,18 @@
        Всем чипам сразу это не даётся намеренно — в дневнике чипами метят
        приём пищи, они стоят плотным рядом, и невидимая область там
        крала бы соседей. #}
-    <button type="button" class="chip tap-44 {{ 'active' if loop.first }}" data-pick="{{ ч.id }}">
-      {{ ч.label }}<span class="chip-n">{{ ч.n }}</span>
+    {#- Выбранный чип — `active`: по этому признаку слой `ribbon-active.js`
+        держит выбранный чип в поле зрения ленты на узком экране (задача
+        326), а v2 понимает оба имени состояния. Счётчик — `.v2-chip-count` со своим `.admin-chip-n`:
+        системный счётчик моноширинный, а на экранах v2 моноширинных нет
+        (тот же приём, что `.ens-tab-cnt` у Enshrouded). По `.admin-chip-n`
+        счётчик находят скрипты разделов и проход админки; старое имя
+        `chip-n` снято — правило `style.css` перебивало цвет счётчика v2
+        (проверка 64, «Расход-3»). -#}
+    {%- set вкл = (ч.id == выбран) if выбран else loop.first %}
+    <button type="button" class="v2-chip tap-44{{ ' active' if вкл }}" data-pick="{{ ч.id }}"
+            aria-pressed="{{ 'true' if вкл else 'false' }}">
+      {{ ч.label }}<span class="v2-chip-count admin-chip-n">{{ ч.n }}</span>
     </button>
     {% endfor %}
   </div>
@@ -51,14 +99,26 @@
   <div class="admin-bar-tools">
     {% if caller is defined %}{{ caller() }}{% endif %}
     <div class="search-wrap">
-      <svg class="admin-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" class="search-input-admin" id="admin-q"
-             placeholder="{{ placeholder }}"
+      {{ значок('search', 'admin-search-icon') }}
+      <input type="text" class="v2-input search-input-admin" id="admin-q"
+             placeholder="{{ placeholder }}" aria-label="{{ placeholder }}"
              {% if narrow %}data-narrow-hint="{{ narrow }}"{% endif %}>
     </div>
   </div>
 </div>
+
+{#- ОДНО МЕСТО ПЕРЕКЛЮЧЕНИЯ ВЫБОРА. Пять разделов переключали класс
+    своими строками, и каждая копия знала имя состояния. Теперь его знает
+    одна функция рядом с разметкой чипа: сменится имя — сменится здесь. -#}
+<script>
+function админЧип(выбран) {
+  document.querySelectorAll('[data-pick]').forEach(ч => {
+    const вкл = ч.dataset.pick === выбран;
+    ч.classList.toggle('active', вкл);
+    ч.setAttribute('aria-pressed', вкл ? 'true' : 'false');
+  });
+}
+</script>
 {% endmacro %}
 
 
@@ -97,8 +157,9 @@
   {% if caller is defined %}{{ caller() }}{% endif %}
 </div>
 <script>
-/* ЧИСЛА МОНОШИРИННЫМ (`.admin-foot-n`): они меняются при каждом отборе,
-   и в пропорциональной гарнитуре строка от этого дёргается. */
+/* ЧИСЛА — `.admin-foot-n`: они меняются при каждом отборе, и строка
+   не должна дёргаться. Цифры табличные (`tabular-nums`), а не
+   моноширинный шрифт: моноширинных на экранах v2 нет («Расход-3»). */
 function нотаЧисло(n) {
   const s = document.createElement('b');
   s.className = 'admin-foot-n'; s.textContent = n; return s;

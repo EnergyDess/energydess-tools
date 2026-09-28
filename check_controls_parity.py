@@ -63,6 +63,15 @@ sys.stdout.reconfigure(encoding="utf-8")
     # Профиль аккаунта: «до» — коммит ПЕРЕД блоком 2 письма «Расход-3»
     # (№352), страница на старой системе.
     "profile": {"шаблон": "templates/profile.html", "до": "e3a9b34"},
+    # Пять разделов админки: «до» — тот же коммит перед блоками 2–3
+    # письма «Расход-3», разделы на старой системе. Органы шапки раздела
+    # (чипы, поиск) живут в макросе `_admin_head.html` и сверкой шаблона
+    # не видны — граница названа задачей 362.
+    "admin-users": {"шаблон": "templates/admin_users.html", "до": "e3a9b34"},
+    "admin-products": {"шаблон": "templates/admin_products.html", "до": "e3a9b34"},
+    "admin-exercises": {"шаблон": "templates/admin_exercises.html", "до": "e3a9b34"},
+    "admin-enshrouded": {"шаблон": "templates/admin_enshrouded.html", "до": "e3a9b34"},
+    "admin-landing": {"шаблон": "templates/admin_landing.html", "до": "e3a9b34"},
 }
 
 КАРКАС = {"_header.html", "_meta.html", "_page_end.html", "_footer.html",

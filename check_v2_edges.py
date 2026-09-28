@@ -73,6 +73,7 @@ except Exception:
     ("/admin/exercises", "админ · упражнения", None),
     ("/admin/enshrouded", "админ · enshrouded", None),
     ("/admin/usage", "админ · расход", None),
+    ("/admin/landing", "админ · главная", None),
 ]
 
 ЗАМЕР = r"""() => {

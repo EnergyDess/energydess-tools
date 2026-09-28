@@ -3869,6 +3869,34 @@ async def admin_products_page(request: Request, user=Depends(get_current_user), 
                                                "отбор": отбор})
 
 
+# ── ПРОГРЕСС ПРОВЕРКИ ВИДЕО УПРАЖНЕНИЙ («Расход-3», блок 3, 3.2) ─────────
+# «Проверено N из M»: N — всё, что вышло из «не проверено» (одобрено,
+# неверное и без видео — у последних проверять нечего, и подпись это
+# называет), M — весь справочник. Так полоса доходит до конца ровно
+# тогда, когда непроверенных не осталось.
+#
+# СЧИТАЕТ БАЗА, одним запросом, и ОДИН помощник на оба места: разметку
+# первого кадра и ответ каждой оценки. Посчитай второе браузер по своему
+# списку — число на экране говорило бы о памяти вкладки, а не о базе,
+# а подпись собиралась бы вторым построителем (§6.0.7). Пустой статус —
+# «не проверено»: так же его читает страница (`e.video_status or …`).
+УПР_СТАТУСЫ = ("unchecked", "approved", "wrong", "no_video")
+
+
+def _упр_проверка(db) -> dict:
+    статус = func.coalesce(Exercise.video_status, "unchecked")
+    счёт = dict.fromkeys(УПР_СТАТУСЫ, 0)
+    for с, n in db.query(статус, func.count()).group_by(статус).all():
+        счёт[с] = счёт.get(с, 0) + n
+    всего = sum(счёт.values())
+    готово = всего - счёт["unchecked"]
+    return {"готово": готово, "всего": всего,
+            "доля": round(100 * готово / всего, 1) if всего else 0,
+            "подпись": "Проверено",
+            "состав": "одобрено %d · неверное %d · без видео %d — проверять нечего"
+                      % (счёт["approved"], счёт["wrong"], счёт["no_video"])}
+
+
 @app.get("/admin/exercises")
 async def admin_exercises_page(request: Request, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not _admin_guard(user):
@@ -3913,11 +3941,22 @@ async def admin_exercises_page(request: Request, user=Depends(get_current_user),
              {"id": "wrong",     "label": "Неверное",      "n": status_counts["wrong"]},
              {"id": "no_video",  "label": "Без видео",     "n": status_counts["no_video"]}]
 
+    # ОТБОР ПРИ ЗАГРУЗКЕ — «Не проверено» («Расход-3», 3.2): это и есть
+    # работа на экране, и оценённая карточка уходит из списка сама.
+    # Ссылка `?status=…` сильнее умолчания — её адрес был у ссылки-действия
+    # удалённого дашборда (BACKLOG №147), и чужие закладки не ломаются.
+    # Выбор решает СЕРВЕР: выбранный чип нарисован в первом кадре.
+    выбран = request.query_params.get("status")
+    if выбран not in УПР_СТАТУСЫ:
+        выбран = "unchecked"
+
     return templates.TemplateResponse(request=request, name="admin_exercises.html",
                                       context={"user": user, "exercises": exercises_data,
                                                "total": len(exercises_data),
                                                "status_counts": status_counts,
                                                "отбор": отбор,
+                                               "выбран": выбран,
+                                               "прогресс": _упр_проверка(db),
                                                "muscle_groups": MUSCLE_GROUP_LABELS_RU,
                                                "equipment_labels": EXERCISE_EQUIPMENT_LABELS_RU})
 
@@ -4025,7 +4064,8 @@ async def admin_exercise_set_status(exercise_id: str, request: Request, user=Dep
 
     ex.video_status = status
     db.commit()
-    return JSONResponse({"ok": True, "video_status": ex.video_status})
+    return JSONResponse({"ok": True, "video_status": ex.video_status,
+                         "проверка": _упр_проверка(db)})
 
 
 @app.post("/admin/exercises/{exercise_id}/replace")
@@ -4047,7 +4087,8 @@ async def admin_exercise_replace_video(exercise_id: str, request: Request, user=
     ex.video_status = "unchecked"
     ex.video_replaced_at = datetime.utcnow()
     db.commit()
-    return JSONResponse({"ok": True, "youtube_id": ex.youtube_id, "video_status": ex.video_status})
+    return JSONResponse({"ok": True, "youtube_id": ex.youtube_id, "video_status": ex.video_status,
+                         "проверка": _упр_проверка(db)})
 
 
 # ── Enshrouded Трекер ─────────────────────────────────────────────────────────

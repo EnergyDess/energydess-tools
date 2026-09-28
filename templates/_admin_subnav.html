@@ -16,25 +16,31 @@
    `.ens-bar` в разделе Enshrouded, и число `top: 64px` там же:
    это высота липкой шапки сайта (design-system.md §4.1).
 
-   СИСТЕМНЫЙ `.tab-bar` + `.tab-btn`, а не свои пилюли — 2026-08-23,
-   BACKLOG №148. Прежние `.admin-subnav a` были копией вкладки раздела
-   под своим именем: тот же смысл («верхний уровень навигации ВНУТРИ
-   инструмента»), своя реализация на 30 строк, без значков и вдвое выше
-   (43.5px против 40 у системной).
+   ОБЩИЙ КОМПОНЕНТ ВКЛАДОК v2 (№352, «Расход-3», блок 3): `.v2-tabs` +
+   `.v2-tab`. До этого стояли системные `.tab-bar` + `.tab-btn` старой
+   системы (BACKLOG №148 свёл к ним прежние пилюли `.admin-subnav a`),
+   и выбранная вкладка подчёркивалась синим бренда. Теперь подчёркивание
+   — цветом акцента экрана, у служебных экранов он стальной
+   (`.v2-tool-admin` ставит `_header.html` по адресу).
+
+   Выбор объявлен двумя признаками: `is-active` для вида
+   и `aria-current="page"` — по нему слой `ribbon-active.js` держит
+   выбранную вкладку в поле зрения ленты на узком экране (задача 326).
+   Имена значков ЛИТЕРАЛАМИ: сборщик набора (`build_icons.py`,
+   проверка 25) собирает их из кода, и имя из переменной он не увидел бы.
 
    Значок у каждого раздела обязателен — им ряд и опознаётся боковым
-   зрением; имена Lucide, не эмодзи (design-system.md §8). Lucide
-   дорисовывает `_page_end.html`.
+   зрением; имена Lucide, не эмодзи (design-system.md §8).
 
    «Дашборд» из ряда УДАЛЁН вместе с самим экраном (BACKLOG №147):
    он показывал три числа, дублирующие эти же вкладки. #}
 <div class="admin-nav-bar">
-  <nav class="tab-bar tab-bar-lg admin-tabs" aria-label="Разделы админки">
-    <a href="/admin/users"      class="tab-btn {{ 'active' if active == 'users' }}">{{ значок('users') }}Пользователи</a>
-    <a href="/admin/products"   class="tab-btn {{ 'active' if active == 'products' }}">{{ значок('apple') }}Продукты</a>
-    <a href="/admin/exercises"  class="tab-btn {{ 'active' if active == 'exercises' }}">{{ значок('dumbbell') }}Упражнения</a>
-    <a href="/admin/enshrouded" class="tab-btn {{ 'active' if active == 'enshrouded' }}">{{ значок('shield') }}Enshrouded</a>
-    <a href="/admin/landing"    class="tab-btn {{ 'active' if active == 'landing' }}">{{ значок('layout-grid') }}Главная</a>
-    <a href="/admin/usage"      class="tab-btn {{ 'active' if active == 'usage' }}">{{ значок('bar-chart-3') }}Расход</a>
-</nav>
+  <nav class="v2-tabs admin-tabs" aria-label="Разделы админки">
+    <a href="/admin/users"      class="v2-tab{{ ' is-active' if active == 'users' }}"{{ ' aria-current="page"' | safe if active == 'users' }}>{{ значок('users') }}Пользователи</a>
+    <a href="/admin/products"   class="v2-tab{{ ' is-active' if active == 'products' }}"{{ ' aria-current="page"' | safe if active == 'products' }}>{{ значок('apple') }}Продукты</a>
+    <a href="/admin/exercises"  class="v2-tab{{ ' is-active' if active == 'exercises' }}"{{ ' aria-current="page"' | safe if active == 'exercises' }}>{{ значок('dumbbell') }}Упражнения</a>
+    <a href="/admin/enshrouded" class="v2-tab{{ ' is-active' if active == 'enshrouded' }}"{{ ' aria-current="page"' | safe if active == 'enshrouded' }}>{{ значок('shield') }}Enshrouded</a>
+    <a href="/admin/landing"    class="v2-tab{{ ' is-active' if active == 'landing' }}"{{ ' aria-current="page"' | safe if active == 'landing' }}>{{ значок('layout-grid') }}Главная</a>
+    <a href="/admin/usage"      class="v2-tab{{ ' is-active' if active == 'usage' }}"{{ ' aria-current="page"' | safe if active == 'usage' }}>{{ значок('bar-chart-3') }}Расход</a>
+  </nav>
 </div>

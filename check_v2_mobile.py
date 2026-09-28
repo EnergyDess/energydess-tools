@@ -869,6 +869,18 @@ def _правки(стр, ш):
                 bool(в) and в["подложка"] == в["ступень"],
                 "подложка %s, ступень %s" % ((в["подложка"], в["ступень"]) if в else ("—",) * 2),
                 собрано=1 if в and в["подложка"] else 0)
+            т = _тень_вкладок(стр)
+            if т:
+                _доказ.setdefault("тень_слоёв", []).append(т["слоёв"])
+                н, к = т["начало"], т["конец"]
+                ок = ((not н["тень"] and not к["тень"]) if т["влезает"]
+                      else (bool(н["тень"]) and not н["режет"] and not к["режет"]))
+            шаг("%d %s: тень вкладок — только когда не влезают, не на тексте" % (ш, имя),
+                bool(т) and ок,
+                "%s; в начале тень %s, на тексте %s; в конце тень %s, на тексте %s" % (
+                    "влезают" if т["влезает"] else "не влезают", т["начало"]["тень"],
+                    т["начало"]["режет"] or "нет", т["конец"]["тень"], т["конец"]["режет"] or "нет")
+                if т else "ряда вкладок нет", собрано=1 if т else 0)
         elif имя == "аптечка · ассистент":
             р = стр.evaluate(РАМКИ_ПРАВКИ)
             эт, м = [р.get("скрепка"), р.get("штрихкод")], р.get("микрофон")
@@ -974,6 +986,87 @@ def проверка(подлог=None, печать=True, только=None):
     return плохих, пропусков
 
 
+# ── «Расход-3», 3.3: ТЕНЬ У РЯДА ВКЛАДОК «ОБЩЕЙ АПТЕЧКИ» ──────────────
+# Правило владельца: вкладки влезают — тени нет; не влезают — тень
+# у видимого края, пока справа есть что листать, и ни на тексте целиком
+# видимой вкладки. Тень ищется ПИКСЕЛЕМ, а не по объявлению: снимок
+# ряда как есть против снимка с погашенными фоновыми картинками
+# и масками ряда. Различающиеся столбцы и есть тень, как бы её
+# ни нарисовали (фон, псевдоэлемент, маска) — объявлению тут верить
+# нельзя: прежнее правило писало «у ряда, помещающегося целиком, она
+# не видна», а лежало на последней вкладке всегда.
+ГЕОМ_ВКЛАДОК = r"""() => { const р = document.querySelector('#apt-circle .apt-circle-tabs');
+  if (!р) return null; const b = р.getBoundingClientRect();
+  const вк = [...р.querySelectorAll('[data-ctab]')].map(в => { const rg = document.createRange();
+    rg.selectNodeContents(в); const rr = [...rg.getClientRects()].filter(x => x.width > 0);
+    return {имя: в.textContent.trim().replace(/\s+/g, ' ').slice(0, 16),
+            л: Math.min(...rr.map(x => x.left)) - b.left + р.scrollLeft,
+            п: Math.max(...rr.map(x => x.right)) - b.left + р.scrollLeft}; });
+  return {ш: р.clientWidth, sw: р.scrollWidth, sl: р.scrollLeft, w: b.width, вкладки: вк,
+          слоёв: getComputedStyle(р).backgroundImage.split('gradient(').length - 1}; }"""
+ГАСИТЬ_ТЕНЬ = """() => { const s = document.createElement('style'); s.id = 'zz-no-shade';
+  s.textContent = '#apt-circle .apt-circle-tabsrow, #apt-circle .apt-circle-tabsrow *,'
+    + ' #apt-circle .apt-circle-tabsrow::before, #apt-circle .apt-circle-tabsrow::after,'
+    + ' #apt-circle .apt-circle-tabsrow *::before, #apt-circle .apt-circle-tabsrow *::after'
+    + ' { background-image: none !important; -webkit-mask-image: none !important; mask-image: none !important; }';
+  document.head.appendChild(s); }"""
+# «Расход-3» №3: вернуть прежнюю тень — одна заливка с `local`, то есть
+# у конца содержимого, поверх последней вкладки
+ПОДЛОГ_ТЕНЬ = """addEventListener('DOMContentLoaded', () => { const s = document.createElement('style');
+  s.textContent = '@media (max-width: 560px) { #apt-circle .apt-circle-tabs { background: linear-gradient(to left,'
+    + ' var(--v2-surface-pop), transparent) right / 24px 100% no-repeat local !important; } }';
+  document.head.appendChild(s); });"""
+
+
+def _тень_вкладок(стр):
+    """Где тень ряда: в начале прокрутки и в конце. Отдаёт полосы тени
+    (x от левого края ряда) и имена ЦЕЛИКОМ видимых вкладок, на текст
+    которых она легла; частично видимую вкладку режет край ряда, а не тень."""
+    import io as _io
+    from PIL import Image, ImageChops
+    ряд = стр.locator("#apt-circle .apt-circle-tabs").first
+    if not ряд.count():
+        return None
+    итог = {}
+    for где in ("начало", "конец"):
+        стр.evaluate("(к) => { const р = document.querySelector('#apt-circle .apt-circle-tabs');"
+                     " р.scrollLeft = к ? р.scrollWidth : 0; }", где == "конец")
+        стр.wait_for_timeout(200)
+        г = стр.evaluate(ГЕОМ_ВКЛАДОК)
+        а = Image.open(_io.BytesIO(ряд.screenshot(animations="disabled"))).convert("RGB")
+        стр.evaluate(ГАСИТЬ_ТЕНЬ)
+        стр.wait_for_timeout(100)
+        б = Image.open(_io.BytesIO(ряд.screenshot(animations="disabled"))).convert("RGB")
+        стр.evaluate("() => document.getElementById('zz-no-shade').remove()")
+        р = ImageChops.difference(а.crop((0, 0) + б.size), б.crop((0, 0) + а.size))
+        к = а.width / г["w"]
+        столбцы = [x / к for x in range(р.width)
+                   if max(e[1] for e in р.crop((x, 0, x + 1, р.height)).getextrema()) > ПОРОГ_КАНАЛА]
+        тень = []
+        for x in столбцы:
+            if тень and x - тень[-1][1] <= 1.5:
+                тень[-1][1] = x + 1 / к
+            else:
+                тень.append([x, x + 1 / к])
+        тень = [(round(x0, 1), round(x1, 1)) for x0, x1 in тень]
+        видно = [(в["имя"], в["л"] - г["sl"], в["п"] - г["sl"]) for в in г["вкладки"]]
+        целиком = [в for в in видно if в[1] >= -0.5 and в[2] <= г["ш"] + 0.5]
+        режет = sorted({в[0] for в in целиком for т0, т1 in тень if в[1] < т1 and т0 < в[2]})
+        итог[где] = {"тень": тень, "режет": режет}
+        итог["влезает"] = г["sw"] <= г["ш"] + 1
+        итог["слоёв"] = г["слоёв"]
+    стр.evaluate("() => { document.querySelector('#apt-circle .apt-circle-tabs').scrollLeft = 0; }")
+    return итог
+
+
+def _доказ_тени():
+    """Подлог №3 «Расход-3» состоялся, если у ряда на всех ширинах ОДИН
+    слой фоновой заливки — прежнее правило; у нынешнего их три.
+    Отдельный замер, а не вердикт шага."""
+    в = _доказ.get("тень_слоёв") or []
+    return bool(в) and all(x == 1 for x in в), "слоёв фона у ряда по ширинам: %s" % в
+
+
 def _доказ_категорий():
     """Подлог №3 состоялся, если `flex-wrap` категорий на всех ширинах
     стал `nowrap` — независимо от вердикта шага."""
@@ -1008,7 +1101,10 @@ def контроль(только=None):
              "непрозрачна"),
             # доказательство — `flex-wrap` категорий, а не упавший шаг
             ("мобильный-2 №3: категории формы лентой", ПОДЛОГ_КАТЕГОРИИ, "правки",
-             "категории рядами", _доказ_категорий)):
+             "категории рядами", _доказ_категорий),
+            # доказательство — число слоёв фона у ряда, отдельный замер
+            ("«Расход-3» №3: тень поверх последней вкладки", ПОДЛОГ_ТЕНЬ, "правки",
+             "тень вкладок", _доказ_тени)):
         if только and раздел != только:
             continue
         print("\nПОДЛОГ %s" % имя)

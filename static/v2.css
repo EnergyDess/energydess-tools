@@ -559,6 +559,15 @@
    регистрация, подтверждение почты) не трогаются ни на знак. */
 .v2-shell .modal-sh { background: var(--v2-surface-pop); }
 .v2-shell .hint-btn { background: var(--v2-surface-2); }
+/* МЕСТО МЕДИА ГЛАВНОЙ ВНУТРИ ОБОЛОЧКИ v2 (`.media-slot`, design-system.md
+   §2.31) — «Расход-3», блок 3. Потребителей два: гостевая главная
+   (вне оболочки) и панель `/admin/landing` (внутри). Внутри заглушка
+   брала `--surface-2` старой палитры (тёмно-синюю), пунктир старой
+   рамкой и подпись вида моноширинным — находки проверки 60 на панели.
+   Гостевая главная не трогается: правило ограничено оболочкой. */
+.v2-shell .media-slot { background: var(--v2-surface-2); border-radius: var(--v2-r-md); }
+.v2-shell .media-slot-empty { border-color: var(--v2-line-strong); color: var(--v2-text-2); }
+.v2-shell .media-slot-kind { font-family: var(--v2-font); color: var(--v2-text-faint); }
 .v2-shell .v2-input:focus, .v2-shell .v2-textarea:focus,
 .v2-shell .v2-select:focus {
   border-color: var(--v2-tool, var(--v2-hh));
@@ -718,6 +727,10 @@
   transition: color var(--v2-dur-fast) var(--v2-ease-out);
 }
 .v2-tab svg { width: var(--v2-icon); height: var(--v2-icon); }
+/* Вкладка-ССЫЛКА (ряд разделов админки, «Расход-3») без подчёркивания:
+   у ссылки его ставит браузер, и в шапке его снимает правило
+   `.v2-page-head .v2-tab`, а вне шапки снимать было некому. */
+a.v2-tab { text-decoration: none; }
 .v2-tab.is-active, .v2-tab.active { border-bottom-color: var(--v2-tool, var(--v2-hh)); color: var(--v2-text-strong); }
 .v2-tab:focus-visible { outline: 2px solid var(--v2-ring-neutral); outline-offset: -2px; }
 @media (hover: hover) { .v2-tab:hover:not(.is-active) { color: var(--v2-text); } }
@@ -740,15 +753,86 @@
   cursor: pointer;
   transition: border-color var(--v2-dur-fast) var(--v2-ease-out);
 }
-.v2-chip.is-active {
+/* СОСТОЯНИЕ — `.is-active` либо `.active`, как у вкладок и сегментов
+   («Расход-3»): по `.active` слой `ribbon-active.js` держит выбранный
+   чип в поле зрения ленты на узком экране (задача 326), и чипам отбора
+   админки менять имя состояния ради вида было бы поломкой ленты. */
+.v2-chip.is-active, .v2-chip.active {
   border-color: var(--v2-tool-line, var(--v2-line-hover));
   background: var(--v2-tool-dim, var(--v2-surface-hover));
   color: var(--v2-text-strong);
 }
 .v2-chip-count { font-family: var(--v2-font-mono); font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
-.v2-chip.is-active .v2-chip-count { color: var(--v2-text); }
+.v2-chip.is-active .v2-chip-count, .v2-chip.active .v2-chip-count { color: var(--v2-text); }
 .v2-chip:focus-visible { outline: 2px solid var(--v2-ring-neutral); outline-offset: 0; }
-@media (hover: hover) { .v2-chip:hover:not(.is-active) { border-color: var(--v2-line-hover); color: var(--v2-text); } }
+@media (hover: hover) { .v2-chip:hover:not(.is-active):not(.active) { border-color: var(--v2-line-hover); color: var(--v2-text); } }
+
+/* ТУМБЛЕР (№352, «Расход-3», блок 3) — включить или выключить одно
+   свойство строки: доступ человека к инструменту в админке. Прежде
+   админка брала системный `.toggle` старой системы: дорожка —
+   `--surface-3` старой палитры, включённое — синий бренда, то есть
+   на служебном экране тумблер красился цветом HH. Здесь включённое —
+   акцент экрана (`--v2-tool`), у служебных экранов стальной.
+
+   ГЕОМЕТРИЯ ПРЕЖНЯЯ — 40×22, бегунок 16 — и объявлена ЗДЕСЬ ЦЕЛИКОМ,
+   без класса старой системы рядом: `.toggle .track` из `style.css`
+   подключён ПОСЛЕ этого файла и при равном весе перебил бы цвета
+   (случай проверки 64). Разметка:
+   `<label class="v2-toggle"><input type="checkbox"><span class="v2-toggle-track"></span></label>`.
+
+   Нажатие ловит подпись целиком; на сенсорном её область добирается
+   до 44 невидимым слоем — видимый размер не растёт. */
+.v2-toggle {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  width: 40px;
+  height: 22px;
+  vertical-align: middle;
+  cursor: pointer;
+}
+.v2-toggle input { position: absolute; width: 0; height: 0; opacity: 0; }
+.v2-toggle-track {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-pill);
+  background: var(--v2-surface-hover);
+  transition: background-color var(--v2-dur-fast) var(--v2-ease-out),
+              border-color var(--v2-dur-fast) var(--v2-ease-out);
+}
+.v2-toggle-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--v2-r-pill);
+  background: var(--v2-text-2);
+  transition: transform var(--v2-dur-fast) var(--v2-ease-out),
+              background-color var(--v2-dur-fast) var(--v2-ease-out);
+}
+.v2-toggle input:checked + .v2-toggle-track {
+  border-color: var(--v2-tool, var(--v2-hh));
+  background: var(--v2-tool-dim, var(--v2-surface-hover));
+}
+.v2-toggle input:checked + .v2-toggle-track::after {
+  transform: translateX(18px);
+  background: var(--v2-tool, var(--v2-hh));
+}
+.v2-toggle input:focus-visible + .v2-toggle-track { outline: 2px solid var(--v2-ring-neutral); outline-offset: 2px; }
+@media (pointer: coarse) {
+  .v2-toggle::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--v2-ctl-h-touch);
+    height: var(--v2-ctl-h-touch);
+    transform: translate(-50%, -50%);
+  }
+}
 
 /* Карточки трёх уровней */
 .v2-card {

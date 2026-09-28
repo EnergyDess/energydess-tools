@@ -64,7 +64,7 @@ def разделы_из_панели():
 (() => {
   addEventListener('DOMContentLoaded', () => {
     const s = document.createElement('style');
-    s.textContent = '.admin-bar .search-input-admin { height: calc(var(--admin-bar-h, 2.5rem) - 4px) !important; min-height: 0 !important; }';
+    s.textContent = '.admin-bar .search-input-admin { height: calc(var(--v2-ctl-h, 40px) - 4px) !important; min-height: 0 !important; }';
     document.head.appendChild(s);
   });
 })();
@@ -104,10 +104,10 @@ def разделы_из_панели():
   const sb = getComputedStyle(бар);
   const ряд = бар.querySelector('.chip-row');
   const инстр = бар.querySelector('.admin-bar-tools');
-  const чипы = [...бар.querySelectorAll('.chip')];
+  const чипы = [...бар.querySelectorAll('.v2-chip')];
   const поиск = бар.querySelector('.search-input-admin');
   const списки = [...бар.querySelectorAll('select')];
-  const кнопки = [...бар.querySelectorAll('button:not(.chip)')];
+  const кнопки = [...бар.querySelectorAll('button:not(.v2-chip)')];
 
   // ЭТАЖИ ЧИПОВ — по РАЗНЫМ значениям y, а не по числу чипов:
   // перенос виден только так. Округление до целого: субпиксельная
@@ -185,12 +185,17 @@ def _снять(ширина, сенсор, подлог=None):
             стр.goto(f"{БАЗА}{путь}", wait_until="load", timeout=45000)
             стр.wait_for_timeout(400)
             итог[имя] = стр.evaluate(ЗАМЕР)
-        # ДОКАЗАТЕЛЬСТВО СНИМАЕТСЯ ЗДЕСЬ ЖЕ, на последней открытой
-        # странице и в той же сессии: отдельным заходом браузера оно
-        # мерило бы другую загрузку, а объявленное и не прогнанное
-        # доказательство ничем не отличается от отсутствующего.
-        for _, (js, что) in ДОКАЗАТЕЛЬСТВА.items():
-            итог["__док__"] = (что, стр.evaluate(js))
+            # ДОКАЗАТЕЛЬСТВО СНИМАЕТСЯ ЗДЕСЬ ЖЕ, в той же сессии: отдельным
+            # заходом браузера оно мерило бы другую загрузку, а объявленное
+            # и не прогнанное доказательство ничем не отличается
+            # от отсутствующего. НА ПОСЛЕДНЕЙ СТРАНИЦЕ С ПОЛОСОЙ, а не просто
+            # на последней («Расход-3»): разделы выводятся из панели, и с
+            # письма «Расход» последним стоит `/admin/usage`, где полосы
+            # отбора нет, — доказательство печатало «поля поиска в полосе
+            # нет» при состоявшемся подлоге.
+            if итог[имя].get("бар"):
+                for _, (js, что) in ДОКАЗАТЕЛЬСТВА.items():
+                    итог["__док__"] = (что, стр.evaluate(js))
         бр.close()
     return итог
 

@@ -17,12 +17,12 @@
 {% set active = 'users' %}
 {% include '_admin_subnav.html' %}
 
-<div class="admin-wrap page-fill">
+<main class="v2-page-wrap page-fill admin-wrap">
 
   {{ ah.head('Пользователи', 'Кто зарегистрирован и какие инструменты ему открыты',
-             отбор, 'Поиск') }}
+             отбор, 'Поиск', icon='users') }}
 
-  <div class="card admin-panel">
+  <div class="v2-card admin-panel">
     <div class="table-scroll">
       <table class="admin-table admin-table-users">
         <thead>
@@ -39,11 +39,11 @@
             <td class="date-cell">{{ u.created_at.strftime('%d.%m.%Y') if u.created_at else '—' }}</td>
             {% for tool in tools %}
             <td>
-              <label class="toggle">
+              <label class="v2-toggle">
                 <input type="checkbox" {% if u.tools[tool.id] %}checked{% endif %}
                        aria-label="{{ tool.name }} для {{ u.email }}"
                        onchange="toggleAccess({{ u.id }}, '{{ tool.id }}', this)">
-                <span class="track"></span>
+                <span class="v2-toggle-track"></span>
               </label>
             </td>
             {% endfor %}
@@ -52,7 +52,7 @@
         </tbody>
       </table>
     </div>
-    <p class="empty-state admin-empty" id="empty" hidden>Под текущий отбор не попал ни один пользователь</p>
+    <div class="v2-empty admin-empty" id="empty" hidden><p class="v2-empty-text">Под текущий отбор не попал ни один пользователь</p></div>
   </div>
 
   {# ── ПОДВАЛ РАЗДЕЛА — ОБЩИЙ МАКРОС (`ah.foot`) ──────────────────
@@ -70,7 +70,7 @@
      к левому краю на половине ширины (`justify-content: space-between`
      у `.admin-foot`). #}
   {{ ah.foot() }}
-</div>
+</main>
 
 <div class="toast" id="toast"></div>
 
@@ -130,8 +130,8 @@ function отобрать() {
    у скольких открыт доступ, что сохранять не надо, — но пунктами через
    разделитель, а не прозой.
 
-   ЧИСЛА МОНОШИРИННЫМ (`.admin-foot-n`): они меняются при каждом отборе,
-   и в пропорциональной гарнитуре строка от этого дёргается.
+   ЧИСЛА — `.admin-foot-n` с табличными цифрами: они меняются при каждом
+   отборе, и строка не должна дёргаться. Моноширинных на экранах v2 нет.
 
    `textContent` У КАЖДОГО УЗЛА, А НЕ `innerHTML` У СТРОКИ: сюда
    попадает поисковый запрос человека, и при склейке строкой его
@@ -152,8 +152,7 @@ function подпись(видно) {
 }
 
 document.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => {
-  document.querySelectorAll('[data-pick]').forEach(x => x.classList.remove('active'));
-  b.classList.add('active');
+  админЧип(b.dataset.pick);
   state.pick = b.dataset.pick;
   отобрать();
 }));

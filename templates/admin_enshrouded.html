@@ -18,14 +18,14 @@
 {% set active = 'enshrouded' %}
 {% include '_admin_subnav.html' %}
 
-<div class="admin-wrap page-fill">
+<main class="v2-page-wrap page-fill admin-wrap">
 
   {% call ah.head('Каталог Enshrouded', 'Сеты брони: названия, категория, уровень, состав и картинка',
-                  отбор, 'Поиск') %}
-    <button class="btn-primary ens-a-add" type="button" onclick="открыть(null)">Добавить сет</button>
+                  отбор, 'Поиск', icon='shield', метка='Enshrouded') %}
+    <button class="v2-btn v2-btn-primary ens-a-add" type="button" onclick="открыть(null)">Добавить сет</button>
   {% endcall %}
 
-  <div class="card admin-panel">
+  <div class="v2-card admin-panel">
     <div class="table-scroll">
       <table class="admin-table admin-table-ens" id="ens-table">
         <thead>
@@ -38,13 +38,13 @@
         <tbody id="ens-rows">{% include "_ens_rows.html" %}</tbody>
       </table>
     </div>
-    <p class="empty-state admin-empty" id="ens-empty" hidden>Под текущий отбор не попал ни один сет</p>
+    <div class="v2-empty admin-empty" id="ens-empty" hidden><p class="v2-empty-text">Под текущий отбор не попал ни один сет</p></div>
   </div>
 
   {# ПОДВАЛ — ОБЩИЙ МАКРОС (BACKLOG №314): было голым текстом
      на фоне, 69.8 px в три строки на 1920. #}
   {{ ah.foot() }}
-</div>
+</main>
 
 {# ШИРОКОЕ ОКНО (`modal-ov-wide`, design-system.md §2.25) — BACKLOG №266,
    блок C. В 540 px поля шли одной колонкой, и содержимое занимало
@@ -61,8 +61,8 @@
 {% call m.modal('ens-del', 'Удалить сет?', icon='alert-triangle', icon_tone='warning') %}
   <p id="ens-del-text"></p>
   <div class="ens-a-actions ens-a-actions-danger">
-    <button class="btn-secondary" type="button" data-modal-close>Отмена</button>
-    <button class="btn-danger" type="button" id="ens-del-go">Удалить сет</button>
+    <button class="v2-btn v2-btn-secondary" type="button" data-modal-close>Отмена</button>
+    <button class="v2-btn v2-btn-danger" type="button" id="ens-del-go">Удалить сет</button>
   </div>
 {% endcall %}
 
@@ -129,10 +129,10 @@ function пересчитать_чипы() {
   const счёт = {all: СЕТЫ.length};
   СЕТЫ.forEach(с => { счёт[с.crafter] = (счёт[с.crafter] || 0) + 1; });
   document.querySelectorAll('[data-pick]').forEach(b => {
-    const n = b.querySelector('.chip-n');
+    const n = b.querySelector('.admin-chip-n');
     if (n && счёт[b.dataset.pick] !== undefined) n.textContent = счёт[b.dataset.pick];
-    b.classList.toggle('active', b.dataset.pick === отбор_кат);
   });
+  админЧип(отбор_кат);
   return счёт;
 }
 
@@ -235,20 +235,20 @@ function открыть(id) {
     <div class="ens-a-sect">
       <div class="ens-a-grid">
         <div class="ens-a-field ens-a-span">
-          <label class="field-label" for="f-id">Идентификатор</label>
-          <input class="input" id="f-id" value="${esc(с.id)}" ${правим ? 'disabled' : ''}
+          <label class="v2-label v2-label-plain" for="f-id">Идентификатор</label>
+          <input class="v2-input" id="f-id" value="${esc(с.id)}" ${правим ? 'disabled' : ''}
                  placeholder="primer_id_seta" autocomplete="off">
           <p class="ens-a-note">${правим
             ? 'Не меняется — на него ' + отметокСловами(отм)
             : 'Латиница, цифры и подчёркивание — станет именем файла картинки'}</p>
         </div>
         <div class="ens-a-field">
-          <label class="field-label" for="f-ru">Название по-русски</label>
-          <input class="input" id="f-ru" value="${esc(с.name_ru)}" autocomplete="off">
+          <label class="v2-label v2-label-plain" for="f-ru">Название по-русски</label>
+          <input class="v2-input" id="f-ru" value="${esc(с.name_ru)}" autocomplete="off">
         </div>
         <div class="ens-a-field">
-          <label class="field-label" for="f-en">Название по-английски</label>
-          <input class="input" id="f-en" value="${esc(с.name_en)}" autocomplete="off">
+          <label class="v2-label v2-label-plain" for="f-en">Название по-английски</label>
+          <input class="v2-input" id="f-en" value="${esc(с.name_en)}" autocomplete="off">
         </div>
       </div>
     </div>
@@ -257,15 +257,15 @@ function открыть(id) {
       <p class="ens-a-sect-t">Классификация</p>
       <div class="ens-a-grid">
         <div class="ens-a-field">
-          <label class="field-label" for="f-cat">Категория</label>
-          <select class="select" id="f-cat">
+          <label class="v2-label v2-label-plain" for="f-cat">Категория</label>
+          <span class="v2-select-wrap ens-a-select"><select class="v2-select" id="f-cat">
             ${КАТЕГОРИИ.map(k =>
               `<option value="${k.id}"${k.id === с.crafter ? ' selected' : ''}>${esc(k.label)}</option>`).join('')}
-          </select>
+          </select></span>
         </div>
         <div class="ens-a-field">
-          <label class="field-label" for="f-lvl">Уровень</label>
-          <input class="input" id="f-lvl" type="number" min="1" max="200"
+          <label class="v2-label v2-label-plain" for="f-lvl">Уровень</label>
+          <input class="v2-input" id="f-lvl" type="number" min="1" max="200"
                  value="${с.lvl ?? ''}" placeholder="пусто">
           <p class="ens-a-note">Вводится руками, из предметов не выводится</p>
         </div>
@@ -277,7 +277,7 @@ function открыть(id) {
       <div class="ens-a-pieces" role="group" aria-labelledby="f-pieces-t">
         ${СЛОТЫ.map(k => {
           const вкл = !свой && набор.includes(k.id);
-          return `<button type="button" class="chip chip-outline tap-44 ens-a-piece${вкл ? ' active' : ''}"
+          return `<button type="button" class="v2-chip tap-44 ens-a-piece${вкл ? ' active' : ''}"
                           data-piece="${k.id}" aria-pressed="${вкл}" ${свой ? 'disabled' : ''}
                           onclick="плашка(this)"><i data-lucide="check"></i>${esc(k.label)}</button>`;
         }).join('')}
@@ -292,17 +292,17 @@ function открыть(id) {
         ${с.img ? `<img class="ens-a-prev" id="f-prev" src="${esc(с.img)}" alt="">`
                 : '<div class="ens-a-prev ens-a-none" id="f-prev">нет картинки</div>'}
         <div class="ens-a-imgctl">
-          <input type="file" id="f-file" accept="image/*" class="input" onchange="выбрана()">
-          <input class="input" id="f-url" placeholder="или ссылка на картинку" autocomplete="off">
+          <input type="file" id="f-file" accept="image/*" class="v2-input ens-a-file" onchange="выбрана()">
+          <input class="v2-input" id="f-url" placeholder="или ссылка на картинку" autocomplete="off">
           <p class="ens-a-note" id="f-imgnote">Ужимается до ${ПОТОЛОК[0]}×${ПОТОЛОК[1]}. Применится при сохранении</p>
         </div>
       </div>
     </div>
 
     <div class="ens-a-foot">
-      ${правим ? `<button class="btn-danger" type="button"
+      ${правим ? `<button class="v2-btn v2-btn-danger" type="button"
                           onclick="спроситьУдаление()">Удалить сет</button>` : ''}
-      <button class="btn-primary ens-a-save" type="button" onclick="сохранить()">Сохранить</button>
+      <button class="v2-btn v2-btn-primary ens-a-save" type="button" onclick="сохранить()">Сохранить</button>
     </div>`;
   if (window.lucide) window.lucide.createIcons();
   window.открыть_модалку('ens-edit');
@@ -327,7 +327,7 @@ function плашка(b) {
 
 function сказать(текст, вид) {
   document.getElementById('ens-msg').innerHTML =
-    `<div class="alert alert-${вид}">${esc(текст)}</div>`;
+    `<p class="ens-a-msg" data-tone="${вид}" role="status">${esc(текст)}</p>`;
 }
 
 /* Показать выбранный файл СРАЗУ. Без этого человек, выбравший картинку

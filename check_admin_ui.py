@@ -93,8 +93,17 @@ sys.stdout.reconfigure(encoding="utf-8")
     // объявляла их «нажатие ловит None», то есть врала про исправные
     // кнопки. Подводим элемент в кадр и меряем ЗАНОВО — это и есть то,
     // что делает человек пальцем, прежде чем нажать.
+    // ПРОКРУТКА НА ВРЕМЯ ПОДВОДА МГНОВЕННАЯ («Расход-3», блок 3): у `html`
+    // объявлено `scroll-behavior: smooth`, и прямоугольник, прочитанный
+    // сразу после `scrollIntoView`, берётся посреди анимации — точка
+    // оказывается за кадром, и живая кнопка печаталась «нажатие ловит
+    // None». Всплыло, когда полоса прогресса над сеткой упражнений
+    // увела карточку ниже края. Та же ловушка у проверки 20 (§6.0.11).
     if (r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight) {
+      const корень = document.documentElement, было = корень.style.scrollBehavior;
+      корень.style.scrollBehavior = 'auto';
       el.scrollIntoView({block: 'center', inline: 'center'});
+      корень.style.scrollBehavior = было;
       о.подводили = true;
     }
     const r2 = el.getBoundingClientRect();
@@ -118,7 +127,7 @@ def _бд(запрос, параметры=()):
 
 
 ЧИП_ОДОБРЕНО = ("() => +document.querySelector("
-                "'[data-pick=\"approved\"] .chip-n').textContent")
+                "'[data-pick=\"approved\"] .admin-chip-n').textContent")
 
 
 def _вернуть_упражнение(ид, статус):
@@ -258,7 +267,7 @@ class Проход:
     "отмена удаляет": """
         if (location.pathname === '/admin/products') {
           addEventListener('DOMContentLoaded', () => {
-            const к = document.querySelector('#food-del .btn-secondary[data-modal-close]');
+            const к = document.querySelector('#food-del .v2-btn-secondary[data-modal-close]');
             if (к) к.addEventListener('click',
               () => document.getElementById('food-del-go').click());
           });
@@ -322,7 +331,7 @@ def раздел_пользователи(стр, п):
         return
 
     было = стр.evaluate("() => document.querySelectorAll('#rows tr:not([hidden])').length")
-    n_чипа = стр.evaluate("() => +document.querySelector('[data-pick=\"no\"] .chip-n').textContent")
+    n_чипа = стр.evaluate("() => +document.querySelector('[data-pick=\"no\"] .admin-chip-n').textContent")
     стр.click('[data-pick="no"]')
     стр.wait_for_timeout(400)
     стало = стр.evaluate("() => document.querySelectorAll('#rows tr:not([hidden])').length")
@@ -396,12 +405,13 @@ def раздел_пользователи(стр, п):
                    (uid, д["инструмент"]))[0][0]
 
     до = строк_доступа()
-    # ОРГАН — ПОДПИСЬ `.toggle`, а не сам `<input>`: у системного тумблера
+    # ОРГАН — ПОДПИСЬ `.v2-toggle`, а не сам `<input>`: у тумблера v2
     # флажок спрятан по построению (0x0), нажимают дорожку. Спроси мы
     # про input — проба объявила бы находкой исправный компонент.
+    # («Расход-3», блок 3: тумблер старой системы `.toggle` сменён на v2.)
     п.орган(стр, "тумблер первого инструмента — орган живой",
-            "#rows tr:not([hidden]) .toggle")
-    стр.click("#rows tr:not([hidden]) .toggle", timeout=8000)
+            "#rows tr:not([hidden]) .v2-toggle")
+    стр.click("#rows tr:not([hidden]) .v2-toggle", timeout=8000)
     стр.wait_for_timeout(900)
     после = строк_доступа()
     ждём = 0 if д["был"] else 1
@@ -409,7 +419,7 @@ def раздел_пользователи(стр, п):
           "у %s строк доступа к «%s»: до %d, после %d, ждём %d (было отмечено: %s)"
           % (д["почта"], д["инструмент"], до, после, ждём, д["был"]))
     # Вернуть как было — проба не должна оставлять следа, И ЭТО ПРОВЕРЯЕТСЯ
-    стр.click("#rows tr:not([hidden]) .toggle", timeout=8000)
+    стр.click("#rows tr:not([hidden]) .v2-toggle", timeout=8000)
     стр.wait_for_timeout(900)
     вернулось = строк_доступа()
     п.шаг("проба вернула доступ как был", вернулось == до,
@@ -429,7 +439,7 @@ def раздел_продукты(стр, п):
             "#rows tr:not([hidden]) .food-name")
 
     было = стр.evaluate("() => document.querySelectorAll('#rows tr:not([hidden])').length")
-    n = стр.evaluate("() => +document.querySelector('[data-pick=\"nobrand\"] .chip-n').textContent")
+    n = стр.evaluate("() => +document.querySelector('[data-pick=\"nobrand\"] .admin-chip-n').textContent")
     стр.click('[data-pick="nobrand"]')
     стр.wait_for_timeout(400)
     стало = стр.evaluate("() => document.querySelectorAll('#rows tr:not([hidden])').length")
@@ -472,8 +482,8 @@ def раздел_продукты(стр, п):
     # ── УДАЛЕНИЕ: вопрос обязателен, отмена обязана отменять ─────────────
     всего_до = _бд("SELECT COUNT(*) FROM custom_foods")[0][0]
     п.орган(стр, "кнопка удаления — орган живой",
-            "#rows tr:not([hidden]) .btn-icon-danger")
-    стр.click("#rows tr:not([hidden]) .btn-icon-danger")
+            "#rows tr:not([hidden]) .admin-food-del")
+    стр.click("#rows tr:not([hidden]) .admin-food-del")
     стр.wait_for_timeout(700)
     открыто = стр.evaluate(
         "() => { const m = document.getElementById('food-del');"
@@ -487,13 +497,13 @@ def раздел_продукты(стр, п):
         # «ОТМЕНА», А НЕ ПЕРВЫЙ ОРГАН ЗАКРЫТИЯ (§6.0.3, четыре пункта; BACKLOG №270).
         #   ПРЕЖНЯЯ ФОРМУЛИРОВКА: `#food-del [data-modal-close]` — первым
         #     таким органом стоит крестик шапки.
-        #   НОВАЯ: `#food-del .btn-secondary[data-modal-close]` — «Отмена»,
+        #   НОВАЯ: `#food-del .v2-btn-secondary[data-modal-close]` — «Отмена»,
         #     тот же селектор, что у соседней пробы каталога (задача 266).
         #   ПОЧЕМУ ПРЕЖНЯЯ СТАЛА НЕГОДНОЙ: крестик шапки на сенсорной ширине
         #     скрыт с задачи 189 (окно закрывают жестом), клик ждал 30 с
         #     и ронял раздел — отказ от удаления на 390 не проверялся ни разу.
         #   ОТРИЦАТЕЛЬНЫЙ КОНТРОЛЬ НА НОВОЙ: подлог «отмена удаляет».
-        стр.click("#food-del .btn-secondary[data-modal-close]")
+        стр.click("#food-del .v2-btn-secondary[data-modal-close]")
         стр.wait_for_timeout(600)
     всего_после = _бд("SELECT COUNT(*) FROM custom_foods")[0][0]
     п.шаг("отмена НИЧЕГО не удалила", всего_до == всего_после,
@@ -517,6 +527,20 @@ def раздел_упражнения(стр, п):
     # спрашивается ещё и «из N подошедших» подписи — иначе 30 из 873
     # неотличимо от 30 из 85.
     стр_размер = стр.evaluate("() => PAGE_SIZE")
+    # ПЕРЕХОД «ВСЕ → НЕ ПРОВЕРЕНО» («Расход-3», блок 3, 3.2; §6.0.3).
+    #   ПРЕЖНЯЯ ФОРМУЛИРОВКА: с экрана как он открылся — нажать
+    #     «Не проверено» и сверить сетку с базой.
+    #   НОВАЯ: сперва «Все» (подпись обязана назвать ВЕСЬ справочник),
+    #     затем «Не проверено».
+    #   ПОЧЕМУ ПРЕЖНЯЯ НЕГОДНА: экран теперь открывается на «Не проверено»,
+    #     и нажатие этого чипа не меняет ничего и у мёртвого чипа — подлог
+    #     «отбор статуса молчит» НЕ СОСТОЯЛСЯ (контроль: 8 из 9).
+    #   ОТРИЦАТЕЛЬНЫЙ КОНТРОЛЬ НА НОВОЙ: тот же подлог, доказательство —
+    #     стал ли выбранным «Все».
+    стр.click('[data-pick="all"]')
+    стр.wait_for_timeout(600)
+    подошло_все = стр.evaluate(ПОДОШЛО)
+    всего_б = _бд("SELECT COUNT(*) FROM exercises")[0][0]
     было = стр.evaluate("() => document.querySelectorAll('.ex-card').length")
     стр.click('[data-pick="unchecked"]')
     стр.wait_for_timeout(600)
@@ -527,10 +551,11 @@ def раздел_упражнения(стр, п):
     в_базе = _бд("SELECT COUNT(*) FROM exercises"
                  " WHERE COALESCE(video_status, 'unchecked') = 'unchecked'")[0][0]
     п.шаг("отбор по статусу перерисовал сетку",
-          в_базе > 0 and подошло == в_базе and стало == min(стр_размер, в_базе)
-          and значков == 0,
-          "карточек %d -> %d, подошло по подписи %d, в базе «не проверено» %d,"
-          " со значком другого статуса %d" % (было, стало, подошло, в_базе, значков))
+          подошло_все == всего_б and в_базе > 0 and подошло == в_базе
+          and стало == min(стр_размер, в_базе) and значков == 0,
+          "«Все» подошло %d из %d; карточек %d -> %d, подошло по подписи %d,"
+          " в базе «не проверено» %d, со значком другого статуса %d"
+          % (подошло_все, всего_б, было, стало, подошло, в_базе, значков))
 
     # ГРУППА — ТА, ГДЕ «НЕ ПРОВЕРЕННЫХ» БОЛЬШЕ ВСЕГО: первая по списку бывает
     # пустой, и «0 из 0» выглядело бы как работающий отбор. Число считается
@@ -635,6 +660,62 @@ def раздел_упражнения(стр, п):
               "%s: %r" % (ид, вернулось))
 
 
+ПРОВЕРКА_ЭКРАН = """() => {
+  const т = id => (document.getElementById(id) || {}).textContent;
+  return {выбран: [...document.querySelectorAll('[data-pick].active')].map(ч => ч.dataset.pick),
+          готово: +т('progress-done'), всего: +т('progress-total'),
+          значков: document.querySelectorAll('.ex-card .ex-card-badge').length,
+          карточек: [...document.querySelectorAll('.ex-card')].map(к => к.dataset.id)};
+}"""
+
+
+def раздел_проверка_видео(стр, п):
+    """«Расход-3», блок 3, 3.2: экран открывается на «Не проверено»,
+    полоса «Проверено N из M» считается БАЗОЙ, оценённая карточка уходит
+    из списка, полоса растёт на один. Числа сверяются с прямым запросом,
+    а не с кодом страницы; статус возвращается в `finally`."""
+    print("\n== УПРАЖНЕНИЯ: ПРОГРЕСС ПРОВЕРКИ ==")
+    стр.goto(БАЗА + "/admin/exercises", wait_until="domcontentloaded", timeout=60000)
+    стр.wait_for_timeout(2500)
+    всего_б = _бд("SELECT COUNT(*) FROM exercises")[0][0]
+    непр = lambda: _бд("SELECT COUNT(*) FROM exercises"
+                       " WHERE COALESCE(video_status, 'unchecked') = 'unchecked'")[0][0]
+    непр_до = непр()
+    нач = стр.evaluate(ПРОВЕРКА_ЭКРАН)
+    подошло = стр.evaluate(ПОДОШЛО)
+    п.шаг("при загрузке выбран «Не проверено»",
+          нач["выбран"] == ["unchecked"] and подошло == непр_до and нач["значков"] == 0,
+          "выбраны %s, подошло по подписи %d, непроверенных в базе %d, со значком %d"
+          % (нач["выбран"], подошло, непр_до, нач["значков"]), собрано=всего_б)
+    п.шаг("«Проверено N из M» — из базы",
+          нач["всего"] == всего_б and нач["готово"] == всего_б - непр_до,
+          "на экране %s из %s, в базе %d из %d"
+          % (нач["готово"], нач["всего"], всего_б - непр_до, всего_б), собрано=всего_б)
+    if not нач["карточек"]:
+        return п.шаг("оценённая карточка ушла из списка", False,
+                     "ЗАМЕР НЕ СОСТОЯЛСЯ: непроверенных карточек на экране 0", собрано=0)
+    ид = нач["карточек"][0]
+    было = _бд("SELECT video_status FROM exercises WHERE id=?", (ид,))[0][0]
+    try:
+        стр.click(".ex-card[data-id=%s] .ex-btn-approve" % json.dumps(ид))
+        стр.wait_for_timeout(1100)
+        после = стр.evaluate(ПРОВЕРКА_ЭКРАН)
+        непр_после = непр()
+        п.шаг("оценённая карточка ушла из списка",
+              ид not in после["карточек"] and непр_после == непр_до - 1,
+              "%s на экране: %s; непроверенных в базе %d -> %d"
+              % (ид, ид in после["карточек"], непр_до, непр_после))
+        п.шаг("«Проверено» выросло на один — из базы",
+              после["готово"] == нач["готово"] + 1 == всего_б - непр_после,
+              "на экране %s -> %s, в базе %d" % (нач["готово"], после["готово"],
+                                                всего_б - непр_после))
+    finally:
+        _вернуть_упражнение(ид, было)
+        вернулось = _бд("SELECT video_status FROM exercises WHERE id=?", (ид,))[0][0]
+        п.шаг("статус оценённой карточки возвращён", вернулось == было,
+              "%s: %r" % (ид, вернулось))
+
+
 def раздел_каталог(стр, п):
     print("\n== ENSHROUDED ==")
     стр.goto(БАЗА + "/admin/enshrouded", wait_until="domcontentloaded", timeout=60000)
@@ -643,7 +724,7 @@ def раздел_каталог(стр, п):
     п.орган(стр, "чип «Кузнец» — орган живой", '[data-pick="blacksmith"]')
     п.последний(стр, "ПОСЛЕДНИЙ чип ряда — орган живой", "[data-pick]")
     п.последний(стр, "ПОСЛЕДНЯЯ вкладка ряда — орган живая",
-                ".admin-tabs .tab-btn")
+                ".admin-tabs .v2-tab")
     п.орган(стр, "поле поиска — орган живой", "#admin-q")
     п.орган(стр, "кнопка «Добавить сет» — орган живая", ".ens-a-add")
 
@@ -665,7 +746,7 @@ def раздел_каталог(стр, п):
     ВИДНО = ("() => [...document.querySelectorAll('#ens-rows tr')]"
              ".filter(tr => tr.checkVisibility()).length")
     было = стр.evaluate(ВИДНО)
-    n = стр.evaluate("() => +document.querySelector('[data-pick=\"blacksmith\"] .chip-n').textContent")
+    n = стр.evaluate("() => +document.querySelector('[data-pick=\"blacksmith\"] .admin-chip-n').textContent")
     стр.click('[data-pick="blacksmith"]')
     стр.wait_for_timeout(900)
     стало = стр.evaluate(ВИДНО)
@@ -732,6 +813,7 @@ def прогон(ширина, высота, сенсор, подлог=None, т
         for имя, шаги in (("Пользователи", раздел_пользователи),
                           ("Продукты", раздел_продукты),
                           ("Упражнения", раздел_упражнения),
+                          ("Упражнения · проверка", раздел_проверка_видео),
                           ("Enshrouded", раздел_каталог)):
             if только and имя not in только:
                 continue
@@ -802,12 +884,12 @@ def прогон(ширина, высота, сенсор, подлог=None, т
       }""", "сколько строк видно после ввода в поиск"),
     "отбор статуса молчит": ("/admin/exercises", """
       async () => {
-        const ч = document.querySelector('[data-pick="unchecked"]');
-        if (!ч) return 'чипа «Не проверено» нет';
+        const ч = document.querySelector('[data-pick="all"]');
+        if (!ч) return 'чипа «Все» нет';
         ч.click();
         await new Promise(r => setTimeout(r, 400));
-        return 'чип «Не проверено» выбран: ' + ч.classList.contains('active');
-      }""", "стал ли чип «Не проверено» выбранным после нажатия"),
+        return 'чип «Все» выбран: ' + ч.classList.contains('active');
+      }""", "стал ли чип «Все» выбранным после нажатия (экран открыт на «Не проверено»)"),
     "группа мышц молчит": ("/admin/exercises", """
       async () => {
         const с = document.getElementById('filter-muscle');
@@ -821,7 +903,7 @@ def прогон(ширина, высота, сенсор, подлог=None, т
     # ни атрибута, ни свойства, и выражение ответило бы одинаково до подлога
     # и после. Число спрашивается у CDP — тот же приём, что у соседней пробы
     "отмена удаляет": ("/admin/products",
-                       "CDP:#food-del .btn-secondary[data-modal-close]",
+                       "CDP:#food-del .v2-btn-secondary[data-modal-close]",
                        "сколько обработчиков click висит на «Отмене»"),
     # ДОКАЗАТЕЛЬСТВО НЕ МЕНЯЕТ БАЗУ (правило 6 письма захода 285): `fetch`
     # подменяется счётчиком, отвечающим без сервера, и мерится, дошло ли

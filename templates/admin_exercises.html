@@ -17,7 +17,7 @@
 {% set active = 'exercises' %}
 {% include '_admin_subnav.html' %}
 
-<div class="admin-wrap page-fill">
+<main class="v2-page-wrap page-fill admin-wrap">
 
   {# Два списка ОСТАЮТСЯ списками, и это решение, а не недоделка: групп мышц
      {{ muscle_groups|length }}, видов оборудования {{ equipment_labels|length }}.
@@ -26,19 +26,19 @@
      Чипы взяли СТАТУС: там пять значений, они взаимоисключающие и это
      главная ось работы на экране. #}
   {% call ah.head('Упражнения', 'Проверка видео для ' ~ total ~ ' упражнений программы тренировок',
-                  отбор, 'Поиск') %}
-    <select class="select input-sm" id="filter-muscle" aria-label="Группа мышц">
+                  отбор, 'Поиск', icon='dumbbell', выбран=выбран, прогресс=прогресс) %}
+    <span class="v2-select-wrap admin-select"><select class="v2-select" id="filter-muscle" aria-label="Группа мышц">
       <option value="all">Все группы мышц</option>
       {% for key, label in muscle_groups.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
-    </select>
-    <select class="select input-sm" id="filter-equipment" aria-label="Оборудование">
+    </select></span>
+    <span class="v2-select-wrap admin-select"><select class="v2-select" id="filter-equipment" aria-label="Оборудование">
       <option value="all">Любое оборудование</option>
       {% for key, label in equipment_labels.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
-    </select>
+    </select></span>
   {% endcall %}
 
   <div class="ex-grid" id="ex-grid"></div>
-  <p class="empty-state admin-empty" id="ex-empty" hidden>Под текущий отбор не попало ни одно упражнение</p>
+  <div class="v2-empty admin-empty" id="ex-empty" hidden><p class="v2-empty-text">Под текущий отбор не попало ни одно упражнение</p></div>
 
   {# ПОРЯДОК: ПОЯСНЕНИЕ К ТАБЛИЦЕ, ПОТОМ ПЕРЕКЛЮЧЕНИЕ СТРАНИЦ
      (BACKLOG №314, B1). До 2026-09-12 кнопки страниц стояли ВЫШЕ
@@ -53,7 +53,7 @@
   {{ ah.foot() }}
 
   <div class="ex-pagination" id="ex-pagination"></div>
-</div>
+</main>
 
 {# Просмотр видео на общем компоненте, вариант modal-ov-viewer — тот же
    случай, что просмотр фото в дневнике: рамка окна мешала бы содержимому,
@@ -73,15 +73,12 @@ const EQUIPMENT_LABELS = {{ equipment_labels | tojson }};
 const STATUS_LABELS = {unchecked: 'Не проверено', approved: 'Одобрено', wrong: 'Неверное', no_video: 'Без видео'};
 const PAGE_SIZE = 30;
 
-const state = {muscle: 'all', pick: 'all', equipment: 'all', q: '', page: 1};
-
-// Пришли по ссылке `?status=no_video` — применяем сразу. Адрес СОХРАНЁН
-// намеренно: он был у ссылки-действия удалённого дашборда (BACKLOG №147),
-// и ломать чужие закладки заодно с уборкой экрана незачем.
-(function applyStatusFromUrl() {
-  const q = new URLSearchParams(window.location.search).get('status');
-  if (q && STATUS_LABELS[q]) state.pick = q;
-})();
+// ОТБОР ПРИ ЗАГРУЗКЕ ВЫБИРАЕТ СЕРВЕР («Расход-3», 3.2): по умолчанию
+// «Не проверено» — это и есть работа на экране, — а ссылка `?status=…`
+// (была у ссылки-действия удалённого дашборда, BACKLOG №147) по-прежнему
+// сильнее умолчания. Выбранный чип нарисован в разметке, здесь только
+// то же значение: второго решения «что выбрано» в браузере нет.
+const state = {muscle: 'all', pick: {{ выбран | tojson }}, equipment: 'all', q: '', page: 1};
 
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -113,10 +110,10 @@ function renderChips() {
   const counts = {all: EXERCISES.length, unchecked: 0, approved: 0, wrong: 0, no_video: 0};
   EXERCISES.forEach(e => { counts[e.video_status] = (counts[e.video_status] || 0) + 1; });
   document.querySelectorAll('[data-pick]').forEach(b => {
-    const n = b.querySelector('.chip-n');
+    const n = b.querySelector('.admin-chip-n');
     if (n && counts[b.dataset.pick] !== undefined) n.textContent = counts[b.dataset.pick];
-    b.classList.toggle('active', b.dataset.pick === state.pick);
   });
+  админЧип(state.pick);
   return counts;
 }
 
@@ -152,7 +149,7 @@ function cardHtml(e) {
   // и правка техники в базе на открытом экране не показывалась вовсе.
   const hasInstructions = !!e.has_instructions;
   const instructionsBtn = hasInstructions
-    ? `<button class="ex-btn ex-btn-howto" onclick="toggleInstructions('${escHtml(e.id)}')">Показать технику</button>`
+    ? `<button type="button" class="v2-btn v2-btn-sm v2-btn-secondary ex-btn-howto" onclick="toggleInstructions('${escHtml(e.id)}')">Показать технику</button>`
     : '';
   const instructionsBlock = hasInstructions
     ? `<div class="ex-instructions" id="instructions-${escHtml(e.id)}"
@@ -160,7 +157,7 @@ function cardHtml(e) {
     : '';
 
   return `
-    <div class="card ex-card" data-id="${escHtml(e.id)}">
+    <div class="v2-card ex-card" data-id="${escHtml(e.id)}">
       ${e.youtube_id
         ? `<button type="button" class="ex-card-thumb"
              onclick="openVideoModal('${escHtml(e.youtube_id)}')"
@@ -173,16 +170,16 @@ function cardHtml(e) {
         ${nameEn}
         <div class="ex-card-meta">${metaParts.join(' · ')}</div>
         <div class="ex-card-actions">
-          <button class="ex-btn ex-btn-approve ${e.video_status === 'approved' ? 'active' : ''}" onclick="setStatus('${escHtml(e.id)}', 'approved')">Одобрено</button>
-          <button class="ex-btn ex-btn-wrong ${e.video_status === 'wrong' ? 'active' : ''}" onclick="setStatus('${escHtml(e.id)}', 'wrong')">Неверное</button>
-          <button class="ex-btn ex-btn-replace" onclick="toggleReplace('${escHtml(e.id)}')">Заменить</button>
+          <button type="button" class="v2-btn v2-btn-sm ex-btn ex-btn-approve ${e.video_status === 'approved' ? 'active' : ''}" onclick="setStatus('${escHtml(e.id)}', 'approved')">Одобрено</button>
+          <button type="button" class="v2-btn v2-btn-sm ex-btn ex-btn-wrong ${e.video_status === 'wrong' ? 'active' : ''}" onclick="setStatus('${escHtml(e.id)}', 'wrong')">Неверное</button>
+          <button type="button" class="v2-btn v2-btn-sm v2-btn-secondary ex-btn ex-btn-replace" onclick="toggleReplace('${escHtml(e.id)}')">Заменить</button>
         </div>
         ${instructionsBtn}
         ${instructionsBlock}
         <div class="ex-replace-row" id="replace-row-${escHtml(e.id)}">
-          <input type="text" class="input input-sm ex-replace-input" id="replace-input-${escHtml(e.id)}"
+          <input type="text" class="v2-input ex-replace-input" id="replace-input-${escHtml(e.id)}"
                  placeholder="Ссылка на youtube.com или youtu.be" aria-label="Ссылка на видео">
-          <button class="btn-primary ex-replace-save" onclick="saveReplace('${escHtml(e.id)}')">Сохранить</button>
+          <button type="button" class="v2-btn v2-btn-primary v2-btn-sm ex-replace-save" onclick="saveReplace('${escHtml(e.id)}')">Сохранить</button>
         </div>
         ${warn}
       </div>
@@ -296,6 +293,23 @@ document.getElementById('admin-q').addEventListener('input', function() {
   state.q = this.value; state.page = 1; renderGrid();
 });
 
+// ── ПРОГРЕСС ПРОВЕРКИ («Расход-3», 3.2) ──
+// Числа и подпись собирает СЕРВЕР из базы — и в разметке, и в ответе
+// каждой оценки (`проверка`); здесь они только подставляются. Посчитай
+// их браузер по `EXERCISES` — число на экране говорило бы о памяти
+// вкладки, а не о базе, и второй построитель подписи разошёлся бы
+// с первым молча (§6.0.7).
+function прогресс(п) {
+  if (!п) return;
+  document.getElementById('progress-done').textContent = п.готово;
+  document.getElementById('progress-total').textContent = п.всего;
+  document.getElementById('progress-sub').textContent = п.состав;
+  const бар = document.getElementById('progress-bar');
+  бар.setAttribute('aria-valuenow', п.готово);
+  бар.setAttribute('aria-valuemax', п.всего);
+  document.getElementById('progress-fill').style.setProperty('--v2-value', п.доля + '%');
+}
+
 // ── Действия над карточкой ──
 async function setStatus(id, status) {
   try {
@@ -308,6 +322,7 @@ async function setStatus(id, status) {
     const data = await res.json();
     const ex = EXERCISES.find(e => e.id === id);
     if (ex) ex.video_status = data.video_status;
+    прогресс(data.проверка);
     showToast(status === 'approved' ? 'Одобрено' : 'Помечено как неверное');
     renderGrid();
   } catch {
@@ -379,6 +394,7 @@ async function saveReplace(id) {
     }
     const ex = EXERCISES.find(e => e.id === id);
     if (ex) { ex.youtube_id = data.youtube_id; ex.video_status = data.video_status; }
+    прогресс(data.проверка);
     input.value = '';
     showToast('Видео заменено');
     renderGrid();

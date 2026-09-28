@@ -1,4 +1,4 @@
-/* СТИЛИ АДМИНКИ. Вынесены из инлайнового <style> в шаблоне 2026-08-23
+/* @v2 — СТИЛИ АДМИНКИ. Вынесены из инлайнового <style> в шаблоне 2026-08-23
    (BACKLOG №148): 897 строк жили в `templates/_admin_styles.html`
    и приезжали ЗАНОВО с каждой из четырёх страниц, потому что разметка
    отдаётся с `no-cache` (§2.2). Это был последний страничный CSS проекта
@@ -20,7 +20,16 @@
      `.admin-table-users` / `.admin-table` порознь;
    · ширина обёртки одна на все четыре — 1920px. До этого три раздела
      стояли на 1480 (57.8% экрана на 2560), а каталог Enshrouded на 1920
-     своим классом `.admin-wrap-cat`. */
+     своим классом `.admin-wrap-cat`.
+
+   ── НА v2 («Расход-3», блок 3, №352) ──────────────────────────────────
+   Файл помечен `@v2`: значения — только `var(--v2-*)` (проверка 47).
+   Органы — компоненты v2: `.v2-tabs`, `.v2-chip`, `.v2-input`,
+   `.v2-select`, `.v2-btn`, `.v2-card`, `.v2-toggle`, `.v2-empty`;
+   акцент — стальной служебный (`.v2-tool-admin` ставит `_header.html`
+   по адресу). Здесь осталась раскладка экземпляра и свои узлы разделов:
+   системный класс v2 субъектом не берётся, а где свой класс стоит
+   рядом с системным, он правит своё (тот же приём, что `.ens-tab-cnt`). */
 
 /* ── Каркас страницы ─────────────────────────────────────────────────── */
 /* width: 100% обязателен с тех пор, как страница стала колонкой
@@ -47,21 +56,12 @@
    1480 «Состав» уже не помещался. Выше растёт не польза, а дыра ВНУТРИ
    ячейки. Каталог тут самый требовательный из четырёх, поэтому его
    число и стало общим. */
-.admin-wrap {
-  width: 100%;
-  max-width: 1920px; margin: 0 auto;
-  padding: var(--space-7) var(--space-6);
-}
-.admin-wrap h1 {
-  font-size: var(--text-h2); font-weight: 700;
-  color: var(--text-strong); margin-bottom: var(--space-2);
-}
-.admin-wrap .subtitle {
-  color: var(--text-2); font-size: var(--text-body-sm);
-  margin-bottom: var(--space-5);
-}
-@media (max-width: 1200px) { .admin-wrap { padding: var(--space-7) var(--space-5); } }
-@media (max-width: 640px) { .admin-wrap { padding: var(--space-6) var(--space-4); } }
+/* С «Расхода-3» колонка — `.v2-page-wrap` (ширина `--v2-content`, те же
+   1920, поля `--v2-gutter`), и число выше живёт теперь там. `.admin-wrap`
+   рядом с ней держит только нижний воздух. Заголовок и описание раздела —
+   шапка v2 (`.v2-page-head` из `_admin_head.html`): прежние
+   `.admin-wrap h1` и `.subtitle` сняты вместе с разметкой. */
+.admin-wrap { padding-bottom: var(--v2-sp-7); }
 
 /* ── ПАНЕЛЬ РАЗДЕЛОВ ──────────────────────────────────────────────────
    Своих пилюль `.admin-subnav a` больше нет (BACKLOG №148) — это была
@@ -104,20 +104,22 @@
 .admin-nav-bar {
   position: sticky; top: 64px; z-index: 49;
   background: var(--v2-surface-pop);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--v2-line-2);
 }
+/* ДОРОЖКА ВКЛАДОК ПОВТОРЯЕТ КОЛОНКУ `.v2-page-wrap` («Расход-3»): та же
+   `--v2-content`, те же поля `--v2-gutter` и тот же порог, с которого они
+   сужаются до `--v2-gutter-sm`, — первая вкладка стоит ровно над краем
+   шапки раздела. Своей нижней линии у ряда нет: её даёт панель. */
 .admin-tabs {
   width: 100%;
-  max-width: 1920px;
+  max-width: var(--v2-content);
   margin: 0 auto;
-  padding-left: var(--space-6);
-  padding-right: var(--space-6);
+  padding-left: var(--v2-gutter);
+  padding-right: var(--v2-gutter);
+  border-bottom: 0;
 }
-@media (max-width: 1200px) {
-  .admin-tabs { padding-left: var(--space-5); padding-right: var(--space-5); }
-}
-@media (max-width: 640px) {
-  .admin-tabs { padding-left: var(--space-4); padding-right: var(--space-4); }
+@media (max-width: 1023px) {
+  .admin-tabs { padding-left: var(--v2-gutter-sm); padding-right: var(--v2-gutter-sm); }
 }
 
 /* ── РЯД ОТБОРА: чипы слева, поиск и прочие органы справа ──────────────
@@ -126,31 +128,29 @@
    рядом списков, у остальных трёх — строка «Название (25)» ВНУТРИ
    карточки таблицы, а у каталога поиск стоял третьим местом. */
 /* ВЫСОТА ОРГАНА — ОДНА ВЕЛИЧИНА НА ВСЮ ПОЛОСУ, И ОНА ИЗ ШКАЛЫ ПРОЕКТА.
-   40px — то же `min-height`, что система даёт `.btn`, `.input`
-   и `.select` (style.css); числа из головы здесь нет.
+   `--v2-ctl-h` (40 px) — высота органа v2, на сенсорном
+   `--v2-ctl-h-touch` (44); числа из головы здесь нет.
 
    ЗАМЕР ДО ПРАВКИ (головной браузер, 2560): чип 29.0, поиск 43.5,
    список 39.0, кнопка «Добавить сет» 49.0 — разбег 20 px ВНУТРИ
    одного раздела. Полоса от этого была 43.5 у трёх разделов и 49.0
    у каталога: каркас прыгал при переключении вкладок.
 
-   ТОКЕН ЗДЕСЬ, А НЕ В `:root` — намеренно, та же причина, что
-   у `--nut-u`, `--app-aside` и `--meter-h` (CLAUDE.md §2.3): объяви
-   его система, и страница, которая его задаёт, стала бы находкой
-   проверки 2. Величина принадлежит ПОЛОСЕ, а не проекту. */
+   СВОЕЙ ПЕРЕМЕННОЙ У ПОЛОСЫ БОЛЬШЕ НЕТ («Расход-3»). Здесь стояла
+   `--admin-bar-h: 40px` — токен ПОЛОСЫ, объявленный в её же правиле;
+   на файле `@v2` значение объявляется только в `:root` `v2.css`
+   (проверка 47), а высота органа там уже есть. */
 .admin-bar {
-  --admin-bar-h: 40px;
-
   /* ПОДЛОЖКА: ступень поверхности выше тела страницы плюс волосяная
      рамка. До правки фон был `rgba(0, 0, 0, 0)` — органы лежали
      на голом фоне, и полоса не читалась отдельным блоком. */
   display: flex; align-items: center; justify-content: space-between;
-  gap: var(--space-3) var(--space-5); flex-wrap: wrap;
-  margin-bottom: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  gap: var(--v2-sp-3) var(--v2-sp-5); flex-wrap: wrap;
+  margin-bottom: var(--v2-sp-4);
+  padding: var(--v2-sp-3) var(--v2-sp-4);
+  background: var(--v2-surface-1);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-md);
 }
 
 /* ЧИПЫ ИДУТ В ОДНУ СТРОКУ, ПОКА ХВАТАЕТ ШИРИНЫ, и ряд ЗАБИРАЕТ
@@ -159,7 +159,7 @@
    раньше, чем кончалось место. Перенос остаётся (`wrap`) — он
    наступает, только когда ширины действительно нет. */
 .chip-row {
-  display: flex; gap: var(--space-2); flex-wrap: wrap;
+  display: flex; gap: var(--v2-sp-2); flex-wrap: wrap;
   flex: 0 1 auto; min-width: 0;
 }
 /* МЕСТО ДЕЛИТСЯ ТАК ЖЕ, КАК ДО ПРАВКИ: чипы занимают по содержимому,
@@ -169,7 +169,7 @@
    превращались в 183, а у разделов со списками блок управления
    переносился второй строкой и полоса росла с 66 до 118 px. */
 .admin-bar-tools {
-  display: flex; align-items: center; gap: var(--space-3);
+  display: flex; align-items: center; gap: var(--v2-sp-3);
   flex: 1; justify-content: flex-end; flex-wrap: wrap;
 }
 
@@ -196,18 +196,35 @@
 .chip-row > *,
 .admin-bar-tools > *,
 .admin-bar-tools .search-wrap > input {
-  height: var(--admin-bar-h);
-  min-height: var(--admin-bar-h);
+  height: var(--v2-ctl-h);
+  min-height: var(--v2-ctl-h);
   padding-top: 0; padding-bottom: 0;
   box-sizing: border-box;
 }
+/* На сенсорном органы v2 растут до `--v2-ctl-h-touch` — и полоса растёт
+   вместе с ними одной величиной: разбег высот и тут ноль, а область
+   нажатия у органа своя, без доборного слоя. */
+@media (pointer: coarse) {
+  .chip-row > *,
+  .admin-bar-tools > *,
+  .admin-bar-tools .search-wrap > input {
+    height: var(--v2-ctl-h-touch);
+    min-height: var(--v2-ctl-h-touch);
+  }
+}
+/* Счётчик чипа — обычной гарнитурой: у `.v2-chip-count` она
+   моноширинная, а на экранах v2 моноширинных нет. Свой класс рядом
+   с системным, как `.ens-tab-cnt` у Enshrouded. */
+.admin-chip-n { font-family: inherit; font-variant-numeric: tabular-nums; }
 /* Чип — `inline-flex` с центрированием, кнопка и поиск свои паддинги
    по горизонтали сохраняют; сбрасывается ТОЛЬКО вертикальный. */
 
 /* Список внутри ряда не тянется во всю ширину и не сжимается
-   до нечитаемого: это раскладка экземпляра, вид берёт системный
-   `.select .input-sm`. */
-.admin-bar-tools .select { width: auto; min-width: 11rem; flex: none; }
+   до нечитаемого: это раскладка экземпляра, вид — `.v2-select`
+   в обёртке `.v2-select-wrap` (стрелку рисует она). Список занимает
+   высоту обёртки: высоту органа полоса задаёт обёртке, а не ему. */
+.admin-bar-tools .admin-select { min-width: 11rem; flex: none; }
+.admin-bar-tools .admin-select > .v2-select { height: 100%; min-height: 0; padding-top: 0; padding-bottom: 0; }
 @media (max-width: 640px) {
   /* На узком экране ряд ломается в столбик, и органы справа
      растягиваются на всю ширину: иначе поиск получает 40% строки. */
@@ -227,7 +244,7 @@
      поля вернул null. */
   .admin-bar-tools { flex-direction: column; align-items: stretch; }
   .admin-bar-tools .search-wrap { min-width: 0; max-width: none; }
-  .admin-bar-tools .select { flex: none; width: 100%; min-width: 0; }
+  .admin-bar-tools .admin-select { flex: none; width: 100%; min-width: 0; }
   /* Ряд чипов прокручивается вбок, а не переносится: пять чипов
      статуса в столбик на 390 съедали бы три строки экрана.
 
@@ -258,23 +275,16 @@
      столько, чтобы слой поместился, и ни пикселем больше. */
   .chip-row { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
               min-width: 0; max-width: 100%;
-              padding-top: var(--space-2); padding-bottom: var(--space-2);
-              margin-top: calc(var(--space-2) * -1);
-              margin-bottom: calc(var(--space-2) * -1); }
+              padding-top: var(--v2-sp-2); padding-bottom: var(--v2-sp-2);
+              margin-top: calc(var(--v2-sp-2) * -1);
+              margin-bottom: calc(var(--v2-sp-2) * -1); }
   .chip-row::-webkit-scrollbar { display: none; }
 }
 
-/* ── Карточка-контейнер таблицы: .card из компонентной базы + модификатор.
-   Свой padding не нужен (у th/td собственный), hover-подъём для таблицы
-   неуместен — гасим его через .card-static-подобное поведение. ── */
+/* ── Карточка-контейнер таблицы — `.v2-card` («Расход-3»). Свой padding
+   не нужен (у th/td собственный), обрезка — по скруглению карточки.
+   Подъёма при наведении у карточки v2 нет, и гасить его больше нечего. ── */
 .admin-panel { padding: 0; overflow: hidden; }
-@media (hover: hover) {
-  .admin-panel:hover {
-    transform: none;
-    box-shadow: var(--shadow-sm);
-    border-color: var(--border);
-  }
-}
 /* `.card-header` УДАЛЁН 2026-08-23. Он держал ряд «название слева, поиск
    справа» ВНУТРИ карточки таблицы и повторял то, что теперь говорит ряд
    отбора выше неё: строка «Пользователи (25)» — это чип «Все 25», только
@@ -284,15 +294,15 @@
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 /* нативный горизонтальный скроллбар таблицы был светлым и выбивался
    из тёмной темы — приводим к токенам */
-.table-scroll { scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent; }
+.table-scroll { scrollbar-width: thin; scrollbar-color: var(--v2-surface-hover) transparent; }
 .table-scroll::-webkit-scrollbar { height: 8px; }
 .table-scroll::-webkit-scrollbar-track { background: transparent; }
 .table-scroll::-webkit-scrollbar-thumb {
-  background: var(--surface-3);
-  border-radius: 999px;
+  background: var(--v2-surface-hover);
+  border-radius: var(--v2-r-pill);
 }
 @media (hover: hover) {
-  .table-scroll::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+  .table-scroll::-webkit-scrollbar-thumb:hover { background: var(--v2-line-hover); }
 }
 
 /* ── Таблицы ──────────────────────────────────────────────────────────
@@ -313,27 +323,28 @@
    `width: 100%` из голого `table` не переехало — оно уже объявлено
    у `.admin-table` строкой ниже. */
 .admin-table { width: 100%; border-collapse: collapse; }
+/* ЗАГОЛОВКИ КОЛОНОК ОБЫЧНЫМ РЕГИСТРОМ («Расход-3», блок 3), как у таблиц
+   страницы «Расход»: прописные с разрядкой читались заголовками разделов,
+   а их над таблицей и так два — шапка раздела и ряд вкладок. */
 .admin-table th {
-  padding: var(--space-3) var(--space-5);
+  padding: var(--v2-sp-3) var(--v2-sp-5);
   text-align: left;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-2);
-  border-bottom: 1px solid var(--border-strong);
-  background: var(--surface-2);
+  font-family: var(--v2-font);
+  font-size: var(--v2-fs-xs);
+  font-weight: var(--v2-fw-strong);
+  color: var(--v2-text-2);
+  border-bottom: 1px solid var(--v2-line-2);
+  background: var(--v2-surface-2);
 }
 .admin-table td {
-  padding: var(--space-3) var(--space-5);
-  font-size: var(--text-body-sm);
-  color: var(--text);
-  border-bottom: 1px solid var(--border-hairline);
+  padding: var(--v2-sp-3) var(--v2-sp-5);
+  font-size: var(--v2-fs-sm);
+  color: var(--v2-text);
+  border-bottom: 1px solid var(--v2-line-3);
 }
 .admin-table tr:last-child td { border-bottom: none; }
 @media (hover: hover) {
-  .admin-table tr:hover td { background: var(--surface-2); }
+  .admin-table tr:hover td { background: var(--v2-surface-2); }
 }
 
 /* Вторичная подпись админки — одно объявление на две (BACKLOG №126):
@@ -341,14 +352,14 @@
 /* Вторичная подпись админки. Парой с `.ex-stat-label` это правило
    стояло по BACKLOG №126 (свод дублей); плиток статистики больше нет,
    и пара распалась сама. */
-.email-cell { color: var(--text-2); font-size: var(--text-caption); font-weight: 500; }
-.date-cell  { color: var(--text-2); font-size: var(--text-caption); }
+.email-cell { color: var(--v2-text-2); font-size: var(--v2-fs-xs); font-weight: 500; }
+.date-cell  { color: var(--v2-text-2); font-size: var(--v2-fs-xs); }
 
-/* Тумблер доступа к инструменту берётся из компонентной базы (.toggle,
-   style.css). Своя копия жила здесь и успела разъехаться с системной:
-   38×22 против 40×22, бегунок 14 против 16, сдвиг бегунка через left
-   вместо transform. Удалена в задаче 26 BACKLOG; дорожка в разметке
-   переименована с .toggle-track на системный .track. */
+/* Тумблер доступа к инструменту — `.v2-toggle` компонентной базы v2
+   («Расход-3», блок 3). До того стоял системный `.toggle` старой
+   системы, и включённое красилось синим бренда — на служебном экране
+   это цвет HH. Своя копия тумблера жила здесь ещё раньше и была удалена
+   задачей 26: 38×22 против 40×22, бегунок 14 против 16. */
 
 /* BACKLOG №115. Здесь стояло ВТОРОЕ правило под именем `.empty-state`
    — при том, что первое живёт в `hh.css` с другим телом. Это было
@@ -362,22 +373,24 @@
    верхнего края пустого поля. Возвращено СВОИМ классом, а не правкой
    компонента: 72px нужны здесь и не нужны больше нигде, а §2.20
    прямо говорит, что отбивка компоненту не принадлежит. */
-.admin-empty { padding: var(--space-8) var(--space-5); }
+.admin-empty { padding: var(--v2-sp-8) var(--v2-sp-5); }
 
 /* ── Toast ───────────────────────────────────────────────────────────── */
 .toast {
   position: fixed;
-  bottom: var(--space-5); right: var(--space-5);
-  background: var(--surface-1);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-5);
-  font-size: var(--text-caption);
-  color: var(--text);
-  box-shadow: var(--shadow-lg);
+  bottom: var(--v2-sp-5); right: var(--v2-sp-5);
+  /* НЕПРОЗРАЧНАЯ: сообщение лежит поверх таблицы, а `--v2-surface-*`
+     полупрозрачны — сквозь них читались бы строки. */
+  background: var(--v2-surface-pop);
+  border: 1px solid var(--v2-line-hover);
+  border-radius: var(--v2-r-md);
+  padding: var(--v2-sp-3) var(--v2-sp-5);
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-text);
+  box-shadow: var(--v2-shadow-pop);
   opacity: 0;
   transform: translateY(8px);
-  transition: opacity var(--dur-base) var(--ease), transform var(--dur-base) var(--ease);
+  transition: opacity var(--v2-dur-base) var(--v2-ease), transform var(--v2-dur-base) var(--v2-ease);
   pointer-events: none;
   z-index: 9999;
 }
@@ -416,11 +429,11 @@
    сколько инструментов в проекте, и заводя пятый пришлось бы править
    ещё и CSS. */
 .admin-table-users { table-layout: auto; }
-.admin-table th, .admin-table td { padding: var(--space-3) var(--space-5); }
+.admin-table th, .admin-table td { padding: var(--v2-sp-3) var(--v2-sp-5); }
 /* числовые колонки — уже, по центру, чтобы числа помещались */
 .admin-table-foods th:nth-child(n+4):nth-child(-n+7),
-.admin-table-foods td:nth-child(n+4):nth-child(-n+7) { padding: var(--space-3) var(--space-2); text-align: center; }
-.num { text-align: center; padding: var(--space-2) var(--space-2); }
+.admin-table-foods td:nth-child(n+4):nth-child(-n+7) { padding: var(--v2-sp-3) var(--v2-sp-2); text-align: center; }
+.num { text-align: center; padding: var(--v2-sp-2) var(--v2-sp-2); }
 /* последняя колонка (кнопки): справа тот же отступ --space-5, что слева у
    первой колонки — иначе иконка удаления упиралась в границу карточки.
    Ширина увеличена на величину отступа, чтобы кнопки не сжались. */
@@ -431,7 +444,7 @@
    кнопка сохранения вылезала на 4px ВЛЕВО за содержимое ячейки
    (1764 при границе 1768). 124 = 84 + 8 + 24 плюс 8px воздуха. */
 .admin-table-foods th:nth-child(8), .admin-table-foods td:nth-child(8) {
-  padding: var(--space-2) var(--space-5) var(--space-2) var(--space-2);
+  padding: var(--v2-sp-2) var(--v2-sp-5) var(--v2-sp-2) var(--v2-sp-2);
   white-space: nowrap; width: 124px;
   text-align: right;   /* прижать кнопки к правому краю — иначе они «плавали» посередине колонки */
 }
@@ -463,7 +476,21 @@
 .admin-table-foods th:nth-child(6), .admin-table-foods td:nth-child(6) { width: 80px; }
 .admin-table-foods th:nth-child(7), .admin-table-foods td:nth-child(7) { width: 80px; }
 
-/* Инпуты в таблице — .input .input-sm из компонентной базы. Здесь
+/* ПОЛЯ В ТАБЛИЦЕ — `.v2-input` («Расход-3», блок 3), свой класс
+   `.admin-cell-input` держит только размер под ячейку: поле в строку
+   таблицы высотой мелкой кнопки, на сенсорном — полной высоты органа
+   (иначе палец не попадёт). Вес (0,2,0) выше `.v2-shell .v2-input`
+   не нужен: у того тоже (0,2,0), а этот файл подключён позже. */
+.admin-table .admin-cell-input {
+  min-height: var(--v2-ctl-sm-h);
+  padding: 0 var(--v2-sp-2);
+  border-radius: var(--v2-r-sm);
+  font-size: var(--v2-fs-sm);
+}
+@media (pointer: coarse) {
+  .admin-table .admin-cell-input { min-height: var(--v2-ctl-h-touch); }
+}
+/* Прежняя запись: инпуты в таблице — .input .input-sm из компонентной базы. Здесь
    стояла копия компонента: комментарий над ней так и говорил, «.input
    из базы, уменьшенный под ячейку». Уменьшенный вариант теперь есть
    в системе (.input-sm), спиннеры type="number" гасит сам компонент,
@@ -506,17 +533,17 @@
    выбитая из таблицы ячейка. */
 .row-actions { vertical-align: middle; }
 .row-actions-in { display: flex; justify-content: flex-end;
-                  align-items: center; gap: var(--space-1); }
+                  align-items: center; gap: var(--v2-sp-1); }
 
 .food-save-btn {
-  background: var(--accent-brand-dim);
-  border: 1px solid var(--accent-brand);
-  color: var(--accent-brand);
+  background: var(--v2-tool-dim);
+  border: 1px solid var(--v2-tool);
+  color: var(--v2-tool);
   visibility: hidden;
 }
 .food-save-btn.dirty { visibility: visible; }
 @media (hover: hover) {
-  .food-save-btn:hover { background: color-mix(in srgb, var(--accent-brand) 28%, transparent); }
+  .food-save-btn:hover { background: color-mix(in srgb, var(--v2-tool) 28%, transparent); }
 }
 /* `.food-del-btn` УДАЛЁН 2026-08-23: он повторял системный
    `.btn-icon-danger` (тот же тон `--error` 10%/30%), а разметка теперь
@@ -541,34 +568,20 @@
    после того, как компонентная база перестала быть перечнем
    (BACKLOG №121): в прежнем списке из 91 имени `search-icon` не было. */
 .search-wrap .admin-search-icon {
-  position: absolute; left: var(--space-3); top: 50%;
+  position: absolute; left: var(--v2-sp-3); top: 50%;
   transform: translateY(-50%);
-  width: 15px; height: 15px;
-  color: var(--text-faint);
+  width: var(--v2-icon); height: var(--v2-icon);
+  color: var(--v2-text-faint);
   pointer-events: none;
 }
-/* .search-wrap в селекторе обязателен: глобальное input[type="text"] из
-   style.css имеет специфичность 0,1,1 и перебивало одиночный класс —
-   padding-left не применялся, иконка налезала на плейсхолдер */
+/* ПОЛЕ — `.v2-input` («Расход-3», блок 3): вид, фокус и подсказку даёт
+   компонент. Своё — ширина по обёртке и место слева под значок:
+   поле до значка, значок и зазор после. `.search-wrap` в селекторе
+   держит вес наравне с `.v2-shell .v2-input` (оба (0,2,0)), а этот файл
+   подключён позже — поле своё не теряет. */
 .search-wrap .search-input-admin {
   width: 100%;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3) var(--space-2) 36px;  /* слева место под иконку */
-  color: var(--text);
-  font-size: var(--text-body-sm);
-  font-family: var(--font);
-  outline: none;
-  box-sizing: border-box;
-  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
-}
-.search-wrap .search-input-admin::placeholder { color: var(--text-faint); }
-.search-wrap .search-input-admin:focus,
-.search-wrap .search-input-admin:focus-visible {
-  outline: none;
-  border-color: var(--accent-brand);
-  box-shadow: 0 0 0 3px var(--accent-brand-dim);
+  padding-left: calc(var(--v2-sp-3) + var(--v2-icon) + var(--v2-sp-2));
 }
 
 @media (max-width: 640px) {
@@ -632,7 +645,7 @@
 
      Замер на 390 после правки: таблица пользователей 872 → 776px,
      то есть 96px горизонтальной прокрутки убрано, а не добавлено. */
-  .admin-table th, .admin-table td { padding: var(--space-3) var(--space-4); }
+  .admin-table th, .admin-table td { padding: var(--v2-sp-3) var(--v2-sp-4); }
 }
 
 /* ДАШБОРД УДАЛЁН 2026-08-23 (BACKLOG №147), и вместе с ним `.admin-tiles`,
@@ -654,7 +667,7 @@
    два оставшихся списка — системный `.select .input-sm` там же. */
 .ex-grid {
   display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-4); margin-bottom: var(--space-6);
+  gap: var(--v2-sp-4); margin-bottom: var(--v2-sp-6);
 }
 @media (max-width: 900px) { .ex-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px) { .ex-grid { grid-template-columns: 1fr; } }
@@ -686,13 +699,13 @@
 .ex-card-thumb {
   position: relative; width: 100%;
   aspect-ratio: 16/9;
-  background: var(--surface-2);
+  background: var(--v2-surface-2);
   overflow: hidden;
   display: block; padding: 0; border: 0; margin: 0;
   font: inherit; color: inherit; text-align: inherit;
 }
 .ex-card-thumb:focus-visible {
-  outline: 2px solid var(--tool-accent, var(--accent-brand));
+  outline: 2px solid var(--v2-tool, var(--v2-tool));
   outline-offset: -2px;
 }
 /* Кадр показывает, что он кликабелен, и в фокусе тоже — иначе идущий
@@ -708,147 +721,131 @@
 .ex-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ex-card-thumb-empty {
   display: flex; align-items: center; justify-content: center;
-  height: 100%; color: var(--text-faint); font-size: var(--text-caption);
+  height: 100%; color: var(--v2-text-faint); font-size: var(--v2-fs-xs);
 }
 .ex-card-play {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  background: color-mix(in srgb, var(--surface-0) 25%, transparent);
-  opacity: 0; transition: opacity var(--dur-fast) var(--ease);
+  background: color-mix(in srgb, var(--v2-bg) 25%, transparent);
+  opacity: 0; transition: opacity var(--v2-dur-fast) var(--v2-ease);
 }
 @media (hover: hover) {
   .ex-card-thumb:hover .ex-card-play { opacity: 1; }
 }
-.ex-card-play svg { width: 48px; height: 48px; filter: drop-shadow(var(--shadow-md)); }
+.ex-card-play svg { width: 48px; height: 48px; filter: drop-shadow(var(--v2-shadow-pop)); }
+/* Статус на кадре — обычным регистром («Расход-3»): прописные с разрядкой
+   спорили с названием упражнения под кадром. */
 .ex-card-badge {
-  position: absolute; top: var(--space-2); right: var(--space-2);
-  font-family: var(--font-mono);
-  font-size: var(--text-mono); font-weight: 500;
-  padding: 3px var(--space-2); border-radius: 999px;
-  text-transform: uppercase; letter-spacing: 0.05em;
+  position: absolute; top: var(--v2-sp-2); right: var(--v2-sp-2);
+  font-family: var(--v2-font);
+  font-size: var(--v2-fs-xs); font-weight: var(--v2-fw-medium);
+  padding: var(--v2-sp-1) var(--v2-sp-2); border-radius: var(--v2-r-pill);
 }
-.ex-badge-approved { background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--success); }
-.ex-badge-wrong    { background: color-mix(in srgb, var(--error) 20%, transparent);   color: var(--error); }
-.ex-badge-no_video { background: var(--surface-3); color: var(--text-2); }
+.ex-badge-approved { background: color-mix(in srgb, var(--v2-ok) 18%, transparent); color: var(--v2-ok); }
+.ex-badge-wrong    { background: color-mix(in srgb, var(--v2-danger) 20%, transparent);   color: var(--v2-danger); }
+.ex-badge-no_video { background: var(--v2-surface-hover); color: var(--v2-text-2); }
 
-.ex-card-body { padding: var(--space-4); }
-.ex-card-name { font-size: var(--text-body-sm); font-weight: 600; color: var(--text); line-height: 1.3; }
-.ex-card-name-en { font-size: var(--text-caption); color: var(--text-faint); margin-top: 2px; font-style: italic; }
-.ex-card-meta { font-size: var(--text-caption); color: var(--text-2); margin: var(--space-2) 0 var(--space-3); }
+.ex-card-body { padding: var(--v2-sp-4); }
+.ex-card-name { font-size: var(--v2-fs-sm); font-weight: 600; color: var(--v2-text); line-height: 1.3; }
+.ex-card-name-en { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); margin-top: var(--v2-sp-1); font-style: italic; }
+.ex-card-meta { font-size: var(--v2-fs-xs); color: var(--v2-text-2); margin: var(--v2-sp-2) 0 var(--v2-sp-3); }
 
-.ex-card-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
-.ex-btn {
-  flex: 1; min-width: 0;
-  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
-  padding: var(--space-2);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-caption); font-weight: 500;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
-  font-family: var(--font);
-  white-space: nowrap;
-}
+.ex-card-actions { display: flex; gap: var(--v2-sp-2); flex-wrap: wrap; }
+/* Кнопки карточки — `.v2-btn .v2-btn-sm` («Расход-3», блок 3). Своё —
+   раскладка в ряду (доли поровну) и тон двух исходов ниже: зелёный
+   и красный здесь несут СМЫСЛ, у «Одобрено» и «Неверное» он свой. */
+.ex-btn { flex: 1; min-width: 0; white-space: nowrap; }
 .ex-btn-approve {
-  background: color-mix(in srgb, var(--success) 10%, transparent);
-  border-color: color-mix(in srgb, var(--success) 30%, transparent);
-  color: var(--success);
+  background: color-mix(in srgb, var(--v2-ok) 10%, transparent);
+  border-color: color-mix(in srgb, var(--v2-ok) 30%, transparent);
+  color: var(--v2-ok);
 }
 @media (hover: hover) {
-  .ex-btn-approve:hover:not(.active) { background: color-mix(in srgb, var(--success) 20%, transparent); }
+  .ex-btn-approve:hover:not(.active) { background: color-mix(in srgb, var(--v2-ok) 20%, transparent); }
 }
-.ex-btn-approve.active { background: color-mix(in srgb, var(--success) 28%, transparent); }
+.ex-btn-approve.active { background: color-mix(in srgb, var(--v2-ok) 28%, transparent); }
 .ex-btn-wrong {
-  background: color-mix(in srgb, var(--error) 10%, transparent);
-  border-color: color-mix(in srgb, var(--error) 30%, transparent);
-  color: var(--error);
+  background: color-mix(in srgb, var(--v2-danger) 10%, transparent);
+  border-color: color-mix(in srgb, var(--v2-danger) 30%, transparent);
+  color: var(--v2-danger);
 }
 @media (hover: hover) {
-  .ex-btn-wrong:hover:not(.active) { background: color-mix(in srgb, var(--error) 20%, transparent); }
+  .ex-btn-wrong:hover:not(.active) { background: color-mix(in srgb, var(--v2-danger) 20%, transparent); }
 }
-.ex-btn-wrong.active { background: color-mix(in srgb, var(--error) 28%, transparent); }
-.ex-btn-replace { background: var(--surface-2); border-color: var(--border); color: var(--text); }
-@media (hover: hover) {
-  .ex-btn-replace:hover { border-color: var(--accent-brand); }
-}
+.ex-btn-wrong.active { background: color-mix(in srgb, var(--v2-danger) 28%, transparent); }
+/* «Заменить» — `.v2-btn-secondary`: своего тона у неё нет. */
 
 /* «Показать технику» — отдельной строкой под тремя основными кнопками */
-.ex-btn-howto {
-  display: flex; width: 100%; margin-top: var(--space-2);
-  background: none; border-color: var(--border); color: var(--text-2);
-}
-@media (hover: hover) {
-  .ex-btn-howto:hover { border-color: var(--accent-brand); color: var(--text); }
-}
+.ex-btn-howto { display: flex; width: 100%; margin-top: var(--v2-sp-2); }
 
 .ex-instructions {
   display: none;
-  margin-top: var(--space-3);
-  padding: var(--space-3);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  margin-top: var(--v2-sp-3);
+  padding: var(--v2-sp-3);
+  background: var(--v2-surface-2);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-sm);
 }
 .ex-instructions.open { display: block; }
 .ex-instructions ol {
-  margin: 0; padding-left: var(--space-4);
-  display: flex; flex-direction: column; gap: var(--space-2);
+  margin: 0; padding-left: var(--v2-sp-4);
+  display: flex; flex-direction: column; gap: var(--v2-sp-2);
 }
-.ex-instructions li { font-size: var(--text-caption); color: var(--text); line-height: 1.45; }
+.ex-instructions li { font-size: var(--v2-fs-xs); color: var(--v2-text); line-height: 1.45; }
 /* Служебная строка внутри блока техники: «загружаем», «не записана»,
    «не удалось». Текст, а не молчание, — блок раскрывается сразу, и без
    строки он был бы просто пустым прямоугольником (BACKLOG №159). */
 .ex-howto-wait {
   margin: 0;
-  font-size: var(--text-caption);
-  color: var(--text-2);
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-text-2);
   line-height: 1.45;
 }
 
-.ex-replace-row { display: none; gap: var(--space-2); margin-top: var(--space-2); }
+.ex-replace-row { display: none; gap: var(--v2-sp-2); margin-top: var(--v2-sp-2); }
 .ex-replace-row.open { display: flex; }
-/* Поле ссылки — СИСТЕМНОЕ `.input .input-sm`. Здесь стояла его копия
+/* Поле ссылки — `.v2-input` (с «Расхода-3»; прежде `.input .input-sm`). Здесь стояла его копия
    на 17 строк: свой фон, своя рамка, свой радиус, свой фокус на жёстком
    `--accent-brand` вместо `--tool-accent`. Ровно тот дубль, что уже
    сводили у полей таблицы продуктов (BACKLOG №42). Странице остаётся
    раскладка в ряду. */
 .ex-replace-input { flex: 1; min-width: 0; }
-/* Кнопка — СИСТЕМНАЯ `.btn-primary`. Здесь стояла её приглушённая копия
+/* Кнопка — `.v2-btn-primary` (с «Расхода-3»; прежде `.btn-primary`). Здесь стояла её приглушённая копия
    (фон `--accent-brand-dim`, акцентный текст): по виду она читалась как
    вторичная, хотя это единственное действие ряда. Странице остаётся
    только «не сжимайся» — раскладка экземпляра. */
 .ex-replace-save { flex: none; white-space: nowrap; }
 .ex-card-warn {
   display: none;
-  font-size: var(--text-caption); color: var(--error);
-  margin-top: var(--space-2); line-height: 1.4;
+  font-size: var(--v2-fs-xs); color: var(--v2-danger);
+  margin-top: var(--v2-sp-2); line-height: 1.4;
 }
 .ex-card-warn.visible { display: block; }
 
 .ex-pagination {
-  display: flex; align-items: center; justify-content: center; gap: var(--space-2);
-  margin-top: var(--space-3); flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: center; gap: var(--v2-sp-2);
+  margin-top: var(--v2-sp-3); flex-wrap: wrap;
 }
 .ex-page-btn {
   min-width: 34px; height: 34px;
   display: inline-flex; align-items: center; justify-content: center;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  font-size: var(--text-caption);
-  cursor: pointer; font-family: var(--font);
-  padding: 0 var(--space-3);
-  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+  background: var(--v2-surface-2);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-sm);
+  color: var(--v2-text);
+  font-size: var(--v2-fs-xs);
+  cursor: pointer; font-family: var(--v2-font);
+  padding: 0 var(--v2-sp-3);
+  transition: border-color var(--v2-dur-fast) var(--v2-ease), background var(--v2-dur-fast) var(--v2-ease);
 }
 @media (hover: hover) {
-  .ex-page-btn:hover:not(:disabled) { border-color: var(--accent-brand); }
+  .ex-page-btn:hover:not(:disabled) { border-color: var(--v2-tool); }
 }
 .ex-page-btn:disabled { opacity: .35; cursor: default; }
 .ex-page-btn.active {
-  background: var(--accent-brand-dim);
-  border-color: var(--accent-brand);
-  color: var(--accent-brand);
+  background: var(--v2-tool-dim);
+  border-color: var(--v2-tool);
+  color: var(--v2-tool);
 }
 /* ДОБОР ТАЧ-ТАРГЕТА до 44×44 — невидимой областью, видимый размер
    прежний (34px). Ряд кнопок разложен с зазором --space-2 = 8px,
@@ -864,7 +861,7 @@
   }
 }
 /* Многоточие между блоками номеров страниц — не кнопка, а разрыв ряда */
-.ex-page-gap { color: var(--text-faint); padding: 0 var(--space-1); }
+.ex-page-gap { color: var(--v2-text-faint); padding: 0 var(--v2-sp-1); }
 
 /* ── Модалка видео ──────────────────────────────────────────────────── */
 /* Оверлей, лист и кнопка закрытия — компонент (вариант modal-ov-viewer).
@@ -883,9 +880,9 @@
   width: min(800px, var(--viewer-w, 94vw));
   aspect-ratio: 16/9;
   background: var(--letterbox);
-  border-radius: var(--radius-md);
+  border-radius: var(--v2-r-md);
   overflow: hidden;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--v2-shadow-pop);
 }
 .ex-video-box iframe { width: 100%; height: 100%; border: none; display: block; }
 
@@ -994,8 +991,8 @@
   cursor: zoom-in;
 }
 .ens-a-thumbwrap:focus-visible {
-  outline: 2px solid var(--accent-brand); outline-offset: 2px;
-  border-radius: var(--radius-sm);
+  outline: 2px solid var(--v2-tool); outline-offset: 2px;
+  border-radius: var(--v2-r-sm);
 }
 /* РАЗМЕР МИНИАТЮРЫ — 2026-08-23, решение владельца: «по ним нельзя
    понять, что изображено». Прежние 64×40 показывали картинку
@@ -1011,17 +1008,35 @@
        таблицы вырастает с 74 до 114, а не вдвое.
    Увеличение по наведению остаётся: миниатюра — якорь `data-zoom`. */
 .ens-a-thumb { width: 160px; height: 90px; object-fit: contain;
-               background: var(--surface-sunken); border-radius: var(--radius-sm); display: block; }
-.ens-a-id { font-family: var(--font-mono); font-size: var(--text-mono); color: var(--text-2); }
+               background: var(--v2-surface-field); border-radius: var(--v2-r-sm); display: block; }
+.ens-a-id { font-family: var(--v2-font); font-size: var(--v2-fs-xs); color: var(--v2-text-2); }
 /* Вторичная подпись под названием. Роль ТА ЖЕ, что у восьми других
    мест проекта (замер 2026-08-22, BACKLOG №126: `.cta-sub`,
    `.wk-step-sub`, `.admin-wrap .subtitle`…), и системного имени
    под неё пока нет — решение о новом компоненте за владельцем,
    поэтому здесь страничное имя, а не самовольный системный класс. */
-.ens-a-en, .ens-a-note { color: var(--text-2); font-size: var(--text-caption); }
-.ens-a-note { line-height: 1.5; margin-top: var(--space-2); }
-.ens-a-none { color: var(--text-faint); font-size: var(--text-caption); }
-.ens-a-edit { padding: var(--space-1) var(--space-3); }
+.ens-a-en, .ens-a-note { color: var(--v2-text-2); font-size: var(--v2-fs-xs); }
+.ens-a-note { line-height: 1.5; margin-top: var(--v2-sp-2); }
+.ens-a-none { color: var(--v2-text-faint); font-size: var(--v2-fs-xs); }
+/* Сообщение окна сета — строка v2, а не `.alert` старой системы
+   («Расход-3»). Тон — атрибутом, как у сообщения в карточке места
+   главной (`.landing-card-msg`): у сообщений админки вид один. */
+.ens-a-msg {
+  margin: 0 0 var(--v2-sp-4);
+  padding: var(--v2-sp-3) var(--v2-sp-4);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-md);
+  background: var(--v2-surface-2);
+  font-size: var(--v2-fs-sm);
+  color: var(--v2-text);
+}
+.ens-a-msg[data-tone="error"] { color: var(--v2-danger); border-color: var(--v2-danger); }
+.ens-a-msg[data-tone="warn"] { color: var(--v2-warn); border-color: var(--v2-warn); }
+.ens-a-msg[data-tone="success"] { color: var(--v2-ok); border-color: var(--v2-ok); }
+.ens-a-msg[data-tone="accent"] { border-color: var(--v2-tool-line); }
+/* Список категории — во всю ширину колонки формы: обёртка v2 сама
+   по себе строчная и ужалась бы по содержимому. */
+.ens-a-select { display: flex; width: 100%; }
 /* ── ОКНО СЕТА: ЧЕТЫРЕ БЛОКА, ДВЕ КОЛОНКИ (BACKLOG №266, блок C) ────
    Блоки разделены ЛИНИЕЙ МЕЖДУ СОБОЙ, а не линией под заголовком:
    первый блок (идентификатор и названия) заголовка не имеет, и линия
@@ -1034,20 +1049,20 @@
    поля по весу восприятия: подписи полей набраны прописным моно
    с разрядкой, и заголовок того же вида спорил бы с ними. */
 .ens-a-sect + .ens-a-sect {
-  margin-top: var(--space-5);
-  padding-top: var(--space-5);
-  border-top: 1px solid var(--border);
+  margin-top: var(--v2-sp-5);
+  padding-top: var(--v2-sp-5);
+  border-top: 1px solid var(--v2-line-2);
 }
 .ens-a-sect-t {
-  margin: 0 0 var(--space-3);
-  font-size: var(--text-body-sm);
+  margin: 0 0 var(--v2-sp-3);
+  font-size: var(--v2-fs-sm);
   font-weight: 600;
-  color: var(--text-2);
+  color: var(--v2-text-2);
 }
 /* Колонки РАВНЫЕ по построению (`minmax(0, 1fr)`): при голом `1fr`
    длинное значение в поле раздвинуло бы свою колонку за счёт соседней. */
 .ens-a-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-              gap: var(--space-4); }
+              gap: var(--v2-sp-4); }
 .ens-a-span { grid-column: 1 / -1; }
 .ens-a-field { min-width: 0; }
 /* Плашки состава: системный `.chip` с `.active`; галочка видна только
@@ -1055,16 +1070,16 @@
    у чипа высотой 28 на 8 px вверх и вниз, и при зазоре рядов 8 нижний
    ряд отъедал бы у верхнего — отсюда 16 (тот же урок, что у чипов
    аптечки, BACKLOG №162). */
-.ens-a-pieces { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.ens-a-pieces { display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); }
 .ens-a-piece svg { width: 14px; height: 14px; }
 .ens-a-piece:not(.active) svg { display: none; }
-@media (pointer: coarse) { .ens-a-pieces { row-gap: var(--space-4); } }
-.ens-a-img { display: flex; gap: var(--space-4); align-items: flex-start; }
+@media (pointer: coarse) { .ens-a-pieces { row-gap: var(--v2-sp-4); } }
+.ens-a-img { display: flex; gap: var(--v2-sp-4); align-items: flex-start; }
 .ens-a-prev { width: 180px; height: 128px; object-fit: contain; flex: none;
-              background: var(--surface-sunken); border: 1px solid var(--border);
-              border-radius: var(--radius-sm); display: flex;
+              background: var(--v2-surface-field); border: 1px solid var(--v2-line-2);
+              border-radius: var(--v2-r-sm); display: flex;
               align-items: center; justify-content: center; }
-.ens-a-imgctl { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.ens-a-imgctl { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--v2-sp-2); }
 /* Ряд «поле ссылки + кнопка Загрузить» УДАЛЁН 2026-09-11 вместе
    с кнопкой (BACKLOG №266, C5): поле ссылки стоит само, во всю ширину
    колонки. Прежний ряд на 390 ещё и раздувал поле до ~220 px по высоте:
@@ -1086,19 +1101,21 @@
    где кнопки — ответ на один вопрос и разводить их незачем. */
 .ens-a-foot {
   position: sticky;
-  bottom: calc(var(--space-1) * -1);
+  bottom: calc(var(--v2-sp-1) * -1);
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  margin: var(--space-5) calc(var(--space-4) * -1) calc(var(--space-1) * -1);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-1);
-  border-top: 1px solid var(--border);
+  gap: var(--v2-sp-3);
+  margin: var(--v2-sp-5) calc(var(--v2-sp-4) * -1) calc(var(--v2-sp-1) * -1);
+  padding: var(--v2-sp-3) var(--v2-sp-4);
+  /* НЕПРОЗРАЧНАЯ, как лист окна: подвал липкий, и форма прокручивается
+     ПОД ним — сквозь `--v2-surface-*` читались бы поля. */
+  background: var(--v2-surface-pop);
+  border-top: 1px solid var(--v2-line-2);
 }
 .ens-a-save { margin-left: auto; }
-.ens-a-actions { display: flex; justify-content: flex-end; gap: var(--space-3);
-                 margin-top: var(--space-5); flex-wrap: wrap; }
+.ens-a-actions { display: flex; justify-content: flex-end; gap: var(--v2-sp-3);
+                 margin-top: var(--v2-sp-5); flex-wrap: wrap; }
 /* В окне подтверждения обе кнопки — ответ на один вопрос, разводить
    их незачем: там опасное действие и есть предмет разговора. */
 .ens-a-actions-danger { justify-content: flex-end; }
@@ -1107,7 +1124,7 @@
    к имени каталога значило бы, что удаление первого сломается от правки
    второго. */
 .admin-modal-actions { display: flex; justify-content: flex-end;
-                       gap: var(--space-3); margin-top: var(--space-5);
+                       gap: var(--v2-sp-3); margin-top: var(--v2-sp-5);
                        flex-wrap: wrap; }
 @media (max-width: 640px) {
   .ens-a-grid { grid-template-columns: minmax(0, 1fr); }
@@ -1126,12 +1143,12 @@
    и разное обрамление читалось бы как разные по важности блоки. */
 .admin-foot {
   display: flex; align-items: center; justify-content: space-between;
-  gap: var(--space-3) var(--space-5); flex-wrap: wrap;
-  margin-top: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  gap: var(--v2-sp-3) var(--v2-sp-5); flex-wrap: wrap;
+  margin-top: var(--v2-sp-4);
+  padding: var(--v2-sp-3) var(--v2-sp-4);
+  background: var(--v2-surface-1);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-md);
 }
 /* Подсказка забирает остаток: расход справа занимает по содержимому. */
 /* ШИРИНА НЕ ОГРАНИЧЕНА, И ЭТО ОТМЕНА ОДНОГО СВОЙСТВА `.data-note`.
@@ -1151,10 +1168,37 @@
    псевдоэлемент СОСЕДА, а не самого пункта: так у последнего его
    не окажется без отдельного правила `:last-child`. */
 .admin-foot-item + .admin-foot-item::before {
-  content: '·'; margin: 0 var(--space-2); color: var(--text-faint);
+  content: '·'; margin: 0 var(--v2-sp-2); color: var(--v2-text-faint);
 }
+/* Числа подвала — обычной гарнитурой с табличными цифрами («Расход-3»):
+   моноширинных на экранах v2 нет, а строка при смене числа не дёргается. */
 .admin-foot-n {
-  font-family: var(--font-mono); font-weight: 600; color: var(--text);
+  font-family: var(--v2-font); font-weight: var(--v2-fw-strong); color: var(--v2-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── ПРОГРЕСС ПРОВЕРКИ НАД РЯДОМ ОТБОРА («Расход-3», 3.2) ─────────────
+   `.v2-card` с полосой `.v2-progress`; числа и подпись — из базы
+   (`_admin_head.html`, параметр `прогресс`). Своё — строка «сделано N
+   из M» с составом справа и отбивка до ряда отбора. */
+.admin-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-sp-3);
+  margin-bottom: var(--v2-sp-4);
+  padding: var(--v2-sp-4) var(--v2-sp-5);
+}
+.admin-progress-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--v2-sp-2) var(--v2-sp-4);
+  flex-wrap: wrap;
+}
+.admin-progress-title { margin: 0; font-size: var(--v2-fs-sm); color: var(--v2-text); }
+.admin-progress-sub { margin: 0; }
+@media (max-width: 640px) {
+  .admin-progress { padding: var(--v2-sp-3) var(--v2-sp-4); }
 }
 
 /* ПРЕДОСТЕРЕЖЕНИЕ — ПУНКТ, КОТОРЫЙ НЕ ОБЪЯСНЯЕТ ТАБЛИЦУ, А ПРЕДУПРЕЖДАЕТ
@@ -1170,7 +1214,7 @@
    видно и чтобы его СЧИТАЛА машина (`py check_admin_foot.py`): следующее
    сокращение унесло бы его вместе с водой, и заметить это было бы
    нечем. */
-.admin-foot-warn { color: var(--text); }
+.admin-foot-warn { color: var(--v2-text); }
 
 /* РАСХОД СПРАВОЧНИКА ОТСЮДА УЕХАЛ — BACKLOG №315, решение владельца.
    Здесь стояли правила правой половины подвала: `.admin-foot-ref*`,
@@ -1197,16 +1241,16 @@
    Секции идут в порядке страницы, внутри — карточки мест сеткой.
    Ширина колонки у ленты шире: там ролики 16:9, и в узкой карточке
    превью ролика читается хуже, чем картинка 4:3. */
-.landing-section { margin-top: var(--space-6); }
+.landing-section { margin-top: var(--v2-sp-6); }
 .landing-section-title {
-  display: flex; align-items: baseline; gap: var(--space-2);
-  margin: 0 0 var(--space-3);
-  font-size: var(--text-body-sm); font-weight: 600;
+  display: flex; align-items: baseline; gap: var(--v2-sp-2);
+  margin: 0 0 var(--v2-sp-3);
+  font-size: var(--v2-fs-sm); font-weight: 600;
 }
 .landing-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
-  gap: var(--space-4);
+  gap: var(--v2-sp-4);
 }
 .landing-grid-feed { grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr)); }
 /* ВИД КАРТОЧКИ (письмо 3б задачи 343). Карточки ряда одной высоты — сетка
@@ -1216,43 +1260,40 @@
    в одном ряду сетки расходился до 151.5 px. */
 .landing-card {
   display: flex; flex-direction: column;
-  padding: var(--space-3);
-  gap: var(--space-3);
+  padding: var(--v2-sp-3);
+  gap: var(--v2-sp-3);
 }
 .landing-card-frame { display: flex; justify-content: center; height: 11rem; }
 .landing-card-frame > * { width: 100%; height: 100%; }
-.landing-card-body { display: flex; flex-direction: column; flex: 1; gap: var(--space-1); }
+.landing-card-body { display: flex; flex-direction: column; flex: 1; gap: var(--v2-sp-1); }
 .landing-card-title {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
   overflow: hidden;
-  margin: 0; font-weight: 600; font-size: var(--text-body-sm);
+  margin: 0; font-weight: 600; font-size: var(--v2-fs-sm);
 }
 .landing-card-meta {
-  display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3);
-  margin: 0; font-size: var(--text-caption); color: var(--text-2);
+  display: flex; flex-wrap: wrap; gap: var(--v2-sp-1) var(--v2-sp-3);
+  margin: 0; font-size: var(--v2-fs-xs); color: var(--v2-text-2);
 }
-.landing-card-sub { margin: 0; font-size: var(--text-caption); color: var(--text-2); }
-.landing-card-n { font-family: var(--font-mono); color: var(--text); }
+.landing-card-sub { margin: 0; font-size: var(--v2-fs-xs); color: var(--v2-text-2); }
+.landing-card-n { font-family: var(--v2-font); color: var(--v2-text); }
 /* Кнопки — равными долями в одну строку: в карточке 250 px две кнопки
    переносились, ряд вырастал вдвое, и верх ряда в одном ряду сетки
    расходился на 50 px с карточкой из одной кнопки. */
 .landing-card-acts {
-  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--space-2);
-  margin-top: auto; padding-top: var(--space-2);
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--v2-sp-2);
+  margin-top: auto; padding-top: var(--v2-sp-2);
 }
 .landing-card-acts > * { min-width: 0; white-space: nowrap; }
-/* «Убрать» — та же кнопка, что «Заменить», отличается только красным
-   текстом и рамкой: необратимое действие видно, размер и форма общие. */
-.landing-card-del { color: var(--error); border-color: color-mix(in srgb, var(--error) 40%, transparent); }
-@media (hover: hover) {
-  .landing-card-del:hover { color: var(--error); border-color: var(--error); }
-}
-.landing-card-msg { margin: var(--space-1) 0 0; font-size: var(--text-caption); color: var(--text-2); }
-.landing-card-msg[data-tone="error"] { color: var(--error); }
-.landing-card-msg[data-tone="warning"] { color: var(--warning); }
-.landing-card-msg[data-tone="success"] { color: var(--success); }
+/* «Убрать» — `.v2-btn-danger` той же мелкой высоты, что «Заменить»:
+   необратимое действие видно, размер и форма общие. Своих правил
+   у неё больше нет («Расход-3»). */
+.landing-card-msg { margin: var(--v2-sp-1) 0 0; font-size: var(--v2-fs-xs); color: var(--v2-text-2); }
+.landing-card-msg[data-tone="error"] { color: var(--v2-danger); }
+.landing-card-msg[data-tone="warning"] { color: var(--v2-warn); }
+.landing-card-msg[data-tone="success"] { color: var(--v2-ok); }
 .landing-del-actions {
-  display: flex; justify-content: flex-end; gap: var(--space-2);
-  margin-top: var(--space-4);
+  display: flex; justify-content: flex-end; gap: var(--v2-sp-2);
+  margin-top: var(--v2-sp-4);
 }
 .admin-foot-side { flex: 0 0 auto; margin: 0; }

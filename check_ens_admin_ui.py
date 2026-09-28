@@ -152,7 +152,7 @@ def _войти(стр):
     # которую нажимает проба (`ОТМЕНА_УДАЛЕНИЯ`): подлог на другом органе
     # того же окна дал бы «не найден» про исправную пробу.
     "отказ-не-отменяет": ("отказ НИЧЕГО не тронул", """const ж2 = setInterval(() => {
-  const к = document.querySelector('#ens-del .btn-secondary[data-modal-close]');
+  const к = document.querySelector('#ens-del .v2-btn-secondary[data-modal-close]');
   if (!к) return;
   clearInterval(ж2);
   к.addEventListener('click', () => {
@@ -366,7 +366,7 @@ def прогон(следы=False, ширина=1440, сенсор=False, кад
                 " return !!(e && e.tagName === 'IMG' && e.src); }")
             шаг("выбранный файл показан ДО сохранения", видно_превью,
                 "превью подставлено" if видно_превью else "превью не изменилось")
-            стр.click("#ens-body .btn-primary")
+            стр.click("#ens-body .v2-btn-primary")
             стр.wait_for_timeout(2500)
             сказано = стр.inner_text("#ens-msg").strip()
             в_базе = _из_базы("SELECT id, name_ru, crafter, lvl, img_ext FROM enshrouded_sets"
@@ -392,7 +392,7 @@ def прогон(следы=False, ширина=1440, сенсор=False, кад
             стр.fill("#f-en", "Probe Url")
             стр.select_option("#f-cat", label="Алхимик")
             стр.fill("#f-url", f"{БАЗА}/enshrouded-img/bs_fur.png")
-            стр.click("#ens-body .btn-primary")
+            стр.click("#ens-body .v2-btn-primary")
             стр.wait_for_timeout(3000)
             сказано2 = стр.inner_text("#ens-msg").strip()
             в_базе2 = _из_базы("SELECT id, img_ext, img_ver FROM enshrouded_sets WHERE id = ?",
@@ -414,7 +414,7 @@ def прогон(следы=False, ширина=1440, сенсор=False, кад
             заблокирован = стр.evaluate("() => document.getElementById('f-id').disabled")
             стр.fill("#f-ru", "Проба правленая")
             стр.fill("#f-lvl", "42")
-            стр.click("#ens-body .btn-primary")
+            стр.click("#ens-body .v2-btn-primary")
             стр.wait_for_timeout(1500)
             после = _из_базы("SELECT name_ru, lvl FROM enshrouded_sets WHERE id = ?", ФАЙЛОМ)
             имя_в_таблице = стр.evaluate("""(id) => {
@@ -450,7 +450,7 @@ def прогон(следы=False, ширина=1440, сенсор=False, кад
             стр.wait_for_timeout(900)
             отметок_до = _из_базы("SELECT COUNT(*) FROM enshrouded_slots WHERE set_id = ?",
                                   ФАЙЛОМ)[0][0]
-            стр.click("#ens-body .btn-danger")
+            стр.click("#ens-body .v2-btn-danger")
             стр.wait_for_timeout(1200)
             вопрос = стр.inner_text("#ens-del-text").strip()
             видно_окно = стр.evaluate(
@@ -484,7 +484,7 @@ def прогон(следы=False, ширина=1440, сенсор=False, кад
             # (BACKLOG №266, §6.0.3, четыре пункта).
             #   ПРЕЖНЯЯ ФОРМУЛИРОВКА: `#ens-del [data-modal-close]` — первым
             #     в окне стоит крестик шапки.
-            #   НОВАЯ: `#ens-del .btn-secondary[data-modal-close]` — «Отмена».
+            #   НОВАЯ: `#ens-del .v2-btn-secondary[data-modal-close]` — «Отмена».
             #   ПОЧЕМУ ПРЕЖНЯЯ НЕГОДНА: с задачи 189 (a3a0273, 2026-08-28)
             #     на сенсорной ширине крестик шапки скрыт — окно закрывают
             #     жестом. Замер 2026-09-11 на 390: крестик «видно: false»,
@@ -494,7 +494,7 @@ def прогон(следы=False, ширина=1440, сенсор=False, кад
             #     на 390 не прогонялась ни разу с 2026-08-28.
             #   ОТРИЦАТЕЛЬНЫЙ КОНТРОЛЬ НА НОВОЙ: подлог «отказ-не-отменяет»
             #     переведён на ту же кнопку; `--контроль`.
-            стр.click("#ens-del .btn-secondary[data-modal-close]")
+            стр.click("#ens-del .v2-btn-secondary[data-modal-close]")
             стр.wait_for_timeout(700)
             жив = _из_базы("SELECT COUNT(*) FROM enshrouded_sets WHERE id = ?", ФАЙЛОМ)[0][0]
             отметок_после_отказа = _из_базы(
@@ -504,7 +504,7 @@ def прогон(следы=False, ширина=1440, сенсор=False, кад
                 f"сетов {жив}, отметок {отметок_после_отказа} (было {отметок_до})")
 
             # подтверждение
-            стр.click("#ens-body .btn-danger")
+            стр.click("#ens-body .v2-btn-danger")
             стр.wait_for_timeout(900)
             # ВТОРОЕ ОТКРЫТИЕ ВОПРОСА ТОЖЕ ПРОВЕРЯЕТСЯ. Без этого проба
             # висела 30 секунд на клике по кнопке в неоткрытом окне и падала
@@ -664,7 +664,7 @@ def _печать(шаги, ошибки_страницы, ширина, сен�
     # а подпись говорила «Отмена» — неправда, державшаяся лишь потому,
     # что подлог тоже вешался на крестик. Переведя подлог на «Отмену»,
     # заход 266 получил «НЕ СОСТОЯЛСЯ» (0 и 0) про работающий подлог.
-    "отказ-не-отменяет": ("CDP:#ens-del .btn-secondary[data-modal-close]",
+    "отказ-не-отменяет": ("CDP:#ens-del .v2-btn-secondary[data-modal-close]",
                           "сколько обработчиков висит на кнопке «Отмена»"),
 }
 
