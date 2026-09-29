@@ -515,7 +515,22 @@ class СетьАрх(Сеть):
         "r1": ("UCR", "Русский канал", "ГТА 5: угарные моменты", 3000000),
         "e1": ("UCE", "SquidLike", "GTA 5 physics test", 4000000),
         "m1": ("UCM", "Rap Channel", "Rap do Minecraft", 70000000),
+        # Версия 3, замер версии 2 на проде: испанский канал с самым большим
+        # хитом (Fernanfloo) и ролик про другую игру, у которого GTA только
+        # в описании (Gmod у VanossGaming).
+        "s1": ("UCS", "Canal Divertido", "GTA V | Momentos Divertidos #3 (Funny Moments)", 12000000),
+        "d1": ("UCA", "Funny Channel", "Gmod: Halloween Training", 7000000),
     }
+    # Описание канала — признак языка латиницы: заголовки испанского канала
+    # от английских не отличить («(Funny Moments)»), описание — отличить.
+    КАНАЛЫ = {
+        "UCA": ("Funny Channel", "Funny moments and glitches from the best games, new videos every week."),
+        "UCE": ("SquidLike", "Physics tests and experiments with your favourite games."),
+        "UCR": ("Русский канал", "Угарные моменты из игр каждую неделю."),
+        "UCS": ("Canal Divertido",
+                "Hola a todos! Videos de juegos y momentos divertidos en el canal cada semana."),
+    }
+    ОПИСАНИЯ = {"d1": "Check out my GTA 5 playlist!"}
 
     def __init__(self, только_чужое=False):
         super().__init__()
@@ -532,13 +547,20 @@ class СетьАрх(Сеть):
             elif q.get("relevanceLanguage") == "ru":
                 ids = ["r1", "e1", "m1"]
             else:
-                ids = ["g1", "m1", "e1"]
+                ids = ["g1", "m1", "e1", "s1"]
             return {"items": [{"id": {"videoId": v}} for v in ids]}
+        if путь.endswith("/channels"):
+            ids = [c for c in q.get("id", "").split(",") if c in self.КАНАЛЫ]
+            if ids:
+                return {"items": [{"id": c, "snippet": {"title": self.КАНАЛЫ[c][0],
+                                                       "description": self.КАНАЛЫ[c][1]}}
+                                  for c in ids]}
         if путь.endswith("/videos"):
             ids = [v for v in q.get("id", "").split(",") if v in self.РОЛИКИ]
             if ids:
                 return {"items": [{"id": v, "snippet": {
-                    "title": self.РОЛИКИ[v][2], "description": "", "channelId": self.РОЛИКИ[v][0],
+                    "title": self.РОЛИКИ[v][2], "description": self.ОПИСАНИЯ.get(v, ""),
+                    "channelId": self.РОЛИКИ[v][0],
                     "channelTitle": self.РОЛИКИ[v][1], "publishedAt": "2014-03-01T10:00:00Z"},
                     "statistics": {"viewCount": str(self.РОЛИКИ[v][3])}} for v in ids]}
         return super().yt(путь, q)
@@ -575,6 +597,37 @@ def test_археология_только_про_тему_и_язык_по_те
     assert хиты["e1"].channel_lang == "en" and хиты["r1"].channel_lang == "ru"
     assert all(в.format_id is not None for в in хиты.values())
     assert итог["версия"] == ce.АРХЕОЛОГИЯ_ВЕРСИЯ
+    # Версия 3: тема только в ЗАГОЛОВКЕ. Описание d1 теме отвечает,
+    # а ролик про Gmod — в таблицу он не идёт.
+    assert cc.совпало(СетьАрх.ОПИСАНИЯ["d1"], cc.шаблон_ключевых(["GTA 5"]))
+    assert "d1" not in хиты
+    # Латиница — ещё не английский: у испанского канала самый большой хит,
+    # но в англоязычные он не встаёт и назван в сводке.
+    assert "s1" not in хиты and итог["gta"]["другой_язык"] == ["Canal Divertido"], итог["gta"]
+
+
+def test_подлог_без_проверки_языка_испанский_канал_в_англоязычных(стенд, monkeypatch):
+    """Обратный случай версии 3: проверка языка снята — испанский канал
+    встаёт в англоязычные, как Fernanfloo на проде в версии 2 (семь хитов
+    из первой десятки). Без этого «испанского нет» неотличимо от «его
+    не присылали»: подставная сеть его присылает."""
+    db, _, _ = стенд
+    monkeypatch.setattr(cc, "латиница_не_английская", lambda текст: False)
+    _археология(monkeypatch, СетьАрх())
+    db.expire_all()
+    хиты = {в.yt_id: в for в in db.query(ContentArchVideo).all()}
+    assert "s1" in хиты and хиты["s1"].channel_lang == "en"
+
+
+def test_латиница_не_английская_по_описанию():
+    assert cc.латиница_не_английская(
+        "Hola a todos! Videos de juegos y momentos divertidos en el canal cada semana.")
+    assert cc.латиница_не_английская("Canal de rap sobre games. Inscreva-se para mais vídeos da série")
+    # Ссылки не дают португальского «com», одно «Pokémon» решение не переворачивает
+    assert not cc.латиница_не_английская(
+        "Welcome to the channel! Pokémon and GTA videos every week. twitter.com/me www.site.com")
+    # По одному заголовку испанский канал не отличить — поэтому решает описание
+    assert not cc.латиница_не_английская("GTA V | Momentos Divertidos (Funny Moments)")
 
 
 def test_подлог_без_отбора_по_теме_чужое_попадает(стенд, monkeypatch):
