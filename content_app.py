@@ -1,0 +1,331 @@
+"""МАРШРУТЫ МОДУЛЯ «КОНТЕНТ» (BACKLOG №365, 366) — только администратору.
+
+    GET  /content                    — страница: «Сюжеты», «Форматы», «Источники»
+    GET  /content/api/state          — идёт ли прогон и чем кончился последний
+    POST /content/api/run            — запустить: cycle | discover | archaeology
+    POST /content/api/channels/{id}  — канал реестра: оставить | убрать | кандидат
+
+НЕ-АДМИНУ — 403, И ГОСТЮ ТОЖЕ (требование письма). Прочие разделы админки
+уводят чужого на главную; здесь отказ называется кодом, потому что
+модуль целиком служебный и в меню у не-админа его нет вовсе.
+
+`main` ИМПОРТИРУЕТСЯ В МОМЕНТ ВЫЗОВА, а не наверху: этот файл подключает
+сам `main`, и прямой импорт замкнул бы круг на полусобранном модуле.
+
+ЧИСЛА СТРАНИЦЫ СОБИРАЕТ СЕРВЕР ИЗ ТЕХ ЖЕ СТРОК, ЧТО ПИШЕТ СБОР, — второго
+построителя в браузере нет: браузер только переключает вкладки
+и зовёт действия. Время — в поясе владельца (`main._пояс`), как везде.
+"""
+from collections import defaultdict
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse, PlainTextResponse
+from pydantic import BaseModel
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+import content_db as cdb
+import content_engine as ce
+from auth import get_current_user
+from content_db import (ContentArchVideo, ContentChannel, ContentFormat, ContentItem,
+                        ContentRun, ContentSnapshot, ContentSource, ContentStory,
+                        ContentTheme)
+from database import get_db
+
+router = APIRouter()
+
+СЮЖЕТОВ_НА_СТРАНИЦЕ = 60
+СЮЖЕТ_СВЕЖЕСТЬ_ДНЕЙ = 14          # сюжет без новых записей дольше — в архиве, не на экране
+ЗАПИСЕЙ_В_СЮЖЕТЕ = 12            # ссылок источников под сюжетом, дальше — «и ещё N»
+ХИТОВ_НА_СТРАНИЦЕ = 300
+ПРОГОНОВ_В_ЖУРНАЛЕ = 8
+ОТКАЗ_НЕ_АДМИНУ = "Нет доступа: раздел «Контент» открыт только администратору."
+СТРАНИЦА = {"icon": "activity", "label": "Админ · контент", "title": "Контент"}
+ЗАМЕТКА_УТЕЧКИ = "Рассказывать можно, кадры утечки показывать нельзя."
+ЦВЕТ_ИСХОДА = {"ok": "ok", "quota": "warn", "error": "danger", None: "idle"}
+ВИДЫ_ПРОГОНА = {"cycle": "сбор", "discover": "поиск каналов", "archaeology": "археология"}
+СОСТОЯНИЯ_ПРОГОНА = {"running": "идёт", "ok": "готово", "partial": "частично",
+                     "error": "ошибка", "skipped": "пропущен"}
+СТАТУСЫ_КАНАЛА = {"candidate": "кандидат", "keep": "оставлен", "removed": "убран"}
+
+
+def _админ(user) -> bool:
+    return bool(user and user.is_admin)
+
+
+def _main():
+    import main
+    return main
+
+
+def _время(момент: datetime | None, зона: ZoneInfo, с_годом: bool = False) -> str:
+    if not момент:
+        return "—"
+    местное = момент.replace(tzinfo=ZoneInfo("UTC")).astimezone(зона)
+    return местное.strftime("%d.%m.%Y" if с_годом else "%d.%m %H:%M")
+
+
+def _сколько_назад(момент: datetime | None) -> str:
+    if not момент:
+        return ""
+    минут = int((datetime.utcnow() - момент).total_seconds() // 60)
+    if минут < 1:
+        return "только что"
+    if минут < 60:
+        return f"{минут} мин назад"
+    часов = минут // 60
+    if часов < 48:
+        return f"{часов} ч назад"
+    return f"{часов // 24} дн назад"
+
+
+def _число(n) -> str:
+    return "—" if n is None else "{:,}".format(int(n)).replace(",", " ")
+
+
+def _рост(x) -> str:
+    if not x:
+        return "0 в час"
+    return f"{_число(round(x))} в час" if x >= 10 else f"{x:.1f} в час".replace(".", ",")
+
+
+def _прогон_наружу(п: ContentRun | None, зона: ZoneInfo, user) -> dict | None:
+    if п is None:
+        return None
+    return {"id": п.id, "kind": п.kind, "вид": ВИДЫ_ПРОГОНА.get(п.kind, п.kind),
+            "state": п.state, "состояние": СОСТОЯНИЯ_ПРОГОНА.get(п.state, п.state),
+            "trigger": п.trigger, "начат": _main()._момент_в_поясе(п.started_at, user),
+            "сек": (round((п.finished_at - п.started_at).total_seconds())
+                    if п.finished_at else None),
+            "note": п.note, "итог": cdb.из_json(п.summary, {}) or {}}
+
+
+def _квота(db) -> dict:
+    предел = int(cdb.настройка(db, "youtube").get("daily_cap", 9000))
+    день = cdb.сутки_квоты()
+    строка = db.get(cdb.ContentQuota, день)
+    потрачено = int(строка.units) if строка else 0
+    return {"день": день, "потрачено": потрачено, "предел": предел,
+            "доля": min(100, round(потрачено * 100 / предел)) if предел else 0,
+            "детали": cdb.из_json(строка.detail, {}) if строка else {},
+            "сброс_utc": cdb.сброс_квоты_utc()}
+
+
+def _сюжеты(db, тема_id: str, зона: ZoneInfo) -> list[dict]:
+    граница = datetime.utcnow() - timedelta(days=СЮЖЕТ_СВЕЖЕСТЬ_ДНЕЙ)
+    сюжеты = (db.query(ContentStory)
+              .filter(ContentStory.theme_id == тема_id, ContentStory.items > 0,
+                      func.coalesce(ContentStory.last_item_at, ContentStory.created_at) >= граница)
+              .order_by(ContentStory.score.desc(), ContentStory.last_item_at.desc())
+              .limit(СЮЖЕТОВ_НА_СТРАНИЦЕ).all())
+    if not сюжеты:
+        return []
+    записи = defaultdict(list)
+    когда = func.coalesce(ContentItem.published_at, ContentItem.first_seen_at)
+    for и in (db.query(ContentItem).filter(ContentItem.story_id.in_([с.id for с in сюжеты]))
+              .order_by(ContentItem.official.desc(), когда.asc()).all()):
+        записи[и.story_id].append(и)
+    итог = []
+    for с in сюжеты:
+        свои = записи.get(с.id, [])
+        итог.append({
+            "id": с.id, "title": с.title, "summary": с.summary, "score": с.score,
+            "части": cdb.из_json(с.score_parts, {}) or {},
+            "первое": _время(с.first_seen_at, зона), "последнее": _время(с.last_item_at, зона),
+            "источников": с.sources, "площадок": с.platforms, "записей": с.items,
+            "ru_роликов": с.ru_videos, "рост": _рост(с.growth),
+            "official": с.official, "rumor": с.rumor, "leak": с.leak,
+            "ссылки": [{"title": и.title, "url": и.url, "источник": и.source_name,
+                        "когда": _время(и.published_at or и.first_seen_at, зона),
+                        "lang": и.lang, "official": и.official, "leak": и.leak,
+                        "rumor": и.rumor, "метрика": и.metric, "platform": и.platform}
+                       for и in свои[:ЗАПИСЕЙ_В_СЮЖЕТЕ]],
+            "ещё": max(0, len(свои) - ЗАПИСЕЙ_В_СЮЖЕТЕ),
+        })
+    return итог
+
+
+def _форматы(db, тема_id: str, зона: ZoneInfo) -> dict:
+    форматы = (db.query(ContentFormat).filter(ContentFormat.theme_id == тема_id)
+               .order_by(ContentFormat.sort, ContentFormat.id).all())
+    хиты = (db.query(ContentArchVideo).filter(ContentArchVideo.theme_id == тема_id)
+            .order_by(ContentArchVideo.views.desc()).all())
+    по_формату = defaultdict(list)
+    for в in хиты:
+        по_формату[в.format_id].append(в)
+    имена = {ф.id: ф.title for ф in форматы}
+    сводка = []
+    for ф in форматы:
+        свои = по_формату.get(ф.id, [])
+        сводка.append({"id": ф.id, "title": ф.title, "origin": ф.origin, "хитов": len(свои),
+                       "просмотров": sum(в.views or 0 for в in свои),
+                       "огр": sum(1 for в in свои if в.limited_ads),
+                       "лучший": ({"title": свои[0].title, "url": "https://www.youtube.com/watch?v="
+                                   + свои[0].yt_id, "views": свои[0].views} if свои else None)})
+    сводка.sort(key=lambda ф: (-ф["просмотров"], ф["title"]))
+    строки = [{"channel": в.channel_title or "—", "lang": в.channel_lang or "",
+               "title": в.title, "url": "https://www.youtube.com/watch?v=" + в.yt_id,
+               "date": _время(в.published_at, зона, с_годом=True), "views": в.views,
+               "format": имена.get(в.format_id), "why": в.format_reason,
+               "flags": cdb.из_json(в.flags, []) or [], "limited": в.limited_ads,
+               "tries": в.classify_tries}
+              for в in хиты[:ХИТОВ_НА_СТРАНИЦЕ]]
+    return {"сводка": сводка, "строки": строки, "всего": len(хиты),
+            "без_формата": sum(1 for в in хиты if в.format_id is None),
+            "каналов": len({в.channel_yt_id for в in хиты if в.channel_yt_id}),
+            "огр": sum(1 for в in хиты if в.limited_ads)}
+
+
+def _источники(db, тема_id: str, зона: ZoneInfo) -> list[dict]:
+    записей = dict(db.query(ContentItem.source_id, func.count(ContentItem.id))
+                   .filter(ContentItem.theme_id == тема_id)
+                   .group_by(ContentItem.source_id).all())
+    итог = []
+    for и in (db.query(ContentSource).filter(ContentSource.theme_id == тема_id)
+              .order_by(ContentSource.id).all()):
+        итог.append({"id": и.id, "name": и.name, "kind": и.kind, "url": и.url,
+                     "enabled": и.enabled, "note": и.note,
+                     "state": и.last_state, "тон": ЦВЕТ_ИСХОДА.get(и.last_state, "idle"),
+                     "запуск": _время(и.last_run_at, зона),
+                     "удача": _время(и.last_ok_at, зона) if и.last_ok_at else "ни разу",
+                     "удача_назад": _сколько_назад(и.last_ok_at),
+                     "ошибка": и.last_error, "ошибка_когда": _время(и.last_error_at, зона),
+                     "получено": и.last_seen, "новых": и.last_new, "сек": и.last_sec,
+                     "записей": записей.get(и.id, 0)})
+    return итог
+
+
+def _каналы(db, тема_id: str, зона: ZoneInfo) -> list[dict]:
+    роликов = dict(db.query(ContentItem.channel_id, func.count(ContentItem.id))
+                   .filter(ContentItem.theme_id == тема_id, ContentItem.channel_id.isnot(None))
+                   .group_by(ContentItem.channel_id).all())
+    порядок = {"keep": 0, "candidate": 1, "removed": 2}
+    каналы = db.query(ContentChannel).filter(ContentChannel.theme_id == тема_id).all()
+    каналы.sort(key=lambda к: (порядок.get(к.status, 3), -(к.subscribers or 0)))
+    return [{"id": к.id, "title": к.title, "handle": к.handle, "lang": к.lang or "",
+             "subs": к.subscribers, "status": к.status,
+             "статус": СТАТУСЫ_КАНАЛА.get(к.status, к.status),
+             "url": "https://www.youtube.com/channel/" + к.yt_id,
+             "опрошен": _время(к.last_polled_at, зона) if к.last_polled_at else "ещё нет",
+             "ошибка": к.last_error, "роликов": роликов.get(к.id, 0),
+             "found_by": к.found_by} for к in каналы]
+
+
+def данные_страницы(db, user) -> dict:
+    """Всё, что рисует страница, — одной сессией, без похода в сеть."""
+    cdb.засеять(db)
+    зона = _main()._пояс(user)
+    тема = (db.query(ContentTheme).filter(ContentTheme.active.is_(True))
+            .order_by(ContentTheme.id).first())
+    формула = cdb.настройка(db, "score_formula")
+    последние = (db.query(ContentRun).order_by(ContentRun.id.desc())
+                 .limit(ПРОГОНОВ_В_ЖУРНАЛЕ).all())
+    идёт = next((п for п in последние if п.state == "running"), None)
+    тема_id = тема.id if тема else ""
+    источники = _источники(db, тема_id, зона)
+    сейчас = datetime.utcnow()
+    return {
+        "тема": ({"id": тема.id, "title": тема.title,
+                  "keywords": cdb.из_json(тема.keywords, []) or [],
+                  "languages": cdb.из_json(тема.languages, []) or []} if тема else None),
+        "страница": СТРАНИЦА,
+        "сюжеты": _сюжеты(db, тема_id, зона),
+        "формула": формула,
+        "форматы": _форматы(db, тема_id, зона),
+        "источники": источники,
+        "красных": sum(1 for и in источники if и["тон"] == "danger"),
+        "каналы": _каналы(db, тема_id, зона),
+        "квота": _квота(db),
+        "сброс_квоты": _main()._момент_в_поясе(cdb.сброс_квоты_utc(), user),
+        "записей_всего": db.query(func.count(ContentItem.id))
+                           .filter(ContentItem.theme_id == тема_id).scalar() or 0,
+        "снимков_всего": db.query(func.count(ContentSnapshot.id)).scalar() or 0,
+        "ждут_разбора": db.query(func.count(ContentItem.id))
+                          .filter(ContentItem.theme_id == тема_id, ContentItem.story_id.is_(None),
+                                  ContentItem.noise.is_(False),
+                                  ContentItem.classify_tries < 3,
+                                  func.coalesce(ContentItem.published_at, ContentItem.first_seen_at)
+                                  >= сейчас - timedelta(days=int(
+                                      cdb.настройка(db, "stories").get("window_days", 7))))
+                          .scalar() or 0,
+        "прогоны": [_прогон_наружу(п, зона, user) for п in последние],
+        "идёт": _прогон_наружу(идёт, зона, user),
+        "ключ_youtube": bool(ce.ключ_youtube()),
+        "планировщик": ce.планировщик_включён(),
+        "цикл_минут": cdb.настройка(db, "cycle").get("minutes", 30),
+        "заметка_утечки": ЗАМЕТКА_УТЕЧКИ,
+        "свежесть_дней": СЮЖЕТ_СВЕЖЕСТЬ_ДНЕЙ,
+    }
+
+
+@router.get("/content")
+async def content_page(request: Request, user=Depends(get_current_user),
+                       db: Session = Depends(get_db)):
+    if not _админ(user):
+        return PlainTextResponse(ОТКАЗ_НЕ_АДМИНУ, status_code=403)
+    вкладка = request.query_params.get("tab", "stories")
+    if вкладка not in ("stories", "formats", "sources"):
+        вкладка = "stories"
+    контекст = {"user": user, "вкладка": вкладка, **данные_страницы(db, user)}
+    return _main().templates.TemplateResponse(request=request, name="content.html",
+                                              context=контекст)
+
+
+@router.get("/content/api/state")
+async def content_state(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    зона = _main()._пояс(user)
+    последний = db.query(ContentRun).order_by(ContentRun.id.desc()).first()
+    идёт = (db.query(ContentRun).filter(ContentRun.state == "running")
+            .order_by(ContentRun.id.desc()).first())
+    return {"busy": ce.занят() or идёт is not None,
+            "running": _прогон_наружу(идёт, зона, user),
+            "last": _прогон_наружу(последний, зона, user),
+            "quota": {к: v for к, v in _квота(db).items() if к != "сброс_utc"}}
+
+
+class Запуск(BaseModel):
+    kind: str
+
+
+@router.post("/content/api/run")
+async def content_run(тело: Запуск, user=Depends(get_current_user)):
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    итог = ce.запустить(тело.kind, "admin")
+    if not итог.get("ok"):
+        return JSONResponse(итог, status_code=409 if итог.get("busy") else 400)
+    return итог
+
+
+class Статус(BaseModel):
+    status: str
+
+
+@router.post("/content/api/channels/{channel_id}")
+async def content_channel(channel_id: int, тело: Статус, user=Depends(get_current_user),
+                          db: Session = Depends(get_db)):
+    """Решение владельца по каналу. «Убран» — канал не опрашивается со следующего
+    цикла, и его ролики не снимаются; строки и снимки не стираются."""
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    if тело.status not in СТАТУСЫ_КАНАЛА:
+        return JSONResponse({"error": "неизвестный статус"}, status_code=400)
+    канал = db.get(ContentChannel, channel_id)
+    if канал is None:
+        return JSONResponse({"error": "канала нет"}, status_code=404)
+    канал.status = тело.status
+    канал.status_at = datetime.utcnow()
+    db.commit()
+    return {"ok": True, "id": канал.id, "status": канал.status,
+            "статус": СТАТУСЫ_КАНАЛА[канал.status]}
+
+
+def _старт():
+    ce.старт()
+
+
+router.add_event_handler("startup", _старт)

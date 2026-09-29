@@ -57,6 +57,7 @@ except Exception:
     ("/admin/exercises", "админ · упражнения", 0),
     ("/admin/enshrouded", "админ · enshrouded", 0),
     ("/admin/usage", "админ · расход", 0),
+    ("/content", "контент", 0),
     ("/workout", "тренировки · программа", 0),
     ("/workout/profile", "тренировки · профиль", 0),
 ]

@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% set meta_title = 'Контент' %}
+  {% include '_meta.html' %}
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ st('style.css') }}">
+  <link rel="stylesheet" href="{{ st('content.css') }}">
+</head>
+<body class="has-site-header">
+
+{% include '_header.html' %}
+
+{# МОДУЛЬ «КОНТЕНТ» (BACKLOG №365, 366) — только администратору: радар
+   новостей по теме канала, сюжеты с оценкой, форматы хитов и состояние
+   источников. ВСЁ РИСУЕТ СЕРВЕР — все три вкладки в первом кадре,
+   браузер только переключает их и зовёт действия: второго построителя
+   нет, и пустого кадра до ответа сервера тоже (§6.0.15).
+
+   НЕМОЙ ОТКАЗ ЗАПРЕЩЁН (требование письма): у каждого источника — время
+   последнего УДАЧНОГО запуска и текст ПОСЛЕДНЕЙ ошибки, а красным источник
+   красится по исходу последнего запуска, а не по наличию записей.
+   Пустой список рядом со сломанным источником читался бы как «новостей нет».
+
+   Анимаций нет (требование письма). #}
+{%- macro число(n) -%}{{ '—' if n is none else '{:,}'.format(n | int).replace(',', ' ') }}{%- endmacro -%}
+
+{% import '_page_head.html' as ph %}
+<main class="v2-page-wrap content-page" id="content">
+  <header class="v2-page-head is-page">
+    {{ ph.text(страница, 'Радар новостей по вселенной GTA: сюжеты с оценкой, форматы хитов времён запуска GTA 5 и состояние источников') }}
+    {# `v2-head-fill` — системный вариант: на телефоне кнопка шапки во всю
+       ширину (проверка 69 называла правый край 140–210 px при левом 16) #}
+    <div class="v2-head-actions v2-head-fill">
+      <button type="button" class="v2-btn v2-btn-primary" id="content-run-cycle" data-run="cycle">
+        {{ значок('refresh-cw') }} Собрать сейчас
+      </button>
+    </div>
+    <nav class="v2-tabs" aria-label="Разделы модуля «Контент»">
+      <button type="button" class="v2-tab{{ ' is-active' if вкладка == 'stories' }}" data-tab="stories" id="content-tab-stories"
+              {{ 'aria-current="page"' | safe if вкладка == 'stories' }}>
+        {{ значок('flame') }} <span>Сюжеты</span> <span class="v2-tab-badge">{{ сюжеты | length }}</span>
+      </button>
+      <button type="button" class="v2-tab{{ ' is-active' if вкладка == 'formats' }}" data-tab="formats" id="content-tab-formats"
+              {{ 'aria-current="page"' | safe if вкладка == 'formats' }}>
+        {{ значок('layers') }} <span>Форматы</span> <span class="v2-tab-badge">{{ форматы.всего }}</span>
+      </button>
+      <button type="button" class="v2-tab{{ ' is-active' if вкладка == 'sources' }}" data-tab="sources" id="content-tab-sources"
+              {{ 'aria-current="page"' | safe if вкладка == 'sources' }}>
+        {{ значок('activity') }} <span>Источники</span>
+        {% if красных %}<span class="v2-tab-badge content-badge-danger" title="Источников с ошибкой: {{ красных }}">{{ красных }}</span>{% endif %}
+      </button>
+    </nav>
+  </header>
+
+  {# СТРОКА ПРОГОНА: идёт ли сбор и чем кончился последний. Состояние —
+     из базы (`content_runs`): после перезапуска машины видно, где прогон
+     встал, а не «ничего не происходило». #}
+  {% set последний = прогоны[0] if прогоны else none %}
+  <p class="content-run{{ ' is-busy' if идёт }}" id="content-run" role="status" aria-live="polite">
+    {% if идёт %}
+      Идёт {{ идёт.вид }} (№{{ идёт.id }}, начат {{ идёт.начат }}) — страница обновится сама, когда он кончится.
+    {% elif последний %}
+      Последний прогон: {{ последний.вид }} №{{ последний.id }}, {{ последний.начат }} — {{ последний.состояние }}{% if последний.сек is not none %} за {{ последний.сек }} с{% endif %}.
+      {% if планировщик %}Сбор идёт сам каждые {{ цикл_минут }} минут.{% else %}Планировщик выключен (вне Fly) — сбор только кнопкой.{% endif %}
+    {% else %}
+      Прогонов ещё не было. {% if планировщик %}Первый сбор начнётся сам через пару минут после старта приложения.{% else %}Планировщик выключен (вне Fly) — нажмите «Собрать сейчас».{% endif %}
+    {% endif %}
+  </p>
+
+  {# ════════════════════════ СЮЖЕТЫ ════════════════════════ #}
+  <section class="content-view" id="view-stories" data-view="stories"{{ ' hidden' if вкладка != 'stories' }}>
+    <div class="content-bar">
+      <p class="v2-text">Сюжетов за {{ свежесть_дней }} дней: <b>{{ сюжеты | length }}</b>{% if ждут_разбора %} · записей ждут разбора: <b id="content-pending">{{ ждут_разбора }}</b>{% endif %}</p>
+      <details class="content-formula" id="content-formula">
+        <summary>Как считается оценка</summary>
+        <p class="v2-text">{{ формула.get('описание', '') }}</p>
+        {% set в = формула.get('веса', {}) %}
+        <p class="v2-hint">Веса из базы: рост {{ в.get('рост') }}, площадки {{ в.get('площадки') }}, окно на русском {{ в.get('окно_ru') }}; насыщение роста {{ число(формула.get('рост_насыщение')) }} в час.</p>
+      </details>
+    </div>
+
+    {% if сюжеты %}
+    <div class="content-stories">
+      {% for с in сюжеты %}
+      <article class="content-story" id="story-{{ с.id }}" data-story="{{ с.id }}" data-score="{{ с.score }}"
+               data-sources="{{ с.источников }}" data-leak="{{ 'true' if с.leak else 'false' }}">
+        <div class="content-story-head">
+          <div class="content-score" title="Оценка 0–100: рост {{ с.части.get('рост', 0) }}, площадки {{ с.части.get('площадки', 0) }}, окно на русском {{ с.части.get('окно_ru', 0) }}">
+            <span class="content-score-num">{{ с.score }}</span>
+          </div>
+          <div class="content-story-main">
+            <h2 class="content-story-title">{{ с.title }}</h2>
+            <div class="content-flags">
+              {% if с.official %}<span class="content-flag is-official">Официально</span>{% endif %}
+              {% if с.rumor %}<span class="content-flag is-rumor">Слух</span>{% endif %}
+              {% if с.leak %}<span class="content-flag is-leak">Утечка</span>{% endif %}
+            </div>
+            {% if с.summary %}<p class="content-story-sum">{{ с.summary }}</p>{% endif %}
+          </div>
+        </div>
+        {% if с.leak %}
+        <p class="content-leak">{{ значок('triangle-alert') }} {{ заметка_утечки }}</p>
+        {% endif %}
+        <dl class="content-meta">
+          <div><dt>Первое появление</dt><dd>{{ с.первое }}</dd></div>
+          <div><dt>Источников</dt><dd class="content-src-n">{{ с.источников }}</dd></div>
+          <div><dt>Площадок</dt><dd>{{ с.площадок }}</dd></div>
+          <div><dt>Роликов на русском</dt><dd>{{ с.ru_роликов }}</dd></div>
+          <div><dt>Рост</dt><dd>{{ с.рост }}</dd></div>
+        </dl>
+        <p class="content-parts">Оценка: рост {{ с.части.get('рост', 0) }} · площадки {{ с.части.get('площадки', 0) }} · окно на русском {{ с.части.get('окно_ru', 0) }}</p>
+        <ul class="content-links">
+          {% for з in с.ссылки %}
+          <li>
+            <a href="{{ з.url }}" target="_blank" rel="noopener">{{ з.title }}</a>
+            <span class="content-link-meta">{{ з.источник }} · {{ з.когда }}{% if з.lang %} · {{ з.lang }}{% endif %}{% if з.метрика is not none %} · {{ число(з.метрика) }}{% endif %}{% if з.leak %} · утечка{% elif з.rumor %} · слух{% endif %}</span>
+          </li>
+          {% endfor %}
+          {% if с.ещё %}<li class="content-link-more">и ещё {{ с.ещё }}</li>{% endif %}
+        </ul>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="v2-card v2-empty" id="content-stories-empty">
+      <span class="v2-empty-icon">{{ значок('flame') }}</span>
+      <p class="v2-empty-title">Сюжетов пока нет</p>
+      <p class="v2-empty-text">Сюжеты собирает модель из записей источников после каждого сбора. {% if записей_всего %}Записей собрано {{ записей_всего }}, ждут разбора {{ ждут_разбора }}.{% else %}Записей ещё нет — посмотрите вкладку «Источники».{% endif %}</p>
+    </div>
+    {% endif %}
+  </section>
+
+  {# ════════════════════════ ФОРМАТЫ ════════════════════════ #}
+  <section class="content-view" id="view-formats" data-view="formats"{{ ' hidden' if вкладка != 'formats' }}>
+    <div class="content-bar">
+      <p class="v2-text">Хиты 17.09.2013–31.12.2014: <b>{{ форматы.всего }}</b> роликов с {{ форматы.каналов }} каналов{% if форматы.без_формата %} · без формата: <b>{{ форматы.без_формата }}</b>{% endif %} · ограниченная реклама: <b>{{ форматы.огр }}</b></p>
+      <button type="button" class="v2-btn v2-btn-secondary" id="content-run-arch" data-run="archaeology"
+              title="Около 2000 единиц квоты YouTube за прогон">{{ значок('history') }} {{ 'Повторить археологию' if форматы.всего else 'Запустить археологию' }}</button>
+    </div>
+
+    <div class="v2-card content-card">
+      <h2 class="v2-card-title">Форматы</h2>
+      <div class="content-scroll">
+        <table class="content-table" id="content-formats-table">
+          <thead><tr><th>Формат</th><th class="content-num">Хитов</th><th class="content-num">Просмотров</th><th class="content-num">Огр. реклама</th><th>Самый просматриваемый</th></tr></thead>
+          <tbody>
+          {% for ф in форматы.сводка %}
+          <tr data-format="{{ ф.id }}">
+            <td>{{ ф.title }}{% if ф.origin == 'model' %} <span class="content-flag">предложен моделью</span>{% endif %}</td>
+            <td class="content-num">{{ ф.хитов }}</td>
+            <td class="content-num">{{ число(ф.просмотров) }}</td>
+            <td class="content-num">{{ ф.огр }}</td>
+            <td class="content-break">{% if ф.лучший %}<span class="content-cell"><a href="{{ ф.лучший.url }}" target="_blank" rel="noopener">{{ ф.лучший.title }}</a></span>{% else %}<span class="v2-hint">—</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="v2-card content-card">
+      <h2 class="v2-card-title">Археология: хиты по просмотрам</h2>
+      {% if форматы.строки %}
+      <div class="content-scroll">
+        <table class="content-table content-table-arch" id="content-arch-table">
+          <thead><tr><th>Канал</th><th>Ролик</th><th>Дата</th><th class="content-num">Просмотров</th><th>Формат</th><th>Реклама</th></tr></thead>
+          <tbody>
+          {% for в in форматы.строки %}
+          <tr>
+            <td>{{ в.channel }}{% if в.lang %} <span class="v2-hint">{{ в.lang }}</span>{% endif %}</td>
+            <td class="content-break"><span class="content-cell"><a href="{{ в.url }}" target="_blank" rel="noopener">{{ в.title }}</a></span></td>
+            <td class="content-nowrap">{{ в.date }}</td>
+            <td class="content-num">{{ число(в.views) }}</td>
+            <td>{% if в.format %}{{ в.format }}{% if в.why %}<span class="content-why">{{ в.why }}</span>{% endif %}{% else %}<span class="v2-hint">{{ 'не разобран' if в.tries < 3 else 'модель не решила' }}</span>{% endif %}</td>
+            <td>{% if в.limited %}<span class="content-flag is-limited" title="{{ в.flags | join(', ') }}">Ограниченная</span><span class="content-why">{{ в.flags | join(', ') }}</span>{% else %}<span class="v2-hint">обычная</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="v2-empty">
+        <span class="v2-empty-icon">{{ значок('layers') }}</span>
+        <p class="v2-empty-title">Археологии ещё не было</p>
+        <p class="v2-empty-text">Прогон ищет самые просматриваемые ролики про GTA 5 с 17.09.2013 по 31.12.2014 у крупнейших каналов и раскладывает их по форматам. {% if not ключ_youtube %}Нужен ключ YouTube — секрет CONTENT_YOUTUBE_API_KEY.{% endif %}</p>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {# ════════════════════════ ИСТОЧНИКИ ════════════════════════ #}
+  <section class="content-view" id="view-sources" data-view="sources"{{ ' hidden' if вкладка != 'sources' }}>
+    <div class="content-tiles">
+      <div class="v2-tile" id="content-quota">
+        <span class="v2-tile-label">Квота YouTube за сегодня</span>
+        <span class="v2-tile-num">{{ число(квота.потрачено) }} <span class="content-tile-of">из {{ число(квота.предел) }}</span></span>
+        <div class="v2-progress" role="presentation"><div class="v2-progress-fill" style="--v2-value: {{ квота.доля }}%"></div></div>
+        <span class="v2-tile-label">Обнулится {{ сброс_квоты }}{% if not ключ_youtube %} · ключа нет{% endif %}</span>
+      </div>
+      <div class="v2-tile">
+        <span class="v2-tile-label">Записей собрано</span>
+        <span class="v2-tile-num" id="content-items-total">{{ число(записей_всего) }}</span>
+        <span class="v2-tile-label">снимков счётчиков {{ число(снимков_всего) }}</span>
+      </div>
+      <div class="v2-tile">
+        <span class="v2-tile-label">Сбор</span>
+        <span class="v2-tile-num content-tile-word">{{ 'Каждые ' ~ цикл_минут ~ ' мин' if планировщик else 'Кнопкой' }}</span>
+        <span class="v2-tile-label">{{ 'планировщик в приложении' if планировщик else 'планировщик выключен вне Fly' }}</span>
+      </div>
+    </div>
+
+    <div class="v2-card content-card">
+      <h2 class="v2-card-title">Источники</h2>
+      <ul class="content-sources" id="content-sources">
+        {% for и in источники %}
+        <li class="content-source is-{{ и.тон }}" data-source="{{ и.id }}" data-state="{{ и.state or 'none' }}">
+          <div class="content-source-head">
+            <span class="content-dot" aria-hidden="true"></span>
+            <span class="content-source-name">{{ и.name }}</span>
+            <span class="content-source-state">{% if и.тон == 'ok' %}работает{% elif и.тон == 'warn' %}квота{% elif и.тон == 'danger' %}ошибка{% else %}ещё не запускался{% endif %}</span>
+          </div>
+          <p class="content-source-line">Последний удачный запуск: <b>{{ и.удача }}</b>{% if и.удача_назад %} ({{ и.удача_назад }}){% endif %} · запуск {{ и.запуск }}{% if и.сек is not none %} за {{ и.сек }} с{% endif %}{% if и.получено is not none %} · получено {{ и.получено }}, новых {{ и.новых }}{% endif %} · всего записей {{ и.записей }}</p>
+          {% if и.ошибка and и.тон != 'ok' %}
+          <p class="content-source-error">Последняя ошибка ({{ и.ошибка_когда }}): {{ и.ошибка }}</p>
+          {% elif и.ошибка %}
+          <p class="content-source-past">Прошлая ошибка ({{ и.ошибка_когда }}): {{ и.ошибка }}</p>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="v2-card content-card">
+      <div class="content-card-head">
+        <h2 class="v2-card-title">Каналы YouTube</h2>
+        <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" id="content-run-discover" data-run="discover"
+                title="100 единиц квоты на каждый запрос поиска">{{ значок('search') }} Найти каналы</button>
+      </div>
+      <p class="v2-hint">Кандидаты найдены поиском. «Оставить» — опрашивать дальше, «Убрать» — не опрашивать со следующего сбора; записи и снимки убранного канала не стираются.</p>
+      {% if каналы %}
+      <div class="content-scroll">
+        <table class="content-table" id="content-channels">
+          <thead><tr><th>Канал</th><th>Язык</th><th class="content-num">Подписчиков</th><th class="content-num">Роликов собрано</th><th>Опрошен</th><th>Статус</th></tr></thead>
+          <tbody>
+          {% for к in каналы %}
+          <tr data-channel="{{ к.id }}" data-status="{{ к.status }}">
+            <td class="content-break"><span class="content-cell"><a href="{{ к.url }}" target="_blank" rel="noopener">{{ к.title }}</a></span>{% if к.ошибка %}<span class="content-row-error">{{ к.ошибка }}</span>{% endif %}</td>
+            <td>{{ к.lang or '—' }}</td>
+            <td class="content-num">{{ число(к.subs) }}</td>
+            <td class="content-num">{{ к.роликов }}</td>
+            <td class="content-nowrap">{{ к.опрошен }}</td>
+            <td>
+              <div class="content-status">
+                <span class="content-status-word">{{ к.статус }}</span>
+                <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" data-channel-set="keep" {{ 'hidden' if к.status == 'keep' }}>Оставить</button>
+                <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" data-channel-set="removed" {{ 'hidden' if к.status == 'removed' }}>Убрать</button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="v2-empty">
+        <span class="v2-empty-icon">{{ значок('search') }}</span>
+        <p class="v2-empty-title">Реестр каналов пуст</p>
+        <p class="v2-empty-text">{% if ключ_youtube %}Первый сбор найдёт каналы сам (100 единиц квоты на запрос), либо нажмите «Найти каналы».{% else %}Нужен ключ YouTube — секрет CONTENT_YOUTUBE_API_KEY. Прежний YOUTUBE_API_KEY модуль не берёт.{% endif %}</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="v2-card content-card">
+      <h2 class="v2-card-title">Журнал прогонов</h2>
+      {% if прогоны %}
+      <div class="content-scroll">
+        <table class="content-table" id="content-runs">
+          <thead><tr><th>№</th><th>Что</th><th>Начат</th><th>Итог</th><th>Заметка</th></tr></thead>
+          <tbody>
+          {% for п in прогоны %}
+          <tr data-run-id="{{ п.id }}" data-state="{{ п.state }}">
+            <td class="content-num">{{ п.id }}</td>
+            <td>{{ п.вид }}</td>
+            <td class="content-nowrap">{{ п.начат }}</td>
+            <td class="content-run-state is-{{ п.state }}">{{ п.состояние }}{% if п.сек is not none %} за {{ п.сек }} с{% endif %}</td>
+            <td class="content-break"><span class="content-cell">{{ п.note or '' }}</span></td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="v2-hint">Прогонов ещё не было.</p>
+      {% endif %}
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  // ВКЛАДКИ — переключение уже нарисованного; адрес помнит вкладку, чтобы
+  // перезагрузка после прогона открыла ту же.
+  const вкладки = document.querySelectorAll('.content-page .v2-tab[data-tab]');
+  function показать(имя) {
+    вкладки.forEach(function (к) {
+      const да = к.dataset.tab === имя;
+      к.classList.toggle('is-active', да);
+      if (да) к.setAttribute('aria-current', 'page'); else к.removeAttribute('aria-current');
+    });
+    document.querySelectorAll('.content-view').forEach(function (в) { в.hidden = в.dataset.view !== имя; });
+    try {
+      const адрес = new URL(location.href);
+      адрес.searchParams.set('tab', имя);
+      history.replaceState(null, '', адрес);
+    } catch (e) { /* адрес не обновился — вкладка всё равно показана */ }
+  }
+  вкладки.forEach(function (к) { к.addEventListener('click', function () { показать(к.dataset.tab); }); });
+
+  // ЗАПУСК И ОЖИДАНИЕ: пока идёт прогон, строка прогона спрашивает сервер
+  // раз в 4 секунды и перезагружает страницу, когда он кончился. Отказ
+  // сервера говорится словами в той же строке, а не молчит.
+  const строка = document.getElementById('content-run');
+  const кнопки = document.querySelectorAll('[data-run]');
+  function занято(да) { кнопки.forEach(function (к) { к.disabled = да; }); }
+  function сказать(текст, беда) {
+    строка.textContent = текст;
+    строка.classList.toggle('is-error', !!беда);
+  }
+  let ждём = null;
+  function ждать() {
+    if (ждём) return;
+    занято(true);
+    строка.classList.add('is-busy');
+    ждём = setInterval(async function () {
+      try {
+        const r = await fetch('/content/api/state', {headers: {'Accept': 'application/json'}});
+        if (!r.ok) { сказать('Состояние прогона не получено: HTTP ' + r.status, true); return; }
+        const д = await r.json();
+        if (д.running) сказать('Идёт ' + д.running.вид + ' (№' + д.running.id + ', начат ' + д.running.начат + ') — страница обновится сама, когда он кончится.');
+        if (!д.busy) { clearInterval(ждём); location.reload(); }
+      } catch (e) { сказать('Сеть не ответила — состояние прогона неизвестно, обновите страницу.', true); }
+    }, 4000);
+  }
+  кнопки.forEach(function (к) {
+    к.addEventListener('click', async function () {
+      занято(true);
+      try {
+        const r = await fetch('/content/api/run', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                                    body: JSON.stringify({kind: к.dataset.run})});
+        const д = await r.json().catch(function () { return {}; });
+        if (!r.ok) { сказать(д.error || ('Запуск не удался: HTTP ' + r.status), true); занято(false); return; }
+        сказать('Прогон запущен — страница обновится сама, когда он кончится.');
+        ждать();
+      } catch (e) { сказать('Сеть не ответила — прогон не запущен.', true); занято(false); }
+    });
+  });
+  if (строка.classList.contains('is-busy')) ждать();
+
+  // РЕЕСТР КАНАЛОВ: решение владельца уходит на сервер, строка
+  // перерисовывается по ответу сервера, а не по намерению.
+  document.querySelectorAll('[data-channel-set]').forEach(function (к) {
+    к.addEventListener('click', async function () {
+      const ряд = к.closest('tr');
+      const было = ряд.dataset.status;
+      ряд.querySelectorAll('[data-channel-set]').forEach(function (b) { b.disabled = true; });
+      try {
+        const r = await fetch('/content/api/channels/' + ряд.dataset.channel, {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({status: к.dataset.channelSet})});
+        const д = await r.json().catch(function () { return {}; });
+        if (!r.ok) throw new Error(д.error || ('HTTP ' + r.status));
+        ряд.dataset.status = д.status;
+        ряд.querySelector('.content-status-word').textContent = д.статус;
+        ряд.querySelectorAll('[data-channel-set]').forEach(function (b) { b.hidden = b.dataset.channelSet === д.status; });
+      } catch (e) {
+        ряд.dataset.status = было;
+        сказать('Статус канала не сохранён: ' + e.message, true);
+      }
+      ряд.querySelectorAll('[data-channel-set]').forEach(function (b) { b.disabled = false; });
+    });
+  });
+})();
+</script>
+
+{% include '_page_end.html' %}
+</body>
+</html>

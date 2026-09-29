@@ -86,6 +86,11 @@ except Exception:
     ("/admin/enshrouded", "админка · каталог", []),
     ("/admin/landing", "админка · главная", []),
     ("/admin/usage", "админка · расход", []),
+    # модуль «Контент» (BACKLOG №365, 366): страница вошедшего администратора
+    # с шапкой инструмента — в перечень входит по его же определению
+    ("/content", "контент · сюжеты", []),
+    ("/content", "контент · форматы", ["#content-tab-formats"]),
+    ("/content", "контент · источники", ["#content-tab-sources"]),
 ]
 
 СВОЙСТВА = ("background-color", "color", "border-top-color")

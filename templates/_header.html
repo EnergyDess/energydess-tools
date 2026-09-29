@@ -68,7 +68,8 @@
    берутся «последние открытые», а служебный экран инструментом не станет.
    То же правило (пути `/profile` и `/admin`) спрашивает проверка 60. -#}
 {%- set служебный = not инструмент and (_путь == '/profile' or _путь.startswith('/profile/')
-                                        or _путь == '/admin' or _путь.startswith('/admin/')) %}
+                                        or _путь == '/admin' or _путь.startswith('/admin/')
+                                        or _путь == '/content' or _путь.startswith('/content/')) %}
 {%- if каркас %}
 <script>try{if(localStorage.getItem('v2-rail')==='1')document.documentElement.classList.add('v2-rail')}catch(e){}</script>
 <div class="v2-shell{{ ' v2-tool-' ~ инструмент if инструмент }}{{ ' v2-tool-admin' if служебный }}" id="v2-shell" data-tool="{{ инструмент }}">
@@ -102,6 +103,12 @@
       с=с.slice(0,3);try{localStorage.setItem('v2-recent',JSON.stringify(с));}catch(e){}
       var к=document.getElementById('v2-recent');
       с.forEach(function(x){var э=к.querySelector('[data-recent="'+x+'"]');if(э){э.hidden=false;к.appendChild(э);}});})();</script>
+    {# «КОНТЕНТ» — ТОЛЬКО АДМИНИСТРАТОРУ (BACKLOG №365, 366): у остальных
+       пункта нет в разметке вовсе, а не спрятан стилями — тот же приём,
+       что у «Админки» в поиске. Экран служебный, акцент стальной. #}
+    {% if user and user.is_admin %}
+    <a class="v2-side-item{{ ' is-active' if _путь == '/content' }}" href="/content" title="Контент"{{ ' aria-current="page"' | safe if _путь == '/content' }}>{{ значок('activity') }}<span class="v2-side-label">Контент</span></a>
+    {% endif %}
     <p class="v2-side-section">Сообщество</p>
     <span class="v2-side-item is-soon" aria-disabled="true" title="Новости — скоро">{{ значок('file-text') }}<span class="v2-side-label">Новости</span><span class="v2-soon">скоро</span></span>
     <span class="v2-side-item is-soon" aria-disabled="true" title="Обсуждения — скоро">{{ значок('message-circle') }}<span class="v2-side-label">Обсуждения</span><span class="v2-soon">скоро</span></span>

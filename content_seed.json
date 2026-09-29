@@ -1,0 +1,126 @@
+{
+  "формат": "content-seed-1",
+  "пояснение": "СЕМЯ модуля «Контент» (BACKLOG №365, 366). Наполняет ПУСТЫЕ таблицы при первом обращении и больше ни на что не влияет: источник правды — таблицы content_*, их правят экран и администратор. Настройки (settings) добавляются по ключу, если ключа в базе нет; существующие значения не перезаписываются.",
+  "темы": [
+    {
+      "id": "gta",
+      "title": "Вселенная GTA",
+      "languages": ["ru", "en"],
+      "keywords": [
+        "GTA 6", "GTA VI", "GTA 5", "GTA V", "GTA Online", "Grand Theft Auto",
+        "Leonida", "Vice City", "Rockstar", "Jason", "Lucia", "Take-Two",
+        "ГТА 6", "ГТА VI", "ГТА 5", "ГТА V", "ГТА Онлайн", "Гранд Тефт Авто",
+        "Леонида", "Вайс Сити", "Рокстар", "Джейсон", "Люсия", "Лючия", "Тейк-Ту"
+      ],
+      "params": {
+        "channel_markers": ["GTA", "ГТА", "Grand Theft Auto", "Rockstar", "Рокстар"],
+        "youtube_queries": [
+          {"q": "GTA 6", "lang": "en"},
+          {"q": "GTA 5", "lang": "en"},
+          {"q": "GTA 6", "lang": "ru"},
+          {"q": "ГТА 6", "lang": "ru"},
+          {"q": "ГТА 5", "lang": "ru"}
+        ],
+        "archaeology": {
+          "from": "2013-09-17",
+          "to": "2014-12-31",
+          "queries": [
+            {"q": "GTA 5", "lang": "en"},
+            {"q": "GTA V", "lang": "en"},
+            {"q": "ГТА 5", "lang": "ru"},
+            {"q": "GTA 5", "lang": "ru"}
+          ],
+          "channels_en": 10,
+          "channels_ru": 5,
+          "per_channel": 20
+        }
+      },
+      "sources": [
+        {
+          "kind": "rockstar",
+          "name": "Rockstar Newswire",
+          "url": "https://graph.rockstargames.com/",
+          "params": {"site": "https://www.rockstargames.com", "locale": "en_us", "limit": 20},
+          "official": true,
+          "filter_keywords": true
+        },
+        {
+          "kind": "rss",
+          "name": "PlayStation Blog",
+          "url": "https://blog.playstation.com/feed/",
+          "params": {"platform": "playstation"},
+          "official": true,
+          "filter_keywords": true
+        },
+        {
+          "kind": "youtube",
+          "name": "YouTube: каналы реестра",
+          "url": "https://www.googleapis.com/youtube/v3",
+          "params": {},
+          "official": false,
+          "filter_keywords": false
+        },
+        {
+          "kind": "reddit",
+          "name": "Reddit: r/GTA6, r/GTA, r/GTAV, r/gtaonline",
+          "url": "https://www.reddit.com",
+          "params": {"subs": ["GTA6", "GTA", "GTAV", "gtaonline"]},
+          "official": false,
+          "filter_keywords": false,
+          "note": "Остановлен 2026-09-29: robots.txt reddit.com запрещает автоматический доступ всем (User-agent: * — Disallow: /), а открытые ленты /r/<sub>/new.json и hot.json с сервера Fly отвечают HTTP 403. Обходов не делаем; нужен одобренный доступ к Reddit Data API (BACKLOG №365)."
+        }
+      ],
+      "formats": [
+        "Трейлеры по кадрам",
+        "Теории",
+        "Утечки (рассказ)",
+        "GTA 5 против GTA 6 / сравнения частей",
+        "Карта против реальности",
+        "Машины против прототипов",
+        "Арт против игры",
+        "Новости индустрии",
+        "Сюжет и решения персонажей",
+        "Пасхалки и отсылки",
+        "Тайники и секретные места",
+        "Экран пополам: машины, графика, физика, RDR2",
+        "Микрофизика: вода, капли, частицы",
+        "Гонки и тесты на прочность",
+        "Игровые механики заработка (биржа и т. п.)",
+        "Обзоры мест и домов",
+        "Моды"
+      ]
+    }
+  ],
+  "settings": {
+    "score_formula": {
+      "веса": {"рост": 45, "площадки": 30, "окно_ru": 25},
+      "рост_насыщение": 5000,
+      "площадки_насыщение": 3,
+      "ru_насыщение": 3,
+      "реддит_множитель": 20,
+      "окно_роста_часов": 6,
+      "описание": "Оценка 0–100 складывается из трёх частей. РОСТ (до 45): сумма прироста за час по записям сюжета — просмотры роликов плюс очки Reddit × 20. Прирост записи считается по её снимкам за последние 6 часов (снимки реже — за 12); у записи без пары снимков моложе двух суток — средний темп с публикации; старше трёх суток — ноль. Шкала логарифмическая: 5000 в час и больше — полные 45. ПЛОЩАДКИ (до 30): сколько разных площадок пишут о сюжете (YouTube, Rockstar, PlayStation, Reddit); три и больше — полные 30. ОКНО НА РУССКОМ (до 25): чем меньше роликов на русском уже вышло по сюжету, тем больше очков; ни одного — полные 25, три и больше — ноль."
+    },
+    "youtube": {
+      "daily_cap": 9000,
+      "uploads_per_channel": 10,
+      "track_hours": 72,
+      "discover_min_subs": 10000,
+      "discover_max_channels": 60,
+      "snapshot_keep_days": 14,
+      "anomaly_min_base": 3
+    },
+    "stories": {
+      "window_days": 7,
+      "batch": 25,
+      "max_items_per_cycle": 100,
+      "active_days": 10,
+      "max_stories_in_prompt": 80,
+      "daily_usd_cap": 1.0
+    },
+    "cycle": {
+      "minutes": 30,
+      "first_delay_sec": 120
+    }
+  }
+}

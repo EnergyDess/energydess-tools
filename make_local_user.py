@@ -2102,6 +2102,216 @@ def _сид_главной(db) -> dict:
     return итог
 
 
+def _сид_контента(db) -> dict:
+    """МОДУЛЬ «КОНТЕНТ» (BACKLOG №365, 366): все состояния экрана `/content`.
+
+    Таблицы модуля ОБЩИЕ и без хозяина, поэтому seed приводит их
+    к известному виду ЦЕЛИКОМ: записи, накопленные пробами и сборами
+    стенда, — шум, по которому экран показал бы одно состояние из многих.
+
+    Состояния, каждое хотя бы раз (§8.0): источник работает, сломан
+    (красный с текстом ошибки), упёрся в квоту (жёлтый); Reddit красный
+    с причиной остановки. Каналы трёх статусов. Сюжеты — официальный,
+    слух, утечка (заметка обязана стоять), без роликов на русском
+    (окно 25) и с ними, старый (за пределом свежести, на экран не идёт).
+    Записи, ждущие разбора, и шум. Хиты: с форматом, с «ограниченной
+    рекламой», не разобранный, «модель не решила», формат, предложенный
+    моделью. Журнал прогонов: готово, частично, пропущен.
+
+    Оценки и рост считает ДВИЖОК (`_пересчитать_рост`, `_пересчитать_сюжеты`)
+    по посеянным снимкам — второй реализации формулы в посеве нет."""
+    import content_db as cdb
+    import content_engine as ce
+    from content_db import (ContentArchVideo, ContentChannel, ContentFormat, ContentItem,
+                            ContentQuota, ContentRun, ContentSetting, ContentSnapshot,
+                            ContentSource, ContentStory, ContentTheme)
+    for модель in (ContentSnapshot, ContentItem, ContentStory, ContentArchVideo,
+                   ContentChannel, ContentRun, ContentQuota, ContentFormat,
+                   ContentSource, ContentTheme, ContentSetting):
+        db.query(модель).delete()
+    db.commit()
+    cdb.засеять(db)
+    сейчас = datetime.utcnow()
+    ист = {и.kind: и for и in db.query(ContentSource).all()}
+    rs, ps, yt, rd = ист["rockstar"], ист["rss"], ист["youtube"], ист["reddit"]
+    rs.last_state, rs.last_run_at, rs.last_ok_at = "ok", сейчас - timedelta(minutes=12), сейчас - timedelta(minutes=12)
+    rs.last_seen, rs.last_new, rs.last_sec = 20, 2, 0.8
+    ps.last_state, ps.last_run_at, ps.last_ok_at = "error", сейчас - timedelta(minutes=12), сейчас - timedelta(hours=26)
+    ps.last_error, ps.last_error_at, ps.last_sec = ("PlayStation Blog: HTTP 404",
+                                                    сейчас - timedelta(minutes=12), 1.1)
+    yt.last_state, yt.last_run_at, yt.last_ok_at = "quota", сейчас - timedelta(minutes=12), сейчас - timedelta(minutes=42)
+    yt.last_seen, yt.last_new, yt.last_sec = 31, 4, 6.2
+    yt.last_error = ("квота YouTube на сегодня исчерпана: осталось 0 ед., а videos стоит 1 — "
+                     "продолжим после полуночи по Лос-Анджелесу")
+    yt.last_error_at = сейчас - timedelta(minutes=12)
+    rd.last_state, rd.last_run_at, rd.last_sec = "error", сейчас - timedelta(minutes=12), 0.0
+    rd.last_error, rd.last_error_at = cc_reddit(), сейчас - timedelta(minutes=12)
+
+    каналы = {}
+    for yt_id, имя, язык, подписчиков, статус in (
+            ("UCseedRadar00000000000a", "GTA Radar", "en", 1250000, "keep"),
+            ("UCseedNews000000000000b", "ГТА Новости", "ru", 410000, "keep"),
+            ("UCseedLeaks00000000000c", "Vice City Leaks", "en", 230000, "keep"),
+            ("UCseedTheory0000000000d", "Leonida Theories", "en", 98000, "candidate"),
+            ("UCseedRu00000000000000e", "Рокстар Тайм", "ru", 64000, "candidate"),
+            ("UCseedSpam000000000000f", "GTA Money Glitch 24/7", "en", 51000, "removed")):
+        к = ContentChannel(theme_id="gta", yt_id=yt_id, title=имя, lang=язык,
+                           subscribers=подписчиков, videos=400, status=статус,
+                           uploads="UU" + yt_id[2:], found_by="поиск: GTA 6",
+                           status_at=сейчас - timedelta(days=1),
+                           last_polled_at=(сейчас - timedelta(minutes=42)
+                                           if статус != "removed" else сейчас - timedelta(days=2)))
+        db.add(к)
+        каналы[имя] = к
+    каналы["Leonida Theories"].last_error = "YouTube playlistItems: HTTP 404 (playlistNotFound)"
+    db.flush()
+
+    сюжеты = {}
+    for ключ, название, итог, давно in (
+            ("трейлер", "Вышел третий трейлер GTA 6", "Rockstar показала третий трейлер: Джейсон и Люсия в Вайс-Сити.", 0),
+            ("перенос", "Слух о переносе даты выхода GTA 6", "Инсайдеры пишут о возможном переносе релиза на весну.", 0),
+            ("утечка", "Утечка карты Леониды", "В сеть попала схема карты штата Леонида с разработческой сборки.", 0),
+            ("бонусы", "GTA Online: двойные награды недели", "Неделя двойных наград в GTA Online.", 0),
+            ("графика", "Сравнение графики GTA 5 и GTA 6", "Разборы кадров трейлера против GTA 5 Enhanced.", 0),
+            ("старый", "Старый сюжет за пределом свежести", "Не показывается: последние записи старше двух недель.", 20)):
+        с = ContentStory(theme_id="gta", title=название, summary=итог,
+                         created_at=сейчас - timedelta(days=давно, hours=30))
+        db.add(с)
+        сюжеты[ключ] = с
+    db.flush()
+
+    записей = 0
+    def запись(n, ключ, заголовок, источник, площадка, часов, *, канал=None, язык="en",
+               просмотров=None, офиц=False, слух=False, утечка=False, шум=False,
+               ждёт=False, давно_дней=0):
+        nonlocal записей
+        опубл = сейчас - timedelta(days=давно_дней, hours=часов)
+        и = ContentItem(
+            theme_id="gta", ext_id=f"seed:{n}", source_id=источник.id,
+            source_key=(f"yt:{канал.yt_id}" if канал else f"{источник.kind}:{источник.id}"),
+            source_name=("YouTube · " + канал.title if канал else источник.name),
+            platform=площадка, channel_id=канал.id if канал else None,
+            url=(f"https://www.youtube.com/watch?v=seed{n:04d}" if канал
+                 else f"https://www.rockstargames.com/newswire/article/seed{n}"),
+            title=заголовок, lang=язык, official=офиц, published_at=опубл,
+            first_seen_at=опубл + timedelta(minutes=20), last_seen_at=сейчас,
+            metric=просмотров, likes=(просмотров // 20 if просмотров else None),
+            comments=(просмотров // 90 if просмотров else None),
+            story_id=(None if (шум or ждёт) else сюжеты[ключ].id),
+            noise=шум, leak=утечка, rumor=слух,
+            classified_at=None if ждёт else сейчас - timedelta(minutes=10))
+        db.add(и)
+        db.flush()
+        if просмотров:
+            # Три снимка: ряд для роста в час и для аномалии у соседей по каналу
+            for назад, доля in ((5.0, 0.55), (2.0, 0.8), (0.0, 1.0)):
+                if часов - назад <= 0:
+                    continue
+                db.add(ContentSnapshot(item_id=и.id, taken_at=сейчас - timedelta(hours=назад),
+                                       age_h=часов - назад, metric=int(просмотров * доля)))
+        записей += 1
+        return и
+
+    запись(1, "трейлер", "Grand Theft Auto VI Trailer 3", rs, "rockstar", 9, офиц=True)
+    запись(2, "трейлер", "GTA VI Trailer 3 now live on PlayStation", ps, "playstation", 8, офиц=True)
+    запись(3, "трейлер", "GTA 6 Trailer 3 — every detail you missed", yt, "youtube", 7,
+           канал=каналы["GTA Radar"], просмотров=820000)
+    запись(4, "трейлер", "ТРЕЙЛЕР 3 GTA 6: всё, что вы пропустили", yt, "youtube", 6,
+           канал=каналы["ГТА Новости"], язык="ru", просмотров=210000)
+    запись(5, "трейлер", "Trailer 3 reaction", yt, "youtube", 5,
+           канал=каналы["Vice City Leaks"], просмотров=64000)
+    запись(6, "перенос", "GTA 6 delayed again? Insider says spring", yt, "youtube", 20,
+           канал=каналы["GTA Radar"], просмотров=310000, слух=True)
+    запись(7, "перенос", "Rumor: Take-Two earnings hint at a new date", yt, "youtube", 18,
+           канал=каналы["Vice City Leaks"], просмотров=41000, слух=True)
+    запись(8, "утечка", "Leonida map leak from dev build", yt, "youtube", 30,
+           канал=каналы["Vice City Leaks"], просмотров=150000, утечка=True)
+    запись(9, "утечка", "Карта Леониды слита: разбор", yt, "youtube", 28,
+           канал=каналы["ГТА Новости"], язык="ru", просмотров=36000, утечка=True)
+    запись(10, "бонусы", "GTA Online: Double Rewards Week", rs, "rockstar", 40, офиц=True)
+    запись(11, "графика", "GTA 5 vs GTA 6 graphics comparison", yt, "youtube", 50,
+           канал=каналы["GTA Radar"], просмотров=180000)
+    запись(12, "графика", "GTA 5 против GTA 6: сравнение графики", yt, "youtube", 48,
+           канал=каналы["ГТА Новости"], язык="ru", просмотров=52000)
+    запись(13, "старый", "Old news", rs, "rockstar", 5, офиц=True, давно_дней=20)
+    запись(14, "", "GTA 6 meme compilation", yt, "youtube", 3,
+           канал=каналы["GTA Radar"], просмотров=9000, шум=True)
+    запись(15, "", "Rockstar Newswire: new Red Dead Online outfits", rs, "rockstar", 2,
+           ждёт=True, офиц=True)
+    запись(16, "", "GTA 6: Lucia and Jason voice actors interview", yt, "youtube", 1,
+           канал=каналы["Рокстар Тайм"], язык="ru", просмотров=12000, ждёт=True)
+
+    форматы = {ф.title: ф for ф in db.query(ContentFormat).all()}
+    предложен = ContentFormat(theme_id="gta", title="Реакции и приколы", origin="model",
+                              sort=1000)
+    db.add(предложен)
+    db.flush()
+    хиты = (
+        ("GTA 5 Funny Moments #1", "Vanoss Gaming", "en", 41000000, "Реакции и приколы", [], ""),
+        ("GTA 5 Secret Locations", "Rockstar Explorer", "en", 22000000, "Тайники и секретные места", [], ""),
+        ("GTA 5 vs GTA 4 graphics", "Crowbcat", "en", 18000000, "GTA 5 против GTA 6 / сравнения частей", [], ""),
+        ("GTA 5 Strip Club Guide", "GTA Series Videos", "en", 12000000, "Обзоры мест и домов", ["18+", "стриптиз-клубы"], "обзор клуба"),
+        ("GTA 5 Stock Market Money", "Money Tips", "en", 9000000, "Игровые механики заработка (биржа и т. п.)", [], ""),
+        ("GTA 5: пасхалки и секреты", "ГТА Новости", "ru", 6100000, "Пасхалки и отсылки", [], ""),
+        ("GTA 5 — жёсткие убийства", "Shock TV", "ru", 3000000, "Микрофизика: вода, капли, частицы", ["шок-насилие"], "жестокость в заголовке"),
+        ("GTA 5 Mods: Iron Man", "Mod Master", "en", 25000000, "Моды", [], ""),
+        ("GTA 5 map vs real Los Angeles", "Real Places", "en", 7400000, "Карта против реальности", [], ""),
+        ("GTA 5 trailer 3 breakdown", "Leaker", "en", 4100000, None, [], ""),
+        ("ГТА 5 без монтажа", "Рокстар Тайм", "ru", 1200000, "__не_решила__", [], ""),
+    )
+    for n, (заголовок, канал, язык, просмотров, формат, флаги, почему) in enumerate(хиты, 1):
+        ф = предложен if формат == "Реакции и приколы" else форматы.get(формат)
+        db.add(ContentArchVideo(
+            theme_id="gta", yt_id=f"arch{n:07d}", channel_yt_id=f"UCarch{n:02d}",
+            channel_title=канал, channel_lang=язык, title=заголовок,
+            description="Ролик времён запуска GTA 5.",
+            published_at=datetime(2013, 9, 17) + timedelta(days=n * 23), views=просмотров,
+            likes=просмотров // 40, comments=просмотров // 300,
+            format_id=ф.id if ф else None, format_reason=почему or ("по заголовку" if ф else None),
+            flags=cdb.в_json(флаги), limited_ads=bool(флаги),
+            classify_tries=3 if формат == "__не_решила__" else (1 if ф else 0),
+            fetched_at=сейчас - timedelta(days=1),
+            classified_at=сейчас - timedelta(days=1) if ф else None))
+
+    for вид, повод, состояние, минут, сек, заметка, итог in (
+            ("archaeology", "scheduler", "partial", 1500, 540,
+             "форматы: ответ модели не JSON с полем videos", {"gta": {"роликов": 11}}),
+            ("discover", "admin", "ok", 1450, 12, None, {"gta": {"новых": 6}}),
+            ("cycle", "scheduler", "ok", 72, 38, None, {"сек": 38}),
+            ("cycle", "scheduler", "skipped", 42, 0, "пропущен: идёт прогон №3 (cycle)", {}),
+            ("cycle", "scheduler", "partial", 12, 44, None, {"сек": 44})):
+        начат = сейчас - timedelta(minutes=минут)
+        db.add(ContentRun(kind=вид, theme_id=None, trigger=повод, state=состояние,
+                          started_at=начат, finished_at=начат + timedelta(seconds=сек),
+                          note=заметка, summary=cdb.в_json(итог)))
+    db.add(ContentQuota(day=cdb.сутки_квоты(сейчас), units=9000,
+                        detail=cdb.в_json({"search": 8500, "channels": 12,
+                                           "playlistItems": 380, "videos": 108}),
+                        updated_at=сейчас))
+    db.commit()
+    настройки = {к: cdb.настройка(db, к) for к in ("youtube", "stories", "score_formula", "cycle")}
+    ce._пересчитать_рост("gta", настройки)
+    ce._пересчитать_сюжеты("gta", настройки)
+    db.expire_all()
+    видно = [с for с in db.query(ContentStory).all() if с.items and с.title != сюжеты["старый"].title]
+    return {"записей": записей, "сюжетов": len(видно),
+            "с_утечкой": sum(1 for с in видно if с.leak),
+            "слухов": sum(1 for с in видно if с.rumor),
+            "официальных": sum(1 for с in видно if с.official),
+            "оценки": sorted((с.score for с in видно), reverse=True),
+            "каналов": db.query(ContentChannel).count(),
+            "хитов": db.query(ContentArchVideo).count(),
+            "огр": db.query(ContentArchVideo).filter(ContentArchVideo.limited_ads.is_(True)).count(),
+            "ждут": db.query(ContentItem).filter(ContentItem.story_id.is_(None),
+                                                 ContentItem.noise.is_(False)).count(),
+            "красных": db.query(ContentSource).filter(ContentSource.last_state == "error").count()}
+
+
+def cc_reddit() -> str:
+    import content_collect
+    return content_collect.REDDIT_ОСТАНОВЛЕН
+
+
 def _сид_доступа(db, user_id: int) -> int:
     """Открытые инструменты в `tool_access`.
 
@@ -3074,6 +3284,7 @@ def main() -> int:
         енш = _сид_enshrouded(db, u.id)
         главная = _сид_главной(db)
         расход = _сеять_расход(db)
+        контент = _сид_контента(db)
 
         db.commit()
         # Привязка весов — вместе с остальными данными: экран, состояние
@@ -3252,6 +3463,11 @@ def main() -> int:
               f"пустых суток {расход['пустых']} · нарушений писем {расход['нарушений']} · "
               f"постоянных задано {расход['постоянных']} из 3 · истории остатка 0 "
               f"(пишется суточным запуском)")
+        print(f"Контент: записей {контент['записей']}, сюжетов на экране {контент['сюжетов']} "
+              f"(утечка {контент['с_утечкой']}, слух {контент['слухов']}, официальных "
+              f"{контент['официальных']}; оценки {контент['оценки']}) · ждут разбора "
+              f"{контент['ждут']} · каналов {контент['каналов']} · хитов {контент['хитов']}, "
+              f"с ограниченной рекламой {контент['огр']} · красных источников {контент['красных']}")
         print(f"Всё отсчитано от {база.isoformat()} — «сегодня» у данных "
               f"заморожено на этой дате.")
         print(f"Пароль: {PASSWORD}")

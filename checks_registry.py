@@ -158,6 +158,12 @@ def _п(*группы):
     "стенд:73": (["templates/admin_exercises.html", "templates/_admin_head.html",
                   "static/admin.css", "main.py", "database.py", "model_stub.py"],
                  "полный", False),
+    # Модуль «Контент» (BACKLOG №365, 366): маршруты живут в `content_app.py`,
+    # данные — в `content_db.py`, а не в `main.py`, — поэтому маска модуля
+    # своя, иначе правка отбора сюжетов не тянула бы пробу в быстрый ряд.
+    "стенд:74": (["templates/content.html", "static/content.css", "static/v2.css",
+                  "templates/_header.html", "content_*.py", "main.py", "database.py"],
+                 "полный", True),
     # отдельные скрипты и тесты
     "скрипт:check_hh_owner.py":    (_п(ВЁРСТКА, ["main.py"]), "полный", False),
     "скрипт:check_v2_showcase.py": (_п(V2, ["main.py"]), "полный", True),

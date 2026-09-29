@@ -188,6 +188,13 @@ templates.env.filters["tojson"] = _tojson_без_разделителей_стр
 # файла, — и модуль, читающий AGENT_WEBHOOK_KEY на уровне файла, его видит.
 from agent_slots import router as agent_router                      # noqa: E402
 app.include_router(agent_router)
+# МОДУЛЬ «КОНТЕНТ» (BACKLOG №365, 366) — радар новостей, сюжеты и форматы
+# для YouTube-канала владельца. Только администратору; свои маршруты,
+# шаблон, таблицы `content_*` и планировщик сбора — в модуле, здесь
+# одна строка подключения. Раньше ловящего всё `/{slug}` — иначе
+# `/content` ушёл бы в статические страницы.
+from content_app import router as content_router                    # noqa: E402
+app.include_router(content_router)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

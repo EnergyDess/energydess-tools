@@ -1,0 +1,336 @@
+/* @v2 — МОДУЛЬ «КОНТЕНТ» `/content` (BACKLOG №365, 366), только администратору.
+   Раскладка страницы и её собственные узлы: строка прогона, сюжеты,
+   таблицы форматов и археологии, источники, реестр каналов. Вид компонентов
+   (`.v2-card`, `.v2-tile`, `.v2-progress`, `.v2-empty`, `.v2-tab`, `.v2-btn`) —
+   `static/v2.css`, здесь их не переопределяют. Прямых значений нет, только
+   `var(--v2-*)` (проверка 47). Анимаций нет (требование письма).
+
+   ДЛИНА СТРОКИ — НЕ ШИРЕ `--v2-measure` у любого текста (проверка 67):
+   колонка содержимого до 1920, и абзац во всю её ширину читался бы
+   строками по двести знаков.
+
+   ССЫЛКИ ОСТАЮТСЯ СТРОЧНЫМИ (`display: inline`): строчная цель в тексте
+   из требования площади нажатия выведена (WCAG 2.2 §2.5.8, проверка 20),
+   а ссылка-блок стала бы органом в 20 px высотой. */
+
+.content-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-sp-5);
+  padding-bottom: var(--v2-sp-7);
+}
+.content-page .v2-page-head { margin-bottom: 0; }
+.v2-page-head .v2-tab .content-badge-danger { border-color: var(--v2-danger); color: var(--v2-danger); }
+
+.content-page a {
+  color: var(--v2-text);
+  text-decoration: underline;
+  text-decoration-color: var(--v2-line-hover);
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+.content-page a:focus-visible {
+  outline: 2px solid var(--v2-ring-neutral);
+  outline-offset: 2px;
+  border-radius: var(--v2-r-sm);
+}
+@media (hover: hover) {
+  .content-page a:hover { color: var(--v2-text-strong); text-decoration-color: var(--v2-text-2); }
+}
+
+/* ── СТРОКА ПРОГОНА ──────────────────────────────────────────────── */
+.content-run {
+  max-width: var(--v2-measure);
+  margin: 0;
+  font-size: var(--v2-fs-sm);
+  line-height: var(--v2-lh-body);
+  color: var(--v2-text-2);
+}
+.content-run.is-busy { color: var(--v2-text-strong); }
+.content-run.is-error { color: var(--v2-danger); }
+
+.content-view { display: flex; flex-direction: column; gap: var(--v2-sp-5); min-width: 0; }
+.content-view[hidden] { display: none; }
+.content-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--v2-sp-3);
+}
+.content-bar .v2-text { max-width: var(--v2-measure); font-size: var(--v2-fs-sm); }
+.content-card { min-width: 0; }
+.content-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--v2-sp-3);
+  margin-bottom: var(--v2-sp-2);
+}
+.content-card-head .v2-card-title { margin: 0; }
+.content-card .v2-hint { max-width: var(--v2-measure); margin: 0 0 var(--v2-sp-3); }
+
+/* ── КАК СЧИТАЕТСЯ ОЦЕНКА ────────────────────────────────────────── */
+.content-formula {
+  padding: 0 var(--v2-sp-4);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-md);
+  background: var(--v2-surface-1);
+}
+.content-formula summary {
+  padding: var(--v2-sp-3) 0;
+  font-size: var(--v2-fs-sm);
+  font-weight: var(--v2-fw-medium);
+  color: var(--v2-text);
+  cursor: pointer;
+}
+.content-formula summary:focus-visible {
+  outline: 2px solid var(--v2-ring-neutral);
+  outline-offset: 2px;
+  border-radius: var(--v2-r-sm);
+}
+.content-formula[open] { flex-basis: 100%; padding-bottom: var(--v2-sp-4); }
+.content-formula > p { max-width: var(--v2-measure); margin: 0 0 var(--v2-sp-2); font-size: var(--v2-fs-sm); }
+@media (hover: hover) {
+  .content-formula summary:hover { color: var(--v2-text-strong); }
+}
+
+/* ── СЮЖЕТЫ ──────────────────────────────────────────────────────── */
+.content-stories {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 34rem), 1fr));
+  gap: var(--v2-sp-4);
+  align-items: start;
+}
+.content-story {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-sp-3);
+  min-width: 0;
+  padding: var(--v2-sp-5);
+  border: 1px solid var(--v2-line-1);
+  border-radius: var(--v2-r-xl);
+  background: var(--v2-surface-1);
+}
+.content-story-head { display: flex; align-items: flex-start; gap: var(--v2-sp-4); }
+.content-score {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--v2-sp-8);
+  height: var(--v2-sp-8);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-lg);
+  background: var(--v2-surface-2);
+}
+.content-score-num {
+  font-family: var(--v2-font-display);
+  font-size: var(--v2-fs-xl);
+  font-weight: var(--v2-fw-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--v2-text-strong);
+}
+.content-story-main { display: flex; flex-direction: column; gap: var(--v2-sp-2); min-width: 0; }
+.content-story-title {
+  max-width: var(--v2-measure);
+  margin: 0;
+  font-size: var(--v2-fs-lg);
+  font-weight: var(--v2-fw-strong);
+  line-height: var(--v2-lh-snug);
+  color: var(--v2-text-strong);
+}
+.content-story-sum {
+  max-width: var(--v2-measure);
+  margin: 0;
+  font-size: var(--v2-fs-sm);
+  line-height: var(--v2-lh-body);
+  color: var(--v2-text-2);
+}
+.content-flags { display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); }
+.content-flags:empty { display: none; }
+.content-flag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--v2-sp-2);
+  border: 1px solid var(--v2-line-2);
+  border-radius: var(--v2-r-pill);
+  font-size: var(--v2-fs-xs);
+  line-height: var(--v2-lh-body);
+  color: var(--v2-text-2);
+  white-space: nowrap;
+}
+.content-flag.is-official { border-color: var(--v2-ok); color: var(--v2-ok); }
+.content-flag.is-rumor,
+.content-flag.is-limited { border-color: var(--v2-warn); color: var(--v2-warn); }
+.content-flag.is-leak { border-color: var(--v2-danger); background: var(--v2-danger-dim); color: var(--v2-danger); }
+
+/* Заметка утечки — ВСЕГДА рядом с сюжетом, где есть утечка: рассказывать
+   можно, кадры показывать нельзя (требование письма). */
+.content-leak {
+  display: flex;
+  align-items: center;
+  gap: var(--v2-sp-2);
+  max-width: var(--v2-measure);
+  margin: 0;
+  padding: var(--v2-sp-2) var(--v2-sp-3);
+  border: 1px solid var(--v2-danger);
+  border-radius: var(--v2-r-md);
+  background: var(--v2-danger-dim);
+  font-size: var(--v2-fs-sm);
+  color: var(--v2-text);
+}
+.content-leak svg { flex: none; width: var(--v2-icon); height: var(--v2-icon); color: var(--v2-danger); }
+
+.content-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+  gap: var(--v2-sp-2) var(--v2-sp-4);
+  margin: 0;
+}
+.content-meta dt { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+.content-meta dd {
+  margin: 0;
+  font-size: var(--v2-fs-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--v2-text);
+}
+.content-parts { margin: 0; font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+.content-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-sp-2);
+  margin: 0;
+  padding: var(--v2-sp-3) 0 0;
+  border-top: 1px solid var(--v2-line-3);
+  list-style: none;
+}
+.content-links li { max-width: var(--v2-measure); font-size: var(--v2-fs-sm); line-height: var(--v2-lh-body); }
+.content-link-meta { display: block; font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+.content-link-more { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+
+/* ── ПЛИТКИ И ИСТОЧНИКИ ──────────────────────────────────────────── */
+.content-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--v2-sp-4);
+}
+.content-tile-of { font-family: var(--v2-font); font-size: var(--v2-fs-sm); color: var(--v2-text-faint); }
+.content-tile-word { font-size: var(--v2-fs-xl); }
+
+.content-sources { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.content-source {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-sp-2);
+  padding: var(--v2-sp-3) 0;
+  border-bottom: 1px solid var(--v2-line-3);
+}
+.content-source:last-child { border-bottom: 0; }
+.content-source-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--v2-sp-2); }
+.content-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--v2-r-pill);
+  background: var(--v2-text-faint);
+}
+.content-source.is-ok .content-dot { background: var(--v2-ok); }
+.content-source.is-warn .content-dot { background: var(--v2-warn); }
+.content-source.is-danger .content-dot { background: var(--v2-danger); }
+.content-source-name { font-weight: var(--v2-fw-strong); color: var(--v2-text-strong); }
+.content-source-state { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+.content-source.is-ok .content-source-state { color: var(--v2-ok); }
+.content-source.is-warn .content-source-state { color: var(--v2-warn); }
+.content-source.is-danger .content-source-state { color: var(--v2-danger); }
+.content-source-line {
+  max-width: var(--v2-measure);
+  margin: 0;
+  font-size: var(--v2-fs-sm);
+  line-height: var(--v2-lh-body);
+  color: var(--v2-text-2);
+}
+.content-source-error {
+  max-width: var(--v2-measure);
+  margin: 0;
+  padding: var(--v2-sp-2) var(--v2-sp-3);
+  border: 1px solid var(--v2-danger);
+  border-radius: var(--v2-r-md);
+  background: var(--v2-danger-dim);
+  font-size: var(--v2-fs-sm);
+  line-height: var(--v2-lh-body);
+  color: var(--v2-text);
+  overflow-wrap: anywhere;
+}
+.content-source-past {
+  max-width: var(--v2-measure);
+  margin: 0;
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-text-faint);
+  overflow-wrap: anywhere;
+}
+
+/* ── ТАБЛИЦЫ ─────────────────────────────────────────────────────── */
+.content-scroll { max-width: 100%; overflow-x: auto; }
+.content-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--v2-fs-sm);
+  color: var(--v2-text);
+}
+.content-table th {
+  padding: var(--v2-sp-2) var(--v2-sp-3);
+  border-bottom: 1px solid var(--v2-line-2);
+  font-size: var(--v2-fs-xs);
+  font-weight: var(--v2-fw-strong);
+  color: var(--v2-text-faint);
+  text-align: left;
+  white-space: nowrap;
+}
+.content-table td {
+  padding: var(--v2-sp-3);
+  border-bottom: 1px solid var(--v2-line-3);
+  vertical-align: top;
+  line-height: var(--v2-lh-body);
+}
+.content-table tbody tr:last-child td { border-bottom: 0; }
+.content-table th:first-child, .content-table td:first-child { padding-left: 0; }
+.content-table th:last-child, .content-table td:last-child { padding-right: 0; }
+.content-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.content-table th.content-num { text-align: right; }
+.content-nowrap { white-space: nowrap; }
+.content-break { min-width: 12rem; }
+.content-cell { display: block; max-width: var(--v2-measure); }
+.content-why {
+  display: block;
+  max-width: var(--v2-measure);
+  margin-top: var(--v2-sp-1);
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-text-faint);
+}
+.content-row-error {
+  display: block;
+  max-width: var(--v2-measure);
+  margin-top: var(--v2-sp-1);
+  font-size: var(--v2-fs-xs);
+  color: var(--v2-danger);
+}
+.content-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--v2-sp-2); }
+.content-status-word { min-width: 5.5rem; font-size: var(--v2-fs-sm); color: var(--v2-text-2); }
+.content-status [hidden] { display: none; }
+.content-run-state.is-error { color: var(--v2-danger); }
+.content-run-state.is-partial { color: var(--v2-warn); }
+.content-run-state.is-skipped { color: var(--v2-text-faint); }
+.content-run-state.is-running { color: var(--v2-text-strong); }
+
+@media (max-width: 640px) {
+  .content-story { padding: var(--v2-sp-4); }
+  .content-story-head { gap: var(--v2-sp-3); }
+}
+/* РЯД НАД СПИСКОМ НА ТЕЛЕФОНЕ — СТОЛБИКОМ ВО ВСЮ ШИРИНУ. Строка числа
+   и блок «Как считается оценка» шли по содержимому, и правый край ряда
+   отставал от края колонки (проверка 69 на 390: слева 16, справа 22.6).
+   Порог тот же, что у шапки v2 на телефоне. */
+@media (max-width: 768px) {
+  .content-bar { flex-direction: column; align-items: stretch; }
+}

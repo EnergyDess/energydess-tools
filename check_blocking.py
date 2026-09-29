@@ -98,6 +98,9 @@ sys.stdout.reconfigure(encoding="utf-8")
 МОДУЛИ = [
     "main.py", "auth.py", "zepp_client.py", "prepare_photo.py",
     "crypto.py", "database.py", "agent_slots.py",
+    # модуль «Контент» (BACKLOG №365, 366): свой сбор по сети
+    # и свой планировщик в цикле событий приложения
+    "content_app.py", "content_engine.py", "content_collect.py", "content_db.py",
 ]
 
 # Блокирующие примитивы: полное имя вызова -> категория.

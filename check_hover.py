@@ -399,8 +399,15 @@ def доказать_подлог():
 ]
 
 
-def _обработчики_экранов():
-    """Имена функций, которые отдают HTML СТРАНИЦЕЙ. Разбором дерева.
+def _обработчики_экранов(файлы=("main.py",)):
+    """Пары (файл, функция), которые отдают HTML СТРАНИЦЕЙ. Разбором дерева.
+
+    ФАЙЛОВ НЕСКОЛЬКО С 2026-09-29 (BACKLOG №365): маршруты модуля
+    «Контент» живут в `content_app.py`, подключённом к приложению, —
+    разбор одного `main.py` выводил бы `/content` из-под всех пяти
+    проверок, берущих этот список, МОЛЧА. Файлы выводятся из самих
+    маршрутов (`_файл_обработчика`), а не перечисляются: следующий
+    модуль со страницей попадёт сюда сам (§6.0.7).
 
     ФРАГМЕНТ — НЕ ЭКРАН, И ЭТО ПРИЗНАК, А НЕ СТРОКА В СПИСКЕ.
     Обработчик, отдающий ПАРТИАЛ (имя шаблона начинается с `_`),
@@ -417,19 +424,37 @@ def _обработчики_экранов():
     туда так же молча (§6.0.7).
     """
     import ast
-    дерево = ast.parse(io.open("main.py", encoding="utf-8").read())
     имена = set()
-    for узел in ast.walk(дерево):
-        if isinstance(узел, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            текст = ast.unparse(узел)
-            if "TemplateResponse" not in текст and "HTMLResponse" not in текст:
-                continue
-            фрагмент = ("name='_" in текст or 'name="_' in текст)
-            страница = re.search(r"name=['\"][^_'\"]", текст)
-            if фрагмент and not страница:
-                continue
-            имена.add(узел.name)
+    for файл in файлы:
+        дерево = ast.parse(io.open(файл, encoding="utf-8").read())
+        for узел in ast.walk(дерево):
+            if isinstance(узел, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                текст = ast.unparse(узел)
+                if "TemplateResponse" not in текст and "HTMLResponse" not in текст:
+                    continue
+                фрагмент = ("name='_" in текст or 'name="_' in текст)
+                страница = re.search(r"name=['\"][^_'\"]", текст)
+                if фрагмент and not страница:
+                    continue
+                имена.add((файл, узел.name))
     return имена
+
+
+def _файл_обработчика(конечная) -> str | None:
+    """Файл проекта, в котором объявлен обработчик маршрута, — путём
+    от корня. Обработчик библиотеки (служебные маршруты FastAPI) — None."""
+    import inspect
+    try:
+        файл = inspect.getsourcefile(конечная) if конечная else None
+    except TypeError:
+        return None
+    if not файл:
+        return None
+    полный = os.path.abspath(файл)
+    корень = os.path.abspath(".")
+    if not полный.startswith(корень + os.sep):
+        return None
+    return os.path.relpath(полный, корень).replace(os.sep, "/")
 
 
 def _нужен_ли_вход(пути):
@@ -463,15 +488,21 @@ def экраны_из_роутов():
     os.environ.setdefault("DB_PATH", "app.db")
     import main
 
-    отдают_html = _обработчики_экранов()
+    файлы = {"main.py"}
+    for маршрут in main.app.routes:
+        файл = _файл_обработчика(getattr(маршрут, "endpoint", None))
+        if файл:
+            файлы.add(файл)
+    отдают_html = _обработчики_экранов(sorted(файлы))
     пути = []
     for маршрут in main.app.routes:
         путь = getattr(маршрут, "path", None)
         методы = getattr(маршрут, "methods", None)
         if not путь or not методы or "GET" not in методы:
             continue
-        имя = getattr(getattr(маршрут, "endpoint", None), "__name__", "")
-        if имя not in отдают_html:
+        конечная = getattr(маршрут, "endpoint", None)
+        имя = getattr(конечная, "__name__", "")
+        if (_файл_обработчика(конечная), имя) not in отдают_html:
             continue
         if путь == "/{slug}":
             # Статические страницы — из САМОГО СЛОВАРЯ, а не списком:

@@ -74,6 +74,11 @@ except Exception:
     ("/admin/enshrouded", "админ · enshrouded", None),
     ("/admin/usage", "админ · расход", None),
     ("/admin/landing", "админ · главная", None),
+    # модуль «Контент» (BACKLOG №365, 366): страница вошедшего администратора
+    # с шапкой инструмента — в перечень входит по его же определению
+    ("/content", "контент · сюжеты", None),
+    ("/content", "контент · форматы", "document.getElementById('content-tab-formats').click()"),
+    ("/content", "контент · источники", "document.getElementById('content-tab-sources').click()"),
 ]
 
 ЗАМЕР = r"""() => {
