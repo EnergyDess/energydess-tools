@@ -13,6 +13,12 @@
 6. ТРИ ЗАПИСИ ОБ ОДНОМ СОБЫТИИ из разных источников — один сюжет,
    источников 3; другая тема — отдельный сюжет; утечка — флаг и заметка.
 7. НАЛОЖЕНИЕ: запуск во время идущего прогона — пропуск СТРОКОЙ.
+8. АРХЕОЛОГИЯ: в таблицу попадают только хиты ПРО ТЕМУ (замер на проде
+   2026-09-29 — рэп и другие игры канала), язык канала — по тексту,
+   а не по подсказке запроса; прогон пересобирает таблицу целиком,
+   пустая выдача прежнего не стирает, прогон прежней версии правил
+   повторяется сам один раз. Обратный случай — отбор снят, чужое
+   попадает: иначе «чужого нет» неотличимо от «чужого не присылали».
 """
 import asyncio
 import json
@@ -491,3 +497,147 @@ def test_robots_запрет_и_403_стоп_с_причиной():
     with pytest.raises(cc.ОтказИсточника) as e:
         asyncio.run(прогон(отказ, "https://feed.test/feed/"))
     assert e.value.блок and "429" in str(e.value)
+
+
+# ── 8. АРХЕОЛОГИЯ: ТОЛЬКО ПРО ТЕМУ, ЯЗЫК ПО ТЕКСТУ, ПЕРЕСБОРКА ─────────
+
+class СетьАрх(Сеть):
+    """YouTube для археологии. В выдаче нарочно то, что нашлось на проде
+    2026-09-29 в первой версии: у канала рядом с GTA V — ролик про другую
+    игру, самый просматриваемый «хит» периода — рэп про Minecraft,
+    а англоязычный канал найден русским запросом."""
+
+    РОЛИКИ = {
+        # id: (канал, название канала, заголовок, просмотры)
+        "g1": ("UCA", "Funny Channel", "GTA V | Momentos Divertidos (Funny Moments)", 9000000),
+        "g2": ("UCA", "Funny Channel", "GTA5 heist glitch", 5000000),
+        "x1": ("UCA", "Funny Channel", "Goat Simulator - LA JIRAFA VOLADORA", 8000000),
+        "r1": ("UCR", "Русский канал", "ГТА 5: угарные моменты", 3000000),
+        "e1": ("UCE", "SquidLike", "GTA 5 physics test", 4000000),
+        "m1": ("UCM", "Rap Channel", "Rap do Minecraft", 70000000),
+    }
+
+    def __init__(self, только_чужое=False):
+        super().__init__()
+        self.поиски = []
+        self.только_чужое = только_чужое
+
+    def yt(self, путь, q):
+        if путь.endswith("/search") and q.get("publishedAfter"):
+            self.поиски.append(q)
+            if self.только_чужое:
+                ids = ["x1", "m1"]
+            elif q.get("channelId"):
+                ids = [v for v, р in self.РОЛИКИ.items() if р[0] == q["channelId"]]
+            elif q.get("relevanceLanguage") == "ru":
+                ids = ["r1", "e1", "m1"]
+            else:
+                ids = ["g1", "m1", "e1"]
+            return {"items": [{"id": {"videoId": v}} for v in ids]}
+        if путь.endswith("/videos"):
+            ids = [v for v in q.get("id", "").split(",") if v in self.РОЛИКИ]
+            if ids:
+                return {"items": [{"id": v, "snippet": {
+                    "title": self.РОЛИКИ[v][2], "description": "", "channelId": self.РОЛИКИ[v][0],
+                    "channelTitle": self.РОЛИКИ[v][1], "publishedAt": "2014-03-01T10:00:00Z"},
+                    "statistics": {"viewCount": str(self.РОЛИКИ[v][3])}} for v in ids]}
+        return super().yt(путь, q)
+
+
+def _археология(monkeypatch, сеть):
+    """Прогон археологии на подставной сети; модель кладёт каждый ролик
+    в первый стартовый формат — путь кода дальше боевой."""
+    monkeypatch.setattr(cc, "новый_клиент", lambda: httpx.AsyncClient(
+        transport=httpx.MockTransport(сеть), follow_redirects=True))
+
+    async def _форматы(клиент, инструмент, система, вопрос, потолок):
+        n = len(re.findall(r"^\d+\. \[", вопрос.split("Ролики:")[-1], re.M))
+        return json.dumps({"videos": [{"n": i, "format": 1, "flags": [], "why": "тест"}
+                                      for i in range(1, n + 1)], "new": []}), None
+    monkeypatch.setattr(ce, "_спросить", _форматы)
+    return asyncio.run(ce.археология("test"))
+
+
+def test_археология_только_про_тему_и_язык_по_тексту(стенд, monkeypatch):
+    db, _, _ = стенд
+    сеть = СетьАрх()
+    итог = _археология(monkeypatch, сеть)
+    assert итог["state"] == "ok", итог
+    по_каналу = [п for п in сеть.поиски if п.get("channelId")]
+    # Поиск по каналу идёт С ЗАПРОСОМ ТЕМЫ — без него топ канала периода всё подряд
+    assert по_каналу and all(п.get("q") for п in по_каналу)
+    db.expire_all()
+    хиты = {в.yt_id: в for в in db.query(ContentArchVideo).all()}
+    assert set(хиты) == {"g1", "g2", "e1", "r1"}, sorted(хиты)
+    # «GTA5» слитно — тоже про тему (ключевое «GTA 5»), Goat Simulator и рэп — нет
+    assert "x1" not in хиты and "m1" not in хиты
+    # Язык по тексту, а не по подсказке запроса: e1 найден русским запросом
+    assert хиты["e1"].channel_lang == "en" and хиты["r1"].channel_lang == "ru"
+    assert all(в.format_id is not None for в in хиты.values())
+    assert итог["версия"] == ce.АРХЕОЛОГИЯ_ВЕРСИЯ
+
+
+def test_подлог_без_отбора_по_теме_чужое_попадает(стенд, monkeypatch):
+    """Обратный случай: отбор по теме снят (метки не переданы) — прежнее
+    поведение, и чужая игра в таблице оказывается. Без этого «чужого нет»
+    неотличимо от «чужого не присылали»: подставная сеть его присылает."""
+    db, _, _ = стенд
+    сеть = СетьАрх()
+    настоящий = cc.хиты_периода
+
+    async def прежний(client, база, ключ, квота, параметры, метки=None):
+        return await настоящий(client, база, ключ, квота, параметры, None)
+    monkeypatch.setattr(cc, "хиты_периода", прежний)
+    _археология(monkeypatch, сеть)
+    db.expire_all()
+    assert "x1" in {в.yt_id for в in db.query(ContentArchVideo).all()}
+
+
+def test_повторная_археология_пересобирает_таблицу(стенд, monkeypatch):
+    db, _, _ = стенд
+    чужой = cdb.ContentFormat(theme_id="gta", title="Кинематики других игр", origin="model",
+                              sort=1000)
+    db.add(чужой)
+    db.flush()
+    db.add_all([
+        ContentArchVideo(theme_id="gta", yt_id="old-x", title="Five Nights At Freddy's",
+                         format_id=чужой.id, classify_tries=0),
+        ContentArchVideo(theme_id="gta", yt_id="g1", title="GTA V | Momentos Divertidos",
+                         format_id=чужой.id, classify_tries=2, limited_ads=True,
+                         flags='["18+"]', format_reason="старая причина")])
+    db.commit()
+    итог = _археология(monkeypatch, СетьАрх())
+    assert итог["gta"]["убрано_хитов"] == 1 and итог["gta"]["убрано_форматов_модели"] == 1
+    db.expire_all()
+    assert db.query(ContentArchVideo).filter_by(yt_id="old-x").first() is None
+    assert db.query(cdb.ContentFormat).filter_by(title="Кинематики других игр").first() is None
+    g1 = db.query(ContentArchVideo).filter_by(yt_id="g1").one()
+    первый = (db.query(cdb.ContentFormat).filter_by(theme_id="gta", origin="start")
+              .order_by(cdb.ContentFormat.sort, cdb.ContentFormat.id).first())
+    assert g1.format_id == первый.id and g1.limited_ads is False and g1.format_reason == "тест"
+
+
+def test_пустая_выдача_не_стирает_прежнюю_таблицу(стенд, monkeypatch):
+    db, _, _ = стенд
+    db.add(ContentArchVideo(theme_id="gta", yt_id="keep", title="GTA 5 story",
+                            classify_tries=0))
+    db.commit()
+    итог = _археология(monkeypatch, СетьАрх(только_чужое=True))
+    assert итог["state"] == "partial" and "не тронута" in итог["note"]
+    db.expire_all()
+    assert db.query(ContentArchVideo).filter_by(yt_id="keep").one()
+
+
+def test_археология_прежней_версии_пересобирается_сама(стенд):
+    db, _, _ = стенд
+    assert ce._археология_нужна()          # удачного прогона ещё не было
+    сейчас = datetime.utcnow()
+    db.add(ContentRun(kind="archaeology", trigger="scheduler", state="ok",
+                      started_at=сейчас, finished_at=сейчас, summary="{}"))
+    db.commit()
+    assert ce._археология_нужна()          # прогон прежней версии — нужна
+    db.add(ContentRun(kind="archaeology", trigger="scheduler", state="ok",
+                      started_at=сейчас, finished_at=сейчас,
+                      summary=json.dumps({"версия": ce.АРХЕОЛОГИЯ_ВЕРСИЯ})))
+    db.commit()
+    assert not ce._археология_нужна()      # текущая версия уже была
