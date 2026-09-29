@@ -243,6 +243,8 @@
 .content-source.is-ok .content-source-state { color: var(--v2-ok); }
 .content-source.is-warn .content-source-state { color: var(--v2-warn); }
 .content-source.is-danger .content-source-state { color: var(--v2-danger); }
+.content-source.is-off .content-dot { background: var(--v2-text-faint); }
+.content-source.is-off .content-source-state { color: var(--v2-text-faint); }
 .content-source-line {
   max-width: var(--v2-measure);
   margin: 0;

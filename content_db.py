@@ -270,6 +270,51 @@ class ContentRun(Base):
     note = Column(Text, nullable=True)
 
 
+class ContentIdea(Base):
+    """ИДЕЯ РОЛИКА (BACKLOG №370) — готовый ролик, а не сюжет. Название
+    и строку «почему сейчас» пишет модель; ФАКТЫ (`facts`, JSON) считает код
+    из записей базы, и `basis` хранит, из каких именно — ролики, новости,
+    хиты археологии. Пара «сюжет + формат» не повторяется между прогонами."""
+    __tablename__ = "content_ideas"
+    id = Column(Integer, primary_key=True)
+    theme_id = Column(String, nullable=False, index=True)
+    run_id = Column(Integer, nullable=True, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    kind = Column(String, nullable=False)                # long | shorts
+    sort = Column(String, nullable=False)                # hot | trend | evergreen | user
+    title = Column(String, nullable=False)
+    why = Column(Text, nullable=True)
+    format_id = Column(Integer, nullable=True, index=True)
+    story_id = Column(Integer, nullable=True, index=True)
+    facts = Column(Text, nullable=True)                  # JSON: спрос, конкуренция, выстрел, окно
+    basis = Column(Text, nullable=True)                  # JSON: id записей и хитов, из которых факты
+    risks = Column(Text, nullable=True)                  # JSON: ["leak", "18+"]
+    rank = Column(Float, nullable=False, default=0.0)
+    main = Column(Boolean, nullable=False, default=False)
+    deferred = Column(Boolean, nullable=False, default=False)   # «Не сегодня» у главной
+    state = Column(String, nullable=False, default="new")       # new | planned | rejected
+    reason = Column(String, nullable=True)               # format | done | boring
+    reacted_at = Column(DateTime, nullable=True)
+    text_by = Column(String, nullable=True)              # model | code
+    text_tries = Column(Integer, nullable=False, default=0)
+
+
+class ContentVideo(Base):
+    """РОЛИК ВЛАДЕЛЬЦА В КОНВЕЙЕРЕ (BACKLOG №370): plan → writing →
+    editing → published. У вышедшего — ссылка на YouTube."""
+    __tablename__ = "content_videos"
+    id = Column(Integer, primary_key=True)
+    theme_id = Column(String, nullable=False, index=True)
+    idea_id = Column(Integer, nullable=True, index=True)
+    title = Column(String, nullable=False)
+    kind = Column(String, nullable=False, default="long")
+    status = Column(String, nullable=False, default="plan")
+    youtube_url = Column(String, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    status_at = Column(DateTime, nullable=True)
+    published_at = Column(DateTime, nullable=True)
+
+
 # ── ПОМОЩНИКИ ─────────────────────────────────────────────────────────
 
 def из_json(текст, запас=None):

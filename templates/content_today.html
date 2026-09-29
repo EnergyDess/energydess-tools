@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% set meta_title = 'Сегодня · Контент' %}
+  {% include '_meta.html' %}
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ st('style.css') }}">
+  <link rel="stylesheet" href="{{ st('content_today.css') }}">
+</head>
+<body class="has-site-header">
+
+{% include '_header.html' %}
+
+{# «СЕГОДНЯ» (BACKLOG №371) — рабочий экран автора: открыл, за десять секунд
+   понял, что снимать, положил в план. ВСЁ РИСУЕТ СЕРВЕР: идеи, факты
+   и конвейер приходят в первом кадре; браузер только зовёт действия
+   и после ответа перечитывает страницу — второго построителя нет.
+
+   ЦИФРЫ НА ЭКРАНЕ — ТОЛЬКО ФАКТЫ ИДЕИ, посчитанные кодом (`content_ideas`):
+   спрос, конкуренция на русском, выстрел формата, окно. Оценок, роста
+   и формул здесь нет — они в «Кухне». #}
+{% import '_page_head.html' as ph %}
+<main class="v2-page-wrap today" id="content-today" data-type="{{ тип }}">
+  <header class="v2-page-head is-page is-notabs">
+    {{ ph.text(страница, 'Что снимать сегодня: одна главная идея, запасные варианты и мои ролики') }}
+    <div class="v2-head-actions today-head">
+      <span class="today-meta" id="today-release">{% if до_релиза is not none %}{% if до_релиза > 0 %}До релиза <b>{{ до_релиза }}</b> {{ 'день' if до_релиза % 10 == 1 and до_релиза % 100 != 11 else ('дня' if до_релиза % 10 in [2,3,4] and до_релиза % 100 not in [12,13,14] else 'дней') }}{% elif до_релиза == 0 %}<b>Релиз сегодня</b>{% else %}Релиз вышел{% endif %}{% endif %}</span>
+      <span class="today-meta" id="today-week">Неделя: <b>{{ неделя.вышло }}</b> из {{ неделя.цель }}</span>
+      <span class="today-meta today-radar {{ 'is-ok' if радар.ok else 'is-bad' }}" id="today-radar"
+            title="{{ радар.причина or 'Сбор новостей работает' }}">
+        <span class="today-dot" aria-hidden="true"></span>
+        {% if радар.ok %}радар · {{ радар.когда }}{% else %}радар: {{ радар.причина }}{% endif %}
+      </span>
+      <a class="v2-btn v2-btn-secondary v2-btn-icon" href="/content/kitchen" id="today-kitchen"
+         title="Кухня: сюжеты, форматы, источники" aria-label="Кухня">{{ значок('settings') }}<span class="today-kitchen-label">Кухня</span></a>
+    </div>
+  </header>
+
+  <div class="today-bar">
+    <div class="v2-seg today-seg" role="group" aria-label="Тип роликов">
+      <a class="v2-seg-btn today-type{{ ' is-active' if тип == 'long' }}" href="/content?type=long" id="today-type-long"
+         {{ 'aria-current="page"' | safe if тип == 'long' }}>Длинные</a>
+      <a class="v2-seg-btn today-type{{ ' is-active' if тип == 'shorts' }}" href="/content?type=shorts" id="today-type-shorts"
+         {{ 'aria-current="page"' | safe if тип == 'shorts' }}>Shorts</a>
+    </div>
+    <button type="button" class="v2-btn v2-btn-secondary" id="today-refresh"{{ ' disabled' if идёт }}>
+      {{ значок('refresh-cw') }} Обновить идеи
+    </button>
+  </div>
+
+  {# Шаги генерации — реальные, из базы (`/content/api/ideas/state`) #}
+  <ol class="today-steps" id="today-steps" hidden aria-live="polite"></ol>
+  <p class="v2-error" id="today-error" hidden></p>
+
+  {% if главная %}
+  <section class="today-main" id="today-main" data-idea="{{ главная.id }}" aria-labelledby="today-main-title">
+    <p class="today-kicker">Снимай это</p>
+    <div class="today-pills">
+      <span class="today-pill is-window">{{ главная.факты.окно }}</span>
+      {% if главная.формат %}<span class="today-pill">{{ главная.формат }}</span>{% endif %}
+      <span class="today-pill is-{{ главная.sort }}">{{ главная.вид }}</span>
+    </div>
+    <h2 class="today-main-title" id="today-main-title">{{ главная.title }}</h2>
+    {% if главная.why %}<p class="today-why">{{ главная.why }}</p>{% endif %}
+    <div class="today-facts">
+      <div class="v2-tile today-fact">
+        <span class="v2-tile-label">Спрос</span>
+        <span class="v2-tile-num">{{ главная.факты.спрос_коротко }}</span>
+        {% if главная.факты.спрос_коротко != 'нет данных' %}<span class="today-fact-sub">просмотров за 48 ч</span>{% endif %}
+      </div>
+      <div class="v2-tile today-fact{{ ' is-first' if главная.факты.первый }}">
+        <span class="v2-tile-label">На русском</span>
+        <span class="v2-tile-num">{{ главная.факты.конкуренция }}</span>
+        {% if главная.факты.первый %}<span class="today-fact-sub">ты будешь первым</span>{% endif %}
+      </div>
+      <div class="v2-tile today-fact">
+        <span class="v2-tile-label">Формат на GTA 5</span>
+        <span class="v2-tile-num">{{ главная.факты.выстрел }}</span>
+        {% if главная.факты.выстрел != 'нет данных' %}<span class="today-fact-sub">выстрел хитов</span>{% endif %}
+      </div>
+    </div>
+    {% for р in главная.риски %}<p class="today-risk">{{ значок('alert-triangle') }} {{ р }}</p>{% endfor %}
+    <div class="today-actions">
+      <button type="button" class="v2-btn v2-btn-primary" data-act="plan" data-id="{{ главная.id }}" id="today-pack">
+        {{ значок('sparkles') }} Собрать пакет ролика
+      </button>
+      <button type="button" class="v2-btn v2-btn-secondary" data-act="later" data-id="{{ главная.id }}" id="today-later">Не сегодня</button>
+      <span class="v2-hint today-soon">сборка пакета — скоро, пока идея уходит в план</span>
+    </div>
+  </section>
+  {% elif not есть_прогон %}
+  <section class="v2-card today-empty" id="today-empty">
+    <div class="v2-empty">
+      <span class="v2-empty-icon">{{ значок('sparkles') }}</span>
+      <p class="v2-empty-title">Первые идеи появятся после прогона в {{ время_генерации }}</p>
+      <p class="v2-empty-text">Или соберите их сейчас кнопкой «Обновить идеи».</p>
+    </div>
+  </section>
+  {% else %}
+  <section class="v2-card today-empty" id="today-empty">
+    <div class="v2-empty">
+      <span class="v2-empty-icon">{{ значок('check') }}</span>
+      <p class="v2-empty-title">{{ 'Длинных' if тип == 'long' else 'Shorts' }}-идей в этом прогоне не осталось</p>
+      <p class="v2-empty-text">Идеи собраны {{ идеи_когда }}. Новые — после прогона в {{ время_генерации }} либо кнопкой «Обновить идеи».</p>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if ещё %}
+  <section class="today-more" aria-labelledby="today-more-title">
+    <h2 class="today-h2" id="today-more-title">Ещё варианты</h2>
+    <ul class="today-list" id="today-list">
+      {% for и in ещё %}
+      <li class="today-row" data-idea="{{ и.id }}" style="--n: {{ loop.index0 }}">
+        <span class="today-pill is-{{ и.sort }}">{{ и.вид }}</span>
+        <div class="today-row-text">
+          <span class="today-row-title">{{ и.title }}</span>
+          <span class="today-row-facts">{% if и.sort != 'evergreen' %}{{ и.факты.окно }} · спрос {{ и.факты.спрос_коротко }} · на русском {{ и.факты.конкуренция }}{% else %}в любой день{% endif %}{% if и.формат %} · {{ и.формат }} {{ и.факты.выстрел }}{% endif %}{% for р in и.риски %} · <span class="today-row-risk">{{ р }}</span>{% endfor %}</span>
+        </div>
+        <div class="today-row-acts">
+          <button type="button" class="v2-btn v2-btn-quiet v2-btn-icon" data-act="plan" data-id="{{ и.id }}" title="В план" aria-label="В план">{{ значок('plus') }}</button>
+          <button type="button" class="v2-btn v2-btn-quiet v2-btn-icon" data-act="reject-open" data-id="{{ и.id }}" title="Не то" aria-label="Не то">{{ значок('x') }}</button>
+        </div>
+        <div class="today-reasons" hidden>
+          {% for код, подпись in причины.items() %}
+          <button type="button" class="v2-chip" data-act="reject" data-reason="{{ код }}" data-id="{{ и.id }}">{{ подпись }}</button>
+          {% endfor %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section class="today-videos" aria-labelledby="today-videos-title">
+    <div class="today-videos-head">
+      <h2 class="today-h2" id="today-videos-title">Мои ролики</h2>
+      <label class="today-goal">Цель в неделю
+        <select class="v2-select" id="today-goal">
+          {% for n in range(1, 15) %}<option value="{{ n }}"{{ ' selected' if n == неделя.цель }}>{{ n }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="today-tiles" id="today-tiles">
+      {% for код, подпись in статусы.items() %}
+      <button type="button" class="v2-tile today-tile" data-status="{{ код }}" aria-expanded="false" aria-controls="today-pipe">
+        <span class="v2-tile-num">{{ счёт[код] }}</span>
+        <span class="v2-tile-label">{{ подпись }}</span>
+      </button>
+      {% endfor %}
+    </div>
+    <div class="v2-card today-pipe" id="today-pipe" hidden>
+      {% for код, подпись in статусы.items() %}
+      <div class="today-pipe-part" data-part="{{ код }}" hidden>
+        <h3 class="today-h3">{{ подпись }}</h3>
+        {% set свои = ролики | selectattr('status', 'equalto', код) | list %}
+        {% if свои %}
+        <ul class="today-pipe-list">
+          {% for р in свои %}
+          <li class="today-pipe-row" data-video="{{ р.id }}">
+            <span class="today-pipe-title">{% if р.url %}<a href="{{ р.url }}" target="_blank" rel="noopener">{{ р.title }}</a>{% else %}{{ р.title }}{% endif %}</span>
+            <span class="v2-hint">{{ 'Shorts' if р.kind == 'shorts' else 'длинный' }} · {{ р.когда }}</span>
+            <div class="today-pipe-ctl">
+              <select class="v2-select" data-video-status="{{ р.id }}" aria-label="Статус ролика">
+                {% for к2, п2 in статусы.items() %}<option value="{{ к2 }}"{{ ' selected' if к2 == р.status }}>{{ п2 }}</option>{% endfor %}
+              </select>
+              <input class="v2-input today-url" type="url" placeholder="Ссылка на YouTube" data-video-url="{{ р.id }}"
+                     value="{{ р.url or '' }}"{{ ' hidden' if р.status != 'published' }}>
+              <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" data-act="video" data-id="{{ р.id }}">Сохранить</button>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="v2-hint">Здесь пока пусто.</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  const ошибка = document.getElementById('today-error');
+  function сказать(текст) { ошибка.textContent = текст; ошибка.hidden = !текст; }
+  async function послать(адрес, тело) {
+    const r = await fetch(адрес, {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                   body: JSON.stringify(тело || {})});
+    let д = {};
+    try { д = await r.json(); } catch (e) { д = {error: 'сервер ответил не JSON (HTTP ' + r.status + ')'}; }
+    if (!r.ok) throw new Error(д.error || ('HTTP ' + r.status));
+    return д;
+  }
+  function увести(узел) {
+    if (!узел) return Promise.resolve();
+    узел.classList.add('is-leaving');
+    return new Promise(function (готово) { setTimeout(готово, 220); });
+  }
+
+  // Реакции на идеи
+  document.addEventListener('click', async function (e) {
+    const к = e.target.closest('[data-act]');
+    if (!к) return;
+    const id = к.dataset.id;
+    try {
+      if (к.dataset.act === 'reject-open') {
+        const ряд = к.closest('.today-row');
+        const причины = ряд.querySelector('.today-reasons');
+        причины.hidden = !причины.hidden;
+        return;
+      }
+      if (к.dataset.act === 'plan' || к.dataset.act === 'later' || к.dataset.act === 'reject') {
+        к.disabled = true;
+        await послать('/content/api/ideas/' + id, {action: к.dataset.act, reason: к.dataset.reason || null});
+        await увести(к.closest('.today-row, .today-main'));
+        location.reload();
+        return;
+      }
+      if (к.dataset.act === 'video') {
+        const статус = document.querySelector('[data-video-status="' + id + '"]').value;
+        const ссылка = document.querySelector('[data-video-url="' + id + '"]').value;
+        к.disabled = true;
+        await послать('/content/api/videos/' + id, {status: статус, url: ссылка || null});
+        sessionStorage.setItem('today-open', статус);
+        location.reload();
+      }
+    } catch (err) {
+      к.disabled = false;
+      сказать('Не вышло: ' + err.message);
+    }
+  });
+
+  // Ссылка на YouTube — только у вышедшего
+  document.querySelectorAll('[data-video-status]').forEach(function (с) {
+    с.addEventListener('change', function () {
+      document.querySelector('[data-video-url="' + с.dataset.videoStatus + '"]').hidden = с.value !== 'published';
+    });
+  });
+
+  // Плитки конвейера открывают свой список
+  const труба = document.getElementById('today-pipe');
+  const плитки = document.querySelectorAll('.today-tile');
+  function открыть(статус) {
+    let показано = false;
+    плитки.forEach(function (п) {
+      const этот = п.dataset.status === статус && п.getAttribute('aria-expanded') !== 'true';
+      п.setAttribute('aria-expanded', этот ? 'true' : 'false');
+      п.classList.toggle('is-active', этот);
+      показано = показано || этот;
+    });
+    труба.querySelectorAll('.today-pipe-part').forEach(function (ч) { ч.hidden = !(показано && ч.dataset.part === статус); });
+    труба.hidden = !показано;
+  }
+  плитки.forEach(function (п) { п.addEventListener('click', function () { открыть(п.dataset.status); }); });
+  try {
+    const был = sessionStorage.getItem('today-open');
+    if (был) { sessionStorage.removeItem('today-open'); открыть(был); }
+  } catch (e) { /* хранилище недоступно — список просто закрыт */ }
+
+  // Цель в неделю
+  document.getElementById('today-goal').addEventListener('change', async function () {
+    try {
+      const д = await послать('/content/api/settings/week', {goal: +this.value});
+      const н = document.querySelector('#today-week b');
+      document.getElementById('today-week').innerHTML = 'Неделя: <b>' + (н ? н.textContent : '0') + '</b> из ' + д.goal;
+    } catch (err) { сказать('Цель не сохранена: ' + err.message); }
+  });
+
+  // Обновить идеи — реальные шаги прогона из базы
+  const кнопка = document.getElementById('today-refresh');
+  const шаги = document.getElementById('today-steps');
+  function нарисовать(список) {
+    шаги.hidden = false;
+    шаги.replaceChildren.apply(шаги, список.map(function (ш) {
+      const li = document.createElement('li');
+      li.className = 'today-step' + (ш.done ? ' is-done' : '');
+      const знак = document.createElement('span');
+      знак.className = 'today-step-mark';
+      знак.textContent = ш.done ? '✓' : '';
+      знак.setAttribute('aria-hidden', 'true');
+      const т = document.createElement('span');
+      т.textContent = ш.t + (ш.note ? ' — ' + ш.note : '');
+      li.append(знак, т);
+      return li;
+    }));
+  }
+  async function ждать() {
+    const r = await fetch('/content/api/ideas/state', {headers: {'Accept': 'application/json'}});
+    const д = await r.json();
+    нарисовать(д.steps || []);
+    if (д.busy) { setTimeout(ждать, 700); return; }
+    if (д.state === 'error') { кнопка.disabled = false; сказать('Идеи не собрались: ' + (д.note || 'ошибка')); return; }
+    setTimeout(function () { location.reload(); }, 500);
+  }
+  кнопка.addEventListener('click', async function () {
+    кнопка.disabled = true;
+    сказать('');
+    try { await послать('/content/api/ideas/run'); }
+    catch (err) { if (!/уже собираются/.test(err.message)) { кнопка.disabled = false; сказать(err.message); return; } }
+    ждать();
+  });
+  {% if идёт %}ждать();{% endif %}
+})();
+</script>
+
+{% include '_page_end.html' %}
+</body>
+</html>

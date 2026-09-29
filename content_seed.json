@@ -292,6 +292,21 @@
     "cycle": {
       "minutes": 30,
       "first_delay_sec": 120
+    },
+    "ideas": {
+      "release_date": "2026-11-19",
+      "week_goal": 3,
+      "generate_at_msk": "08:00",
+      "hot_score": 60,
+      "hot_hours": 48,
+      "trend_growth": 300,
+      "long_max": 6,
+      "shorts_max": 5,
+      "dedupe_days": 14,
+      "reject_days": 30,
+      "text_tries": 3,
+      "radar_hours": 2,
+      "formats_per_story": 4
     }
   }
 }

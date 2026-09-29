@@ -1,6 +1,12 @@
 """МАРШРУТЫ МОДУЛЯ «КОНТЕНТ» (BACKLOG №365, 366) — только администратору.
 
-    GET  /content                    — страница: «Сюжеты», «Форматы», «Источники»
+    GET  /content                    — «Сегодня»: что снимать (BACKLOG №371)
+    GET  /content/kitchen            — «Кухня»: «Сюжеты», «Форматы», «Источники»
+    GET  /content/api/ideas/state    — идут ли идеи и их шаги
+    POST /content/api/ideas/run      — «Обновить идеи»
+    POST /content/api/ideas/{id}     — реакция: plan | reject (с причиной) | later
+    POST /content/api/videos/{id}    — статус ролика конвейера (и ссылка у вышедшего)
+    POST /content/api/settings/week  — цель роликов в неделю
     GET  /content/api/state          — идёт ли прогон и чем кончился последний
     POST /content/api/run            — запустить: cycle | discover | archaeology
     POST /content/api/channels/{id}  — канал реестра: оставить | убрать | кандидат
@@ -29,10 +35,11 @@ from sqlalchemy.orm import Session
 import content_collect as cc
 import content_db as cdb
 import content_engine as ce
+import content_ideas as ci
 from auth import get_current_user
-from content_db import (ContentArchVideo, ContentChannel, ContentFormat, ContentItem,
-                        ContentRun, ContentSnapshot, ContentSource, ContentStory,
-                        ContentTheme)
+from content_db import (ContentArchVideo, ContentChannel, ContentFormat, ContentIdea,
+                        ContentItem, ContentRun, ContentSetting, ContentSnapshot,
+                        ContentSource, ContentStory, ContentTheme, ContentVideo)
 from database import get_db
 
 router = APIRouter()
@@ -45,8 +52,9 @@ router = APIRouter()
 ОТКАЗ_НЕ_АДМИНУ = "Нет доступа: раздел «Контент» открыт только администратору."
 СТРАНИЦА = {"icon": "activity", "label": "Админ · контент", "title": "Контент"}
 ЗАМЕТКА_УТЕЧКИ = "Рассказывать можно, кадры утечки показывать нельзя."
-ЦВЕТ_ИСХОДА = {"ok": "ok", "quota": "warn", "error": "danger", None: "idle"}
-ВИДЫ_ПРОГОНА = {"cycle": "сбор", "discover": "поиск каналов", "archaeology": "археология"}
+ЦВЕТ_ИСХОДА = {"ok": "ok", "quota": "warn", "error": "danger", "off": "off", None: "idle"}
+ВИДЫ_ПРОГОНА = {"cycle": "сбор", "discover": "поиск каналов", "archaeology": "археология",
+                "ideas": "идеи"}
 СОСТОЯНИЯ_ПРОГОНА = {"running": "идёт", "ok": "готово", "partial": "частично",
                      "error": "ошибка", "skipped": "пропущен"}
 СТАТУСЫ_КАНАЛА = {"candidate": "кандидат", "keep": "оставлен", "removed": "убран"}
@@ -280,7 +288,7 @@ def данные_страницы(db, user) -> dict:
     }
 
 
-@router.get("/content")
+@router.get("/content/kitchen")
 async def content_page(request: Request, user=Depends(get_current_user),
                        db: Session = Depends(get_db)):
     if not _админ(user):
@@ -299,7 +307,8 @@ async def content_state(user=Depends(get_current_user), db: Session = Depends(ge
         return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
     зона = _main()._пояс(user)
     последний = db.query(ContentRun).order_by(ContentRun.id.desc()).first()
-    идёт = (db.query(ContentRun).filter(ContentRun.state == "running")
+    идёт = (db.query(ContentRun).filter(ContentRun.state == "running",
+                                       ContentRun.kind != "ideas")
             .order_by(ContentRun.id.desc()).first())
     return {"busy": ce.занят() or идёт is not None,
             "running": _прогон_наружу(идёт, зона, user),
@@ -342,6 +351,153 @@ async def content_channel(channel_id: int, тело: Статус, user=Depends(
     db.commit()
     return {"ok": True, "id": канал.id, "status": канал.status,
             "статус": СТАТУСЫ_КАНАЛА[канал.status]}
+
+
+# ── «СЕГОДНЯ» (BACKLOG №371) ─────────────────────────────────────────
+
+def _идея_наружу(и: ContentIdea, форматы: dict, сюжеты: dict) -> dict:
+    факты = cdb.из_json(и.facts, {}) or {}
+    ф = форматы.get(и.format_id)
+    с = сюжеты.get(и.story_id)
+    return {"id": и.id, "kind": и.kind, "sort": и.sort, "вид": ci.ВИДЫ.get(и.sort, и.sort),
+            "title": и.title, "why": и.why, "main": и.main, "deferred": и.deferred,
+            "формат": ф.title if ф else None, "сюжет": с.title if с else None,
+            "факты": ci.факты_подписи(факты),
+            "риски": [ci.РИСКИ[р] for р in (cdb.из_json(и.risks, []) or []) if р in ci.РИСКИ]}
+
+
+def данные_сегодня(db, user, тип: str) -> dict:
+    """Всё для «Сегодня» — из базы, без сети. Числа — готовыми подписями:
+    оценок, роста и формул на этом экране нет (они в «Кухне»)."""
+    cdb.засеять(db)
+    тема = (db.query(ContentTheme).filter(ContentTheme.active.is_(True))
+            .order_by(ContentTheme.id).first())
+    тема_id = тема.id if тема else ""
+    прогон = ci.последний_прогон(db)
+    идеи = []
+    if прогон is not None:
+        идеи = (db.query(ContentIdea).filter(ContentIdea.run_id == прогон.id,
+                                             ContentIdea.theme_id == тема_id,
+                                             ContentIdea.state == "new")
+                .order_by(ContentIdea.rank.desc(), ContentIdea.id).all())
+    форматы = {ф.id: ф for ф in db.query(ContentFormat).filter(ContentFormat.theme_id == тема_id)}
+    сюжеты = ({с.id: с for с in db.query(ContentStory).filter(
+        ContentStory.id.in_([и.story_id for и in идеи if и.story_id]))} if идеи else {})
+    свои = [_идея_наружу(и, форматы, сюжеты) for и in идеи if и.kind == тип]
+    if тип == "long":
+        главная = next((и for и in свои if и["main"]), None)
+    else:
+        главная = next((и for и in свои if not и["deferred"]), None)
+    ещё = [и for и in свои if и is not главная]
+    ролики = (db.query(ContentVideo).filter(ContentVideo.theme_id == тема_id)
+              .order_by(ContentVideo.status_at.desc(), ContentVideo.id.desc()).all())
+    зона = _main()._пояс(user)
+    радар = ci.радар(db)
+    идёт = (db.query(ContentRun).filter(ContentRun.kind == "ideas", ContentRun.state == "running")
+            .first())
+    return {
+        "страница": {"icon": "activity", "label": "Контент · GTA", "title": "Сегодня"},
+        "тип": тип, "главная": главная, "ещё": ещё,
+        "есть_прогон": прогон is not None,
+        "идеи_когда": _время(прогон.finished_at, зона) if прогон else None,
+        "до_релиза": ci.до_релиза(db),
+        "неделя": ci.неделя(db, тема_id),
+        "радар": {"ok": радар["ok"], "причина": радар["причина"],
+                  "когда": _время(радар["последний"], зона) if радар["последний"] else "ни разу"},
+        "ролики": [{"id": р.id, "title": р.title, "kind": р.kind, "status": р.status,
+                    "url": р.youtube_url, "когда": _время(р.status_at, зона)} for р in ролики],
+        "статусы": ci.СТАТУСЫ, "причины": ci.ПРИЧИНЫ,
+        "счёт": {к: sum(1 for р in ролики if р.status == к) for к in ci.СТАТУСЫ},
+        "идёт": идёт is not None,
+        "время_генерации": cdb.настройка(db, "ideas").get("generate_at_msk", "08:00"),
+    }
+
+
+@router.get("/content")
+async def content_today(request: Request, user=Depends(get_current_user),
+                        db: Session = Depends(get_db)):
+    if not _админ(user):
+        return PlainTextResponse(ОТКАЗ_НЕ_АДМИНУ, status_code=403)
+    тип = request.query_params.get("type", "long")
+    if тип not in ("long", "shorts"):
+        тип = "long"
+    контекст = {"user": user, **данные_сегодня(db, user, тип)}
+    return _main().templates.TemplateResponse(request=request, name="content_today.html",
+                                              context=контекст)
+
+
+@router.get("/content/api/ideas/state")
+async def ideas_state(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    п = (db.query(ContentRun).filter(ContentRun.kind == "ideas")
+         .order_by(ContentRun.id.desc()).first())
+    итог = (cdb.из_json(п.summary, {}) or {}) if п else {}
+    return {"busy": ci.идёт() or bool(п and п.state == "running"),
+            "state": п.state if п else None, "steps": итог.get("шаги") or [],
+            "ideas": итог.get("идей"), "note": п.note if п else None}
+
+
+@router.post("/content/api/ideas/run")
+async def ideas_run(user=Depends(get_current_user)):
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    итог = ci.запустить("admin")
+    return итог if итог.get("ok") else JSONResponse(итог, status_code=409)
+
+
+class Реакция(BaseModel):
+    action: str
+    reason: str | None = None
+
+
+@router.post("/content/api/ideas/{idea_id}")
+async def idea_react(idea_id: int, тело: Реакция, user=Depends(get_current_user),
+                     db: Session = Depends(get_db)):
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    итог = ci.реакция(db, idea_id, тело.action, тело.reason)
+    if итог.get("error"):
+        return JSONResponse({"error": итог["error"]}, status_code=итог.get("code", 400))
+    return итог
+
+
+class СтатусРолика(BaseModel):
+    status: str
+    url: str | None = None
+
+
+@router.post("/content/api/videos/{video_id}")
+async def video_status(video_id: int, тело: СтатусРолика, user=Depends(get_current_user),
+                       db: Session = Depends(get_db)):
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    итог = ci.сменить_статус(db, video_id, тело.status, тело.url)
+    if итог.get("error"):
+        return JSONResponse({"error": итог["error"]}, status_code=итог.get("code", 400))
+    return итог
+
+
+class Цель(BaseModel):
+    goal: int
+
+
+@router.post("/content/api/settings/week")
+async def week_goal(тело: Цель, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Цель роликов в неделю — цель, а не ограничение: от 1 до 21."""
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    if not 1 <= тело.goal <= 21:
+        return JSONResponse({"error": "цель — от 1 до 21 ролика в неделю"}, status_code=400)
+    н = dict(cdb.настройка(db, "ideas"))
+    н["week_goal"] = тело.goal
+    строка = db.get(ContentSetting, "ideas")
+    if строка is None:
+        db.add(ContentSetting(key="ideas", value=cdb.в_json(н), updated_at=datetime.utcnow()))
+    else:
+        строка.value, строка.updated_at = cdb.в_json(н), datetime.utcnow()
+    db.commit()
+    return {"ok": True, "goal": тело.goal}
 
 
 def _старт():

@@ -198,6 +198,11 @@ def test_не_админу_403_на_страницу_и_действия(сте�
     assert к["админ"].get("/content").status_code == 200
     for кто in ("простой", "гость"):
         assert к[кто].get("/content").status_code == 403, кто
+        assert к[кто].get("/content/kitchen").status_code == 403, кто
+        assert к[кто].get("/content/api/ideas/state").status_code == 403, кто
+        assert к[кто].post("/content/api/ideas/run").status_code in (403, 428), кто
+        assert к[кто].post("/content/api/ideas/1", json={"action": "plan"}).status_code in (403, 428), кто
+        assert к[кто].post("/content/api/videos/1", json={"status": "plan"}).status_code in (403, 428), кто
         assert к[кто].get("/content/api/state").status_code == 403, кто
         assert к[кто].post("/content/api/run", json={"kind": "cycle"}).status_code in (403, 428), кто
         assert к[кто].post("/content/api/channels/1", json={"status": "removed"}).status_code in (403, 428), кто
@@ -263,17 +268,19 @@ def test_неверный_адрес_красный_с_текстом_сосед
     assert ps.last_state == "error" and "HTTP 404" in (ps.last_error or "")
     rs = db.query(ContentSource).filter(ContentSource.kind == "rockstar").one()
     assert rs.last_state == "ok" and rs.last_ok_at is not None
-    страница = к["админ"].get("/content?tab=sources").text
+    страница = к["админ"].get("/content/kitchen?tab=sources").text
     assert 'data-source="%d" data-state="error"' % ps.id in страница
     assert "HTTP 404" in страница
 
 
-def test_reddit_красный_с_причиной_и_в_сеть_не_ходит(стенд):
+def test_reddit_без_ключа_выключен_и_в_сеть_не_ходит(стенд):
+    """С №370: без ключа Reddit — «выключен, ждёт ключ» (серый), не ошибка;
+    причина остаётся пометкой источника (`note`)."""
     db, _, сеть = стенд
     _цикл()
     db.expire_all()
     рд = db.query(ContentSource).filter(ContentSource.kind == "reddit").one()
-    assert рд.last_state == "error" and "robots.txt" in рд.last_error
+    assert рд.last_state == "off" and not рд.last_error
     assert not any("reddit.com" in а for а in сеть.запросы)
 
 
@@ -368,7 +375,7 @@ def test_три_записи_одного_события_один_сюжет(с�
     assert а.items == 3 and а.sources == 3 and а.platforms == 3
     assert а.official and not а.leak and а.ru_videos == 1
     assert б.items == 1 and б.leak
-    страница = к["админ"].get("/content").text
+    страница = к["админ"].get("/content/kitchen").text
     import content_app
     assert content_app.ЗАМЕТКА_УТЕЧКИ in страница
     assert f'data-story="{б.id}"' in страница and 'data-leak="true"' in страница
@@ -862,7 +869,7 @@ def test_опережение_сми_раньше_youtube_и_счётчики_н
     assert (с.en_videos, с.ru_videos) == (2, 1)
     части = json.loads(с.score_parts)
     assert части["опережение"] == round(15 * (1 - 3 / 5), 1)
-    страница = к["админ"].get("/content").text
+    страница = к["админ"].get("/content/kitchen").text
     assert 'data-lead="true"' in страница and "Опережение: новость вышла в" in страница
     assert 'content-lead-en">2<' in страница and 'content-lead-ru">1<' in страница
 
@@ -874,7 +881,7 @@ def test_без_опережения_если_первым_был_youtube(сте
         (3, "IGN: Trailer 3 is coming", "rss:9", "ign", {})])
     assert not с.lead and "опережение" in json.loads(с.score_parts)
     assert json.loads(с.score_parts)["опережение"] == 0
-    assert 'data-lead="true"' not in к["админ"].get("/content").text
+    assert 'data-lead="true"' not in к["админ"].get("/content/kitchen").text
 
 
 def test_выстрел_на_известных_числах():
@@ -903,7 +910,7 @@ def test_без_медианы_канала_ролик_не_ранжируетс
     import content_app
     ф = content_app._форматы(db, "gta", content_app.ZoneInfo("Europe/Moscow"))
     assert [с["url"][-6:] for с in ф["en"]] == ["ranked"] and ф["без_медианы"] == 1
-    страница = к["админ"].get("/content?tab=formats").text
+    страница = к["админ"].get("/content/kitchen?tab=formats").text
     assert "lonely hit" not in страница and "×4.0" in страница
 
 
@@ -927,7 +934,13 @@ def test_формат_катсцен_с_пометкой_content_id(стенд):
     ф = db.query(cdb.ContentFormat).filter(
         cdb.ContentFormat.title == "Весь сюжет одним фильмом (катсцены)").one()
     assert ф.note == "проверить музыку на Content ID"
-    assert "проверить музыку на Content ID" in к["админ"].get("/content?tab=formats").text
+    # С №370 строки без данных археологии в рейтинге скрыты: без хитов
+    # формата нет и пометки, с хитом — строка и пометка на месте.
+    assert "проверить музыку на Content ID" not in к["админ"].get("/content/kitchen?tab=formats").text
+    db.add(ContentArchVideo(theme_id=ф.theme_id, yt_id="cut1", title="GTA 5 all cutscenes",
+                            channel_lang="en", views=200000, shot=3.0, format_id=ф.id))
+    db.commit()
+    assert "проверить музыку на Content ID" in к["админ"].get("/content/kitchen?tab=formats").text
 
 
 def test_досев_доводит_заведённую_тему_до_семени(стенд):

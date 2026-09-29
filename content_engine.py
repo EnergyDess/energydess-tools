@@ -130,7 +130,9 @@ def _начать(вид: str, повод: str, тема_id: str | None = None) 
     try:
         # Замок свободен — значит «running» в базе ничей: процесс, который
         # его вёл, перезапущен. Строка называет это, а не висит вечно.
-        for ст in db.query(ContentRun).filter(ContentRun.state == "running").all():
+        # Прогоны ИДЕЙ ведёт свой замок (`content_ideas`) — их не трогаем.
+        for ст in db.query(ContentRun).filter(ContentRun.state == "running",
+                                              ContentRun.kind != "ideas").all():
             ст.state = "error"
             ст.finished_at = datetime.utcnow()
             ст.note = (ст.note or "") + " прерван: процесс перезапущен посреди прогона"
@@ -163,7 +165,8 @@ def _пропуск(вид: str, повод: str) -> dict:
     """Строка «пропущен: шёл предыдущий» — защита от наложения видна."""
     db = SessionLocal()
     try:
-        идёт = (db.query(ContentRun).filter(ContentRun.state == "running")
+        идёт = (db.query(ContentRun).filter(ContentRun.state == "running",
+                                           ContentRun.kind != "ideas")
                 .order_by(ContentRun.id.desc()).first())
         заметка = ("пропущен: идёт прогон №%d (%s)" % (идёт.id, идёт.kind) if идёт
                    else "пропущен: идёт другой прогон модуля")
@@ -608,6 +611,13 @@ async def _собрать_источник(client, тема: dict, и: dict, ш�
             записи = await cc.с_потолком(cc.собрать_rockstar(client, и), ПОТОЛОК_ИСТОЧНИКА_СЕК, и["name"])
         elif и["kind"] == "rss":
             записи = await cc.с_потолком(cc.собрать_rss(client, и), ПОТОЛОК_ИСТОЧНИКА_СЕК, и["name"])
+        elif и["kind"] == "reddit" and not cc.reddit_ключи():
+            # ВЫКЛЮЧЕН, ЖДЁТ КЛЮЧ (BACKLOG №370): это не ошибка, и цикл
+            # из-за него не «частично». В сеть не ходим вовсе (№369).
+            _источник_итог(и["id"], "off", сек=0.0)
+            отчёт.update(исход="off", получено=0, новых=0, сек=0.0)
+            print(f"[content] источник «{и['name']}»: выключен, ждёт ключ", flush=True)
+            return отчёт
         elif и["kind"] == "reddit":
             записи = await cc.с_потолком(cc.собрать_reddit(client, и), ПОТОЛОК_ИСТОЧНИКА_СЕК, и["name"])
         elif и["kind"] == "youtube":
@@ -688,7 +698,7 @@ async def цикл(повод: str = "scheduler") -> dict:
                 итог["сюжеты"][тема["id"]] = await _сюжеты(тема, настройки)
                 _пересчитать_сюжеты(тема["id"], настройки)
             итог["снимков_убрано"] = _уборка(настройки)
-            if (any(и.get("исход") != "ok" for и in итог["источники"])
+            if (any(и.get("исход") not in ("ok", "off") for и in итог["источники"])
                     or any(с.get("беда") for с in итог["сюжеты"].values())):
                 состояние = "partial"
         except Exception as e:
@@ -1441,16 +1451,28 @@ async def _планировщик() -> None:
                 db.close()
             ждать = _до_следующего(минут)
             if ждать > 0:
+                await _идеи_по_расписанию()
                 await asyncio.sleep(min(ждать, 300))
                 continue
             await цикл("scheduler")
             if _археология_нужна():
                 await археология("scheduler")
+            await _идеи_по_расписанию()
         except asyncio.CancelledError:
             raise
         except Exception:
             traceback.print_exc()
             await asyncio.sleep(60)
+
+
+async def _идеи_по_расписанию() -> None:
+    """Идеи роликов (BACKLOG №370): утром в `generate_at_msk` и когда сюжет
+    пересёк порог «горячо». Импорт в момент вызова: `content_ideas`
+    сам импортирует этот модуль."""
+    import content_ideas as ci
+    повод = ci.проверить_расписание()
+    if повод and not ci.идёт():
+        await ci.сгенерировать(повод)
 
 
 def старт() -> None:

@@ -76,9 +76,10 @@ except Exception:
     ("/admin/landing", "админ · главная", None),
     # модуль «Контент» (BACKLOG №365, 366): страница вошедшего администратора
     # с шапкой инструмента — в перечень входит по его же определению
-    ("/content", "контент · сюжеты", None),
-    ("/content", "контент · форматы", "document.getElementById('content-tab-formats').click()"),
-    ("/content", "контент · источники", "document.getElementById('content-tab-sources').click()"),
+    ("/content", "контент · сегодня", None),
+    ("/content/kitchen", "контент · сюжеты", None),
+    ("/content/kitchen", "контент · форматы", "document.getElementById('content-tab-formats').click()"),
+    ("/content/kitchen", "контент · источники", "document.getElementById('content-tab-sources').click()"),
 ]
 
 ЗАМЕР = r"""() => {

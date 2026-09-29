@@ -101,9 +101,10 @@ except Exception:
     ("/workout/profile", "тренировки · профиль", None),
     # модуль «Контент» (BACKLOG №365, 366): страница вошедшего администратора
     # с шапкой инструмента — в перечень входит по его же определению
-    ("/content", "контент · сюжеты", None),
-    ("/content", "контент · форматы", "#content-tab-formats"),
-    ("/content", "контент · источники", "#content-tab-sources"),
+    ("/content", "контент · сегодня", None),
+    ("/content/kitchen", "контент · сюжеты", None),
+    ("/content/kitchen", "контент · форматы", "#content-tab-formats"),
+    ("/content/kitchen", "контент · источники", "#content-tab-sources"),
 ]
 СПРАВКОЙ = ("тренировки",)
 

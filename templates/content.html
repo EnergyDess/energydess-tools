@@ -174,7 +174,7 @@
         <table class="content-table" id="content-formats-table">
           <thead><tr><th>Формат</th><th class="content-num">Хитов</th><th class="content-num">Медианный выстрел</th><th class="content-num">Огр. реклама</th><th>Лучший выстрел</th></tr></thead>
           <tbody>
-          {% for ф in форматы.сводка %}
+          {% for ф in форматы.сводка if ф.медиана is not none %}
           <tr data-format="{{ ф.id }}">
             <td>{{ ф.title }}{% if ф.origin == 'model' %} <span class="content-flag">предложен моделью</span>{% endif %}{% if ф.note %} <span class="content-flag is-limited">{{ ф.note }}</span>{% endif %}</td>
             <td class="content-num">{{ ф.хитов }}</td>
@@ -186,6 +186,9 @@
           </tbody>
         </table>
       </div>
+      {% if форматы.сводка | selectattr('медиана', 'none') | list %}
+      <p class="v2-hint" id="content-formats-nodata">Форматов без хитов с выстрелом: {{ форматы.сводка | selectattr('медиана', 'none') | list | length }} — данные появятся после прогона археологии.</p>
+      {% endif %}
     </div>
 
     {% for язык, строки, подпись in [('en', форматы.en, 'на английском'), ('ru', форматы.ru, 'на русском')] %}
@@ -233,10 +236,12 @@
           <div class="content-source-head">
             <span class="content-dot" aria-hidden="true"></span>
             <span class="content-source-name">{{ и.name }}</span>
-            <span class="content-source-state">{% if и.тон == 'ok' %}работает{% elif и.тон == 'warn' %}квота{% elif и.тон == 'danger' %}ошибка{% else %}ещё не запускался{% endif %}</span>
+            <span class="content-source-state">{% if и.тон == 'ok' %}работает{% elif и.тон == 'warn' %}квота{% elif и.тон == 'danger' %}ошибка{% elif и.тон == 'off' %}выключен, ждёт ключ{% else %}ещё не запускался{% endif %}</span>
           </div>
           <p class="content-source-line">Последний удачный запуск: <b>{{ и.удача }}</b>{% if и.удача_назад %} ({{ и.удача_назад }}){% endif %} · запуск {{ и.запуск }}{% if и.сек is not none %} за {{ и.сек }} с{% endif %}{% if и.получено is not none %} · получено {{ и.получено }}, новых {{ и.новых }}{% endif %} · всего записей {{ и.записей }}</p>
-          {% if и.ошибка and и.тон != 'ok' %}
+          {% if и.тон == 'off' %}
+          <p class="content-source-past">Не ошибка: источник ждёт ключ Reddit Data API и на цикл не влияет.</p>
+          {% elif и.ошибка and и.тон != 'ok' %}
           <p class="content-source-error">Последняя ошибка ({{ и.ошибка_когда }}): {{ и.ошибка }}</p>
           {% elif и.ошибка %}
           <p class="content-source-past">Прошлая ошибка ({{ и.ошибка_когда }}): {{ и.ошибка }}</p>

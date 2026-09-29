@@ -1,0 +1,152 @@
+/* @v2 — «СЕГОДНЯ» МОДУЛЯ «КОНТЕНТ» `/content` (BACKLOG №371), только
+   администратору. Раскладка экрана автора: шапка со счётчиками, главная
+   идея, строки запасных идей, плитки конвейера. Вид компонентов
+   (`.v2-tile`, `.v2-seg`, `.v2-btn`, `.v2-chip`, `.v2-empty`) — `static/v2.css`,
+   здесь их не переопределяют. Прямых значений нет, только `var(--v2-*)`
+   (проверка 47).
+
+   ДВИЖЕНИЕ — ТОЛЬКО ПО ДЕЛУ: главная идея и строки появляются мягко
+   (прозрачность и сдвиг на `--v2-sp-4`), уходящая после реакции строка
+   гаснет, шаги генерации отмечаются по мере выполнения. При «уменьшить
+   движение» — без анимаций. */
+
+.today-head { align-items: center; gap: var(--v2-sp-2) var(--v2-sp-4); }
+.today-meta { font-size: var(--v2-fs-sm); color: var(--v2-text-2); white-space: nowrap; }
+.today-meta b { color: var(--v2-text-strong); font-weight: var(--v2-fw-strong); }
+.today-radar { display: inline-flex; align-items: center; gap: var(--v2-sp-2); white-space: normal; }
+.today-dot { width: var(--v2-sp-2); height: var(--v2-sp-2); border-radius: var(--v2-r-pill); flex: none; }
+.today-radar.is-ok .today-dot { background: var(--v2-ok); }
+.today-radar.is-bad .today-dot { background: var(--v2-danger); }
+.today-radar.is-bad { color: var(--v2-danger); }
+
+.today-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: var(--v2-sp-3); margin-bottom: var(--v2-sp-5);
+}
+
+.today-steps {
+  list-style: none; margin: 0 0 var(--v2-sp-5); padding: var(--v2-sp-4);
+  display: grid; gap: var(--v2-sp-2);
+  border: 1px solid var(--v2-line-2); border-radius: var(--v2-r-lg); background: var(--v2-surface-2);
+}
+.today-step { display: flex; align-items: center; gap: var(--v2-sp-3); color: var(--v2-text-faint); font-size: var(--v2-fs-sm); }
+.today-step-mark {
+  width: var(--v2-sp-5); height: var(--v2-sp-5); flex: none; border-radius: var(--v2-r-pill);
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--v2-line-1); color: var(--v2-ink-on-tool);
+  transition: background var(--v2-dur-base) var(--v2-ease-out), border-color var(--v2-dur-base) var(--v2-ease-out);
+}
+.today-step.is-done { color: var(--v2-text); }
+.today-step.is-done .today-step-mark { background: var(--v2-ok); border-color: var(--v2-ok); }
+
+/* ГЛАВНАЯ ИДЕЯ — выделена рамкой цвета инструмента */
+.today-main {
+  padding: var(--v2-sp-5);
+  border: 1px solid var(--v2-tool-line, var(--v2-line-strong));
+  border-radius: var(--v2-r-xl);
+  background: var(--v2-surface-2);
+  margin-bottom: var(--v2-sp-6);
+  animation: today-in var(--v2-dur-enter) var(--v2-ease-out) both;
+}
+.today-kicker {
+  margin: 0 0 var(--v2-sp-3); font-size: var(--v2-fs-xs); font-weight: var(--v2-fw-strong);
+  letter-spacing: var(--v2-ls-label); text-transform: uppercase; color: var(--v2-tool, var(--v2-text-2));
+}
+.today-pills { display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); margin-bottom: var(--v2-sp-3); }
+.today-pill {
+  display: inline-flex; align-items: center; min-height: var(--v2-sp-5);
+  padding: 0 var(--v2-sp-3); border-radius: var(--v2-r-pill);
+  border: 1px solid var(--v2-line-2); background: var(--v2-surface-hover);
+  font-size: var(--v2-fs-xs); color: var(--v2-text-2); white-space: nowrap;
+}
+.today-pill.is-window { color: var(--v2-text-strong); border-color: var(--v2-tool-line, var(--v2-line-1)); }
+.today-pill.is-hot { color: var(--v2-danger); border-color: var(--v2-danger-dim); background: var(--v2-danger-dim); }
+.today-pill.is-trend { color: var(--v2-warn); }
+.today-pill.is-evergreen { color: var(--v2-ok); }
+.today-main-title {
+  margin: 0 0 var(--v2-sp-2); font-family: var(--v2-font-display); font-weight: var(--v2-fw-display);
+  font-size: var(--v2-fs-3xl); line-height: var(--v2-lh-tight); letter-spacing: var(--v2-ls-display);
+  color: var(--v2-text-strong); max-width: var(--v2-measure);
+}
+.today-why { margin: 0 0 var(--v2-sp-5); color: var(--v2-text-2); max-width: var(--v2-measure); }
+.today-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--v2-sp-3); margin-bottom: var(--v2-sp-4); }
+.today-fact .v2-tile-num { font-size: var(--v2-fs-xl); }
+.today-fact-sub { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+.today-fact.is-first .v2-tile-num, .today-fact.is-first .today-fact-sub { color: var(--v2-ok); }
+.today-risk {
+  display: flex; align-items: center; gap: var(--v2-sp-2); margin: 0 0 var(--v2-sp-3);
+  color: var(--v2-warn); font-size: var(--v2-fs-sm);
+}
+.today-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--v2-sp-3); margin-top: var(--v2-sp-4); }
+.today-soon { font-size: var(--v2-fs-xs); }
+
+.today-empty { margin-bottom: var(--v2-sp-6); }
+
+.today-h2 {
+  margin: 0 0 var(--v2-sp-3); font-family: var(--v2-font-display); font-weight: var(--v2-fw-display);
+  font-size: var(--v2-fs-xl); letter-spacing: var(--v2-ls-display); color: var(--v2-text-strong);
+}
+.today-h3 { margin: 0 0 var(--v2-sp-3); font-size: var(--v2-fs-md); font-weight: var(--v2-fw-strong); color: var(--v2-text); }
+
+/* ЕЩЁ ВАРИАНТЫ — строки, не карточки */
+.today-more { margin-bottom: var(--v2-sp-6); }
+.today-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--v2-line-3); }
+.today-row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center;
+  gap: var(--v2-sp-2) var(--v2-sp-4); padding: var(--v2-sp-3) 0;
+  border-bottom: 1px solid var(--v2-line-3);
+  animation: today-in var(--v2-dur-enter) var(--v2-ease-out) both;
+  animation-delay: calc(var(--n, 0) * 60ms);
+  transition: opacity var(--v2-dur-base) var(--v2-ease), transform var(--v2-dur-base) var(--v2-ease);
+}
+.today-row-text { display: grid; gap: var(--v2-sp-1); min-width: 0; }
+.today-row-title { color: var(--v2-text-strong); font-weight: var(--v2-fw-medium); }
+.today-row-facts { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
+.today-row-risk { color: var(--v2-warn); }
+.today-row-acts { display: flex; gap: var(--v2-sp-1); }
+.today-reasons { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); }
+.today-main.is-leaving, .today-row.is-leaving { opacity: 0; transform: translateY(calc(-1 * var(--v2-sp-2))); }
+.today-main { transition: opacity var(--v2-dur-base) var(--v2-ease), transform var(--v2-dur-base) var(--v2-ease); }
+
+/* МОИ РОЛИКИ */
+.today-videos-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--v2-sp-3); }
+.today-goal { display: inline-flex; align-items: center; gap: var(--v2-sp-2); font-size: var(--v2-fs-sm); color: var(--v2-text-2); }
+.today-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--v2-sp-3); margin-bottom: var(--v2-sp-4); }
+.today-tile {
+  text-align: left; cursor: pointer; font: inherit; color: inherit;
+  transition: border-color var(--v2-dur-fast) var(--v2-ease), transform var(--v2-dur-fast) var(--v2-ease);
+}
+@media (hover: hover) {
+  .today-tile:hover:not(.is-active) { border-color: var(--v2-line-hover); transform: translateY(calc(-1 * var(--v2-sp-1))); }
+}
+.today-tile.is-active { border-color: var(--v2-tool-line, var(--v2-line-strong)); }
+.today-tile:focus-visible { outline: 2px solid var(--v2-tool, var(--v2-line-strong)); outline-offset: 2px; }
+.today-pipe-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--v2-sp-3); }
+.today-pipe-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--v2-sp-2) var(--v2-sp-4);
+  align-items: center; padding-bottom: var(--v2-sp-3); border-bottom: 1px solid var(--v2-line-3);
+}
+.today-pipe-title { color: var(--v2-text-strong); min-width: 0; overflow-wrap: anywhere; }
+.today-pipe-ctl { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); align-items: center; }
+.today-url { flex: 1 1 16rem; min-width: 0; }
+
+@keyframes today-in {
+  from { opacity: 0; transform: translateY(var(--v2-sp-4)); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 768px) {
+  .today-bar { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .today-seg { display: flex; }
+  .today-type { flex: 1 1 0; justify-content: center; text-align: center; }
+  .today-facts { grid-template-columns: minmax(0, 1fr); }
+  .today-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .today-main { padding: var(--v2-sp-4); }
+  .today-kitchen-label { display: none; }
+  .today-meta { white-space: normal; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .today-main, .today-row { animation: none; transition: none; }
+  .today-tile, .today-step-mark { transition: none; }
+}

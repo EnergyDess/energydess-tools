@@ -46,6 +46,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 # Опережение (BACKLOG №367): плашка спрятана — шаг «сюжеты/опережение» обязан упасть
 ПОДЛОГ_ОПЕРЕЖЕНИЯ = ".content-lead { display: none !important; }"
 ПОДЛОГ_ОШИБКИ = ".content-source-error { display: none !important; }"
+# «Сегодня» (BACKLOG №371): факты главной идеи спрятаны — шаг «сегодня/факты» обязан упасть
+ПОДЛОГ_ФАКТОВ = ".today-fact { display: none !important; }"
 ПОДЛОГ_ВКЛАДОК = """() => document.querySelectorAll('.content-page .v2-tab[data-tab]')
   .forEach(к => к.replaceWith(к.cloneNode(true)))"""
 
@@ -151,6 +153,137 @@ def _ожидание(база):
             "огр": sum(1 for в in строки if в["limited"])}
 
 
+ЗАМЕР_СЕГОДНЯ = r"""() => {
+  const вид = (э) => !!э && э.checkVisibility({checkOpacity: true, checkVisibilityCSS: true});
+  const ш = document.documentElement.clientWidth;
+  const шире = [];
+  for (const э of document.querySelectorAll('.today *')) {
+    if (!вид(э)) continue;
+    const r = э.getBoundingClientRect();
+    if (r.width && (r.right > ш + 1 || r.left < -1))
+      шире.push(э.tagName.toLowerCase() + '.' + String(э.className || '').split(' ')[0]
+                + ' ' + Math.round(r.left) + '..' + Math.round(r.right));
+  }
+  const текст = document.querySelector('.today').innerText.toLowerCase();
+  return {шире, главная: вид(document.getElementById('today-main')),
+          фактов: [...document.querySelectorAll('.today-fact')].filter(вид).length,
+          строк: [...document.querySelectorAll('.today-row')].filter(вид).length,
+          пусто: вид(document.getElementById('today-empty')),
+          кухня: вид(document.getElementById('today-kitchen')),
+          радар: вид(document.getElementById('today-radar')),
+          плиток: [...document.querySelectorAll('.today-tile')].filter(вид).length,
+          запрещено: ['оценка', 'рост в час', 'формула'].filter(с => текст.includes(с))};
+}"""
+
+
+def _засеять_идеи(база):
+    """Идеи на копии — боевым генератором, модель подменена (в сеть 0 вызовов):
+    вопрос пробы — как экран рисует идеи, а не что пишет модель."""
+    import asyncio
+    import json as _json
+    import re as _re
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    import content_engine as ce
+    import content_ideas as ci
+    движок = create_engine("sqlite:///" + база.replace("\\", "/"))
+    import database
+    database.Base.metadata.create_all(движок)   # новые таблицы; стенд заведёт их и сам
+    прежние = ce.SessionLocal, ce._спросить
+
+    async def _модель(клиент, инструмент, система, вопрос, потолок):
+        n = len(_re.findall(r"^\d+\. \[", вопрос, _re.M))
+        return _json.dumps({"ideas": [{"n": i, "format": 1,
+                                       "title": "Идея пробы " + "абвгдежзийклмн"[i - 1],
+                                       "why": "Проба экрана"} for i in range(1, n + 1)]}), None
+    ce.SessionLocal = sessionmaker(bind=движок)
+    ce._спросить = _модель
+    try:
+        return asyncio.run(ci.сгенерировать("probe"))
+    finally:
+        ce.SessionLocal, ce._спросить = прежние
+        движок.dispose()
+
+
+def _ожидание_сегодня(база):
+    """Что сервер отдаёт «Сегодня» — той же функцией `content_app.данные_сегодня`."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    import content_app as ca
+    from database import User
+    движок = create_engine("sqlite:///" + база.replace("\\", "/"))
+    db = sessionmaker(bind=движок)()
+    try:
+        u = db.query(User).filter(User.email == ПОЧТА).one()
+        итог = {}
+        for тип in ("long", "shorts"):
+            д = ca.данные_сегодня(db, u, тип)
+            итог[тип] = {"главная": д["главная"] is not None, "ещё": len(д["ещё"])}
+        return итог
+    finally:
+        db.close()
+        движок.dispose()
+
+
+def _сегодня(с, адрес, ширина, база, подлог):
+    """«Сегодня»: длинные и Shorts, а на 1920 без подлога — путь автора
+    нажатиями: «Не то» с причиной, «+ в план», плитка конвейера, «Обновить идеи».
+    Итог каждого действия — ИЗ БАЗЫ."""
+    import check_v2_wide as ч67
+    итог = {}
+    for тип in ("long", "shorts"):
+        с.goto(адрес + "/content?type=" + тип, wait_until="load", timeout=45000)
+        if подлог and подлог.startswith("css:"):
+            с.add_style_tag(content=подлог[4:])
+        с.wait_for_timeout(700)
+        з = с.evaluate(ЗАМЕР_СЕГОДНЯ)
+        з["строка"] = с.evaluate(ч67.ЗАМЕР_СТРОКИ, ч67.ПОТОЛОК_СТРОКИ)
+        з["прокрутка"] = с.evaluate(ч67.ЗАМЕР_ПРОКРУТКИ)
+        с.screenshot(path=os.path.join(КАДРЫ, "%d-today-%s.png" % (ширина, тип)), full_page=True)
+        итог[тип] = з
+    if ширина != 1920 or подлог:
+        return итог
+    путь = {}
+    с.goto(адрес + "/content?type=long", wait_until="load", timeout=45000)
+    с.wait_for_timeout(700)
+    ряды = с.query_selector_all(".today-row")
+    путь["рядов"] = len(ряды)
+    if len(ряды) >= 2:
+        idr = int(ряды[0].get_attribute("data-idea"))
+        ряды[0].query_selector("[data-act='reject-open']").click()
+        with с.expect_navigation(wait_until="load", timeout=15000):
+            с.click(".today-row[data-idea='%d'] [data-reason='boring']" % idr)
+        с.wait_for_timeout(700)
+        путь["отказ"] = tuple(_база(база, "SELECT state, reason FROM content_ideas WHERE id = ?", idr)[0])
+        видео_до = _база(база, "SELECT count(*) FROM content_videos")[0][0]
+        idp = int(с.query_selector(".today-row").get_attribute("data-idea"))
+        with с.expect_navigation(wait_until="load", timeout=15000):
+            с.click(".today-row[data-idea='%d'] [data-act='plan']" % idp)
+        с.wait_for_timeout(700)
+        путь["в_план"] = (_база(база, "SELECT count(*) FROM content_videos")[0][0] - видео_до,
+                          _база(база, "SELECT state FROM content_ideas WHERE id = ?", idp)[0][0])
+        с.click(".today-tile[data-status='plan']")
+        с.wait_for_timeout(300)
+        путь["список"] = (с.evaluate("() => document.querySelectorAll("
+                                     "'.today-pipe-part[data-part=plan]:not([hidden]) .today-pipe-row').length"),
+                          _база(база, "SELECT count(*) FROM content_videos WHERE status = 'plan'")[0][0])
+        с.screenshot(path=os.path.join(КАДРЫ, "1920-today-pipe.png"), full_page=True)
+    прогонов = _база(база, "SELECT count(*) FROM content_runs WHERE kind = 'ideas'")[0][0]
+    с.click("#today-refresh")
+    видели = 0
+    for _ in range(80):
+        с.wait_for_timeout(200)
+        try:
+            видели = max(видели, с.evaluate("() => document.querySelectorAll('.today-step.is-done').length"))
+        except Exception:
+            break                              # страница перечитывается — прогон закончен
+    с.wait_for_load_state("load")
+    путь["обновить"] = (видели, _база(база, "SELECT count(*) FROM content_runs WHERE kind = 'ideas'")[0][0]
+                        - прогонов)
+    итог["путь"] = путь
+    return итог
+
+
 def замер(база, подлог=None):
     from auth import create_token
     from playwright.sync_api import sync_playwright
@@ -159,6 +292,8 @@ def замер(база, подлог=None):
     if not uid:
         raise ConnectionError("на копии стенда нет аккаунта %s — посейте стенд" % ПОЧТА)
     ждём = _ожидание(база)
+    _засеять_идеи(база)
+    ждём_сегодня = _ожидание_сегодня(база)
     п, адрес = _стенд(база)
     итог = []
     os.makedirs(КАДРЫ, exist_ok=True)
@@ -171,7 +306,7 @@ def замер(база, подлог=None):
                 к.add_cookies([{"name": "access_token", "value": create_token(uid[0][0]),
                                 "url": адрес}])
                 с = к.new_page()
-                с.goto(адрес + "/content", wait_until="load", timeout=45000)
+                с.goto(адрес + "/content/kitchen", wait_until="load", timeout=45000)
                 if подлог and подлог.startswith("css:"):
                     с.add_style_tag(content=подлог[4:])
                 if подлог == "вкладки":
@@ -191,8 +326,9 @@ def замер(база, подлог=None):
                 каналы = None
                 if ширина == 1920 and not подлог:
                     каналы = _каналы(с, база)
+                сегодня = _сегодня(с, адрес, ширина, база, подлог)
                 итог.append({"ширина": ширина, "вкладки": снимки, "каналы": каналы,
-                             "ждём": ждём})
+                             "ждём": ждём, "сегодня": сегодня, "ждём_сегодня": ждём_сегодня})
                 к.close()
             бр.close()
     finally:
@@ -222,6 +358,7 @@ def _каналы(с, база):
 
 def оценить(замеры):
     for з in замеры:
+        оценить_сегодня(з)
         ш = з["ширина"]
         сюж, форм, ист = з["вкладки"]["stories"], з["вкладки"]["formats"], з["вкладки"]["sources"]
         for имя, снимок in з["вкладки"].items():
@@ -287,6 +424,47 @@ def оценить(замеры):
                                              к.get("keep", {}).get("слово")), собрано=есть)
 
 
+def оценить_сегодня(з):
+    ш = з["ширина"]
+    for тип, снимок in з["сегодня"].items():
+        if тип == "путь":
+            continue
+        ждём = з["ждём_сегодня"][тип]
+        шаг("%d/сегодня/%s главная и строки" % (ш, тип),
+            снимок["главная"] == ждём["главная"] and снимок["строк"] == ждём["ещё"]
+            and (снимок["главная"] or снимок["пусто"]),
+            "главная %s (ждём %s), строк %d (ждём %d)" % (снимок["главная"], ждём["главная"],
+                                                         снимок["строк"], ждём["ещё"]),
+            собрано=int(ждём["главная"]) + ждём["ещё"])
+        if ждём["главная"]:
+            шаг("%d/сегодня/факты %s" % (ш, тип), снимок["фактов"] == 3,
+                "плиток фактов %d" % снимок["фактов"])
+        шаг("%d/сегодня/шапка %s" % (ш, тип), снимок["кухня"] and снимок["радар"]
+            and снимок["плиток"] == 4, "кухня %s, радар %s, плиток конвейера %d"
+            % (снимок["кухня"], снимок["радар"], снимок["плиток"]))
+        шаг("%d/сегодня/без оценок %s" % (ш, тип), not снимок["запрещено"],
+            "на экране: %s" % (снимок["запрещено"] or "нет"))
+        шаг("%d/сегодня/шире окна %s" % (ш, тип),
+            not снимок["шире"] and снимок["прокрутка"]["док"] <= 1,
+            "за краем %s, прокрутка %s" % (снимок["шире"][:3] or "нет", снимок["прокрутка"]))
+        худший = снимок["строка"]["худший"]
+        шаг("%d/сегодня/строка %s" % (ш, тип), худший["знаков"] <= снимок["строка"]["потолок"],
+            "самая длинная строка %d знаков (%s)" % (худший["знаков"], худший["кто"]))
+    путь = з["сегодня"].get("путь")
+    if путь is None:
+        return
+    есть = int(путь.get("рядов", 0) >= 2)
+    шаг("сегодня/не то", путь.get("отказ") == ("rejected", "boring"),
+        "в базе %s" % (путь.get("отказ"),), собрано=есть)
+    шаг("сегодня/в план", путь.get("в_план") == (1, "planned"),
+        "роликов +%s, идея %s" % (путь.get("в_план") or ("—", "—")), собрано=есть)
+    сп = путь.get("список") or (0, 0)
+    шаг("сегодня/плитка", сп[0] == сп[1] and сп[1] > 0,
+        "в списке %s, в базе %s" % сп, собрано=есть)
+    шаг("сегодня/обновить", путь["обновить"][0] == 6 and путь["обновить"][1] == 1,
+        "шагов с галочкой видели %d из 6, новых прогонов %d" % путь["обновить"])
+
+
 def _с_утечкой(з):
     return [с for x in з for с in x["вкладки"]["stories"]["сюжеты"] if с["утечка"]]
 
@@ -309,11 +487,14 @@ def _красные(з):
     "ошибка": lambda з: bool(_красные(з)) and not any(и["ошибка"] for и in _красные(з)),
     "вкладки": lambda з: bool(з) and not any(x["вкладки"]["formats"]["разделы"].get("formats")
                                              for x in з),
+    "факты": lambda з: any(x["сегодня"]["long"]["главная"] for x in з)
+                       and not any(x["сегодня"]["long"]["фактов"] for x in з),
 }
 ПОДЛОГИ = {"утечка": ("css:" + ПОДЛОГ_УТЕЧКИ, "сюжеты/утечка"),
            "опережение": ("css:" + ПОДЛОГ_ОПЕРЕЖЕНИЯ, "сюжеты/опережение"),
            "ошибка": ("css:" + ПОДЛОГ_ОШИБКИ, "источники/ошибка"),
-           "вкладки": ("вкладки", "вкладка formats")}
+           "вкладки": ("вкладки", "вкладка formats"),
+           "факты": ("css:" + ПОДЛОГ_ФАКТОВ, "сегодня/факты")}
 
 
 def main_():
