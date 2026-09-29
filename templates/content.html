@@ -101,6 +101,9 @@
             {% if с.summary %}<p class="content-story-sum">{{ с.summary }}</p>{% endif %}
           </div>
         </div>
+        {% if с.опережение %}
+        <p class="content-lead" data-lead="true">{{ значок('clock') }} <span>Опережение: новость вышла в {{ с.первый.когда }}{% if с.первый.источник %} — {% if с.первый.url %}<a href="{{ с.первый.url }}" target="_blank" rel="noopener">{{ с.первый.источник }}</a>{% else %}{{ с.первый.источник }}{% endif %}{% endif %}, роликов на YouTube: EN — <b class="content-lead-en">{{ с.en_роликов }}</b>, RU — <b class="content-lead-ru">{{ с.ru_роликов }}</b></span></p>
+        {% endif %}
         {% if с.leak %}
         <p class="content-leak">{{ значок('triangle-alert') }} {{ заметка_утечки }}</p>
         {% endif %}
@@ -108,10 +111,11 @@
           <div><dt>Первое появление</dt><dd>{{ с.первое }}</dd></div>
           <div><dt>Источников</dt><dd class="content-src-n">{{ с.источников }}</dd></div>
           <div><dt>Площадок</dt><dd>{{ с.площадок }}</dd></div>
-          <div><dt>Роликов на русском</dt><dd>{{ с.ru_роликов }}</dd></div>
+          <div class="content-meta-ru"><dt>Роликов на русском</dt><dd class="content-ru-n">{{ с.ru_роликов }}</dd></div>
+          <div><dt>Роликов на английском</dt><dd class="content-en-n">{{ с.en_роликов }}</dd></div>
           <div><dt>Рост</dt><dd>{{ с.рост }}</dd></div>
         </dl>
-        <p class="content-parts">Оценка: рост {{ с.части.get('рост', 0) }} · площадки {{ с.части.get('площадки', 0) }} · окно на русском {{ с.части.get('окно_ru', 0) }}</p>
+        <p class="content-parts">Оценка: рост {{ с.части.get('рост', 0) }} · площадки {{ с.части.get('площадки', 0) }} · окно на русском {{ с.части.get('окно_ru', 0) }}{% if 'опережение' in с.части %} · опережение {{ с.части.get('опережение', 0) }}{% endif %}</p>
         <ul class="content-links">
           {% for з in с.ссылки %}
           <li>
@@ -135,45 +139,20 @@
 
   {# ════════════════════════ ФОРМАТЫ ════════════════════════ #}
   <section class="content-view" id="view-formats" data-view="formats"{{ ' hidden' if вкладка != 'formats' }}>
-    <div class="content-bar">
-      <p class="v2-text">Хиты 17.09.2013–31.12.2014: <b>{{ форматы.всего }}</b> роликов с {{ форматы.каналов }} каналов{% if форматы.без_формата %} · без формата: <b>{{ форматы.без_формата }}</b>{% endif %} · ограниченная реклама: <b>{{ форматы.огр }}</b></p>
-      <button type="button" class="v2-btn v2-btn-secondary" id="content-run-arch" data-run="archaeology"
-              title="Около 2000 единиц квоты YouTube за прогон">{{ значок('history') }} {{ 'Повторить археологию' if форматы.всего else 'Запустить археологию' }}</button>
-    </div>
-
-    <div class="v2-card content-card">
-      <h2 class="v2-card-title">Форматы</h2>
+{% macro таблица_выстрела(строки, id) %}
       <div class="content-scroll">
-        <table class="content-table" id="content-formats-table">
-          <thead><tr><th>Формат</th><th class="content-num">Хитов</th><th class="content-num">Просмотров</th><th class="content-num">Огр. реклама</th><th>Самый просматриваемый</th></tr></thead>
+        <table class="content-table content-table-arch" id="{{ id }}">
+          <thead><tr><th class="content-num">№</th><th>Канал</th><th>Ролик</th><th>Дата</th><th class="content-num">Просмотров</th><th class="content-num">Медиана канала</th><th class="content-num">Выстрел</th><th>Формат</th><th>Реклама</th></tr></thead>
           <tbody>
-          {% for ф in форматы.сводка %}
-          <tr data-format="{{ ф.id }}">
-            <td>{{ ф.title }}{% if ф.origin == 'model' %} <span class="content-flag">предложен моделью</span>{% endif %}</td>
-            <td class="content-num">{{ ф.хитов }}</td>
-            <td class="content-num">{{ число(ф.просмотров) }}</td>
-            <td class="content-num">{{ ф.огр }}</td>
-            <td class="content-break">{% if ф.лучший %}<span class="content-cell"><a href="{{ ф.лучший.url }}" target="_blank" rel="noopener">{{ ф.лучший.title }}</a></span>{% else %}<span class="v2-hint">—</span>{% endif %}</td>
-          </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="v2-card content-card">
-      <h2 class="v2-card-title">Археология: хиты по просмотрам</h2>
-      {% if форматы.строки %}
-      <div class="content-scroll">
-        <table class="content-table content-table-arch" id="content-arch-table">
-          <thead><tr><th>Канал</th><th>Ролик</th><th>Дата</th><th class="content-num">Просмотров</th><th>Формат</th><th>Реклама</th></tr></thead>
-          <tbody>
-          {% for в in форматы.строки %}
-          <tr>
-            <td>{{ в.channel }}{% if в.lang %} <span class="v2-hint">{{ в.lang }}</span>{% endif %}</td>
+          {% for в in строки %}
+          <tr data-shot="{{ в.shot }}">
+            <td class="content-num">{{ loop.index }}</td>
+            <td>{{ в.channel }}</td>
             <td class="content-break"><span class="content-cell"><a href="{{ в.url }}" target="_blank" rel="noopener">{{ в.title }}</a></span></td>
             <td class="content-nowrap">{{ в.date }}</td>
             <td class="content-num">{{ число(в.views) }}</td>
+            <td class="content-num" title="Медиана по {{ в.base }} роликам канала за ±90 дней">{{ число(в.median) }}</td>
+            <td class="content-num"><b>×{{ '%.1f' % в.shot }}</b></td>
             <td>{% if в.format %}{{ в.format }}{% if в.why %}<span class="content-why">{{ в.why }}</span>{% endif %}{% else %}<span class="v2-hint">{{ 'не разобран' if в.tries < 3 else 'модель не решила' }}</span>{% endif %}</td>
             <td>{% if в.limited %}<span class="content-flag is-limited" title="{{ в.flags | join(', ') }}">Ограниченная</span><span class="content-why">{{ в.flags | join(', ') }}</span>{% else %}<span class="v2-hint">обычная</span>{% endif %}</td>
           </tr>
@@ -181,14 +160,48 @@
           </tbody>
         </table>
       </div>
+{% endmacro %}
+    <div class="content-bar">
+      <p class="v2-text">Хиты 17.09.2013–31.12.2014 от 100 тыс. просмотров: <b>{{ форматы.всего }}</b>, с выстрелом <b>{{ форматы.с_выстрелом }}</b> (каналов EN {{ форматы.каналов_en }}, RU {{ форматы.каналов_ru }}){% if форматы.без_медианы %} · без медианы канала — не ранжируются: <b>{{ форматы.без_медианы }}</b>{% endif %}{% if форматы.без_формата %} · без формата: <b>{{ форматы.без_формата }}</b>{% endif %} · ограниченная реклама: <b>{{ форматы.огр }}</b></p>
+      <button type="button" class="v2-btn v2-btn-secondary" id="content-run-arch" data-run="archaeology"
+              title="Прогноз: около {{ форматы.прогноз }} единиц квоты YouTube за прогон">{{ значок('history') }} {{ 'Повторить археологию' if форматы.всего else 'Запустить археологию' }}</button>
+    </div>
+    <p class="v2-hint content-shot-note">Выстрел — просмотры ролика, делённые на медиану просмотров роликов того же канала за ±90 дней вокруг него (сам ролик в медиану не входит, нужно не меньше 5 соседей). Он показывает, насколько ролик выстрелил для своего канала, а не насколько канал большой.</p>
+
+    <div class="v2-card content-card">
+      <h2 class="v2-card-title">Рейтинг форматов по выстрелу</h2>
+      <div class="content-scroll">
+        <table class="content-table" id="content-formats-table">
+          <thead><tr><th>Формат</th><th class="content-num">Хитов</th><th class="content-num">Медианный выстрел</th><th class="content-num">Огр. реклама</th><th>Лучший выстрел</th></tr></thead>
+          <tbody>
+          {% for ф in форматы.сводка %}
+          <tr data-format="{{ ф.id }}">
+            <td>{{ ф.title }}{% if ф.origin == 'model' %} <span class="content-flag">предложен моделью</span>{% endif %}{% if ф.note %} <span class="content-flag is-limited">{{ ф.note }}</span>{% endif %}</td>
+            <td class="content-num">{{ ф.хитов }}</td>
+            <td class="content-num">{% if ф.медиана is not none %}×{{ '%.1f' % ф.медиана }}{% else %}<span class="v2-hint">—</span>{% endif %}</td>
+            <td class="content-num">{{ ф.огр }}</td>
+            <td class="content-break">{% if ф.лучший %}<span class="content-cell"><a href="{{ ф.лучший.url }}" target="_blank" rel="noopener">{{ ф.лучший.title }}</a> <span class="v2-hint">×{{ '%.1f' % ф.лучший.shot }}</span></span>{% else %}<span class="v2-hint">—</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% for язык, строки, подпись in [('en', форматы.en, 'на английском'), ('ru', форматы.ru, 'на русском')] %}
+    <div class="v2-card content-card">
+      <h2 class="v2-card-title">Хиты по выстрелу — каналы {{ подпись }}</h2>
+      {% if строки %}
+      {{ таблица_выстрела(строки, 'content-arch-' ~ язык) }}
       {% else %}
       <div class="v2-empty">
         <span class="v2-empty-icon">{{ значок('layers') }}</span>
-        <p class="v2-empty-title">Археологии ещё не было</p>
-        <p class="v2-empty-text">Прогон ищет самые просматриваемые ролики про GTA 5 с 17.09.2013 по 31.12.2014 у крупнейших каналов и раскладывает их по форматам. {% if not ключ_youtube %}Нужен ключ YouTube — секрет CONTENT_YOUTUBE_API_KEY.{% endif %}</p>
+        <p class="v2-empty-title">Хитов с выстрелом {{ подпись }} нет</p>
+        <p class="v2-empty-text">{% if not ключ_youtube %}Нужен ключ YouTube — секрет CONTENT_YOUTUBE_API_KEY.{% elif форматы.всего %}Хиты есть, но у каналов {{ подпись }} не набралось соседей для медианы либо каналы не найдены — см. итог последнего прогона на вкладке «Источники».{% else %}Археология версии 5 ещё не прогонялась: она запускается сама, когда квоты хватает и на неё, и на циклы сбора до сброса суток.{% endif %}</p>
       </div>
       {% endif %}
     </div>
+    {% endfor %}
   </section>
 
   {# ════════════════════════ ИСТОЧНИКИ ════════════════════════ #}

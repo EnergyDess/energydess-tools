@@ -174,6 +174,14 @@ class ContentStory(Base):
     sources = Column(Integer, nullable=False, default=0)
     platforms = Column(Integer, nullable=False, default=0)
     ru_videos = Column(Integer, nullable=False, default=0)
+    en_videos = Column(Integer, nullable=False, default=0)
+    # ОПЕРЕЖЕНИЕ (BACKLOG №367): сюжет впервые появился НЕ на YouTube
+    # (СМИ, Rockstar, PlayStation) — и раньше первого ролика либо роликов
+    # ещё нет. Первый источник называется на карточке с временем и ссылкой.
+    lead = Column(Boolean, nullable=False, default=False)
+    first_source = Column(String, nullable=True)
+    first_url = Column(String, nullable=True)
+    first_platform = Column(String, nullable=True)
     growth = Column(Float, nullable=False, default=0.0)
     score = Column(Integer, nullable=False, default=0)
     score_parts = Column(Text, nullable=True)            # JSON: части оценки
@@ -193,6 +201,7 @@ class ContentFormat(Base):
     title = Column(String, nullable=False)
     origin = Column(String, nullable=False, default="start")   # start | model
     sort = Column(Integer, nullable=False, default=0)
+    note = Column(Text, nullable=True)                   # пометка формата (Content ID и т. п.)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -216,6 +225,12 @@ class ContentArchVideo(Base):
     format_reason = Column(String, nullable=True)
     flags = Column(Text, nullable=True)                  # JSON: 18+ | стриптиз-клубы | шок-насилие
     limited_ads = Column(Boolean, nullable=False, default=False)
+    # ВЫСТРЕЛ (версия 5, BACKLOG №368): просмотры / медиана просмотров
+    # роликов того же канала за ±90 дней вокруг ролика. Медианы нет —
+    # выстрела нет, и ролик не ранжируется.
+    shot = Column(Float, nullable=True)
+    channel_median = Column(Integer, nullable=True)
+    median_base = Column(Integer, nullable=True)
     classify_tries = Column(Integer, nullable=False, default=0)
     fetched_at = Column(DateTime, nullable=True)
     classified_at = Column(DateTime, nullable=True)
@@ -306,9 +321,82 @@ def засеять(db) -> dict:
             continue
         db.add(ContentSetting(key=ключ, value=в_json(значение), updated_at=datetime.utcnow()))
         итог["настроек"] += 1
-    if any(итог.values()):
+    db.flush()                                   # autoflush выключен: иначе досев не увидит только что заведённое
+    догнано = догнать_семя(db, семя)
+    if any(итог.values()) or догнано:
         db.commit()
     return итог
+
+
+# Веса формулы до версии с опережением: пока в базе ровно они, владелец
+# формулу не правил, и её можно заменить новой целиком. Иначе добавляется
+# только новый вес — чужая правка не перезаписывается.
+_ВЕСА_ДО_ОПЕРЕЖЕНИЯ = {"рост": 45, "площадки": 30, "окно_ru": 25}
+
+
+def догнать_семя(db, семя: dict) -> int:
+    """ДОСЕВ УЖЕ ЗАВЕДЁННОЙ ТЕМЫ (BACKLOG №367, 368). `засеять` трогает
+    только пустые таблицы, а источники, параметры археологии и формат,
+    добавленные в семя позже, до прода иначе не доехали бы никогда.
+    Добавляется ТОЛЬКО недостающее: источник — по имени, формат — по названию,
+    ключ параметров темы — по ключу; археология — по номеру версии `v`.
+    Возвращает, сколько изменений внесено (0 — база уже догнана)."""
+    изменений = 0
+    for т in семя.get("темы", []):
+        тема = db.query(ContentTheme).filter(ContentTheme.id == т["id"]).first()
+        if тема is None:
+            continue
+        имена = {и.name for и in db.query(ContentSource).filter(ContentSource.theme_id == т["id"])}
+        for и in т.get("sources", []):
+            if и["name"] in имена:
+                continue
+            db.add(ContentSource(theme_id=т["id"], kind=и["kind"], name=и["name"],
+                                 url=и.get("url"), params=в_json(и.get("params") or {}),
+                                 official=bool(и.get("official")),
+                                 filter_keywords=bool(и.get("filter_keywords", True)),
+                                 enabled=bool(и.get("enabled", True)), note=и.get("note")))
+            изменений += 1
+        параметры = из_json(тема.params, {}) or {}
+        было = в_json(параметры)
+        for ключ, значение in (т.get("params") or {}).items():
+            if ключ == "archaeology":
+                старая = параметры.get("archaeology") or {}
+                if int(старая.get("v", 1)) < int(значение.get("v", 1)):
+                    параметры["archaeology"] = значение
+            elif ключ not in параметры:
+                параметры[ключ] = значение
+        if в_json(параметры) != было:
+            тема.params = в_json(параметры)
+            изменений += 1
+        заметки = т.get("format_notes") or {}
+        есть = {ф.title: ф for ф in db.query(ContentFormat).filter(ContentFormat.theme_id == т["id"])}
+        порядок = max([ф.sort for ф in есть.values()] or [0])
+        for название in т.get("formats", []):
+            ф = есть.get(название)
+            if ф is None:
+                порядок += 1
+                ф = ContentFormat(theme_id=т["id"], title=название, origin="start", sort=порядок)
+                db.add(ф)
+                изменений += 1
+            if заметки.get(название) and not ф.note:
+                ф.note = заметки[название]
+                изменений += 1
+    формула_семени = (семя.get("settings") or {}).get("score_formula")
+    запись = db.query(ContentSetting).filter(ContentSetting.key == "score_formula").first()
+    if формула_семени and запись is not None:
+        формула = из_json(запись.value, {}) or {}
+        веса = формула.get("веса") or {}
+        if "опережение" not in веса:
+            if веса == _ВЕСА_ДО_ОПЕРЕЖЕНИЯ:
+                формула = dict(формула_семени)
+            else:
+                веса["опережение"] = формула_семени["веса"]["опережение"]
+                формула["веса"] = веса
+                формула.setdefault("опережение_насыщение", формула_семени.get("опережение_насыщение", 5))
+            запись.value = в_json(формула)
+            запись.updated_at = datetime.utcnow()
+            изменений += 1
+    return изменений
 
 
 def настройка(db, ключ: str) -> dict:

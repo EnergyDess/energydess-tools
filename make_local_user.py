@@ -2133,7 +2133,15 @@ def _сид_контента(db) -> dict:
     cdb.засеять(db)
     сейчас = datetime.utcnow()
     ист = {и.kind: и for и in db.query(ContentSource).all()}
-    rs, ps, yt, rd = ист["rockstar"], ист["rss"], ист["youtube"], ист["reddit"]
+    по_имени = {и.name: и for и in db.query(ContentSource).all()}
+    # RSS-лент теперь шесть (BACKLOG №367): «по виду» взял бы последнюю
+    rs, ps, yt, rd = ист["rockstar"], по_имени["PlayStation Blog"], ист["youtube"], ист["reddit"]
+    ign, стопгейм = по_имени["IGN"], по_имени["StopGame"]
+    for имя, получено, новых in (("IGN", 20, 1), ("Eurogamer", 100, 0), ("PC Gamer", 50, 0),
+                                 ("StopGame", 30, 1), ("Игромания", 30, 0)):
+        с = по_имени[имя]
+        с.last_state, с.last_run_at = "ok", сейчас - timedelta(minutes=12)
+        с.last_ok_at, с.last_seen, с.last_new, с.last_sec = с.last_run_at, получено, новых, 0.6
     rs.last_state, rs.last_run_at, rs.last_ok_at = "ok", сейчас - timedelta(minutes=12), сейчас - timedelta(minutes=12)
     rs.last_seen, rs.last_new, rs.last_sec = 20, 2, 0.8
     ps.last_state, ps.last_run_at, ps.last_ok_at = "error", сейчас - timedelta(minutes=12), сейчас - timedelta(hours=26)
@@ -2183,7 +2191,7 @@ def _сид_контента(db) -> dict:
     записей = 0
     def запись(n, ключ, заголовок, источник, площадка, часов, *, канал=None, язык="en",
                просмотров=None, офиц=False, слух=False, утечка=False, шум=False,
-               ждёт=False, давно_дней=0):
+               ждёт=False, давно_дней=0, адрес=None):
         nonlocal записей
         опубл = сейчас - timedelta(days=давно_дней, hours=часов)
         и = ContentItem(
@@ -2191,7 +2199,7 @@ def _сид_контента(db) -> dict:
             source_key=(f"yt:{канал.yt_id}" if канал else f"{источник.kind}:{источник.id}"),
             source_name=("YouTube · " + канал.title if канал else источник.name),
             platform=площадка, channel_id=канал.id if канал else None,
-            url=(f"https://www.youtube.com/watch?v=seed{n:04d}" if канал
+            url=адрес or (f"https://www.youtube.com/watch?v=seed{n:04d}" if канал
                  else f"https://www.rockstargames.com/newswire/article/seed{n}"),
             title=заголовок, lang=язык, official=офиц, published_at=опубл,
             first_seen_at=опубл + timedelta(minutes=20), last_seen_at=сейчас,
@@ -2238,6 +2246,12 @@ def _сид_контента(db) -> dict:
            канал=каналы["GTA Radar"], просмотров=9000, шум=True)
     запись(15, "", "Rockstar Newswire: new Red Dead Online outfits", rs, "rockstar", 2,
            ждёт=True, офиц=True)
+    # ОПЕРЕЖЕНИЕ (BACKLOG №367), оба случая: у «утечки» СМИ раньше роликов —
+    # плашка с EN/RU; у «переноса» СМИ позже роликов — опережения нет.
+    запись(17, "утечка", "ГТА 6: карта Леониды утекла в сеть", стопгейм, "stopgame", 32,
+           язык="ru", адрес="https://stopgame.ru/newsdata/seed17")
+    запись(18, "перенос", "GTA 6 delay rumours: what we know", ign, "ign", 19,
+           адрес="https://www.ign.com/articles/seed18")
     запись(16, "", "GTA 6: Lucia and Jason voice actors interview", yt, "youtube", 1,
            канал=каналы["Рокстар Тайм"], язык="ru", просмотров=12000, ждёт=True)
 
@@ -2267,6 +2281,11 @@ def _сид_контента(db) -> dict:
             description="Ролик времён запуска GTA 5.",
             published_at=datetime(2013, 9, 17) + timedelta(days=n * 23), views=просмотров,
             likes=просмотров // 40, comments=просмотров // 300,
+            # ВЫСТРЕЛ (версия 5): у последнего хита соседей мало — медианы нет,
+            # он не ранжируется (второе состояние вкладки «Форматы»)
+            shot=(None if n == len(хиты) else round(просмотров / (просмотров // (3 + n % 7)), 2)),
+            channel_median=(None if n == len(хиты) else просмотров // (3 + n % 7)),
+            median_base=(2 if n == len(хиты) else 9 + n),
             format_id=ф.id if ф else None, format_reason=почему or ("по заголовку" if ф else None),
             flags=cdb.в_json(флаги), limited_ads=bool(флаги),
             classify_tries=3 if формат == "__не_решила__" else (1 if ф else 0),

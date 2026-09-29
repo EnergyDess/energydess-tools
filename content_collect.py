@@ -31,6 +31,7 @@
     и `/category/`, ленту — нет.
 """
 import asyncio
+import os
 import re
 import time
 import xml.etree.ElementTree as ET
@@ -351,6 +352,9 @@ async def собрать_rss(client, источник: dict) -> list[dict]:
             "lang": "ru" if есть_кириллица(заголовок) else "en",
             "platform": площадка,
             "для_фильтра": " ".join([заголовок, текст] + рубрики),
+            # СТРОГИЙ ФИЛЬТР СМИ (BACKLOG №367): только заголовок и рубрики —
+            # в анонсе обзорной статьи GTA упоминается мимоходом
+            "для_строгого": " ".join([заголовок] + рубрики),
         })
     return итог
 
@@ -358,17 +362,110 @@ async def собрать_rss(client, источник: dict) -> list[dict]:
 # ── REDDIT ────────────────────────────────────────────────────────────
 
 REDDIT_ОСТАНОВЛЕН = (
-    "Остановлен: robots.txt reddit.com запрещает автоматический доступ всем "
-    "(User-agent: * — Disallow: /), а открытые ленты /r/<sub>/new.json и hot.json "
-    "с сервера Fly отвечают HTTP 403 (замер 2026-09-29). Обходов не делаем. "
-    "Нужен одобренный доступ к Reddit Data API — см. BACKLOG №365.")
+    "Остановлен: нет ключа Reddit Data API (секреты REDDIT_CLIENT_ID "
+    "и REDDIT_CLIENT_SECRET). Открытый сайт не годится: robots.txt reddit.com "
+    "запрещает автоматический доступ всем, а ленты /r/<sub>/new.json с Fly "
+    "отвечают HTTP 403 (замер 2026-09-29). Обходов не делаем. Доступ к API "
+    "выдаёт Reddit по заявке — см. BACKLOG №369.")
+
+REDDIT_ТОКЕН_URL = os.getenv("REDDIT_TOKEN_URL", "https://www.reddit.com/api/v1/access_token")
+REDDIT_API_URL = os.getenv("REDDIT_API_URL", "https://oauth.reddit.com")
+_REDDIT_ТОКЕН: dict = {}                 # {"токен": str, "до": monotonic}
+
+
+def reddit_ключи() -> tuple[str, str] | None:
+    """Пара секретов либо None. Нет хотя бы одного — источник выключен
+    и в сеть не ходит вовсе (BACKLOG №369)."""
+    cid = (os.getenv("REDDIT_CLIENT_ID") or "").strip()
+    сек = (os.getenv("REDDIT_CLIENT_SECRET") or "").strip()
+    return (cid, сек) if cid and сек else None
+
+
+def reddit_ua() -> str:
+    """Правила Reddit требуют UA вида «платформа:приложение:версия (by /u/имя)»;
+    безликий UA API режет. Имя — из REDDIT_USERNAME, если задано."""
+    имя = (os.getenv("REDDIT_USERNAME") or "").strip()
+    return "web:energydess-content-radar:v1.0" + (f" (by /u/{имя})" if имя else "")
+
+
+async def _reddit_токен(client, ключи: tuple[str, str]) -> str:
+    """Токен приложения (client_credentials, только чтение публичного).
+    Живёт час — держим до истечения с запасом минута, не просим на каждый
+    саб: лимит Reddit считается по запросам."""
+    сейчас = time.monotonic()
+    if _REDDIT_ТОКЕН.get("токен") and _REDDIT_ТОКЕН.get("до", 0) > сейчас:
+        return _REDDIT_ТОКЕН["токен"]
+    try:
+        r = await client.post(REDDIT_ТОКЕН_URL, data={"grant_type": "client_credentials"},
+                              auth=ключи, headers={"User-Agent": reddit_ua()})
+    except httpx.HTTPError as e:
+        raise ОтказИсточника(f"Reddit: выдача токена не ответила ({type(e).__name__})")
+    if r.status_code != 200:
+        raise ОтказИсточника(f"Reddit: токен не выдан, HTTP {r.status_code} — проверьте "
+                             "REDDIT_CLIENT_ID / REDDIT_CLIENT_SECRET и одобрение заявки",
+                             блок=r.status_code in (401, 403, 429))
+    try:
+        тело = r.json()
+    except ValueError:
+        raise ОтказИсточника("Reddit: выдача токена ответила не JSON")
+    токен = (тело or {}).get("access_token") if isinstance(тело, dict) else None
+    if not токен:
+        raise ОтказИсточника("Reddit: в ответе нет access_token"
+                             + (f" ({тело.get('error')})" if isinstance(тело, dict) and тело.get("error") else ""))
+    _REDDIT_ТОКЕН.update(токен=токен, до=сейчас + max(60, int(тело.get("expires_in") or 3600) - 60))
+    return токен
 
 
 async def собрать_reddit(client, источник: dict) -> list[dict]:
-    """В СЕТЬ НЕ ХОДИТ ВОВСЕ: обращаться к сайту, чей robots.txt запрещает
-    всё, мы не вправе, а ключа API нет. Каждый цикл источник красный
-    с причиной — молчащий серый был бы немым отказом."""
-    raise ОтказИсточника(REDDIT_ОСТАНОВЛЕН, блок=True)
+    """REDDIT ЧЕРЕЗ ОФИЦИАЛЬНЫЙ DATA API (BACKLOG №369). Без секретов в сеть
+    не ходит вовсе и каждый цикл красный с причиной: молчащий серый был бы
+    немым отказом. С секретами — токен приложения и /r/<sub>/new по OAuth
+    на oauth.reddit.com; открытый сайт (robots.txt запрещает всё) не трогаем."""
+    ключи = reddit_ключи()
+    if not ключи:
+        raise ОтказИсточника(REDDIT_ОСТАНОВЛЕН, блок=True)
+    токен = await _reddit_токен(client, ключи)
+    лимит = max(1, min(100, int(источник["params"].get("limit", 50))))
+    итог = []
+    for саб in источник["params"].get("subs") or []:
+        try:
+            r = await client.get(f"{REDDIT_API_URL.rstrip('/')}/r/{саб}/new",
+                                 params={"limit": лимит, "raw_json": 1},
+                                 headers={"Authorization": f"Bearer {токен}",
+                                          "User-Agent": reddit_ua()})
+        except httpx.HTTPError as e:
+            raise ОтказИсточника(f"Reddit r/{саб} не ответил ({type(e).__name__})")
+        if r.status_code == 401:
+            _REDDIT_ТОКЕН.clear()
+        if r.status_code != 200:
+            raise _отказ_по_ответу(r, f"Reddit r/{саб}")
+        try:
+            дети = ((r.json() or {}).get("data") or {}).get("children") or []
+        except ValueError:
+            raise ОтказИсточника(f"Reddit r/{саб} ответил не JSON")
+        for д in дети:
+            п = (д or {}).get("data") or {}
+            if not п.get("id") or not п.get("title"):
+                continue
+            текст = " ".join(str(п.get("selftext") or "").split())[:ТЕКСТ_ЗНАКОВ]
+            когда = п.get("created_utc")
+            итог.append({
+                "ext_id": f"reddit:{п['id']}",
+                "url": "https://www.reddit.com" + str(п.get("permalink") or ""),
+                "title": " ".join(str(п["title"]).split())[:300],
+                "text": текст,
+                "published_at": (datetime.fromtimestamp(float(когда), timezone.utc).replace(tzinfo=None)
+                                 if когда else None),
+                "lang": "ru" if есть_кириллица(п["title"]) else "en",
+                "platform": "reddit",
+                "source_key": f"reddit:{саб}",
+                "source_name": f"Reddit r/{саб}",
+                "flair": (п.get("link_flair_text") or None),
+                "metric": _число(п.get("score")),
+                "comments": _число(п.get("num_comments")),
+                "для_фильтра": " ".join([п["title"], текст]),
+            })
+    return итог
 
 
 # ── YOUTUBE DATA API ─────────────────────────────────────────────────
@@ -561,40 +658,50 @@ def _rfc3339(дата: str, конец: bool = False) -> str:
     return д.strftime("%Y-%m-%dT00:00:00Z")
 
 
-async def хиты_периода(client, база, ключ, квота, параметры: dict, метки=None) -> dict:
-    """АРХЕОЛОГИЯ: самые просматриваемые ролики ПРО ТЕМУ периода запуска GTA 5.
+def медиана(числа: list) -> float | None:
+    ряд = sorted(числа)
+    if not ряд:
+        return None
+    с = len(ряд) // 2
+    return float(ряд[с]) if len(ряд) % 2 else (ряд[с - 1] + ряд[с]) / 2.0
 
-    1. Поиск роликов периода по запросам, по просмотрам (100 ед. на запрос):
-       отсюда — каналы, которые снимали эту тему ТОГДА (в том числе
-       существовавшие в 2013–2014 по построению).
-    2. Сведения хитов (1 ед. на 50) — просмотры сейчас.
-    3. Каналы ранжируются суммой просмотров своих хитов ПО ТЕМЕ; берутся
-       `channels_en` англоязычных и `channels_ru` русскоязычных.
-    4. У каждого канала — его ролики того же периода ПО ЗАПРОСУ ТЕМЫ
-       (`channel_q`, по умолчанию — запросы шага 1 через «|»), по просмотрам
-       (100 ед. на канал), затем сведения (1 ед. на 50).
 
-    ПРО ТЕМУ — ДВАЖДЫ, И ОБА ЗАМЕРЕНЫ НА ПРОДЕ 2026-09-29. Без запроса
-    в шаге 4 топ канала периода — всё подряд: у Tauz рэп про Minecraft
-    и Naruto, у Fernanfloo Five Nights at Freddy's и Goat Simulator
-    (из 204 хитов первой археологии модель завела под них форматы «Кинематики
-    и сюжеты других игр» — 37 и «Рэп и музыка про игры» — 34). Запрос
-    сужает выдачу, а `метки` (маркеры темы В ЗАГОЛОВКЕ) отбрасывают то,
-    что поиск всё же пропустил. ОПИСАНИЕ В СЧЁТ НЕ ИДЁТ, и это замер
-    версии 2 на проде: 16 хитов из 158 держались за тему только описанием —
-    Gmod у VanossGaming, WATCH DOGS, Metro 2033 и Wolfenstein
-    у RusGameTactics (описание упоминало GTA, ролик был про другое).
+def выстрел(ролик: dict, соседи: list[dict], окно_дней: int = 90,
+            мин_соседей: int = 5) -> tuple[float | None, int | None, int]:
+    """ВЫСТРЕЛ (BACKLOG №368) = просмотры ролика / медиана просмотров роликов
+    ТОГО ЖЕ канала, опубликованных за ±`окно_дней` вокруг него. Сам ролик
+    в медиану не входит: иначе у канала с тремя роликами хит тянул бы свою же
+    планку вверх. Соседей меньше `мин_соседей` либо медиана ноль — выстрела
+    нет (None), и такой ролик не ранжируется: по двум роликам «обычный
+    уровень канала» не выводится. Возврат: (выстрел, медиана, соседей)."""
+    когда, просмотры = ролик.get("published_at"), ролик.get("views")
+    if когда is None or просмотры is None:
+        return None, None, 0
+    окно = timedelta(days=окно_дней)
+    база = [с["views"] for с in соседи
+            if с.get("yt_id") != ролик.get("yt_id") and с.get("views") is not None
+            and с.get("published_at") is not None and abs(с["published_at"] - когда) <= окно]
+    if len(база) < мин_соседей:
+        return None, None, len(база)
+    м = медиана(база)
+    if not м:
+        return None, 0, len(база)
+    return round(просмотры / м, 2), int(round(м)), len(база)
 
-    ЯЗЫК КАНАЛА — ПО ТЕКСТУ, А НЕ ПО ПОДСКАЗКЕ ЗАПРОСА. Прежде ролик,
-    найденный русским запросом, засчитывался русским: SquidPhysics
-    и XpertThief (англоязычные) заняли места русских каналов. И ЛАТИНИЦА —
-    ЕЩЁ НЕ АНГЛИЙСКИЙ: канал, чьё описание и заголовки на другом языке
-    (`латиница_не_английская`) либо чей язык в сведениях не en, в группы
-    не идёт вовсе и называется в `другой_язык` (версия 3)."""
+
+async def _отобрать_каналы(client, база, ключ, квота, параметры: dict, метки=None) -> dict:
+    """Каналы, которые снимали тему В ПЕРИОД: поиск роликов периода по запросам
+    (100 ед. на запрос), сведения хитов (1 ед. на 50), каналы — суммой
+    просмотров своих хитов ПРО ТЕМУ; `channels_en` англоязычных
+    и `channels_ru` русскоязычных.
+
+    ПРО ТЕМУ — МАРКЕРЫ В ЗАГОЛОВКЕ (версия 3, замер на проде 2026-09-29:
+    16 хитов из 158 держались за тему только описанием — Gmod, WATCH DOGS,
+    Metro 2033). ЯЗЫК — ПО ТЕКСТУ (версия 2), И ЛАТИНИЦА — ЕЩЁ НЕ АНГЛИЙСКИЙ
+    (версии 3–4): канал на другом языке в группы не идёт и называется
+    в `другой_язык`; короткое описание — решает страна канала."""
     с, по = _rfc3339(параметры["from"]), _rfc3339(параметры["to"], конец=True)
     по_теме = (lambda р: метки is None or совпало(р.get("title") or "", метки))
-    запросы = [з["q"] for з in параметры.get("queries") or [] if з.get("q")]
-    запрос_канала = параметры.get("channel_q") or "|".join(dict.fromkeys(запросы))
     кандидаты: dict[str, dict] = {}
     for з in параметры.get("queries") or []:
         п = {"part": "snippet", "type": "video", "q": з["q"], "maxResults": 50,
@@ -624,8 +731,6 @@ async def хиты_периода(client, база, ключ, квота, пар
         if есть_кириллица(р["title"]):
             к["ru"] += 1
     ранжир = sorted(по_каналам.items(), key=lambda кв: -кв[1]["просмотры"])
-    # Описание канала — главный признак языка латиницы; channels.list —
-    # 1 ед. на 50 каналов.
     сведения = await каналы_сведения(client, база, ключ, квота, [cid for cid, _ in ранжир])
     выбрано_en, выбрано_ru, другой_язык = [], [], []
     for cid, к in ранжир:
@@ -641,28 +746,117 @@ async def хиты_периода(client, база, ключ, квота, пар
             выбрано_ru.append(cid)
         elif not ru and len(выбрано_en) < int(параметры.get("channels_en", 10)):
             выбрано_en.append(cid)
-    ролики_ids: set[str] = set()
-    for cid in выбрано_en + выбрано_ru:
-        п = {"part": "snippet", "type": "video", "channelId": cid, "order": "viewCount",
-             "publishedAfter": с, "publishedBefore": по,
-             "maxResults": max(1, min(50, int(параметры.get("per_channel", 20))))}
-        if запрос_канала:
-            п["q"] = запрос_канала
-        тело = await _yt(client, база, "search", п, ключ, квота, ЦЕНА_ПОИСКА)
-        for э in тело.get("items") or []:
-            vid = ((э.get("id") or {}).get("videoId") if isinstance(э, dict) else None)
-            if vid:
-                ролики_ids.add(vid)
-    ролики = {vid: р for vid, р in
-              (await ролики_сведения(client, база, ключ, квота, sorted(ролики_ids))).items()
-              if по_теме(р)}
-    языки = {cid: "ru" for cid in выбрано_ru}
-    языки.update({cid: "en" for cid in выбрано_en})
-    for р in ролики.values():
-        р["channel_lang"] = языки.get(р["channel_yt_id"])
-    return {"каналы_en": выбрано_en, "каналы_ru": выбрано_ru,
-            "хитов_поиска": len(хиты), "ролики": list(ролики.values()),
-            "другой_язык": другой_язык[:20]}
+    return {"en": выбрано_en, "ru": выбрано_ru, "сведения": сведения, "хиты": хиты,
+            "названия": {cid: к["title"] for cid, к in по_каналам.items()},
+            "другой_язык": другой_язык}
+
+
+async def окно_загрузок(client, база, ключ, квота, плейлист: str, с: datetime,
+                        по: datetime, макс_страниц: int) -> tuple[list[str], int, bool]:
+    """Ролики канала, опубликованные в [с, по), через ПЛЕЙЛИСТ ЗАГРУЗОК —
+    1 единица на 50 роликов вместо 100 за поиск. Дата публикации лежит
+    в `contentDetails.videoPublishedAt`, поэтому окно режется без
+    `videos.list`. Плейлист идёт от новых к старым: страница, где ВСЕ
+    ролики старше `с`, — конец. Возврат: (ids, страниц, дошли_до_начала)."""
+    ids, страниц, токен = [], 0, None
+    while страниц < макс_страниц:
+        п = {"part": "contentDetails", "playlistId": плейлист, "maxResults": 50}
+        if токен:
+            п["pageToken"] = токен
+        тело = await _yt(client, база, "playlistItems", п, ключ, квота, ЦЕНА_СПИСКА)
+        страниц += 1
+        элементы = [э for э in тело.get("items") or [] if isinstance(э, dict)]
+        старше = 0
+        for э in элементы:
+            cd = э.get("contentDetails") or {}
+            vid, когда = cd.get("videoId"), _iso(cd.get("videoPublishedAt"))
+            if not vid or когда is None:
+                continue
+            if когда < с:
+                старше += 1
+            elif когда < по:
+                ids.append(vid)
+        токен = тело.get("nextPageToken")
+        if not токен or (элементы and старше == len(элементы)):
+            return ids, страниц, True
+    return ids, страниц, False
+
+
+def цена_выстрела(параметры: dict) -> int:
+    """ПРОГНОЗ ЕДИНИЦ ПРОГОНА ДО ЗАПУСКА: поиск по запросам (100 за запрос),
+    бюджет страниц плейлистов (1 за страницу) и запас на `channels.list`
+    и `videos.list` роликов окна. Прогон сам не выйдет за бюджет страниц."""
+    запросов = len(параметры.get("queries") or [])
+    return запросов * ЦЕНА_ПОИСКА + int(параметры.get("page_budget", 1600)) + 200
+
+
+async def хиты_выстрела(client, база, ключ, квота, параметры: dict, метки=None) -> dict:
+    """АРХЕОЛОГИЯ ВЕРСИИ 5 (BACKLOG №368): хиты периода по ВЫСТРЕЛУ.
+
+    Сырые просмотры ставили наверх большие каналы, а не удачные ролики:
+    рядовой ролик канала на 10 млн подписчиков обгонял лучший ролик канала
+    на 100 тысяч. Выстрел меряет ролик планкой ЕГО канала.
+
+    1. Каналы периода — `_отобрать_каналы` (поиск — единственное место, где
+       он нужен: иначе каналов 2013–2014 не узнать).
+    2. У каждого канала — ВСЕ ролики за период ±окно через плейлист
+       загрузок (1 ед. на 50) и `videos.list` (1 ед. на 50). Поиска по каналу
+       нет: версия 4 тратила на это 100 ед. на канал и видела только топ.
+    3. Хит — ролик ПРО ТЕМУ периода не ниже `min_views`; выстрел — по всем
+       роликам канала в окне, любой темы: это и есть обычный уровень канала.
+
+    Канал, у которого роликов на страниц больше `max_pages_per_channel`,
+    либо не влезающий в остаток `page_budget`, пропускается СО СЛОВАМИ
+    в `пропущено`, а не молча."""
+    отбор = await _отобрать_каналы(client, база, ключ, квота, параметры, метки)
+    по_теме = (lambda р: метки is None or совпало(р.get("title") or "", метки))
+    окно = int(параметры.get("window_days", 90))
+    мин_просмотров = int(параметры.get("min_views", 100000))
+    мин_соседей = int(параметры.get("min_neighbors", 5))
+    нач = datetime.fromisoformat(параметры["from"])
+    кон = datetime.fromisoformat(параметры["to"]) + timedelta(days=1)
+    потолок = int(параметры.get("max_pages_per_channel", 160))
+    бюджет = int(параметры.get("page_budget", 1600))
+    хиты, каналы, пропущено, страниц_всего = [], [], [], 0
+    for язык, группа in (("en", отбор["en"]), ("ru", отбор["ru"])):
+        for cid in группа:
+            св = отбор["сведения"].get(cid) or {}
+            название = св.get("title") or отбор["названия"].get(cid) or cid
+            плейлист = св.get("uploads")
+            страниц_оценка = max(1, -(-int(св.get("videos") or 0) // 50))
+            if not плейлист:
+                пропущено.append(f"{название}: нет плейлиста загрузок")
+                continue
+            if страниц_оценка > потолок:
+                пропущено.append(f"{название}: роликов {св.get('videos')} — {страниц_оценка} "
+                                 f"страниц плейлиста, больше потолка {потолок} на канал")
+                continue
+            if страниц_оценка > бюджет:
+                пропущено.append(f"{название}: не влез в остаток бюджета страниц ({бюджет})")
+                continue
+            ids, страниц, дошли = await окно_загрузок(
+                client, база, ключ, квота, плейлист, нач - timedelta(days=окно),
+                кон + timedelta(days=окно), min(потолок, бюджет))
+            бюджет -= страниц
+            страниц_всего += страниц
+            ролики = list((await ролики_сведения(client, база, ключ, квота, ids)).values())
+            n = 0
+            for р in ролики:
+                когда = р.get("published_at")
+                if (когда is None or not (нач <= когда < кон) or not по_теме(р)
+                        or (р.get("views") or 0) < мин_просмотров):
+                    continue
+                р["shot"], р["channel_median"], р["median_base"] = выстрел(
+                    р, ролики, окно, мин_соседей)
+                р["channel_lang"] = язык
+                хиты.append(р)
+                n += 1
+            каналы.append({"канал": название, "язык": язык, "страниц": страниц,
+                           "роликов_окна": len(ролики), "хитов": n, "дошли": дошли})
+    return {"каналы_en": отбор["en"], "каналы_ru": отбор["ru"],
+            "хитов_поиска": len(отбор["хиты"]), "ролики": хиты,
+            "другой_язык": отбор["другой_язык"][:20], "каналы": каналы,
+            "пропущено": пропущено, "страниц": страниц_всего}
 
 
 async def с_потолком(корутина, секунд: float, что: str):

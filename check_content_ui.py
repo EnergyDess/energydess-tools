@@ -43,6 +43,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 ЗАМЕТКА = "кадры утечки показывать нельзя"
 
 ПОДЛОГ_УТЕЧКИ = ".content-leak { display: none !important; }"
+# Опережение (BACKLOG №367): плашка спрятана — шаг «сюжеты/опережение» обязан упасть
+ПОДЛОГ_ОПЕРЕЖЕНИЯ = ".content-lead { display: none !important; }"
 ПОДЛОГ_ОШИБКИ = ".content-source-error { display: none !important; }"
 ПОДЛОГ_ВКЛАДОК = """() => document.querySelectorAll('.content-page .v2-tab[data-tab]')
   .forEach(к => к.replaceWith(к.cloneNode(true)))"""
@@ -107,15 +109,18 @@ def _база(база, запрос, *п):
     id: с.dataset.story, утечка: с.dataset.leak === 'true', источников: +с.dataset.sources,
     в_карточке: +((с.querySelector('.content-src-n') || {}).textContent || -1),
     заметка: вид(с.querySelector('.content-leak'))
-      && (с.querySelector('.content-leak').textContent || '').includes(заметка)}));
+      && (с.querySelector('.content-leak').textContent || '').includes(заметка),
+    опережение: вид(с.querySelector('.content-lead')),
+    en: +((с.querySelector('.content-lead-en') || {}).textContent || -1),
+    ru: +((с.querySelector('.content-lead-ru') || {}).textContent || -1)}));
   const источники = [...document.querySelectorAll('.content-source')].map(и => ({
     id: и.dataset.source, тон: (и.className.match(/is-(\w+)/) || [])[1],
     строка: вид(и.querySelector('.content-source-line')),
     ошибка: вид(и.querySelector('.content-source-error'))
       && (и.querySelector('.content-source-error').textContent || '').trim().length > 20}));
   return {шире, разделы, активные, адрес: location.search, сюжеты, источники,
-          хитов: document.querySelectorAll('#content-arch-table tbody tr').length,
-          огр: document.querySelectorAll('#content-arch-table .content-flag.is-limited').length};
+          хитов: document.querySelectorAll('#content-arch-en tbody tr, #content-arch-ru tbody tr').length,
+          огр: document.querySelectorAll('#content-arch-en .content-flag.is-limited, #content-arch-ru .content-flag.is-limited').length};
 }"""
 
 
@@ -137,10 +142,13 @@ def _ожидание(база):
     finally:
         db.close()
         движок.dispose()
-    return {"сюжеты": {str(с["id"]): {"источников": с["источников"], "утечка": bool(с["leak"])}
+    строки = форматы["en"] + форматы["ru"]
+    return {"сюжеты": {str(с["id"]): {"источников": с["источников"], "утечка": bool(с["leak"]),
+                                      "опережение": bool(с["опережение"]),
+                                      "en": с["en_роликов"], "ru": с["ru_роликов"]}
                        for с in сюжеты},
-            "хитов": len(форматы["строки"]),
-            "огр": sum(1 for в in форматы["строки"] if в["limited"])}
+            "хитов": len(строки),
+            "огр": sum(1 for в in строки if в["limited"])}
 
 
 def замер(база, подлог=None):
@@ -242,6 +250,15 @@ def оценить(замеры):
         шаг("%d/сюжеты/утечка" % ш, all(с["заметка"] for с in с_утечкой),
             "сюжетов с утечкой в базе %d, с видимой заметкой на экране %d"
             % (len(с_утечкой), sum(1 for с in с_утечкой if с["заметка"])), собрано=len(с_утечкой))
+        # ОПЕРЕЖЕНИЕ (BACKLOG №367): плашка ровно у тех сюжетов, где сервер
+        # его насчитал, и числа роликов EN/RU на ней — из базы
+        мимо = [с["id"] for с in сюжеты
+                if с["опережение"] != ждём.get(с["id"], {}).get("опережение")
+                or (с["опережение"] and (с["en"], с["ru"]) != (ждём[с["id"]]["en"], ждём[с["id"]]["ru"]))]
+        шаг("%d/сюжеты/опережение" % ш, not мимо,
+            "с опережением в базе %d, расходится с экраном у %d: %s"
+            % (sum(1 for v in ждём.values() if v["опережение"]), len(мимо), мимо[:5]),
+            собрано=len(сюжеты))
         врут = [с["id"] for с in сюжеты
                 if с["в_карточке"] != ждём.get(с["id"], {}).get("источников")]
         шаг("%d/сюжеты/источники" % ш, not врут,
@@ -274,6 +291,10 @@ def _с_утечкой(з):
     return [с for x in з for с in x["вкладки"]["stories"]["сюжеты"] if с["утечка"]]
 
 
+def _все_сюжеты(з):
+    return [с for x in з for с in x["вкладки"]["stories"]["сюжеты"]]
+
+
 def _красные(з):
     return [и for x in з for и in x["вкладки"]["sources"]["источники"] if и["тон"] == "danger"]
 
@@ -284,11 +305,13 @@ def _красные(з):
 # где сюжета с утечкой нет вовсе.
 ДОКАЗАТЕЛЬСТВА = {
     "утечка": lambda з: bool(_с_утечкой(з)) and not any(с["заметка"] for с in _с_утечкой(з)),
+    "опережение": lambda з: bool(_все_сюжеты(з)) and not any(с["опережение"] for с in _все_сюжеты(з)),
     "ошибка": lambda з: bool(_красные(з)) and not any(и["ошибка"] for и in _красные(з)),
     "вкладки": lambda з: bool(з) and not any(x["вкладки"]["formats"]["разделы"].get("formats")
                                              for x in з),
 }
 ПОДЛОГИ = {"утечка": ("css:" + ПОДЛОГ_УТЕЧКИ, "сюжеты/утечка"),
+           "опережение": ("css:" + ПОДЛОГ_ОПЕРЕЖЕНИЯ, "сюжеты/опережение"),
            "ошибка": ("css:" + ПОДЛОГ_ОШИБКИ, "источники/ошибка"),
            "вкладки": ("вкладки", "вкладка formats")}
 

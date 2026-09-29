@@ -414,9 +414,15 @@ def test_сбой_модели_не_сжигает_попытки(стенд, mo
 
 def test_оценка_по_формуле_из_базы():
     ф = cdb.прочитать_семя()["settings"]["score_formula"]
-    assert ce.оценка(ф, 5000, 3, 0)[0] == 100
-    assert ce.оценка(ф, 0, 1, 3)[0] == 10
-    assert ce.оценка(ф, 0, 0, 0)[0] == 25
+    assert ce.оценка(ф, 5000, 3, 0, True, 0)[0] == 100
+    assert ce.оценка(ф, 5000, 3, 0)[0] == 85             # без опережения — без его 15
+    assert ce.оценка(ф, 0, 1, 3)[0] == 8
+    assert ce.оценка(ф, 0, 0, 0)[0] == 20
+    # Опережение тает с роликами: 2 ролика из насыщения 5 — 15 × 0.6 = 9
+    assert ce.оценка(ф, 0, 0, 3, True, 2)[1]["опережение"] == 9.0
+    # Формула до правки (весов опережения нет) считается как прежде
+    assert "опережение" not in ce.оценка({"веса": {"рост": 45, "площадки": 30, "окно_ru": 25}},
+                                          0, 0, 0, True, 0)[1]
     # Веса берутся из базы, а не из кода
     assert ce.оценка({**ф, "веса": {"рост": 0, "площадки": 0, "окно_ru": 50}}, 0, 0, 0)[0] == 50
 
@@ -539,9 +545,30 @@ class СетьАрх(Сеть):
     def __init__(self, только_чужое=False):
         super().__init__()
         self.поиски = []
+        self.плейлисты = []
         self.только_чужое = только_чужое
 
+    # Соседи для медианы канала (версия 5): у каждого канала шесть роликов
+    # НЕ про тему по миллиону просмотров за две недели до хитов. Тогда у g1
+    # (9 млн) соседи g2 5 млн, x1 8 млн, d1 7 млн и шесть по 1 млн —
+    # медиана 1 млн, выстрел ×9.0: число известно заранее.
+    СОСЕДЕЙ = 6
+
+    def _все(self):
+        ролики = {v: (р[0], р[1], р[2], р[3], "2014-03-01T10:00:00Z")
+                  for v, р in self.РОЛИКИ.items()}
+        for cid, к in self.КАНАЛЫ.items():
+            for i in range(self.СОСЕДЕЙ):
+                ролики[f"f{cid}{i}"] = (cid, к[0], f"Minecraft let's play #{i}", 1000000,
+                                        "2014-02-15T10:00:00Z")
+        return ролики
+
     def yt(self, путь, q):
+        if путь.endswith("/playlistItems"):
+            self.плейлисты.append(q.get("playlistId"))
+            cid = "UC" + (q.get("playlistId") or "")[2:]
+            return {"items": [{"contentDetails": {"videoId": v, "videoPublishedAt": р[4]}}
+                              for v, р in self._все().items() if р[0] == cid]}
         if путь.endswith("/search") and q.get("publishedAfter"):
             self.поиски.append(q)
             if self.только_чужое:
@@ -558,15 +585,19 @@ class СетьАрх(Сеть):
             if ids:
                 return {"items": [{"id": c, "snippet": {
                     "title": self.КАНАЛЫ[c][0], "description": self.КАНАЛЫ[c][1],
-                    "country": (self.КАНАЛЫ[c][2:] or (None,))[0]}} for c in ids]}
+                    "country": (self.КАНАЛЫ[c][2:] or (None,))[0]},
+                    "statistics": {"videoCount": str(len(self.РОЛИКИ) + self.СОСЕДЕЙ)},
+                    "contentDetails": {"relatedPlaylists": {"uploads": "UU" + c[2:]}}}
+                    for c in ids]}
         if путь.endswith("/videos"):
-            ids = [v for v in q.get("id", "").split(",") if v in self.РОЛИКИ]
+            все = self._все()
+            ids = [v for v in q.get("id", "").split(",") if v in все]
             if ids:
                 return {"items": [{"id": v, "snippet": {
-                    "title": self.РОЛИКИ[v][2], "description": self.ОПИСАНИЯ.get(v, ""),
-                    "channelId": self.РОЛИКИ[v][0],
-                    "channelTitle": self.РОЛИКИ[v][1], "publishedAt": "2014-03-01T10:00:00Z"},
-                    "statistics": {"viewCount": str(self.РОЛИКИ[v][3])}} for v in ids]}
+                    "title": все[v][2], "description": self.ОПИСАНИЯ.get(v, ""),
+                    "channelId": все[v][0],
+                    "channelTitle": все[v][1], "publishedAt": все[v][4]},
+                    "statistics": {"viewCount": str(все[v][3])}} for v in ids]}
         return super().yt(путь, q)
 
 
@@ -589,9 +620,11 @@ def test_археология_только_про_тему_и_язык_по_те
     сеть = СетьАрх()
     итог = _археология(monkeypatch, сеть)
     assert итог["state"] == "ok", итог
-    по_каналу = [п for п in сеть.поиски if п.get("channelId")]
-    # Поиск по каналу идёт С ЗАПРОСОМ ТЕМЫ — без него топ канала периода всё подряд
-    assert по_каналу and all(п.get("q") for п in по_каналу)
+    # Версия 5: ролики канала — через плейлист загрузок, ПОИСКА ПО КАНАЛУ НЕТ
+    # (он стоил 100 ед. на канал); поиск только по запросам темы.
+    assert not [п for п in сеть.поиски if п.get("channelId")]
+    assert len(сеть.поиски) == len(ce.cdb.прочитать_семя()["темы"][0]["params"]["archaeology"]["queries"])
+    assert set(сеть.плейлисты) == {"UUA", "UUE", "UUR"}
     db.expire_all()
     хиты = {в.yt_id: в for в in db.query(ContentArchVideo).all()}
     assert set(хиты) == {"g1", "g2", "e1", "r1"}, sorted(хиты)
@@ -600,7 +633,10 @@ def test_археология_только_про_тему_и_язык_по_те
     # Язык по тексту, а не по подсказке запроса: e1 найден русским запросом
     assert хиты["e1"].channel_lang == "en" and хиты["r1"].channel_lang == "ru"
     assert all(в.format_id is not None for в in хиты.values())
-    assert итог["версия"] == ce.АРХЕОЛОГИЯ_ВЕРСИЯ
+    assert итог["версия"] == ce.АРХЕОЛОГИЯ_ВЕРСИЯ == 5
+    # Выстрел на известных числах подставной сети: у g1 медиана 1 млн по 9 соседям
+    assert (хиты["g1"].shot, хиты["g1"].channel_median, хиты["g1"].median_base) == (9.0, 1000000, 9)
+    assert хиты["r1"].shot == 3.0 and хиты["e1"].shot == 4.0
     # Версия 3: тема только в ЗАГОЛОВКЕ. Описание d1 теме отвечает,
     # а ролик про Gmod — в таблицу он не идёт.
     assert cc.совпало(СетьАрх.ОПИСАНИЯ["d1"], cc.шаблон_ключевых(["GTA 5"]))
@@ -648,11 +684,11 @@ def test_подлог_без_отбора_по_теме_чужое_попада�
     неотличимо от «чужого не присылали»: подставная сеть его присылает."""
     db, _, _ = стенд
     сеть = СетьАрх()
-    настоящий = cc.хиты_периода
+    настоящий = cc.хиты_выстрела
 
     async def прежний(client, база, ключ, квота, параметры, метки=None):
         return await настоящий(client, база, ключ, квота, параметры, None)
-    monkeypatch.setattr(cc, "хиты_периода", прежний)
+    monkeypatch.setattr(cc, "хиты_выстрела", прежний)
     _археология(monkeypatch, сеть)
     db.expire_all()
     assert "x1" in {в.yt_id for в in db.query(ContentArchVideo).all()}
@@ -720,6 +756,263 @@ def test_автозапуск_оставляет_резерв_циклам_до_
     assert cdb.квота_израсходовано(db) == 0
     сейчас = datetime.utcnow()
     monkeypatch.setattr(cdb, "сброс_квоты_utc", lambda момент=None: сейчас + timedelta(hours=10))
-    assert not ce._археология_нужна()      # 3000 − 20 циклов × 70 = 1600 < 2000
+    цена = ce.цена_археологии(db)        # прогноз версии 5 по параметрам из базы
+    assert цена == 8 * 100 + 1800 + 200
+    assert not ce._археология_нужна()      # 3000 − 20 циклов × 70 = 1600 < 2800
     monkeypatch.setattr(cdb, "сброс_квоты_utc", lambda момент=None: сейчас + timedelta(minutes=1))
-    assert ce._археология_нужна()          # 3000 − 1 цикл × 70 ≥ 2000
+    assert ce._археология_нужна()          # 3000 − 1 цикл × 70 ≥ 2800
+
+
+# ── 9. ПЕРВОИСТОЧНИКИ (BACKLOG №367), ВЫСТРЕЛ (№368), REDDIT OAUTH (№369) ──
+
+IGN = "https://feeds.feedburner.com/ign/all"
+STOPGAME = "https://rss.stopgame.ru/rss_news.xml"
+
+
+def _лента(элементы, метка="m") -> str:
+    когда = datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S +0000")
+    части = "".join(
+        f"<item><title>{з}</title><link>https://{метка}.test/{i}</link><guid>{метка}-{i}</guid>"
+        f"<pubDate>{когда}</pubDate><description>{о}</description>"
+        + "".join(f"<category>{к}</category>" for к in р) + "</item>"
+        for i, (з, о, р) in enumerate(элементы))
+    return f'<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>{части}</channel></rss>'
+
+
+class СетьСМИ(Сеть):
+    """Ленты СМИ. В IGN нарочно лежит то, что общие слова темы пропустили бы:
+    отчёт Take-Two про другую игру, новость Rockstar про Red Dead и подборка,
+    где GTA упомянута только в анонсе."""
+    ЛЕНТЫ = {
+        IGN: [("GTA 6 trailer 3 release date leaked", "Rockstar", ["GTA 6"]),
+              ("Take-Two earnings: Borderlands 4 sells 5 million", "GTA 6 still on track", []),
+              ("Rockstar announces Red Dead Online update", "no", ["Red Dead"]),
+              ("The 10 best open world games", "from Skyrim to GTA 5 and beyond", [])],
+        STOPGAME: [("ГТА 6: утечка карты Леониды", "подробности", []),
+                   ("Обзор Assassin's Creed", "не про ГТА", [])],
+    }
+
+    def __call__(self, запрос):
+        адрес = str(запрос.url)
+        for лента, элементы in self.ЛЕНТЫ.items():
+            if адрес.startswith(лента):
+                self.запросы.append(адрес)
+                return httpx.Response(200, text=_лента(элементы, urlsplit(лента).netloc),
+                                      headers={"Content-Type": "application/rss+xml"})
+        return super().__call__(запрос)
+
+
+def test_сми_строгий_фильтр_только_gta_в_заголовке(стенд, monkeypatch):
+    db, _, _ = стенд
+    сеть = СетьСМИ()
+    monkeypatch.setattr(cc, "новый_клиент", lambda: httpx.AsyncClient(
+        transport=httpx.MockTransport(сеть), follow_redirects=True))
+    итог = _цикл()
+    assert итог["state"] in ("ok", "partial"), итог
+    ign = db.query(ContentSource).filter(ContentSource.name == "IGN").one()
+    sg = db.query(ContentSource).filter(ContentSource.name == "StopGame").one()
+    db.refresh(ign), db.refresh(sg)
+    assert ign.last_state == "ok" and ign.last_seen == 4 and sg.last_state == "ok"
+    заголовки = {и.title for и in db.query(ContentItem).filter(
+        ContentItem.source_id.in_([ign.id, sg.id]))}
+    # Про GTA — прошло; Take-Two, Red Dead и подборка с GTA в анонсе — нет
+    assert заголовки == {"GTA 6 trailer 3 release date leaked", "ГТА 6: утечка карты Леониды"}
+    записи = db.query(ContentItem).filter(ContentItem.source_id == ign.id).all()
+    assert записи[0].platform == "ign" and записи[0].published_at is not None
+
+
+def test_подлог_общий_фильтр_для_сми_пропускает_чужое(стенд, monkeypatch):
+    """Обратный случай: строгость снята — общие слова темы («Take-Two»,
+    «Rockstar») пропускают новости не про GTA. Без него «чужого нет»
+    неотличимо от «чужого не присылали»."""
+    db, _, _ = стенд
+    for и in db.query(ContentSource).filter(ContentSource.kind == "rss").all():
+        п = json.loads(и.params or "{}")
+        п.pop("strict", None)
+        и.params = json.dumps(п)
+    db.commit()
+    сеть = СетьСМИ()
+    monkeypatch.setattr(cc, "новый_клиент", lambda: httpx.AsyncClient(
+        transport=httpx.MockTransport(сеть), follow_redirects=True))
+    _цикл()
+    заголовки = {и.title for и in db.query(ContentItem).all()}
+    assert "Take-Two earnings: Borderlands 4 sells 5 million" in заголовки
+
+
+def _сюжет_из(db, monkeypatch, записи):
+    for n, заголовок, ист, пл, kw in записи:
+        _запись(db, n, заголовок, ист, пл, **kw)
+    db.commit()
+    monkeypatch.setattr(ce, "_спросить", _модель_по_заголовкам([("Trailer 3", {"new": "A"})]))
+    настройки = {к_: cdb.настройка(db, к_) for к_ in ("stories", "score_formula", "youtube")}
+    asyncio.run(ce._сюжеты({"id": "gta", "title": "GTA"}, настройки))
+    ce._пересчитать_сюжеты("gta", настройки)
+    db.expire_all()
+    return db.query(ContentStory).filter(ContentStory.title == "Сюжет A").one()
+
+
+def test_опережение_сми_раньше_youtube_и_счётчики_на_карточке(стенд, monkeypatch):
+    db, к, _ = стенд
+    с = _сюжет_из(db, monkeypatch, [
+        (6, "IGN: Trailer 3 is coming", "rss:9", "ign", {}),
+        (3, "GTA 6 Trailer 3 reaction", "yt:UC1", "youtube", {"lang": "en", "metric": 10}),
+        (2, "ГТА 6 Trailer 3 разбор", "yt:UC2", "youtube", {"lang": "ru", "metric": 10}),
+        (1, "Trailer 3 again", "yt:UC3", "youtube", {"lang": "en", "metric": 10})])
+    assert с.lead and с.first_source == "rss:9" and с.first_platform == "ign"
+    assert (с.en_videos, с.ru_videos) == (2, 1)
+    части = json.loads(с.score_parts)
+    assert части["опережение"] == round(15 * (1 - 3 / 5), 1)
+    страница = к["админ"].get("/content").text
+    assert 'data-lead="true"' in страница and "Опережение: новость вышла в" in страница
+    assert 'content-lead-en">2<' in страница and 'content-lead-ru">1<' in страница
+
+
+def test_без_опережения_если_первым_был_youtube(стенд, monkeypatch):
+    db, к, _ = стенд
+    с = _сюжет_из(db, monkeypatch, [
+        (6, "GTA 6 Trailer 3 early video", "yt:UC1", "youtube", {"lang": "en", "metric": 10}),
+        (3, "IGN: Trailer 3 is coming", "rss:9", "ign", {})])
+    assert not с.lead and "опережение" in json.loads(с.score_parts)
+    assert json.loads(с.score_parts)["опережение"] == 0
+    assert 'data-lead="true"' not in к["админ"].get("/content").text
+
+
+def test_выстрел_на_известных_числах():
+    t0 = datetime(2014, 3, 1)
+    соседи = [{"yt_id": f"n{i}", "views": v, "published_at": t0 + timedelta(days=d)}
+              for i, (v, d) in enumerate([(100, -80), (200, -10), (300, 5), (400, 30),
+                                          (500, 89), (9999999, 120), (7, -200)])]
+    ролик = {"yt_id": "hit", "views": 3000, "published_at": t0}
+    # в окне ±90: 100, 200, 300, 400, 500 — медиана 300, выстрел 10.0
+    assert cc.выстрел(ролик, соседи + [ролик], 90, 5) == (10.0, 300, 5)
+    assert cc.медиана([1, 2, 3, 4]) == 2.5 and cc.медиана([]) is None
+
+
+def test_без_медианы_канала_ролик_не_ранжируется(стенд):
+    db, к, _ = стенд
+    t0 = datetime(2014, 3, 1)
+    мало = [{"yt_id": "a", "views": 10, "published_at": t0},
+            {"yt_id": "b", "views": 20, "published_at": t0}]
+    assert cc.выстрел({"yt_id": "h", "views": 10**6, "published_at": t0}, мало, 90, 5) == (None, None, 2)
+    db.add_all([ContentArchVideo(theme_id="gta", yt_id="ranked", title="GTA 5 heist",
+                                 views=500000, shot=4.0, channel_median=125000,
+                                 median_base=9, channel_lang="en", classify_tries=0),
+                ContentArchVideo(theme_id="gta", yt_id="lonely", title="GTA 5 lonely hit",
+                                 views=9000000, shot=None, channel_lang="en", classify_tries=0)])
+    db.commit()
+    import content_app
+    ф = content_app._форматы(db, "gta", content_app.ZoneInfo("Europe/Moscow"))
+    assert [с["url"][-6:] for с in ф["en"]] == ["ranked"] and ф["без_медианы"] == 1
+    страница = к["админ"].get("/content?tab=formats").text
+    assert "lonely hit" not in страница and "×4.0" in страница
+
+
+def test_прогон_археологии_не_берёт_резерв_циклов(стенд, monkeypatch):
+    """Ручной прогон упирается в потолок «суточный − потрачено − резерв
+    циклам до сброса», а не съедает квоту сбора: при резерве больше
+    остатка он встаёт на первом же вызове с пометкой квоты."""
+    db, _, _ = стенд
+    db.query(ContentSetting).filter(ContentSetting.key == "youtube").update(
+        {ContentSetting.value: json.dumps({**cdb.настройка(db, "youtube"), "daily_cap": 1450})})
+    db.commit()
+    сейчас = datetime.utcnow()
+    monkeypatch.setattr(cdb, "сброс_квоты_utc", lambda момент=None: сейчас + timedelta(hours=10))
+    итог = _археология(monkeypatch, СетьАрх())
+    assert итог["state"] == "error" and "квота" in (итог["note"] or ""), итог
+    assert cdb.квота_израсходовано(db) == 0          # 1450 − 20 × 70 = 50 < 100 за поиск
+
+
+def test_формат_катсцен_с_пометкой_content_id(стенд):
+    db, к, _ = стенд
+    ф = db.query(cdb.ContentFormat).filter(
+        cdb.ContentFormat.title == "Весь сюжет одним фильмом (катсцены)").one()
+    assert ф.note == "проверить музыку на Content ID"
+    assert "проверить музыку на Content ID" in к["админ"].get("/content?tab=formats").text
+
+
+def test_досев_доводит_заведённую_тему_до_семени(стенд):
+    """Прод заведён до правки: источников СМИ нет, формула без опережения,
+    археология версии 4. Досев добавляет недостающее, чужого не трогает."""
+    db, _, _ = стенд
+    db.query(ContentSource).filter(ContentSource.name.in_(["IGN", "StopGame"])).delete(
+        synchronize_session=False)
+    тема = db.query(cdb.ContentTheme).filter_by(id="gta").one()
+    п = json.loads(тема.params)
+    п["archaeology"] = {"from": "2013-09-17", "to": "2014-12-31", "queries": [], "v": 4}
+    п.pop("strict_keywords")
+    тема.params = json.dumps(п)
+    запись = db.query(ContentSetting).filter_by(key="score_formula").one()
+    ф = json.loads(запись.value)
+    ф["веса"] = {"рост": 45, "площадки": 30, "окно_ru": 25}
+    запись.value = json.dumps(ф)
+    db.query(cdb.ContentFormat).filter(cdb.ContentFormat.title.like("Весь сюжет%")).delete(
+        synchronize_session=False)
+    db.commit()
+    assert cdb.засеять(db) == {"тем": 0, "источников": 0, "форматов": 0, "настроек": 0}
+    db.expire_all()
+    assert db.query(ContentSource).filter(ContentSource.name.in_(["IGN", "StopGame"])).count() == 2
+    п = json.loads(db.query(cdb.ContentTheme).filter_by(id="gta").one().params)
+    assert п["archaeology"]["v"] == 5 and "GTA" in п["strict_keywords"]
+    assert json.loads(db.query(ContentSetting).filter_by(key="score_formula").one().value
+                      )["веса"]["опережение"] == 15
+    assert db.query(cdb.ContentFormat).filter(cdb.ContentFormat.note.isnot(None)).count() == 1
+    assert cdb.догнать_семя(db, cdb.прочитать_семя()) == 0       # второй раз — нечего
+
+
+class СетьReddit(Сеть):
+    def __init__(self, токен_код=200):
+        super().__init__()
+        self.токен_код = токен_код
+        self.заголовки = []
+
+    def __call__(self, запрос):
+        адрес = str(запрос.url)
+        if адрес.startswith("https://www.reddit.com/api/v1/access_token"):
+            self.запросы.append(адрес)
+            if self.токен_код != 200:
+                return httpx.Response(self.токен_код, json={"error": "invalid_grant"})
+            return httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
+        if адрес.startswith("https://oauth.reddit.com/r/"):
+            self.запросы.append(адрес)
+            self.заголовки.append(dict(запрос.headers))
+            return httpx.Response(200, json={"data": {"children": [
+                {"data": {"id": "p1", "title": "GTA 6 map theory", "permalink": "/r/GTA6/p1",
+                          "created_utc": 1790000000, "score": 120, "num_comments": 30}},
+                {"data": {"id": "p2", "title": "My cat", "permalink": "/r/GTA6/p2",
+                          "created_utc": 1790000000, "score": 5, "num_comments": 1}}]}})
+        return super().__call__(запрос)
+
+
+def _reddit(monkeypatch, сеть):
+    cc._REDDIT_ТОКЕН.clear()
+
+    async def прогон():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(сеть)) as client:
+            return await cc.собрать_reddit(client, {"name": "Reddit", "params": {"subs": ["GTA6"]}})
+    return asyncio.run(прогон())
+
+
+def test_reddit_oauth_с_ключами_собирает_без_ключей_в_сеть_не_ходит(monkeypatch):
+    monkeypatch.delenv("REDDIT_CLIENT_ID", raising=False)
+    monkeypatch.delenv("REDDIT_CLIENT_SECRET", raising=False)
+    сеть = СетьReddit()
+    with pytest.raises(cc.ОтказИсточника):
+        _reddit(monkeypatch, сеть)
+    assert сеть.запросы == []
+    monkeypatch.setenv("REDDIT_CLIENT_ID", "id")
+    monkeypatch.setenv("REDDIT_CLIENT_SECRET", "sec")
+    записи = _reddit(monkeypatch, сеть)
+    assert [з["ext_id"] for з in записи] == ["reddit:p1", "reddit:p2"]
+    assert записи[0]["metric"] == 120 and записи[0]["source_key"] == "reddit:GTA6"
+    assert сеть.заголовки[0]["authorization"] == "Bearer tok"
+    assert сеть.заголовки[0]["user-agent"].startswith("web:energydess-content-radar")
+    # сайт reddit.com (robots.txt запрещает всё) не трогаем — только API
+    assert not any("reddit.com/r/" in а and "oauth" not in а for а in сеть.запросы)
+
+
+def test_reddit_токен_отклонён_красный_с_причиной(monkeypatch):
+    monkeypatch.setenv("REDDIT_CLIENT_ID", "id")
+    monkeypatch.setenv("REDDIT_CLIENT_SECRET", "sec")
+    with pytest.raises(cc.ОтказИсточника) as e:
+        _reddit(monkeypatch, СетьReddit(токен_код=401))
+    assert "HTTP 401" in str(e.value) and "одобрение" in str(e.value)

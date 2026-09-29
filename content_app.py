@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+import content_collect as cc
 import content_db as cdb
 import content_engine as ce
 from auth import get_current_user
@@ -39,7 +40,7 @@ router = APIRouter()
 СЮЖЕТОВ_НА_СТРАНИЦЕ = 60
 СЮЖЕТ_СВЕЖЕСТЬ_ДНЕЙ = 14          # сюжет без новых записей дольше — в архиве, не на экране
 ЗАПИСЕЙ_В_СЮЖЕТЕ = 12            # ссылок источников под сюжетом, дальше — «и ещё N»
-ХИТОВ_НА_СТРАНИЦЕ = 300
+ХИТОВ_НА_СТРАНИЦЕ = 100
 ПРОГОНОВ_В_ЖУРНАЛЕ = 8
 ОТКАЗ_НЕ_АДМИНУ = "Нет доступа: раздел «Контент» открыт только администратору."
 СТРАНИЦА = {"icon": "activity", "label": "Админ · контент", "title": "Контент"}
@@ -135,7 +136,11 @@ def _сюжеты(db, тема_id: str, зона: ZoneInfo) -> list[dict]:
             "части": cdb.из_json(с.score_parts, {}) or {},
             "первое": _время(с.first_seen_at, зона), "последнее": _время(с.last_item_at, зона),
             "источников": с.sources, "площадок": с.platforms, "записей": с.items,
-            "ru_роликов": с.ru_videos, "рост": _рост(с.growth),
+            "ru_роликов": с.ru_videos, "en_роликов": с.en_videos, "рост": _рост(с.growth),
+            # ОПЕРЕЖЕНИЕ (BACKLOG №367): первым пришёл не YouTube
+            "опережение": bool(с.lead),
+            "первый": {"источник": с.first_source, "url": с.first_url,
+                       "platform": с.first_platform, "когда": _время(с.first_seen_at, зона)},
             "official": с.official, "rumor": с.rumor, "leak": с.leak,
             "ссылки": [{"title": и.title, "url": и.url, "источник": и.source_name,
                         "когда": _время(и.published_at or и.first_seen_at, зона),
@@ -148,34 +153,49 @@ def _сюжеты(db, тема_id: str, зона: ZoneInfo) -> list[dict]:
 
 
 def _форматы(db, тема_id: str, зона: ZoneInfo) -> dict:
+    """ВКЛАДКА «ФОРМАТЫ» ПО ВЫСТРЕЛУ (версия 5, BACKLOG №368). Ранжируются
+    только хиты с выстрелом: у ролика без медианы канала (соседей в окне
+    мало) планки нет, и ставить его рядом с остальными нечем — он считается
+    отдельным числом, а не прячется. Рейтинг форматов — медианный выстрел
+    его хитов, а не сумма просмотров: сумма снова поставила бы наверх
+    формат большого канала."""
     форматы = (db.query(ContentFormat).filter(ContentFormat.theme_id == тема_id)
                .order_by(ContentFormat.sort, ContentFormat.id).all())
-    хиты = (db.query(ContentArchVideo).filter(ContentArchVideo.theme_id == тема_id)
-            .order_by(ContentArchVideo.views.desc()).all())
+    хиты = db.query(ContentArchVideo).filter(ContentArchVideo.theme_id == тема_id).all()
+    с_выстрелом = sorted((в for в in хиты if в.shot is not None), key=lambda в: -в.shot)
     по_формату = defaultdict(list)
-    for в in хиты:
+    for в in с_выстрелом:
         по_формату[в.format_id].append(в)
     имена = {ф.id: ф.title for ф in форматы}
     сводка = []
     for ф in форматы:
         свои = по_формату.get(ф.id, [])
-        сводка.append({"id": ф.id, "title": ф.title, "origin": ф.origin, "хитов": len(свои),
-                       "просмотров": sum(в.views or 0 for в in свои),
+        м = cc.медиана([в.shot for в in свои])
+        сводка.append({"id": ф.id, "title": ф.title, "origin": ф.origin, "note": ф.note,
+                       "хитов": len(свои), "медиана": round(м, 1) if м is not None else None,
                        "огр": sum(1 for в in свои if в.limited_ads),
                        "лучший": ({"title": свои[0].title, "url": "https://www.youtube.com/watch?v="
-                                   + свои[0].yt_id, "views": свои[0].views} if свои else None)})
-    сводка.sort(key=lambda ф: (-ф["просмотров"], ф["title"]))
-    строки = [{"channel": в.channel_title or "—", "lang": в.channel_lang or "",
-               "title": в.title, "url": "https://www.youtube.com/watch?v=" + в.yt_id,
-               "date": _время(в.published_at, зона, с_годом=True), "views": в.views,
-               "format": имена.get(в.format_id), "why": в.format_reason,
-               "flags": cdb.из_json(в.flags, []) or [], "limited": в.limited_ads,
-               "tries": в.classify_tries}
-              for в in хиты[:ХИТОВ_НА_СТРАНИЦЕ]]
-    return {"сводка": сводка, "строки": строки, "всего": len(хиты),
-            "без_формата": sum(1 for в in хиты if в.format_id is None),
-            "каналов": len({в.channel_yt_id for в in хиты if в.channel_yt_id}),
-            "огр": sum(1 for в in хиты if в.limited_ads)}
+                                   + свои[0].yt_id, "shot": свои[0].shot} if свои else None)})
+    сводка.sort(key=lambda ф: (ф["медиана"] is None, -(ф["медиана"] or 0), -ф["хитов"], ф["title"]))
+
+    def строка(в):
+        return {"channel": в.channel_title or "—", "lang": в.channel_lang or "",
+                "title": в.title, "url": "https://www.youtube.com/watch?v=" + в.yt_id,
+                "date": _время(в.published_at, зона, с_годом=True), "views": в.views,
+                "median": в.channel_median, "base": в.median_base, "shot": в.shot,
+                "format": имена.get(в.format_id), "why": в.format_reason,
+                "flags": cdb.из_json(в.flags, []) or [], "limited": в.limited_ads,
+                "tries": в.classify_tries}
+    return {"сводка": сводка,
+            "en": [строка(в) for в in с_выстрелом if в.channel_lang != "ru"][:ХИТОВ_НА_СТРАНИЦЕ],
+            "ru": [строка(в) for в in с_выстрелом if в.channel_lang == "ru"][:ХИТОВ_НА_СТРАНИЦЕ],
+            "всего": len(хиты), "с_выстрелом": len(с_выстрелом),
+            "без_медианы": len(хиты) - len(с_выстрелом),
+            "без_формата": sum(1 for в in с_выстрелом if в.format_id is None),
+            "каналов_en": len({в.channel_yt_id for в in с_выстрелом if в.channel_lang != "ru"}),
+            "каналов_ru": len({в.channel_yt_id for в in с_выстрелом if в.channel_lang == "ru"}),
+            "огр": sum(1 for в in с_выстрелом if в.limited_ads),
+            "прогноз": ce.цена_археологии(db)}
 
 
 def _источники(db, тема_id: str, зона: ZoneInfo) -> list[dict]:

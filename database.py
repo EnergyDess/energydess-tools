@@ -1921,6 +1921,16 @@ def migrate_db():
         "ALTER TABLE exercises ADD COLUMN model_verdict VARCHAR",
         "ALTER TABLE exercises ADD COLUMN model_reason VARCHAR",
         "ALTER TABLE exercises ADD COLUMN model_checked_at DATETIME",
+        # модуль «Контент»: опережение и выстрел (BACKLOG №367, 368)
+        "ALTER TABLE content_stories ADD COLUMN en_videos INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE content_stories ADD COLUMN lead BOOLEAN NOT NULL DEFAULT 0",
+        "ALTER TABLE content_stories ADD COLUMN first_source VARCHAR",
+        "ALTER TABLE content_stories ADD COLUMN first_url VARCHAR",
+        "ALTER TABLE content_stories ADD COLUMN first_platform VARCHAR",
+        "ALTER TABLE content_formats ADD COLUMN note TEXT",
+        "ALTER TABLE content_arch_videos ADD COLUMN shot FLOAT",
+        "ALTER TABLE content_arch_videos ADD COLUMN channel_median INTEGER",
+        "ALTER TABLE content_arch_videos ADD COLUMN median_base INTEGER",
     ]:
         try:
             conn.execute(col)
