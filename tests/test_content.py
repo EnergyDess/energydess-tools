@@ -520,6 +520,9 @@ class СетьАрх(Сеть):
         # в описании (Gmod у VanossGaming).
         "s1": ("UCS", "Canal Divertido", "GTA V | Momentos Divertidos #3 (Funny Moments)", 12000000),
         "d1": ("UCA", "Funny Channel", "Gmod: Halloween Training", 7000000),
+        # Версия 4, замер версии 3: португальский канал с описанием в одну
+        # фразу (Tauz) — признаков языка в тексте нет, решает страна.
+        "t1": ("UCT", "Rap Canal", "Rap do GTA 5 | RapGame 05", 11000000),
     }
     # Описание канала — признак языка латиницы: заголовки испанского канала
     # от английских не отличить («(Funny Moments)»), описание — отличить.
@@ -529,6 +532,7 @@ class СетьАрх(Сеть):
         "UCR": ("Русский канал", "Угарные моменты из игр каждую неделю."),
         "UCS": ("Canal Divertido",
                 "Hola a todos! Videos de juegos y momentos divertidos en el canal cada semana."),
+        "UCT": ("Rap Canal", "Canal do Tauz!", "BR"),
     }
     ОПИСАНИЯ = {"d1": "Check out my GTA 5 playlist!"}
 
@@ -547,14 +551,14 @@ class СетьАрх(Сеть):
             elif q.get("relevanceLanguage") == "ru":
                 ids = ["r1", "e1", "m1"]
             else:
-                ids = ["g1", "m1", "e1", "s1"]
+                ids = ["g1", "m1", "e1", "s1", "t1"]
             return {"items": [{"id": {"videoId": v}} for v in ids]}
         if путь.endswith("/channels"):
             ids = [c for c in q.get("id", "").split(",") if c in self.КАНАЛЫ]
             if ids:
-                return {"items": [{"id": c, "snippet": {"title": self.КАНАЛЫ[c][0],
-                                                       "description": self.КАНАЛЫ[c][1]}}
-                                  for c in ids]}
+                return {"items": [{"id": c, "snippet": {
+                    "title": self.КАНАЛЫ[c][0], "description": self.КАНАЛЫ[c][1],
+                    "country": (self.КАНАЛЫ[c][2:] or (None,))[0]}} for c in ids]}
         if путь.endswith("/videos"):
             ids = [v for v in q.get("id", "").split(",") if v in self.РОЛИКИ]
             if ids:
@@ -603,7 +607,9 @@ def test_археология_только_про_тему_и_язык_по_те
     assert "d1" not in хиты
     # Латиница — ещё не английский: у испанского канала самый большой хит,
     # но в англоязычные он не встаёт и назван в сводке.
-    assert "s1" not in хиты and итог["gta"]["другой_язык"] == ["Canal Divertido"], итог["gta"]
+    assert "s1" not in хиты and итог["gta"]["другой_язык"][0] == "Canal Divertido", итог["gta"]
+    # Версия 4: описание в одну фразу признаков не даёт — решает страна (BR)
+    assert "t1" not in хиты and итог["gta"]["другой_язык"] == ["Canal Divertido", "Rap Canal"]
 
 
 def test_подлог_без_проверки_языка_испанский_канал_в_англоязычных(стенд, monkeypatch):
@@ -612,11 +618,12 @@ def test_подлог_без_проверки_языка_испанский_ка
     из первой десятки). Без этого «испанского нет» неотличимо от «его
     не присылали»: подставная сеть его присылает."""
     db, _, _ = стенд
-    monkeypatch.setattr(cc, "латиница_не_английская", lambda текст: False)
+    monkeypatch.setattr(cc, "латиница_не_английская", lambda *а, **к: False)
     _археология(monkeypatch, СетьАрх())
     db.expire_all()
     хиты = {в.yt_id: в for в in db.query(ContentArchVideo).all()}
     assert "s1" in хиты and хиты["s1"].channel_lang == "en"
+    assert "t1" in хиты and хиты["t1"].channel_lang == "en"
 
 
 def test_латиница_не_английская_по_описанию():
@@ -628,6 +635,11 @@ def test_латиница_не_английская_по_описанию():
         "Welcome to the channel! Pokémon and GTA videos every week. twitter.com/me www.site.com")
     # По одному заголовку испанский канал не отличить — поэтому решает описание
     assert not cc.латиница_не_английская("GTA V | Momentos Divertidos (Funny Moments)")
+    # Версия 4: признаков в тексте нет — решает страна, и только без английских слов
+    tauz = "Tauz Canal do Tauz! Rap do GTA 5 | Tauz RapGame 05 Rap do GTA 5 (História)"
+    assert cc.латиница_не_английская(tauz, "BR")
+    assert not cc.латиница_не_английская(tauz, "US") and not cc.латиница_не_английская(tauz)
+    assert not cc.латиница_не_английская("GTA 5 - How to Make Money in the Heists", "BR")
 
 
 def test_подлог_без_отбора_по_теме_чужое_попадает(стенд, monkeypatch):
@@ -694,3 +706,20 @@ def test_археология_прежней_версии_пересобирае
                       summary=json.dumps({"версия": ce.АРХЕОЛОГИЯ_ВЕРСИЯ})))
     db.commit()
     assert not ce._археология_нужна()      # текущая версия уже была
+
+
+def test_автозапуск_оставляет_резерв_циклам_до_сброса(стенд, monkeypatch):
+    """Квоты на сам прогон хватает, а циклам до сброса суток Google после
+    него — нет: автозапуск ждёт. Замер на проде 2026-09-29: к 15:00 UTC
+    израсходовано 6465 из 9000, прогон новой версии в 16:00 оставил бы сбор
+    YouTube без квоты на всю ночь. Обратный случай — сброс через минуту."""
+    db, _, _ = стенд
+    db.query(ContentSetting).filter(ContentSetting.key == "youtube").update(
+        {ContentSetting.value: json.dumps({**cdb.настройка(db, "youtube"), "daily_cap": 3000})})
+    db.commit()
+    assert cdb.квота_израсходовано(db) == 0
+    сейчас = datetime.utcnow()
+    monkeypatch.setattr(cdb, "сброс_квоты_utc", lambda момент=None: сейчас + timedelta(hours=10))
+    assert not ce._археология_нужна()      # 3000 − 20 циклов × 70 = 1600 < 2000
+    monkeypatch.setattr(cdb, "сброс_квоты_utc", lambda момент=None: сейчас + timedelta(minutes=1))
+    assert ce._археология_нужна()          # 3000 − 1 цикл × 70 ≥ 2000
