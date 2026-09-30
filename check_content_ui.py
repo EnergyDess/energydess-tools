@@ -48,6 +48,12 @@ sys.stdout.reconfigure(encoding="utf-8")
 ПОДЛОГ_ОШИБКИ = ".content-source-error { display: none !important; }"
 # «Сегодня» (BACKLOG №371): факты главной идеи спрятаны — шаг «сегодня/факты» обязан упасть
 ПОДЛОГ_ФАКТОВ = ".today-fact { display: none !important; }"
+# подлог переключателя: ссылка снова перезагружает страницу (как до письма A2)
+ПОДЛОГ_ПЕРЕЗАГРУЗКИ = r"""() => {
+  document.querySelectorAll('.today-type').forEach((к) => {
+    const нов = к.cloneNode(true); к.replaceWith(нов);
+  });
+}"""
 ПОДЛОГ_ВКЛАДОК = """() => document.querySelectorAll('.content-page .v2-tab[data-tab]')
   .forEach(к => к.replaceWith(к.cloneNode(true)))"""
 
@@ -117,7 +123,9 @@ def _база(база, запрос, *п):
     ru: +((с.querySelector('.content-lead-ru') || {}).textContent || -1)}));
   const источники = [...document.querySelectorAll('.content-source')].map(и => ({
     id: и.dataset.source, тон: (и.className.match(/is-(\w+)/) || [])[1],
-    строка: вид(и.querySelector('.content-source-line')),
+    // письмо A2: детали источника свёрнуты по умолчанию — строка есть в разметке
+    // внутри закрытого <details>, а не на виду
+    строка: !!и.querySelector('details.content-source-more:not([open]) .content-source-line'),
     ошибка: вид(и.querySelector('.content-source-error'))
       && (и.querySelector('.content-source-error').textContent || '').trim().length > 20}));
   return {шире, разделы, активные, адрес: location.search, сюжеты, источники,
@@ -165,10 +173,11 @@ def _ожидание(база):
                 + ' ' + Math.round(r.left) + '..' + Math.round(r.right));
   }
   const текст = document.querySelector('.today').innerText.toLowerCase();
-  return {шире, главная: вид(document.getElementById('today-main')),
+  const видно = (с) => [...document.querySelectorAll(с)].some(вид);
+  return {шире, главная: видно('.today-main'),
           фактов: [...document.querySelectorAll('.today-fact')].filter(вид).length,
           строк: [...document.querySelectorAll('.today-row')].filter(вид).length,
-          пусто: вид(document.getElementById('today-empty')),
+          пусто: видно('.today-empty'),
           кухня: вид(document.getElementById('today-kitchen')),
           радар: вид(document.getElementById('today-radar')),
           плиток: [...document.querySelectorAll('.today-tile')].filter(вид).length,
@@ -225,6 +234,35 @@ def _ожидание_сегодня(база):
         движок.dispose()
 
 
+ЗАМЕР_ПАНЕЛЕЙ = r"""() => {
+  const вид = (э) => !!э && э.checkVisibility({checkOpacity: false, checkVisibilityCSS: true});
+  return {long: вид(document.querySelector('.today-pane[data-pane=long]')),
+          shorts: вид(document.querySelector('.today-pane[data-pane=shorts]')),
+          адрес: location.search, метка: window.__проба_документ === 1};
+}"""
+
+
+def _переключатель(с, адрес, подлог):
+    """«Длинные / Shorts» без перезагрузки (письмо A2): метка в `window`
+    переживает переключение только если документ тот же; адрес меняется,
+    «Назад» браузера возвращает панель."""
+    с.goto(адрес + "/content?type=long", wait_until="load", timeout=45000)
+    if подлог == "перезагрузка":
+        с.evaluate(ПОДЛОГ_ПЕРЕЗАГРУЗКИ)
+    с.evaluate("() => { window.__проба_документ = 1; }")
+    с.click("#today-type-shorts")
+    с.wait_for_timeout(600)
+    после = с.evaluate(ЗАМЕР_ПАНЕЛЕЙ)
+    назад = None
+    if после["метка"]:
+        с.go_back()
+        с.wait_for_timeout(600)
+        назад = с.evaluate(ЗАМЕР_ПАНЕЛЕЙ)
+    else:
+        с.wait_for_load_state("load")
+    return {"после": после, "назад": назад}
+
+
 def _сегодня(с, адрес, ширина, база, подлог):
     """«Сегодня»: длинные и Shorts, а на 1920 без подлога — путь автора
     нажатиями: «Не то» с причиной, «+ в план», плитка конвейера, «Обновить идеи».
@@ -241,6 +279,7 @@ def _сегодня(с, адрес, ширина, база, подлог):
         з["прокрутка"] = с.evaluate(ч67.ЗАМЕР_ПРОКРУТКИ)
         с.screenshot(path=os.path.join(КАДРЫ, "%d-today-%s.png" % (ширина, тип)), full_page=True)
         итог[тип] = з
+    итог["переключатель"] = _переключатель(с, адрес, подлог)
     if ширина != 1920 or подлог:
         return итог
     путь = {}
@@ -323,17 +362,38 @@ def замер(база, подлог=None):
                     с.screenshot(path=os.path.join(КАДРЫ, "%d-%s.png" % (ширина, вкладка)),
                                  full_page=True)
                     снимки[вкладка] = з
+                кухня = с.evaluate(ЗАМЕР_КУХНИ)
                 каналы = None
                 if ширина == 1920 and not подлог:
                     каналы = _каналы(с, база)
                 сегодня = _сегодня(с, адрес, ширина, база, подлог)
-                итог.append({"ширина": ширина, "вкладки": снимки, "каналы": каналы,
+                итог.append({"ширина": ширина, "вкладки": снимки, "каналы": каналы, "кухня": кухня,
                              "ждём": ждём, "сегодня": сегодня, "ждём_сегодня": ждём_сегодня})
                 к.close()
             бр.close()
     finally:
         п.kill()
     return итог
+
+
+ЗАМЕР_КУХНИ = r"""() => {
+  const вид = (э) => !!э && э.checkVisibility({checkOpacity: true, checkVisibilityCSS: true});
+  const назад = document.getElementById('content-back');
+  return {назад: вид(назад) && (назад.getAttribute('href') === '/content'),
+          назад_слева: назад ? Math.round(назад.getBoundingClientRect().left) : null,
+          назад_верх: назад ? Math.round(назад.getBoundingClientRect().top + scrollY) : null,
+          шапка_слева: Math.round(document.querySelector('.v2-page-head').getBoundingClientRect().left),
+          шапка_верх: Math.round(document.querySelector('.v2-page-head h1').getBoundingClientRect().top + scrollY),
+          подсказок: [...document.querySelectorAll('.content-tip')]
+                      .filter((э) => (э.getAttribute('title') || '').length > 20).length,
+          частей: document.querySelectorAll('.content-parts').length,
+          фаз: document.querySelectorAll('#content-phases-table tbody tr').length,
+          фаз_выбор: document.querySelectorAll('#content-phases-table select').length,
+          бюджет: вид(document.getElementById('content-spend')),
+          задач: document.querySelectorAll('#content-spend-table tbody tr').length,
+          рекомендации: !!document.getElementById('content-recs'),
+          рассмотрение: !!document.getElementById('content-review')};
+}"""
 
 
 def _каналы(с, база):
@@ -369,6 +429,22 @@ def оценить(замеры):
     for з in замеры:
         оценить_сегодня(з)
         ш = з["ширина"]
+        к = з.get("кухня") or {}
+        шаг("%d/кухня/назад" % ш, к.get("назад") and abs((к.get("назад_слева") or 0) - (к.get("шапка_слева") or 0)) <= 2
+            and (к.get("назад_верх") or 0) < (к.get("шапка_верх") or 0),
+            "ссылка «← Сегодня» видна %s, левый край %s при крае шапки %s, над заголовком %s"
+            % (к.get("назад"), к.get("назад_слева"), к.get("шапка_слева"),
+               (к.get("назад_верх") or 0) < (к.get("шапка_верх") or 0)))
+        шаг("%d/кухня/подсказки" % ш, к.get("частей", 0) > 0 and к.get("подсказок", 0) >= к.get("частей", 0) * 4,
+            "сюжетов с частями %d, подсказок при наведении %d" % (к.get("частей", 0), к.get("подсказок", 0)),
+            собрано=к.get("частей", 0))
+        шаг("%d/кухня/фазы" % ш, к.get("фаз", 0) > 0 and к.get("фаз") == к.get("фаз_выбор"),
+            "форматов в таблице фаз %d, с выбором фазы %d" % (к.get("фаз", 0), к.get("фаз_выбор", 0)),
+            собрано=к.get("фаз", 0))
+        шаг("%d/кухня/бюджет" % ш, к.get("бюджет") and к.get("задач", 0) >= 4,
+            "блок бюджета виден %s, задач в расходе %d" % (к.get("бюджет"), к.get("задач", 0)))
+        шаг("%d/кухня/рекомендации и рассмотрение" % ш, к.get("рекомендации") and к.get("рассмотрение"),
+            "блок рекомендаций %s, блок рассмотрения %s" % (к.get("рекомендации"), к.get("рассмотрение")))
         сюж, форм, ист = з["вкладки"]["stories"], з["вкладки"]["formats"], з["вкладки"]["sources"]
         for имя, снимок in з["вкладки"].items():
             видно = [в for в, да in снимок["разделы"].items() if да]
@@ -440,7 +516,7 @@ def оценить(замеры):
 def оценить_сегодня(з):
     ш = з["ширина"]
     for тип, снимок in з["сегодня"].items():
-        if тип == "путь":
+        if тип not in ("long", "shorts"):
             continue
         ждём = з["ждём_сегодня"][тип]
         шаг("%d/сегодня/%s главная и строки" % (ш, тип),
@@ -463,6 +539,17 @@ def оценить_сегодня(з):
         худший = снимок["строка"]["худший"]
         шаг("%d/сегодня/строка %s" % (ш, тип), худший["знаков"] <= снимок["строка"]["потолок"],
             "самая длинная строка %d знаков (%s)" % (худший["знаков"], худший["кто"]))
+    пер = з["сегодня"].get("переключатель") or {}
+    после, назад = пер.get("после") or {}, пер.get("назад") or {}
+    шаг("%d/сегодня/переключатель без перезагрузки" % ш,
+        bool(после.get("метка")) and после.get("shorts") and not после.get("long")
+        and "type=shorts" in (после.get("адрес") or ""),
+        "документ тот же %s, shorts %s, long %s, адрес %s"
+        % (после.get("метка"), после.get("shorts"), после.get("long"), после.get("адрес")))
+    шаг("%d/сегодня/назад браузера" % ш,
+        bool(назад) and назад.get("метка") and назад.get("long") and not назад.get("shorts")
+        and "type=long" in (назад.get("адрес") or ""),
+        "после «Назад»: %s" % (назад or "не дошли"))
     путь = з["сегодня"].get("путь")
     if путь is None:
         return
@@ -502,12 +589,15 @@ def _красные(з):
                                              for x in з),
     "факты": lambda з: any(x["сегодня"]["long"]["главная"] for x in з)
                        and not any(x["сегодня"]["long"]["фактов"] for x in з),
+    "перезагрузка": lambda з: bool(з) and not any(
+        (x["сегодня"].get("переключатель") or {}).get("после", {}).get("метка") for x in з),
 }
 ПОДЛОГИ = {"утечка": ("css:" + ПОДЛОГ_УТЕЧКИ, "сюжеты/утечка"),
            "опережение": ("css:" + ПОДЛОГ_ОПЕРЕЖЕНИЯ, "сюжеты/опережение"),
            "ошибка": ("css:" + ПОДЛОГ_ОШИБКИ, "источники/ошибка"),
            "вкладки": ("вкладки", "вкладка formats"),
-           "факты": ("css:" + ПОДЛОГ_ФАКТОВ, "сегодня/факты")}
+           "факты": ("css:" + ПОДЛОГ_ФАКТОВ, "сегодня/факты"),
+           "перезагрузка": ("перезагрузка", "сегодня/переключатель")}
 
 
 def main_():

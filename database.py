@@ -1932,6 +1932,17 @@ def migrate_db():
         "ALTER TABLE content_arch_videos ADD COLUMN shot FLOAT",
         "ALTER TABLE content_arch_videos ADD COLUMN channel_median INTEGER",
         "ALTER TABLE content_arch_videos ADD COLUMN median_base INTEGER",
+        # письмо A2: фазы и статусы форматов, волны сюжетов, чистка каналов
+        "ALTER TABLE content_formats ADD COLUMN phase VARCHAR",
+        "ALTER TABLE content_formats ADD COLUMN status VARCHAR NOT NULL DEFAULT 'active'",
+        "ALTER TABLE content_formats ADD COLUMN merged_into INTEGER",
+        "ALTER TABLE content_stories ADD COLUMN origin VARCHAR",
+        "ALTER TABLE content_stories ADD COLUMN subtopics TEXT",
+        "ALTER TABLE content_channels ADD COLUMN gta_share FLOAT",
+        "ALTER TABLE content_channels ADD COLUMN titles_checked INTEGER",
+        "ALTER TABLE content_channels ADD COLUMN rec VARCHAR",
+        "ALTER TABLE content_channels ADD COLUMN rec_reason TEXT",
+        "ALTER TABLE content_channels ADD COLUMN rec_at DATETIME",
     ]:
         try:
             conn.execute(col)

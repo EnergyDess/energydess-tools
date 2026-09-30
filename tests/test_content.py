@@ -704,8 +704,11 @@ def test_подлог_без_отбора_по_теме_чужое_попада�
 def test_повторная_археология_пересобирает_таблицу(стенд, monkeypatch):
     db, _, _ = стенд
     чужой = cdb.ContentFormat(theme_id="gta", title="Кинематики других игр", origin="model",
-                              sort=1000)
-    db.add(чужой)
+                              status="review", sort=1000)
+    # письмо A2: ПРИНЯТОЕ владельцем предложение модели пересборку переживает
+    принятый = cdb.ContentFormat(theme_id="gta", title="Принятый владельцем", origin="model",
+                                 status="active", sort=1001)
+    db.add_all([чужой, принятый])
     db.flush()
     db.add_all([
         ContentArchVideo(theme_id="gta", yt_id="old-x", title="Five Nights At Freddy's",
@@ -719,6 +722,7 @@ def test_повторная_археология_пересобирает_таб
     db.expire_all()
     assert db.query(ContentArchVideo).filter_by(yt_id="old-x").first() is None
     assert db.query(cdb.ContentFormat).filter_by(title="Кинематики других игр").first() is None
+    assert db.query(cdb.ContentFormat).filter_by(title="Принятый владельцем").first() is not None
     g1 = db.query(ContentArchVideo).filter_by(yt_id="g1").one()
     первый = (db.query(cdb.ContentFormat).filter_by(theme_id="gta", origin="start")
               .order_by(cdb.ContentFormat.sort, cdb.ContentFormat.id).first())

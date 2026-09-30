@@ -44,7 +44,8 @@ IDEAS_MAX_TOKENS = int(__import__("os").getenv("CONTENT_IDEAS_MAX_TOKENS", "3000
            "published": "Вышло"}
 ПРИЧИНЫ = {"format": "не мой формат", "done": "уже было", "boring": "скучно"}
 ВИДЫ = {"hot": "горячо", "trend": "тренд", "evergreen": "всегда", "user": "от тебя"}
-РИСКИ = {"leak": "только рассказ, без кадров утечки", "18+": "ограниченная реклама"}
+РИСКИ = {"leak": "только рассказ, без кадров утечки", "18+": "ограниченная реклама",
+         "rumor": "слух"}
 # Штраф за «Не то»: формат и сюжет весят меньше в следующих прогонах.
 # Множитель за КАЖДУЮ отказную идею в окне `reject_days`.
 ШТРАФ = {"format": {"format": 0.4}, "done": {"story": 0.0, "format": 0.7},
@@ -172,11 +173,12 @@ def форматы_с_выстрелом(db, тема_id: str) -> dict:
                                                 ContentArchVideo.format_id.isnot(None)).all()):
         хиты[в.format_id].append(в)
     итог = {}
-    for ф in (db.query(ContentFormat).filter(ContentFormat.theme_id == тема_id)
+    for ф in (db.query(ContentFormat).filter(ContentFormat.theme_id == тема_id,
+                                             ContentFormat.status == "active")
               .order_by(ContentFormat.sort, ContentFormat.id).all()):
         свои = sorted(хиты.get(ф.id, []), key=lambda в: -(в.shot or 0))
         м = cc.медиана([в.shot for в in свои])
-        итог[ф.id] = {"id": ф.id, "title": ф.title, "note": ф.note,
+        итог[ф.id] = {"id": ф.id, "title": ф.title, "note": ф.note, "phase": ф.phase or "any",
                       "медиана": round(м, 1) if м is not None else None,
                       "хитов": len(свои), "огр": sum(1 for в in свои if в.limited_ads),
                       "хиты": [в.id for в in свои[:5]]}
@@ -197,7 +199,8 @@ def факты_сюжета(db, с: ContentStory, сейчас: datetime, нас
     ru = [и for и in записи if и.platform == "youtube" and и.lang == "ru"]
     новости = [и for и in записи if и.platform != "youtube"]
     возраст = max(0.0, (сейчас - (с.first_seen_at or сейчас)).total_seconds() / 3600)
-    факты = {"спрос": (sum(и.metric or 0 for и in ролики) if ролики else None),
+    факты = {"официально": официально(записи, cdb.настройка(db, "wording")),
+             "спрос": (sum(и.metric or 0 for и in ролики) if ролики else None),
              "спрос_роликов": len(ролики),
              "конкуренция": len(ru),
              "возраст_ч": round(возраст, 1),
@@ -208,6 +211,29 @@ def факты_сюжета(db, с: ContentStory, сейчас: datetime, нас
     return факты, основа
 
 
+def официально(записи, формулировки: dict) -> bool:
+    """ЧЕСТНАЯ ФОРМУЛИРОВКА (письмо A2): сюжет «официальный», только если среди
+    его записей есть запись официального источника (Rockstar Newswire, Take-Two,
+    PlayStation Blog — флаг источника либо имя из списка) или доверенного СМИ
+    из списка в базе — и сама запись не помечена слухом или утечкой."""
+    свои = set(формулировки.get("official_sources") or []) | set(формулировки.get("trusted_media") or [])
+    return any((и.official or и.source_name in свои) and not и.rumor and not и.leak
+               for и in записи)
+
+
+def запрещённые_при_слухе(текст: str, формулировки: dict) -> list[str]:
+    """Слова «официально», «подтверждено» и родня — в тексте идеи по слуху."""
+    низ = (текст or "").lower()
+    return [к for к in (формулировки.get("forbidden_when_rumor") or []) if к.lower() in низ]
+
+
+def _без_запрещённых(текст: str, формулировки: dict) -> str:
+    стебли = [к.lower() for к in (формулировки.get("forbidden_when_rumor") or [])]
+    слова = [сл for сл in (текст or "").split()
+             if not any(сл.lower().strip("«»\"'.,:;!?()").startswith(ст) for ст in стебли)]
+    return " ".join(слова).strip(" :—-") or текст
+
+
 # ── КАНДИДАТЫ ─────────────────────────────────────────────────────────
 
 def подобрать(db, тема_id: str, настройки: dict, сейчас: datetime | None = None) -> dict:
@@ -215,7 +241,13 @@ def подобрать(db, тема_id: str, настройки: dict, сейч�
     список форматов на выбор модели, факты, основа, риски, ранг. Числа —
     здесь, до модели. Пары «сюжет + формат» из окна `dedupe_days` не берутся."""
     сейчас = сейчас or datetime.utcnow()
-    форматы = форматы_с_выстрелом(db, тема_id)
+    фаза = cdb.фаза_сейчас(cdb.настройка(db, "phases"), сейчас)
+    все_форматы = форматы_с_выстрелом(db, тема_id)
+    # ФАЗЫ (письмо A2): в идеи идут только форматы текущей фазы и «any».
+    # До релиза launch-форматы копятся отдельно — «Съёмки первой недели».
+    форматы = {к: ф for к, ф in все_форматы.items() if ф["phase"] in (фаза, "any")}
+    первая_неделя = ([ф for ф in все_форматы.values() if ф["phase"] == "launch"]
+                     if фаза == "pre" else [])
     ф_вес, с_вес = _веса(db, тема_id, настройки)
     занято = set(_занятые_пары(db, тема_id, настройки))
     часов = float(настройки.get("hot_hours", 48))
@@ -249,10 +281,12 @@ def подобрать(db, тема_id: str, настройки: dict, сейч�
         (горячие if вид == "hot" else тренды).append(
             {"сюжет": с, "вид": вид, "факты": факты, "основа": основа, "ранг": ранг})
 
-    def риски(с, ф):
+    def риски(с, ф, факты=None):
         р = []
         if с is not None and с.leak:
             р.append("leak")
+        if с is not None and факты is not None and not факты.get("официально"):
+            р.append("rumor")
         if ф and ф["хитов"] and ф["огр"] * 2 >= ф["хитов"]:
             р.append("18+")
         return р
@@ -294,7 +328,8 @@ def подобрать(db, тема_id: str, настройки: dict, сейч�
     shorts = собрать("shorts", int(настройки.get("shorts_max", 5)))
     for к in long_ + shorts:
         к["риски_по"] = риски
-    return {"long": long_, "shorts": shorts, "форматы": форматы}
+    return {"long": long_, "shorts": shorts, "форматы": форматы, "фаза": фаза,
+            "первая_неделя": первая_неделя}
 
 
 # ── ТЕКСТ МОДЕЛИ И ПРОВЕРКА ЧИСЕЛ ─────────────────────────────────────
@@ -342,6 +377,11 @@ def _вопрос(кандидаты: list[dict], тема_title: str) -> str:
         if с is not None:
             строки.append("   факты: спрос %s; на русском %s; %s" % (
                 п["спрос"], п["конкуренция"], п["окно"]))
+            строки.append("   статус: " + ("ОФИЦИАЛЬНО — есть официальный источник"
+                                           if к["факты"].get("официально") else
+                                           "СЛУХ — официального источника нет; пиши «По слухам…» "
+                                           "или «Что известно про…», слова «официально», "
+                                           "«подтверждено», «объявил» НЕ используй"))
     return ("Тема канала: %s. Ниже кандидаты в ролики. Для каждого выбери формат "
             "номером из его списка и напиши название ролика на русском (до 90 знаков, "
             "цепляющее, без кликбейтной лжи) и одну строку «почему сейчас» (до 120 знаков). "
@@ -356,7 +396,8 @@ _СИСТЕМА = ("Ты редактор YouTube-канала про вселе
             "Все числа берёшь из данных, ничего не выдумываешь. Отвечаешь только JSON.")
 
 
-def разобрать_ответ(текст: str, кандидаты: list[dict], тема_title: str) -> tuple[dict, dict]:
+def разобрать_ответ(текст: str, кандидаты: list[dict], тема_title: str,
+                    формулировки: dict | None = None) -> tuple[dict, dict]:
     """({n: (формат, title, why)} годных, {n: причина} отклонённых)."""
     годные, отказы = {}, {}
     тело = ce._json_ответа(текст or "")
@@ -384,6 +425,11 @@ def разобрать_ответ(текст: str, кандидаты: list[dict
         if лишние:
             отказы[n] = "числа не из фактов: " + ", ".join(лишние)
             continue
+        if к.get("сюжет") is not None and not к["факты"].get("официально"):
+            слова = запрещённые_при_слухе(title + " " + why, формулировки or {})
+            if слова:
+                отказы[n] = "«официально» у слуха: " + ", ".join(слова)
+                continue
         годные[n] = (ф, title, why)
     for n in range(1, len(кандидаты) + 1):
         if n not in годные and n not in отказы:
@@ -391,14 +437,16 @@ def разобрать_ответ(текст: str, кандидаты: list[dict
     return годные, отказы
 
 
-def текст_кодом(к: dict) -> tuple[dict, str, str]:
+def текст_кодом(к: dict, формулировки: dict | None = None) -> tuple[dict, str, str]:
     """Запасной текст без модели: формат — первый из предложенных, название —
-    сюжет либо формат, «почему сейчас» — из фактов."""
+    сюжет либо формат, «почему сейчас» — из фактов. Слух называется слухом."""
     ф = к["форматы"][0]
     п = факты_подписи({**к["факты"], "выстрел": ф["медиана"]})
     с = к.get("сюжет")
     if с is not None:
         title = с.title
+        if not к["факты"].get("официально"):
+            title = "По слухам: " + _без_запрещённых(с.title, формулировки or {})
         why = ("Свежий повод, на русском %s" % п["конкуренция"] if к["вид"] == "hot"
                else "Тема набирает просмотры")
     else:
@@ -440,7 +488,8 @@ class Шаги:
             db.close()
 
 
-async def _тексты(кандидаты: list[dict], тема_title: str, попыток: int) -> dict:
+async def _тексты(кандидаты: list[dict], тема_title: str, попыток: int,
+                  формулировки: dict | None = None) -> dict:
     """Тексты моделью с перепросом отклонённых. {n: (ф, title, why, by, tries, причина)}."""
     итог, осталось = {}, list(range(1, len(кандидаты) + 1))
     беда = None
@@ -453,7 +502,7 @@ async def _тексты(кандидаты: list[dict], тема_title: str, п�
                                              _вопрос(часть, тема_title), IDEAS_MAX_TOKENS)
             if беда:
                 break
-            годные, отказы = разобрать_ответ(текст, часть, тема_title)
+            годные, отказы = разобрать_ответ(текст, часть, тема_title, формулировки)
             следующие = []
             for i, n in enumerate(осталось, 1):
                 if i in годные:
@@ -469,7 +518,7 @@ async def _тексты(кандидаты: list[dict], тема_title: str, п�
             осталось = следующие
     for n in range(1, len(кандидаты) + 1):
         if n not in итог or итог[n][3] is None:
-            ф, t, w = текст_кодом(кандидаты[n - 1])
+            ф, t, w = текст_кодом(кандидаты[n - 1], формулировки)
             причина = (итог.get(n) or (None,) * 6)[5] or беда
             итог[n] = (ф, t, w, "code", попытка, причина)
     return {"тексты": итог, "беда": беда}
@@ -489,6 +538,7 @@ async def сгенерировать(повод: str = "admin") -> dict:
             try:
                 cdb.засеять(db)
                 настройки = cdb.настройка(db, "ideas")
+                формулировки = cdb.настройка(db, "wording")
                 темы = [(т.id, т.title) for т in db.query(ContentTheme)
                         .filter(ContentTheme.active.is_(True)).order_by(ContentTheme.id).all()]
                 набор = {т: подобрать(db, т, настройки) for т, _ in темы}
@@ -505,7 +555,8 @@ async def сгенерировать(повод: str = "admin") -> dict:
                 кандидаты = набор[тема_id]["long"] + набор[тема_id]["shorts"]
                 if not кандидаты:
                     continue
-                р = await _тексты(кандидаты, тема_title, int(настройки.get("text_tries", 3)))
+                р = await _тексты(кандидаты, тема_title, int(настройки.get("text_tries", 3)),
+                                  формулировки)
                 тексты_всех[тема_id] = р["тексты"]
                 if р["беда"]:
                     беды.append(р["беда"])
@@ -527,9 +578,11 @@ async def сгенерировать(повод: str = "admin") -> dict:
                             title=title, why=why, format_id=ф["id"],
                             story_id=с.id if с is not None else None,
                             facts=cdb.в_json(факты), basis=cdb.в_json(основа),
-                            risks=cdb.в_json(к["риски_по"](с, ф)), rank=к["ранг"],
+                            risks=cdb.в_json(к["риски_по"](с, ф, к["факты"])), rank=к["ранг"],
                             main=False, state="new", text_by=by, text_tries=tries))
                         итог["идей"] += 1
+                    итог["первая_неделя"] = итог.get("первая_неделя", 0) + _копить_первую_неделю(
+                        db, тема_id, номер, набор[тема_id]["первая_неделя"])
                     db.flush()
                     назначить_главную(db, тема_id, номер)
                 db.commit()
@@ -546,6 +599,34 @@ async def сгенерировать(повод: str = "admin") -> dict:
         ce._закончить(номер, состояние, итог, заметка)
         print(f"[content] идеи №{номер}: {состояние}, идей {итог['идей']} за {итог['сек']} с", flush=True)
         return {"run_id": номер, "state": состояние, **итог}
+
+
+def _копить_первую_неделю(db, тема_id: str, номер: int, форматы: list[dict]) -> int:
+    """«СЪЁМКИ ПЕРВОЙ НЕДЕЛИ» (письмо A2): до релиза launch-форматы в идеи
+    не идут, а копятся здесь — одна идея на формат, текст кодом (модель
+    не зовётся: снимать это до релиза нечего). Уже накопленный формат
+    второй раз не заводится. Возвращает, сколько добавлено."""
+    есть = {и.format_id for и in db.query(ContentIdea).filter(ContentIdea.theme_id == тема_id,
+                                                               ContentIdea.state == "launch")}
+    новых = 0
+    for ф in форматы:
+        if ф["id"] in есть:
+            continue
+        п = факты_подписи({"выстрел": ф["медиана"]})
+        db.add(ContentIdea(
+            theme_id=тема_id, run_id=номер, kind="long", sort="evergreen", title=ф["title"],
+            why="Снять в первую неделю после релиза. Выстрел формата на GTA 5: " + п["выстрел"],
+            format_id=ф["id"], story_id=None,
+            facts=cdb.в_json({"вид": "evergreen", "выстрел": ф["медиана"], "формат_хитов": ф["хитов"]}),
+            basis=cdb.в_json({"хиты": ф["хиты"]}), risks=cdb.в_json([]),
+            rank=0, main=False, state="launch", text_by="code", text_tries=0))
+        новых += 1
+    return новых
+
+
+def первая_неделя(db, тема_id: str) -> int:
+    return (db.query(ContentIdea).filter(ContentIdea.theme_id == тема_id,
+                                         ContentIdea.state == "launch").count())
 
 
 def _начать(повод: str) -> int:
@@ -675,8 +756,12 @@ def радар(db, сейчас: datetime | None = None) -> dict:
     for и in db.query(ContentSource).filter(ContentSource.enabled.is_(True)).all():
         if и.last_state in ("error",) and (и.last_ok_at is None or и.last_ok_at < граница):
             причины.append("«%s» падает дольше %d ч" % (и.name, часов))
+    # БЮДЖЕТ (письмо A2): исчерпан — это не поломка сбора, радар не красный,
+    # но строка говорит, что сюжеты и идеи ждут полуночи по Москве.
+    б = ce.бюджет(db, сейчас)
     return {"ok": not причины, "причина": "; ".join(причины) or None,
-            "последний": цикл.finished_at if цикл else None}
+            "последний": цикл.finished_at if цикл else None,
+            "бюджет": б["текст"]}
 
 
 def неделя(db, тема_id: str, сейчас: datetime | None = None) -> dict:

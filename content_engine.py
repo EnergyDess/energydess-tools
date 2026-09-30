@@ -40,7 +40,7 @@ from sqlalchemy import func, text
 import content_collect as cc
 import content_db as cdb
 import content_worker as cw
-from content_db import (ContentArchVideo, ContentChannel, ContentFormat, ContentItem,
+from content_db import (ContentArchVideo, ContentChannel, ContentFormat, ContentIdea, ContentItem,
                         ContentRun, ContentSnapshot, ContentSource, ContentStory,
                         ContentTheme)
 from database import ModelUsage, SessionLocal
@@ -599,7 +599,8 @@ def _загрузить() -> tuple[list[dict], list[dict], dict]:
                       "filter_keywords": и.filter_keywords}
                      for и in db.query(ContentSource).filter(ContentSource.enabled.is_(True))
                      .order_by(ContentSource.id).all()]
-        настройки = {к: cdb.настройка(db, к) for к in ("youtube", "stories", "score_formula", "cycle")}
+        настройки = {к: cdb.настройка(db, к)
+                     for к in ("youtube", "stories", "score_formula", "cycle", "waves")}
         return темы, источники, настройки
     finally:
         db.close()
@@ -701,6 +702,8 @@ async def цикл(повод: str = "scheduler") -> dict:
                     итог["рост"][тема["id"]] = _пересчитать_рост(тема["id"], настройки)
             for тема in темы:
                 итог["сюжеты"][тема["id"]] = await _сюжеты(тема, настройки)
+                итог.setdefault("волны", {})[тема["id"]] = склеить_волны(
+                    тема["id"], настройки.get("waves") or {})
                 _пересчитать_сюжеты(тема["id"], настройки)
             итог["снимков_убрано"] = _уборка(настройки)
             if (any(и.get("исход") not in ("ok", "off") for и in итог["источники"])
@@ -761,13 +764,61 @@ async def поиск_каналов(повод: str = "admin") -> dict:
 
 # ── МОДЕЛЬ ────────────────────────────────────────────────────────────
 
-def _потрачено_сегодня(db) -> float:
-    """Деньги модуля на модель за текущие сутки UTC — из учёта `model_usage`."""
-    полночь = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+# БЮДЖЕТ МОДЕЛИ МОДУЛЯ (письмо A2). Сутки — по Москве: полночь владельца,
+# а не UTC. Считается по `model_usage` — той же строке, что пишет
+# `_модель_post` из ответа OpenRouter, второго учёта нет. Инструменты
+# других разделов (`admin-video-check`, письма HH) сюда не попадают:
+# потолок модуля остальной сайт не трогает.
+ЗАДАЧИ_МОДЕЛИ = {"admin-content-stories": "сюжеты", "admin-content-ideas": "идеи",
+                 "admin-content-formats": "археология", "admin-content-collect": "сбор"}
+
+
+def _полночь_мск_utc(сейчас: datetime | None = None) -> datetime:
+    """Начало текущих московских суток — в UTC, без пояса (как в базе)."""
+    from zoneinfo import ZoneInfo
+    сейчас = сейчас or datetime.utcnow()
+    мск = сейчас.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Europe/Moscow"))
+    полночь = мск.replace(hour=0, minute=0, second=0, microsecond=0)
+    return полночь.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+
+
+def _потрачено_сегодня(db, сейчас: datetime | None = None) -> float:
+    """Деньги модуля на модель за текущие МОСКОВСКИЕ сутки."""
     сумма = (db.query(func.sum(ModelUsage.cost))
-             .filter(ModelUsage.tool.like("admin-content-%"), ModelUsage.created_at >= полночь)
+             .filter(ModelUsage.tool.like("admin-content-%"),
+                     ModelUsage.created_at >= _полночь_мск_utc(сейчас))
              .scalar())
     return float(сумма or 0.0)
+
+
+def бюджет(db, сейчас: datetime | None = None) -> dict:
+    """{потолок, сегодня, исчерпан, текст}. Текст — для «Кухни» и радара."""
+    потолок = float(cdb.настройка(db, "budget").get("daily_usd", 1.0))
+    сегодня = _потрачено_сегодня(db, сейчас)
+    исчерпан = сегодня >= потолок
+    текст = (f"Бюджет модели на сегодня исчерпан: {сегодня:.2f} $ из {потолок:.2f} $ — "
+             "сюжеты, идеи и археология ждут полуночи по Москве" if исчерпан else None)
+    return {"потолок": потолок, "сегодня": round(сегодня, 4), "исчерпан": исчерпан,
+            "текст": текст}
+
+
+def расход_по_задачам(db, сейчас: datetime | None = None) -> dict:
+    """{сегодня: {задача: $}, неделя: {задача: $}} — из `model_usage`."""
+    сейчас = сейчас or datetime.utcnow()
+    итог = {}
+    for ключ, с in (("сегодня", _полночь_мск_utc(сейчас)),
+                    ("неделя", _полночь_мск_utc(сейчас) - timedelta(days=6))):
+        строки = (db.query(ModelUsage.tool, func.sum(ModelUsage.cost), func.count(ModelUsage.id))
+                  .filter(ModelUsage.tool.like("admin-content-%"), ModelUsage.created_at >= с)
+                  .group_by(ModelUsage.tool).all())
+        по = {имя: {"usd": 0.0, "вызовов": 0} for имя in dict.fromkeys(ЗАДАЧИ_МОДЕЛИ.values())}
+        for инструмент, usd, n in строки:
+            имя = ЗАДАЧИ_МОДЕЛИ.get(инструмент, инструмент)
+            по.setdefault(имя, {"usd": 0.0, "вызовов": 0})
+            по[имя]["usd"] = round(по[имя]["usd"] + float(usd or 0), 4)
+            по[имя]["вызовов"] += int(n or 0)
+        итог[ключ] = по
+    return итог
 
 
 async def _спросить(клиент, инструмент: str, система: str, вопрос: str,
@@ -776,6 +827,14 @@ async def _спросить(клиент, инструмент: str, систе�
     м = _main()
     if not м.OPENROUTER_API_KEY:
         return None, м._без_ключа("модель не настроена: API ключ OpenRouter не задан")
+    # ЗАСЛОН БЮДЖЕТА — до вызова, в единственной двери модуля к модели.
+    db = SessionLocal()
+    try:
+        б = бюджет(db)
+    finally:
+        db.close()
+    if б["исчерпан"]:
+        return None, "бюджет модели: " + б["текст"]
     try:
         resp = await м._модель_post(
             клиент, инструмент, None, м.OPENROUTER_URL,
@@ -938,8 +997,8 @@ async def _сюжеты(тема: dict, настройки: dict) -> dict:
     когда = func.coalesce(ContentItem.published_at, ContentItem.first_seen_at)
     db = SessionLocal()
     try:
-        потрачено = _потрачено_сегодня(db)
-        предел = float(нс.get("daily_usd_cap", 1.0))
+        б = бюджет(db)
+        потрачено, предел = б["сегодня"], б["потолок"]
         выборка = (db.query(ContentItem)
                    .filter(ContentItem.theme_id == тема["id"], ContentItem.story_id.is_(None),
                            ContentItem.noise.is_(False), ContentItem.classify_tries < 3,
@@ -948,7 +1007,7 @@ async def _сюжеты(тема: dict, настройки: dict) -> dict:
         if потрачено >= предел:
             итог["ждут"] = всего
             итог["беда"] = (f"предел денег на модель за сутки: потрачено {потрачено:.2f} $ "
-                            f"из {предел:.2f} $ — разбор по сюжетам продолжится после полуночи UTC")
+                            f"из {предел:.2f} $ — разбор по сюжетам продолжится после полуночи МСК")
             return итог
         записи = [{"id": и.id, "title": и.title, "text": и.text, "source_name": и.source_name,
                    "lang": и.lang, "official": и.official}
@@ -1017,6 +1076,92 @@ def оценка(формула: dict, рост: float, площадок: int, r
         нас_оп = max(1.0, float(формула.get("опережение_насыщение", 5)))
         части["опережение"] = (w_оп * (1.0 - min(1.0, роликов / нас_оп))) if опережение else 0.0
     return max(0, min(100, round(sum(части.values())))), {к: round(v, 1) for к, v in части.items()}
+
+
+def первоисточник(записи, источники: list[str]) -> str | None:
+    """Первоисточник сюжета — имя из списка, названное БОЛЬШЕ ЧЕМ В ПОЛОВИНЕ
+    его записей (заголовок либо отрывок). Одного упоминания мало: новость
+    IGN про трейлер, мимоходом сославшаяся на Kotaku, волной Kotaku не станет."""
+    if not записи:
+        return None
+    лучший, счёт = None, 0
+    for имя in источники:
+        низ = имя.lower()
+        n = sum(1 for и in записи if низ in ((и.title or "") + " " + (и.text or "")).lower())
+        if n * 2 > len(записи) and n > счёт:
+            лучший, счёт = имя, n
+    return лучший
+
+
+def склеить_волны(тема_id: str, волны: dict, сейчас: datetime | None = None) -> dict:
+    """ВОЛНА (письмо A2): один материал первоисточника (например, Game
+    Informer: скриншоты, животные, погода) модель разнесла по нескольким
+    сюжетам. Сюжеты с общим первоисточником, первые записи которых лежат
+    в пределах `hours` часов от самого раннего из них, склеиваются: остаётся
+    сюжет с наибольшим числом записей, записи и идеи остальных переезжают
+    к нему, их заголовки становятся подтемами. Идемпотентно: склеенное
+    второй раз не склеивается. Возвращает {склеено, групп}."""
+    сейчас = сейчас or datetime.utcnow()
+    источники = list(волны.get("sources") or [])
+    окно = timedelta(hours=float(волны.get("hours", 72)))
+    итог = {"склеено": 0, "групп": 0}
+    if not источники:
+        return итог
+    db = SessionLocal()
+    try:
+        сюжеты = (db.query(ContentStory)
+                  .filter(ContentStory.theme_id == тема_id,
+                          func.coalesce(ContentStory.last_item_at, ContentStory.created_at)
+                          >= сейчас - timedelta(days=30)).all())
+        по_сюжету = defaultdict(list)
+        if сюжеты:
+            for и in (db.query(ContentItem)
+                      .filter(ContentItem.story_id.in_([с.id for с in сюжеты])).all()):
+                по_сюжету[и.story_id].append(и)
+        по_источнику = defaultdict(list)
+        for с in сюжеты:
+            имя = первоисточник(по_сюжету.get(с.id, []), источники)
+            if имя:
+                по_источнику[имя].append(с)
+        for имя, группа in по_источнику.items():
+            def начало(с):
+                return min((и.published_at or и.first_seen_at for и in по_сюжету[с.id]),
+                           default=с.first_seen_at or с.created_at or сейчас)
+            группа.sort(key=начало)
+            кучи, куча = [], []
+            for с in группа:
+                if куча and начало(с) - начало(куча[0]) > окно:
+                    кучи.append(куча)
+                    куча = []
+                куча.append(с)
+            if куча:
+                кучи.append(куча)
+            for куча in кучи:
+                if len(куча) < 2:
+                    if куча and not куча[0].origin:
+                        куча[0].origin = имя
+                    continue
+                главный = max(куча, key=lambda с: (len(по_сюжету[с.id]), -с.id))
+                подтемы = list(cdb.из_json(главный.subtopics, []) or [])
+                for с in куча:
+                    if с.id == главный.id:
+                        continue
+                    for т in [с.title] + (cdb.из_json(с.subtopics, []) or []):
+                        if т and т not in подтемы and т != главный.title:
+                            подтемы.append(т)
+                    db.query(ContentItem).filter(ContentItem.story_id == с.id).update(
+                        {ContentItem.story_id: главный.id}, synchronize_session=False)
+                    db.query(ContentIdea).filter(ContentIdea.story_id == с.id).update(
+                        {ContentIdea.story_id: главный.id}, synchronize_session=False)
+                    db.delete(с)
+                    итог["склеено"] += 1
+                главный.origin = имя
+                главный.subtopics = cdb.в_json(подтемы)
+                итог["групп"] += 1
+        db.commit()
+        return итог
+    finally:
+        db.close()
 
 
 def _пересчитать_сюжеты(тема_id: str, настройки: dict) -> int:
@@ -1160,8 +1305,12 @@ def _пересобрать_археологию(тема_id: str, ролики:
             в.format_id = в.format_reason = в.flags = в.classified_at = None
             в.limited_ads = False
             в.classify_tries = 0
+        # Уходят только НЕРАЗОБРАННЫЕ предложения модели. Принятые владельцем
+        # и слитые (псевдонимы) остаются: иначе решение владельца пропадало
+        # бы с каждой пересборкой, а дубль заводился бы заново (письмо A2).
         форматов = (db.query(ContentFormat)
-                    .filter(ContentFormat.theme_id == тема_id, ContentFormat.origin == "model")
+                    .filter(ContentFormat.theme_id == тема_id, ContentFormat.origin == "model",
+                            ContentFormat.status == "review")
                     .delete(synchronize_session=False))
         db.commit()
         return {"убрано_хитов": убрано, "убрано_форматов_модели": форматов}
@@ -1217,7 +1366,9 @@ async def _форматы(тема_id: str) -> dict:
                                     ContentArchVideo.classify_tries < 3)
                             .order_by(ContentArchVideo.views.desc()).all())]
         форматы = [{"id": ф.id, "title": ф.title}
-                   for ф in (db.query(ContentFormat).filter(ContentFormat.theme_id == тема_id)
+                   for ф in (db.query(ContentFormat)
+                             .filter(ContentFormat.theme_id == тема_id,
+                                     ContentFormat.status != "merged")
                              .order_by(ContentFormat.sort, ContentFormat.id).all())]
     finally:
         db.close()
@@ -1259,9 +1410,14 @@ async def _форматы(тема_id: str) -> dict:
                             ф = (db.query(ContentFormat)
                                  .filter(ContentFormat.theme_id == тема_id,
                                          ContentFormat.title == название).first())
+                            if ф is not None and ф.status == "merged" and ф.merged_into:
+                                ф = db.get(ContentFormat, ф.merged_into) or ф
                             if ф is None:
+                                # предложение модели в рейтинг сразу НЕ попадает:
+                                # «на рассмотрении», решает владелец в «Кухне»
                                 ф = ContentFormat(theme_id=тема_id, title=название,
-                                                  origin="model", sort=1000 + len(форматы))
+                                                  origin="model", status="review",
+                                                  sort=1000 + len(форматы))
                                 db.add(ф)
                                 db.flush()
                                 итог["новых_форматов"] += 1
@@ -1359,7 +1515,93 @@ async def археология(повод: str = "admin") -> dict:
 
 # ── ЗАПУСК ИЗ ЭКРАНА И ПЛАНИРОВЩИК ────────────────────────────────────
 
-ВИДЫ = {"cycle": цикл, "discover": поиск_каналов, "archaeology": археология}
+async def чистка_каналов(повод: str = "admin") -> dict:
+    """ЧИСТКА РЕЕСТРА (письмо A2): у каждого канала — последние 50 названий,
+    язык по ним (он же ПЕРЕПИСЫВАЕТ язык канала: это факт, а не совет) и доля
+    роликов про тему; рекомендация «оставить» или «убрать» с причиной. Статус
+    канала НЕ меняется — применяет только владелец кнопкой в «Кухне».
+    1 единица YouTube на канал."""
+    if занят():
+        return _пропуск("channels", повод)
+    async with _замок():
+        номер = _начать("channels", повод)
+        итог, состояние, заметка = {"каналов": 0, "убрать": 0, "язык_изменён": 0}, "ok", None
+        try:
+            темы, источники, настройки = _загрузить()
+            ключ = ключ_youtube()
+            if not ключ:
+                raise cc.ОтказИсточника("нет ключа YouTube (CONTENT_YOUTUBE_API_KEY)")
+            db = SessionLocal()
+            try:
+                чистка = cdb.настройка(db, "channels_cleanup")
+                осталось = (int(настройки["youtube"].get("daily_cap", 9000))
+                            - cdb.квота_израсходовано(db) - _резерв_циклам(db))
+            finally:
+                db.close()
+            порог = float(чистка.get("drop_below_share", 0.2))
+            штук = int(чистка.get("titles", 50))
+            квота = cc.Квота(осталось, _списать_квоту)
+            async with cc.новый_клиент() as client:
+                for тема in темы:
+                    yt = next((и for и in источники if и["theme_id"] == тема["id"]
+                               and и["kind"] == "youtube"), None)
+                    база = (yt or {}).get("url") or YT_ПО_УМОЛЧАНИЮ
+                    метки = cc.шаблон_ключевых((тема["params"].get("channel_markers") or [])
+                                               + (тема["keywords"] or []))
+                    db = SessionLocal()
+                    try:
+                        каналы = [(к.id, к.yt_id, к.uploads, к.country)
+                                  for к in db.query(ContentChannel)
+                                  .filter(ContentChannel.theme_id == тема["id"]).all()]
+                    finally:
+                        db.close()
+                    без_плейлиста = [yt_id for _, yt_id, up, _ in каналы if not up]
+                    сведения = (await cc.каналы_сведения(client, база, ключ, квота, без_плейлиста)
+                                if без_плейлиста else {})
+                    for n, (номер_к, yt_id, плейлист, страна) in enumerate(каналы):
+                        cw.ход("чистка каналов", n, len(каналы), сразу=(n == 0))
+                        плейлист = плейлист or (сведения.get(yt_id) or {}).get("uploads")
+                        try:
+                            названия = (await cc.названия_канала(client, база, ключ, квота, плейлист, штук)
+                                        if плейлист else [])
+                        except cc.КвотаИсчерпана:
+                            raise
+                        except cc.ОтказИсточника as e:
+                            названия, заметка = [], str(e)
+                        совет = cc.совет_по_каналу(названия, метки, порог, страна)
+                        db = SessionLocal()
+                        try:
+                            к = db.get(ContentChannel, номер_к)
+                            if к is None:
+                                continue
+                            if плейлист and not к.uploads:
+                                к.uploads = плейлист
+                            if совет["lang"] and совет["lang"] != к.lang:
+                                к.lang = совет["lang"]
+                                итог["язык_изменён"] += 1
+                            к.gta_share, к.titles_checked = совет["доля"], len(названия)
+                            к.rec, к.rec_reason, к.rec_at = совет["rec"], совет["причина"], datetime.utcnow()
+                            db.commit()
+                        finally:
+                            db.close()
+                        итог["каналов"] += 1
+                        итог["убрать"] += 1 if совет["rec"] == "drop" else 0
+                    итог["единиц"] = квота.потрачено
+            if заметка:
+                состояние = "partial"
+        except cc.КвотаИсчерпана as e:
+            состояние, заметка = "partial", str(e)
+        except cc.ОтказИсточника as e:
+            состояние, заметка = "error", str(e)
+        except Exception as e:
+            traceback.print_exc()
+            состояние, заметка = "error", f"{type(e).__name__}: {e}"
+        _закончить(номер, состояние, итог, заметка)
+        return {"run_id": номер, "state": состояние, "note": заметка, **итог}
+
+
+ВИДЫ = {"cycle": цикл, "discover": поиск_каналов, "archaeology": археология,
+        "channels": чистка_каналов}
 
 
 def запустить(вид: str, повод: str = "admin") -> dict:

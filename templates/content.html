@@ -30,10 +30,11 @@
 {% import '_page_head.html' as ph %}
 <main class="v2-page-wrap content-page" id="content">
   <header class="v2-page-head is-page">
+    <a class="v2-btn v2-btn-quiet v2-btn-sm content-back" href="/content" id="content-back">{{ значок('arrow-left') }} Сегодня</a>
     {{ ph.text(страница, 'Радар новостей по вселенной GTA: сюжеты с оценкой, форматы хитов времён запуска GTA 5 и состояние источников') }}
     {# `v2-head-fill` — системный вариант: на телефоне кнопка шапки во всю
        ширину (проверка 69 называла правый край 140–210 px при левом 16) #}
-    <div class="v2-head-actions v2-head-fill">
+    <div class="v2-head-actions v2-head-fill content-head-actions">
       <button type="button" class="v2-btn v2-btn-primary" id="content-run-cycle" data-run="cycle">
         {{ значок('refresh-cw') }} Собрать сейчас
       </button>
@@ -59,6 +60,7 @@
      из базы (`content_runs`): после перезапуска машины видно, где прогон
      встал, а не «ничего не происходило». #}
   {% set последний = прогоны[0] if прогоны else none %}
+  {% if бюджет.исчерпан %}<p class="v2-error content-budget" id="content-budget-out">{{ бюджет.текст }}</p>{% endif %}
   <p class="content-run{{ ' is-busy' if идёт }}" id="content-run" role="status" aria-live="polite">
     {% if идёт %}
       {{ идёт.ход.текст if идёт.ход else 'Идёт ' ~ идёт.вид }} (№{{ идёт.id }}, начат {{ идёт.начат }}) — страница обновится сама, когда он кончится.
@@ -88,7 +90,7 @@
       <article class="content-story" id="story-{{ с.id }}" data-story="{{ с.id }}" data-score="{{ с.score }}"
                data-sources="{{ с.источников }}" data-leak="{{ 'true' if с.leak else 'false' }}">
         <div class="content-story-head">
-          <div class="content-score" title="Оценка 0–100: рост {{ с.части.get('рост', 0) }}, площадки {{ с.части.get('площадки', 0) }}, окно на русском {{ с.части.get('окно_ru', 0) }}">
+          <div class="content-score" title="{{ подсказки.горячесть }}">
             <span class="content-score-num">{{ с.score }}</span>
           </div>
           <div class="content-story-main">
@@ -115,7 +117,17 @@
           <div><dt>Роликов на английском</dt><dd class="content-en-n">{{ с.en_роликов }}</dd></div>
           <div><dt>Рост</dt><dd>{{ с.рост }}</dd></div>
         </dl>
-        <p class="content-parts">Оценка: рост {{ с.части.get('рост', 0) }} · площадки {{ с.части.get('площадки', 0) }} · окно на русском {{ с.части.get('окно_ru', 0) }}{% if 'опережение' in с.части %} · опережение {{ с.части.get('опережение', 0) }}{% endif %}</p>
+        <p class="content-parts">Горячесть <span class="content-tip" title="{{ подсказки.горячесть }}">{{ с.score }}</span>:
+          <span class="content-tip" title="{{ подсказки.рост }}">рост {{ с.части.get('рост', 0) }}</span> ·
+          <span class="content-tip" title="{{ подсказки.площадки }}">площадки {{ с.части.get('площадки', 0) }}</span> ·
+          <span class="content-tip" title="{{ подсказки.окно_ru }}">окно на русском {{ с.части.get('окно_ru', 0) }}</span>{% if 'опережение' in с.части %} ·
+          <span class="content-tip" title="{{ подсказки.опережение }}">опережение {{ с.части.get('опережение', 0) }}</span>{% endif %}</p>
+        {% if с.подтемы %}
+        <div class="content-subtopics">
+          <p class="v2-hint">Одна волна{% if с.первоисточник %} — первоисточник {{ с.первоисточник }}{% endif %}, подтемы:</p>
+          <ul>{% for т in с.подтемы %}<li>{{ т }}</li>{% endfor %}</ul>
+        </div>
+        {% endif %}
         <ul class="content-links">
           {% for з in с.ссылки %}
           <li>
@@ -172,11 +184,12 @@
       <h2 class="v2-card-title">Рейтинг форматов по выстрелу</h2>
       <div class="content-scroll">
         <table class="content-table" id="content-formats-table">
-          <thead><tr><th>Формат</th><th class="content-num">Хитов</th><th class="content-num">Медианный выстрел</th><th class="content-num">Огр. реклама</th><th>Лучший выстрел</th></tr></thead>
+          <thead><tr><th>Формат</th><th>Фаза</th><th class="content-num">Хитов</th><th class="content-num">Медианный выстрел</th><th class="content-num">Огр. реклама</th><th>Лучший выстрел</th></tr></thead>
           <tbody>
           {% for ф in форматы.сводка if ф.медиана is not none %}
           <tr data-format="{{ ф.id }}">
             <td>{{ ф.title }}{% if ф.origin == 'model' %} <span class="content-flag">предложен моделью</span>{% endif %}{% if ф.note %} <span class="content-flag is-limited">{{ ф.note }}</span>{% endif %}</td>
+            <td class="content-nowrap">{{ ф.фаза }}</td>
             <td class="content-num">{{ ф.хитов }}</td>
             <td class="content-num">{% if ф.медиана is not none %}×{{ '%.1f' % ф.медиана }}{% else %}<span class="v2-hint">—</span>{% endif %}</td>
             <td class="content-num">{{ ф.огр }}</td>
@@ -188,6 +201,52 @@
       </div>
       {% if форматы.сводка | selectattr('медиана', 'none') | list %}
       <p class="v2-hint" id="content-formats-nodata">Форматов без хитов с выстрелом: {{ форматы.сводка | selectattr('медиана', 'none') | list | length }} — данные появятся после прогона археологии.</p>
+      {% endif %}
+    </div>
+
+    {# ФАЗЫ (письмо A2): идеи берут только форматы текущей фазы и «всегда» #}
+    <div class="v2-card content-card" id="content-phases">
+      <h2 class="v2-card-title">Фазы форматов</h2>
+      <p class="v2-hint">Сейчас фаза «{{ форматы.фазы[форматы.фаза_сейчас] }}»: в идеи идут форматы этой фазы и «всегда».{% if форматы.фаза_сейчас == 'pre' %} Съёмки первой недели после релиза копятся отдельно: <b id="content-launch-n">{{ форматы.первая_неделя }}</b>.{% endif %}</p>
+      <div class="content-scroll">
+        <table class="content-table" id="content-phases-table">
+          <thead><tr><th>Формат</th><th>Фаза</th></tr></thead>
+          <tbody>
+          {% for ф in форматы.сводка %}
+          <tr data-format="{{ ф.id }}">
+            <td>{{ ф.title }}</td>
+            <td><select class="v2-select" data-format-phase="{{ ф.id }}" aria-label="Фаза формата {{ ф.title }}">
+              {% for к, п in форматы.фазы.items() %}<option value="{{ к }}"{{ ' selected' if к == ф.phase }}>{{ п }}</option>{% endfor %}
+            </select></td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# ПРЕДЛОЖЕНИЯ МОДЕЛИ — в рейтинг только после решения владельца #}
+    <div class="v2-card content-card" id="content-review">
+      <h2 class="v2-card-title">Форматы на рассмотрении</h2>
+      {% if форматы.на_рассмотрении %}
+      <p class="v2-hint">Модель предложила новые форматы. «Принять» — в рейтинг и в идеи; «Слить» — хиты переедут в выбранный формат, а это название станет его псевдонимом.</p>
+      <ul class="content-review-list">
+        {% for ф in форматы.на_рассмотрении %}
+        <li class="content-review-row" data-review="{{ ф.id }}">
+          <span class="content-review-title">{{ ф.title }} <span class="v2-hint">· хитов {{ ф.хитов }}</span></span>
+          <select class="v2-select" data-review-phase aria-label="Фаза">
+            {% for к, п in форматы.фазы.items() %}<option value="{{ к }}"{{ ' selected' if к == 'any' }}>{{ п }}</option>{% endfor %}
+          </select>
+          <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" data-review-act="accept">Принять</button>
+          <select class="v2-select" data-review-into aria-label="Слить в формат">
+            {% for ц in форматы.принятые %}<option value="{{ ц.id }}">{{ ц.title }}</option>{% endfor %}
+          </select>
+          <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" data-review-act="merge">Слить</button>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="v2-hint" id="content-review-empty">Новых предложений нет.{% if форматы.слито %} Слитых псевдонимов: {{ форматы.слито }}.{% endif %}</p>
       {% endif %}
     </div>
 
@@ -228,6 +287,21 @@
       </div>
     </div>
 
+    <div class="v2-card content-card" id="content-spend">
+      <h2 class="v2-card-title">Бюджет модели</h2>
+      <p class="v2-text">Сегодня (сутки по Москве): <b id="content-spend-today">{{ '%.2f' % бюджет.сегодня }} $</b> из {{ '%.2f' % бюджет.потолок }} ${% if бюджет.исчерпан %} — <span class="content-row-error">исчерпан, вызовы модели модуля стоят до полуночи МСК</span>{% endif %}.</p>
+      <div class="content-scroll">
+        <table class="content-table" id="content-spend-table">
+          <thead><tr><th>Задача</th><th class="content-num">Сегодня, $</th><th class="content-num">За 7 дней, $</th><th class="content-num">Вызовов за 7 дней</th></tr></thead>
+          <tbody>
+          {% for задача, н in расход.неделя.items() %}
+          <tr><td>{{ задача }}</td><td class="content-num">{{ '%.4f' % расход.сегодня[задача].usd }}</td><td class="content-num">{{ '%.4f' % н.usd }}</td><td class="content-num">{{ н.вызовов }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="v2-card content-card">
       <h2 class="v2-card-title">Источники</h2>
       <ul class="content-sources" id="content-sources">
@@ -238,13 +312,15 @@
             <span class="content-source-name">{{ и.name }}</span>
             <span class="content-source-state">{% if и.тон == 'ok' %}работает{% elif и.тон == 'warn' %}квота{% elif и.тон == 'danger' %}ошибка{% elif и.тон == 'off' %}выключен, ждёт ключ{% else %}ещё не запускался{% endif %}</span>
           </div>
-          <p class="content-source-line">Последний удачный запуск: <b>{{ и.удача }}</b>{% if и.удача_назад %} ({{ и.удача_назад }}){% endif %} · запуск {{ и.запуск }}{% if и.сек is not none %} за {{ и.сек }} с{% endif %}{% if и.получено is not none %} · получено {{ и.получено }}, новых {{ и.новых }}{% endif %} · всего записей {{ и.записей }}</p>
+          <details class="content-source-more">
+            <summary>Подробнее</summary>
+            <p class="content-source-line">Последний удачный запуск: <b>{{ и.удача }}</b>{% if и.удача_назад %} ({{ и.удача_назад }}){% endif %} · запуск {{ и.запуск }}{% if и.сек is not none %} за {{ и.сек }} с{% endif %}{% if и.получено is not none %} · получено {{ и.получено }}, новых {{ и.новых }}{% endif %} · всего записей {{ и.записей }}</p>
+            {% if и.ошибка and и.тон == 'ok' %}<p class="content-source-past">Прошлая ошибка ({{ и.ошибка_когда }}): {{ и.ошибка }}</p>{% endif %}
+          </details>
           {% if и.тон == 'off' %}
           <p class="content-source-past">Не ошибка: источник ждёт ключ Reddit Data API и на цикл не влияет.</p>
           {% elif и.ошибка and и.тон != 'ok' %}
           <p class="content-source-error">Последняя ошибка ({{ и.ошибка_когда }}): {{ и.ошибка }}</p>
-          {% elif и.ошибка %}
-          <p class="content-source-past">Прошлая ошибка ({{ и.ошибка_когда }}): {{ и.ошибка }}</p>
           {% endif %}
         </li>
         {% endfor %}
@@ -298,6 +374,39 @@
           </table>
         </div>
       </details>
+
+      {# РЕКОМЕНДАЦИИ ЧИСТКИ (письмо A2): совет по последним 50 названиям.
+         Ничего не меняется без нажатия «Применить» — и только у отмеченных. #}
+      {% set советы = каналы | selectattr('rec') | list %}
+      <div class="content-recs" id="content-recs">
+        <div class="content-card-head">
+          <h3 class="v2-card-title">Рекомендации по каналам</h3>
+          <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" id="content-run-channels" data-run="channels"
+                  title="1 единица квоты на канал">{{ значок('check') }} Проверить каналы</button>
+        </div>
+        {% if советы %}
+        <div class="content-scroll">
+          <table class="content-table" id="content-recs-table">
+            <thead><tr><th>Отметить</th><th>Канал</th><th>Язык</th><th class="content-num">Доля GTA</th><th>Совет</th><th>Причина</th></tr></thead>
+            <tbody>
+            {% for к in советы %}
+            <tr data-rec="{{ к.id }}" data-rec-kind="{{ к.rec }}">
+              <td><input type="checkbox" class="content-rec-pick" data-rec-pick="{{ к.id }}" aria-label="Отметить {{ к.title }}"{{ ' checked' if (к.rec == 'drop' and к.status != 'removed') or (к.rec == 'keep' and к.status == 'candidate') }}></td>
+              <td class="content-break"><span class="content-cell">{{ к.title }}</span> <span class="v2-hint">{{ к.статус }}</span></td>
+              <td>{{ к.lang or '—' }}</td>
+              <td class="content-num">{{ ('%d %%' % к.доля) if к.доля is not none else '—' }}</td>
+              <td class="content-nowrap">{{ 'убрать' if к.rec == 'drop' else 'оставить' }}</td>
+              <td>{{ к.rec_reason }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <button type="button" class="v2-btn v2-btn-primary v2-btn-sm" id="content-recs-apply">Применить отмеченные</button>
+        {% else %}
+        <p class="v2-hint" id="content-recs-empty">Проверки ещё не было — нажмите «Проверить каналы».</p>
+        {% endif %}
+      </div>
       {% else %}
       <div class="v2-empty">
         <span class="v2-empty-icon">{{ значок('search') }}</span>
@@ -393,6 +502,46 @@
     });
   });
   if (строка.classList.contains('is-busy')) ждать();
+
+  async function послать(адрес, тело) {
+    const r = await fetch(адрес, {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                   body: JSON.stringify(тело)});
+    const д = await r.json().catch(function () { return {}; });
+    if (!r.ok) throw new Error(д.error || ('HTTP ' + r.status));
+    return д;
+  }
+  // ФАЗА ФОРМАТА — сохраняется сразу
+  document.querySelectorAll('[data-format-phase]').forEach(function (с) {
+    с.addEventListener('change', async function () {
+      try { await послать('/content/api/formats/' + с.dataset.formatPhase, {action: 'phase', phase: с.value}); }
+      catch (e) { сказать('Фаза не сохранена: ' + e.message, true); }
+    });
+  });
+  // ФОРМАТЫ НА РАССМОТРЕНИИ: «Принять» / «Слить»
+  document.addEventListener('click', async function (е) {
+    const к = е.target.closest('[data-review-act]');
+    if (!к) return;
+    const ряд = к.closest('[data-review]');
+    к.disabled = true;
+    try {
+      const тело = к.dataset.reviewAct === 'accept'
+        ? {action: 'accept', phase: ряд.querySelector('[data-review-phase]').value}
+        : {action: 'merge', into: +ряд.querySelector('[data-review-into]').value};
+      await послать('/content/api/formats/' + ряд.dataset.review, тело);
+      location.reload();
+    } catch (e) { к.disabled = false; сказать('Решение по формату не сохранено: ' + e.message, true); }
+  });
+  // РЕКОМЕНДАЦИИ ПО КАНАЛАМ — только отмеченные
+  const применить = document.getElementById('content-recs-apply');
+  if (применить) применить.addEventListener('click', async function () {
+    const ids = [...document.querySelectorAll('[data-rec-pick]:checked')].map(function (ч) { return +ч.dataset.recPick; });
+    применить.disabled = true;
+    try {
+      const д = await послать('/content/api/channels-apply', {ids: ids});
+      сказать('Применено к каналам: ' + д.изменено.length + '.');
+      location.reload();
+    } catch (e) { применить.disabled = false; сказать('Не применено: ' + e.message, true); }
+  });
 
   // РЕЕСТР КАНАЛОВ: строка переезжает СРАЗУ (в «Убранные» либо обратно),
   // сервер подтверждает; отказ возвращает её на место и говорит причину.

@@ -360,3 +360,23 @@
 .content-removed { margin-top: var(--v2-sp-4); }
 .content-removed > summary { cursor: pointer; font-size: var(--v2-fs-sm); color: var(--v2-text-2); padding: var(--v2-sp-2) 0; }
 .content-removed[hidden] { display: none; }
+
+/* ── Письмо A2: навигация, подсказки, волны, рассмотрение, чистка ─────── */
+.content-back { grid-column: 1 / -1; justify-self: start; }
+.content-tip { cursor: help; text-decoration: underline dotted; text-underline-offset: var(--v2-sp-1); }
+.content-subtopics { margin: 0; }
+.content-subtopics > ul { margin: var(--v2-sp-1) 0 0; padding-left: var(--v2-sp-5); font-size: var(--v2-fs-sm); color: var(--v2-text-2); }
+.content-source-more > summary { cursor: pointer; font-size: var(--v2-fs-xs); color: var(--v2-text-faint); padding: var(--v2-sp-1) 0; }
+.content-review-list { list-style: none; margin: var(--v2-sp-3) 0 0; padding: 0; display: grid; gap: var(--v2-sp-3); }
+.content-review-row { display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); align-items: center; }
+.content-review-title { flex: 1 1 16rem; min-width: 0; color: var(--v2-text-strong); overflow-wrap: anywhere; }
+.content-review-row .v2-select { flex: 0 1 14rem; min-width: 0; }
+.content-recs { margin-top: var(--v2-sp-5); display: grid; gap: var(--v2-sp-3); }
+.content-recs > .v2-btn { justify-self: start; }
+.content-budget { margin: 0 0 var(--v2-sp-3); }
+/* «← Сегодня» занимает первую строку шапки, заголовок уезжает на третью —
+   группа кнопок встаёт в строку заголовка (проверка 56: центр кнопок
+   на центре h1). На телефоне шапка в одну колонку и правило не нужно. */
+@media (min-width: 769px) {
+  #content > .v2-page-head > .content-head-actions { grid-row: 3; }
+}

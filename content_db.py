@@ -107,6 +107,13 @@ class ContentChannel(Base):
     status_at = Column(DateTime, nullable=True)
     last_polled_at = Column(DateTime, nullable=True)
     last_error = Column(Text, nullable=True)
+    # РЕКОМЕНДАЦИЯ ЧИСТКИ (письмо A2): по последним 50 названиям — язык,
+    # доля роликов про тему и совет. Применяет только владелец кнопкой.
+    gta_share = Column(Float, nullable=True)
+    titles_checked = Column(Integer, nullable=True)
+    rec = Column(String, nullable=True)                  # keep | drop
+    rec_reason = Column(Text, nullable=True)
+    rec_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -188,6 +195,11 @@ class ContentStory(Base):
     official = Column(Boolean, nullable=False, default=False)
     rumor = Column(Boolean, nullable=False, default=False)
     leak = Column(Boolean, nullable=False, default=False)
+    # ВОЛНА (письмо A2): сюжеты одного первоисточника в пределах 72 ч
+    # склеены в этот. `origin` — названный первоисточник, `subtopics` —
+    # JSON-список заголовков поглощённых сюжетов (подтемы).
+    origin = Column(String, nullable=True)
+    subtopics = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=True)
 
@@ -202,6 +214,15 @@ class ContentFormat(Base):
     origin = Column(String, nullable=False, default="start")   # start | model
     sort = Column(Integer, nullable=False, default=0)
     note = Column(Text, nullable=True)                   # пометка формата (Content ID и т. п.)
+    # ФАЗА (письмо A2): pre — до релиза, launch — первые 4 недели после,
+    # post — позже, any — всегда. NULL — фаза не проставлена (досев семени
+    # проставит её по названию; до этого формат считается «any»).
+    phase = Column(String, nullable=True)
+    # СТАТУС: active — в рейтинге и в идеях; review — предложен моделью,
+    # ждёт решения владельца; merged — слит в `merged_into` и живёт псевдонимом:
+    # модель, назвавшая его снова, попадает в формат-цель.
+    status = Column(String, nullable=False, default="active")
+    merged_into = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -429,6 +450,21 @@ def догнать_семя(db, семя: dict) -> int:
             if заметки.get(название) and not ф.note:
                 ф.note = заметки[название]
                 изменений += 1
+        # ФАЗЫ и СЛИЯНИЯ (письмо A2) — по названию, в том числе у форматов,
+        # заведённых моделью. Фаза ставится только непроставленной: правка
+        # владельца не перезаписывается.
+        db.flush()
+        есть = {ф.title: ф for ф in db.query(ContentFormat).filter(ContentFormat.theme_id == т["id"])}
+        for название, фаза in (т.get("format_phases") or {}).items():
+            ф = есть.get(название)
+            if ф is not None and ф.phase is None and фаза in ФАЗЫ:
+                ф.phase = фаза
+                изменений += 1
+        for откуда, куда in (т.get("format_merges") or {}).items():
+            ф, цель = есть.get(откуда), есть.get(куда)
+            if ф is not None and цель is not None and ф.status != "merged" and ф.id != цель.id:
+                слить_формат(db, ф, цель)
+                изменений += 1
     формула_семени = (семя.get("settings") or {}).get("score_formula")
     запись = db.query(ContentSetting).filter(ContentSetting.key == "score_formula").first()
     if формула_семени and запись is not None:
@@ -445,6 +481,45 @@ def догнать_семя(db, семя: dict) -> int:
             запись.updated_at = datetime.utcnow()
             изменений += 1
     return изменений
+
+
+ФАЗЫ = {"pre": "до релиза", "launch": "первые 4 недели", "post": "после запуска",
+        "any": "всегда"}
+
+
+def слить_формат(db, ф, цель) -> int:
+    """Формат `ф` сливается в `цель`: хиты и идеи переезжают, сам формат
+    остаётся ПСЕВДОНИМОМ (status merged) — модель, назвавшая его снова
+    при следующей археологии, попадёт в цель, а не заведёт дубль заново.
+    Возвращает, сколько хитов переехало."""
+    хитов = (db.query(ContentArchVideo).filter(ContentArchVideo.format_id == ф.id)
+             .update({ContentArchVideo.format_id: цель.id}, synchronize_session=False))
+    db.query(ContentIdea).filter(ContentIdea.format_id == ф.id).update(
+        {ContentIdea.format_id: цель.id}, synchronize_session=False)
+    # цепочка псевдонимов не растёт: то, что было слито в `ф`, теперь смотрит в цель
+    db.query(ContentFormat).filter(ContentFormat.merged_into == ф.id).update(
+        {ContentFormat.merged_into: цель.id}, synchronize_session=False)
+    ф.status, ф.merged_into = "merged", цель.id
+    if цель.status == "review":
+        цель.status = "active"
+    return хитов
+
+
+def фаза_сейчас(настройки_фаз: dict, сейчас: datetime | None = None) -> str:
+    """pre | launch | post по дате релиза (сутки — по Москве)."""
+    from zoneinfo import ZoneInfo
+    сейчас = сейчас or datetime.utcnow()
+    день = сейчас.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Europe/Moscow")).date()
+    try:
+        релиз = datetime.strptime(str(настройки_фаз.get("release_date") or "2026-11-19"),
+                                  "%Y-%m-%d").date()
+    except ValueError:
+        return "pre"
+    if день < релиз:
+        return "pre"
+    if (день - релиз).days < int(настройки_фаз.get("launch_days", 28)):
+        return "launch"
+    return "post"
 
 
 def настройка(db, ключ: str) -> dict:

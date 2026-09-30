@@ -130,6 +130,9 @@
 .today-pipe-ctl { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); align-items: center; }
 .today-url { flex: 1 1 16rem; min-width: 0; }
 
+/* Смена «Длинные / Shorts» — мягкое появление панели, без перезагрузки */
+.today-pane.is-in { animation: today-in var(--v2-dur-base) ease-out; }
+
 @keyframes today-in {
   from { opacity: 0; transform: translateY(var(--v2-sp-4)); }
   to { opacity: 1; transform: none; }
@@ -142,11 +145,10 @@
   .today-facts { grid-template-columns: minmax(0, 1fr); }
   .today-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .today-main { padding: var(--v2-sp-4); }
-  .today-kitchen-label { display: none; }
   .today-meta { white-space: normal; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .today-main, .today-row { animation: none; transition: none; }
+  .today-main, .today-row, .today-pane.is-in { animation: none; transition: none; }
   .today-tile, .today-step-mark { transition: none; }
 }

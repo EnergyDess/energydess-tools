@@ -33,8 +33,9 @@
         <span class="today-dot" aria-hidden="true"></span>
         {% if радар.ok %}радар · {{ радар.когда }}{% else %}радар: {{ радар.причина }}{% endif %}
       </span>
-      <a class="v2-btn v2-btn-secondary v2-btn-icon" href="/content/kitchen" id="today-kitchen"
-         title="Кухня: сюжеты, форматы, источники" aria-label="Кухня">{{ значок('settings') }}<span class="today-kitchen-label">Кухня</span></a>
+      {% if радар.бюджет %}<span class="today-meta today-radar is-bad" id="today-budget">{{ радар.бюджет }}</span>{% endif %}
+      <a class="v2-btn v2-btn-secondary" href="/content/kitchen" id="today-kitchen"
+         title="Кухня: сюжеты, форматы, источники">{{ значок('settings') }} Кухня</a>
     </div>
   </header>
 
@@ -54,15 +55,19 @@
   <ol class="today-steps" id="today-steps" hidden aria-live="polite"></ol>
   <p class="v2-error" id="today-error" hidden></p>
 
+  {# ПАНЕЛИ ДЛИННЫЕ / SHORTS (письмо A2): обе рисует сервер в первом кадре,
+     переключатель только показывает нужную и пишет ?type= в адрес — без
+     перезагрузки, «Назад» браузера работает через popstate. #}
+  {% macro панель(главная, ещё, тип) %}
   {% if главная %}
-  <section class="today-main" id="today-main" data-idea="{{ главная.id }}" aria-labelledby="today-main-title">
+  <section class="today-main" id="today-main-{{ тип }}" data-idea="{{ главная.id }}" aria-labelledby="today-main-title-{{ тип }}">
     <p class="today-kicker">Снимай это</p>
     <div class="today-pills">
       <span class="today-pill is-window">{{ главная.факты.окно }}</span>
       {% if главная.формат %}<span class="today-pill">{{ главная.формат }}</span>{% endif %}
       <span class="today-pill is-{{ главная.sort }}">{{ главная.вид }}</span>
     </div>
-    <h2 class="today-main-title" id="today-main-title">{{ главная.title }}</h2>
+    <h2 class="today-main-title" id="today-main-title-{{ тип }}">{{ главная.title }}</h2>
     {% if главная.why %}<p class="today-why">{{ главная.why }}</p>{% endif %}
     <div class="today-facts">
       <div class="v2-tile today-fact">
@@ -83,15 +88,15 @@
     </div>
     {% for р in главная.риски %}<p class="today-risk">{{ значок('alert-triangle') }} {{ р }}</p>{% endfor %}
     <div class="today-actions">
-      <button type="button" class="v2-btn v2-btn-primary" data-act="plan" data-id="{{ главная.id }}" id="today-pack">
+      <button type="button" class="v2-btn v2-btn-primary" data-act="plan" data-id="{{ главная.id }}" id="today-pack-{{ тип }}">
         {{ значок('sparkles') }} Собрать пакет ролика
       </button>
-      <button type="button" class="v2-btn v2-btn-secondary" data-act="later" data-id="{{ главная.id }}" id="today-later">Не сегодня</button>
+      <button type="button" class="v2-btn v2-btn-secondary" data-act="later" data-id="{{ главная.id }}" id="today-later-{{ тип }}">Не сегодня</button>
       <span class="v2-hint today-soon">сборка пакета — скоро, пока идея уходит в план</span>
     </div>
   </section>
   {% elif not есть_прогон %}
-  <section class="v2-card today-empty" id="today-empty">
+  <section class="v2-card today-empty" id="today-empty-{{ тип }}">
     <div class="v2-empty">
       <span class="v2-empty-icon">{{ значок('sparkles') }}</span>
       <p class="v2-empty-title">Первые идеи появятся после прогона в {{ время_генерации }}</p>
@@ -99,7 +104,7 @@
     </div>
   </section>
   {% else %}
-  <section class="v2-card today-empty" id="today-empty">
+  <section class="v2-card today-empty" id="today-empty-{{ тип }}">
     <div class="v2-empty">
       <span class="v2-empty-icon">{{ значок('check') }}</span>
       <p class="v2-empty-title">{{ 'Длинных' if тип == 'long' else 'Shorts' }}-идей в этом прогоне не осталось</p>
@@ -109,9 +114,9 @@
   {% endif %}
 
   {% if ещё %}
-  <section class="today-more" aria-labelledby="today-more-title">
-    <h2 class="today-h2" id="today-more-title">Ещё варианты</h2>
-    <ul class="today-list" id="today-list">
+  <section class="today-more" aria-labelledby="today-more-title-{{ тип }}">
+    <h2 class="today-h2" id="today-more-title-{{ тип }}">Ещё варианты</h2>
+    <ul class="today-list" id="today-list-{{ тип }}">
       {% for и in ещё %}
       <li class="today-row" data-idea="{{ и.id }}" style="--n: {{ loop.index0 }}">
         <span class="today-pill is-{{ и.sort }}">{{ и.вид }}</span>
@@ -133,6 +138,13 @@
     </ul>
   </section>
   {% endif %}
+
+  {% endmacro %}
+  {% for т in ['long', 'shorts'] %}
+  <div class="today-pane" data-pane="{{ т }}"{{ ' hidden' if т != тип }}>
+  {{ панель(панели[т].главная, панели[т].ещё, т) }}
+  </div>
+  {% endfor %}
 
   <section class="today-videos" aria-labelledby="today-videos-title">
     <div class="today-videos-head">
@@ -199,6 +211,34 @@
     узел.classList.add('is-leaving');
     return new Promise(function (готово) { setTimeout(готово, 220); });
   }
+
+  // ПЕРЕКЛЮЧАТЕЛЬ ДЛИННЫЕ / SHORTS без перезагрузки (письмо A2)
+  const панели = document.querySelectorAll('.today-pane');
+  function показать(тип, запомнить) {
+    панели.forEach(function (п) {
+      const этот = п.dataset.pane === тип;
+      п.hidden = !этот;
+      if (этот) { п.classList.remove('is-in'); void п.offsetWidth; п.classList.add('is-in'); }
+    });
+    document.querySelectorAll('.today-type').forEach(function (к) {
+      const этот = к.id === 'today-type-' + тип;
+      к.classList.toggle('is-active', этот);
+      if (этот) к.setAttribute('aria-current', 'page'); else к.removeAttribute('aria-current');
+    });
+    document.getElementById('content-today').dataset.type = тип;
+    if (запомнить) history.pushState({type: тип}, '', '/content?type=' + тип);
+  }
+  document.querySelectorAll('.today-type').forEach(function (к) {
+    к.addEventListener('click', function (e) {
+      e.preventDefault();
+      const тип = к.id.replace('today-type-', '');
+      if (тип !== document.getElementById('content-today').dataset.type) показать(тип, true);
+    });
+  });
+  window.addEventListener('popstate', function () {
+    const тип = new URLSearchParams(location.search).get('type') === 'shorts' ? 'shorts' : 'long';
+    показать(тип, false);
+  });
 
   // Реакции на идеи
   document.addEventListener('click', async function (e) {

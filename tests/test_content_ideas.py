@@ -142,7 +142,8 @@ def test_факты_считает_код_и_нет_данных_не_ноль(�
     assert п["спрос"] == "нет данных" and п["окно"] == "в любой день"
     assert ci.факты_подписи({"выстрел": None})["выстрел"] == "нет данных"
     # набор: 1 главная long, long ≤ 6, shorts ≤ 5
-    long_ = db.query(ContentIdea).filter(ContentIdea.kind == "long").all()
+    # «Съёмки первой недели» (state launch) — отдельный список, в набор не входят
+    long_ = db.query(ContentIdea).filter(ContentIdea.kind == "long", ContentIdea.state == "new").all()
     assert sum(1 for и in long_ if и.main) == 1 and len(long_) <= 6
     assert db.query(ContentIdea).filter(ContentIdea.kind == "shorts").count() <= 5
     # шаги прогона записаны все и все отмечены
@@ -170,7 +171,7 @@ def test_выдуманное_число_отклонено_и_спрошено_
     _прогон()
     db.expire_all()
     assert len(вызовы) == 2, "после отклонения модель обязана быть спрошена второй раз"
-    идеи = db.query(ContentIdea).all()
+    идеи = db.query(ContentIdea).filter(ContentIdea.state == "new").all()
     assert идеи and not any("777" in и.title for и in идеи)
     assert all(и.text_tries == 2 and и.text_by == "model" for и in идеи)
 
@@ -351,3 +352,268 @@ def test_утренний_прогон_по_расписанию(стенд):
     assert ci.горячий_без_идеи(db) is True
     _прогон()
     assert ci.горячий_без_идеи(db) is False
+
+
+# ── ПИСЬМО A2: ЧЕСТНЫЕ ФОРМУЛИРОВКИ, ФАЗЫ, БЮДЖЕТ, ВОЛНЫ, ЧИСТКА ─────
+
+НАСТОЯЩИЙ_СПРОСИТЬ = ce._спросить        # до подмены фикстурой
+
+
+def _сюжет_фаната(db, тема):
+    """Сюжет из ОДНОГО фанатского ролика: официального источника нет."""
+    сейчас = datetime.utcnow()
+    с = ContentStory(theme_id=тема, title="Карта Вайс-Сити из утечки", summary="Фанат разобрал карту",
+                     first_seen_at=сейчас - timedelta(hours=5), last_item_at=сейчас,
+                     items=1, sources=1, platforms=1, ru_videos=0, score=95, growth=10.0)
+    db.add(с)
+    db.flush()
+    db.add(ContentItem(theme_id=тема, ext_id="yt:fan", source_id=1, source_key="yt:fan",
+                       source_name="Фанатский канал", platform="youtube",
+                       url="https://youtube.com/watch?v=fan", title="Карта GTA 6", lang="en",
+                       published_at=сейчас - timedelta(hours=5), first_seen_at=сейчас,
+                       last_seen_at=сейчас, metric=900, story_id=с.id))
+    db.commit()
+    return с
+
+
+def _официально_врёт(вызовы):
+    async def _спросить(клиент, инструмент, система, вопрос, потолок):
+        вызовы.append(вопрос)
+        n = len(re.findall(r"^\d+\. \[", вопрос, re.M))
+        return json.dumps({"ideas": [{"n": i, "format": 1,
+                                      "title": "Rockstar официально подтвердила карту",
+                                      "why": "Смотрят сейчас"} for i in range(1, n + 1)]}), None
+    return _спросить
+
+
+def test_слух_без_официального_источника_называется_слухом(стенд, monkeypatch):
+    db, _, тема, _, _, _ = стенд
+    с = _сюжет_фаната(db, тема)
+    вызовы = []
+    monkeypatch.setattr(ce, "_спросить", _официально_врёт(вызовы))
+    _прогон()
+    db.expire_all()
+    идеи = db.query(ContentIdea).filter(ContentIdea.story_id == с.id).all()
+    assert идеи
+    for и in идеи:
+        assert "официальн" not in (и.title + и.why).lower(), и.title
+        assert "rumor" in json.loads(и.risks)
+        assert и.text_by == "code" and и.title.startswith("По слухам")
+    assert any("СЛУХ" in в for в in вызовы), "модель обязана знать, что сюжет — слух"
+
+
+def test_официальный_источник_формулировку_пропускает(стенд, monkeypatch):
+    """Обратный случай: у сюжета фикстуры есть запись IGN (доверенное СМИ) —
+    «официально» законно, текст модели не отклоняется."""
+    db, _, _, с, _, _ = стенд
+    monkeypatch.setattr(ce, "_спросить", _официально_врёт([]))
+    _прогон()
+    db.expire_all()
+    идея = db.query(ContentIdea).filter(ContentIdea.story_id == с.id, ContentIdea.state == "new").first()
+    assert идея.text_by == "model" and "официально" in идея.title
+    assert "rumor" not in json.loads(идея.risks)
+
+
+def test_подлог_проверка_слуха_снята_официально_проходит(стенд, monkeypatch):
+    db, _, тема, _, _, _ = стенд
+    с = _сюжет_фаната(db, тема)
+    monkeypatch.setattr(ce, "_спросить", _официально_врёт([]))
+    monkeypatch.setattr(ci, "запрещённые_при_слухе", lambda текст, ф: [])
+    _прогон()
+    db.expire_all()
+    assert any("официально" in и.title
+               for и in db.query(ContentIdea).filter(ContentIdea.story_id == с.id).all())
+
+
+def _дать_выстрел(db, тема, название, выстрел=6.0):
+    ф = db.query(ContentFormat).filter(ContentFormat.theme_id == тема, ContentFormat.title == название).one()
+    for k in range(3):
+        db.add(ContentArchVideo(theme_id=тема, yt_id=f"l{ф.id}{k}", title=f"GTA 5 тайник {k}",
+                                channel_lang="en", views=100000, shot=выстрел, format_id=ф.id))
+    db.commit()
+    return ф
+
+
+def test_фазы_проставлены_всем_стартовым_форматам(стенд):
+    db, _, тема, _, _, _ = стенд
+    без = [ф.title for ф in db.query(ContentFormat).filter(ContentFormat.theme_id == тема) if not ф.phase]
+    assert без == []
+    assert db.query(ContentFormat).filter_by(title="Тайники и секретные места").one().phase == "launch"
+
+
+def test_launch_формат_до_релиза_не_в_идеях_а_в_первой_неделе(стенд):
+    db, _, тема, _, _, _ = стенд
+    ф = _дать_выстрел(db, тема, "Тайники и секретные места")   # выстрел выше всех
+    _прогон()
+    db.expire_all()
+    assert db.query(ContentIdea).filter(ContentIdea.format_id == ф.id, ContentIdea.state == "new").count() == 0
+    assert db.query(ContentIdea).filter(ContentIdea.format_id == ф.id, ContentIdea.state == "launch").count() == 1
+    assert ci.первая_неделя(db, тема) >= 1
+
+
+def test_launch_формат_после_релиза_попадает_в_идеи(стенд):
+    """Подмена даты: релиз три дня назад — фаза launch, формат идёт в идеи."""
+    db, _, тема, _, _, _ = стенд
+    ф = _дать_выстрел(db, тема, "Тайники и секретные места")
+    запись = db.query(cdb.ContentSetting).filter_by(key="phases").one()
+    фазы = json.loads(запись.value)
+    фазы["release_date"] = (datetime.utcnow() - timedelta(days=3)).strftime("%Y-%m-%d")
+    запись.value = json.dumps(фазы)
+    db.commit()
+    _прогон()
+    db.expire_all()
+    assert db.query(ContentIdea).filter(ContentIdea.format_id == ф.id, ContentIdea.state == "new").count() >= 1
+    # и обратно: pre-формат после релиза в идеи не идёт
+    трейлеры = db.query(ContentFormat).filter_by(title="Трейлеры по кадрам").one()
+    assert db.query(ContentIdea).filter(ContentIdea.format_id == трейлеры.id,
+                                        ContentIdea.run_id == ci.последний_прогон(db).id).count() == 0
+
+
+def _расход(db, usd, когда=None):
+    db.add(database.ModelUsage(tool="admin-content-ideas", model="m", ok=True, cost=usd,
+                               created_at=когда or datetime.utcnow()))
+    db.commit()
+
+
+def test_бюджет_исчерпан_модель_модуля_не_зовётся(стенд, monkeypatch):
+    db, _, _, _, _, _ = стенд
+    _расход(db, 1.5)
+    звали = []
+
+    async def _пост(*a, **k):
+        звали.append(a[1])
+        raise AssertionError("модель не должна вызываться сверх бюджета")
+    monkeypatch.setattr(main, "_модель_post", _пост)
+    monkeypatch.setattr(main, "OPENROUTER_API_KEY", "k")
+    текст, беда = asyncio.run(НАСТОЯЩИЙ_СПРОСИТЬ(None, "admin-content-ideas", "с", "в", 10))
+    assert текст is None and "бюджет" in беда and звали == []
+    assert ce.бюджет(db)["исчерпан"] and ci.радар(db)["бюджет"]
+
+
+def test_бюджет_не_исчерпан_модель_зовётся(стенд, monkeypatch):
+    """Обратный случай: расход ниже потолка — вызов идёт."""
+    db, _, _, _, _, _ = стенд
+    _расход(db, 0.2)
+    звали = []
+
+    class Ответ:
+        status_code = 200
+
+        def json(self):
+            return {"choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}]}
+
+    async def _пост(*a, **k):
+        звали.append(a[1])
+        return Ответ()
+    monkeypatch.setattr(main, "_модель_post", _пост)
+    monkeypatch.setattr(main, "OPENROUTER_API_KEY", "k")
+    текст, беда = asyncio.run(НАСТОЯЩИЙ_СПРОСИТЬ(None, "admin-content-ideas", "с", "в", 10))
+    assert беда is None and звали == ["admin-content-ideas"]
+
+
+def test_бюджет_считает_сутки_по_москве(стенд):
+    db, _, _, _, _, _ = стенд
+    полночь = ce._полночь_мск_utc()
+    _расход(db, 5.0, полночь - timedelta(minutes=30))     # вчера по Москве
+    assert ce.бюджет(db)["исчерпан"] is False
+    _расход(db, 5.0, полночь + timedelta(minutes=30))     # сегодня по Москве
+    assert ce.бюджет(db)["исчерпан"] is True
+    расход = ce.расход_по_задачам(db)
+    assert расход["сегодня"]["идеи"]["usd"] == 5.0 and расход["неделя"]["идеи"]["usd"] == 10.0
+
+
+def test_бюджет_не_трогает_чужие_инструменты(стенд):
+    db, _, _, _, _, _ = стенд
+    db.add(database.ModelUsage(tool="letter", model="m", ok=True, cost=50.0, created_at=datetime.utcnow()))
+    db.commit()
+    assert ce.бюджет(db)["исчерпан"] is False
+
+
+def test_применить_меняет_только_отмеченные(стенд):
+    db, к, тема, _, _, _ = стенд
+    каналы = []
+    for i, (rec, st) in enumerate([("drop", "candidate"), ("drop", "keep"), ("keep", "candidate")]):
+        ch = cdb.ContentChannel(theme_id=тема, yt_id=f"UC{i}", title=f"К{i}", status=st, rec=rec,
+                                rec_reason="тест")
+        db.add(ch)
+        каналы.append(ch)
+    db.commit()
+    r = к.post("/content/api/channels-apply", json={"ids": [каналы[0].id]})
+    assert r.status_code == 200 and r.json()["изменено"] == [каналы[0].id]
+    db.expire_all()
+    assert [db.get(cdb.ContentChannel, ch.id).status for ch in каналы] == ["removed", "keep", "candidate"]
+
+
+def _волна(db, тема, заголовок, часов_назад, упоминание=True):
+    сейчас = datetime.utcnow()
+    с = ContentStory(theme_id=тема, title=заголовок, first_seen_at=сейчас - timedelta(hours=часов_назад),
+                     last_item_at=сейчас, items=1)
+    db.add(с)
+    db.flush()
+    db.add(ContentItem(theme_id=тема, ext_id="w" + заголовок, source_id=2, source_key="rss:x",
+                       source_name="IGN", platform="rss", url="https://x.test/" + str(с.id),
+                       title=заголовок + (" — по данным Game Informer" if упоминание else ""),
+                       published_at=сейчас - timedelta(hours=часов_назад), first_seen_at=сейчас,
+                       last_seen_at=сейчас, story_id=с.id))
+    db.commit()
+    return с
+
+
+def test_волна_одного_первоисточника_склеивается(стенд):
+    db, _, тема, _, _, _ = стенд
+    а = _волна(db, тема, "Скриншоты GTA 6", 10)
+    б = _волна(db, тема, "Животные в GTA 6", 20)
+    в = _волна(db, тема, "Погода в GTA 6", 30)
+    далёкая = _волна(db, тема, "Старый материал", 200)          # за пределами 72 ч
+    чужая = _волна(db, тема, "Трейлер вне волны", 15, упоминание=False)
+    а, б, в, далёкая, чужая = (x.id for x in (а, б, в, далёкая, чужая))
+    итог = ce.склеить_волны(тема, cdb.настройка(db, "waves"))
+    db.expire_all()
+    assert итог["склеено"] == 2
+    живые = {с.id for с in db.query(ContentStory).all()}
+    assert len({а, б, в} & живые) == 1
+    главный = db.get(ContentStory, ({а, б, в} & живые).pop())
+    assert главный.origin == "Game Informer" and len(json.loads(главный.subtopics)) == 2
+    assert далёкая in живые and чужая in живые
+    assert ce.склеить_волны(тема, cdb.настройка(db, "waves"))["склеено"] == 0   # идемпотентно
+
+
+def test_язык_канала_по_названиям():
+    assert cc.язык_по_названиям(["Тайники GTA 5", "Обзор машин", "GTA 6 trailer"]) == "ru"
+    assert cc.язык_по_названиям(["Los mejores momentos de GTA", "Una locura en la ciudad",
+                                 "El coche más rápido de los santos"]) == "other"
+    assert cc.язык_по_названиям(["Best GTA 5 moments", "How to get rich"]) == "en"
+    метки = cc.шаблон_ключевых(["GTA"])
+    совет = cc.совет_по_каналу(["GTA 5 moments", "Minecraft build", "Fortnite win", "Roblox",
+                                 "Valorant clip"], метки, 0.3)
+    assert совет["rec"] == "drop" and совет["доля"] == 0.2
+    assert cc.совет_по_каналу(["GTA 5 moments", "GTA 6 news"], метки, 0.3)["rec"] == "keep"
+
+
+def test_слитый_формат_уводит_хиты_и_становится_псевдонимом(стенд, monkeypatch):
+    db, к, тема, _, форматы, _ = стенд
+    дубль = ContentFormat(theme_id=тема, title="Нарезка смешных моментов и глюков", origin="model",
+                          status="review", sort=1000)
+    db.add(дубль)
+    db.flush()
+    db.add(ContentArchVideo(theme_id=тема, yt_id="dup1", title="GTA 5 funny", format_id=дубль.id, shot=2.0))
+    db.commit()
+    r = к.post("/content/api/formats/%d" % дубль.id, json={"action": "merge", "into": форматы[0].id})
+    assert r.status_code == 200
+    db.expire_all()
+    assert db.get(ContentFormat, дубль.id).status == "merged"
+    assert db.query(ContentArchVideo).filter_by(yt_id="dup1").one().format_id == форматы[0].id
+    # на рассмотрении формат в рейтинг не попадал; слитый — тем более
+    assert дубль.id not in ci.форматы_с_выстрелом(db, тема)
+
+
+def test_подлог_волны_признак_первоисточника_снят_чужой_склеивается(стенд, monkeypatch):
+    """Без признака «больше половины записей называют первоисточник» волна
+    глотает чужой сюжет — иначе «не склеено» неотличимо от слепой склейки."""
+    db, _, тема, _, _, _ = стенд
+    _волна(db, тема, "Скриншоты GTA 6", 10)
+    чужая = _волна(db, тема, "Трейлер вне волны", 15, упоминание=False).id
+    monkeypatch.setattr(ce, "первоисточник", lambda записи, источники: "Game Informer")
+    ce.склеить_волны(тема, cdb.настройка(db, "waves"))
+    db.expire_all()
+    assert db.get(ContentStory, чужая) is None
