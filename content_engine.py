@@ -84,6 +84,7 @@ YT_ПО_УМОЛЧАНИЮ = "https://www.googleapis.com/youtube/v3"
 
 _ЗАМКИ: dict = {}                # цикл событий -> замок прогонов
 _СТАРТОВАЛ = False
+_ПРОЦЕСС_С = datetime.utcnow()     # строки «running» старше — ничьи
 
 
 def _замок() -> asyncio.Lock:
@@ -1447,6 +1448,10 @@ async def _планировщик() -> None:
         finally:
             db.close()
         await asyncio.sleep(float(нц.get("first_delay_sec", 120)))
+        # ПОСЛЕ паузы, а не в `старт()`: обработчик старта модуля идёт раньше
+        # `startup()` из main, то есть раньше миграций — замер 2026-09-30:
+        # «no such column: content_runs.progress» на первой выкатке.
+        закрыть_ничьи()
     except asyncio.CancelledError:
         raise
     except Exception:
@@ -1495,7 +1500,8 @@ def закрыть_ничьи() -> int:
     db = SessionLocal()
     try:
         n = 0
-        for ст in db.query(ContentRun).filter(ContentRun.state == "running").all():
+        for ст in db.query(ContentRun).filter(ContentRun.state == "running",
+                                              ContentRun.started_at < _ПРОЦЕСС_С).all():
             ст.state = "error"
             ст.finished_at = datetime.utcnow()
             ст.note = (ст.note or "") + " прерван: процесс перезапущен посреди прогона"
@@ -1519,9 +1525,5 @@ def старт() -> None:
         print("[content] планировщик выключен (вне Fly либо CONTENT_SCHEDULER=0) — "
               "сбор только по кнопке", flush=True)
         return
-    try:
-        закрыть_ничьи()
-    except Exception:
-        traceback.print_exc()
     cw.поток_планировщика(_планировщик)
     print("[content] планировщик запущен в своём потоке", flush=True)
