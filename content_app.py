@@ -313,6 +313,10 @@ def _кандидаты(db, тема_id: str, зона: ZoneInfo) -> list[dict]:
     источником. Отказ проверки показывается рядом с причиной."""
     нс = cdb.настройка(db, "candidates")
     мин = int(нс.get("min_refs", 2))
+    # САМОРЕКЛАМА ОДНОГО КАНАЛА — НЕ ПЕРВОИСТОЧНИК: замер первого цикла
+    # на проде — у `darkviper.au` 8 ссылок и ОДИН источник (повторяющееся
+    # описание). Кандидат обязан быть процитирован разными источниками.
+    мин_ист = int(нс.get("min_sources", 2))
     пропуск = [s.lower() for s in (нс.get("skip") or [])]
     свои = ce.хосты_источников(db.query(ContentSource).all())
     проверки = {д.domain: д for д in db.query(ContentDomain).filter(ContentDomain.theme_id == тема_id)}
@@ -324,12 +328,12 @@ def _кандидаты(db, тема_id: str, зона: ZoneInfo) -> list[dict]:
             .group_by(ContentLink.domain).all())
     итог = []
     for домен, записей, источников, последняя in ряды:
-        if записей < мин or cc.корень_домена(домен) in свои:
+        if записей < мин or источников < мин_ист or cc.корень_домена(домен) in свои:
             continue
         if any(домен == s or домен.endswith("." + s) for s in пропуск):
             continue
         итог.append({"domain": домен, "refs": записей, "sources": источников, "last": последняя})
-    итог.sort(key=lambda к: (-к["refs"], -к["sources"], к["domain"]))
+    итог.sort(key=lambda к: (-к["sources"], -к["refs"], к["domain"]))
     итог = итог[:int(нс.get("top", 20))]
     примеры = dict(db.query(ContentLink.id, ContentLink.url)
                    .filter(ContentLink.id.in_([к["last"] for к in итог] or [0])).all())

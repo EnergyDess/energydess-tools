@@ -154,6 +154,11 @@ def латиница_не_английская(текст: str, страна: st
 # снимает теги вместе с `href`, и после него ссылок уже нет.
 _HREF = re.compile(r"""href\s*=\s*["']([^"'#\s]+)""", re.I)
 _ГОЛАЯ = re.compile(r"https?://[^\s<>\"'()\[\]{}]+", re.I)
+_ТЕГ = re.compile(r"<[^>]*>")
+# ФАЙЛ, А НЕ СТРАНИЦА: картинка, скрипт, стиль. Замер первого цикла на проде
+# 2026-09-30 — голая регулярка по разметке брала `src` картинок и встроенных
+# скриптов, и верх кандидатов заняли CDN (`assetsio.gnwcdn.com/…jpg`).
+_ФАЙЛ = re.compile(r"\.(?:jpe?g|png|gif|webp|avif|svg|ico|js|css|mp4|webm|mp3)(?:$|[?#])", re.I)
 ССЫЛОК_НА_ЗАПИСЬ = 30
 
 
@@ -187,10 +192,13 @@ def внешние_ссылки(*тексты: str, свой_хост: str | Non
     for т in тексты:
         if not т:
             continue
-        for url in _HREF.findall(т) + _ГОЛАЯ.findall(т):
+        # `href` — из разметки; голые адреса — только из ТЕКСТА без тегов,
+        # иначе в них попадают `src` картинок и скриптов
+        for url in _HREF.findall(т) + _ГОЛАЯ.findall(_ТЕГ.sub(" ", т)):
             url = url.rstrip(".,;:!?»”'")
             д = домен(url)
-            if not д or url in было or (свой and корень_домена(д) == свой):
+            if (not д or url in было or _ФАЙЛ.search(urlsplit(url).path + "?")
+                    or (свой and корень_домена(д) == свой)):
                 continue
             было.add(url)
             итог.append(url[:1000])

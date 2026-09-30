@@ -79,7 +79,13 @@ def test_ссылки_из_разметки_и_текста_без_своего_
     разметка = ('<p>Источник: <a href="https://www.Bloomberg.com/news/gta">Bloomberg</a>, '
                 'читайте https://insider-gaming.com/gta6-leak. и '
                 '<a href="https://www.ign.com/articles/x">своя</a> '
-                '<a href="https://feeds.ign.com/y">своя2</a> <a href="mailto:a@b.c">почта</a></p>')
+                '<a href="https://feeds.ign.com/y">своя2</a> <a href="mailto:a@b.c">почта</a>'
+                # замер первого цикла на проде: картинки и встроенные скрипты — не страницы
+                '<img src="https://assetsio.cdn.test/gta-6.jpg?width=690"> '
+                '<script src="https://kwizly.test/embed/x.js"></script> '
+                'https://cdn.test/pic.png '
+                # встроенный проигрыватель — не ссылка, хотя адрес страничный
+                '<iframe src="https://embed.test/player/1"></iframe></p>')
     ссылки = cc.внешние_ссылки(разметка, свой_хост="www.ign.com")
     assert ссылки == ["https://www.Bloomberg.com/news/gta", "https://insider-gaming.com/gta6-leak"]
     assert cc.домен(ссылки[0]) == "bloomberg.com"
@@ -126,8 +132,10 @@ def _насеять_ссылки():
     yt = {"id": 99, "kind": "youtube", "name": "YT", "official": False}
     ce._записать("gta", yt, [
         _запись("v1", ["https://kotaku.com/1", "https://x.com/rs", "https://www.ign.com/a"], "yt:A"),
-        _запись("v2", ["https://kotaku.com/2", "https://x.com/rs2", "https://ign.com/b"], "yt:B"),
-        _запись("v3", ["https://kotaku.com/3", "https://x.com/rs3"], "yt:B"),
+        _запись("v2", ["https://kotaku.com/2", "https://x.com/rs2", "https://ign.com/b",
+                       "https://promo.test/a"], "yt:B"),
+        # самореклама ОДНОГО канала: две записи, один источник — не кандидат
+        _запись("v3", ["https://kotaku.com/3", "https://x.com/rs3", "https://promo.test/b"], "yt:B"),
         _запись("v4", ["https://once.test/1"], "yt:A"),
     ])
 
