@@ -327,6 +327,38 @@
       </ul>
     </div>
 
+    {# КАНДИДАТЫ В ПЕРВОИСТОЧНИКИ (BACKLOG №374): домены, на которые ссылаются
+       описания роликов и записи лент. «Проверить и добавить» — задача
+       исполнителя: robots.txt, поиск ленты, разбор; источник заводится,
+       только когда всё прошло, отказ остаётся строкой с причиной. #}
+    <div class="v2-card content-card" id="content-candidates">
+      <h2 class="v2-card-title">Кандидаты в первоисточники</h2>
+      <p class="v2-hint">Сайты, на которые чаще всего ссылаются ролики и новости по теме. Соцсети, магазины и уже заведённые источники не показываются.</p>
+      {% if кандидаты %}
+      <div class="content-scroll">
+        <table class="content-table" id="content-candidates-table">
+          <thead><tr><th>Домен</th><th class="content-num">Ссылок</th><th class="content-num">Источников</th><th>Пример</th><th>Действие</th></tr></thead>
+          <tbody>
+          {% for к in кандидаты %}
+          <tr data-candidate="{{ к.domain }}" data-refs="{{ к.refs }}">
+            <td class="content-break"><span class="content-cell">{{ к.domain }}</span></td>
+            <td class="content-num">{{ к.refs }}</td>
+            <td class="content-num">{{ к.sources }}</td>
+            <td class="content-break">{% if к.url %}<a class="content-cell" href="{{ к.url }}" target="_blank" rel="noopener nofollow">{{ к.url | truncate(60, true, '…') }}</a>{% endif %}</td>
+            <td>
+              <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" data-candidate-check="{{ к.domain }}">{{ значок('search') }} {{ 'Проверить снова' if к.проверка else 'Проверить и добавить' }}</button>
+              {% if к.проверка and к.проверка.status == 'refused' %}<span class="content-row-error" data-candidate-refused="true">Отказ ({{ к.проверка.когда }}): {{ к.проверка.reason }}</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="v2-empty-text">Кандидатов пока нет: ссылки собираются из описаний роликов и записей лент при каждом сборе, показываются сайты, на которые сослались хотя бы в двух записях.</p>
+      {% endif %}
+    </div>
+
     <div class="v2-card content-card">
       <div class="content-card-head">
         <h2 class="v2-card-title">Каналы YouTube</h2>
@@ -510,6 +542,18 @@
     if (!r.ok) throw new Error(д.error || ('HTTP ' + r.status));
     return д;
   }
+  // КАНДИДАТ В ПЕРВОИСТОЧНИКИ: проверка идёт фоном, страница ждёт её,
+  // как любой прогон, и перерисуется с итогом (источник либо отказ).
+  document.addEventListener('click', async function (е) {
+    const к = е.target.closest('[data-candidate-check]');
+    if (!к) return;
+    занято(true); к.disabled = true;
+    try {
+      await послать('/content/api/domains/check', {domain: к.dataset.candidateCheck});
+      сказать('Проверяем ' + к.dataset.candidateCheck + ' — страница обновится сама.');
+      ждать();
+    } catch (e) { к.disabled = false; занято(false); сказать('Проверка не запущена: ' + e.message, true); }
+  });
   // ФАЗА ФОРМАТА — сохраняется сразу
   document.querySelectorAll('[data-format-phase]').forEach(function (с) {
     с.addEventListener('change', async function () {

@@ -38,9 +38,10 @@ import content_engine as ce
 import content_ideas as ci
 import content_worker as cw
 from auth import get_current_user
-from content_db import (ContentArchVideo, ContentChannel, ContentFormat, ContentIdea,
-                        ContentItem, ContentRun, ContentSetting, ContentSnapshot,
-                        ContentSource, ContentStory, ContentTheme, ContentVideo)
+from content_db import (ContentArchVideo, ContentChannel, ContentDomain, ContentFormat,
+                        ContentIdea, ContentItem, ContentLink, ContentRun, ContentSetting,
+                        ContentSnapshot, ContentSource, ContentStory, ContentTheme,
+                        ContentVideo)
 from database import get_db
 
 router = APIRouter()
@@ -304,6 +305,42 @@ def _каналы(db, тема_id: str, зона: ZoneInfo) -> list[dict]:
              "названий": к.titles_checked} for к in каналы]
 
 
+def _кандидаты(db, тема_id: str, зона: ZoneInfo) -> list[dict]:
+    """КАНДИДАТЫ В ПЕРВОИСТОЧНИКИ (BACKLOG №374): домены, на которые ссылаются
+    записи по теме, — сколько записей сослалось и сколько разных источников.
+    Не показываются: площадки из `candidates.skip` (соцсети, сокращатели,
+    магазины — своей ленты новостей у них нет) и сайты, уже заведённые
+    источником. Отказ проверки показывается рядом с причиной."""
+    нс = cdb.настройка(db, "candidates")
+    мин = int(нс.get("min_refs", 2))
+    пропуск = [s.lower() for s in (нс.get("skip") or [])]
+    свои = ce.хосты_источников(db.query(ContentSource).all())
+    проверки = {д.domain: д for д in db.query(ContentDomain).filter(ContentDomain.theme_id == тема_id)}
+    ряды = (db.query(ContentLink.domain,
+                     func.count(func.distinct(ContentLink.item_id)),
+                     func.count(func.distinct(ContentLink.source_key)),
+                     func.max(ContentLink.id))
+            .filter(ContentLink.theme_id == тема_id)
+            .group_by(ContentLink.domain).all())
+    итог = []
+    for домен, записей, источников, последняя in ряды:
+        if записей < мин or cc.корень_домена(домен) in свои:
+            continue
+        if any(домен == s or домен.endswith("." + s) for s in пропуск):
+            continue
+        итог.append({"domain": домен, "refs": записей, "sources": источников, "last": последняя})
+    итог.sort(key=lambda к: (-к["refs"], -к["sources"], к["domain"]))
+    итог = итог[:int(нс.get("top", 20))]
+    примеры = dict(db.query(ContentLink.id, ContentLink.url)
+                   .filter(ContentLink.id.in_([к["last"] for к in итог] or [0])).all())
+    for к in итог:
+        к["url"] = примеры.get(к.pop("last"))
+        п = проверки.get(к["domain"])
+        к["проверка"] = ({"status": п.status, "reason": п.reason,
+                          "когда": _время(п.checked_at, зона)} if п else None)
+    return итог
+
+
 def данные_страницы(db, user) -> dict:
     """Всё, что рисует страница, — одной сессией, без похода в сеть."""
     cdb.засеять(db)
@@ -335,6 +372,7 @@ def данные_страницы(db, user) -> dict:
         "источники": источники,
         "красных": sum(1 for и in источники if и["тон"] == "danger"),
         "каналы": _каналы(db, тема_id, зона),
+        "кандидаты": _кандидаты(db, тема_id, зона),
         "квота": _квота(db),
         "сброс_квоты": _main()._момент_в_поясе(cdb.сброс_квоты_utc(), user),
         "записей_всего": db.query(func.count(ContentItem.id))
@@ -400,6 +438,22 @@ async def content_run(тело: Запуск, user=Depends(get_current_user)):
     if not _админ(user):
         return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
     итог = ce.запустить(тело.kind, "admin")
+    if not итог.get("ok"):
+        return JSONResponse(итог, status_code=409 if итог.get("busy") else 400)
+    return итог
+
+
+class Домен(BaseModel):
+    domain: str
+
+
+@router.post("/content/api/domains/check")
+async def content_domain_check(тело: Домен, user=Depends(get_current_user)):
+    """«Проверить и добавить»: фоном, тем же исполнителем, что сбор (§5.11).
+    Итог — строка в `content_domains` и, если лента нашлась, новый источник."""
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    итог = ce.запустить_проверку(тело.domain, "admin")
     if not итог.get("ok"):
         return JSONResponse(итог, status_code=409 if итог.get("busy") else 400)
     return итог

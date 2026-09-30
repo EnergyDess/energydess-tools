@@ -339,6 +339,38 @@ class ContentVideo(Base):
     published_at = Column(DateTime, nullable=True)
 
 
+class ContentLink(Base):
+    """ВНЕШНЯЯ ССЫЛКА ИЗ ЗАПИСИ (BACKLOG №374): на кого ссылаются описания
+    роликов и записи лент. Из них «Кухня» считает кандидатов
+    в первоисточники. Повтор ссылки в записи невозможен по построению."""
+    __tablename__ = "content_links"
+    __table_args__ = (UniqueConstraint("item_id", "url"),)
+    id = Column(Integer, primary_key=True)
+    theme_id = Column(String, nullable=False, index=True)
+    item_id = Column(Integer, nullable=False, index=True)
+    source_key = Column(String, nullable=False)          # кто сослался: rss:3 | yt:UC…
+    domain = Column(String, nullable=False, index=True)
+    url = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ContentDomain(Base):
+    """ИТОГ ПРОВЕРКИ КАНДИДАТА (BACKLOG №374). `added` — лента найдена
+    и заведена источником; `refused` — отказ с причиной (robots.txt,
+    ленты нет, сайт не ответил). Отказ хранится и показывается рядом
+    с кандидатом: иначе его проверяли бы снова и снова."""
+    __tablename__ = "content_domains"
+    __table_args__ = (UniqueConstraint("theme_id", "domain"),)
+    id = Column(Integer, primary_key=True)
+    theme_id = Column(String, nullable=False, index=True)
+    domain = Column(String, nullable=False)
+    status = Column(String, nullable=False)              # added | refused
+    reason = Column(Text, nullable=True)
+    feed_url = Column(String, nullable=True)
+    source_id = Column(Integer, nullable=True)
+    checked_at = Column(DateTime, nullable=False)
+
+
 # ── ПОМОЩНИКИ ─────────────────────────────────────────────────────────
 
 def из_json(текст, запас=None):
@@ -403,6 +435,9 @@ def засеять(db) -> dict:
 _ВЕСА_ДО_ОПЕРЕЖЕНИЯ = {"рост": 45, "площадки": 30, "окно_ru": 25}
 
 
+ДОСЕВ_КЛЮЧЕЙ_ИСТОЧНИКА = ("site",)
+
+
 def догнать_семя(db, семя: dict) -> int:
     """ДОСЕВ УЖЕ ЗАВЕДЁННОЙ ТЕМЫ (BACKLOG №367, 368). `засеять` трогает
     только пустые таблицы, а источники, параметры археологии и формат,
@@ -415,9 +450,21 @@ def догнать_семя(db, семя: dict) -> int:
         тема = db.query(ContentTheme).filter(ContentTheme.id == т["id"]).first()
         if тема is None:
             continue
-        имена = {и.name for и in db.query(ContentSource).filter(ContentSource.theme_id == т["id"])}
+        имена = {и.name: и for и in db.query(ContentSource).filter(ContentSource.theme_id == т["id"])}
         for и in т.get("sources", []):
             if и["name"] in имена:
+                # КЛЮЧ `site` (№374, у IGN лента на чужом хосте) доезжает, если
+                # его нет. ТОЛЬКО ОН: он называет, чей это сайт, а не поведение.
+                # Общий досев ключей вернул бы `strict`, снятый владельцем, —
+                # «ключа нет» и «ключ убрали» неразличимы (поймал тест подлога
+                # фильтра СМИ).
+                есть = имена[и["name"]]
+                пар = из_json(есть.params, {}) or {}
+                новые = {к: з for к, з in (и.get("params") or {}).items()
+                         if к in ДОСЕВ_КЛЮЧЕЙ_ИСТОЧНИКА and к not in пар}
+                if новые:
+                    есть.params = в_json({**пар, **новые})
+                    изменений += 1
                 continue
             db.add(ContentSource(theme_id=т["id"], kind=и["kind"], name=и["name"],
                                  url=и.get("url"), params=в_json(и.get("params") or {}),
@@ -465,6 +512,28 @@ def догнать_семя(db, семя: dict) -> int:
             if ф is not None and цель is not None and ф.status != "merged" and ф.id != цель.id:
                 слить_формат(db, ф, цель)
                 изменений += 1
+    # СПИСКИ НАСТРОЕК С ВЕРСИЕЙ (№374: Game Informer в доверенных СМИ).
+    # Настройка без изменений не перезаписывается (`засеять`), а новый член
+    # списка в семени до прода иначе не доехал бы. У настройки с `v` в семени
+    # списки ОБЪЕДИНЯЮТСЯ, когда версия в базе ниже: добавляется недостающее,
+    # чужое не удаляется.
+    for ключ, значение in (семя.get("settings") or {}).items():
+        if not isinstance(значение, dict) or "v" not in значение:
+            continue
+        запись = db.query(ContentSetting).filter(ContentSetting.key == ключ).first()
+        if запись is None:
+            continue
+        текущее = из_json(запись.value, {}) or {}
+        if int(текущее.get("v", 1)) >= int(значение["v"]):
+            continue
+        for к, з in значение.items():
+            if isinstance(з, list) and isinstance(текущее.get(к), list):
+                текущее[к] = текущее[к] + [x for x in з if x not in текущее[к]]
+            elif к not in текущее or к == "v":
+                текущее[к] = з
+        запись.value = в_json(текущее)
+        запись.updated_at = datetime.utcnow()
+        изменений += 1
     формула_семени = (семя.get("settings") or {}).get("score_formula")
     запись = db.query(ContentSetting).filter(ContentSetting.key == "score_formula").first()
     if формула_семени and запись is not None:

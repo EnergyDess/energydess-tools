@@ -40,9 +40,9 @@ from sqlalchemy import func, text
 import content_collect as cc
 import content_db as cdb
 import content_worker as cw
-from content_db import (ContentArchVideo, ContentChannel, ContentFormat, ContentIdea, ContentItem,
-                        ContentRun, ContentSnapshot, ContentSource, ContentStory,
-                        ContentTheme)
+from content_db import (ContentArchVideo, ContentChannel, ContentDomain, ContentFormat, ContentIdea,
+                        ContentItem, ContentLink, ContentRun, ContentSnapshot, ContentSource,
+                        ContentStory, ContentTheme)
 from database import ModelUsage, SessionLocal
 
 # ПОТОЛКИ ОТВЕТА МОДЕЛИ — ИМЕНЕМ, С ПЕРЕОПРЕДЕЛЕНИЕМ ИЗ ОКРУЖЕНИЯ (§2.1):
@@ -279,10 +279,48 @@ def _записать(тема_id: str, источник: dict, записи: li
                 db.add(ContentSnapshot(item_id=и.id, taken_at=сейчас, age_h=возраст,
                                        metric=з.get("metric"), comments=з.get("comments"),
                                        likes=з.get("likes")))
+        _записать_ссылки(db, тема_id, по_ключу, есть)
         db.commit()
         return новых, len(по_ключу)
     finally:
         db.close()
+
+
+def _записать_ссылки(db, тема_id: str, по_ключу: dict, есть: dict) -> int:
+    """ВНЕШНИЕ ССЫЛКИ ЗАПИСЕЙ (BACKLOG №374) — в той же транзакции, что
+    записи. Пишутся и у ИЗВЕСТНЫХ записей: ролик в окне слежения
+    перечитывается каждый цикл, и ссылки, которых не было при первом
+    чтении, доезжают. Повтор отсекается по паре «запись, адрес»."""
+    с_ссылками = {к: з for к, з in по_ключу.items() if з.get("ссылки")}
+    if not с_ссылками:
+        return 0
+    db.flush()
+    записи = dict(есть)
+    новые_ключи = [к for к in с_ссылками if к not in записи]
+    for i in range(0, len(новые_ключи), 400):
+        for и in (db.query(ContentItem)
+                  .filter(ContentItem.theme_id == тема_id,
+                          ContentItem.ext_id.in_(новые_ключи[i:i + 400])).all()):
+            записи[и.ext_id] = и
+    ids = [записи[к].id for к in с_ссылками if к in записи]
+    было = set()
+    for i in range(0, len(ids), 400):
+        было |= set(db.query(ContentLink.item_id, ContentLink.url)
+                    .filter(ContentLink.item_id.in_(ids[i:i + 400])).all())
+    добавлено = 0
+    for к, з in с_ссылками.items():
+        и = записи.get(к)
+        if и is None:
+            continue
+        for url in з["ссылки"]:
+            д = cc.домен(url)
+            if not д or (и.id, url) in было:
+                continue
+            было.add((и.id, url))
+            db.add(ContentLink(theme_id=тема_id, item_id=и.id, source_key=и.source_key,
+                               domain=д, url=url))
+            добавлено += 1
+    return добавлено
 
 
 # ── YOUTUBE ───────────────────────────────────────────────────────────
@@ -471,6 +509,8 @@ async def _youtube(client, тема: dict, источник: dict, настро�
                 "official": bool(к.get("official")),
                 "metric": р["views"], "comments": р["comments"], "likes": р["likes"],
                 "для_фильтра": р["title"] + " " + р["description"][:500],
+                # ссылки — из ПОЛНОГО описания: в базу уходит только отрывок
+                "ссылки": cc.внешние_ссылки(р["description"]),
             })
     except cc.КвотаИсчерпана as e:
         беда = str(e)
@@ -1598,6 +1638,100 @@ async def чистка_каналов(повод: str = "admin") -> dict:
             состояние, заметка = "error", f"{type(e).__name__}: {e}"
         _закончить(номер, состояние, итог, заметка)
         return {"run_id": номер, "state": состояние, "note": заметка, **итог}
+
+
+# ── КАНДИДАТЫ В ПЕРВОИСТОЧНИКИ (BACKLOG №374) ────────────────────────────
+
+def хосты_источников(источники) -> set[str]:
+    """Корни доменов уже заведённых источников: их адрес и `params.site`.
+    Такой домен в кандидатах не показывается и заведён второй раз не будет."""
+    итог = set()
+    for и in источники:
+        пар = и.get("params") if isinstance(и, dict) else _из(и.params, {})
+        адреса = [и.get("url") if isinstance(и, dict) else и.url, (пар or {}).get("site")]
+        for а in адреса:
+            д = cc.домен(а or "")
+            if д:
+                итог.add(cc.корень_домена(д))
+    return итог
+
+
+async def проверить_домен(домен: str, повод: str = "admin") -> dict:
+    """«ПРОВЕРИТЬ И ДОБАВИТЬ»: robots.txt, поиск ленты, разбор. Источник
+    заводится ТОЛЬКО когда лента нашлась и робот к ней допущен; отказ
+    пишется с причиной. Сеть — без соединения к базе: чтение и запись
+    двумя короткими сессиями (§6.0.5, проверка 27)."""
+    номер = _начать("domain", повод)
+    db = SessionLocal()
+    try:
+        cdb.засеять(db)
+        тема = db.query(ContentTheme).filter(ContentTheme.active.is_(True)).order_by(ContentTheme.id).first()
+        тема_id = тема.id if тема else None
+        свои = хосты_источников(db.query(ContentSource).all())
+    finally:
+        db.close()
+    итог = {"домен": домен}
+    лента, записей, причина = None, 0, None
+    if тема_id is None:
+        причина = "нет активной темы"
+    elif cc.корень_домена(домен) in свои:
+        причина = "этот сайт уже заведён источником"
+    else:
+        try:
+            async with cc.новый_клиент() as client:
+                лента, записей = await cc.с_потолком(cc.найти_ленту(client, домен),
+                                                     ПОТОЛОК_ИСТОЧНИКА_СЕК, домен)
+        except cc.ОтказИсточника as e:
+            причина = str(e)
+        except Exception as e:                   # ошибка В НАШЕМ коде — громко
+            traceback.print_exc()
+            причина = f"внутренняя ошибка проверки: {type(e).__name__}: {e}"
+    db = SessionLocal()
+    try:
+        запись = (db.query(ContentDomain)
+                  .filter(ContentDomain.theme_id == (тема_id or ""), ContentDomain.domain == домен)
+                  .first())
+        if запись is None and тема_id:
+            запись = ContentDomain(theme_id=тема_id, domain=домен, status="refused",
+                                   checked_at=datetime.utcnow())
+            db.add(запись)
+        источник = None
+        if лента and тема_id:
+            источник = ContentSource(
+                theme_id=тема_id, kind="rss", name=домен, url=лента,
+                # НЕЗНАКОМЫЙ САЙТ — СТРОГИЙ ФИЛЬТР, КАК У СМИ (№367): пишет
+                # обо всём, и общие слова темы пропустили бы чужие новости
+                params=cdb.в_json({"platform": домен, "media": True, "strict": True,
+                                   "site": f"https://{домен}", "added_by": "candidates"}),
+                official=False, filter_keywords=True, enabled=True)
+            db.add(источник)
+            db.flush()
+        if запись is not None:
+            запись.status = "added" if источник else "refused"
+            запись.reason = None if источник else причина
+            запись.feed_url = лента
+            запись.source_id = источник.id if источник else None
+            запись.checked_at = datetime.utcnow()
+        db.commit()
+        итог.update(добавлен=bool(источник), лента=лента, записей=записей, причина=причина,
+                    источник_id=источник.id if источник else None)
+    finally:
+        db.close()
+    print(f"[content] проверка домена {домен}: "
+          + (f"добавлен, лента {лента} ({записей} записей)" if итог["добавлен"]
+             else f"отказ — {причина}"), flush=True)
+    _закончить(номер, "ok" if итог["добавлен"] else "error", итог,
+               None if итог["добавлен"] else причина)
+    return {"run_id": номер, **итог}
+
+
+def запустить_проверку(домен: str, повод: str = "admin") -> dict:
+    """Проверка кандидата фоном — тем же исполнителем и тем же замком,
+    что остальные тяжёлые задачи (§5.11)."""
+    д = cc.домен("https://" + (домен or "").strip().lower())
+    if not д:
+        return {"ok": False, "error": "это не домен"}
+    return cw.запустить("domain", lambda п: проверить_домен(д, п), повод)
 
 
 ВИДЫ = {"cycle": цикл, "discover": поиск_каналов, "archaeology": археология,

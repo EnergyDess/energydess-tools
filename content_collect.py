@@ -29,6 +29,17 @@
     поимённые ИИ-краулеры. 200 за 0.4 с, 20 новостей.
   · PlayStation Blog: RSS `/feed/` — 200; robots.txt закрывает `/tag/`
     и `/category/`, ленту — нет.
+
+ЗАМЕР 2026-09-30 (BACKLOG №374):
+  · Game Informer: `/news.xml` — 200, 50 записей; robots.txt закрывает
+    служебные пути (`/user/`, `/search/`, `/newsletter`), ленту — нет.
+  · Telegram `t.me/s/<канал>` — НЕ ПОДКЛЮЧЁН, и дело не в robots.txt
+    (его у t.me нет: 404) и не в ответе (с Fly 200). Условия Telegram
+    «Terms of Service for Content Licensing» запрещают доступ к чужому
+    содержимому для любой цели, кроме обычного использования платформы
+    её пользователем, и отдельно — сбор и агрегацию данных платформы для
+    работы моделей ИИ. Сервер, читающий каналы для радара с разбором
+    моделью, — ровно это. Обходов нет.
 """
 import asyncio
 import os
@@ -136,6 +147,56 @@ def латиница_не_английская(текст: str, страна: st
     if чужие >= 3 and чужие > англ:
         return True
     return bool(страна) and страна.upper() not in АНГЛ_СТРАНЫ and англ == 0
+
+
+# ── ВНЕШНИЕ ССЫЛКИ (BACKLOG №374): на кого ссылаются записи ─────────────
+# Ссылки берутся из СЫРОГО описания — до чистки в текст: `чистый_текст`
+# снимает теги вместе с `href`, и после него ссылок уже нет.
+_HREF = re.compile(r"""href\s*=\s*["']([^"'#\s]+)""", re.I)
+_ГОЛАЯ = re.compile(r"https?://[^\s<>\"'()\[\]{}]+", re.I)
+ССЫЛОК_НА_ЗАПИСЬ = 30
+
+
+def домен(url: str) -> str | None:
+    """Хост ссылки без `www.` и `m.`, в нижнем регистре. Не http(s) — None."""
+    try:
+        части = urlsplit(url.strip())
+    except ValueError:
+        return None
+    if части.scheme not in ("http", "https") or not части.hostname:
+        return None
+    хост = части.hostname.lower().rstrip(".")
+    for приставка in ("www.", "m."):
+        if хост.startswith(приставка):
+            хост = хост[len(приставка):]
+    return хост if "." in хост else None
+
+
+def корень_домена(хост: str) -> str:
+    """Последние две метки хоста: `blog.playstation.com` → `playstation.com`.
+    Приближение без списка публичных суффиксов — у `co.uk` соврёт, и это
+    названо: цена ошибки — лишний либо пропущенный кандидат, не данные."""
+    return ".".join(хост.split(".")[-2:])
+
+
+def внешние_ссылки(*тексты: str, свой_хост: str | None = None) -> list[str]:
+    """Ссылки из разметки (`href`) и голым текстом, без дублей, без ссылок
+    на сам источник (`свой_хост` — по корню домена), не больше 30."""
+    свой = корень_домена(свой_хост) if свой_хост else None
+    итог, было = [], set()
+    for т in тексты:
+        if not т:
+            continue
+        for url in _HREF.findall(т) + _ГОЛАЯ.findall(т):
+            url = url.rstrip(".,;:!?»”'")
+            д = домен(url)
+            if not д or url in было or (свой and корень_домена(д) == свой):
+                continue
+            было.add(url)
+            итог.append(url[:1000])
+            if len(итог) >= ССЫЛОК_НА_ЗАПИСЬ:
+                return итог
+    return итог
 
 
 def чистый_текст(разметка: str, знаков: int = ТЕКСТ_ЗНАКОВ) -> str:
@@ -291,6 +352,7 @@ async def собрать_rockstar(client, источник: dict) -> list[dict]:
 # ── RSS (PlayStation Blog и любые другие ленты) ───────────────────────
 
 _АТОМ = "{http://www.w3.org/2005/Atom}"
+_ПОЛНОЕ = "{http://purl.org/rss/1.0/modules/content/}encoded"
 
 
 def _rss_время(строка: str | None) -> datetime | None:
@@ -332,6 +394,7 @@ async def собрать_rss(client, источник: dict) -> list[dict]:
             метка = (э.findtext(f"{_АТОМ}id") or ссылка).strip()
             когда = _iso((э.findtext(f"{_АТОМ}published") or э.findtext(f"{_АТОМ}updated") or "").strip())
             описание = э.findtext(f"{_АТОМ}summary") or ""
+            полное = э.findtext(f"{_АТОМ}content") or ""
             рубрики = [к.get("term") for к in э.findall(f"{_АТОМ}category") if к.get("term")]
         else:
             заголовок = (э.findtext("title") or "").strip()
@@ -339,6 +402,7 @@ async def собрать_rss(client, источник: dict) -> list[dict]:
             метка = (э.findtext("guid") or ссылка).strip()
             когда = _rss_время(э.findtext("pubDate"))
             описание = э.findtext("description") or ""
+            полное = э.findtext(_ПОЛНОЕ) or ""
             рубрики = [(к.text or "").strip() for к in э.findall("category") if (к.text or "").strip()]
         if not заголовок or not ссылка:
             continue
@@ -355,8 +419,81 @@ async def собрать_rss(client, источник: dict) -> list[dict]:
             # СТРОГИЙ ФИЛЬТР СМИ (BACKLOG №367): только заголовок и рубрики —
             # в анонсе обзорной статьи GTA упоминается мимоходом
             "для_строгого": " ".join([заголовок] + рубрики),
+            "ссылки": внешние_ссылки(описание, полное, свой_хост=urlsplit(ссылка).hostname),
         })
     return итог
+
+
+def разобрать_ленту(тело: bytes) -> int:
+    """Сколько записей в ленте RSS или Atom. Не лента — `ValueError`."""
+    try:
+        корень = ET.fromstring(тело)
+    except ET.ParseError as e:
+        raise ValueError(f"не XML ({e})")
+    if корень.tag not in ("rss", f"{_АТОМ}feed"):
+        raise ValueError(f"не RSS и не Atom (корень <{корень.tag}>)")
+    return len(корень.findall("./channel/item")) or len(корень.findall(f"{_АТОМ}entry"))
+
+
+# Где обычно лежит лента, если страница её не объявила. Путь спрашивается
+# у robots.txt так же, как главная: запрещённый не открываем.
+ЛЕНТЫ_ПУТИ = ("/feed", "/feed/", "/rss", "/rss.xml", "/feed.xml", "/news.xml",
+              "/atom.xml", "/index.xml")
+_ЛЕНТА_В_РАЗМЕТКЕ = re.compile(
+    r"""<link[^>]+type=["']application/(?:rss|atom)\+xml["'][^>]*>""", re.I)
+
+
+async def найти_ленту(client, хост: str) -> tuple[str, int]:
+    """ПРОВЕРКА КАНДИДАТА В ПЕРВОИСТОЧНИКИ (BACKLOG №374): (адрес ленты,
+    записей). Порядок обязателен: robots.txt главной — главная страница —
+    ленты, объявленные в `<link rel=alternate>`, — обычные пути. Каждый
+    адрес — только если robots.txt его разрешает. Запрет главной — отказ
+    сразу, с причиной: не зная, что сайт разрешает роботам, дальше не идём.
+    Ничего не нашлось — отказ со списком того, что спросили."""
+    корень = f"https://{хост}/"
+    await robots_разрешает(client, корень)
+    кандидаты = []
+    try:
+        r = await client.get(корень)
+        if r.status_code == 200:
+            _проверить_тело(r, хост)
+            for тег in _ЛЕНТА_В_РАЗМЕТКЕ.findall(r.text or ""):
+                м = re.search(r"""href=["']([^"']+)""", тег, re.I)
+                if м:
+                    кандидаты.append(str(httpx.URL(str(r.url)).join(м.group(1))))
+        elif r.status_code in (401, 403, 429, 451):
+            raise _отказ_по_ответу(r, хост)
+    except httpx.HTTPError as e:
+        raise ОтказИсточника(f"{хост} не ответил ({type(e).__name__})")
+    кандидаты += [f"https://{хост}{п}" for п in ЛЕНТЫ_ПУТИ]
+    спросили, было = [], set()
+    for адрес in кандидаты:
+        if адрес in было:
+            continue
+        было.add(адрес)
+        try:
+            await robots_разрешает(client, адрес)
+        except ОтказИсточника:
+            спросили.append(f"{urlsplit(адрес).path} — запрещён robots.txt")
+            continue
+        try:
+            r = await client.get(адрес)
+        except httpx.HTTPError as e:
+            спросили.append(f"{urlsplit(адрес).path} — {type(e).__name__}")
+            continue
+        if r.status_code != 200:
+            спросили.append(f"{urlsplit(адрес).path} — HTTP {r.status_code}")
+            continue
+        try:
+            _проверить_тело(r, хост)
+            записей = разобрать_ленту(r.content)
+        except (ValueError, ОтказИсточника) as e:
+            спросили.append(f"{urlsplit(адрес).path} — {e}")
+            continue
+        if записей:
+            return str(r.url), записей
+        спросили.append(f"{urlsplit(адрес).path} — лента пуста")
+    raise ОтказИсточника(f"{хост}: ленты RSS/Atom не нашлось ({'; '.join(спросили[:6])})")
 
 
 # ── REDDIT ────────────────────────────────────────────────────────────

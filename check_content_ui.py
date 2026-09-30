@@ -22,7 +22,9 @@
     доказательство: заметок, видимых по `checkVisibility`, 0;
   · текст ошибки источника спрятан — шаг «источники/ошибка» падает;
   · вкладки не переключаются (обработчики сняты) — шаг «вкладки» падает;
-    доказательство: после нажатия раздел «Форматы» остался скрытым.
+    доказательство: после нажатия раздел «Форматы» остался скрытым;
+  · причина отказа кандидата спрятана (BACKLOG №374) — шаг «кухня/отказ
+    кандидата» падает; доказательство: видимых причин 0 при записанном отказе.
 
     py check_content_ui.py              # код 1 при беде, 2 — нечем проверить
     py check_content_ui.py --контроль
@@ -54,6 +56,7 @@ sys.stdout.reconfigure(encoding="utf-8")
     const нов = к.cloneNode(true); к.replaceWith(нов);
   });
 }"""
+ПОДЛОГ_ОТКАЗА = "[data-candidate-refused] { display: none !important; }"
 ПОДЛОГ_ВКЛАДОК = """() => document.querySelectorAll('.content-page .v2-tab[data-tab]')
   .forEach(к => к.replaceWith(к.cloneNode(true)))"""
 
@@ -152,8 +155,16 @@ def _ожидание(база):
     finally:
         db.close()
         движок.dispose()
+    db = sessionmaker(bind=движок)()
+    try:
+        кандидаты = ca._кандидаты(db, "gta", ZoneInfo("UTC"))
+    finally:
+        db.close()
+        движок.dispose()
     строки = форматы["en"] + форматы["ru"]
-    return {"сюжеты": {str(с["id"]): {"источников": с["источников"], "утечка": bool(с["leak"]),
+    return {"кандидаты": {к["domain"]: к["refs"] for к in кандидаты},
+            "отказов": sum(1 for к in кандидаты if (к["проверка"] or {}).get("status") == "refused"),
+            "сюжеты": {str(с["id"]): {"источников": с["источников"], "утечка": bool(с["leak"]),
                                       "опережение": bool(с["опережение"]),
                                       "en": с["en_роликов"], "ru": с["ru_роликов"]}
                        for с in сюжеты},
@@ -183,6 +194,51 @@ def _ожидание(база):
           плиток: [...document.querySelectorAll('.today-tile')].filter(вид).length,
           запрещено: ['оценка', 'рост в час', 'формула'].filter(с => текст.includes(с))};
 }"""
+
+
+def _засеять_ссылки(база):
+    """КАНДИДАТЫ В ПЕРВОИСТОЧНИКИ (№374) на копии — боевым `_записать`:
+    сайт, процитированный в трёх записях двух источников; соцсеть (`skip`);
+    сайт с одной ссылкой (ниже порога); сайт с записанным ОТКАЗОМ проверки.
+    Вопрос пробы — рисует ли «Кухня» ровно отобранное сервером и видна ли
+    причина отказа; как считаются кандидаты, отвечают тесты."""
+    from datetime import datetime as _dt
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    import content_engine as ce
+    import database
+    from content_db import ContentDomain
+    движок = create_engine("sqlite:///" + база.replace("\\", "/"))
+    database.Base.metadata.create_all(движок)
+    прежняя = ce.SessionLocal
+    ce.SessionLocal = sessionmaker(bind=движок)
+    try:
+        yt = {"id": 0, "kind": "youtube", "name": "проба", "official": False}
+
+        def з(n, ключ, ссылки):
+            return {"ext_id": "yt:probe374-%d" % n, "url": "https://youtube.com/watch?v=probe%d" % n,
+                    "title": "GTA 6 проба %d" % n, "platform": "youtube", "source_key": ключ,
+                    "ссылки": ссылки}
+        ce._записать("gta", yt, [
+            з(1, "yt:PROBE-A", ["https://probe-source.test/a", "https://x.com/p1",
+                                "https://probe-refused.test/1"]),
+            з(2, "yt:PROBE-B", ["https://probe-source.test/b", "https://x.com/p2",
+                                "https://probe-refused.test/2"]),
+            з(3, "yt:PROBE-B", ["https://probe-source.test/c", "https://x.com/p3",
+                                "https://probe-once.test/1"])])
+        db = ce.SessionLocal()
+        try:
+            if not db.query(ContentDomain).filter(ContentDomain.domain == "probe-refused.test").first():
+                db.add(ContentDomain(theme_id="gta", domain="probe-refused.test", status="refused",
+                                     reason="robots.txt probe-refused.test запрещает / для "
+                                            "автоматического доступа — не обращаемся",
+                                     checked_at=_dt.utcnow()))
+                db.commit()
+        finally:
+            db.close()
+    finally:
+        ce.SessionLocal = прежняя
+        движок.dispose()
 
 
 def _засеять_идеи(база):
@@ -330,6 +386,7 @@ def замер(база, подлог=None):
     uid = _база(база, "SELECT id FROM users WHERE email = ?", ПОЧТА)
     if not uid:
         raise ConnectionError("на копии стенда нет аккаунта %s — посейте стенд" % ПОЧТА)
+    _засеять_ссылки(база)
     ждём = _ожидание(база)
     _засеять_идеи(база)
     ждём_сегодня = _ожидание_сегодня(база)
@@ -391,6 +448,11 @@ def замер(база, подлог=None):
           фаз_выбор: document.querySelectorAll('#content-phases-table select').length,
           бюджет: вид(document.getElementById('content-spend')),
           задач: document.querySelectorAll('#content-spend-table tbody tr').length,
+          кандидаты: Object.fromEntries([...document.querySelectorAll('#content-candidates-table tbody tr')]
+                      .filter(вид).map((р) => [р.dataset.candidate, +р.dataset.refs])),
+          кнопок_проверки: [...document.querySelectorAll('[data-candidate-check]')].filter(вид).length,
+          отказов_видно: [...document.querySelectorAll('[data-candidate-refused]')]
+                      .filter((э) => вид(э) && (э.textContent || '').includes('robots.txt')).length,
           рекомендации: !!document.getElementById('content-recs'),
           рассмотрение: !!document.getElementById('content-review')};
 }"""
@@ -443,6 +505,17 @@ def оценить(замеры):
             собрано=к.get("фаз", 0))
         шаг("%d/кухня/бюджет" % ш, к.get("бюджет") and к.get("задач", 0) >= 4,
             "блок бюджета виден %s, задач в расходе %d" % (к.get("бюджет"), к.get("задач", 0)))
+        жд = з["ждём"]["кандидаты"]
+        на = к.get("кандидаты") or {}
+        шаг("%d/кухня/кандидаты" % ш, на == жд and "probe-source.test" in на and "x.com" not in на
+            and "probe-once.test" not in на and к.get("кнопок_проверки") == len(жд),
+            "на экране %s, отбор сервера %s, кнопок проверки %s"
+            % (sorted(на.items())[:6], sorted(жд.items())[:6], к.get("кнопок_проверки")),
+            собрано=len(жд))
+        шаг("%d/кухня/отказ кандидата" % ш,
+            з["ждём"]["отказов"] >= 1 and к.get("отказов_видно") == з["ждём"]["отказов"],
+            "отказов записано %d, видно с причиной %s" % (з["ждём"]["отказов"], к.get("отказов_видно")),
+            собрано=з["ждём"]["отказов"])
         шаг("%d/кухня/рекомендации и рассмотрение" % ш, к.get("рекомендации") and к.get("рассмотрение"),
             "блок рекомендаций %s, блок рассмотрения %s" % (к.get("рекомендации"), к.get("рассмотрение")))
         сюж, форм, ист = з["вкладки"]["stories"], з["вкладки"]["formats"], з["вкладки"]["sources"]
@@ -589,6 +662,8 @@ def _красные(з):
                                              for x in з),
     "факты": lambda з: any(x["сегодня"]["long"]["главная"] for x in з)
                        and not any(x["сегодня"]["long"]["фактов"] for x in з),
+    "отказ": lambda з: all(x["ждём"]["отказов"] for x in з) and bool(з)
+                       and not any((x.get("кухня") or {}).get("отказов_видно") for x in з),
     "перезагрузка": lambda з: bool(з) and not any(
         (x["сегодня"].get("переключатель") or {}).get("после", {}).get("метка") for x in з),
 }
@@ -597,6 +672,7 @@ def _красные(з):
            "ошибка": ("css:" + ПОДЛОГ_ОШИБКИ, "источники/ошибка"),
            "вкладки": ("вкладки", "вкладка formats"),
            "факты": ("css:" + ПОДЛОГ_ФАКТОВ, "сегодня/факты"),
+           "отказ": ("css:" + ПОДЛОГ_ОТКАЗА, "кухня/отказ кандидата"),
            "перезагрузка": ("перезагрузка", "сегодня/переключатель")}
 
 

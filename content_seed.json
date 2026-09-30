@@ -163,7 +163,8 @@
           "params": {
             "platform": "ign",
             "media": true,
-            "strict": true
+            "strict": true,
+            "site": "https://www.ign.com"
           }
         },
         {
@@ -202,6 +203,16 @@
           "url": "https://www.igromania.ru/rss/news.rss",
           "params": {
             "platform": "igromania",
+            "media": true,
+            "strict": true
+          }
+        },
+        {
+          "kind": "rss",
+          "name": "Game Informer",
+          "url": "https://gameinformer.com/news.xml",
+          "params": {
+            "platform": "gameinformer",
             "media": true,
             "strict": true
           }
@@ -371,7 +382,8 @@
       "trusted_media": [
         "IGN",
         "Eurogamer",
-        "PC Gamer"
+        "PC Gamer",
+        "Game Informer"
       ],
       "forbidden_when_rumor": [
         "официальн",
@@ -382,7 +394,8 @@
         "confirmed",
         "official"
       ],
-      "описание": "«Официально» и «подтверждено» в идее — только если у сюжета есть запись из official_sources либо trusted_media, и она не помечена слухом. Иначе идея — «слух», текст «По слухам…»."
+      "описание": "«Официально» и «подтверждено» в идее — только если у сюжета есть запись из official_sources либо trusted_media, и она не помечена слухом. Иначе идея — «слух», текст «По слухам…».",
+      "v": 2
     },
     "waves": {
       "hours": 72,
@@ -404,6 +417,56 @@
       "titles": 50,
       "drop_below_share": 0.2,
       "описание": "Чистка реестра: последние 50 названий канала, язык по ним и доля роликов про тему. Доля ниже порога либо язык не ru/en — совет «убрать». Применяет только владелец."
+    },
+    "candidates": {
+      "min_refs": 2,
+      "top": 20,
+      "skip": [
+        "youtube.com",
+        "youtu.be",
+        "twitter.com",
+        "x.com",
+        "instagram.com",
+        "tiktok.com",
+        "facebook.com",
+        "fb.com",
+        "t.me",
+        "telegram.me",
+        "discord.gg",
+        "discord.com",
+        "patreon.com",
+        "twitch.tv",
+        "vk.com",
+        "vk.cc",
+        "boosty.to",
+        "reddit.com",
+        "redd.it",
+        "bit.ly",
+        "goo.gl",
+        "tinyurl.com",
+        "amzn.to",
+        "amazon.com",
+        "linktr.ee",
+        "google.com",
+        "play.google.com",
+        "apps.apple.com",
+        "spotify.com",
+        "open.spotify.com",
+        "soundcloud.com",
+        "paypal.com",
+        "donationalerts.com",
+        "streamlabs.com",
+        "ko-fi.com",
+        "buymeacoffee.com",
+        "threads.net",
+        "store.steampowered.com",
+        "steamcommunity.com",
+        "epidemicsound.com",
+        "dzen.ru",
+        "ok.ru",
+        "rutube.ru"
+      ],
+      "описание": "«Кандидаты в первоисточники» в «Кухне» (BACKLOG №374): домены, на которые ссылаются описания роликов и записи лент по теме. Показываются домены, процитированные в N и более записях (min_refs), первые top по числу записей. skip — ПЛОЩАДКИ, а не источники новостей: соцсети, сокращатели ссылок, магазины, донаты; у них нет своей ленты новостей, и в кандидатах они заняли бы весь верх. Домены уже заведённых источников не показываются."
     }
   }
 }
