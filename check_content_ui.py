@@ -351,7 +351,7 @@ def _засеять_пакет(база):
                      first_seen_at=сейчас, items=1, sources=1, leak=True)
     db.add(с)
     db.flush()
-    и = ContentItem(theme_id=ф.theme_id, ext_id="probe:pack", source_id=0, source_key="probe",
+    и = ContentItem(theme_id=ф.theme_id, ext_id="probe:pack:%d" % id(сейчас), source_id=0, source_key="probe",
                     source_name="Rockstar Newswire", platform="rockstar",
                     url="https://www.rockstargames.com/newswire", title="Проба: трейлер вышел",
                     official=True, first_seen_at=сейчас, last_seen_at=сейчас, story_id=с.id)
