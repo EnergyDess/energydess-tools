@@ -343,15 +343,24 @@ def _каналы(с, база):
     if not строка:
         return {"собрано": 0}
     cid = строка[0][0]
-    ряд = "#content-channels tr[data-channel='%d']" % cid
+    ряд = "tr[data-channel='%d']" % cid
     итог = {"собрано": 1, "id": cid}
-    for действие, ждём, слово in (("removed", "removed", "убран"), ("keep", "keep", "оставлен")):
+    # С 2026-09-30 убранный канал уезжает в свёрнутый список «Убранные»
+    # (`#content-removed`), и вместо «Оставить» у него «Вернуть» (в кандидаты).
+    for действие, ждём, слово, где in (("removed", "removed", "убран", "#content-channels-removed"),
+                                      ("candidate", "candidate", "кандидат", "#content-channels-live"),
+                                      ("keep", "keep", "оставлен", "#content-channels-live")):
+        if действие == "candidate":           # «Убранные» свёрнуты — раскрыть, как человек
+            с.click("#content-removed > summary")
         с.click(ряд + " [data-channel-set='%s']" % действие)
-        с.wait_for_function("(с) => document.querySelector(с).dataset.status === %r" % ждём,
-                            arg=ряд, timeout=10000)
+        с.wait_for_function("(с) => { const р = document.querySelector(с[0]); "
+                            "return р && р.dataset.status === с[1] && р.closest(с[2]) !== null "
+                            "&& !р.querySelector('[data-channel-set]').disabled; }",
+                            arg=[ряд, ждём, где], timeout=10000)
         итог[действие] = {
             "база": _база(база, "SELECT status FROM content_channels WHERE id = ?", cid)[0][0],
-            "слово": с.inner_text(ряд + " .content-status-word").strip(),
+            # text_content: убранная строка лежит в СВЁРНУТОМ списке и не видна
+            "слово": (с.text_content(ряд + " .content-status-word") or "").strip(),
             "ждём": (ждём, слово)}
     return итог
 
@@ -418,6 +427,10 @@ def оценить(замеры):
                 and к["removed"]["слово"] == "убран",
                 "в базе %s, на экране %s" % (к.get("removed", {}).get("база"),
                                              к.get("removed", {}).get("слово")), собрано=есть)
+            шаг("%d/каналы/вернуть" % ш, есть and к["candidate"]["база"] == "candidate"
+                and к["candidate"]["слово"] == "кандидат",
+                "в базе %s, на экране %s" % (к.get("candidate", {}).get("база"),
+                                             к.get("candidate", {}).get("слово")), собрано=есть)
             шаг("%d/каналы/оставить" % ш, есть and к["keep"]["база"] == "keep"
                 and к["keep"]["слово"] == "оставлен",
                 "в базе %s, на экране %s" % (к.get("keep", {}).get("база"),

@@ -39,6 +39,7 @@ from sqlalchemy import func, text
 
 import content_collect as cc
 import content_db as cdb
+import content_worker as cw
 from content_db import (ContentArchVideo, ContentChannel, ContentFormat, ContentItem,
                         ContentRun, ContentSnapshot, ContentSource, ContentStory,
                         ContentTheme)
@@ -82,7 +83,6 @@ YT_ПО_УМОЛЧАНИЮ = "https://www.googleapis.com/youtube/v3"
 ГРАФИК_СНИМКОВ = ((6, 0.0), (24, 2.0), (72, 6.0))
 
 _ЗАМКИ: dict = {}                # цикл событий -> замок прогонов
-_ЗАДАЧИ: dict = {}               # вид -> задача; ссылка держит её от сборщика мусора
 _СТАРТОВАЛ = False
 
 
@@ -140,6 +140,7 @@ def _начать(вид: str, повод: str, тема_id: str | None = None) 
                             started_at=datetime.utcnow())
         db.add(прогон)
         db.commit()
+        cw.ПРОГОН.set(прогон.id)
         return прогон.id
     finally:
         db.close()
@@ -181,14 +182,15 @@ def _пропуск(вид: str, повод: str) -> dict:
 
 
 def занят() -> bool:
-    """Идёт ли прогон модуля. Своя задача и планировщик помехой не считаются:
-    прогон, запущенный кнопкой, сам себе не помеха, а планировщик ждёт
-    внутри себя и замок берёт тем же путём."""
-    сама = asyncio.current_task()
-    петля = asyncio.get_running_loop()
-    return _замок().locked() or any(
-        not з.done() and з is not сама and з.get_loop() is петля
-        for вид, з in _ЗАДАЧИ.items() if вид != "планировщик")
+    """Идёт ли прогон модуля. Главное — общий замок исполнителя
+    (`content_worker`): тяжёлая задача идёт в своём потоке, и сама себе
+    она не помеха. Замок своего цикла событий остался для прямого вызова
+    прогона (пробы и тесты зовут `цикл()` без исполнителя)."""
+    try:
+        свой = _замок().locked()
+    except RuntimeError:          # вне цикла событий — спрашивает веб-поток
+        свой = False
+    return cw.занят_другим() or свой
 
 
 # ── СОСТОЯНИЕ ИСТОЧНИКА ───────────────────────────────────────────────
@@ -690,7 +692,9 @@ async def цикл(повод: str = "scheduler") -> dict:
             async with cc.новый_клиент() as client:
                 for тема in темы:
                     шаблон = cc.шаблон_ключевых(тема["keywords"])
-                    for и in [и for и in источники if и["theme_id"] == тема["id"]]:
+                    свои = [и for и in источники if и["theme_id"] == тема["id"]]
+                    for n, и in enumerate(свои):
+                        cw.ход("источники", n, len(свои), сразу=(n == 0))
                         итог["источники"].append(
                             await _собрать_источник(client, тема, и, шаблон, настройки))
                     итог["рост"][тема["id"]] = _пересчитать_рост(тема["id"], настройки)
@@ -1220,6 +1224,7 @@ async def _форматы(тема_id: str) -> dict:
         return итог
     async with httpx.AsyncClient(timeout=httpx.Timeout(90.0, connect=15.0)) as клиент:
         for i in range(0, len(ролики), ФОРМАТОВ_ПАЧКА):
+            cw.ход("разметка форматов моделью", i, len(ролики), сразу=(i == 0))
             пачка = ролики[i:i + ФОРМАТОВ_ПАЧКА]
             текст, беда = await _спросить(клиент, ИНСТРУМЕНТ_ФОРМАТЫ, ПРОМПТ_ФОРМАТЫ,
                                           _вопрос_форматов(форматы, пачка), FORMATS_MAX_TOKENS)
@@ -1360,11 +1365,7 @@ def запустить(вид: str, повод: str = "admin") -> dict:
     """Прогон фоном. Идёт другой — отказ словами, а не молчаливая очередь."""
     if вид not in ВИДЫ:
         return {"ok": False, "error": "неизвестный вид прогона"}
-    if занят():
-        return {"ok": False, "busy": True,
-                "error": "Уже идёт прогон — дождитесь его конца, повтор его не ускорит."}
-    _ЗАДАЧИ[вид] = asyncio.create_task(ВИДЫ[вид](повод))
-    return {"ok": True}
+    return cw.запустить(вид, ВИДЫ[вид], повод)
 
 
 def _до_следующего(минут: float) -> float:
@@ -1429,7 +1430,15 @@ def _археология_нужна() -> bool:
         db.close()
 
 
+ПАУЗА_ПЛАНИРОВЩИКА_МИН_СЕК = 5      # пол паузы на КАЖДЫЙ оборот цикла
+ПАУЗА_ЕСЛИ_ЗАНЯТО_СЕК = 60
+
+
 async def _планировщик() -> None:
+    """Идёт в СВОЁМ потоке со своим циклом событий (`content_worker`).
+    Авария 2026-09-30: занятый замок давал оборот без единой паузы, и цикл
+    крутился 75 раз в секунду, записывая строку «skipped» на каждом. Теперь
+    занято — пауза минута без записи; и у ЛЮБОГО оборота есть пол паузы."""
     try:
         db = SessionLocal()
         try:
@@ -1443,6 +1452,7 @@ async def _планировщик() -> None:
     except Exception:
         traceback.print_exc()
     while True:
+        пауза = ПАУЗА_ПЛАНИРОВЩИКА_МИН_СЕК
         try:
             db = SessionLocal()
             try:
@@ -1450,19 +1460,22 @@ async def _планировщик() -> None:
             finally:
                 db.close()
             ждать = _до_следующего(минут)
-            if ждать > 0:
+            if cw.занят_другим():
+                пауза = ПАУЗА_ЕСЛИ_ЗАНЯТО_СЕК
+            elif ждать > 0:
                 await _идеи_по_расписанию()
-                await asyncio.sleep(min(ждать, 300))
-                continue
-            await цикл("scheduler")
-            if _археология_нужна():
-                await археология("scheduler")
-            await _идеи_по_расписанию()
+                пауза = max(пауза, min(ждать, 300))
+            else:
+                await cw.выполнить("cycle", цикл, "scheduler")
+                if not cw.занят_другим() and _археология_нужна():
+                    await cw.выполнить("archaeology", археология, "scheduler")
+                await _идеи_по_расписанию()
         except asyncio.CancelledError:
             raise
         except Exception:
             traceback.print_exc()
-            await asyncio.sleep(60)
+            пауза = 60
+        await asyncio.sleep(пауза)
 
 
 async def _идеи_по_расписанию() -> None:
@@ -1471,24 +1484,44 @@ async def _идеи_по_расписанию() -> None:
     сам импортирует этот модуль."""
     import content_ideas as ci
     повод = ci.проверить_расписание()
-    if повод and not ci.идёт():
-        await ci.сгенерировать(повод)
+    if повод and not cw.занят_другим():
+        await cw.выполнить("ideas", ci.сгенерировать, повод)
+
+
+def закрыть_ничьи() -> int:
+    """На старте процесса «running» в базе — ничьи: процесс, который их вёл,
+    перезапущен. Закрываются сразу, а не при следующем прогоне: иначе кнопка
+    «Кухни» висела бы занятой до следующего цикла."""
+    db = SessionLocal()
+    try:
+        n = 0
+        for ст in db.query(ContentRun).filter(ContentRun.state == "running").all():
+            ст.state = "error"
+            ст.finished_at = datetime.utcnow()
+            ст.note = (ст.note or "") + " прерван: процесс перезапущен посреди прогона"
+            n += 1
+        db.commit()
+        if n:
+            print(f"[content] прогонов, прерванных перезапуском: {n}", flush=True)
+        return n
+    finally:
+        db.close()
 
 
 def старт() -> None:
-    """Зовётся из обработчика старта приложения (цикл событий уже идёт).
-    Обработчик FastAPI переносит в приложение дважды (список старта
-    и склейка lifespan) — второй вызов ничего не делает."""
+    """Зовётся из обработчика старта приложения. Обработчик FastAPI переносит
+    в приложение дважды — второй вызов ничего не делает."""
     global _СТАРТОВАЛ
-    задача = _ЗАДАЧИ.get("планировщик")
-    if задача is not None and not задача.done() and задача.get_loop() is asyncio.get_running_loop():
-        return
-    if _СТАРТОВАЛ and not планировщик_включён():
+    if _СТАРТОВАЛ:
         return
     _СТАРТОВАЛ = True
     if not планировщик_включён():
         print("[content] планировщик выключен (вне Fly либо CONTENT_SCHEDULER=0) — "
               "сбор только по кнопке", flush=True)
         return
-    _ЗАДАЧИ["планировщик"] = asyncio.create_task(_планировщик())
-    print("[content] планировщик запущен", flush=True)
+    try:
+        закрыть_ничьи()
+    except Exception:
+        traceback.print_exc()
+    cw.поток_планировщика(_планировщик)
+    print("[content] планировщик запущен в своём потоке", flush=True)

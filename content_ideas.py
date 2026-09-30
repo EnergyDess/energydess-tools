@@ -57,7 +57,6 @@ IDEAS_MAX_TOKENS = int(__import__("os").getenv("CONTENT_IDEAS_MAX_TOKENS", "3000
         ("save", "Раскладываю идеи")]
 
 _ЗАМКИ: dict = {}
-_ЗАДАЧА: dict = {}
 
 
 def SessionLocal():
@@ -75,8 +74,15 @@ def _замок() -> asyncio.Lock:
 
 
 def идёт() -> bool:
-    з = _ЗАДАЧА.get("идеи")
-    return _замок().locked() or (з is not None and not з.done())
+    """Идёт ли генерация: общий исполнитель модуля (`content_worker`) занят
+    ИДЕЯМИ либо замок своего цикла событий (прямой вызов из проб и тестов)."""
+    import content_worker as cw
+    т = cw.что_идёт()
+    try:
+        свой = _замок().locked()
+    except RuntimeError:
+        свой = False
+    return bool(т and т["вид"] == "ideas") or свой
 
 
 # ── ФАКТЫ ─────────────────────────────────────────────────────────────
@@ -417,6 +423,8 @@ class Шаги:
                 ш["done"] = True
                 ш["note"] = заметка
         self._записать()
+        import content_worker as cw
+        cw.ход("шаги идей", sum(1 for ш in self.шаги if ш["done"]), len(self.шаги), сразу=True)
 
     def _записать(self, **ещё):
         db = SessionLocal()
@@ -552,6 +560,8 @@ def _начать(повод: str) -> int:
         п = ContentRun(kind="ideas", trigger=повод, state="running", started_at=datetime.utcnow())
         db.add(п)
         db.commit()
+        import content_worker as cw
+        cw.ПРОГОН.set(п.id)
         return п.id
     finally:
         db.close()
@@ -588,10 +598,10 @@ def последний_прогон(db) -> ContentRun | None:
 
 
 def запустить(повод: str = "admin") -> dict:
-    if идёт():
-        return {"ok": False, "busy": True, "error": "Идеи уже собираются — дождитесь конца."}
-    _ЗАДАЧА["идеи"] = asyncio.create_task(сгенерировать(повод))
-    return {"ok": True}
+    """Генерация в общем исполнителе модуля: одновременно — одна тяжёлая
+    задача на весь «Контент», идёт другая — отказ словами."""
+    import content_worker as cw
+    return cw.запустить("ideas", сгенерировать, повод)
 
 
 # ── РЕАКЦИИ ───────────────────────────────────────────────────────────

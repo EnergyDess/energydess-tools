@@ -355,3 +355,8 @@
 .content-lead svg { flex: none; width: var(--v2-icon); height: var(--v2-icon); color: var(--v2-tool); }
 .content-lead a { color: var(--v2-text); }
 .content-shot-note { max-width: var(--v2-measure); margin: 0; }
+
+/* УБРАННЫЕ КАНАЛЫ — свёрнутым списком под реестром (авария 2026-09-30). */
+.content-removed { margin-top: var(--v2-sp-4); }
+.content-removed > summary { cursor: pointer; font-size: var(--v2-fs-sm); color: var(--v2-text-2); padding: var(--v2-sp-2) 0; }
+.content-removed[hidden] { display: none; }

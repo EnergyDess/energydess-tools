@@ -268,6 +268,9 @@ class ContentRun(Base):
     finished_at = Column(DateTime, nullable=True)
     summary = Column(Text, nullable=True)                # JSON
     note = Column(Text, nullable=True)
+    # ХОД идущего прогона (JSON: этап, сделано, всего, осталось_сек) —
+    # пишет `content_worker.ход`, показывает «Кухня» живьём.
+    progress = Column(Text, nullable=True)
 
 
 class ContentIdea(Base):

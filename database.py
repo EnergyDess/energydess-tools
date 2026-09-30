@@ -1923,6 +1923,7 @@ def migrate_db():
         "ALTER TABLE exercises ADD COLUMN model_checked_at DATETIME",
         # модуль «Контент»: опережение и выстрел (BACKLOG №367, 368)
         "ALTER TABLE content_stories ADD COLUMN en_videos INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE content_runs ADD COLUMN progress TEXT",
         "ALTER TABLE content_stories ADD COLUMN lead BOOLEAN NOT NULL DEFAULT 0",
         "ALTER TABLE content_stories ADD COLUMN first_source VARCHAR",
         "ALTER TABLE content_stories ADD COLUMN first_url VARCHAR",

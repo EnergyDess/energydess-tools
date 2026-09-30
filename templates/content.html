@@ -61,7 +61,7 @@
   {% set последний = прогоны[0] if прогоны else none %}
   <p class="content-run{{ ' is-busy' if идёт }}" id="content-run" role="status" aria-live="polite">
     {% if идёт %}
-      Идёт {{ идёт.вид }} (№{{ идёт.id }}, начат {{ идёт.начат }}) — страница обновится сама, когда он кончится.
+      {{ идёт.ход.текст if идёт.ход else 'Идёт ' ~ идёт.вид }} (№{{ идёт.id }}, начат {{ идёт.начат }}) — страница обновится сама, когда он кончится.
     {% elif последний %}
       Последний прогон: {{ последний.вид }} №{{ последний.id }}, {{ последний.начат }} — {{ последний.состояние }}{% if последний.сек is not none %} за {{ последний.сек }} с{% endif %}.
       {% if планировщик %}Сбор идёт сам каждые {{ цикл_минут }} минут.{% else %}Планировщик выключен (вне Fly) — сбор только кнопкой.{% endif %}
@@ -259,11 +259,9 @@
       </div>
       <p class="v2-hint">Кандидаты найдены поиском. «Оставить» — опрашивать дальше, «Убрать» — не опрашивать со следующего сбора; записи и снимки убранного канала не стираются.</p>
       {% if каналы %}
-      <div class="content-scroll">
-        <table class="content-table" id="content-channels">
-          <thead><tr><th>Канал</th><th>Язык</th><th class="content-num">Подписчиков</th><th class="content-num">Роликов собрано</th><th>Опрошен</th><th>Статус</th></tr></thead>
-          <tbody>
-          {% for к in каналы %}
+      {% set живые = каналы | rejectattr('status', 'equalto', 'removed') | list %}
+      {% set убранные = каналы | selectattr('status', 'equalto', 'removed') | list %}
+      {% macro ряд_канала(к) %}
           <tr data-channel="{{ к.id }}" data-status="{{ к.status }}">
             <td class="content-break"><span class="content-cell"><a href="{{ к.url }}" target="_blank" rel="noopener">{{ к.title }}</a></span>{% if к.ошибка %}<span class="content-row-error">{{ к.ошибка }}</span>{% endif %}</td>
             <td>{{ к.lang or '—' }}</td>
@@ -273,15 +271,33 @@
             <td>
               <div class="content-status">
                 <span class="content-status-word">{{ к.статус }}</span>
-                <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" data-channel-set="keep" {{ 'hidden' if к.status == 'keep' }}>Оставить</button>
+                <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" data-channel-set="keep" {{ 'hidden' if к.status in ('keep', 'removed') }}>Оставить</button>
                 <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" data-channel-set="removed" {{ 'hidden' if к.status == 'removed' }}>Убрать</button>
+                <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" data-channel-set="candidate" {{ 'hidden' if к.status != 'removed' }}>Вернуть</button>
               </div>
             </td>
           </tr>
-          {% endfor %}
+      {% endmacro %}
+      <div class="content-scroll">
+        <table class="content-table" id="content-channels">
+          <thead><tr><th>Канал</th><th>Язык</th><th class="content-num">Подписчиков</th><th class="content-num">Роликов собрано</th><th>Опрошен</th><th>Статус</th></tr></thead>
+          <tbody id="content-channels-live">
+          {% for к in живые %}{{ ряд_канала(к) }}{% endfor %}
           </tbody>
         </table>
       </div>
+      {# УБРАННЫЕ — свёрнутым списком: строка уходит сюда сразу после нажатия
+         «Убрать» и возвращается кнопкой «Вернуть» (в кандидаты). #}
+      <details class="content-removed" id="content-removed" {{ 'hidden' if not убранные }}>
+        <summary>Убранные · <span id="content-removed-n">{{ убранные | length }}</span></summary>
+        <div class="content-scroll">
+          <table class="content-table">
+            <tbody id="content-channels-removed">
+            {% for к in убранные %}{{ ряд_канала(к) }}{% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
       {% else %}
       <div class="v2-empty">
         <span class="v2-empty-icon">{{ значок('search') }}</span>
@@ -357,10 +373,11 @@
         const r = await fetch('/content/api/state', {headers: {'Accept': 'application/json'}});
         if (!r.ok) { сказать('Состояние прогона не получено: HTTP ' + r.status, true); return; }
         const д = await r.json();
-        if (д.running) сказать('Идёт ' + д.running.вид + ' (№' + д.running.id + ', начат ' + д.running.начат + ') — страница обновится сама, когда он кончится.');
+        if (д.running) сказать(((д.running.ход && д.running.ход.текст) || ('Идёт ' + д.running.вид)) + ' (№' + д.running.id + ', начат ' + д.running.начат + ') — страница обновится сама, когда он кончится.');
+        else if (д.work) сказать(д.work.текст);
         if (!д.busy) { clearInterval(ждём); location.reload(); }
       } catch (e) { сказать('Сеть не ответила — состояние прогона неизвестно, обновите страницу.', true); }
-    }, 4000);
+    }, 2000);
   }
   кнопки.forEach(function (к) {
     к.addEventListener('click', async function () {
@@ -377,28 +394,46 @@
   });
   if (строка.classList.contains('is-busy')) ждать();
 
-  // РЕЕСТР КАНАЛОВ: решение владельца уходит на сервер, строка
-  // перерисовывается по ответу сервера, а не по намерению.
-  document.querySelectorAll('[data-channel-set]').forEach(function (к) {
-    к.addEventListener('click', async function () {
-      const ряд = к.closest('tr');
-      const было = ряд.dataset.status;
-      ряд.querySelectorAll('[data-channel-set]').forEach(function (b) { b.disabled = true; });
-      try {
-        const r = await fetch('/content/api/channels/' + ряд.dataset.channel, {
-          method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({status: к.dataset.channelSet})});
-        const д = await r.json().catch(function () { return {}; });
-        if (!r.ok) throw new Error(д.error || ('HTTP ' + r.status));
-        ряд.dataset.status = д.status;
-        ряд.querySelector('.content-status-word').textContent = д.статус;
-        ряд.querySelectorAll('[data-channel-set]').forEach(function (b) { b.hidden = b.dataset.channelSet === д.status; });
-      } catch (e) {
-        ряд.dataset.status = было;
-        сказать('Статус канала не сохранён: ' + e.message, true);
-      }
-      ряд.querySelectorAll('[data-channel-set]').forEach(function (b) { b.disabled = false; });
+  // РЕЕСТР КАНАЛОВ: строка переезжает СРАЗУ (в «Убранные» либо обратно),
+  // сервер подтверждает; отказ возвращает её на место и говорит причину.
+  const живые = document.getElementById('content-channels-live');
+  const убранные = document.getElementById('content-channels-removed');
+  const блок_убранных = document.getElementById('content-removed');
+  function разложить(ряд, статус, слово) {
+    ряд.dataset.status = статус;
+    if (слово) ряд.querySelector('.content-status-word').textContent = слово;
+    ряд.querySelectorAll('[data-channel-set]').forEach(function (b) {
+      const с = b.dataset.channelSet;
+      b.hidden = статус === 'removed' ? с !== 'candidate' : (с === 'candidate' || с === статус);
     });
+    (статус === 'removed' ? убранные : живые).appendChild(ряд);
+    if (убранные && блок_убранных) {
+      const n = убранные.children.length;
+      document.getElementById('content-removed-n').textContent = n;
+      блок_убранных.hidden = n === 0;
+    }
+  }
+  document.addEventListener('click', async function (е) {
+    const к = е.target.closest('[data-channel-set]');
+    if (!к) return;
+    const ряд = к.closest('tr');
+    const было = ряд.dataset.status;
+    const слово_было = ряд.querySelector('.content-status-word').textContent;
+    const цель = к.dataset.channelSet;
+    разложить(ряд, цель, {keep: 'оставлен', removed: 'убран', candidate: 'кандидат'}[цель]);
+    ряд.querySelectorAll('[data-channel-set]').forEach(function (b) { b.disabled = true; });
+    try {
+      const r = await fetch('/content/api/channels/' + ряд.dataset.channel, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: цель})});
+      const д = await r.json().catch(function () { return {}; });
+      if (!r.ok) throw new Error(д.error || ('HTTP ' + r.status));
+      разложить(ряд, д.status, д.статус);
+    } catch (e) {
+      разложить(ряд, было, слово_было);
+      сказать('Статус канала не сохранён: ' + e.message, true);
+    }
+    ряд.querySelectorAll('[data-channel-set]').forEach(function (b) { b.disabled = false; });
   });
 })();
 </script>

@@ -36,6 +36,7 @@ import content_collect as cc
 import content_db as cdb
 import content_engine as ce
 import content_ideas as ci
+import content_worker as cw
 from auth import get_current_user
 from content_db import (ContentArchVideo, ContentChannel, ContentFormat, ContentIdea,
                         ContentItem, ContentRun, ContentSetting, ContentSnapshot,
@@ -108,7 +109,36 @@ def _прогон_наружу(п: ContentRun | None, зона: ZoneInfo, user) 
             "trigger": п.trigger, "начат": _main()._момент_в_поясе(п.started_at, user),
             "сек": (round((п.finished_at - п.started_at).total_seconds())
                     if п.finished_at else None),
-            "note": п.note, "итог": cdb.из_json(п.summary, {}) or {}}
+            "note": п.note, "итог": cdb.из_json(п.summary, {}) or {},
+            "ход": _ход_наружу(п)}
+
+
+def _ход_наружу(п: ContentRun) -> dict | None:
+    """«Идёт: 340 из 1145 · ~4 мин» — строка собирается здесь, одна на «Кухню»
+    и «Сегодня». Только у идущего прогона: у законченного хода нет."""
+    if п.state != "running":
+        return None
+    х = cdb.из_json(getattr(п, "progress", None), {}) or {}
+    if not х:
+        return {"текст": "Идёт: запуск…"}
+    части = [х.get("этап") or "работа"]
+    if х.get("всего"):
+        части.append("%d из %d" % (х.get("сделано") or 0, х["всего"]))
+    ост = х.get("осталось_сек")
+    if ост is not None:
+        части.append("~%d мин" % max(1, round(ост / 60)) if ост >= 60 else "меньше минуты")
+    return {**х, "текст": "Идёт: " + " · ".join(части)}
+
+
+def _исполнитель() -> dict | None:
+    """Что сейчас реально идёт в исполнителе — правда о занятости. Строка
+    «running» в базе без живого исполнителя — ничья (процесс падал), и кнопку
+    она не держит."""
+    т = cw.что_идёт()
+    if т is None:
+        return None
+    return {"kind": т["вид"], "вид": cw.ИМЕНА.get(т["вид"], т["вид"]),
+            "текст": cw.отказ_занято()}
 
 
 def _квота(db) -> dict:
@@ -248,9 +278,16 @@ def данные_страницы(db, user) -> dict:
     тема = (db.query(ContentTheme).filter(ContentTheme.active.is_(True))
             .order_by(ContentTheme.id).first())
     формула = cdb.настройка(db, "score_formula")
-    последние = (db.query(ContentRun).order_by(ContentRun.id.desc())
-                 .limit(ПРОГОНОВ_В_ЖУРНАЛЕ).all())
-    идёт = next((п for п in последние if п.state == "running"), None)
+    # «Пропущен» в журнал не идёт: планировщик их больше не пишет, а 29 046
+    # строк аварии 2026-09-30 вытеснили бы из журнала все настоящие прогоны.
+    последние = (db.query(ContentRun).filter(ContentRun.state != "skipped")
+                 .order_by(ContentRun.id.desc()).limit(ПРОГОНОВ_В_ЖУРНАЛЕ).all())
+    # Идёт — только если исполнитель реально занят: строка «running» без
+    # живого исполнителя ничья и кнопку не держит.
+    исп = cw.что_идёт()
+    идёт = (db.query(ContentRun).filter(ContentRun.state == "running",
+                                       ContentRun.kind == исп["вид"])
+            .order_by(ContentRun.id.desc()).first()) if исп else None
     тема_id = тема.id if тема else ""
     источники = _источники(db, тема_id, зона)
     сейчас = datetime.utcnow()
@@ -310,8 +347,10 @@ async def content_state(user=Depends(get_current_user), db: Session = Depends(ge
     идёт = (db.query(ContentRun).filter(ContentRun.state == "running",
                                        ContentRun.kind != "ideas")
             .order_by(ContentRun.id.desc()).first())
-    return {"busy": ce.занят() or идёт is not None,
-            "running": _прогон_наружу(идёт, зона, user),
+    исп = _исполнитель()
+    return {"busy": ce.занят() or исп is not None,
+            "work": исп,
+            "running": _прогон_наружу(идёт, зона, user) if исп else None,
             "last": _прогон_наружу(последний, зона, user),
             "quota": {к: v for к, v in _квота(db).items() if к != "сброс_utc"}}
 
@@ -394,7 +433,7 @@ def данные_сегодня(db, user, тип: str) -> dict:
     зона = _main()._пояс(user)
     радар = ci.радар(db)
     идёт = (db.query(ContentRun).filter(ContentRun.kind == "ideas", ContentRun.state == "running")
-            .first())
+            .first()) if ci.идёт() else None
     return {
         "страница": {"icon": "activity", "label": "Контент · GTA", "title": "Сегодня"},
         "тип": тип, "главная": главная, "ещё": ещё,
@@ -433,7 +472,9 @@ async def ideas_state(user=Depends(get_current_user), db: Session = Depends(get_
     п = (db.query(ContentRun).filter(ContentRun.kind == "ideas")
          .order_by(ContentRun.id.desc()).first())
     итог = (cdb.из_json(п.summary, {}) or {}) if п else {}
-    return {"busy": ci.идёт() or bool(п and п.state == "running"),
+    исп = _исполнитель()
+    return {"busy": ci.идёт(), "work": исп,
+            "ход": _ход_наружу(п) if (п and ci.идёт()) else None,
             "state": п.state if п else None, "steps": итог.get("шаги") or [],
             "ideas": итог.get("идей"), "note": п.note if п else None}
 
