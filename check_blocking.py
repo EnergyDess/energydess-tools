@@ -101,6 +101,7 @@ sys.stdout.reconfigure(encoding="utf-8")
     # модуль «Контент» (BACKLOG №365, 366): свой сбор по сети
     # и свой планировщик в цикле событий приложения
     "content_app.py", "content_engine.py", "content_collect.py", "content_db.py",
+    "content_refs.py", "content_package.py",
 ]
 
 # Блокирующие примитивы: полное имя вызова -> категория.

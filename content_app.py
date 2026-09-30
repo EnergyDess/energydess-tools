@@ -27,7 +27,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -36,6 +36,8 @@ import content_collect as cc
 import content_db as cdb
 import content_engine as ce
 import content_ideas as ci
+import content_package as cp
+import content_refs as cr
 import content_worker as cw
 from auth import get_current_user
 from content_db import (ContentArchVideo, ContentChannel, ContentDomain, ContentFormat,
@@ -56,7 +58,8 @@ router = APIRouter()
 ЗАМЕТКА_УТЕЧКИ = "Рассказывать можно, кадры утечки показывать нельзя."
 ЦВЕТ_ИСХОДА = {"ok": "ok", "quota": "warn", "error": "danger", "off": "off", None: "idle"}
 ВИДЫ_ПРОГОНА = {"cycle": "сбор", "discover": "поиск каналов", "archaeology": "археология",
-                "ideas": "идеи"}
+                "ideas": "идеи", "refs": "образцы", "package": "пакет ролика",
+                "channels": "чистка каналов", "domain": "проверка источника"}
 СОСТОЯНИЯ_ПРОГОНА = {"running": "идёт", "ok": "готово", "partial": "частично",
                      "error": "ошибка", "skipped": "пропущен"}
 СТАТУСЫ_КАНАЛА = {"candidate": "кандидат", "keep": "оставлен", "removed": "убран"}
@@ -394,6 +397,8 @@ def данные_страницы(db, user) -> dict:
         "идёт": _прогон_наружу(идёт, зона, user),
         "ключ_youtube": bool(ce.ключ_youtube()),
         "бюджет": ce.бюджет(db),
+        "образцы": cr.сводка(db),
+        "стиль": cdb.настройка(db, "style").get("text") or "",
         "подсказки": ПОДСКАЗКИ,
         "расход": ce.расход_по_задачам(db),
         "планировщик": ce.планировщик_включён(),
@@ -589,6 +594,11 @@ def данные_сегодня(db, user, тип: str) -> dict:
     ролики = (db.query(ContentVideo).filter(ContentVideo.theme_id == тема_id)
               .order_by(ContentVideo.status_at.desc(), ContentVideo.id.desc()).all())
     зона = _main()._пояс(user)
+    пакеты = {}
+    for пк in (db.query(cdb.ContentPackage).filter(
+            cdb.ContentPackage.idea_id.in_([р.idea_id for р in ролики if р.idea_id]))
+            .order_by(cdb.ContentPackage.id)):
+        пакеты[пк.idea_id] = пк.id
     радар = ci.радар(db)
     идёт = (db.query(ContentRun).filter(ContentRun.kind == "ideas", ContentRun.state == "running")
             .first()) if ci.идёт() else None
@@ -602,7 +612,8 @@ def данные_сегодня(db, user, тип: str) -> dict:
         "радар": {"ok": радар["ok"], "причина": радар["причина"], "бюджет": радар.get("бюджет"),
                   "когда": _время(радар["последний"], зона) if радар["последний"] else "ни разу"},
         "ролики": [{"id": р.id, "title": р.title, "kind": р.kind, "status": р.status,
-                    "url": р.youtube_url, "когда": _время(р.status_at, зона)} for р in ролики],
+                    "url": р.youtube_url, "когда": _время(р.status_at, зона),
+                    "пакет": пакеты.get(р.idea_id)} for р in ролики],
         "статусы": ci.СТАТУСЫ, "причины": ci.ПРИЧИНЫ,
         "счёт": {к: sum(1 for р in ролики if р.status == к) for к in ci.СТАТУСЫ},
         "идёт": идёт is not None,
@@ -697,6 +708,117 @@ async def week_goal(тело: Цель, user=Depends(get_current_user), db: Sess
         строка.value, строка.updated_at = cdb.в_json(н), datetime.utcnow()
     db.commit()
     return {"ok": True, "goal": тело.goal}
+
+
+class Стиль(BaseModel):
+    text: str
+
+
+@router.post("/content/api/settings/style")
+async def style_save(тело: Стиль, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Файл-стиль сценариев (письмо B): текст правит владелец на «Кухне»."""
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    текст = (тело.text or "").strip()
+    if not 20 <= len(текст) <= 4000:
+        return JSONResponse({"error": "стиль — от 20 до 4000 знаков"}, status_code=400)
+    строка = db.get(ContentSetting, "style")
+    значение = cdb.в_json({"text": текст})
+    if строка is None:
+        db.add(ContentSetting(key="style", value=значение, updated_at=datetime.utcnow()))
+    else:
+        строка.value, строка.updated_at = значение, datetime.utcnow()
+    db.commit()
+    return {"ok": True}
+
+
+# ── ПАКЕТ РОЛИКА (письмо B, блок 2) ───────────────────────────────────
+
+class Пакет(BaseModel):
+    idea_id: int
+
+
+class Блок(BaseModel):
+    block: str
+
+
+def _ответ(итог: dict):
+    if итог.get("error"):
+        return JSONResponse({"error": итог["error"]}, status_code=итог.get("code", 400))
+    return итог
+
+
+@router.post("/content/api/package/build")
+async def package_build(тело: Пакет, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    return _ответ(cp.начать(db, тело.idea_id))
+
+
+@router.get("/content/api/package/{pid}/state")
+async def package_state(pid: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    п = db.get(cdb.ContentPackage, pid)
+    if п is None:
+        return JSONResponse({"error": "пакета нет"}, status_code=404)
+    return {"state": п.state, "steps": cdb.из_json(п.steps, []) or [], "note": п.note}
+
+
+@router.post("/content/api/package/{pid}/rewrite")
+async def package_rewrite(pid: int, тело: Блок, user=Depends(get_current_user),
+                          db: Session = Depends(get_db)):
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    return _ответ(cp.переписать_блок(db, pid, тело.block))
+
+
+@router.post("/content/api/package/{pid}/shoot")
+async def package_shoot(pid: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    return _ответ(cp.отметить_снимаю(db, pid))
+
+
+@router.get("/content/package/{pid}/download")
+async def package_md(pid: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if not _админ(user):
+        return PlainTextResponse(ОТКАЗ_НЕ_АДМИНУ, status_code=403)
+    п = db.get(cdb.ContentPackage, pid)
+    if п is None or п.state == "running" or not п.data:
+        return PlainTextResponse("пакет не готов", status_code=404)
+    return Response(cp.в_markdown(п).encode("utf-8"), media_type="text/markdown; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="package-{pid}.md"'})
+
+
+def данные_пакета(db, п, user) -> dict:
+    зона = _main()._пояс(user)
+    д = cdb.из_json(п.data, {}) or {}
+    по_id = {}
+    for с in д.get("sources") or []:
+        по_id[с["id"]] = с
+    р = db.get(ContentVideo, п.video_id) if п.video_id else None
+    return {"страница": {"icon": "file-text", "label": "Контент · пакет ролика",
+                         "title": (д.get("idea") or {}).get("title") or "Пакет ролика"},
+            "п": {"id": п.id, "idea_id": п.idea_id, "state": п.state, "note": п.note, "kind": п.kind,
+                  "когда": _время(п.finished_at or п.created_at, зона),
+                  "cost": п.cost, "steps": cdb.из_json(п.steps, []) or []},
+            "д": д, "источник_по_id": по_id, "блоки": cp.БЛОКИ,
+            "ролик": ({"status": р.status, "статус": ci.СТАТУСЫ.get(р.status, р.status)} if р else None),
+            "проверь": sum(1 for с in д.get("script") or [] for л in с["lines"] if л.get("check"))}
+
+
+@router.get("/content/package/{pid}")
+async def package_page(pid: int, request: Request, user=Depends(get_current_user),
+                       db: Session = Depends(get_db)):
+    if not _админ(user):
+        return PlainTextResponse(ОТКАЗ_НЕ_АДМИНУ, status_code=403)
+    п = db.get(cdb.ContentPackage, pid)
+    if п is None:
+        return PlainTextResponse("Пакета нет", status_code=404)
+    контекст = {"user": user, **данные_пакета(db, п, user)}
+    return _main().templates.TemplateResponse(request=request, name="content_package.html",
+                                              context=контекст)
 
 
 def _старт():

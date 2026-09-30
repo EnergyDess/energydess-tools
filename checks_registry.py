@@ -161,7 +161,7 @@ def _п(*группы):
     # Модуль «Контент» (BACKLOG №365, 366): маршруты живут в `content_app.py`,
     # данные — в `content_db.py`, а не в `main.py`, — поэтому маска модуля
     # своя, иначе правка отбора сюжетов не тянула бы пробу в быстрый ряд.
-    "стенд:74": (["templates/content.html", "static/content.css", "templates/content_today.html", "static/content_today.css", "static/v2.css",
+    "стенд:74": (["templates/content.html", "static/content.css", "templates/content_today.html", "templates/content_package.html", "static/content_today.css", "static/v2.css",
                   "templates/_header.html", "content_*.py", "main.py", "database.py"],
                  "полный", True),
     # отдельные скрипты и тесты

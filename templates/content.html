@@ -178,6 +178,11 @@
       <button type="button" class="v2-btn v2-btn-secondary" id="content-run-arch" data-run="archaeology"
               title="Прогноз: около {{ форматы.прогноз }} единиц квоты YouTube за прогон">{{ значок('history') }} {{ 'Повторить археологию' if форматы.всего else 'Запустить археологию' }}</button>
     </div>
+    <div class="content-bar" id="content-refs">
+      <p class="v2-text">Образцов разобрано: <b id="content-refs-ok">{{ образцы.разобрано }}</b>{% if образцы.пропущено %} · пропущено: <b>{{ образцы.пропущено }}</b>{% endif %}{% if образцы.сбоев %} · сбоев: <b>{{ образцы.сбоев }}</b>{% endif %} · расход: <b id="content-refs-usd">{{ '%.2f' % образцы.usd }} $</b>{% if not образцы.ключ %} · <span class="content-row-error">нет ключа Gemini (GEMINI_API_KEY)</span>{% elif образцы.последний and образцы.последний.note %} · <span class="v2-hint">{{ образцы.последний.note }}</span>{% endif %}</p>
+      <button type="button" class="v2-btn v2-btn-secondary" id="content-run-refs" data-run="refs"
+              title="Разбор роликов-образцов форматов Gemini по ссылке; раз в неделю сам">{{ значок('history') }} Обновить образцы</button>
+    </div>
     <p class="v2-hint content-shot-note">Выстрел — просмотры ролика, делённые на медиану просмотров роликов того же канала за ±90 дней вокруг него (сам ролик в медиану не входит, нужно не меньше 5 соседей). Он показывает, насколько ролик выстрелил для своего канала, а не насколько канал большой.</p>
 
     <div class="v2-card content-card">
@@ -285,6 +290,14 @@
         <span class="v2-tile-num content-tile-word">{{ 'Каждые ' ~ цикл_минут ~ ' мин' if планировщик else 'Кнопкой' }}</span>
         <span class="v2-tile-label">{{ 'планировщик в приложении' if планировщик else 'планировщик выключен вне Fly' }}</span>
       </div>
+    </div>
+
+    <div class="v2-card content-card" id="content-style">
+      <h2 class="v2-card-title">Стиль сценариев</h2>
+      <p class="v2-hint">Так пишется сценарий пакета ролика: уходит модели в каждом пакете.</p>
+      <textarea class="v2-textarea" id="content-style-text" rows="5" aria-label="Стиль сценариев">{{ стиль }}</textarea>
+      <p><button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" id="content-style-save">Сохранить стиль</button>
+        <span class="v2-hint" id="content-style-out" aria-live="polite"></span></p>
     </div>
 
     <div class="v2-card content-card" id="content-spend">
@@ -497,6 +510,18 @@
   // ЗАПУСК И ОЖИДАНИЕ: пока идёт прогон, строка прогона спрашивает сервер
   // раз в 4 секунды и перезагружает страницу, когда он кончился. Отказ
   // сервера говорится словами в той же строке, а не молчит.
+  const стильКн = document.getElementById('content-style-save');
+  стильКн.addEventListener('click', async function () {
+    const вывод = document.getElementById('content-style-out');
+    стильКн.disabled = true;
+    try {
+      const r = await fetch('/content/api/settings/style', {method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text: document.getElementById('content-style-text').value})});
+      const д = await r.json().catch(function () { return {}; });
+      вывод.textContent = r.ok ? 'Сохранено' : ('Не сохранено: ' + (д.error || 'HTTP ' + r.status));
+    } finally { стильКн.disabled = false; }
+  });
+
   const строка = document.getElementById('content-run');
   const кнопки = document.querySelectorAll('[data-run]');
   function занято(да) { кнопки.forEach(function (к) { к.disabled = да; }); }

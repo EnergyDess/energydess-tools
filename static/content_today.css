@@ -78,7 +78,6 @@
   color: var(--v2-warn); font-size: var(--v2-fs-sm);
 }
 .today-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--v2-sp-3); margin-top: var(--v2-sp-4); }
-.today-soon { font-size: var(--v2-fs-xs); }
 
 .today-empty { margin-bottom: var(--v2-sp-6); }
 
@@ -152,3 +151,41 @@
   .today-main, .today-row, .today-pane.is-in { animation: none; transition: none; }
   .today-tile, .today-step-mark { transition: none; }
 }
+
+/* ПАКЕТ РОЛИКА `/content/package/<id>` (письмо B, блок 2): блоки сверху
+   вниз на `.v2-card`, у каждого своя шапка с «Переписать блок». Фраза-факт
+   без источника — жёлтая черта слева и подпись «проверь». */
+.pack-meta { display: block; white-space: normal; margin-bottom: var(--v2-sp-4); line-height: var(--v2-lh-body); }
+.pack-meta a { color: var(--v2-text); }
+.pack-check-count, .pack-flag { color: var(--v2-warn); font-weight: var(--v2-fw-strong); }
+.pack-block { margin-bottom: var(--v2-sp-4); }
+.pack-head {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: var(--v2-sp-2) var(--v2-sp-3); margin-bottom: var(--v2-sp-3);
+}
+.pack-head .today-h2 { margin: 0; }
+.pack-list { margin: 0; padding-left: var(--v2-sp-5); display: grid; gap: var(--v2-sp-2); color: var(--v2-text); }
+.pack-dl { margin: var(--v2-sp-4) 0 0; display: grid; grid-template-columns: max-content 1fr; gap: var(--v2-sp-2) var(--v2-sp-4); }
+.pack-dl dt { color: var(--v2-text-2); font-size: var(--v2-fs-sm); }
+.pack-dl dd { margin: 0; color: var(--v2-text); }
+.pack-say { max-width: var(--v2-measure); }
+.pack-seg + .pack-seg { margin-top: var(--v2-sp-4); padding-top: var(--v2-sp-4); border-top: 1px solid var(--v2-line-2); }
+.pack-seg-head { margin: 0 0 var(--v2-sp-2); color: var(--v2-text-2); font-size: var(--v2-fs-sm); }
+.pack-seg-head b { color: var(--v2-text-strong); }
+.pack-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--v2-sp-2); max-width: var(--v2-measure); }
+.pack-line { color: var(--v2-text); padding-left: var(--v2-sp-3); border-left: 2px solid transparent; }
+.pack-line.is-check { border-left-color: var(--v2-warn); }
+.pack-src { margin-left: var(--v2-sp-1); font-size: var(--v2-fs-sm); }
+.pack-src a { color: var(--v2-text-2); margin-right: var(--v2-sp-1); }
+.pack-flag { display: block; font-size: var(--v2-fs-sm); }
+.pack-warn { margin: 0 0 var(--v2-sp-3); }
+.pack-checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--v2-sp-2); }
+.pack-ci { display: flex; gap: var(--v2-sp-3); align-items: flex-start; color: var(--v2-text); }
+.pack-ci-mark {
+  width: var(--v2-sp-5); height: var(--v2-sp-5); flex: none; border-radius: var(--v2-r-pill);
+  display: inline-flex; align-items: center; justify-content: center; font-size: var(--v2-fs-sm);
+  border: 1px solid var(--v2-line-1);
+}
+.pack-ci.is-ok .pack-ci-mark { background: var(--v2-ok); border-color: var(--v2-ok); color: var(--v2-ink-on-tool); }
+.pack-ci.is-look .pack-ci-mark { color: var(--v2-warn); border-color: var(--v2-warn); }
+.pack-sources li { overflow-wrap: anywhere; }

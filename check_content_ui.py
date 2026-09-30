@@ -24,7 +24,15 @@
   · вкладки не переключаются (обработчики сняты) — шаг «вкладки» падает;
     доказательство: после нажатия раздел «Форматы» остался скрытым;
   · причина отказа кандидата спрятана (BACKLOG №374) — шаг «кухня/отказ
-    кандидата» падает; доказательство: видимых причин 0 при записанном отказе.
+    кандидата» падает; доказательство: видимых причин 0 при записанном отказе;
+  · подсветка «проверь» у фразы без источника спрятана (письмо B) — шаг
+    «пакет/проверь» падает; доказательство: видимых подписей 0 при фразах
+    с отметкой в разметке.
+
+ПАКЕТ РОЛИКА (письмо B, блок 2): готовый пакет и собирающийся засеваются
+на копии боевой сборкой с подменённой моделью (в сеть 0 вызовов); на каждой
+ширине — блоки, подсветка «проверь», предупреждение об утечке, ничто не шире
+окна; шаги сборки — с галочками; на 1920 «Отметить: снимаю» — статус В БАЗЕ.
 
     py check_content_ui.py              # код 1 при беде, 2 — нечем проверить
     py check_content_ui.py --контроль
@@ -57,6 +65,7 @@ sys.stdout.reconfigure(encoding="utf-8")
   });
 }"""
 ПОДЛОГ_ОТКАЗА = "[data-candidate-refused] { display: none !important; }"
+ПОДЛОГ_ПРОВЕРЬ = ".pack-flag { display: none !important; }"
 ПОДЛОГ_ВКЛАДОК = """() => document.querySelectorAll('.content-page .v2-tab[data-tab]')
   .forEach(к => к.replaceWith(к.cloneNode(true)))"""
 
@@ -319,6 +328,120 @@ def _переключатель(с, адрес, подлог):
     return {"после": после, "назад": назад}
 
 
+def _засеять_пакет(база):
+    """Готовый пакет (сюжет с утечкой, фраза-факт без источника) и пакет на шаге
+    «Сценарий» — боевой сборкой `content_package.собрать`, модель подменена."""
+    import asyncio
+    import json as _json
+    from datetime import datetime as _dt
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    import content_engine as ce
+    import content_package as cp
+    import database
+    from content_db import (ContentFormat, ContentIdea, ContentItem, ContentPackage,
+                            ContentStory)
+    движок = create_engine("sqlite:///" + база.replace("\\", "/"))
+    database.Base.metadata.create_all(движок)
+    Сессия = sessionmaker(bind=движок)
+    db = Сессия()
+    сейчас = _dt.utcnow()
+    ф = db.query(ContentFormat).filter(ContentFormat.status == "active").order_by(ContentFormat.sort).first()
+    с = ContentStory(theme_id=ф.theme_id, title="Проба пакета: трейлер", summary="проба",
+                     first_seen_at=сейчас, items=1, sources=1, leak=True)
+    db.add(с)
+    db.flush()
+    и = ContentItem(theme_id=ф.theme_id, ext_id="probe:pack", source_id=0, source_key="probe",
+                    source_name="Rockstar Newswire", platform="rockstar",
+                    url="https://www.rockstargames.com/newswire", title="Проба: трейлер вышел",
+                    official=True, first_seen_at=сейчас, last_seen_at=сейчас, story_id=с.id)
+    db.add(и)
+    ид = []
+    for _ in range(2):
+        идея = ContentIdea(theme_id=ф.theme_id, run_id=None, kind="long", sort="hot",
+                           title="Проба пакета ролика", why="проба", format_id=ф.id, story_id=с.id,
+                           facts=_json.dumps({"официально": True}), risks='["leak"]', state="planned")
+        db.add(идея)
+        db.flush()
+        п = ContentPackage(theme_id=ф.theme_id, idea_id=идея.id, kind="long", state="running")
+        db.add(п)
+        db.flush()
+        ид.append(п.id)
+    item_id = и.id
+    db.commit()
+    db.close()
+    прежние = ce.SessionLocal, ce._спросить
+
+    async def _модель(клиент, инструмент, система, вопрос, потолок, модель=None, температура=0):
+        if "Дай 3 названия" in вопрос:
+            return _json.dumps({"titles": ["Проба названия один", "Проба названия два", "Проба названия три"],
+                                "thumbnail": {"frame": "кадр", "screenshot": "трейлер 0:45",
+                                              "text": "Три слова тут"}}), None
+        if "Сценарий ролика" in вопрос:
+            return _json.dumps({"hook": {"text": "Проба крючка.", "shown": "трейлер"}, "segments": [
+                {"from": "0:00", "to": "0:30", "role": "крючок", "purpose": "проба",
+                 "lines": [{"text": "Трейлер вышел.", "fact": True, "src": [item_id]}]},
+                {"from": "0:30", "to": "9:00", "role": "пик", "purpose": "проба",
+                 "lines": [{"text": "Выдуманный факт без источника.", "fact": True, "src": []}]}]}), None
+        return _json.dumps({"shots": [{"what": "Кадры утечки", "source": "утечка"},
+                                      {"what": "Трейлер 2", "source": "трейлер", "where": "0:45"}]}), None
+    ce.SessionLocal = sessionmaker(bind=движок)
+    ce._спросить = _модель
+    try:
+        cp.Шаги(ид[0])
+        asyncio.run(cp.собрать(ид[0]))
+        ш = cp.Шаги(ид[1])
+        ш.готово("sources", "проба")
+        ш.готово("refs", "проба")
+        ш.готово("titles", None)
+    finally:
+        ce.SessionLocal, ce._спросить = прежние
+        движок.dispose()
+    return {"готов": ид[0], "идёт": ид[1]}
+
+
+ЗАМЕР_ПАКЕТА = r"""() => {
+  const вид = (у) => у && у.checkVisibility({checkOpacity: true, checkVisibilityCSS: true});
+  const все = (s) => [...document.querySelectorAll(s)];
+  const ш = document.documentElement.clientWidth;
+  return {
+    блоков: все('.pack-block').filter(вид).length,
+    переписать: все('[data-rewrite]').filter(вид).length,
+    проверь_строк: все('.pack-line.is-check').length,
+    проверь_видно: все('.pack-flag').filter(вид).length,
+    утечка: вид(document.getElementById('pack-leak-warning')),
+    скачать: вид(document.getElementById('pack-md')),
+    шаги: все('.today-step').filter(вид).length,
+    шагов_готово: все('.today-step.is-done').filter(вид).length,
+    шире: все('main *').filter((у) => вид(у) && у.getBoundingClientRect().right > ш + 1
+                                  && !у.closest('.content-scroll')).map((у) => у.className).slice(0, 5),
+  };
+}"""
+
+
+def _пакет(с, адрес, ширина, база, пакеты, подлог):
+    import check_v2_wide as ч67
+    итог = {}
+    for имя in ("готов", "идёт"):
+        с.goto(адрес + "/content/package/%d" % пакеты[имя], wait_until="load", timeout=45000)
+        if подлог and подлог.startswith("css:"):
+            с.add_style_tag(content=подлог[4:])
+        с.wait_for_timeout(500)
+        з = с.evaluate(ЗАМЕР_ПАКЕТА)
+        з["строка"] = с.evaluate(ч67.ЗАМЕР_СТРОКИ, ч67.ПОТОЛОК_СТРОКИ)
+        з["прокрутка"] = с.evaluate(ч67.ЗАМЕР_ПРОКРУТКИ)
+        с.screenshot(path=os.path.join(КАДРЫ, "%d-package-%s.png" % (ширина, "ok" if имя == "готов" else "steps")),
+                     full_page=True)
+        итог[имя] = з
+    if ширина == 1920 and not подлог:
+        с.goto(адрес + "/content/package/%d" % пакеты["готов"], wait_until="load", timeout=45000)
+        with с.expect_navigation(wait_until="load", timeout=15000):
+            с.click("#pack-shoot")
+        итог["снимаю"] = _база(база, "SELECT v.status FROM content_videos v JOIN content_packages p "
+                                     "ON p.video_id = v.id WHERE p.id = ?", пакеты["готов"])
+    return итог
+
+
 def _сегодня(с, адрес, ширина, база, подлог):
     """«Сегодня»: длинные и Shorts, а на 1920 без подлога — путь автора
     нажатиями: «Не то» с причиной, «+ в план», плитка конвейера, «Обновить идеи».
@@ -386,6 +509,9 @@ def замер(база, подлог=None):
     uid = _база(база, "SELECT id FROM users WHERE email = ?", ПОЧТА)
     if not uid:
         raise ConnectionError("на копии стенда нет аккаунта %s — посейте стенд" % ПОЧТА)
+    # пакет ДО снятия ожиданий: его сюжет виден на «Кухне», и отбор сервера
+    # обязан его учитывать, иначе проба назовёт свой же засев лишним
+    пакеты = _засеять_пакет(база)
     _засеять_ссылки(база)
     ждём = _ожидание(база)
     _засеять_идеи(база)
@@ -424,8 +550,10 @@ def замер(база, подлог=None):
                 if ширина == 1920 and not подлог:
                     каналы = _каналы(с, база)
                 сегодня = _сегодня(с, адрес, ширина, база, подлог)
+                пакет = _пакет(с, адрес, ширина, база, пакеты, подлог)
                 итог.append({"ширина": ширина, "вкладки": снимки, "каналы": каналы, "кухня": кухня,
-                             "ждём": ждём, "сегодня": сегодня, "ждём_сегодня": ждём_сегодня})
+                             "ждём": ждём, "сегодня": сегодня, "ждём_сегодня": ждём_сегодня,
+                             "пакет": пакет})
                 к.close()
             бр.close()
     finally:
@@ -490,6 +618,7 @@ def _каналы(с, база):
 def оценить(замеры):
     for з in замеры:
         оценить_сегодня(з)
+        оценить_пакет(з)
         ш = з["ширина"]
         к = з.get("кухня") or {}
         шаг("%d/кухня/назад" % ш, к.get("назад") and abs((к.get("назад_слева") or 0) - (к.get("шапка_слева") or 0)) <= 2
@@ -638,6 +767,28 @@ def оценить_сегодня(з):
         "шагов с галочкой видели %d из 6, новых прогонов %d" % путь["обновить"])
 
 
+def оценить_пакет(з):
+    ш = з["ширина"]
+    г, и = з["пакет"]["готов"], з["пакет"]["идёт"]
+    шаг("%d/пакет/блоки" % ш, г["блоков"] == 6 and г["переписать"] == 6 and г["скачать"],
+        "блоков %d из 6, «Переписать блок» %d, «Скачать .md» %s" % (г["блоков"], г["переписать"], г["скачать"]))
+    шаг("%d/пакет/проверь" % ш, г["проверь_строк"] >= 1 and г["проверь_видно"] == г["проверь_строк"],
+        "фраз без источника %d, подписей «проверь» видно %d" % (г["проверь_строк"], г["проверь_видно"]),
+        собрано=г["проверь_строк"])
+    шаг("%d/пакет/утечка" % ш, bool(г["утечка"]), "предупреждение об утечке видно: %s" % г["утечка"])
+    for имя, снимок in (("готов", г), ("идёт", и)):
+        шаг("%d/пакет/%s шире окна" % (ш, имя), not снимок["шире"] and снимок["прокрутка"]["док"] <= 1,
+            "за краем %s, прокрутка %s" % (снимок["шире"] or "нет", снимок["прокрутка"]))
+        худший = снимок["строка"]["худший"]
+        шаг("%d/пакет/%s строка" % (ш, имя), худший["знаков"] <= снимок["строка"]["потолок"],
+            "самая длинная строка %d знаков (%s)" % (худший["знаков"], худший["кто"]))
+    шаг("%d/пакет/шаги сборки" % ш, и["шаги"] == 6 and и["шагов_готово"] == 3,
+        "шагов видно %d из 6, с галочкой %d из 3" % (и["шаги"], и["шагов_готово"]))
+    if "снимаю" in з["пакет"]:
+        шаг("пакет/отметить снимаю", з["пакет"]["снимаю"] == [("writing",)],
+            "статус ролика в базе %s" % (з["пакет"]["снимаю"],))
+
+
 def _с_утечкой(з):
     return [с for x in з for с in x["вкладки"]["stories"]["сюжеты"] if с["утечка"]]
 
@@ -666,6 +817,8 @@ def _красные(з):
                        and not any((x.get("кухня") or {}).get("отказов_видно") for x in з),
     "перезагрузка": lambda з: bool(з) and not any(
         (x["сегодня"].get("переключатель") or {}).get("после", {}).get("метка") for x in з),
+    "проверь": lambda з: bool(з) and all(x["пакет"]["готов"]["проверь_строк"] for x in з)
+                         and not any(x["пакет"]["готов"]["проверь_видно"] for x in з),
 }
 ПОДЛОГИ = {"утечка": ("css:" + ПОДЛОГ_УТЕЧКИ, "сюжеты/утечка"),
            "опережение": ("css:" + ПОДЛОГ_ОПЕРЕЖЕНИЯ, "сюжеты/опережение"),
@@ -673,7 +826,8 @@ def _красные(з):
            "вкладки": ("вкладки", "вкладка formats"),
            "факты": ("css:" + ПОДЛОГ_ФАКТОВ, "сегодня/факты"),
            "отказ": ("css:" + ПОДЛОГ_ОТКАЗА, "кухня/отказ кандидата"),
-           "перезагрузка": ("перезагрузка", "сегодня/переключатель")}
+           "перезагрузка": ("перезагрузка", "сегодня/переключатель"),
+           "проверь": ("css:" + ПОДЛОГ_ПРОВЕРЬ, "пакет/проверь")}
 
 
 def main_():

@@ -810,7 +810,8 @@ async def поиск_каналов(повод: str = "admin") -> dict:
 # других разделов (`admin-video-check`, письма HH) сюда не попадают:
 # потолок модуля остальной сайт не трогает.
 ЗАДАЧИ_МОДЕЛИ = {"admin-content-stories": "сюжеты", "admin-content-ideas": "идеи",
-                 "admin-content-formats": "археология", "admin-content-collect": "сбор"}
+                 "admin-content-formats": "археология", "admin-content-collect": "сбор",
+                 "admin-content-refs": "образцы", "admin-content-package": "пакеты"}
 
 
 def _полночь_мск_utc(сейчас: datetime | None = None) -> datetime:
@@ -837,7 +838,8 @@ def бюджет(db, сейчас: datetime | None = None) -> dict:
     сегодня = _потрачено_сегодня(db, сейчас)
     исчерпан = сегодня >= потолок
     текст = (f"Бюджет модели на сегодня исчерпан: {сегодня:.2f} $ из {потолок:.2f} $ — "
-             "сюжеты, идеи и археология ждут полуночи по Москве" if исчерпан else None)
+             "сюжеты, идеи, археология, образцы и пакеты ждут полуночи по Москве"
+             if исчерпан else None)
     return {"потолок": потолок, "сегодня": round(сегодня, 4), "исчерпан": исчерпан,
             "текст": текст}
 
@@ -862,8 +864,10 @@ def расход_по_задачам(db, сейчас: datetime | None = None) -
 
 
 async def _спросить(клиент, инструмент: str, система: str, вопрос: str,
-                    потолок: int) -> tuple[str | None, str | None]:
-    """(текст ответа, беда). Беда — причина по-русски; текст — только удачный."""
+                    потолок: int, модель: str | None = None,
+                    температура: float = 0) -> tuple[str | None, str | None]:
+    """(текст ответа, беда). Беда — причина по-русски; текст — только удачный.
+    `модель` — своя у пакета ролика (сильная); по умолчанию дешёвая `MODEL`."""
     м = _main()
     if not м.OPENROUTER_API_KEY:
         return None, м._без_ключа("модель не настроена: API ключ OpenRouter не задан")
@@ -881,10 +885,10 @@ async def _спросить(клиент, инструмент: str, систе�
             headers={"Authorization": f"Bearer {м.OPENROUTER_API_KEY}",
                      "HTTP-Referer": "https://energydess.ru",
                      "X-Title": "EnergyDess Content"},
-            json={**м.ПОЛИТИКА_ЗАПРОСА, "model": м.MODEL,
+            json={**м.ПОЛИТИКА_ЗАПРОСА, "model": модель or м.MODEL,
                   "messages": [{"role": "system", "content": система},
                                {"role": "user", "content": вопрос}],
-                  "temperature": 0, "max_tokens": потолок})
+                  "temperature": температура, "max_tokens": потолок})
     except httpx.HTTPError as e:
         return None, f"сервис моделей не ответил ({type(e).__name__})"
     try:
@@ -1740,6 +1744,9 @@ def запустить_проверку(домен: str, повод: str = "admi
 
 def запустить(вид: str, повод: str = "admin") -> dict:
     """Прогон фоном. Идёт другой — отказ словами, а не молчаливая очередь."""
+    if вид == "refs":
+        import content_refs as cr
+        return cr.запустить(повод)
     if вид not in ВИДЫ:
         return {"ok": False, "error": "неизвестный вид прогона"}
     return cw.запустить(вид, ВИДЫ[вид], повод)
@@ -1850,6 +1857,9 @@ async def _планировщик() -> None:
                 await cw.выполнить("cycle", цикл, "scheduler")
                 if not cw.занят_другим() and _археология_нужна():
                     await cw.выполнить("archaeology", археология, "scheduler")
+                import content_refs as cr
+                if not cw.занят_другим() and cr.нужны():
+                    await cw.выполнить("refs", cr.прогон, "scheduler")
                 await _идеи_по_расписанию()
         except asyncio.CancelledError:
             raise

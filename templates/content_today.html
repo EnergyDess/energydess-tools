@@ -88,11 +88,10 @@
     </div>
     {% for р in главная.риски %}<p class="today-risk">{{ значок('alert-triangle') }} {{ р }}</p>{% endfor %}
     <div class="today-actions">
-      <button type="button" class="v2-btn v2-btn-primary" data-act="plan" data-id="{{ главная.id }}" id="today-pack-{{ тип }}">
+      <button type="button" class="v2-btn v2-btn-primary" data-act="pack" data-id="{{ главная.id }}" id="today-pack-{{ тип }}">
         {{ значок('sparkles') }} Собрать пакет ролика
       </button>
       <button type="button" class="v2-btn v2-btn-secondary" data-act="later" data-id="{{ главная.id }}" id="today-later-{{ тип }}">Не сегодня</button>
-      <span class="v2-hint today-soon">сборка пакета — скоро, пока идея уходит в план</span>
     </div>
   </section>
   {% elif not есть_прогон %}
@@ -125,6 +124,7 @@
           <span class="today-row-facts">{% if и.sort != 'evergreen' %}{{ и.факты.окно }} · спрос {{ и.факты.спрос_коротко }} · на русском {{ и.факты.конкуренция }}{% else %}в любой день{% endif %}{% if и.формат %} · {{ и.формат }} {{ и.факты.выстрел }}{% endif %}{% for р in и.риски %} · <span class="today-row-risk">{{ р }}</span>{% endfor %}</span>
         </div>
         <div class="today-row-acts">
+          <button type="button" class="v2-btn v2-btn-quiet v2-btn-icon" data-act="pack" data-id="{{ и.id }}" title="Собрать пакет ролика" aria-label="Собрать пакет ролика">{{ значок('sparkles') }}</button>
           <button type="button" class="v2-btn v2-btn-quiet v2-btn-icon" data-act="plan" data-id="{{ и.id }}" title="В план" aria-label="В план">{{ значок('plus') }}</button>
           <button type="button" class="v2-btn v2-btn-quiet v2-btn-icon" data-act="reject-open" data-id="{{ и.id }}" title="Не то" aria-label="Не то">{{ значок('x') }}</button>
         </div>
@@ -172,7 +172,7 @@
         <ul class="today-pipe-list">
           {% for р in свои %}
           <li class="today-pipe-row" data-video="{{ р.id }}">
-            <span class="today-pipe-title">{% if р.url %}<a href="{{ р.url }}" target="_blank" rel="noopener">{{ р.title }}</a>{% else %}{{ р.title }}{% endif %}</span>
+            <span class="today-pipe-title">{% if р.url %}<a href="{{ р.url }}" target="_blank" rel="noopener">{{ р.title }}</a>{% else %}{{ р.title }}{% endif %}{% if р.пакет %} · <a href="/content/package/{{ р.пакет }}" class="today-pipe-pack">пакет</a>{% endif %}</span>
             <span class="v2-hint">{{ 'Shorts' if р.kind == 'shorts' else 'длинный' }} · {{ р.когда }}</span>
             <div class="today-pipe-ctl">
               <select class="v2-select" data-video-status="{{ р.id }}" aria-label="Статус ролика">
@@ -250,6 +250,12 @@
         const ряд = к.closest('.today-row');
         const причины = ряд.querySelector('.today-reasons');
         причины.hidden = !причины.hidden;
+        return;
+      }
+      if (к.dataset.act === 'pack') {
+        к.disabled = true;
+        const д = await послать('/content/api/package/build', {idea_id: +id});
+        location.href = '/content/package/' + д.id;
         return;
       }
       if (к.dataset.act === 'plan' || к.dataset.act === 'later' || к.dataset.act === 'reject') {

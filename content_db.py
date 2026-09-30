@@ -371,6 +371,58 @@ class ContentDomain(Base):
     checked_at = Column(DateTime, nullable=False)
 
 
+class ContentRef(Base):
+    """РОЛИК-ОБРАЗЕЦ ФОРМАТА и его разбор (письмо B, блок 1). Разбирает
+    Gemini ПО ССЫЛКЕ на публичный ролик — сам ролик не скачивается
+    (правила YouTube). Ролик одного формата — одна строка; тот же ролик
+    у другого формата — своя строка: разбор один, а связь с форматом — нет.
+    state: ok — разбор есть; skipped — ролик недоступен НАВСЕГДА (приватный,
+    удалён, 18+, слишком длинный), повтор не нужен; error — сбой сервиса,
+    следующий прогон попробует снова."""
+    __tablename__ = "content_refs"
+    __table_args__ = (UniqueConstraint("format_id", "yt_id", name="uq_content_ref"),)
+    id = Column(Integer, primary_key=True)
+    theme_id = Column(String, nullable=False, index=True)
+    format_id = Column(Integer, nullable=False, index=True)
+    yt_id = Column(String, nullable=False)
+    title = Column(String, nullable=True)
+    channel_title = Column(String, nullable=True)
+    lang = Column(String, nullable=True)                 # ru | en
+    origin = Column(String, nullable=False)              # arch | radar
+    shot = Column(Float, nullable=True)                  # выстрел хита либо аномалия радара
+    minutes = Column(Float, nullable=True)
+    state = Column(String, nullable=False, default="new")   # new | ok | skipped | error
+    reason = Column(Text, nullable=True)                 # почему пропущен либо сбой
+    analysis = Column(Text, nullable=True)               # JSON разбора
+    model = Column(String, nullable=True)
+    cost = Column(Float, nullable=True)
+    tries = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    analyzed_at = Column(DateTime, nullable=True)
+
+
+class ContentPackage(Base):
+    """ПАКЕТ РОЛИКА (письмо B, блок 2): названия, превью, крючок, сценарий,
+    список съёмок, проверка перед публикацией, источники. Собирается ОДИН
+    раз фоновой задачей и дальше открывается из базы — без вызовов модели.
+    data — JSON блоков; steps — шаги сборки для экрана."""
+    __tablename__ = "content_packages"
+    id = Column(Integer, primary_key=True)
+    theme_id = Column(String, nullable=False, index=True)
+    idea_id = Column(Integer, nullable=False, index=True)
+    video_id = Column(Integer, nullable=True)
+    kind = Column(String, nullable=False, default="long")    # long | shorts
+    state = Column(String, nullable=False, default="running")  # running | ok | error
+    steps = Column(Text, nullable=True)
+    note = Column(Text, nullable=True)
+    data = Column(Text, nullable=True)
+    refs = Column(Text, nullable=True)                   # JSON: id образцов, по которым строилось
+    model = Column(String, nullable=True)
+    cost = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    finished_at = Column(DateTime, nullable=True)
+
+
 # ── ПОМОЩНИКИ ─────────────────────────────────────────────────────────
 
 def из_json(текст, запас=None):

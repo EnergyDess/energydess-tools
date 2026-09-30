@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% set meta_title = 'Пакет ролика · Контент' %}
+  {% include '_meta.html' %}
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ st('style.css') }}">
+  <link rel="stylesheet" href="{{ st('content_today.css') }}">
+</head>
+<body class="has-site-header">
+
+{% include '_header.html' %}
+
+{# ПАКЕТ РОЛИКА (письмо B, блок 2). Всё рисует сервер из базы: готовый
+   пакет открывается без единого вызова модели. Пока пакет собирается,
+   браузер спрашивает шаги у `/content/api/package/<id>/state` и по
+   готовности перечитывает страницу — второго построителя нет. Блоки
+   сверху вниз, у каждого «Переписать блок». Фраза-факт без привязки
+   к записи источника подсвечена «проверь» — решает код (`content_package`). #}
+{% import '_page_head.html' as ph %}
+<main class="v2-page-wrap today pack" id="content-package" data-id="{{ п.id }}" data-state="{{ п.state }}">
+  <header class="v2-page-head is-page is-notabs">
+    {{ ph.text(страница, ('Shorts' if п.kind == 'shorts' else 'Длинный ролик') ~ (' · ' ~ д.idea.format if д.idea and д.idea.format else '')) }}
+    <div class="v2-head-actions today-head">
+      <a class="v2-btn v2-btn-secondary" href="/content" id="pack-back">{{ значок('arrow-left') }} Сегодня</a>
+      {% if п.state == 'ok' %}
+      <a class="v2-btn v2-btn-secondary" href="/content/package/{{ п.id }}/download" id="pack-md" download>{{ значок('file-text') }} Скачать .md</a>
+      {% if ролик and ролик.status == 'writing' %}
+      <span class="today-meta" id="pack-shooting">{{ значок('camera') }} Снимаю</span>
+      {% else %}
+      <button type="button" class="v2-btn v2-btn-primary" id="pack-shoot">{{ значок('camera') }} Отметить: снимаю</button>
+      {% endif %}
+      {% endif %}
+    </div>
+  </header>
+
+  <ol class="today-steps" id="pack-steps"{{ ' hidden' if п.state == 'ok' }} aria-live="polite">
+    {% for ш in п.steps %}
+    <li class="today-step{{ ' is-done' if ш.done }}"><span class="today-step-mark" aria-hidden="true">{{ '✓' if ш.done }}</span><span>{{ ш.t }}{% if ш.note %} — {{ ш.note }}{% endif %}</span></li>
+    {% endfor %}
+  </ol>
+  <p class="v2-error" id="pack-error"{{ ' hidden' if not (п.note and п.state != 'running') }}>{{ п.note or '' }}</p>
+  {% if п.state == 'error' %}
+  <p><button type="button" class="v2-btn v2-btn-primary" id="pack-rebuild" data-idea="{{ п.idea_id }}">{{ значок('refresh-cw') }} Собрать заново</button></p>
+  {% endif %}
+
+  {% if д.titles %}
+  {% macro шапка(ключ, заголовок) %}
+    <div class="pack-head">
+      <h2 class="today-h2" id="pack-h-{{ ключ }}">{{ заголовок }}</h2>
+      <button type="button" class="v2-btn v2-btn-quiet v2-btn-sm" data-rewrite="{{ ключ }}"{{ ' disabled' if п.state != 'ok' }}>{{ значок('refresh-cw') }} Переписать блок</button>
+    </div>
+  {% endmacro %}
+
+  <p class="today-meta pack-meta" id="pack-meta">
+    {% if д.idea.official %}<span class="today-pill is-evergreen">официально</span>{% else %}<span class="today-pill is-trend">слух — подаётся как слух</span>{% endif %}
+    {% if д.refs %} · по образцам: {% for о in д.refs %}<a href="https://www.youtube.com/watch?v={{ о.yt_id }}" target="_blank" rel="noopener">{{ о.title }}</a>{{ ', ' if not loop.last }}{% endfor %}{% else %} · разобранных образцов формата нет{% endif %}
+    {% if проверь %} · <span class="pack-check-count">проверь: {{ проверь }}</span>{% endif %}
+    · собран {{ п.когда }}{% if п.cost is not none %} · {{ '%.3f' % п.cost }} ${% endif %}
+  </p>
+
+  <section class="v2-card pack-block" id="pack-titles" aria-labelledby="pack-h-titles">
+    {{ шапка('titles', 'Названия и превью' if д.thumbnail else 'Названия') }}
+    <ol class="pack-list">{% for т in д.titles %}<li>{{ т }}</li>{% endfor %}</ol>
+    {% if д.thumbnail %}
+    <dl class="pack-dl">
+      <dt>Кадр</dt><dd>{{ д.thumbnail.frame }}</dd>
+      <dt>Скриншот</dt><dd>{{ д.thumbnail.screenshot }}</dd>
+      <dt>Текст</dt><dd><b>{{ д.thumbnail.text }}</b></dd>
+    </dl>
+    {% endif %}
+  </section>
+
+  <section class="v2-card pack-block" id="pack-hook" aria-labelledby="pack-h-hook">
+    {{ шапка('hook', 'Крючок — первые 30 секунд') }}
+    <p class="v2-text pack-say">{{ д.hook.text }}</p>
+    {% if д.hook.shown %}<p class="v2-hint">В кадре: {{ д.hook.shown }}</p>{% endif %}
+  </section>
+
+  <section class="v2-card pack-block" id="pack-script" aria-labelledby="pack-h-script">
+    {{ шапка('script', 'Сценарий') }}
+    {% for с in д.script %}
+    <div class="pack-seg">
+      <p class="pack-seg-head"><b>{{ с.from }}–{{ с.to }}</b> · {{ с.role }}{% if с.purpose %} — {{ с.purpose }}{% endif %}</p>
+      <ul class="pack-lines">
+        {% for л in с.lines %}
+        <li class="pack-line{{ ' is-check' if л.check }}"{% if л.check %} title="проверь: {{ л.check }}"{% endif %}>
+          {{ л.text }}
+          {% if л.src %}<span class="pack-src">{% for n in л.src %}<a href="#pack-src-{{ n }}">[{{ n }}]</a>{% endfor %}</span>{% endif %}
+          {% if л.check %}<span class="pack-flag">проверь: {{ л.check }}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="v2-card pack-block" id="pack-shots" aria-labelledby="pack-h-shots">
+    {{ шапка('shots', 'Список съёмок') }}
+    {% if д.shots_warning %}<p class="today-risk pack-warn" id="pack-leak-warning">{{ значок('alert-triangle') }} {{ д.shots_warning }}</p>{% endif %}
+    <ol class="pack-list">
+      {% for с in д.shots %}<li>{{ с.what }}<span class="v2-hint"> · {{ с.source }}{% if с.where %}, {{ с.where }}{% endif %}{% if с.for %} · к {{ с.for }}{% endif %}</span></li>{% endfor %}
+    </ol>
+  </section>
+
+  <section class="v2-card pack-block" id="pack-check" aria-labelledby="pack-h-check">
+    {{ шапка('check', 'Проверка перед публикацией') }}
+    <ul class="pack-checklist">
+      {% for пункт in д.check %}
+      <li class="pack-ci {{ 'is-ok' if пункт.ok else 'is-look' }}"><span class="pack-ci-mark" aria-hidden="true">{{ '✓' if пункт.ok else '!' }}</span><span><b>{{ пункт.item }}</b> — {{ пункт.note }}</span></li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  {% if д.sources %}
+  <section class="v2-card pack-block" id="pack-sources" aria-labelledby="pack-h-sources">
+    {{ шапка('sources', 'Источники для описания') }}
+    <ul class="pack-list pack-sources">
+      {% for с in д.sources %}<li id="pack-src-{{ с.id }}"><a href="{{ с.url }}" target="_blank" rel="noopener">{{ с.title }}</a><span class="v2-hint"> · [{{ с.id }}] находка: {{ с.author }}</span></li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+  {% endif %}
+</main>
+
+<script>
+(function () {
+  const корень = document.getElementById('content-package');
+  const id = корень.dataset.id;
+  const ошибка = document.getElementById('pack-error');
+  const шаги = document.getElementById('pack-steps');
+  function сказать(т) { ошибка.textContent = т; ошибка.hidden = !т; }
+  async function послать(адрес, тело) {
+    const r = await fetch(адрес, {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                   body: JSON.stringify(тело || {})});
+    let д = {};
+    try { д = await r.json(); } catch (e) { д = {error: 'сервер ответил не JSON (HTTP ' + r.status + ')'}; }
+    if (!r.ok) throw new Error(д.error || ('HTTP ' + r.status));
+    return д;
+  }
+  function нарисовать(список) {
+    шаги.hidden = false;
+    шаги.replaceChildren.apply(шаги, список.map(function (ш) {
+      const li = document.createElement('li');
+      li.className = 'today-step' + (ш.done ? ' is-done' : '');
+      const знак = document.createElement('span');
+      знак.className = 'today-step-mark';
+      знак.textContent = ш.done ? '✓' : '';
+      знак.setAttribute('aria-hidden', 'true');
+      const т = document.createElement('span');
+      т.textContent = ш.t + (ш.note ? ' — ' + ш.note : '');
+      li.append(знак, т);
+      return li;
+    }));
+  }
+  async function ждать() {
+    const r = await fetch('/content/api/package/' + id + '/state', {headers: {'Accept': 'application/json'}});
+    const д = await r.json();
+    нарисовать(д.steps || []);
+    if (д.state === 'running') { setTimeout(ждать, 1000); return; }
+    location.reload();
+  }
+  document.querySelectorAll('[data-rewrite]').forEach(function (к) {
+    к.addEventListener('click', async function () {
+      document.querySelectorAll('[data-rewrite]').forEach(function (b) { b.disabled = true; });
+      сказать('');
+      try {
+        const д = await послать('/content/api/package/' + id + '/rewrite', {block: к.dataset.rewrite});
+        if (д.ready) { location.reload(); return; }
+        ждать();
+      } catch (err) {
+        document.querySelectorAll('[data-rewrite]').forEach(function (b) { b.disabled = false; });
+        сказать('Не вышло: ' + err.message);
+      }
+    });
+  });
+  const снимаю = document.getElementById('pack-shoot');
+  if (снимаю) снимаю.addEventListener('click', async function () {
+    снимаю.disabled = true;
+    try { await послать('/content/api/package/' + id + '/shoot'); location.reload(); }
+    catch (err) { снимаю.disabled = false; сказать('Не вышло: ' + err.message); }
+  });
+  const заново = document.getElementById('pack-rebuild');
+  if (заново) заново.addEventListener('click', async function () {
+    заново.disabled = true;
+    сказать('');
+    try {
+      const д = await послать('/content/api/package/build', {idea_id: +заново.dataset.idea || +корень.dataset.idea});
+      location.href = '/content/package/' + д.id;
+    } catch (err) { заново.disabled = false; сказать('Не вышло: ' + err.message); }
+  });
+  if (корень.dataset.state === 'running') ждать();
+})();
+</script>
+
+{% include '_page_end.html' %}
+</body>
+</html>
