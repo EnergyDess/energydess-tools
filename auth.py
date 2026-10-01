@@ -7,7 +7,14 @@ from sqlalchemy.orm import Session
 from database import get_db, User
 import os
 
-SECRET_KEY = os.getenv("SECRET_KEY", "energydess-secret-change-in-prod-2026")
+КЛЮЧ_ПО_УМОЛЧАНИЮ = "energydess-secret-change-in-prod-2026"
+SECRET_KEY = os.getenv("SECRET_KEY", КЛЮЧ_ПО_УМОЛЧАНИЮ)
+# НА ПРОДЕ БЕЗ СВОЕГО КЛЮЧА — НЕ СТАРТОВАТЬ (2026-10-01). Секрета на Fly
+# не было, сессии подписывались ключом из публичного репозитория: токен
+# администратора подделывался одной строкой (замер: /content/kitchen — 200).
+# Громкий отказ при старте лучше тихой дыры.
+if os.getenv("FLY_APP_NAME") and SECRET_KEY == КЛЮЧ_ПО_УМОЛЧАНИЮ:
+    raise RuntimeError("SECRET_KEY не задан секретом Fly — сессии подписывались бы публичным ключом")
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 30
 

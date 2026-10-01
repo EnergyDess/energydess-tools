@@ -159,7 +159,7 @@ def test_расход_пишется_строкой_образцы(стенд):
         строки = db.query(database.ModelUsage).filter(database.ModelUsage.tool == cr.ИНСТРУМЕНТ).all()
         assert len(строки) == 3
         удачные = [с for с in строки if с.ok]
-        assert len(удачные) == 2 and all(abs(с.cost - 0.0145) < 1e-9 for с in удачные)
+        assert len(удачные) == 2 and all(abs(с.cost - cr.цена(cr.REFS_MODEL, 40000, 1000)) < 1e-9 for с in удачные)
         расход = ce.расход_по_задачам(db)
         assert расход["сегодня"]["образцы"]["вызовов"] == 3
         assert cr.сводка(db)["разобрано"] == 2

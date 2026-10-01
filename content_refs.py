@@ -47,12 +47,18 @@ from content_db import (ContentArchVideo, ContentFormat, ContentIdea, ContentIte
 
 ИНСТРУМЕНТ = "admin-content-refs"
 GEMINI_URL = os.getenv("GEMINI_URL", "https://generativelanguage.googleapis.com/v1beta")
-REFS_MODEL = os.getenv("CONTENT_REFS_MODEL", "gemini-2.5-flash")
+# gemini-2.5-flash ЗАКРЫТА для новых ключей (замер 2026-10-01: HTTP 404
+# «no longer available to new users» — на проде не разобрался ни один
+# образец, 32 сбоя). Ключ прода видит gemini-3.8-flash.
+REFS_MODEL = os.getenv("CONTENT_REFS_MODEL", "gemini-3.8-flash")
 REFS_MAX_TOKENS = int(os.getenv("CONTENT_REFS_MAX_TOKENS", "4000"))
 # ЦЕНА ЗА МИЛЛИОН ТОКЕНОВ, $ (вход видео/картинки/текст, выход). Сверено
-# с ai.google.dev/gemini-api/docs/pricing 2026-09-30. Модель не из списка —
-# стоимость пуста, строка расхода помечена `cost_missing`.
-ЦЕНЫ = {"gemini-2.5-flash": (0.30, 2.50), "gemini-2.5-flash-lite": (0.10, 0.40)}
+# с ai.google.dev/gemini-api/docs/pricing 2026-09-30 (2.5) и 2026-10-01 (3.8).
+# Модель не из списка — стоимость пуста, строка расхода помечена
+# `cost_missing`. Цена 3.8 растёт с 1 января 2027 — вторая строка с датой.
+ЦЕНЫ = {"gemini-2.5-flash": (0.30, 2.50), "gemini-2.5-flash-lite": (0.10, 0.40),
+        "gemini-3.8-flash": (0.75, 3.75)}
+ЦЕНЫ_С = {"gemini-3.8-flash": ("2027-01-01", (1.50, 7.50))}
 ПОПЫТОК_ПРИ_СБОЕ = 3
 ПОТОЛОК_РОЛИКА_СЕК = 240
 
@@ -87,8 +93,17 @@ def ключ() -> str:
     return os.getenv("GEMINI_API_KEY", "").strip()
 
 
-def цена(модель: str, вход: int, выход: int) -> float | None:
+def размышления(модель: str) -> dict:
+    """Без размышлений: у 2.5 — бюджет 0, у 3.x поле бюджета не то —
+    там уровень (замер 2026-10-01: «low» проходит, размышлений 0 токенов)."""
+    return {"thinkingBudget": 0} if модель.startswith("gemini-2") else {"thinkingLevel": "low"}
+
+
+def цена(модель: str, вход: int, выход: int, день: str | None = None) -> float | None:
     ц = ЦЕНЫ.get(модель)
+    позже = ЦЕНЫ_С.get(модель)
+    if позже and (день or datetime.utcnow().strftime("%Y-%m-%d")) >= позже[0]:
+        ц = позже[1]
     if ц is None:
         return None
     return round((вход * ц[0] + выход * ц[1]) / 1_000_000, 6)
@@ -283,7 +298,7 @@ async def _gemini(client, yt_id: str, промпт: str, fps: float | None,
             "generationConfig": {"responseMimeType": "application/json", "temperature": 0,
                                  "maxOutputTokens": REFS_MAX_TOKENS,
                                  "mediaResolution": "MEDIA_RESOLUTION_LOW",
-                                 "thinkingConfig": {"thinkingBudget": 0}}}
+                                 "thinkingConfig": размышления(REFS_MODEL)}}
     м = ce._main()
     try:
         r = await client.post(f"{GEMINI_URL.rstrip('/')}/models/{REFS_MODEL}:generateContent",
