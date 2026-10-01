@@ -45,7 +45,7 @@ import content_collect as cc
 import content_db as cdb
 import content_engine as ce
 from content_db import (ContentArchVideo, ContentFormat, ContentIdea, ContentItem, ContentRef,
-                        ContentRun, ContentTheme)
+                        ContentRun, ContentSetting, ContentTheme)
 
 ИНСТРУМЕНТ = "admin-content-refs"
 GEMINI_URL = os.getenv("GEMINI_URL", "https://generativelanguage.googleapis.com/v1beta")
@@ -89,6 +89,65 @@ class Пропуск(Exception):
 
 class Сбой(Exception):
     """Разбор не вышел сейчас — следующий прогон попробует снова."""
+
+
+class КвотаGemini(Сбой):
+    """HTTP 429 «You exceeded your current quota»: до сброса квоты (10:00 МСК)
+    Gemini не зовётся вовсе — ни повтором, ни следующей сборкой (§5.11)."""
+
+
+# ── КВОТА GEMINI (письмо B4, 2.1) ─────────────────────────────────────
+# Замер 2026-10-01 на проде: 4 ответа 429 и 17 ответов 503 за сутки, и 429
+# справка повторяла как 503 — каждый повтор при исчерпанной квоте жжёт время
+# и засоряет журнал. Сутки квоты у Google сбрасываются в полночь по
+# Тихоокеанскому времени — это 10:00 МСК; отметка хранится в базе
+# (`content_settings`, ключ `gemini_quota`), чтобы стоп переживал рестарт.
+КВОТА_КЛЮЧ = "gemini_quota"
+СБРОС_МСК_ЧАС = 10
+
+
+def сброс_квоты(сейчас: datetime | None = None) -> datetime:
+    """Ближайшие 10:00 МСК (07:00 UTC) после `сейчас`, в UTC."""
+    сейчас = сейчас or datetime.utcnow()
+    с = сейчас.replace(hour=СБРОС_МСК_ЧАС - 3, minute=0, second=0, microsecond=0)
+    return с if с > сейчас else с + timedelta(days=1)
+
+
+def квота_до(db=None, сейчас: datetime | None = None) -> datetime | None:
+    """Момент сброса, если квота исчерпана и он ещё не наступил; иначе None."""
+    свой = db is None
+    db = db or ce.SessionLocal()
+    try:
+        запись = cdb.из_json((db.get(ContentSetting, КВОТА_КЛЮЧ) or ContentSetting(value="{}")).value, {}) or {}
+    finally:
+        if свой:
+            db.close()
+    try:
+        до = datetime.fromisoformat(запись["until"]) if запись.get("until") else None
+    except ValueError:
+        return None
+    return до if до and до > (сейчас or datetime.utcnow()) else None
+
+
+def отметить_квоту(текст: str, сейчас: datetime | None = None) -> datetime:
+    до = сброс_квоты(сейчас)
+    db = ce.SessionLocal()
+    try:
+        с = db.get(ContentSetting, КВОТА_КЛЮЧ)
+        значение = cdb.в_json({"until": до.isoformat(), "at": (сейчас or datetime.utcnow()).isoformat(),
+                               "reason": текст[:200]})
+        if с is None:
+            db.add(ContentSetting(key=КВОТА_КЛЮЧ, value=значение, updated_at=datetime.utcnow()))
+        else:
+            с.value, с.updated_at = значение, datetime.utcnow()
+        db.commit()
+    finally:
+        db.close()
+    print(f"[content] квота Gemini исчерпана — Gemini не зовётся до {до.isoformat()} UTC (10:00 МСК)", flush=True)
+    return до
+
+
+КВОТА_ТЕКСТ = "Квота Gemini исчерпана, сброс в 10:00 МСК"
 
 
 def ключ() -> str:
@@ -272,6 +331,8 @@ def _отказ_gemini(r) -> Exception:
         ошибка = {}
     текст = str(ошибка.get("message") or "")[:200]
     низ = текст.lower()
+    if r.status_code == 429:
+        return КвотаGemini("%s (Gemini: HTTP 429%s)" % (КВОТА_ТЕКСТ, (" — " + текст) if текст else ""))
     if r.status_code in (400, 403, 404) and any(с in низ for с in (
             "private", "not found", "unavailable", "age", "restricted", "permission",
             "video", "youtube", "cannot be accessed")):
@@ -288,6 +349,9 @@ async def _gemini(client, yt_id: str, промпт: str, fps: float | None,
     клю = ключ()
     if not клю:
         raise Сбой("нет ключа Gemini (GEMINI_API_KEY)")
+    if квота_до() is not None:
+        # Квота исчерпана — до сброса не зовём вовсе: каждый вызов дал бы тот же 429
+        raise КвотаGemini(КВОТА_ТЕКСТ)
     видео = {"fileData": {"fileUri": f"https://www.youtube.com/watch?v={yt_id}"}}
     if fps:
         видео["videoMetadata"] = {"fps": fps}
@@ -322,7 +386,10 @@ async def _gemini(client, yt_id: str, промпт: str, fps: float | None,
         "prompt_tokens": вход or None, "completion_tokens": выход or None,
         "cost": стоимость if r.status_code == 200 else 0.0})
     if r.status_code != 200:
-        raise _отказ_gemini(r)
+        отказ = _отказ_gemini(r)
+        if isinstance(отказ, КвотаGemini):
+            отметить_квоту(str(отказ))
+        raise отказ
     блок = (ответ.get("promptFeedback") or {}).get("blockReason")
     if блок:
         raise Пропуск(f"Gemini отказался разбирать ролик ({блок})")
@@ -387,8 +454,9 @@ def список_ответа(текст: str, поле: str, обяз: tuple) -
 
 
 def временный_сбой(текст: str) -> bool:
-    """503 перегрузки, 429, 5xx, обрыв связи — повтор поможет."""
-    return bool(re.search(r"HTTP (?:429|5\d\d)|не ответил|high demand|try again", текст or "", re.I))
+    """503 перегрузки, 5xx, обрыв связи — повтор с паузой поможет. 429 —
+    квота: повтор не поможет до сброса (письмо B4, 2.1), он не временный."""
+    return bool(re.search(r"HTTP 5\d\d|не ответил|high demand|try again", текст or "", re.I))
 
 
 async def справка_ролика(client, db, тема_id: str, yt_id: str, вид: str,
@@ -414,9 +482,10 @@ async def справка_ролика(client, db, тема_id: str, yt_id: str, 
                                               0.5 if вид == "trailer" else None, превью=False)
                 break
             except Сбой as e:
-                # Временный сбой (перегрузка 503, 429, 5xx, нет ответа) — пауза
-                # и повтор, а не цикл без сна (§5.11); прочее — сразу наружу.
-                if попытка >= СПРАВКА_ПОВТОРОВ or not временный_сбой(str(e)):
+                # Временный сбой (перегрузка 503, 5xx, нет ответа) — пауза и повтор,
+                # а не цикл без сна (§5.11); квота (429) и прочее — сразу наружу.
+                if (isinstance(e, КвотаGemini) or попытка >= СПРАВКА_ПОВТОРОВ
+                        or not временный_сбой(str(e))):
                     raise
                 print(f"[content] справка {yt_id}: {e}; повтор через {СПРАВКА_ПАУЗА * (попытка + 1)} с", flush=True)
                 await asyncio.sleep(СПРАВКА_ПАУЗА * (попытка + 1))
@@ -425,6 +494,11 @@ async def справка_ролика(client, db, тема_id: str, yt_id: str, 
         с.state, с.reason = "skipped", str(e)
         db.commit()
         return {"state": "skipped", "items": [], "cost": 0.0, "reason": str(e)}
+    except КвотаGemini as e:
+        # Квота — не сбой ролика: попытку не засчитываем, после сброса справка соберётся
+        с.state, с.reason = "error", str(e)
+        db.commit()
+        return {"state": "quota", "items": [], "cost": 0.0, "reason": str(e)}
     except Сбой as e:
         с.state, с.reason, с.tries = "error", str(e), (с.tries or 0) + 1
         db.commit()
@@ -522,6 +596,10 @@ async def прогон(повод: str = "admin") -> dict:
                     итог["пропущено"] += 1
                     итог["пропуски"].append({"yt": к["yt_id"], "причина": str(e)})
                     continue
+                except КвотаGemini as e:
+                    итог["стоп"] = "квота Gemini"
+                    заметка = КВОТА_ТЕКСТ + " — остальное разберёт прогон после сброса"
+                    break
                 except Сбой as e:
                     _сохранить(к, "error", str(e), None, None, минут, тема_id)
                     итог["сбоев"] += 1
@@ -553,6 +631,8 @@ def нужны(сейчас: datetime | None = None) -> bool:
     if not ключ():
         return False
     сейчас = сейчас or datetime.utcnow()
+    if квота_до(сейчас=сейчас) is not None:
+        return False
     db = ce.SessionLocal()
     try:
         дней = float(cdb.настройка(db, "refs").get("every_days", 7))
@@ -580,6 +660,7 @@ def сводка(db) -> dict:
     return {"разобрано": по.get("ok", 0), "пропущено": по.get("skipped", 0),
             "сбоев": по.get("error", 0), "usd": round(float(usd), 4),
             "ключ": bool(ключ()),
+            "квота": КВОТА_ТЕКСТ if квота_до(db) is not None else None,
             "последний": ({"state": п.state, "note": п.note, "когда": п.finished_at or п.started_at}
                           if п else None)}
 

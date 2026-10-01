@@ -94,6 +94,14 @@ class Модель:
             if self.поведение["волна"] is None:
                 return None, "волну не спрашивали"
             return json.dumps({"same": self.поведение["волна"]}), None
+        if "Сверка статусов" in вопрос:
+            if self.поведение.get("сверка") is None:
+                return json.dumps({"same": []}), None
+            return json.dumps({"same": self.поведение["сверка"](вопрос)}), None
+        if "почти дословно повторяют образец" in вопрос:
+            замены = self.поведение.get("свои_слова") or {}
+            return json.dumps({"lines": {к: замены.get(т, т) for к, т in
+                                         re.findall(r"^(S\d+\.L\d+|H): (.*)$", вопрос, re.M)}}), None
         if "Выпиши УНИКАЛЬНЫЕ факты" in вопрос and self.поведение.get("факты_список") is not None:
             return json.dumps({"facts": self.поведение["факты_список"]}), None
         if "Выпиши УНИКАЛЬНЫЕ факты" in вопрос:
@@ -101,7 +109,7 @@ class Модель:
                                          for n in range(self.поведение["факты"])]}), None
         if "Ты фактчекер" in вопрос:
             утв = []
-            for ключ, текст in re.findall(r"^(S\d+\.L\d+): (.*)$", вопрос, re.M):
+            for ключ, текст in re.findall(r"^(S\d+\.L\d+|H|T\d+)(?: \[связка\])?: (.*)$", вопрос, re.M):
                 опора = self.поведение["опора"].get(текст)
                 if опора is None and текст == "Трейлер вышел вчера.":
                     опора = {"src": [self.ид["офиц"]]}
@@ -124,7 +132,8 @@ class Модель:
         if "Сценарий ролика" in вопрос:
             if self.поведение["сбой_сценария"]:
                 return None, "сервис моделей не ответил (ReadTimeout)"
-            return json.dumps({"hook": {"text": "Rockstar спрятала в трейлере деталь.", "shown": "кадр трейлера"},
+            return json.dumps({"hook": {"text": self.поведение.get("хук") or "Rockstar спрятала в трейлере деталь.",
+                                        "shown": "кадр трейлера"},
                                "segments": [
                                    {"from": "0:00", "to": "0:30", "role": "крючок", "purpose": "зацепить",
                                     "lines": [{"text": "Трейлер вышел вчера.", "fact": True, "src": [self.ид["офиц"]]},

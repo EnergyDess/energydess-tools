@@ -73,7 +73,7 @@
   {% if д.material %}
   <p class="today-meta pack-meta" id="pack-material">
     {% if д.material.facts is not none %}Фактов в источниках: <b>{{ д.material.facts }}</b> → длительность <b>{{ д.material.range }}</b>{% else %}Факты не посчитаны{% if д.material.error %} ({{ д.material.error }}){% endif %} — длина по формату: {{ д.material.range }}{% endif %}
-    {% if д.factcheck %} · {% if д.factcheck.done %}вторая проверка: утверждений {{ д.factcheck.claims }}, с опорой {{ д.factcheck.supported }}, «проверь» {{ д.factcheck.check }}{% if д.factcheck.fixed %}, переписано {{ д.factcheck.fixed }}{% endif %}{% else %}<span class="pack-check-count">вторая проверка фактов не прошла</span>{% endif %}{% endif %}
+    {% if д.factcheck %} · {% if д.factcheck.done %}вторая проверка: утверждений {{ д.factcheck.claims }}, с опорой {{ д.factcheck.supported }}, «проверь» {{ д.factcheck.check }}{% if д.factcheck.fixed %}, переписано {{ д.factcheck.fixed }}{% endif %}{% if д.factcheck.stronger %}, сильнее источника — переписано {{ д.factcheck.stronger }}{% endif %}{% if д.factcheck.bridges %}, связок без опоры — переписано или убрано {{ д.factcheck.bridges }}{% endif %}{% else %}<span class="pack-check-count">вторая проверка фактов не прошла</span>{% endif %}{% endif %}
   </p>
   {% if д.material.suggest %}<p class="today-risk pack-warn" id="pack-suggest">{{ значок('alert-triangle') }} {{ д.material.suggest }}</p>{% endif %}
   {% endif %}
@@ -108,6 +108,7 @@
           {% if л.src %}<span class="pack-src">{% for n in л.src %}<a href="#pack-src-{{ n }}">[{{ n }}]</a>{% endfor %}</span>{% endif %}
           {% if л.kb %}<span class="pack-src" title="пункт базы знаний серии">база {{ л.kb | join(', ') }}</span>{% endif %}
           {% if л.fixed %}<span class="v2-hint"> · переписано: {{ л.fixed }}</span>{% endif %}
+          {% if л.bridge_fixed %}<span class="v2-hint"> · {{ л.bridge_fixed }}</span>{% endif %}
           {% if л.check %}<span class="pack-flag">проверь: {{ л.check }}</span>{% endif %}
         </li>
         {% endfor %}
