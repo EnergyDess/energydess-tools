@@ -17,6 +17,26 @@
 их нет никогда. Сюжет с утечкой — из списка съёмок кодом убираются кадры
 утечки и встаёт предупреждение.
 
+МАТЕРИАЛ — ВОЛНА, А НЕ ОДНА ЗАПИСЬ (письмо B2). К записям сюжета
+добавляются записи той же волны из СМИ и официальных источников
+(`записи_волны`), и первоисточник волны (Game Informer и др. из
+`waves.sources`) идёт в списке ПЕРВЫМ. Ролики YouTube — вторичны: их
+утверждения с таймкодами выписывает Gemini по ссылке. Полный текст статьи
+не скачивается — правила сайтов (не только robots.txt) это запрещают либо
+не проверены; в модель уходит описание из ленты.
+
+ДЛИНА ПО МАТЕРИАЛУ. Уникальные факты источников считаются отдельным
+шагом; их число задаёт длительность, а меньше `short_facts` фактов —
+предложение Shorts либо ролика до 5 минут с причиной.
+
+ВТОРАЯ ПРОВЕРКА ФАКТОВ — отдельный вызов: модель выписывает ВСЕ
+утверждения сценария (включая «впервые», «раньше не было», сравнения
+и «в два раза») и для каждого называет запись-источник либо пункт базы
+знаний серии (`knowledge` на «Кухне»). Опору сверяет КОД: номер не из набора
+и пункт базы, которого нет, — «проверь». Противоречие базе — фраза
+переписывается. Галочка «все факты с источником» ставится только по итогам
+этой проверки.
+
 МОДЕЛЬ — СИЛЬНАЯ: `CONTENT_PACKAGE_MODEL` (Claude Opus 4.8 через
 OpenRouter, политика данных §2.4 — ZDR). Та же, что пишет письма HH:
 её владелец уже выбрал за качество живой русской речи, а сценарий под
@@ -43,11 +63,14 @@ from content_db import (ContentFormat, ContentIdea, ContentItem, ContentPackage,
 PACKAGE_MODEL = os.getenv("CONTENT_PACKAGE_MODEL", "anthropic/claude-opus-4-8")
 PACKAGE_MAX_TOKENS = int(os.getenv("CONTENT_PACKAGE_MAX_TOKENS", "12000"))
 PACKAGE_SMALL_TOKENS = int(os.getenv("CONTENT_PACKAGE_SMALL_TOKENS", "2500"))
+FACTCHECK_MAX_TOKENS = int(os.getenv("CONTENT_FACTCHECK_MAX_TOKENS", "6000"))
 
-ШАГИ = [("sources", "Читаю источники сюжета"),
+ШАГИ = [("sources", "Читаю источники сюжета и его волны"),
+        ("facts", "Считаю факты в источниках"),
         ("refs", "Смотрю разборы образцов формата"),
         ("titles", "Названия и превью"),
         ("script", "Сценарий"),
+        ("factcheck", "Вторая проверка фактов"),
         ("shots", "Список съёмок"),
         ("check", "Проверка")]
 БЛОКИ = {"titles": "Названия и превью", "hook": "Крючок", "script": "Сценарий",
@@ -55,6 +78,12 @@ PACKAGE_SMALL_TOKENS = int(os.getenv("CONTENT_PACKAGE_SMALL_TOKENS", "2500"))
          "sources": "Источники для описания"}
 УТЕЧКА = re.compile(r"утечк|слив|leak|insider footage|инсайд", re.I)
 СЛУХ_ЯВНО = re.compile(r"слух|по слухам|говорят|якобы|инсайд|утечк|не подтвержд|неофициальн", re.I)
+# ГРОМКИЕ УТВЕРЖДЕНИЯ — их вторая проверка не имеет права пропустить: фраза
+# с таким оборотом без подтверждённой опоры получает «проверь», даже если
+# модель-проверщик её не выписала (пропуск модели не равен опоре).
+ГРОМКО = re.compile(r"впервые|раньше[^.!?]{0,40}?не\s+было|никогда\s+раньше|в\s+серии[^.!?]{0,30}?не\s+было"
+                    r"|перв(?:ая|ый|ой)\s+(?:в\s+серии|раз)|first\s+time|вдвое|в\s+(?:два|три|\d+)\s+раза?"
+                    r"|больше\s+чем\s+в|меньше\s+чем\s+в|никогда\s+не|лучш(?:ая|ий|ее)\s+в\s+истории", re.I)
 НАСИЛИЕ = re.compile(r"убийств|убива|расстрел|кров|труп|пытк|отрез|казн|gore|kill|blood", re.I)
 ПРЕДУПРЕЖДЕНИЕ_УТЕЧКИ = ("Сюжет с утечкой: рассказывать можно, кадры утечки показывать НЕЛЬЗЯ — "
                          "только официальные трейлеры, скриншоты Newswire и свой геймплей GTA 5.")
@@ -66,18 +95,164 @@ class Беда(Exception):
 
 # ── ПОДГОТОВКА ────────────────────────────────────────────────────────
 
-def _источники(db, идея: ContentIdea, предел: int) -> list[dict]:
-    """Записи сюжета — сначала официальные и новости, потом ролики по метрике."""
-    if not идея.story_id:
+# Слова, которые есть почти в любой записи темы: по ним «та же новость»
+# не узнаётся.
+ОБЩИЕ_ОСНОВЫ = {"grand", "theft", "rocks", "games", "trail", "relea", "новые", "новый", "детал",
+                "details", "detai", "share", "about", "every", "revea", "today", "later", "after",
+                "игры", "трейл", "релиз", "свеже", "инфор", "показ", "official", "офици", "подтв"}
+
+
+def основы(текст: str) -> set[str]:
+    """Основы значимых слов (первые 5 букв, от 4 букв, без общих слов темы)."""
+    слова = re.findall(r"[a-zа-яё]{4,}", (текст or "").lower())
+    return {с[:5] for с in слова} - ОБЩИЕ_ОСНОВЫ
+
+
+def _момент(и: ContentItem) -> datetime | None:
+    return и.published_at or и.first_seen_at
+
+
+def роль_записи(и: ContentItem, формулировки: dict, волны: dict) -> tuple[int, str]:
+    """(порядок, подпись): первоисточник волны → официальный → СМИ → прочее →
+    ролик YouTube (вторично)."""
+    if и.source_name in set(волны.get("sources") or []):
+        return 0, "первоисточник волны"
+    if и.official or и.source_name in set(формулировки.get("official_sources") or []):
+        return 1, "официально"
+    if и.source_name in set(формулировки.get("trusted_media") or []):
+        return 2, "СМИ"
+    if и.platform == "youtube":
+        return 4, "ролик — вторично"
+    return 3, "СМИ"
+
+
+def кандидаты_волны(db, идея: ContentIdea, свои: list[ContentItem], настройки: dict,
+                    формулировки: dict, волны: dict) -> list[ContentItem]:
+    """Записи СМИ и официальных источников той же темы рядом по времени
+    с записями сюжета — материал, из которого модель выберет ту же волну.
+    Ролики сюда не берутся: они вторичны и есть в сюжете сами."""
+    моменты = [м for м in (_момент(и) for и in свои) if м]
+    if not моменты:
+        с = db.get(ContentStory, идея.story_id) if идея.story_id else None
+        моменты = [с.first_seen_at] if с and с.first_seen_at else []
+    if not моменты:
         return []
-    записи = db.query(ContentItem).filter(ContentItem.story_id == идея.story_id,
-                                          ContentItem.noise.is_(False)).all()
-    записи.sort(key=lambda и: (not и.official, и.platform == "youtube", -(и.metric or 0)))
-    return [{"id": и.id, "title": и.title, "text": (и.text or "")[:400], "url": и.url,
-             "source": и.source_name, "author": и.author, "platform": и.platform,
-             "official": bool(и.official), "rumor": bool(и.rumor), "leak": bool(и.leak),
-             "published": (и.published_at or и.first_seen_at).strftime("%Y-%m-%d") if (и.published_at or и.first_seen_at) else None}
-            for и in записи[:предел]]
+    from datetime import timedelta
+    часов = int(настройки.get("wave_hours", 72))
+    с, по = min(моменты) - timedelta(hours=часов), max(моменты) + timedelta(hours=часов)
+    имена = (set(формулировки.get("official_sources") or []) | set(формулировки.get("trusted_media") or [])
+             | set(волны.get("sources") or []))
+    свои_ид = {и.id for и in свои}
+    from sqlalchemy import func, or_
+    момент = func.coalesce(ContentItem.published_at, ContentItem.first_seen_at)
+    записи = (db.query(ContentItem).filter(ContentItem.theme_id == идея.theme_id,
+                                           ContentItem.noise.is_(False),
+                                           ContentItem.platform != "youtube",
+                                           момент >= с, момент <= по,
+                                           or_(ContentItem.official.is_(True),
+                                               ContentItem.source_name.in_(имена)))
+              .order_by(момент.desc()).limit(int(настройки.get("wave_candidates", 40))).all())
+    return [и for и in записи if и.id not in свои_ид]
+
+
+def волна_по_словам(свои: list[ContentItem], сюжет: ContentStory | None,
+                    кандидаты: list[ContentItem]) -> list[int]:
+    """Запасной отбор без модели: общая значимая основа слова с записями сюжета."""
+    своё = set()
+    for и in свои:
+        своё |= основы(и.title)
+    if сюжет is not None:
+        своё |= основы(сюжет.title) | основы(сюжет.summary or "")
+    return [и.id for и in кандидаты if основы(и.title + " " + (и.text or "")[:400]) & своё]
+
+
+def добрать_первоисточник(выбрано: list[ContentItem], кандидаты: list[ContentItem],
+                          волны: dict) -> list[int]:
+    """Запись, пересказывающая первоисточник волны («в обложке Game Informer»),
+    тянет за собой записи самого первоисточника из кандидатов — модель
+    может их не узнать: у первоисточника о той же новости другими словами."""
+    имена = [и for и in волны.get("sources") or []]
+    названы = {имя for и in выбрано for имя in имена
+               if имя.lower() in (и.title + " " + (и.text or "")).lower() or и.source_name == имя}
+    return [и.id for и in кандидаты if и.source_name in названы]
+
+
+def _источник(и: ContentItem, роль: tuple[int, str]) -> dict:
+    return {"id": и.id, "title": и.title, "text": (и.text or "")[:400], "url": и.url,
+            "source": и.source_name, "author": и.author, "platform": и.platform,
+            "official": bool(и.official), "rumor": bool(и.rumor), "leak": bool(и.leak),
+            "role": роль[1], "order": роль[0], "metric": и.metric or 0, "claims": None,
+            "published": _момент(и).strftime("%Y-%m-%d") if _момент(и) else None}
+
+
+def упорядочить(записи: list[dict]) -> list[dict]:
+    return sorted(записи, key=lambda и: (и["order"], -(и["metric"] or 0), и["id"]))
+
+
+async def источники_волны(клиент, db, идея: ContentIdea, к: dict) -> tuple[list[dict], str]:
+    """(источники пакета, заметка шага). Свои записи сюжета плюс та же волна
+    из СМИ; первоисточник волны первым."""
+    настройки, формулировки = к["настройки"], к["формулировки"]
+    волны = cdb.настройка(db, "waves")
+    if not идея.story_id:
+        return [], "без новостного повода"
+    свои = db.query(ContentItem).filter(ContentItem.story_id == идея.story_id,
+                                        ContentItem.noise.is_(False)).all()
+    сюжет = db.get(ContentStory, идея.story_id)
+    кандидаты = кандидаты_волны(db, идея, свои, настройки, формулировки, волны)
+    по_ид = {и.id: и for и in кандидаты}
+    выбрано_ид: list[int] = []
+    как = "без кандидатов"
+    if кандидаты:
+        вопрос = ("Сюжет: «%s» — %s\nЗаписи сюжета:\n%s\n\nЗаписи СМИ за те же дни:\n%s\n\n"
+                  "Какие записи СМИ — о той же новости, что сюжет, либо первоисточник, который сюжет "
+                  "пересказывает (журнал, официальный анонс)? Только номера из списка СМИ. "
+                  'Ответ JSON: {"same": [номера]}' % (
+                      сюжет.title if сюжет else "", (сюжет.summary or "") if сюжет else "",
+                      "\n".join(f"- {и.source_name}: {и.title}" for и in свои[:10]),
+                      "\n".join(f"[{и.id}] {и.source_name}: {и.title} — {(и.text or '')[:200]}"
+                                 for и in кандидаты)))
+        текст, беда = await ce._спросить(клиент, ИНСТРУМЕНТ,
+                                         "Ты сводишь новости об играх. Отвечай строго JSON.", вопрос, 600)
+        данные = ce._json_ответа(текст or "") if not беда else None
+        if isinstance(данные, dict) and isinstance(данные.get("same"), list):
+            выбрано_ид = [n for n in данные["same"] if isinstance(n, int) and n in по_ид]
+            как = "волну отобрала модель"
+        else:
+            выбрано_ид = волна_по_словам(свои, сюжет, кандидаты)
+            как = "волна по словам (модель не ответила: %s)" % (беда or "не JSON")
+        выбрано_ид += [n for n in добрать_первоисточник([по_ид[n] for n in выбрано_ид] + свои,
+                                                        кандидаты, волны) if n not in выбрано_ид]
+    записи = [_источник(и, роль_записи(и, формулировки, волны)) for и in свои]
+    записи += [_источник(по_ид[n], роль_записи(по_ид[n], формулировки, волны)) for n in выбрано_ид]
+    итог = упорядочить(записи)[:int(настройки.get("sources_per_package", 25))]
+    первый = итог[0] if итог else None
+    заметка = "записей сюжета: %d, из волны: %d (%s)%s" % (
+        len(свои), len(выбрано_ид), как,
+        ("; первым — %s «%s»" % (первый["source"], первый["title"][:60])) if первый else "")
+    return итог, заметка
+
+
+async def утверждения_роликов(клиент, db, тема_id: str, источники: list[dict], настройки: dict) -> str:
+    """Ролики YouTube среди источников: что в них утверждается, с таймкодами —
+    Gemini по ссылке (ролик не скачивается). Нет ключа — заметка, а не сбой."""
+    ролики = [и for и in источники if и["platform"] == "youtube"]
+    ролики.sort(key=lambda и: -(и["metric"] or 0))
+    ролики = ролики[:int(настройки.get("claims_videos", 2))]
+    if not ролики:
+        return "роликов среди источников нет"
+    if not cr.ключ():
+        return "утверждения роликов не разобраны: нет ключа Gemini"
+    вышло = 0
+    for и in ролики:
+        м = re.search(r"(?:v=|youtu\.be/|shorts/)([\w-]{11})", и["url"] or "")
+        if not м:
+            continue
+        справка = await cr.справка_ролика(клиент, db, тема_id, м.group(1), "claims", и["title"])
+        if справка["state"] == "ok":
+            и["claims"] = справка["items"]
+            вышло += 1
+    return "утверждения роликов: %d из %d" % (вышло, len(ролики))
 
 
 def _образцы(db, идея: ContentIdea, штук: int) -> list[dict]:
@@ -102,6 +277,7 @@ def контекст(db, идея: ContentIdea) -> dict:
                      "adult": "18+" in риски, "risks": риски},
             "настройки": настройки,
             "стиль": cdb.настройка(db, "style").get("text") or "",
+            "база": cdb.настройка(db, "knowledge").get("text") or "",
             "формулировки": cdb.настройка(db, "wording")}
 
 
@@ -120,7 +296,17 @@ async def _модель(клиент, система: str, вопрос: str, п
 
 def _система(к: dict) -> str:
     return ("Ты сценарист YouTube-канала про вселенную GTA на русском. Стиль канала:\n"
-            + к["стиль"] + "\nОтвечай строго JSON без пояснений вокруг.")
+            + к["стиль"]
+            + ("\n\nБАЗА ЗНАНИЙ СЕРИИ — верные факты, им нельзя противоречить:\n" + к["база"]
+               if к.get("база") else "")
+            + "\nОтвечай строго JSON без пояснений вокруг.")
+
+
+def пункты_базы(база: str) -> dict[str, str]:
+    """База знаний построчно: K1, K2… — у каждой непустой строки-факта номер."""
+    строки = [с.strip(" -•\t") for с in (база or "").splitlines()]
+    строки = [с for с in строки if с and not с.endswith(":")]
+    return {f"K{n}": с for n, с in enumerate(строки, 1)}
 
 
 def _метка(к: dict) -> str:
@@ -133,10 +319,64 @@ def _список_источников(источники: list[dict]) -> str:
     for и in источники:
         пометки = [п for п, есть in (("официально", и["official"]), ("слух", и["rumor"]),
                                       ("утечка", и["leak"])) if есть]
-        строки.append(f"[{и['id']}] {и['source']} · {и['published'] or ''} · {и['title']}"
-                      + (f" — {и['text']}" if и["text"] else "")
-                      + (f" ({', '.join(пометки)})" if пометки else ""))
+        роль = и.get("role")
+        if и.get("claims"):
+            тело = " — утверждения ролика: " + "; ".join(
+                f"{у['t']} {у['text']}" + (f" (со слов: {у['from']})" if у.get("from") else "")
+                for у in и["claims"])
+        elif и.get("platform") == "youtube":
+            тело = " — (ролик: содержание не разобрано, только название)"
+        else:
+            тело = (f" — {и['text']}" if и["text"] else "")
+        строки.append(f"[{и['id']}] {и['source']}{' · ' + роль if роль else ''} · {и['published'] or ''} · "
+                      f"{и['title']}" + тело + (f" ({', '.join(пометки)})" if пометки else ""))
     return "\n".join(строки) or "(записей сюжета нет — фактов о новостях не приводи)"
+
+
+# ── ФАКТЫ ИСТОЧНИКОВ И ДЛИНА ──────────────────────────────────────────
+
+def длина_по_фактам(фактов: int, вид: str, настройки: dict) -> dict:
+    """Длительность по материалу. Меньше `short_facts` — предложение Shorts
+    либо ролика до 5 минут и почему."""
+    порог = int(настройки.get("short_facts", 5))
+    if вид == "shorts":
+        return {"facts": фактов, "minutes": 1, "range": "45–60 секунд", "suggest": None}
+    if фактов < порог:
+        минут = max(2, min(5, фактов + 1))
+        return {"facts": фактов, "minutes": минут, "range": f"до {минут} минут",
+                "suggest": (f"Фактов в источниках {фактов} — на 8–12 минут материала нет. "
+                            f"Лучше Shorts или ролик до 5 минут: растянутый ролик держится на воде.")}
+    минут = max(5, min(12, round(фактов * 0.8) + 2))
+    return {"facts": фактов, "minutes": минут, "range": f"около {минут} минут (не больше {минут + 1})",
+            "suggest": None}
+
+
+def свести_факты(сырые, по_id: dict) -> list[dict]:
+    """Факты модели: только с номерами записей из набора, без повторов."""
+    итог, виденные = [], set()
+    for ф in сырые or []:
+        if not isinstance(ф, dict):
+            continue
+        текст = str(ф.get("text") or "").strip()
+        src = [n for n in (ф.get("src") or []) if isinstance(n, int) and n in по_id]
+        ключ = re.sub(r"\W+", " ", текст.lower()).strip()
+        if not текст or not src or ключ in виденные:
+            continue
+        виденные.add(ключ)
+        итог.append({"text": текст, "src": src})
+    return итог
+
+
+async def факты_источников(клиент, к: dict) -> list[dict]:
+    if not к["источники"]:
+        return []
+    вопрос = ("Выпиши УНИКАЛЬНЫЕ факты из источников ниже: что именно сообщается о игре. Один факт — "
+              "одна строка; одно и то же из разных источников — один факт с несколькими номерами. "
+              "Мнения, реклама, призывы — не факты. Слух помечай словом «слух» в тексте факта.\n"
+              f"{_список_источников(к['источники'])}\n"
+              'Ответ JSON: {"facts": [{"text": "факт", "src": [номера]}]}')
+    данные = await _модель(клиент, _система(к), вопрос, PACKAGE_SMALL_TOKENS)
+    return свести_факты(данные.get("facts"), {и["id"]: и for и in к["источники"]})
 
 
 def _сжатый_образец(о: dict) -> str:
@@ -240,16 +480,21 @@ def проверить_сценарий(сегменты: list, источник
 
 async def сценарий(клиент, к: dict) -> dict:
     long = к["idea"]["kind"] != "shorts"
-    длина = ("8–12 минут, пики удержания примерно на 3–4-й и 8–9-й минутах" if long
+    мат = к.get("материал") or {}
+    длина = (f"{мат['range']} — ровно столько, сколько даёт материал, не растягивай" if long and мат
              else "45–60 секунд, один пик ближе к концу")
+    факты = "\n".join(f"- {ф['text']} [{', '.join(map(str, ф['src']))}]" for ф in мат.get("list") or [])
     образцы = "\n".join(_сжатый_образец(о) for о in к["образцы"]) or "(разборов образцов нет — строй по формату)"
     вопрос = (f"Сценарий ролика «{к['titles'][0] if к.get('titles') else к['idea']['title']}».\n"
               f"Формат: {к['idea']['format']}. Длина: {длина}. Повод: {_метка(к)}.\n"
               f"Сюжет: {к['idea']['story'] or 'без новостного повода'} — {к['idea']['summary'] or ''}\n"
               f"СТРУКТУРА — по разборам удачных роликов этого формата (повтори их ритм, крючок и приёмы удержания, "
               f"не копируй тексты):\n{образцы}\n\n"
-              f"ИСТОЧНИКИ — факты только отсюда, у каждой фразы-факта номера в src:\n"
-              f"{_список_источников(к['источники'])}\n\n"
+              f"ИСТОЧНИКИ — факты только отсюда, у каждой фразы-факта номера в src. Первыми идут "
+              f"первоисточник и СМИ, ролики — вторичны:\n{_список_источников(к['источники'])}\n\n"
+              + (f"ФАКТЫ, которые в источниках есть (весь материал ролика):\n{факты}\n\n" if факты else "")
+              + "Про прошлые части серии — только то, что есть в базе знаний; «впервые в серии», "
+              "«раньше такого не было» без опоры не пиши.\n"
               "Правила: первые 30 с — крючок, сразу к делу; фраза-факт — fact: true и src с номерами; "
               "мнение, связка, вопрос зрителю — fact: false, src пустой. Слух называй слухом. "
               "Кадры утечек не описывай. Первые 7 секунд — без жёсткого насилия.\n"
@@ -263,6 +508,101 @@ async def сценарий(клиент, к: dict) -> dict:
     хук = данные.get("hook") if isinstance(данные.get("hook"), dict) else {}
     return {"hook": {"text": str(хук.get("text") or ""), "shown": str(хук.get("shown") or "")},
             "script": проверить_сценарий(сегменты, к["источники"], к)}
+
+
+def строки_сценария(сценарий: list[dict]) -> dict[str, dict]:
+    """Номера строк для проверщика: S1.L2 — сегмент 1, строка 2."""
+    return {f"S{i}.L{j}": л for i, с in enumerate(сценарий, 1) for j, л in enumerate(с["lines"], 1)}
+
+
+def применить_проверку(сценарий: list[dict], ответ, источники: list[dict], база: dict[str, str]) -> dict:
+    """Итог второй проверки фактов — решает КОД по ответу модели.
+    Опора: номер записи из набора либо пункт базы, который есть. Противоречие
+    базе с переписанной фразой — фраза заменяется. Громкое утверждение
+    (`ГРОМКО`) без подтверждённой опоры — «проверь», даже если проверщик
+    его не выписал. Возвращает сводку для страницы и чек-листа."""
+    строки = строки_сценария(сценарий)
+    по_id = {и["id"] for и in источники}
+    утверждения = ответ.get("claims") if isinstance(ответ, dict) else None
+    if not isinstance(утверждения, list):
+        raise Беда("проверщик фактов ответил без списка утверждений")
+    опора_у: dict[str, bool] = {}
+    пункты, с_опорой, переписано = [], 0, 0
+    for у in утверждения:
+        if not isinstance(у, dict):
+            continue
+        ключ = str(у.get("line") or "").strip()
+        л = строки.get(ключ)
+        src = [n for n in (у.get("src") or []) if isinstance(n, int) and n in по_id]
+        kb = [k for k in (у.get("kb") or []) if isinstance(k, str) and k in база]
+        против = у.get("contradicts") if у.get("contradicts") in база else None
+        исправ = str(у.get("fix") or "").strip()
+        запись = {"line": ключ, "claim": str(у.get("claim") or (л or {}).get("text") or "")[:300],
+                  "src": src, "kb": kb, "status": None}
+        if л is None:
+            запись["status"] = "строки нет в сценарии"
+            пункты.append(запись)
+            continue
+        if против and исправ:
+            запись["was"] = л["text"]
+            л["text"], л["fixed"] = исправ, "противоречило базе знаний (%s: %s)" % (против, база[против])
+            запись["status"], переписано = "переписано: противоречило базе", переписано + 1
+            kb = kb or [против]
+            запись["kb"] = kb
+        elif против:
+            л["check"] = "противоречит базе знаний: " + база[против]
+            запись["status"] = "противоречит базе"
+            опора_у[ключ] = False
+            пункты.append(запись)
+            continue
+        if src or kb:
+            л["src"] = sorted(set(л.get("src") or []) | set(src))
+            if kb:
+                л["kb"] = sorted(set(л.get("kb") or []) | set(kb))
+            л["fact"] = True
+            if л.get("check") == "нет источника":
+                л["check"] = None
+            опора_у[ключ] = опора_у.get(ключ, True)
+            с_опорой += 1
+            запись["status"] = запись["status"] or "опора есть"
+        else:
+            л["fact"] = True
+            if not л.get("check"):
+                л["check"] = "нет опоры в источниках и базе знаний"
+            опора_у[ключ] = False
+            запись["status"] = "проверь"
+        пункты.append(запись)
+    громких = 0
+    for ключ, л in строки.items():
+        if ГРОМКО.search(л["text"]) and not опора_у.get(ключ) and not л.get("check"):
+            л["fact"], л["check"] = True, "громкое утверждение без подтверждённой опоры"
+            громких += 1
+            пункты.append({"line": ключ, "claim": л["text"][:300], "src": [], "kb": [],
+                           "status": "проверь (громкое, проверщик не выписал)"})
+    проверь = sum(1 for л in строки.values() if л.get("check"))
+    return {"done": True, "claims": len(пункты), "supported": с_опорой, "check": проверь,
+            "fixed": переписано, "loud": громких, "items": пункты}
+
+
+async def проверка_фактов(клиент, к: dict, сценарий: list[dict]) -> dict:
+    """Отдельный вызов: все утверждения сценария и опора каждого."""
+    база = пункты_базы(к.get("база") or "")
+    строки = строки_сценария(сценарий)
+    вопрос = ("Ты фактчекер. Выпиши ВСЕ утверждения сценария о фактах: о игре, о прошлых частях "
+              "серии, сравнения («впервые», «раньше такого не было», «больше чем в GTA 5», «в два раза»), "
+              "цифры, даты, имена. Мнения, вопросы зрителю и связки — не утверждения.\n"
+              "Для каждого: line — номер строки; src — номера записей-источников, где это сказано; "
+              "kb — номера пунктов базы знаний, где это сказано; contradicts — номер пункта базы, "
+              "которому утверждение противоречит (иначе null); fix — если противоречит, переписанная "
+              "фраза в том же стиле, верная по базе. Нет опоры — src и kb пустые. Не выдумывай опору.\n\n"
+              "СЦЕНАРИЙ:\n" + "\n".join(f"{k}: {л['text']}" for k, л in строки.items())
+              + "\n\nИСТОЧНИКИ:\n" + _список_источников(к["источники"])
+              + "\n\nБАЗА ЗНАНИЙ:\n" + ("\n".join(f"{k}: {т}" for k, т in база.items()) or "(пусто)")
+              + '\n\nОтвет JSON: {"claims": [{"line": "S1.L2", "claim": "утверждение", "src": [номера], '
+              '"kb": ["K1"], "contradicts": null, "fix": ""}]}')
+    данные = await _модель(клиент, "Ты строгий фактчекер. Отвечай строго JSON без пояснений вокруг.",
+                           вопрос, FACTCHECK_MAX_TOKENS)
+    return применить_проверку(сценарий, данные, к["источники"], база)
 
 
 async def съёмки(клиент, к: dict) -> tuple[list[dict], str | None]:
@@ -311,10 +651,24 @@ def проверка(данные: dict, к: dict) -> list[dict]:
         пункты.append({"item": "18+: ограниченная реклама", "ok": None,
                        "note": "в YouTube Studio отметь, реклама будет урезана"})
     без = sum(1 for с in данные.get("script") or [] for л in с["lines"] if л.get("check"))
-    пункты.append({"item": "Утверждения без подтверждения", "ok": не_ноль(без),
-                   "note": ("подсвечено «проверь»: %d" % без) if без else "все факты с источником"})
+    фп = данные.get("factcheck") or {}
+    if not фп.get("done"):
+        пункты.append({"item": "Утверждения без подтверждения", "ok": None,
+                       "note": "вторая проверка фактов не прошла%s — факты не сверены" % (
+                           (": " + фп["error"]) if фп.get("error") else "")})
+    else:
+        пункты.append({"item": "Утверждения без подтверждения", "ok": не_ноль(без),
+                       "note": ("подсвечено «проверь»: %d из %d утверждений" % (без, фп.get("claims", 0))) if без
+                       else "все факты с источником: утверждений %d, с опорой %d" % (
+                           фп.get("claims", 0), фп.get("supported", 0))})
     конец = max((_таймкод(с["to"]) or 0 for с in данные.get("script") or []), default=0)
-    if long and not 7.5 * 60 <= конец <= 12.5 * 60:
+    мат = данные.get("material") or {}
+    if long and мат.get("minutes"):
+        цель = мат["minutes"] * 60
+        if конец > (мат["minutes"] + 1.5) * 60 or конец < max(60, цель * 0.5):
+            пункты.append({"item": "Длина по материалу (%s)" % мат["range"], "ok": None,
+                           "note": "по таймкодам %d:%02d" % divmod(int(конец), 60)})
+    elif long and not 7.5 * 60 <= конец <= 12.5 * 60:
         пункты.append({"item": "Длина 8–12 мин", "ok": None, "note": "по таймкодам %d:%02d" % divmod(int(конец), 60)})
     if not long and not 40 <= конец <= 65:
         пункты.append({"item": "Длина 45–60 с", "ok": None, "note": "по таймкодам %d с" % конец})
@@ -330,9 +684,9 @@ def источники_описания(данные: dict, к: dict) -> list[di
     нужные = {n for с in данные.get("script") or [] for л in с["lines"] for n in л["src"]}
     итог = []
     for и in к["источники"]:
-        if и["id"] in нужные or и["official"]:
+        if и["id"] in нужные or и["official"] or и.get("order") == 0:
             итог.append({"id": и["id"], "title": и["title"], "url": и["url"], "source": и["source"],
-                         "author": и["author"] or и["source"]})
+                         "author": и["author"] or и["source"], "role": и.get("role")})
     return итог
 
 
@@ -381,14 +735,24 @@ def _закончить(номер: int, состояние: str, заметка
 
 
 def _потрачено_с(с: datetime) -> float:
+    """Цена пакета: вызовы пакета плюс Gemini по роликам-источникам и трейлерам
+    за время сборки (исполнитель один — чужих вызовов модуля в это время нет)."""
     from sqlalchemy import func
     from database import ModelUsage
     db = ce.SessionLocal()
     try:
         return float(db.query(func.sum(ModelUsage.cost)).filter(
-            ModelUsage.tool == ИНСТРУМЕНТ, ModelUsage.created_at >= с).scalar() or 0.0)
+            ModelUsage.tool.in_((ИНСТРУМЕНТ, cr.ИНСТРУМЕНТ)), ModelUsage.created_at >= с).scalar() or 0.0)
     finally:
         db.close()
+
+
+async def _проверить_факты(клиент, к: dict, данные: dict) -> dict:
+    """Вторая проверка; сбой — не падение пакета, а «не прошла» в чек-листе."""
+    try:
+        return await проверка_фактов(клиент, к, данные["script"])
+    except Беда as e:
+        return {"done": False, "error": str(e)}
 
 
 async def собрать(номер: int) -> dict:
@@ -398,33 +762,50 @@ async def собрать(номер: int) -> dict:
     шаги = Шаги(номер)
     беды: list[str] = []
     try:
-        db = ce.SessionLocal()
-        try:
-            п = db.get(ContentPackage, номер)
-            идея = db.get(ContentIdea, п.idea_id) if п else None
-            if идея is None:
-                raise Беда("идеи пакета нет")
-            к = контекст(db, идея)
-            к["источники"] = _источники(db, идея, int(к["настройки"].get("sources_per_package", 25)))
-            шаги.готово("sources", "записей сюжета: %d" % len(к["источники"])
-                        if идея.story_id else "без новостного повода")
-            к["образцы"] = _образцы(db, идея, int(к["настройки"].get("refs_per_package", 3)))
-        finally:
-            db.close()
-        шаги.готово("refs", "разборов образцов: %d" % len(к["образцы"])
-                    if к["образцы"] else "разобранных образцов формата нет — по формату")
-        данные = {"kind": к["idea"]["kind"], "idea": к["idea"],
-                  "refs": [{"id": о["id"], "yt_id": о["yt_id"], "title": о["title"], "channel": о["channel"]}
-                           for о in к["образцы"]]}
         async with cc.новый_клиент() as клиент:
+            db = ce.SessionLocal()
+            try:
+                п = db.get(ContentPackage, номер)
+                идея = db.get(ContentIdea, п.idea_id) if п else None
+                if идея is None:
+                    raise Беда("идеи пакета нет")
+                к = контекст(db, идея)
+                к["источники"], заметка = await источники_волны(клиент, db, идея, к)
+                заметка += "; " + await утверждения_роликов(клиент, db, идея.theme_id,
+                                                           к["источники"], к["настройки"])
+                шаги.готово("sources", заметка)
+                к["образцы"] = _образцы(db, идея, int(к["настройки"].get("refs_per_package", 3)))
+            finally:
+                db.close()
+            try:
+                факты = await факты_источников(клиент, к)
+                к["материал"] = {**длина_по_фактам(len(факты), к["idea"]["kind"], к["настройки"]),
+                                 "list": факты}
+                шаги.готово("facts", "фактов: %d → %s" % (len(факты), к["материал"]["range"]))
+            except Беда as e:
+                # Не посчитали — длина по формату, и это сказано, а не подставлено молча
+                к["материал"] = {"facts": None, "minutes": None, "list": [], "suggest": None,
+                                 "range": "8–12 минут" if к["idea"]["kind"] != "shorts" else "45–60 секунд",
+                                 "error": str(e)}
+                шаги.готово("facts", "факты не посчитаны: %s — длина по формату" % e)
+            шаги.готово("refs", "разборов образцов: %d" % len(к["образцы"])
+                        if к["образцы"] else "разобранных образцов формата нет — по формату")
+            данные = {"kind": к["idea"]["kind"], "idea": к["idea"], "material": к["материал"],
+                      "src": к["источники"],
+                      "refs": [{"id": о["id"], "yt_id": о["yt_id"], "title": о["title"], "channel": о["channel"]}
+                               for о in к["образцы"]]}
             данные["titles"], данные["thumbnail"] = await названия(клиент, к, беды)
             к["titles"] = данные["titles"]
             шаги.готово("titles", "; ".join(беды) or None)
             сц = await сценарий(клиент, к)
             данные.update(сц)
             к["script"] = сц["script"]
-            шаги.готово("script", "фраз «проверь»: %d" % sum(
-                1 for с in сц["script"] for л in с["lines"] if л["check"]))
+            шаги.готово("script", "сегментов: %d" % len(сц["script"]))
+            данные["factcheck"] = await _проверить_факты(клиент, к, данные)
+            шаги.готово("factcheck", "утверждений %d, с опорой %d, «проверь» %d, переписано %d" % (
+                данные["factcheck"].get("claims", 0), данные["factcheck"].get("supported", 0),
+                данные["factcheck"].get("check", 0), данные["factcheck"].get("fixed", 0))
+                if данные["factcheck"].get("done") else "не прошла: " + str(данные["factcheck"].get("error")))
             данные["shots"], данные["shots_warning"] = await съёмки(клиент, к)
             шаги.готово("shots", "пунктов: %d" % len(данные["shots"]))
         данные["check"] = проверка(данные, к)
@@ -452,7 +833,8 @@ async def переписать(номер: int, блок: str) -> dict:
         идея = db.get(ContentIdea, п.idea_id)
         данные = cdb.из_json(п.data, {}) or {}
         к = контекст(db, идея)
-        к["источники"] = _источники(db, идея, int(к["настройки"].get("sources_per_package", 25)))
+        к["источники"] = данные.get("src") or []
+        к["материал"] = данные.get("material") or {}
         к["образцы"] = _образцы(db, идея, int(к["настройки"].get("refs_per_package", 3)))
     finally:
         db.close()
@@ -469,6 +851,7 @@ async def переписать(номер: int, блок: str) -> dict:
                     данные["hook"] = сц["hook"]
                 else:
                     данные.update(сц)
+                    данные["factcheck"] = await _проверить_факты(клиент, к, данные)
             elif блок == "shots":
                 данные["shots"], данные["shots_warning"] = await съёмки(клиент, к)
         данные["check"] = проверка(данные, к)
@@ -536,7 +919,7 @@ def переписать_блок(db, номер: int, блок: str) -> dict:
         данные = cdb.из_json(п.data, {}) or {}
         идея = db.get(ContentIdea, п.idea_id)
         к = контекст(db, идея)
-        к["источники"] = _источники(db, идея, int(к["настройки"].get("sources_per_package", 25)))
+        к["источники"] = данные.get("src") or []
         данные["check"] = проверка(данные, к)
         if п.kind != "shorts":
             данные["sources"] = источники_описания(данные, к)
@@ -587,13 +970,20 @@ def в_markdown(п: ContentPackage) -> str:
         т = д["thumbnail"]
         строки += ["## Превью", "", f"- Кадр: {т.get('frame', '')}", f"- Скриншот: {т.get('screenshot', '')}",
                    f"- Текст: {т.get('text', '')}", ""]
+    мат = д.get("material") or {}
+    if мат:
+        строки += ["## Материал", "", f"Фактов в источниках: {мат.get('facts')} → длительность {мат.get('range')}"]
+        if мат.get("suggest"):
+            строки.append(f"> {мат['suggest']}")
+        строки.append("")
     х = д.get("hook") or {}
     строки += ["## Крючок (первые 30 с)", "", х.get("text", ""), "", f"В кадре: {х.get('shown', '')}", ""]
     строки += ["## Сценарий", ""]
     for с in д.get("script") or []:
         строки.append(f"### {с['from']}–{с['to']} · {с['role']}" + (f" — {с['purpose']}" if с.get("purpose") else ""))
         for л in с["lines"]:
-            метка = f" [ист. {', '.join(map(str, л['src']))}]" if л["src"] else ""
+            метка = (f" [ист. {', '.join(map(str, л['src']))}]" if л["src"] else "") + (
+                f" [база {', '.join(л['kb'])}]" if л.get("kb") else "")
             строки.append(f"- {л['text']}{метка}" + (f" **ПРОВЕРЬ: {л["check"]}**" if л.get("check") else ""))
         строки.append("")
     строки += ["## Список съёмок", ""]

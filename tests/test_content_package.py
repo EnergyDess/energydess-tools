@@ -11,7 +11,18 @@
 4. ОШИБКА НА ШАГЕ «Сценарий» — пакет «ошибка» с текстом, сборка снова доступна.
 5. ПОВТОРНОЕ ОТКРЫТИЕ пакета — ни одного вызова модели.
 6. БЮДЖЕТ ИСЧЕРПАН — текст вместо сборки.
+
+Письмо B2, блок 1:
+7. «ВПЕРВЫЕ В СЕРИИ» без источника — подсвечено, даже если проверщик фактов
+   его не выписал; с опорой на пункт базы — нет.
+8. ФРАЗА ПРОТИВ БАЗЫ ЗНАНИЙ — переписана; проверщик выдумал опору (номер не
+   из набора, пункта базы нет) — «проверь».
+9. ТРИ ФАКТА в источниках — предложение Shorts или ролика до 5 минут; десять —
+   нет.
+10. СЮЖЕТ С ЗАПИСЬЮ GAME INFORMER — она первая в источниках пакета; запись
+   первоисточника из соседнего сюжета той же волны — тоже первая.
 """
+import re
 import asyncio
 import json
 import os
@@ -42,7 +53,8 @@ class Модель:
 
     def __init__(self):
         self.вызовы = []
-        self.поведение = {"стоп_раз": 0, "всегда_стоп": False, "сбой_сценария": False}
+        self.поведение = {"стоп_раз": 0, "всегда_стоп": False, "сбой_сценария": False,
+                          "факты": 6, "опора": {}, "доп_строки": [], "волна": None}
         self.Сессия = None
 
     async def __call__(self, клиент, инструмент, система, вопрос, потолок, модель=None, температура=0):
@@ -53,6 +65,23 @@ class Модель:
                                        created_at=datetime.utcnow()))
             db.commit()
             db.close()
+        if "Записи СМИ за те же дни" in вопрос:
+            if self.поведение["волна"] is None:
+                return None, "волну не спрашивали"
+            return json.dumps({"same": self.поведение["волна"]}), None
+        if "Выпиши УНИКАЛЬНЫЕ факты" in вопрос:
+            return json.dumps({"facts": [{"text": f"Факт номер {n}", "src": [self.ид["офиц"]]}
+                                         for n in range(self.поведение["факты"])]}), None
+        if "Ты фактчекер" in вопрос:
+            утв = []
+            for ключ, текст in re.findall(r"^(S\d+\.L\d+): (.*)$", вопрос, re.M):
+                опора = self.поведение["опора"].get(текст)
+                if опора is None and текст == "Трейлер вышел вчера.":
+                    опора = {"src": [self.ид["офиц"]]}
+                if опора is not None:
+                    утв.append({"line": ключ, "claim": текст, "src": [], "kb": [], "contradicts": None,
+                                "fix": "", **опора})
+            return json.dumps({"claims": утв}), None
         if "Дай 3 названия" in вопрос:
             if self.поведение["всегда_стоп"] or self.поведение["стоп_раз"] > 0:
                 self.поведение["стоп_раз"] -= 1
@@ -74,7 +103,7 @@ class Модель:
                                     "lines": [{"text": "Релиз перенесли на осень.", "fact": True, "src": []},
                                               {"text": "Карта больше вдвое.", "fact": True, "src": [999999]},
                                               {"text": "Rockstar официально подтвердила карту.", "fact": True,
-                                               "src": [self.ид["слух"]]}]}]}), None
+                                               "src": [self.ид["слух"]]}] + self.поведение["доп_строки"]}]}), None
         if "Список съёмок" in вопрос:
             return json.dumps({"shots": [{"what": "Кадры утечки 2022 года", "source": "утечка", "where": "", "for": "0:30"},
                                          {"what": "Геймплей Вайс-Сити в GTA 5", "source": "GTA 5", "where": "Вайнвуд", "for": "0:30"},
@@ -252,3 +281,105 @@ def test_отметить_снимаю_переводит_в_конвейер(с
     р = db.query(ContentVideo).filter(ContentVideo.idea_id == стенд["ид"]["идея"]).one()
     assert р.status == "writing"
     db.close()
+
+
+# ── письмо B2, блок 1 ──────────────────────────────────────────────────
+
+def _строки(п):
+    return {л["text"]: л for с in json.loads(п.data)["script"] for л in с["lines"]}
+
+
+def test_впервые_в_серии_без_источника_подсвечено(стенд):
+    стенд["модель"].поведение["доп_строки"] = [
+        {"text": "Раньше в серии такого не было.", "fact": False, "src": []},
+        {"text": "Впервые герои — пара.", "fact": False, "src": []}]
+    стенд["модель"].поведение["опора"] = {"Впервые герои — пара.": {"kb": ["K1"]}}
+    п = _собрать(стенд)
+    строки = _строки(п)
+    assert строки["Раньше в серии такого не было."]["check"] == "громкое утверждение без подтверждённой опоры"
+    assert строки["Впервые герои — пара."]["check"] is None and строки["Впервые герои — пара."]["kb"] == ["K1"]
+    фп = json.loads(п.data)["factcheck"]
+    assert фп["done"] and фп["loud"] == 1
+    проверка = {п2["item"]: п2 for п2 in json.loads(п.data)["check"]}
+    assert проверка["Утверждения без подтверждения"]["ok"] is None
+
+
+def test_фраза_против_базы_переписана_выдуманная_опора_проверь(стенд):
+    стенд["модель"].поведение["доп_строки"] = [
+        {"text": "Джейсон Люсия — одна героиня.", "fact": True, "src": []},
+        {"text": "Карта как в San Andreas.", "fact": True, "src": []}]
+    стенд["модель"].поведение["опора"] = {
+        "Джейсон Люсия — одна героиня.": {"contradicts": "K1", "fix": "Джейсон и Люсия — пара героев."},
+        "Карта как в San Andreas.": {"src": [424242], "kb": ["K999"]}}
+    п = _собрать(стенд)
+    строки = _строки(п)
+    assert "Джейсон Люсия — одна героиня." not in строки
+    новая = строки["Джейсон и Люсия — пара героев."]
+    assert новая["check"] is None and "противоречило базе" in новая["fixed"]
+    assert строки["Карта как в San Andreas."]["check"] == "нет источника"
+    assert строки["Карта как в San Andreas."]["src"] == []
+    assert json.loads(п.data)["factcheck"]["fixed"] == 1
+
+
+def test_три_факта_предложение_shorts_или_до_5_минут(стенд):
+    стенд["модель"].поведение["факты"] = 3
+    п = _собрать(стенд)
+    мат = json.loads(п.data)["material"]
+    assert мат["facts"] == 3 and мат["minutes"] <= 5 and "Shorts" in мат["suggest"]
+    md = cp.в_markdown(п)
+    assert "Фактов в источниках: 3" in md and "Shorts" in md
+
+
+def test_десять_фактов_предложения_нет(стенд):
+    стенд["модель"].поведение["факты"] = 10
+    п = _собрать(стенд)
+    мат = json.loads(п.data)["material"]
+    assert мат["facts"] == 10 and мат["suggest"] is None and мат["minutes"] >= 8
+
+
+def _добавить(стенд, **поля):
+    db = стенд["Сессия"]()
+    сейчас = datetime.utcnow()
+    и = ContentItem(theme_id=db.query(ContentStory).first().theme_id, source_id=9, platform="rss",
+                    first_seen_at=сейчас, last_seen_at=сейчас, published_at=сейчас - timedelta(hours=3),
+                    **поля)
+    db.add(и)
+    db.commit()
+    номер = и.id
+    db.close()
+    return номер
+
+
+def test_запись_game_informer_в_сюжете_первая(стенд):
+    сюжет = стенд["Сессия"]().query(ContentStory).first().id
+    gi = _добавить(стенд, ext_id="rss:gi1", source_key="rss:9", source_name="Game Informer",
+                   url="https://gameinformer.test/1", title="GTA VI cover story", story_id=сюжет)
+    п = _собрать(стенд)
+    д = json.loads(п.data)
+    assert д["src"][0]["id"] == gi and д["src"][0]["role"] == "первоисточник волны"
+    assert д["sources"][0]["id"] == gi
+
+
+def test_первоисточник_из_соседнего_сюжета_волны_первый(стенд):
+    gi = _добавить(стенд, ext_id="rss:gi2", source_key="rss:9", source_name="Game Informer",
+                   url="https://gameinformer.test/2", title="The Grand Theft Auto VI Digital Issue Is Now Live",
+                   text="14-page cover story with new details on Leonida", story_id=None)
+    ign = _добавить(стенд, ext_id="rss:ign1", source_key="rss:10", source_name="IGN",
+                    url="https://ign.test/1", title="All the new GTA 6 trailer details",
+                    text="details revealed in the latest Game Informer cover story", story_id=None)
+    чужое = _добавить(стенд, ext_id="rss:ign2", source_key="rss:10", source_name="IGN",
+                      url="https://ign.test/2", title="Modder gets cease and desist", story_id=None)
+    стенд["модель"].поведение["волна"] = [ign]           # модель узнала пересказ, но не первоисточник
+    п = _собрать(стенд)
+    ид = [и["id"] for и in json.loads(п.data)["src"]]
+    assert ид[0] == gi and ign in ид and чужое not in ид
+
+
+def test_волна_без_модели_по_словам(стенд):
+    ign = _добавить(стенд, ext_id="rss:ign3", source_key="rss:10", source_name="IGN",
+                    url="https://ign.test/3", title="Trailer 2 frame by frame", story_id=None)
+    стенд["модель"].поведение["волна"] = None              # модель не ответила — запасной отбор
+    п = _собрать(стенд)
+    assert ign not in [и["id"] for и in json.loads(п.data)["src"]]   # «trailer» — общее слово темы
+    шаги = {ш["k"]: ш["note"] for ш in json.loads(п.steps)}
+    assert "волна по словам" in шаги["sources"]

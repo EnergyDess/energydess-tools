@@ -300,6 +300,14 @@
         <span class="v2-hint" id="content-style-out" aria-live="polite"></span></p>
     </div>
 
+    <div class="v2-card content-card" id="content-knowledge">
+      <h2 class="v2-card-title">База знаний серии</h2>
+      <p class="v2-hint">Проверенные факты о частях серии. Уходит в каждую сборку пакета: сценарий не противоречит ей, вторая проверка фактов принимает её пункты как опору. Сомнительное не вносите.</p>
+      <textarea class="v2-textarea" id="content-knowledge-text" rows="10" aria-label="База знаний серии">{{ база_знаний }}</textarea>
+      <p><button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" data-save-setting="knowledge" data-field="content-knowledge-text" data-out="content-knowledge-out">Сохранить базу знаний</button>
+        <span class="v2-hint" id="content-knowledge-out" aria-live="polite"></span></p>
+    </div>
+
     <div class="v2-card content-card" id="content-spend">
       <h2 class="v2-card-title">Бюджет модели</h2>
       <p class="v2-text">Сегодня (сутки по Москве): <b id="content-spend-today">{{ '%.2f' % бюджет.сегодня }} $</b> из {{ '%.2f' % бюджет.потолок }} ${% if бюджет.исчерпан %} — <span class="content-row-error">исчерпан, вызовы модели модуля стоят до полуночи МСК</span>{% endif %}.</p>
@@ -510,6 +518,22 @@
   // ЗАПУСК И ОЖИДАНИЕ: пока идёт прогон, строка прогона спрашивает сервер
   // раз в 4 секунды и перезагружает страницу, когда он кончился. Отказ
   // сервера говорится словами в той же строке, а не молчит.
+  // ТЕКСТОВЫЕ НАСТРОЙКИ (база знаний и др.): кнопка называет настройку
+  // и поле, ответ сервера говорится словами рядом.
+  document.querySelectorAll('[data-save-setting]').forEach(function (кн) {
+    кн.addEventListener('click', async function () {
+      const вывод = document.getElementById(кн.dataset.out);
+      кн.disabled = true;
+      try {
+        const r = await fetch('/content/api/settings/' + кн.dataset.saveSetting, {method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({text: document.getElementById(кн.dataset.field).value})});
+        const д = await r.json().catch(function () { return {}; });
+        вывод.textContent = r.ok ? 'Сохранено' : ('Не сохранено: ' + (д.error || 'HTTP ' + r.status));
+      } finally { кн.disabled = false; }
+    });
+  });
+
   const стильКн = document.getElementById('content-style-save');
   стильКн.addEventListener('click', async function () {
     const вывод = document.getElementById('content-style-out');

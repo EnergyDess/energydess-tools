@@ -399,6 +399,7 @@ def данные_страницы(db, user) -> dict:
         "бюджет": ce.бюджет(db),
         "образцы": cr.сводка(db),
         "стиль": cdb.настройка(db, "style").get("text") or "",
+        "база_знаний": cdb.настройка(db, "knowledge").get("text") or "",
         "подсказки": ПОДСКАЗКИ,
         "расход": ce.расход_по_задачам(db),
         "планировщик": ce.планировщик_включён(),
@@ -726,6 +727,25 @@ async def style_save(тело: Стиль, user=Depends(get_current_user), db: S
     значение = cdb.в_json({"text": текст})
     if строка is None:
         db.add(ContentSetting(key="style", value=значение, updated_at=datetime.utcnow()))
+    else:
+        строка.value, строка.updated_at = значение, datetime.utcnow()
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/content/api/settings/knowledge")
+async def knowledge_save(тело: Стиль, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """База знаний серии (письмо B2): уходит в каждую сборку пакета и во
+    вторую проверку фактов. Правит владелец на «Кухне»."""
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    текст = (тело.text or "").strip()
+    if not 20 <= len(текст) <= 12000:
+        return JSONResponse({"error": "база знаний — от 20 до 12000 знаков"}, status_code=400)
+    строка = db.get(ContentSetting, "knowledge")
+    значение = cdb.в_json({**cdb.настройка(db, "knowledge"), "text": текст})
+    if строка is None:
+        db.add(ContentSetting(key="knowledge", value=значение, updated_at=datetime.utcnow()))
     else:
         строка.value, строка.updated_at = значение, datetime.utcnow()
     db.commit()

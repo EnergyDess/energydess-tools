@@ -262,8 +262,12 @@ def _отказ_gemini(r) -> Exception:
     return Сбой("Gemini: HTTP %d%s" % (r.status_code, (" — " + текст) if текст else ""))
 
 
-async def разобрать(client, yt_id: str, fps: float | None) -> tuple[dict, dict]:
-    """(разбор, расход {вход, выход, cost}). Пропуск / Сбой — исключением."""
+async def _gemini(client, yt_id: str, промпт: str, fps: float | None,
+                  превью: bool = True) -> tuple[str, dict]:
+    """ОДИН вызов Gemini по ссылке на публичный ролик: (текст ответа,
+    расход). Ролик не скачивается. Пропуск / Сбой — исключением. Общий
+    для разбора образца, утверждений ролика-источника и сцен трейлера
+    (письмо B2): три копии разошлись бы на первой правке отказов."""
     клю = ключ()
     if not клю:
         raise Сбой("нет ключа Gemini (GEMINI_API_KEY)")
@@ -271,10 +275,10 @@ async def разобрать(client, yt_id: str, fps: float | None) -> tuple[dic
     if fps:
         видео["videoMetadata"] = {"fps": fps}
     части = [видео]
-    превью = await _превью(client, yt_id)
-    if превью:
-        части.append(превью)
-    части.append({"text": ПРОМПТ})
+    картинка = await _превью(client, yt_id) if превью else None
+    if картинка:
+        части.append(картинка)
+    части.append({"text": промпт})
     тело = {"contents": [{"role": "user", "parts": части}],
             "generationConfig": {"responseMimeType": "application/json", "temperature": 0,
                                  "maxOutputTokens": REFS_MAX_TOKENS,
@@ -315,7 +319,85 @@ async def разобрать(client, yt_id: str, fps: float | None) -> tuple[dic
                     if isinstance(ч, dict))
     if конец == "MAX_TOKENS":
         raise Сбой("разбор не поместился в потолок ответа")
-    return разобрать_ответ(текст), {"вход": вход, "выход": выход, "cost": стоимость}
+    return текст, {"вход": вход, "выход": выход, "cost": стоимость}
+
+
+async def разобрать(client, yt_id: str, fps: float | None) -> tuple[dict, dict]:
+    """(разбор, расход {вход, выход, cost}). Пропуск / Сбой — исключением."""
+    текст, расход = await _gemini(client, yt_id, ПРОМПТ, fps)
+    return разобрать_ответ(текст), расход
+
+
+# ── СПРАВКА ПАКЕТА: УТВЕРЖДЕНИЯ РОЛИКА И СЦЕНЫ ТРЕЙЛЕРА (письмо B2) ────
+#
+# Хранятся в той же таблице, что образцы, со СЛУЖЕБНЫМ format_id = 0 и своим
+# `origin`: разбор один на ролик, повторно не платится. В сводку образцов
+# и в выбор образцов формата они не попадают (формата с номером 0 нет).
+
+СПРАВКА_ФОРМАТ = 0
+ПРОМПТ_УТВЕРЖДЕНИЯ = (
+    "Это YouTube-ролик про игры — источник для другого автора. Выпиши, что в нём УТВЕРЖДАЕТСЯ "
+    "о фактах: каждое утверждение отдельно, с таймкодом, по-русски, без оценок и без пересказа "
+    "рекламы. Если автор говорит, откуда сведения (журнал, Rockstar, инсайдер), — укажи в поле from. "
+    'Ответ строго JSON: {"claims": [{"t": "1:23", "text": "утверждение", "from": "откуда или пусто"}]}. '
+    "От 3 до 25 пунктов. Чего не видно и не слышно — не пиши."
+)
+ПРОМПТ_СЦЕНЫ = (
+    "Это официальный трейлер игры. Перечисли сцены по порядку с таймкодами: что ВИДНО в кадре "
+    "(место, люди, действие, транспорт), по-русски, коротко. Не выдумывай названий мест, которых "
+    "не показано и не сказано в кадре. "
+    'Ответ строго JSON: {"scenes": [{"t": "0:12", "what": "что в кадре"}]}. От 10 до 60 сцен.'
+)
+
+
+def список_ответа(текст: str, поле: str, обяз: tuple) -> list[dict]:
+    """Список пунктов справки; пункт без обязательных полей отбрасывается."""
+    данные = ce._json_ответа(текст or "")
+    if not isinstance(данные, dict) or not isinstance(данные.get(поле), list):
+        raise Сбой(f"Gemini ответил без списка {поле}")
+    итог = []
+    for п in данные[поле]:
+        if not isinstance(п, dict) or not all(str(п.get(к) or "").strip() for к in обяз):
+            continue
+        итог.append({к: str(п.get(к) or "").strip() for к in обяз + ("from",) if к in обяз or п.get(к)})
+    if not итог:
+        raise Сбой(f"в ответе Gemini пустой список {поле}")
+    return итог
+
+
+async def справка_ролика(client, db, тема_id: str, yt_id: str, вид: str,
+                         title: str | None = None) -> dict:
+    """Утверждения ролика-источника (`claims`) либо сцены трейлера (`trailer`).
+    Готовая справка — из базы, без вызова. {state, items, cost, reason}."""
+    с = (db.query(ContentRef).filter(ContentRef.format_id == СПРАВКА_ФОРМАТ,
+                                     ContentRef.yt_id == yt_id).first())
+    поле = "claims" if вид == "claims" else "scenes"
+    if с is not None and с.state == "ok":
+        return {"state": "ok", "items": (cdb.из_json(с.analysis, {}) or {}).get(поле) or [], "cost": 0.0}
+    if с is not None and с.state == "skipped":
+        return {"state": "skipped", "items": [], "cost": 0.0, "reason": с.reason}
+    if с is None:
+        с = ContentRef(theme_id=тема_id, format_id=СПРАВКА_ФОРМАТ, yt_id=yt_id, origin=вид,
+                       title=title, tries=0)
+        db.add(с)
+    try:
+        текст, расход = await _gemini(client, yt_id,
+                                      ПРОМПТ_УТВЕРЖДЕНИЯ if вид == "claims" else ПРОМПТ_СЦЕНЫ,
+                                      0.5 if вид == "trailer" else None, превью=False)
+        пункты = список_ответа(текст, поле, ("t", "text") if вид == "claims" else ("t", "what"))
+    except Пропуск as e:
+        с.state, с.reason = "skipped", str(e)
+        db.commit()
+        return {"state": "skipped", "items": [], "cost": 0.0, "reason": str(e)}
+    except Сбой as e:
+        с.state, с.reason, с.tries = "error", str(e), (с.tries or 0) + 1
+        db.commit()
+        return {"state": "error", "items": [], "cost": 0.0, "reason": str(e)}
+    с.state, с.reason, с.model, с.analyzed_at = "ok", None, REFS_MODEL, datetime.utcnow()
+    с.analysis = cdb.в_json({поле: пункты})
+    с.cost = round((с.cost or 0) + (расход.get("cost") or 0), 6)
+    db.commit()
+    return {"state": "ok", "items": пункты, "cost": расход.get("cost") or 0.0}
 
 
 # ── ПРОГОН ────────────────────────────────────────────────────────────
@@ -454,8 +536,10 @@ def нужны(сейчас: datetime | None = None) -> bool:
 def сводка(db) -> dict:
     """Для «Кухни»: сколько разобрано, пропущено и во что обошлось."""
     from sqlalchemy import func
-    по = dict(db.query(ContentRef.state, func.count(ContentRef.id)).group_by(ContentRef.state).all())
-    usd = db.query(func.sum(ContentRef.cost)).scalar() or 0.0
+    образцы = db.query(ContentRef).filter(ContentRef.format_id != СПРАВКА_ФОРМАТ)
+    по = dict(образцы.with_entities(ContentRef.state, func.count(ContentRef.id))
+              .group_by(ContentRef.state).all())
+    usd = образцы.with_entities(func.sum(ContentRef.cost)).scalar() or 0.0
     п = (db.query(ContentRun).filter(ContentRun.kind == "refs").order_by(ContentRun.id.desc()).first())
     return {"разобрано": по.get("ok", 0), "пропущено": по.get("skipped", 0),
             "сбоев": по.get("error", 0), "usd": round(float(usd), 4),
