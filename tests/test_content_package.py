@@ -94,6 +94,8 @@ class Модель:
             if self.поведение["волна"] is None:
                 return None, "волну не спрашивали"
             return json.dumps({"same": self.поведение["волна"]}), None
+        if "Выпиши УНИКАЛЬНЫЕ факты" in вопрос and self.поведение.get("факты_список") is not None:
+            return json.dumps({"facts": self.поведение["факты_список"]}), None
         if "Выпиши УНИКАЛЬНЫЕ факты" in вопрос:
             return json.dumps({"facts": [{"text": f"Факт номер {n}", "src": [self.ид["офиц"]]}
                                          for n in range(self.поведение["факты"])]}), None
@@ -107,6 +109,9 @@ class Модель:
                     утв.append({"line": ключ, "claim": текст, "src": [], "kb": [], "contradicts": None,
                                 "fix": "", **опора})
             return json.dumps({"claims": утв}), None
+        if "Дай 3 названия" in вопрос and self.поведение.get("названия"):
+            return json.dumps({"titles": self.поведение["названия"].pop(0),
+                               "thumbnail": {"frame": "кадр", "screenshot": "трейлер", "text": "Звери GTA 6"}}), None
         if "Дай 3 названия" in вопрос:
             if self.поведение["всегда_стоп"] or self.поведение["стоп_раз"] > 0:
                 self.поведение["стоп_раз"] -= 1
@@ -561,3 +566,147 @@ def test_доверенное_сми_опора_для_подтверждено(
 def test_цифра_у_названия_игры_не_слово_превью():
     assert cp.слов_превью("GTA 5 против GTA 6") == 3
     assert cp.слов_превью("Шесть слов на превью это много") == 6
+
+
+# ── Письмо B3, блок 1: статус фактов и честные названия ──────────────
+
+def _данные(п):
+    return json.loads(п.data)
+
+
+def test_официальный_пакет_без_слуха_и_шапка_без_слуха(стенд):
+    """1.1: материал официального источника не подаётся как слух — ни фраза
+    с источником, ни фраза без источника при официальной основе; флаг
+    пакета и название идеи — официальные. Обратный случай: факт из
+    слухового источника с «говорят» остаётся."""
+    м = стенд["модель"]
+    м.поведение["доп_строки"] = [
+        {"text": "Говорят, карта Леониды больше.", "fact": True, "src": [стенд["ид"]["офиц"]]},
+        {"text": "Ещё раз: это пока слух, а не слова самой Rockstar.", "fact": False, "src": []}]
+    db = стенд["Сессия"]()
+    db.get(ContentIdea, стенд["ид"]["идея"]).title = "По слухам, трейлер 2 спрятал деталь"
+    db.commit()
+    db.close()
+    п = _собрать(стенд)
+    assert п.state == "ok", п.note
+    д = _данные(п)
+    assert д["idea"]["official"] is True
+    for с in д["script"]:
+        for л in с["lines"]:
+            if л.get("status") == cp.СТАТУС_ОФИЦ or (not л["src"] and not any(
+                    x.get("status") in (cp.СТАТУС_СЛУХ, cp.СТАТУС_УТЕЧКА) for x in с["lines"])):
+                assert not cp.ОБОРОТ_СЛУХА.search(л["text"]), л
+    db = стенд["Сессия"]()
+    идея = db.get(ContentIdea, стенд["ид"]["идея"])
+    assert not идея.title.lower().startswith("по слухам") and json.loads(идея.facts)["официально"]
+    db.close()
+    с = TestClient(main.app)
+    с.cookies.set("access_token", create_token(стенд["ид"]["админ"], 0))
+    стр = с.get(f"/content/package/{п.id}").text
+    assert "слух — подаётся как слух" not in стр and "официально" in стр
+
+
+def test_статус_факта_по_источнику():
+    ф = {"official_sources": ["Rockstar Newswire"], "trusted_media": ["Game Informer", "IGN"]}
+    по_id = {1: {"source": "Game Informer", "official": False, "rumor": False, "leak": False},
+             2: {"source": "YouTube · Blogger", "platform": "youtube", "official": False, "rumor": False,
+                 "leak": False},
+             3: {"source": "Insider", "official": False, "rumor": False, "leak": True}}
+    assert cp.статус_по([1], по_id, ф) == "официально"
+    assert cp.статус_по([2], по_id, ф) == "слух"
+    assert cp.статус_по([3], по_id, ф) == "утечка"
+    assert cp.статус_по([2, 1], по_id, ф) == "официально"
+
+
+def test_название_не_на_утверждении_одного_ролика_youtube(стенд):
+    """1.2: «питомец» есть только у блогера на YouTube — в названии его нет,
+    название строится на официальном факте. Обратный случай: официальное
+    «170 видов» в названии остаётся."""
+    db = стенд["Сессия"]()
+    ид = стенд["ид"]
+    идея = db.get(ContentIdea, ид["идея"])
+    сейчас = datetime.utcnow()
+    ролик = ContentItem(theme_id=идея.theme_id, ext_id="yt:9", source_id=3, source_key="yt:9",
+                        source_name="YouTube · Davy Jones", platform="youtube", url="https://youtu.be/xxxxxxxxxxx",
+                        title="Zoo and pet dog in GTA 6", first_seen_at=сейчас, last_seen_at=сейчас,
+                        published_at=сейчас, story_id=идея.story_id)
+    db.add(ролик)
+    db.commit()
+    yt = ролик.id
+    db.close()
+    м = стенд["модель"]
+    м.поведение["факты_список"] = [
+        {"text": "В игре 170 видов животных и охота", "src": [ид["офиц"]]},
+        {"text": "У героя будет собака-питомец и зоопарк", "src": [yt]}] + [
+        {"text": f"Факт номер {n}", "src": [ид["офиц"]]} for n in range(6)]
+    м.поведение["названия"] = [["Питомец и зоопарк в GTA 6", "Собака-питомец в GTA 6", "Зоопарк GTA 6"],
+                               ["170 видов животных в GTA 6", "Охота в GTA 6: 170 видов", "Звери GTA 6"]]
+    п = _собрать(стенд)
+    д = _данные(п)
+    assert д["titles"] and all("питом" not in т.lower() and "зоопарк" not in т.lower() for т in д["titles"]), д["titles"]
+    assert any("170" in т for т in д["titles"])
+
+
+def test_факт_из_базы_знаний_без_проверь(стенд):
+    """1.3: Нико и свидания, Си-Джей и девушки, дата релиза — в базе знаний,
+    «ПРОВЕРЬ» не получают, даже если проверщик их не связал. Обратный
+    случай: легендарные животные RDR2 без опоры — «проверь» остаётся."""
+    м = стенд["модель"]
+    м.поведение["доп_строки"] = [
+        {"text": "В GTA IV у Нико были свидания и друзья, которых зовёшь по телефону.", "fact": True, "src": []},
+        {"text": "В San Andreas у Си-Джея были девушки и свидания.", "fact": True, "src": []},
+        {"text": "GTA 6 выходит девятнадцатого ноября 2026 года на PS5 и Xbox Series.", "fact": True, "src": []},
+        {"text": "GTA 6 выходит двадцатого ноября 2026 года.", "fact": True, "src": []},
+        {"text": "В Red Dead Redemption 2 легендарные животные были отдельным ритуалом.", "fact": True, "src": []}]
+    д = _данные(_собрать(стенд))
+    строки = {л["text"]: л for с in д["script"] for л in с["lines"]}
+    for т in ("В GTA IV у Нико", "В San Andreas у Си-Джея", "GTA 6 выходит девятнадцатого"):
+        л = next(v for k, v in строки.items() if k.startswith(т))
+        assert л["check"] is None and л.get("kb"), л
+    assert next(v for k, v in строки.items() if k.startswith("В Red Dead"))["check"]
+    assert next(v for k, v in строки.items() if k.startswith("GTA 6 выходит двадцатого"))["check"]
+
+
+def test_личная_фраза_без_ссылки(стенд):
+    """1.4: опыт ведущего и вопрос зрителю — без [ист.]. Обратный случай:
+    факт с источником ссылку сохраняет."""
+    ид = стенд["ид"]
+    стенд["модель"].поведение["доп_строки"] = [
+        {"text": "Я представляю, как играл в Red Dead Redemption 2 и офигевал от ливня.", "fact": True,
+         "src": [ид["офиц"]]},
+        {"text": "Мне было кайфово смотреть на ураган.", "fact": True, "src": [ид["офиц"]]}]
+    д = _данные(_собрать(стенд))
+    строки = {л["text"]: л for с in д["script"] for л in с["lines"]}
+    for т in ("Я представляю", "Мне было кайфово"):
+        л = next(v for k, v in строки.items() if k.startswith(т))
+        assert л["src"] == [] and not л.get("check"), л
+    assert строки["Трейлер вышел вчера."]["src"] == [ид["офиц"]]
+
+
+def test_unlockable_одинаково_в_двух_пакетах():
+    """1.5: «unlockable» — «открываемые» в обоих пакетах, хотя модель в одном
+    написала «открытые». Обратный случай: «открытые миры» не трогаются."""
+    база = cdb.прочитать_семя()["settings"]["knowledge"]["text"]
+    к = {"база": база, "источники": [{"title": "Unlockable animal species", "text": "rare and legendary"}]}
+    итоги = []
+    for слово in ("открытые", "открываемые"):
+        д = {"script": [{"lines": [{"text": f"Есть {слово} виды животных, а открытые миры — нет."}]}],
+             "titles": [f"Все {слово} звери"]}
+        cp.привести_термины(д, к)
+        итоги.append(д)
+    for д in итоги:
+        assert "открываемые виды" in д["script"][0]["lines"][0]["text"]
+        assert "открытые миры" in д["script"][0]["lines"][0]["text"]
+        assert д["titles"] == ["Все открываемые звери"]
+
+
+def test_досев_базы_знаний_дописывает_и_не_затирает():
+    """1.6: дополнения дописываются к тексту владельца, своё не трогается,
+    повтор ничего не меняет."""
+    текст = "GTA V (2013):\n- Своя строка владельца.\n\nGTA IV (2008):\n- Нико."
+    доп = cdb.прочитать_семя()["knowledge_add"]
+    новое = cdb.дописать_разделы(текст, доп["sections"])
+    assert "Своя строка владельца." in новое and "Нико." in новое
+    assert "Чоп (Chop) — пёс Франклина." in новое and "Rockstar Newswire" in новое
+    assert новое.index("Чоп") < новое.index("GTA IV")
+    assert cdb.дописать_разделы(новое, доп["sections"]) == новое
