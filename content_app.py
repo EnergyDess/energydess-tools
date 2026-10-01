@@ -397,6 +397,7 @@ def данные_страницы(db, user) -> dict:
         "идёт": _прогон_наружу(идёт, зона, user),
         "ключ_youtube": bool(ce.ключ_youtube()),
         "бюджет": ce.бюджет(db),
+        "шкала_длины": cp.шкала_длины(cdb.настройка(db, "package")),
         "образцы": cr.сводка(db),
         "стиль": cdb.настройка(db, "style").get("text") or "",
         "база_знаний": cdb.настройка(db, "knowledge").get("text") or "",
@@ -755,6 +756,43 @@ async def budget_save(тело: Бюджет, user=Depends(get_current_user), db
     return {"ok": True, **ce.бюджет(db)}
 
 
+class Длина(BaseModel):
+    shorts_below: int
+    mid_upto: int
+    mid_min: int
+    mid_max: int
+    long_upto: int
+    long_min: int
+    long_max: int
+    max_min: int
+    max_max: int
+
+
+@router.post("/content/api/settings/length")
+async def length_save(тело: Длина, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Шкала длины пакета по числу фактов (письмо B3, 2.1), правит владелец на «Кухне»."""
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    т = тело
+    if not (1 <= т.shorts_below <= т.mid_upto < т.long_upto <= 200):
+        return JSONResponse({"error": "границы по фактам: Shorts ≤ первой < второй"}, status_code=400)
+    if not all(1 <= а <= б <= 30 for а, б in ((т.mid_min, т.mid_max), (т.long_min, т.long_max),
+                                                (т.max_min, т.max_max))):
+        return JSONResponse({"error": "минуты — от 1 до 30, «от» не больше «до»"}, status_code=400)
+    шкала = {"shorts_below": т.shorts_below,
+             "steps": [{"upto": т.mid_upto, "min": т.mid_min, "max": т.mid_max},
+                       {"upto": т.long_upto, "min": т.long_min, "max": т.long_max},
+                       {"upto": None, "min": т.max_min, "max": т.max_max}]}
+    строка = db.get(ContentSetting, "package")
+    значение = cdb.в_json({**cdb.настройка(db, "package"), "length": шкала})
+    if строка is None:
+        db.add(ContentSetting(key="package", value=значение, updated_at=datetime.utcnow()))
+    else:
+        строка.value, строка.updated_at = значение, datetime.utcnow()
+    db.commit()
+    return {"ok": True, "length": шкала}
+
+
 class Фразы(BaseModel):
     text: str
 
@@ -801,6 +839,7 @@ async def knowledge_save(тело: Стиль, user=Depends(get_current_user), d
 class Пакет(BaseModel):
     idea_id: int
     again: bool = False
+    kind: str | None = None          # long | shorts — выбор после предложения Shorts (письмо B3)
 
 
 class Блок(BaseModel):
@@ -817,7 +856,8 @@ def _ответ(итог: dict):
 async def package_build(тело: Пакет, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not _админ(user):
         return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
-    return _ответ(cp.начать(db, тело.idea_id, заново=тело.again))
+    вид = тело.kind if тело.kind in ("long", "shorts") else None
+    return _ответ(cp.начать(db, тело.idea_id, заново=тело.again, вид=вид))
 
 
 @router.get("/content/api/package/{pid}/state")
@@ -850,7 +890,7 @@ async def package_md(pid: int, user=Depends(get_current_user), db: Session = Dep
     if not _админ(user):
         return PlainTextResponse(ОТКАЗ_НЕ_АДМИНУ, status_code=403)
     п = db.get(cdb.ContentPackage, pid)
-    if п is None or п.state == "running" or not п.data:
+    if п is None or п.state != "ok" or not п.data:
         return PlainTextResponse("пакет не готов", status_code=404)
     return Response(cp.в_markdown(п).encode("utf-8"), media_type="text/markdown; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="package-{pid}.md"'})

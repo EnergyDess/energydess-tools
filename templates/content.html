@@ -323,6 +323,19 @@
         <input class="v2-input content-budget-input" id="content-budget-usd" type="number" min="0.1" max="50" step="0.1" value="{{ '%.2f' % бюджет.потолок }}">
         <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" id="content-budget-save">Сохранить</button>
         <span class="v2-hint" id="content-budget-out" aria-live="polite"></span></p>
+      {# Шкала длины пакета по числу фактов (письмо B3, 2.1) — рядом с бюджетом #}
+      {% set ш = шкала_длины %}
+      <fieldset class="content-length" id="content-length">
+        <legend class="v2-label-plain">Длина пакета по числу фактов из источников</legend>
+        <p class="content-budget-row"><label class="v2-label-plain" for="content-len-shorts">Меньше — предлагать Shorts</label>
+          <input class="v2-input content-budget-input" id="content-len-shorts" type="number" min="1" max="50" value="{{ ш.shorts_below }}"></p>
+        {% for ст in ш.steps %}{% set n = loop.index %}
+        <p class="content-budget-row"><span class="v2-label-plain">{% if ст.upto is not none %}до <input class="v2-input content-budget-input" id="content-len-upto-{{ n }}" type="number" min="1" max="200" value="{{ ст.upto }}"> фактов{% else %}больше — {% endif %}</span>
+          <input class="v2-input content-budget-input" id="content-len-min-{{ n }}" type="number" min="1" max="30" value="{{ ст.min }}" aria-label="минут от">–<input class="v2-input content-budget-input" id="content-len-max-{{ n }}" type="number" min="1" max="30" value="{{ ст.max }}" aria-label="минут до"> мин</p>
+        {% endfor %}
+        <p><button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" id="content-length-save">Сохранить шкалу</button>
+          <span class="v2-hint" id="content-length-out" aria-live="polite"></span></p>
+      </fieldset>
       <div class="content-scroll">
         <table class="content-table" id="content-spend-table">
           <thead><tr><th>Задача</th><th class="content-num">Сегодня, $</th><th class="content-num">За 7 дней, $</th><th class="content-num">Вызовов за 7 дней</th></tr></thead>
@@ -561,6 +574,23 @@
         вывод.textContent = 'Не сохранено: ' + (д.error || 'HTTP ' + r.status);
       }
     } finally { бюджетКн.disabled = false; }
+  });
+
+  const длинаКн = document.getElementById('content-length-save');
+  if (длинаКн) длинаКн.addEventListener('click', async function () {
+    const вывод = document.getElementById('content-length-out');
+    const ч = function (id) { return parseInt(document.getElementById(id).value, 10); };
+    длинаКн.disabled = true;
+    try {
+      const r = await fetch('/content/api/settings/length', {method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({shorts_below: ч('content-len-shorts'), mid_upto: ч('content-len-upto-1'),
+                              mid_min: ч('content-len-min-1'), mid_max: ч('content-len-max-1'),
+                              long_upto: ч('content-len-upto-2'), long_min: ч('content-len-min-2'),
+                              long_max: ч('content-len-max-2'), max_min: ч('content-len-min-3'),
+                              max_max: ч('content-len-max-3')})});
+      const д = await r.json().catch(function () { return {}; });
+      вывод.textContent = r.ok ? 'Сохранено' : 'Не сохранено: ' + (д.error || 'HTTP ' + r.status);
+    } finally { длинаКн.disabled = false; }
   });
 
   const стильКн = document.getElementById('content-style-save');

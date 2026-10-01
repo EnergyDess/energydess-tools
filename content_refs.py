@@ -31,7 +31,9 @@ Gemini ПО ССЫЛКЕ на публичный ролик: официальн�
 """
 from __future__ import annotations
 
+import asyncio
 import base64
+import re
 import os
 import time
 import traceback
@@ -380,6 +382,15 @@ def список_ответа(текст: str, поле: str, обяз: tuple) -
     return итог
 
 
+СПРАВКА_ПОВТОРОВ = int(os.getenv("CONTENT_GEMINI_RETRIES", "2"))
+СПРАВКА_ПАУЗА = float(os.getenv("CONTENT_GEMINI_RETRY_SEC", "15"))
+
+
+def временный_сбой(текст: str) -> bool:
+    """503 перегрузки, 429, 5xx, обрыв связи — повтор поможет."""
+    return bool(re.search(r"HTTP (?:429|5\d\d)|не ответил|high demand|try again", текст or "", re.I))
+
+
 async def справка_ролика(client, db, тема_id: str, yt_id: str, вид: str,
                          title: str | None = None) -> dict:
     """Утверждения ролика-источника (`claims`) либо сцены трейлера (`trailer`).
@@ -396,9 +407,19 @@ async def справка_ролика(client, db, тема_id: str, yt_id: str, 
                        title=title, tries=0)
         db.add(с)
     try:
-        текст, расход = await _gemini(client, yt_id,
-                                      ПРОМПТ_УТВЕРЖДЕНИЯ if вид == "claims" else ПРОМПТ_СЦЕНЫ,
-                                      0.5 if вид == "trailer" else None, превью=False)
+        for попытка in range(СПРАВКА_ПОВТОРОВ + 1):
+            try:
+                текст, расход = await _gemini(client, yt_id,
+                                              ПРОМПТ_УТВЕРЖДЕНИЯ if вид == "claims" else ПРОМПТ_СЦЕНЫ,
+                                              0.5 if вид == "trailer" else None, превью=False)
+                break
+            except Сбой as e:
+                # Временный сбой (перегрузка 503, 429, 5xx, нет ответа) — пауза
+                # и повтор, а не цикл без сна (§5.11); прочее — сразу наружу.
+                if попытка >= СПРАВКА_ПОВТОРОВ or not временный_сбой(str(e)):
+                    raise
+                print(f"[content] справка {yt_id}: {e}; повтор через {СПРАВКА_ПАУЗА * (попытка + 1)} с", flush=True)
+                await asyncio.sleep(СПРАВКА_ПАУЗА * (попытка + 1))
         пункты = список_ответа(текст, поле, ("t", "text") if вид == "claims" else ("t", "what"))
     except Пропуск as e:
         с.state, с.reason = "skipped", str(e)

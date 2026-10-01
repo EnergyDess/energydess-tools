@@ -353,20 +353,61 @@ def test_фраза_против_базы_переписана_выдуманн�
     assert json.loads(п.data)["factcheck"]["fixed"] == 1
 
 
-def test_три_факта_предложение_shorts_или_до_5_минут(стенд):
-    стенд["модель"].поведение["факты"] = 3
+def test_четыре_факта_предложение_shorts_длинный_не_собран(стенд):
+    """B3, 2.1 (было B2: три факта — «до 5 минут»): меньше 6 фактов — пакет
+    останавливается на предложении Shorts, сценария нет; выбор «длинный»
+    собирает длинный, «Shorts» — короткий."""
+    стенд["модель"].поведение["факты"] = 4
     п = _собрать(стенд)
-    мат = json.loads(п.data)["material"]
-    assert мат["facts"] == 3 and мат["minutes"] <= 5 and "Shorts" in мат["suggest"]
-    md = cp.в_markdown(п)
-    assert "Фактов в источниках: 3" in md and "Shorts" in md
+    assert п.state == "suggest"
+    д = json.loads(п.data)
+    assert д["material"]["facts"] == 4 and д["material"]["shorts"] and "Shorts" in д["material"]["suggest"]
+    assert "script" not in д and not any("Сценарий ролика" in в for в in стенд["модель"].вызовы)
+    с = TestClient(main.app)
+    с.cookies.set("access_token", create_token(стенд["ид"]["админ"], 0))
+    стр = с.get(f"/content/package/{п.id}").text
+    assert 'data-kind="shorts"' in стр and 'data-kind="long"' in стр
+    for вид, ждём in (("long", "long"), ("shorts", "shorts")):
+        db = стенд["Сессия"]()
+        итог = cp.начать(db, стенд["ид"]["идея"], заново=True, вид=вид)
+        db.close()
+        asyncio.run(стенд["запущено"][-1][1]("probe"))
+        db = стенд["Сессия"]()
+        п2 = db.get(ContentPackage, итог["id"])
+        assert п2.state == "ok" and п2.kind == ждём, (п2.state, п2.note)
+        assert json.loads(п2.data)["script"]
+        db.close()
 
 
-def test_десять_фактов_предложения_нет(стенд):
-    стенд["модель"].поведение["факты"] = 10
-    п = _собрать(стенд)
-    мат = json.loads(п.data)["material"]
-    assert мат["facts"] == 10 and мат["suggest"] is None and мат["minutes"] >= 8
+def test_шкала_длины_по_фактам_и_из_настроек():
+    """B3, 2.1: 13 фактов — 8–10 минут, 7 — 5–7, 25 — до 12; шкала из настроек
+    «Кухни» меняет результат."""
+    assert cp.длина_по_фактам(4, "long", {})["shorts"]
+    assert cp.длина_по_фактам(7, "long", {})["range"] == "5–7 минут"
+    assert cp.длина_по_фактам(13, "long", {})["range"] == "8–10 минут"
+    assert cp.длина_по_фактам(25, "long", {})["range"] == "до 12 минут"
+    своя = {"length": {"shorts_below": 3, "steps": [{"upto": 5, "min": 2, "max": 3},
+                                                     {"upto": None, "min": 4, "max": 6}]}}
+    assert not cp.длина_по_фактам(4, "long", своя).get("shorts")
+    assert cp.длина_по_фактам(4, "long", своя)["range"] == "2–3 минут"
+    assert cp.длина_по_фактам(13, "long", своя)["range"] == "до 6 минут"
+
+
+def test_шкала_длины_сохраняется_полем_кухни(стенд):
+    с = TestClient(main.app)
+    с.cookies.set("access_token", create_token(стенд["ид"]["админ"], 0))
+    r = с.post("/content/api/settings/length", json={"shorts_below": 4, "mid_upto": 10, "mid_min": 4,
+                                                     "mid_max": 6, "long_upto": 18, "long_min": 7,
+                                                     "long_max": 9, "max_min": 9, "max_max": 11})
+    assert r.status_code == 200, r.text
+    db = стенд["Сессия"]()
+    н = cdb.настройка(db, "package")
+    db.close()
+    assert cp.длина_по_фактам(5, "long", н)["range"] == "4–6 минут"
+    assert с.post("/content/api/settings/length", json={"shorts_below": 4, "mid_upto": 3, "mid_min": 4,
+                                                        "mid_max": 6, "long_upto": 18, "long_min": 7,
+                                                        "long_max": 9, "max_min": 9,
+                                                        "max_max": 11}).status_code == 400
 
 
 def _добавить(стенд, **поля):
@@ -465,7 +506,7 @@ def test_запрещённая_фраза_упорно_помечена(сте�
 
 
 def test_выдуманная_сцена_найди_в_трейлере(стенд, monkeypatch):
-    async def трейлеры(клиент, db, тема, настройки):
+    async def трейлеры(клиент, db, тема, настройки, сбои=None):
         return [{"yt_id": "VQRLujxTm3c", "title": "Grand Theft Auto VI Trailer 2",
                  "scenes": [{"t": "0:45", "what": "Люсия у машины на пляже"}]}]
     monkeypatch.setattr(cp, "сцены_трейлеров", трейлеры)
@@ -477,7 +518,8 @@ def test_выдуманная_сцена_найди_в_трейлере(стен
     п = _собрать(стенд)
     съём = json.loads(п.data)["shots"]
     assert съём[0]["what"] == "найди в трейлере: Сцена на заправке" and съём[0]["note"]
-    assert съём[1]["what"] == "найди в трейлере: Прогулка по пляжу" and "Виши-Бич" in съём[1]["note"]
+    # B3, 2.2 (было B2: заменялось): строку GTA 5 ведущий записывает сам — не сверяется
+    assert съём[1]["what"] == "Прогулка по пляжу" and not съём[1]["note"]
     assert съём[2]["what"] == "Люсия у машины" and "0:45 — Люсия у машины на пляже" in съём[2]["where"]
     assert съём[3]["what"] == "Проезд по городу" and съём[3]["where"] == "Лос-Сантос" and not съём[3]["note"]
 
@@ -710,3 +752,71 @@ def test_досев_базы_знаний_дописывает_и_не_зати�
     assert "Чоп (Chop) — пёс Франклина." in новое and "Rockstar Newswire" in новое
     assert новое.index("Чоп") < новое.index("GTA IV")
     assert cdb.дописать_разделы(новое, доп["sections"]) == новое
+
+
+# ── Письмо B3, блок 2: длина и честный список съёмок ─────────────────
+
+def _к_съёмок(трейлеры=None, сбой=None):
+    база = cdb.прочитать_семя()["settings"]["knowledge"]["text"]
+    return {"база": база, "источники": [], "образцы": [], "трейлеры": трейлеры or [],
+            "трейлеры_сбой": сбой or []}
+
+
+def test_строка_gta5_не_заменяется_на_найди_в_трейлере():
+    к = _к_съёмок()
+    итог = cp.обосновать_съёмки([
+        {"what": "Запись телефона в GTA 5 и приложений", "source": "GTA 5", "where": "Ryde Хайвей", "basis": "gameplay"},
+        {"what": "Запись: подходишь к собаке, это Чоп", "source": "свой геймплей GTA 5", "where": "Вайнвуд-Хиллз Кукушкино"},
+        {"what": "Панорама: гора Чилиад, Блэйн-Каунти", "source": "трейлер", "where": "", "basis": "trailer:QdBZY2fkU-0@0:10"}], к)
+    assert итог[0]["what"].startswith("Запись телефона") and not итог[0]["note"]
+    assert итог[1]["what"].startswith("Запись: подходишь") and not итог[1]["note"]
+    assert итог[2]["what"].startswith("найди в трейлере:")
+
+
+def test_chop_newswire_чилиад_не_выдумка_и_обрывок_не_в_списке():
+    к = _к_съёмок()
+    итог = cp.обосновать_съёмки([
+        {"what": "Скриншот Rockstar Newswire со сценой охоты", "source": "Newswire", "where": "Леонида"},
+        {"what": "Пёс как Chop рядом с героем", "source": "Newswire", "where": "Леонида"},
+        {"what": "Природа как у горы Чилиад и Палето-Бей", "source": "Newswire", "where": "Леонида"},
+        {"what": "Телефон: WAiNK и RydeMe, как у Си-Джея", "source": "Newswire", "where": "Вайс-Сити"}], к)
+    for с in итог[:3]:
+        assert not с["note"], с
+    assert "Ryde" not in итог[3]["note"] and "Джея" not in итог[3]["note"]
+    # Обратный случай: выдуманное место GTA 6 по-прежнему ловится
+    итог = cp.обосновать_съёмки([{"what": "Пляж Кукуруза-Бич", "source": "Newswire", "where": "Кукуруза-Бич"}], к)
+    assert "Кукуруза-Бич" in итог[0]["note"]
+
+
+def test_разбор_трейлеров_503_повтор_с_паузой(стенд, monkeypatch):
+    import content_refs as cr
+    вызовы, паузы = [], []
+
+    async def gemini(client, yt_id, промпт, fps, превью=True):
+        вызовы.append(yt_id)
+        if len(вызовы) <= 2:
+            raise cr.Сбой("Gemini: HTTP 503 — This model is currently experiencing high demand.")
+        return json.dumps({"scenes": [{"t": "0:10", "what": "Пляж Вайс-Сити"}]}), {"cost": 0.0}
+
+    async def сон(с):
+        паузы.append(с)
+    monkeypatch.setattr(cr, "_gemini", gemini)
+    monkeypatch.setattr(cr.asyncio, "sleep", сон)
+    db = стенд["Сессия"]()
+    справка = asyncio.run(cr.справка_ролика(None, db, "gta", "QdBZY2fkU-0", "trailer", "Trailer 1"))
+    db.close()
+    assert справка["state"] == "ok" and len(вызовы) == 3 and len(паузы) == 2 and all(п > 0 for п in паузы)
+
+
+def test_разбор_трейлеров_недоступен_пакет_говорит_честно(стенд, monkeypatch):
+    async def трейлеры(клиент, db, тема, настройки, сбои=None):
+        if сбои is not None:
+            сбои.append("Trailer 2: Gemini: HTTP 503")
+        return []
+    monkeypatch.setattr(cp, "сцены_трейлеров", трейлеры)
+    стенд["модель"].поведение["съёмки"] = [
+        {"what": "Люсия у машины", "source": "трейлер", "where": "0:45", "basis": "trailer:VQRLujxTm3c@0:45", "for": "0:30"}]
+    д = json.loads(_собрать(стенд).data)
+    assert д["trailers_note"] and "недоступен" in д["trailers_note"]
+    assert д["shots"][0]["what"] == "Люсия у машины" and "недоступен" in д["shots"][0]["unverified"]
+

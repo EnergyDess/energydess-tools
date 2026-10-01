@@ -384,3 +384,6 @@
 /* Бюджет модели модуля — поле с кнопкой (письмо B2). */
 .content-budget-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--v2-sp-2); margin: var(--v2-sp-3) 0 var(--v2-sp-4); }
 .content-budget-input { width: 8rem; }
+/* Шкала длины пакета (письмо B3, 2.1): группа полей без рамки браузера */
+.content-length { border: 0; padding: 0; margin: var(--v2-sp-4) 0; min-width: 0; }
+.content-length .content-budget-row { margin: var(--v2-sp-2) 0; }

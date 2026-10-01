@@ -41,7 +41,17 @@
     <li class="today-step{{ ' is-done' if ш.done }}"><span class="today-step-mark" aria-hidden="true">{{ '✓' if ш.done }}</span><span>{{ ш.t }}{% if ш.note %} — {{ ш.note }}{% endif %}</span></li>
     {% endfor %}
   </ol>
-  <p class="v2-error" id="pack-error"{{ ' hidden' if not (п.note and п.state != 'running') }}>{{ п.note or '' }}</p>
+  <p class="v2-error" id="pack-error"{{ ' hidden' if not (п.note and п.state not in ('running', 'suggest')) }}>{{ п.note or '' }}</p>
+  {% if п.state == 'suggest' %}
+  {# Фактов меньше порога шкалы «Кухни»: длинный без явного выбора не собирается (письмо B3, 2.1) #}
+  <section class="v2-card pack-block" id="pack-choose">
+    <p class="today-risk pack-warn" id="pack-suggest">{{ значок('alert-triangle') }} {{ д.material.suggest if д.material else п.note }}</p>
+    <p class="pack-choose-row">
+      <button type="button" class="v2-btn v2-btn-primary" data-kind="shorts" data-idea="{{ п.idea_id }}">{{ значок('sparkles') }} Собрать как Shorts</button>
+      <button type="button" class="v2-btn v2-btn-secondary" data-kind="long" data-idea="{{ п.idea_id }}">{{ значок('layers') }} Всё равно длинный</button>
+    </p>
+  </section>
+  {% endif %}
   {% if п.state in ('error', 'ok') %}
   <p><button type="button" class="v2-btn {{ 'v2-btn-primary' if п.state == 'error' else 'v2-btn-secondary v2-btn-sm' }}" id="pack-rebuild" data-idea="{{ п.idea_id }}" data-again="{{ '1' if п.state == 'ok' else '' }}">{{ значок('refresh-cw') }} Собрать заново</button></p>
   {% endif %}
@@ -75,7 +85,7 @@
     <dl class="pack-dl">
       <dt>Кадр</dt><dd>{{ д.thumbnail.frame }}</dd>
       <dt>Скриншот</dt><dd>{{ д.thumbnail.screenshot }}</dd>
-      <dt>Текст</dt><dd><b>{{ д.thumbnail.text }}</b>{% if д.thumbnail.too_long %} <span class="pack-flag">длиннее 4 слов — перепиши</span>{% endif %}</dd>
+      <dt>Текст</dt><dd><b>{{ д.thumbnail.text }}</b>{% if д.thumbnail.too_long %} <span class="pack-flag">длиннее 4 слов — перепиши</span>{% elif д.thumbnail.weak %} <span class="pack-flag">на слабом утверждении — перепиши</span>{% endif %}</dd>
     </dl>
     {% endif %}
   </section>
@@ -109,8 +119,9 @@
   <section class="v2-card pack-block" id="pack-shots" aria-labelledby="pack-h-shots">
     {{ шапка('shots', 'Список съёмок') }}
     {% if д.shots_warning %}<p class="today-risk pack-warn" id="pack-leak-warning">{{ значок('alert-triangle') }} {{ д.shots_warning }}</p>{% endif %}
+    {% if д.trailers_note %}<p class="today-risk pack-warn" id="pack-trailers-note">{{ значок('alert-triangle') }} {{ д.trailers_note }}</p>{% endif %}
     <ol class="pack-list">
-      {% for с in д.shots %}<li{% if с.note %} class="is-check" title="{{ с.note }}"{% endif %}>{{ с.what }}<span class="v2-hint"> · {{ с.source }}{% if с.where %}, {{ с.where }}{% endif %}{% if с.for %} · к {{ с.for }}{% endif %}{% if с.note %} · {{ с.note }}{% endif %}</span></li>{% endfor %}
+      {% for с in д.shots %}<li{% if с.note %} class="is-check" title="{{ с.note }}"{% endif %}>{{ с.what }}<span class="v2-hint"> · {{ с.source }}{% if с.where %}, {{ с.where }}{% endif %}{% if с.for %} · к {{ с.for }}{% endif %}{% if с.note %} · {{ с.note }}{% endif %}{% if с.unverified %} · <span class="pack-unverified">{{ с.unverified }}</span>{% endif %}</span></li>{% endfor %}
     </ol>
   </section>
 
@@ -200,6 +211,20 @@
                                                               again: заново.dataset.again === '1'});
       location.href = '/content/package/' + д.id;
     } catch (err) { заново.disabled = false; сказать('Не вышло: ' + err.message); }
+  });
+  document.querySelectorAll('#pack-choose [data-kind]').forEach(function (кн) {
+    кн.addEventListener('click', async function () {
+      document.querySelectorAll('#pack-choose [data-kind]').forEach(function (к) { к.disabled = true; });
+      сказать('');
+      try {
+        const д = await послать('/content/api/package/build', {idea_id: +кн.dataset.idea, again: true,
+                                                                kind: кн.dataset.kind});
+        location.href = '/content/package/' + д.id;
+      } catch (err) {
+        document.querySelectorAll('#pack-choose [data-kind]').forEach(function (к) { к.disabled = false; });
+        сказать('Не вышло: ' + err.message);
+      }
+    });
   });
   if (корень.dataset.state === 'running') ждать();
 })();
