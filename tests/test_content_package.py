@@ -21,6 +21,16 @@
    нет.
 10. СЮЖЕТ С ЗАПИСЬЮ GAME INFORMER — она первая в источниках пакета; запись
    первоисточника из соседнего сюжета той же волны — тоже первая.
+
+Письмо B2, блок 2:
+11. «ПО СЛУХАМ» ДВАЖДЫ в разделе — раздел переписан; модель упорствует
+   с запрещённой фразой — строка помечена «язык: …».
+12. ВЫДУМАННАЯ СЦЕНА в списке съёмок — «найди в трейлере: …»; сцена трейлера
+   с настоящим таймкодом и место из базы знаний — остаются.
+13. ПРЕВЬЮ ДЛИННЕЕ 4 СЛОВ — переписано моделью, не обрезано; модель
+   упорствует — текст целиком и пометка «перепиши».
+14. БЮДЖЕТ сохраняется полем «Кухни»; досев меняет прежнее 1.0 на 2.0,
+   своё значение владельца не трогает. Стиль уходит в модель дословно.
 """
 import re
 import asyncio
@@ -53,18 +63,33 @@ class Модель:
 
     def __init__(self):
         self.вызовы = []
+        self.системы = []
         self.поведение = {"стоп_раз": 0, "всегда_стоп": False, "сбой_сценария": False,
-                          "факты": 6, "опора": {}, "доп_строки": [], "волна": None}
+                          "факты": 6, "опора": {}, "доп_строки": [], "волна": None,
+                          "упорствует": False, "превью_упорно": False, "съёмки": None}
         self.Сессия = None
 
     async def __call__(self, клиент, инструмент, система, вопрос, потолок, модель=None, температура=0):
         self.вызовы.append(вопрос[:40])
+        self.системы.append(система)
         if self.Сессия is not None:
             db = self.Сессия()
             db.add(database.ModelUsage(tool=инструмент, model=модель or "m", cost=0.01, ok=True,
                                        created_at=datetime.utcnow()))
             db.commit()
             db.close()
+        if "Перепиши раздел сценария" in вопрос:
+            if self.поведение["упорствует"]:
+                строки = re.findall(r"^- (.*) \(fact:", вопрос, re.M)
+                return json.dumps({"lines": [{"text": т, "fact": False, "src": []} for т in строки]}), None
+            return json.dumps({"lines": [{"text": "По слухам Insider, карта большая.", "fact": True,
+                                          "src": [self.ид["слух"]]},
+                                         {"text": "Посмотрим, что скажет Rockstar.", "fact": False, "src": []}]}), None
+        if "Текст на превью" in вопрос:
+            return json.dumps({"text": "Шесть слов на превью это много" if self.поведение["превью_упорно"]
+                               else "Ты это заметил"}), None
+        if "Перепиши крючок" in вопрос:
+            return json.dumps({"text": "Rockstar спрятала деталь."}), None
         if "Записи СМИ за те же дни" in вопрос:
             if self.поведение["волна"] is None:
                 return None, "волну не спрашивали"
@@ -104,6 +129,8 @@ class Модель:
                                               {"text": "Карта больше вдвое.", "fact": True, "src": [999999]},
                                               {"text": "Rockstar официально подтвердила карту.", "fact": True,
                                                "src": [self.ид["слух"]]}] + self.поведение["доп_строки"]}]}), None
+        if "Список съёмок" in вопрос and self.поведение["съёмки"] is not None:
+            return json.dumps({"shots": self.поведение["съёмки"]}), None
         if "Список съёмок" in вопрос:
             return json.dumps({"shots": [{"what": "Кадры утечки 2022 года", "source": "утечка", "where": "", "for": "0:30"},
                                          {"what": "Геймплей Вайс-Сити в GTA 5", "source": "GTA 5", "where": "Вайнвуд", "for": "0:30"},
@@ -383,3 +410,125 @@ def test_волна_без_модели_по_словам(стенд):
     assert ign not in [и["id"] for и in json.loads(п.data)["src"]]   # «trailer» — общее слово темы
     шаги = {ш["k"]: ш["note"] for ш in json.loads(п.steps)}
     assert "волна по словам" in шаги["sources"]
+
+
+def test_первоисточник_из_сюжета_найденной_записи_волны(стенд):
+    """Без модели: запись волны найдена по словам, первоисточник её сюжета —
+    добран кодом, хотя слов общих с сюжетом пакета у него нет."""
+    db = стенд["Сессия"]()
+    тема = db.query(ContentStory).first().theme_id
+    чужой = ContentStory(theme_id=тема, title="Обложка журнала", first_seen_at=datetime.utcnow())
+    db.add(чужой)
+    db.commit()
+    сюжет_волны = чужой.id
+    db.close()
+    gi = _добавить(стенд, ext_id="rss:gi4", source_key="rss:9", source_name="Game Informer",
+                   url="https://gameinformer.test/4", title="The Digital Issue Is Now Live", story_id=сюжет_волны)
+    ign = _добавить(стенд, ext_id="rss:ign4", source_key="rss:10", source_name="IGN",
+                    url="https://ign.test/4", title="Map is huge, insiders say", story_id=сюжет_волны)
+    п = _собрать(стенд)
+    ид = [и["id"] for и in json.loads(п.data)["src"]]
+    assert ид[0] == gi and ign in ид
+
+
+# ── письмо B2, блок 2 ──────────────────────────────────────────────────
+
+def test_по_слухам_дважды_раздел_переписан(стенд):
+    стенд["модель"].поведение["доп_строки"] = [
+        {"text": "По слухам, будут ураганы.", "fact": False, "src": []},
+        {"text": "Якобы и торнадо тоже.", "fact": False, "src": []}]
+    п = _собрать(стенд)
+    д = json.loads(п.data)
+    второй = " ".join(л["text"] for л in д["script"][1]["lines"])
+    assert "Якобы и торнадо тоже." not in второй and len(cp.СЛУХ_ОБОРОТ.findall(второй)) <= 1
+    assert д["language"]["rewritten"] >= 1 and д["language"]["left"] == 0
+    assert any("Перепиши раздел" in в for в in стенд["модель"].вызовы)
+    проверка = {п2["item"]: п2 for п2 in д["check"]}
+    assert проверка["Запрещённые фразы и «по слухам»"]["ok"] is True
+
+
+def test_запрещённая_фраза_упорно_помечена(стенд):
+    стенд["модель"].поведение["доп_строки"] = [{"text": "Это другой уровень.", "fact": False, "src": []}]
+    стенд["модель"].поведение["упорствует"] = True
+    п = _собрать(стенд)
+    д = json.loads(п.data)
+    строки = _строки(п)
+    assert "язык: «другой уровень»" in строки["Это другой уровень."]["check"]
+    assert д["language"]["left"] == 1
+    assert sum(1 for в in стенд["модель"].вызовы if "Перепиши раздел" in в) == 2   # rewrite_tries
+    assert {п2["item"]: п2["ok"] for п2 in д["check"]}["Запрещённые фразы и «по слухам»"] is None
+
+
+def test_выдуманная_сцена_найди_в_трейлере(стенд, monkeypatch):
+    async def трейлеры(клиент, db, тема, настройки):
+        return [{"yt_id": "VQRLujxTm3c", "title": "Grand Theft Auto VI Trailer 2",
+                 "scenes": [{"t": "0:45", "what": "Люсия у машины на пляже"}]}]
+    monkeypatch.setattr(cp, "сцены_трейлеров", трейлеры)
+    стенд["модель"].поведение["съёмки"] = [
+        {"what": "Сцена на заправке", "source": "трейлер", "where": "", "basis": "trailer:VQRLujxTm3c@2:10", "for": "1:00"},
+        {"what": "Прогулка по пляжу", "source": "GTA 5", "where": "Виши-Бич", "basis": "gameplay", "for": "2:00"},
+        {"what": "Люсия у машины", "source": "трейлер", "where": "0:45", "basis": "trailer:VQRLujxTm3c@0:45", "for": "0:30"},
+        {"what": "Проезд по городу", "source": "GTA 5", "where": "Лос-Сантос", "basis": "kb", "for": "3:00"}]
+    п = _собрать(стенд)
+    съём = json.loads(п.data)["shots"]
+    assert съём[0]["what"] == "найди в трейлере: Сцена на заправке" and съём[0]["note"]
+    assert съём[1]["what"] == "найди в трейлере: Прогулка по пляжу" and "Виши-Бич" in съём[1]["note"]
+    assert съём[2]["what"] == "Люсия у машины" and "0:45 — Люсия у машины на пляже" in съём[2]["where"]
+    assert съём[3]["what"] == "Проезд по городу" and съём[3]["where"] == "Лос-Сантос" and not съём[3]["note"]
+
+
+def test_превью_длинное_переписано_не_обрезано(стенд):
+    п = _собрать(стенд)
+    т = json.loads(п.data)["thumbnail"]
+    assert т["text"] == "Ты это заметил" and not т.get("too_long")
+    assert any("Текст на превью" in в for в in стенд["модель"].вызовы)
+
+
+def test_превью_упорно_длинное_целиком_и_пометка(стенд):
+    стенд["модель"].поведение["превью_упорно"] = True
+    п = _собрать(стенд)
+    д = json.loads(п.data)
+    assert д["thumbnail"]["text"] == "Шесть слов на превью это много" and д["thumbnail"]["too_long"] is True
+    assert {п2["item"]: п2["ok"] for п2 in д["check"]}["Текст превью до 4 слов"] is None
+
+
+def test_бюджет_сохраняется_полем(стенд):
+    клиент = TestClient(main.app)
+    клиент.cookies.set("access_token", create_token(стенд["ид"]["админ"], 0))
+    r = клиент.post("/content/api/settings/budget", json={"usd": 3.5})
+    assert r.status_code == 200 and r.json()["потолок"] == 3.5
+    db = стенд["Сессия"]()
+    assert ce.бюджет(db)["потолок"] == 3.5
+    db.close()
+    assert клиент.post("/content/api/settings/budget", json={"usd": 0}).status_code == 400
+    r = клиент.get("/content/kitchen")
+    assert r.status_code == 200 and 'id="content-budget-usd"' in r.text and 'value="3.50"' in r.text
+
+
+def test_бюджет_по_умолчанию_2_досев_не_трогает_своё(стенд):
+    db = стенд["Сессия"]()
+    assert ce.бюджет(db)["потолок"] == 2.0                         # свежая база — из семени
+    строка = db.get(cdb.ContentSetting, "budget")
+    строка.value = json.dumps({"daily_usd": 1.0})                  # прежнее умолчание на проде
+    db.commit()
+    cdb.догнать_семя(db, cdb.прочитать_семя())
+    db.commit()
+    assert ce.бюджет(db)["потолок"] == 2.0
+    строка.value = json.dumps({"daily_usd": 1.5})                  # своё значение владельца
+    db.commit()
+    cdb.догнать_семя(db, cdb.прочитать_семя())
+    db.commit()
+    assert ce.бюджет(db)["потолок"] == 1.5
+    db.close()
+
+
+def test_стиль_и_база_знаний_уходят_в_модель_дословно(стенд):
+    клиент = TestClient(main.app)
+    клиент.cookies.set("access_token", create_token(стенд["ид"]["админ"], 0))
+    стиль = "Говори как другу.\nКак я говорю (образец интонации — копируй манеру, не слова):\n- «Сел на лошадь, сменил оружие»."
+    assert клиент.post("/content/api/settings/style", json={"text": стиль}).status_code == 200
+    база = "GTA VI:\n- Герои — Джейсон и Люсия, пара.\n- Город — Вайс-Сити."
+    assert клиент.post("/content/api/settings/knowledge", json={"text": база}).status_code == 200
+    _собрать(стенд)
+    сценарий = [с for с, в in zip(стенд["модель"].системы, стенд["модель"].вызовы) if в.startswith("Сценарий")]
+    assert сценарий and стиль in сценарий[0] and база in сценарий[0]

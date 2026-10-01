@@ -84,6 +84,8 @@ FACTCHECK_MAX_TOKENS = int(os.getenv("CONTENT_FACTCHECK_MAX_TOKENS", "6000"))
 ГРОМКО = re.compile(r"впервые|раньше[^.!?]{0,40}?не\s+было|никогда\s+раньше|в\s+серии[^.!?]{0,30}?не\s+было"
                     r"|перв(?:ая|ый|ой)\s+(?:в\s+серии|раз)|first\s+time|вдвое|в\s+(?:два|три|\d+)\s+раза?"
                     r"|больше\s+чем\s+в|меньше\s+чем\s+в|никогда\s+не|лучш(?:ая|ий|ее)\s+в\s+истории", re.I)
+СЛУХ_ОБОРОТ = re.compile(r"по\s+слухам|якобы", re.I)
+СЛОВО_С_ЗАГЛАВНОЙ = re.compile(r"[A-ZА-ЯЁ][a-zа-яё]{3,}(?:-[A-ZА-ЯЁ][a-zа-яё]+)*")
 НАСИЛИЕ = re.compile(r"убийств|убива|расстрел|кров|труп|пытк|отрез|казн|gore|kill|blood", re.I)
 ПРЕДУПРЕЖДЕНИЕ_УТЕЧКИ = ("Сюжет с утечкой: рассказывать можно, кадры утечки показывать НЕЛЬЗЯ — "
                          "только официальные трейлеры, скриншоты Newswire и свой геймплей GTA 5.")
@@ -168,13 +170,19 @@ def волна_по_словам(свои: list[ContentItem], сюжет: Conten
 
 def добрать_первоисточник(выбрано: list[ContentItem], кандидаты: list[ContentItem],
                           волны: dict) -> list[int]:
-    """Запись, пересказывающая первоисточник волны («в обложке Game Informer»),
-    тянет за собой записи самого первоисточника из кандидатов — модель
-    может их не узнать: у первоисточника о той же новости другими словами."""
-    имена = [и for и in волны.get("sources") or []]
+    """Первоисточник волны (`waves.sources`) из кандидатов добирается двумя
+    путями, и оба — КОД, а не модель: модель первоисточник часто не узнаёт,
+    у него о той же новости другими словами (замер на копии прода, идея №59:
+    по словам нашлись Eurogamer и IGN про погоду, Game Informer — нет).
+    1. Запись волны его НАЗЫВАЕТ («в обложке Game Informer»).
+    2. Его запись лежит в том же сюжете радара, что найденная запись волны
+       (IGN про ураганы — сюжет №4, там же статья Game Informer)."""
+    имена = set(волны.get("sources") or [])
     названы = {имя for и in выбрано for имя in имена
                if имя.lower() in (и.title + " " + (и.text or "")).lower() or и.source_name == имя}
-    return [и.id for и in кандидаты if и.source_name in названы]
+    сюжеты = {и.story_id for и in выбрано if и.story_id}
+    return [и.id for и in кандидаты
+            if и.source_name in названы or (и.source_name in имена and и.story_id in сюжеты)]
 
 
 def _источник(и: ContentItem, роль: tuple[int, str]) -> dict:
@@ -432,12 +440,32 @@ async def названия(клиент, к: dict, беды: list) -> tuple[list
     if not годные:
         raise Беда("все названия содержали стоп-слова — переписать блок")
     if превью is not None:
-        слова = str(превью.get("text") or "").split()
-        if len(слова) > 4:
-            превью["text"] = " ".join(слова[:4])
+        await текст_превью(клиент, к, превью)
         if стоп_слова_в(превью.get("text"), стоп):
             превью["text"] = ""
     return годные[:3], превью
+
+
+async def текст_превью(клиент, к: dict, превью: dict) -> None:
+    """Текст превью — до `thumb_words` слов. Длиннее — модель ПЕРЕПИСЫВАЕТ
+    (до `rewrite_tries` раз); код не обрезает: «GTA 5 vs GTA» — обрубок,
+    а не текст. Не уложилась — текст остаётся и помечен для чек-листа."""
+    предел = int(к["настройки"].get("thumb_words", 4))
+    for _ in range(int(к["настройки"].get("rewrite_tries", 2))):
+        текст = str(превью.get("text") or "").strip()
+        if len(текст.split()) <= предел:
+            превью.pop("too_long", None)
+            return
+        try:
+            новый = await _модель(клиент, _система(к),
+                                  f"Текст на превью «{текст}» длиннее {предел} слов. Перепиши его в {предел} "
+                                  f"слова или короче — цельной фразой, не обрубком. Ролик: «{к['idea']['title']}». "
+                                  'Ответ JSON: {"text": "текст превью"}', PACKAGE_SMALL_TOKENS)
+        except Беда:
+            break
+        if str(новый.get("text") or "").strip():
+            превью["text"] = str(новый["text"]).strip()
+    превью["too_long"] = len(str(превью.get("text") or "").split()) > предел
 
 
 def _таймкод(т) -> float | None:
@@ -495,6 +523,7 @@ async def сценарий(клиент, к: dict) -> dict:
               + (f"ФАКТЫ, которые в источниках есть (весь материал ролика):\n{факты}\n\n" if факты else "")
               + "Про прошлые части серии — только то, что есть в базе знаний; «впервые в серии», "
               "«раньше такого не было» без опоры не пиши.\n"
+              "Интонация — по образцу «Как я говорю» из стиля канала: манера, не слова. "
               "Правила: первые 30 с — крючок, сразу к делу; фраза-факт — fact: true и src с номерами; "
               "мнение, связка, вопрос зрителю — fact: false, src пустой. Слух называй слухом. "
               "Кадры утечек не описывай. Первые 7 секунд — без жёсткого насилия.\n"
@@ -508,6 +537,79 @@ async def сценарий(клиент, к: dict) -> dict:
     хук = данные.get("hook") if isinstance(данные.get("hook"), dict) else {}
     return {"hook": {"text": str(хук.get("text") or ""), "shown": str(хук.get("shown") or "")},
             "script": проверить_сценарий(сегменты, к["источники"], к)}
+
+
+# ── ЯЗЫК: ЗАПРЕЩЁННЫЕ ФРАЗЫ И «ПО СЛУХАМ» (письмо B2, блок 2) ────────
+
+def нарушения(текст: str, к: dict) -> list[str]:
+    """Что в тексте раздела нарушает правила языка. Проверяет КОД: список
+    фраз — `package.banned_phrases` на «Кухне», «по слухам»/«якобы» — не
+    больше `rumor_per_segment` раз на раздел."""
+    н = к["настройки"]
+    низ = (текст or "").lower()
+    итог = [f"«{ф}»" for ф in н.get("banned_phrases") or [] if str(ф).lower() in низ]
+    слухов = len(СЛУХ_ОБОРОТ.findall(текст or ""))
+    if слухов > int(н.get("rumor_per_segment", 1)):
+        итог.append(f"«по слухам»/«якобы» {слухов} раз")
+    return итог
+
+
+def текст_раздела(с: dict) -> str:
+    return " ".join(л["text"] for л in с["lines"])
+
+
+async def переписать_раздел(клиент, к: dict, с: dict, беды: list[str]) -> dict:
+    вопрос = (f"Перепиши раздел сценария {с['from']}–{с['to']} ({с['role']}). Нарушения: {'; '.join(беды)}.\n"
+              f"Запрещено: {', '.join(к['настройки'].get('banned_phrases') or [])}. «По слухам» или «якобы» — "
+              f"не больше {int(к['настройки'].get('rumor_per_segment', 1))} раза на раздел: один раз скажи, что это "
+              "слух и от кого, дальше рассказывай без повторов. Смысл, факты и номера src сохрани, длину не раздувай.\n"
+              "Раздел:\n" + "\n".join(f"- {л['text']} (fact: {str(л['fact']).lower()}, src: {л['src']})"
+                                        for л in с["lines"])
+              + '\nОтвет JSON: {"lines": [{"text": "фраза", "fact": true, "src": [номера]}]}')
+    данные = await _модель(клиент, _система(к), вопрос, PACKAGE_SMALL_TOKENS)
+    if not isinstance(данные.get("lines"), list) or not данные["lines"]:
+        raise Беда("раздел не переписан: модель ответила без строк")
+    return проверить_сценарий([{**{к2: с[к2] for к2 in ("from", "to", "role", "purpose")},
+                                "lines": данные["lines"]}], к["источники"], к)[0]
+
+
+async def чистка_языка(клиент, к: dict, данные: dict) -> dict:
+    """Разделы с нарушениями переписываются до `rewrite_tries` раз; не вышло —
+    строка раздела помечается «проверь» с названием нарушения."""
+    попыток = int(к["настройки"].get("rewrite_tries", 2))
+    переписано, осталось = 0, 0
+    for i, с in enumerate(данные["script"]):
+        for _ in range(попыток):
+            беды = нарушения(текст_раздела(с), к)
+            if not беды:
+                break
+            try:
+                с = await переписать_раздел(клиент, к, с, беды)
+                данные["script"][i] = с
+                переписано += 1
+            except Беда:
+                break
+        беды = нарушения(текст_раздела(с), к)
+        if беды and с["lines"]:
+            осталось += 1
+            л = next((л for л in с["lines"] if нарушения(л["text"], к)), с["lines"][0])
+            л["check"] = (л.get("check") + "; " if л.get("check") else "") + "язык: " + ", ".join(беды)
+    хук = данные.get("hook") or {}
+    for _ in range(попыток):
+        беды = нарушения(хук.get("text", ""), к)
+        if not беды:
+            break
+        try:
+            новый = await _модель(клиент, _система(к),
+                                  f"Перепиши крючок без нарушений ({'; '.join(беды)}), смысл сохрани: "
+                                  f"«{хук.get('text', '')}». Ответ JSON: {{\"text\": \"крючок\"}}",
+                                  PACKAGE_SMALL_TOKENS)
+            if str(новый.get("text") or "").strip():
+                хук["text"] = str(новый["text"]).strip()
+                переписано += 1
+        except Беда:
+            break
+    return {"rewritten": переписано, "left": осталось + (1 if нарушения(хук.get("text", ""), к) else 0)}
 
 
 def строки_сценария(сценарий: list[dict]) -> dict[str, dict]:
@@ -605,27 +707,121 @@ async def проверка_фактов(клиент, к: dict, сценарий
     return применить_проверку(сценарий, данные, к["источники"], база)
 
 
+async def сцены_трейлеров(клиент, db, тема_id: str, настройки: dict) -> list[dict]:
+    """Официальные трейлеры (`package.trailers`) — сцены с таймкодами от Gemini.
+    Справка одна на трейлер и хранится. Нет ключа — пусто."""
+    if not cr.ключ():
+        return []
+    итог = []
+    for т in настройки.get("trailers") or []:
+        if not isinstance(т, dict) or not т.get("yt_id"):
+            continue
+        справка = await cr.справка_ролика(клиент, db, тема_id, т["yt_id"], "trailer", т.get("title"))
+        if справка["state"] == "ok":
+            итог.append({"yt_id": т["yt_id"], "title": т.get("title") or т["yt_id"], "scenes": справка["items"]})
+    return итог
+
+
+def корпус_опоры(к: dict) -> set[str]:
+    """Всё, на что может опереться список съёмок: база знаний, источники
+    (с утверждениями роликов), разборы образцов, сцены трейлеров — основы слов."""
+    тексты = [к.get("база") or ""]
+    for и in к.get("источники") or []:
+        тексты += [и["title"], и.get("text") or ""] + [у["text"] for у in и.get("claims") or []]
+    for о in к.get("образцы") or []:
+        тексты.append(str(о.get("analysis") or ""))
+    for т in к.get("трейлеры") or []:
+        тексты += [т["title"]] + [с["what"] for с in т["scenes"]]
+    итог = set()
+    for т in тексты:
+        итог |= {с[:5] for с in re.findall(r"[a-zа-яё]{4,}", т.lower())}
+    return итог
+
+
+def имена_в(текст: str, с_начала: bool = False) -> list[str]:
+    """Собственные имена (места, люди) — слова с заглавной. В начале фразы
+    заглавная обычна и именем не считается; поле «где» — само название
+    места, там считается и первое слово (`с_начала`)."""
+    итог = []
+    for м in СЛОВО_С_ЗАГЛАВНОЙ.finditer(текст or ""):
+        до = (текст or "")[:м.start()].rstrip()
+        if not с_начала and (not до or до[-1] in ".!?:;—–•«(\""):
+            continue
+        итог.append(м.group(0))
+    return итог
+
+
+def _секунды(т: str) -> float | None:
+    return _таймкод(т)
+
+
+def обосновать_съёмки(съём: list[dict], к: dict) -> list[dict]:
+    """Место или сцена — только если есть в базе знаний, источниках, разборе
+    роликов или сценах трейлера. Иначе пункт становится «найди в трейлере: …».
+    Решает КОД по ответу модели (`basis`): трейлер — таймкод обязан быть среди
+    сцен этого трейлера; имя места — среди основ корпуса опоры."""
+    корпус = корпус_опоры(к)
+    трейлеры = {т["yt_id"]: т for т in к.get("трейлеры") or []}
+    итог = []
+    for с in съём:
+        что, где, источник = с.get("what", ""), с.get("where", ""), с.get("source", "")
+        основа = str(с.get("basis") or "")
+        выдумка = None
+        м = re.fullmatch(r"trailer:([\w-]{11})@(\d+:\d{2})", основа.strip())
+        if "трейлер" in источник.lower() or основа.startswith("trailer"):
+            т = трейлеры.get(м.group(1)) if м else None
+            сек = _секунды(м.group(2)) if м else None
+            сцена = None
+            if т and сек is not None:
+                сцена = min((с2 for с2 in т["scenes"] if _секунды(с2["t"]) is not None),
+                            key=lambda с2: abs(_секунды(с2["t"]) - сек), default=None)
+                if сцена and abs(_секунды(сцена["t"]) - сек) > 3:
+                    сцена = None
+            if сцена is None:
+                выдумка = "сцены нет в разборе трейлера"
+            else:
+                где = f"{т['title']}, {сцена['t']} — {сцена['what']}"
+        if выдумка is None:
+            чужие = [и for и in имена_в(что) + имена_в(где, с_начала=True)
+                     if not ({ч[:5] for ч in re.findall(r"[a-zа-яё]{4,}", и.lower())} & корпус)]
+            if чужие:
+                выдумка = "нет в источниках: " + ", ".join(чужие)
+        if выдумка:
+            итог.append({"what": "найди в трейлере: " + что, "source": "трейлер", "where": "",
+                         "for": с.get("for", ""), "note": выдумка})
+        else:
+            итог.append({"what": что, "source": источник, "where": где, "for": с.get("for", ""), "note": ""})
+    return итог
+
+
 async def съёмки(клиент, к: dict) -> tuple[list[dict], str | None]:
     long = к["idea"]["kind"] != "shorts"
     план = "\n".join(f"{с['from']}–{с['to']} {с['role']}: {с['purpose']}" for с in к["script"])
+    сцены = "\n".join(f"[trailer:{т['yt_id']}] {т['title']}: " + "; ".join(f"{с['t']} {с['what']}" for с in т["scenes"])
+                      for т in к.get("трейлеры") or []) or "(разбора трейлеров нет)"
     вопрос = (f"Список съёмок для ролика «{к['idea']['title']}» по плану:\n{план}\n"
               f"Источники: {_список_источников(к['источники'][:10])}\n"
+              f"Сцены официальных трейлеров (таймкоды настоящие):\n{сцены}\n"
               "Материал: запись своего геймплея GTA 5 (что именно снять), официальные трейлеры "
-              "Rockstar с таймкодами, скриншоты Rockstar Newswire. "
+              "Rockstar, скриншоты Rockstar Newswire. Места и сцены — ТОЛЬКО из базы знаний, источников "
+              "и сцен трейлеров выше; не выдумывай названий мест и сцен. Кадр трейлера — с таймкодом "
+              "из списка сцен. "
               + ("ЭТО СЮЖЕТ С УТЕЧКОЙ: ни одного кадра утечки, только официальное и свой геймплей. "
                  if к["idea"]["leak"] else "")
               + (f"Дай 1–2 кадра." if not long else "Дай 6–12 пунктов по порядку сценария.")
               + ' Ответ: {"shots": [{"what": "что записать", "source": "GTA 5 | трейлер | Newswire", '
-              '"where": "таймкод трейлера или место в игре", "for": "к какому сегменту (таймкод)"}]}')
+              '"where": "место в игре либо что в кадре", "basis": "trailer:<id>@<таймкод> | src:<номер> | kb | gameplay", '
+              '"for": "к какому сегменту (таймкод)"}]}')
     данные = await _модель(клиент, _система(к), вопрос, PACKAGE_SMALL_TOKENS)
-    съём = [с for с in данные.get("shots") or [] if isinstance(с, dict) and с.get("what")]
+    съём = [{к2: str(с.get(к2) or "") for к2 in ("what", "source", "where", "basis", "for")}
+            for с in данные.get("shots") or [] if isinstance(с, dict) and с.get("what")]
     предупреждение = None
     if к["idea"]["leak"]:
         съём = [с for с in съём if not УТЕЧКА.search(" ".join(str(v) for v in с.values()))]
         предупреждение = ПРЕДУПРЕЖДЕНИЕ_УТЕЧКИ
     if not long:
         съём = съём[:2]
-    return [{к2: str(с.get(к2) or "") for к2 in ("what", "source", "where", "for")} for с in съём], предупреждение
+    return обосновать_съёмки(съём, к), предупреждение
 
 
 def проверка(данные: dict, к: dict) -> list[dict]:
@@ -636,11 +832,25 @@ def проверка(данные: dict, к: dict) -> list[dict]:
     найдено = [с for т in данные.get("titles") or [] for с in стоп_слова_в(т, стоп)]
     пункты.append({"item": "Стоп-слова в названиях", "ok": not найдено,
                    "note": ", ".join(найдено) if найдено else "нет"})
+    язык = данные.get("language") or {}
+    if язык:
+        пункты.append({"item": "Запрещённые фразы и «по слухам»", "ok": не_ноль(язык.get("left", 0)),
+                       "note": (("переписано разделов: %d" % язык.get("rewritten", 0)) if not язык.get("left")
+                                else "осталось нарушений: %d — поправь руками" % язык["left"])})
+    т = данные.get("thumbnail") or {}
+    if т:
+        пункты.append({"item": "Текст превью до %d слов" % int(к["настройки"].get("thumb_words", 4)),
+                       "ok": None if т.get("too_long") else True,
+                       "note": "длиннее — перепиши: «%s»" % т.get("text") if т.get("too_long") else "«%s»" % т.get("text", "")})
+    выдумок = sum(1 for с in данные.get("shots") or [] if с.get("note"))
+    if выдумок:
+        пункты.append({"item": "Список съёмок без выдумок", "ok": None,
+                       "note": "заменено на «найди в трейлере»: %d" % выдумок})
     первые = (данные.get("hook") or {}).get("text", "") + " " + (данные.get("hook") or {}).get("shown", "")
     насилие = НАСИЛИЕ.search(первые)
     пункты.append({"item": "Первые 7 с без жёсткого насилия", "ok": None if насилие else True,
                    "note": ("в крючке есть «%s» — проверь кадр" % насилие.group(0)) if насилие else "в крючке не найдено"})
-    утечки = [с for с in данные.get("shots") or [] if УТЕЧКА.search(" ".join(с.values()))]
+    утечки = [с for с in данные.get("shots") or [] if УТЕЧКА.search(" ".join(str(v) for v in с.values()))]
     пункты.append({"item": "Нет кадров утечек", "ok": not утечки,
                    "note": ("сюжет с утечкой — только рассказ" if к["idea"]["leak"] else "утечек в сюжете нет")})
     заметка = (к["idea"].get("format_note") or "") + " " + (к["idea"]["format"] or "")
@@ -775,6 +985,7 @@ async def собрать(номер: int) -> dict:
                                                            к["источники"], к["настройки"])
                 шаги.готово("sources", заметка)
                 к["образцы"] = _образцы(db, идея, int(к["настройки"].get("refs_per_package", 3)))
+                к["трейлеры"] = await сцены_трейлеров(клиент, db, идея.theme_id, к["настройки"])
             finally:
                 db.close()
             try:
@@ -800,14 +1011,17 @@ async def собрать(номер: int) -> dict:
             сц = await сценарий(клиент, к)
             данные.update(сц)
             к["script"] = сц["script"]
-            шаги.готово("script", "сегментов: %d" % len(сц["script"]))
+            данные["language"] = await чистка_языка(клиент, к, данные)
+            шаги.готово("script", "сегментов: %d; язык: переписано %d, осталось %d" % (
+                len(данные["script"]), данные["language"]["rewritten"], данные["language"]["left"]))
             данные["factcheck"] = await _проверить_факты(клиент, к, данные)
             шаги.готово("factcheck", "утверждений %d, с опорой %d, «проверь» %d, переписано %d" % (
                 данные["factcheck"].get("claims", 0), данные["factcheck"].get("supported", 0),
                 данные["factcheck"].get("check", 0), данные["factcheck"].get("fixed", 0))
                 if данные["factcheck"].get("done") else "не прошла: " + str(данные["factcheck"].get("error")))
             данные["shots"], данные["shots_warning"] = await съёмки(клиент, к)
-            шаги.готово("shots", "пунктов: %d" % len(данные["shots"]))
+            шаги.готово("shots", "пунктов: %d, заменено на «найди в трейлере»: %d; трейлеров разобрано: %d" % (
+                len(данные["shots"]), sum(1 for с in данные["shots"] if с.get("note")), len(к["трейлеры"])))
         данные["check"] = проверка(данные, к)
         данные["sources"] = источники_описания(данные, к) if к["idea"]["kind"] != "shorts" else []
         шаги.готово("check", None)
@@ -851,8 +1065,14 @@ async def переписать(номер: int, блок: str) -> dict:
                     данные["hook"] = сц["hook"]
                 else:
                     данные.update(сц)
+                    данные["language"] = await чистка_языка(клиент, к, данные)
                     данные["factcheck"] = await _проверить_факты(клиент, к, данные)
             elif блок == "shots":
+                db = ce.SessionLocal()
+                try:
+                    к["трейлеры"] = await сцены_трейлеров(клиент, db, идея.theme_id, к["настройки"])
+                finally:
+                    db.close()
                 данные["shots"], данные["shots_warning"] = await съёмки(клиент, к)
         данные["check"] = проверка(данные, к)
         if к["idea"]["kind"] != "shorts":
@@ -869,16 +1089,18 @@ async def переписать(номер: int, блок: str) -> dict:
 
 # ── ВХОДЫ ─────────────────────────────────────────────────────────────
 
-def начать(db, idea_id: int) -> dict:
-    """Кнопка «Собрать пакет». Готовый пакет — сразу он, без модели.
-    Идёт — он же. Бюджет исчерпан или исполнитель занят — текст, не сборка."""
+def начать(db, idea_id: int, заново: bool = False) -> dict:
+    """Кнопка «Собрать пакет». Готовый пакет — сразу он, без модели;
+    `заново` (кнопка «Собрать заново» у готового пакета, письмо B2) — тот же
+    пакет собирается с нуля. Идёт — он же. Бюджет исчерпан или исполнитель
+    занят — текст, не сборка."""
     import content_worker as cw
     идея = db.get(ContentIdea, idea_id)
     if идея is None:
         return {"error": "идеи нет", "code": 404}
     п = (db.query(ContentPackage).filter(ContentPackage.idea_id == idea_id)
          .order_by(ContentPackage.id.desc()).first())
-    if п is not None and п.state in ("ok", "running"):
+    if п is not None and (п.state == "running" or (п.state == "ok" and not заново)):
         return {"ok": True, "id": п.id, "ready": п.state == "ok"}
     б = ce.бюджет(db)
     if б["исчерпан"]:
@@ -889,6 +1111,7 @@ def начать(db, idea_id: int) -> dict:
         п = ContentPackage(theme_id=идея.theme_id, idea_id=идея.id, kind=идея.kind)
         db.add(п)
     п.state, п.note, п.data, п.created_at, п.finished_at = "running", None, None, datetime.utcnow(), None
+    п.cost = None
     if идея.state != "planned":
         итог = ci.реакция(db, идея.id, "plan")
         п.video_id = итог.get("video_id")
@@ -989,7 +1212,8 @@ def в_markdown(п: ContentPackage) -> str:
     строки += ["## Список съёмок", ""]
     if д.get("shots_warning"):
         строки += [f"> ВНИМАНИЕ: {д["shots_warning"]}", ""]
-    строки += [f"- {с['what']} ({с['source']}{', ' + с['where'] if с['where'] else ''})" for с in д.get("shots") or []] + [""]
+    строки += [f"- {с['what']} ({с['source']}{', ' + с['where'] if с['where'] else ''})"
+               + (f" — {с['note']}" if с.get("note") else "") for с in д.get("shots") or []] + [""]
     строки += ["## Проверка перед публикацией", ""]
     строки += [f"- [{'x' if п2['ok'] else ' '}] {п2['item']} — {п2['note']}" for п2 in д.get("check") or []] + [""]
     if д.get("sources"):

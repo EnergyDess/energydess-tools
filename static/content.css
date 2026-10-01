@@ -380,3 +380,7 @@
 @media (min-width: 769px) {
   #content > .v2-page-head > .content-head-actions { grid-row: 3; }
 }
+
+/* Бюджет модели модуля — поле с кнопкой (письмо B2). */
+.content-budget-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--v2-sp-2); margin: var(--v2-sp-3) 0 var(--v2-sp-4); }
+.content-budget-input { width: 8rem; }

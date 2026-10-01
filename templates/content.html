@@ -308,9 +308,21 @@
         <span class="v2-hint" id="content-knowledge-out" aria-live="polite"></span></p>
     </div>
 
+    <div class="v2-card content-card" id="content-banned">
+      <h2 class="v2-card-title">Запрещённые фразы</h2>
+      <p class="v2-hint">По одной на строку. Раздел сценария с такой фразой — или с «по слухам»/«якобы» больше одного раза — переписывается.</p>
+      <textarea class="v2-textarea" id="content-banned-text" rows="6" aria-label="Запрещённые фразы">{{ запрещённые }}</textarea>
+      <p><button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" data-save-setting="banned" data-field="content-banned-text" data-out="content-banned-out">Сохранить фразы</button>
+        <span class="v2-hint" id="content-banned-out" aria-live="polite"></span></p>
+    </div>
+
     <div class="v2-card content-card" id="content-spend">
       <h2 class="v2-card-title">Бюджет модели</h2>
-      <p class="v2-text">Сегодня (сутки по Москве): <b id="content-spend-today">{{ '%.2f' % бюджет.сегодня }} $</b> из {{ '%.2f' % бюджет.потолок }} ${% if бюджет.исчерпан %} — <span class="content-row-error">исчерпан, вызовы модели модуля стоят до полуночи МСК</span>{% endif %}.</p>
+      <p class="v2-text">Сегодня (сутки по Москве): <b id="content-spend-today">{{ '%.2f' % бюджет.сегодня }} $</b> из <span id="content-spend-cap">{{ '%.2f' % бюджет.потолок }}</span> ${% if бюджет.исчерпан %} — <span class="content-row-error">исчерпан, вызовы модели модуля стоят до полуночи МСК</span>{% endif %}.</p>
+      <p class="content-budget-row"><label class="v2-label-plain" for="content-budget-usd">Дневной бюджет, $</label>
+        <input class="v2-input content-budget-input" id="content-budget-usd" type="number" min="0.1" max="50" step="0.1" value="{{ '%.2f' % бюджет.потолок }}">
+        <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" id="content-budget-save">Сохранить</button>
+        <span class="v2-hint" id="content-budget-out" aria-live="polite"></span></p>
       <div class="content-scroll">
         <table class="content-table" id="content-spend-table">
           <thead><tr><th>Задача</th><th class="content-num">Сегодня, $</th><th class="content-num">За 7 дней, $</th><th class="content-num">Вызовов за 7 дней</th></tr></thead>
@@ -532,6 +544,23 @@
         вывод.textContent = r.ok ? 'Сохранено' : ('Не сохранено: ' + (д.error || 'HTTP ' + r.status));
       } finally { кн.disabled = false; }
     });
+  });
+
+  const бюджетКн = document.getElementById('content-budget-save');
+  бюджетКн.addEventListener('click', async function () {
+    const вывод = document.getElementById('content-budget-out');
+    бюджетКн.disabled = true;
+    try {
+      const r = await fetch('/content/api/settings/budget', {method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({usd: parseFloat(document.getElementById('content-budget-usd').value)})});
+      const д = await r.json().catch(function () { return {}; });
+      if (r.ok) {
+        document.getElementById('content-spend-cap').textContent = д['потолок'].toFixed(2);
+        вывод.textContent = 'Сохранено';
+      } else {
+        вывод.textContent = 'Не сохранено: ' + (д.error || 'HTTP ' + r.status);
+      }
+    } finally { бюджетКн.disabled = false; }
   });
 
   const стильКн = document.getElementById('content-style-save');

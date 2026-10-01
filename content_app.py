@@ -400,6 +400,7 @@ def данные_страницы(db, user) -> dict:
         "образцы": cr.сводка(db),
         "стиль": cdb.настройка(db, "style").get("text") or "",
         "база_знаний": cdb.настройка(db, "knowledge").get("text") or "",
+        "запрещённые": "\n".join(cdb.настройка(db, "package").get("banned_phrases") or []),
         "подсказки": ПОДСКАЗКИ,
         "расход": ce.расход_по_задачам(db),
         "планировщик": ce.планировщик_включён(),
@@ -733,6 +734,49 @@ async def style_save(тело: Стиль, user=Depends(get_current_user), db: S
     return {"ok": True}
 
 
+class Бюджет(BaseModel):
+    usd: float
+
+
+@router.post("/content/api/settings/budget")
+async def budget_save(тело: Бюджет, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Дневной бюджет модели модуля (письмо B2), правит владелец на «Кухне»."""
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    if not 0.1 <= тело.usd <= 50:
+        return JSONResponse({"error": "бюджет — от 0.1 до 50 $ в сутки"}, status_code=400)
+    строка = db.get(ContentSetting, "budget")
+    значение = cdb.в_json({**cdb.настройка(db, "budget"), "daily_usd": round(тело.usd, 2)})
+    if строка is None:
+        db.add(ContentSetting(key="budget", value=значение, updated_at=datetime.utcnow()))
+    else:
+        строка.value, строка.updated_at = значение, datetime.utcnow()
+    db.commit()
+    return {"ok": True, **ce.бюджет(db)}
+
+
+class Фразы(BaseModel):
+    text: str
+
+
+@router.post("/content/api/settings/banned")
+async def banned_save(тело: Фразы, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Запрещённые фразы сценария (письмо B2): по одной на строку."""
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    фразы = [ф.strip() for ф in (тело.text or "").splitlines() if ф.strip()]
+    if len(фразы) > 200 or any(len(ф) > 120 for ф in фразы):
+        return JSONResponse({"error": "до 200 фраз, каждая до 120 знаков"}, status_code=400)
+    строка = db.get(ContentSetting, "package")
+    значение = cdb.в_json({**cdb.настройка(db, "package"), "banned_phrases": фразы})
+    if строка is None:
+        db.add(ContentSetting(key="package", value=значение, updated_at=datetime.utcnow()))
+    else:
+        строка.value, строка.updated_at = значение, datetime.utcnow()
+    db.commit()
+    return {"ok": True, "count": len(фразы)}
+
+
 @router.post("/content/api/settings/knowledge")
 async def knowledge_save(тело: Стиль, user=Depends(get_current_user), db: Session = Depends(get_db)):
     """База знаний серии (письмо B2): уходит в каждую сборку пакета и во
@@ -756,6 +800,7 @@ async def knowledge_save(тело: Стиль, user=Depends(get_current_user), d
 
 class Пакет(BaseModel):
     idea_id: int
+    again: bool = False
 
 
 class Блок(BaseModel):
@@ -772,7 +817,7 @@ def _ответ(итог: dict):
 async def package_build(тело: Пакет, user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not _админ(user):
         return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
-    return _ответ(cp.начать(db, тело.idea_id))
+    return _ответ(cp.начать(db, тело.idea_id, заново=тело.again))
 
 
 @router.get("/content/api/package/{pid}/state")
@@ -782,7 +827,7 @@ async def package_state(pid: int, user=Depends(get_current_user), db: Session = 
     п = db.get(cdb.ContentPackage, pid)
     if п is None:
         return JSONResponse({"error": "пакета нет"}, status_code=404)
-    return {"state": п.state, "steps": cdb.из_json(п.steps, []) or [], "note": п.note}
+    return {"state": п.state, "steps": cdb.из_json(п.steps, []) or [], "note": п.note, "cost": п.cost}
 
 
 @router.post("/content/api/package/{pid}/rewrite")

@@ -189,3 +189,6 @@
 .pack-ci.is-ok .pack-ci-mark { background: var(--v2-ok); border-color: var(--v2-ok); color: var(--v2-ink-on-tool); }
 .pack-ci.is-look .pack-ci-mark { color: var(--v2-warn); border-color: var(--v2-warn); }
 .pack-sources li { overflow-wrap: anywhere; }
+
+/* Пункт съёмок, заменённый на «найди в трейлере» (письмо B2). */
+.pack-list li.is-check { color: var(--v2-warn); }
