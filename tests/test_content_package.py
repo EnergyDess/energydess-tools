@@ -514,11 +514,21 @@ def test_бюджет_по_умолчанию_2_досев_не_трогает_�
     cdb.догнать_семя(db, cdb.прочитать_семя())
     db.commit()
     assert ce.бюджет(db)["потолок"] == 2.0
+    строка.value = json.dumps({"daily_usd": 1.0, "v": 2})          # версия поднята без значения (прод)
+    db.commit()
+    cdb.догнать_семя(db, cdb.прочитать_семя())
+    db.commit()
+    assert ce.бюджет(db)["потолок"] == 2.0
     строка.value = json.dumps({"daily_usd": 1.5})                  # своё значение владельца
     db.commit()
     cdb.догнать_семя(db, cdb.прочитать_семя())
     db.commit()
     assert ce.бюджет(db)["потолок"] == 1.5
+    строка.value = json.dumps({"daily_usd": 1.0, "own": True})     # владелец сам выбрал 1.0
+    db.commit()
+    cdb.догнать_семя(db, cdb.прочитать_семя())
+    db.commit()
+    assert ce.бюджет(db)["потолок"] == 1.0
     db.close()
 
 

@@ -746,7 +746,7 @@ async def budget_save(тело: Бюджет, user=Depends(get_current_user), db
     if not 0.1 <= тело.usd <= 50:
         return JSONResponse({"error": "бюджет — от 0.1 до 50 $ в сутки"}, status_code=400)
     строка = db.get(ContentSetting, "budget")
-    значение = cdb.в_json({**cdb.настройка(db, "budget"), "daily_usd": round(тело.usd, 2)})
+    значение = cdb.в_json({**cdb.настройка(db, "budget"), "daily_usd": round(тело.usd, 2), "own": True})
     if строка is None:
         db.add(ContentSetting(key="budget", value=значение, updated_at=datetime.utcnow()))
     else:
