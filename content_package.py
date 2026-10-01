@@ -453,7 +453,7 @@ async def текст_превью(клиент, к: dict, превью: dict) ->
     предел = int(к["настройки"].get("thumb_words", 4))
     for _ in range(int(к["настройки"].get("rewrite_tries", 2))):
         текст = str(превью.get("text") or "").strip()
-        if len(текст.split()) <= предел:
+        if слов_превью(текст) <= предел:
             превью.pop("too_long", None)
             return
         try:
@@ -465,7 +465,13 @@ async def текст_превью(клиент, к: dict, превью: dict) ->
             break
         if str(новый.get("text") or "").strip():
             превью["text"] = str(новый["text"]).strip()
-    превью["too_long"] = len(str(превью.get("text") or "").split()) > предел
+    превью["too_long"] = слов_превью(str(превью.get("text") or "")) > предел
+
+
+def слов_превью(текст: str) -> int:
+    """Слова текста превью; число отдельным словом не считается — «GTA 6»
+    это одно имя (пруф 2026-10-01: «GTA 5 против GTA 6» считалось 5 словами)."""
+    return sum(1 for с in (текст or "").split() if not re.fullmatch(r"[\d.,:%+×x-]+", с))
 
 
 def _таймкод(т) -> float | None:
@@ -493,7 +499,12 @@ def проверить_сценарий(сегменты: list, источник
             if факт and not src:
                 проверь = "нет источника"
             elif факт:
-                офиц = any(по_id[n]["official"] and not по_id[n]["rumor"] for n in src)
+                # Опора для «официально» — официальный источник ЛИБО доверенное СМИ
+                # из `wording` (правило A2): «Rockstar Confirms…» у IGN не слух.
+                свои = set(к["формулировки"].get("official_sources") or []) | set(
+                    к["формулировки"].get("trusted_media") or [])
+                офиц = any((по_id[n]["official"] or по_id[n]["source"] in свои) and not по_id[n]["rumor"]
+                           for n in src)
                 низ = str(л["text"]).lower()
                 if not офиц and any(з in низ for з in запрет):
                     проверь = "слух подан как подтверждённый"
