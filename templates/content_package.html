@@ -112,6 +112,7 @@
     {{ шапка('hook', 'Крючок — первые 30 секунд') }}
     <p class="v2-text pack-say">{{ д.hook.text }}</p>
     {% if д.hook.shown %}<p class="v2-hint">В кадре: {{ д.hook.shown }}</p>{% endif %}
+    {% if д.hook.review %}<p class="pack-flag" id="pack-hook-flag">проверь: {{ д.hook.review }}</p>{% endif %}
   </section>
 
   <section class="v2-card pack-block" id="pack-script" aria-labelledby="pack-h-script">
@@ -120,15 +121,15 @@
     <div class="pack-seg">
       <p class="pack-seg-head"><b>{{ с.from }}–{{ с.to }}</b> · {{ с.role }}{% if с.purpose %} — {{ с.purpose }}{% endif %}</p>
       <ul class="pack-lines">
-        {% for л in с.lines %}
-        <li class="pack-line{{ ' is-check' if л.check }}"{% if л.check %} title="проверь: {{ л.check }}"{% endif %}>
+        {% for л in с.lines %}{% set метка = л.mark if л.mark is defined else л.check %}
+        <li class="pack-line{{ ' is-check' if метка }}"{% if метка %} title="проверь: {{ метка }}"{% endif %}>
           {{ л.text }}
           {% if л.status %}<span class="pack-src" title="статус по таблице фактов волны">[{{ л.status }}]</span>{% endif %}
           {% if л.src %}<span class="pack-src">{% for n in л.src %}<a href="#pack-src-{{ n }}">[{{ n }}]</a>{% endfor %}</span>{% endif %}
           {% if л.kb %}<span class="pack-src" title="пункт базы знаний серии">база {{ л.kb | join(', ') }}</span>{% endif %}
           {% if л.fixed %}<span class="v2-hint"> · переписано: {{ л.fixed }}</span>{% endif %}
           {% if л.bridge_fixed %}<span class="v2-hint"> · {{ л.bridge_fixed }}</span>{% endif %}
-          {% if л.check %}<span class="pack-flag">проверь: {{ л.check }}</span>{% endif %}
+          {% if метка %}<span class="pack-flag">проверь: {{ метка }}</span>{% endif %}
         </li>
         {% endfor %}
       </ul>
@@ -141,7 +142,7 @@
     {% if д.shots_warning %}<p class="today-risk pack-warn" id="pack-leak-warning">{{ значок('alert-triangle') }} {{ д.shots_warning }}</p>{% endif %}
     {% if д.trailers_note %}<p class="today-risk pack-warn" id="pack-trailers-note">{{ значок('alert-triangle') }} {{ д.trailers_note }}</p>{% endif %}
     <ol class="pack-list">
-      {% for с in д.shots %}<li{% if с.note %} class="is-check" title="{{ с.note }}"{% endif %}>{{ с.what }}<span class="v2-hint"> · {{ с.source }}{% if с.where %}, {{ с.where }}{% endif %}{% if с.for %} · к {{ с.for }}{% endif %}{% if с.note %} · {{ с.note }}{% endif %}{% if с.unverified %} · <span class="pack-unverified">{{ с.unverified }}</span>{% endif %}</span></li>{% endfor %}
+      {% for с in д.shots %}<li{% if с.note %} class="is-check" title="{{ с.note }}"{% endif %}>{{ с.what }}<span class="v2-hint"> · {{ с.source }}{% if с.where %}, {{ с.where }}{% endif %}{% if с.for %} · к {{ с.for }}{% endif %}{% if с.note %} · {{ с.note }}{% endif %}{% if с.unverified %} · <span class="pack-unverified">{{ с.unverified }}</span>{% endif %}{% if с.old_date %} · <span class="pack-flag pack-old-date">{{ с.old_date }}</span>{% endif %}</span></li>{% endfor %}
     </ol>
   </section>
 
