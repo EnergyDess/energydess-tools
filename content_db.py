@@ -421,6 +421,33 @@ class ContentPackage(Base):
     cost = Column(Float, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     finished_at = Column(DateTime, nullable=True)
+    # ПЕРЕСБОРКА НЕ СТИРАЕТ ПРОШЛУЮ ВЕРСИЮ (письмо D1, 1.1): «Собрать заново»
+    # пишет новую версию отдельно и заменяет старую только при успехе. Не
+    # вышло — прежние data остаются, state возвращается, а здесь причина
+    # простыми словами для плашки «Пересборка не удалась…».
+    rebuild_error = Column(Text, nullable=True)
+
+
+class ContentInbox(Base):
+    """НАХОДКА ВЛАДЕЛЬЦА ИЗ БОТА ВТОРОГО МОЗГА (письмо D1, задача 383):
+    пересланный пост, ссылка либо своя идея. Приходит машинным входом
+    `POST /content/inbox` — Telegram-каналы модуль сам не читает, пост
+    попадает сюда только тогда, когда владелец сам переслал его боту.
+    state: new — карточка «от тебя» на «Сегодня»; work — превращена в идею
+    конвейера (`idea_id`); archived — «Убрать» (архив, не удаление)."""
+    __tablename__ = "content_inbox"
+    id = Column(Integer, primary_key=True)
+    kind = Column(String, nullable=False)                # forward | link | idea
+    text = Column(Text, nullable=True)
+    url = Column(String, nullable=True, index=True)
+    source_name = Column(String, nullable=True)
+    source_date = Column(String, nullable=True)
+    rumor = Column(Boolean, nullable=False, default=False)
+    tg_message_id = Column(String, nullable=True, index=True)
+    state = Column(String, nullable=False, default="new")
+    idea_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    acted_at = Column(DateTime, nullable=True)
 
 
 class ContentWaveFact(Base):

@@ -63,6 +63,8 @@
 .today-pill.is-hot { color: var(--v2-danger); border-color: var(--v2-danger-dim); background: var(--v2-danger-dim); }
 .today-pill.is-trend { color: var(--v2-warn); }
 .today-pill.is-evergreen { color: var(--v2-ok); }
+.today-pill.is-user { gap: var(--v2-sp-1); color: var(--v2-text-strong); }
+.today-pill.is-user svg { width: var(--v2-sp-3); height: var(--v2-sp-3); }
 .today-main-title {
   margin: 0 0 var(--v2-sp-2); font-family: var(--v2-font-display); font-weight: var(--v2-fw-display);
   font-size: var(--v2-fs-3xl); line-height: var(--v2-lh-tight); letter-spacing: var(--v2-ls-display);
@@ -103,6 +105,12 @@
 .today-row-facts { font-size: var(--v2-fs-xs); color: var(--v2-text-faint); }
 .today-row-risk { color: var(--v2-warn); }
 .today-row-acts { display: flex; gap: var(--v2-sp-1); }
+/* ОТ ТЕБЯ (письмо D1): та же строка, что у запасных идей; текст находки
+   переносится, длинный раскрывается кнопкой на месте */
+.today-inbox-text { white-space: pre-line; overflow-wrap: anywhere; max-width: var(--v2-measure); }
+.today-inbox-more { justify-self: start; }
+.today-inbox-url svg { width: var(--v2-sp-3); height: var(--v2-sp-3); vertical-align: middle; }
+.today-inbox-url, .today-inbox-story { color: var(--v2-text-2); }
 .today-reasons { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); }
 .today-main.is-leaving, .today-row.is-leaving { opacity: 0; transform: translateY(calc(-1 * var(--v2-sp-2))); }
 .today-main { transition: opacity var(--v2-dur-base) var(--v2-ease), transform var(--v2-dur-base) var(--v2-ease); }
@@ -145,6 +153,8 @@
   .today-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .today-main { padding: var(--v2-sp-4); }
   .today-meta { white-space: normal; }
+  .today-inbox-row { grid-template-columns: minmax(0, 1fr); }
+  .today-inbox-row .today-pill { justify-self: start; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -36,6 +36,7 @@ import content_collect as cc
 import content_db as cdb
 import content_engine as ce
 import content_ideas as ci
+import content_inbox as cin
 import content_package as cp
 import content_refs as cr
 import content_worker as cw
@@ -597,6 +598,7 @@ def данные_сегодня(db, user, тип: str) -> dict:
     ролики = (db.query(ContentVideo).filter(ContentVideo.theme_id == тема_id)
               .order_by(ContentVideo.status_at.desc(), ContentVideo.id.desc()).all())
     зона = _main()._пояс(user)
+    от_тебя = cin.карточки(db, lambda м: _время(м, зона))
     пакеты = {}
     for пк in (db.query(cdb.ContentPackage).filter(
             cdb.ContentPackage.idea_id.in_([р.idea_id for р in ролики if р.idea_id]))
@@ -608,6 +610,7 @@ def данные_сегодня(db, user, тип: str) -> dict:
     return {
         "страница": {"icon": "activity", "label": "Контент · GTA", "title": "Сегодня"},
         "тип": тип, "главная": главная, "ещё": ещё, "панели": панели,
+        "от_тебя": от_тебя,
         "есть_прогон": прогон is not None,
         "идеи_когда": _время(прогон.finished_at, зона) if прогон else None,
         "до_релиза": ci.до_релиза(db),
@@ -670,6 +673,61 @@ async def idea_react(idea_id: int, тело: Реакция, user=Depends(get_cu
     if not _админ(user):
         return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
     итог = ci.реакция(db, idea_id, тело.action, тело.reason)
+    if итог.get("error"):
+        return JSONResponse({"error": итог["error"]}, status_code=итог.get("code", 400))
+    return итог
+
+
+# ── ПРИЁМ ИЗ БОТА ВТОРОГО МОЗГА (письмо D1, задача 383) ─────────────
+
+def _адрес(request: Request) -> str:
+    return (request.headers.get("Fly-Client-IP")
+            or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+            or (request.client.host if request.client else "—"))
+
+
+@router.post("/content/inbox")
+async def content_inbox(request: Request, db: Session = Depends(get_db)):
+    """МАШИННЫЙ ВХОД, а не страница: находку присылает бот владельца.
+    Порядок: лимит (всем запросам с адреса, и неверным тоже) → токен → тело.
+    Ответ — `{"ok": true, "id": N}`; дубль — ok с номером существующей и
+    `"duplicate": true`."""
+    м = _main()
+    ключ = "inbox:" + м._rate_key(_адрес(request))
+    if м._попыток(db, ключ, "inbox", 3600, исход="req") >= cin.ЛИМИТ_В_ЧАС:
+        return JSONResponse({"ok": False, "error": "лимит: не больше %d запросов в час" % cin.ЛИМИТ_В_ЧАС},
+                            status_code=429)
+    м._записать_попытку(db, ключ, "inbox", "req")
+    if not cin.токен_верен(cin.токен_из(request.headers)):
+        return JSONResponse({"ok": False, "error": "нет токена либо он неверный"}, status_code=401)
+    try:
+        тело = await request.json()
+    except ValueError:
+        return JSONResponse({"ok": False, "error": "тело — не JSON"}, status_code=400)
+    поля, ошибка = cin.разобрать(тело)
+    if ошибка:
+        return JSONResponse({"ok": False, "error": ошибка}, status_code=400)
+    номер, дубль = cin.принять(db, поля)
+    print(f"[content-inbox] {поля['kind']} №{номер}" + (" (дубль)" if дубль else ""), flush=True)
+    return {"ok": True, "id": номер, **({"duplicate": True} if дубль else {})}
+
+
+class ДействиеНаходки(BaseModel):
+    action: str
+
+
+@router.post("/content/api/inbox/{inbox_id}")
+async def inbox_act(inbox_id: int, тело: ДействиеНаходки, user=Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    """«В работу» (work) — идея вида «от тебя» в план; «Убрать» (archive) — архив."""
+    if not _админ(user):
+        return JSONResponse({"error": ОТКАЗ_НЕ_АДМИНУ}, status_code=403)
+    if тело.action == "work":
+        итог = cin.в_работу(db, inbox_id)
+    elif тело.action == "archive":
+        итог = cin.убрать(db, inbox_id)
+    else:
+        return JSONResponse({"error": "action: work | archive"}, status_code=400)
     if итог.get("error"):
         return JSONResponse({"error": итог["error"]}, status_code=итог.get("code", 400))
     return итог
@@ -906,6 +964,7 @@ def данные_пакета(db, п, user) -> dict:
     return {"страница": {"icon": "file-text", "label": "Контент · пакет ролика",
                          "title": (д.get("idea") or {}).get("title") or "Пакет ролика"},
             "п": {"id": п.id, "idea_id": п.idea_id, "state": п.state, "note": п.note, "kind": п.kind,
+                  "rebuild_error": п.rebuild_error,
                   "когда": _время(п.finished_at or п.created_at, зона),
                   "cost": п.cost, "steps": cdb.из_json(п.steps, []) or []},
             "д": д, "источник_по_id": по_id, "блоки": cp.БЛОКИ,

@@ -1943,6 +1943,8 @@ def migrate_db():
         "ALTER TABLE content_channels ADD COLUMN rec VARCHAR",
         "ALTER TABLE content_channels ADD COLUMN rec_reason TEXT",
         "ALTER TABLE content_channels ADD COLUMN rec_at DATETIME",
+        # письмо D1, 1.1: причина неудачной пересборки пакета
+        "ALTER TABLE content_packages ADD COLUMN rebuild_error TEXT",
     ]:
         try:
             conn.execute(col)
@@ -2800,6 +2802,7 @@ PRIVACY_NOT_PERSONAL = {
     "content_packages": "пакеты роликов канала владельца проекта (сценарий, названия), к человеку не привязаны",
     "content_wave_facts": "факты новостей из публичных источников модуля «Контент», к человеку не привязаны",
     "content_fact_sources": "отметки о разобранных публичных записях модуля «Контент»",
+    "content_inbox": "находки владельца проекта для его канала (пересланные посты, ссылки, идеи) из его же бота, к человеку не привязаны",
 }
 
 

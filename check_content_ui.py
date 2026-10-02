@@ -29,7 +29,15 @@
     «пакет/проверь» падает; доказательство: видимых подписей 0 при фразах
     с отметкой в разметке;
   · блок «Проверь перед записью» спрятан (письмо B5) — шаг «пакет/проверь
-    перед записью» падает; доказательство: блок не виден при пунктах в базе.
+    перед записью» падает; доказательство: блок не виден при пунктах в базе;
+  · блок «От тебя» спрятан (письмо D1) — шаг «сегодня/от тебя» падает;
+    доказательство: видимых карточек 0 при трёх находках в базе.
+
+«ОТ ТЕБЯ» (письмо D1, задача 383): три находки засеваются на копии боевым
+`content_inbox.принять` — пересланный пост «Тест-канал», ссылка на запись
+радара (обязана показать «уже в сюжете») и длинная идея-слух; на каждой
+ширине карточек три, метка «слух» одна; на 1920 «В работу» — идея вида
+«от тебя» в плане, ИЗ БАЗЫ.
 
 ПАКЕТ РОЛИКА (письмо B, блок 2): готовый пакет и собирающийся засеваются
 на копии боевой сборкой с подменённой моделью (в сеть 0 вызовов); на каждой
@@ -70,6 +78,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 ПОДЛОГ_ПРОВЕРЬ = ".pack-flag { display: none !important; }"
 # подлог блока «Проверь перед записью» (письмо B5, 2.1): блок спрятан
 ПОДЛОГ_РЕВЬЮ = "#pack-review { display: none !important; }"
+# подлог блока «От тебя» (письмо D1): карточки находок спрятаны
+ПОДЛОГ_ОТ_ТЕБЯ = ".today-inbox { display: none !important; }"
 ПОДЛОГ_ВКЛАДОК = """() => document.querySelectorAll('.content-page .v2-tab[data-tab]')
   .forEach(к => к.replaceWith(к.cloneNode(true)))"""
 
@@ -200,7 +210,10 @@ def _ожидание(база):
   const видно = (с) => [...document.querySelectorAll(с)].some(вид);
   return {шире, главная: видно('.today-main'),
           фактов: [...document.querySelectorAll('.today-fact')].filter(вид).length,
-          строк: [...document.querySelectorAll('.today-row')].filter(вид).length,
+          строк: [...document.querySelectorAll('.today-pane .today-row')].filter(вид).length,
+          от_тебя: [...document.querySelectorAll('.today-inbox-row')].filter(вид).length,
+          слух: [...document.querySelectorAll('.today-inbox-rumor')].filter(вид).length,
+          в_сюжете: [...document.querySelectorAll('.today-inbox-story')].filter(вид).length,
           пусто: видно('.today-empty'),
           кухня: вид(document.getElementById('today-kitchen')),
           радар: вид(document.getElementById('today-radar')),
@@ -280,6 +293,36 @@ def _засеять_идеи(база):
         return asyncio.run(ci.сгенерировать("probe"))
     finally:
         ce.SessionLocal, ce._спросить = прежние
+        движок.dispose()
+
+
+def _засеять_находки(база) -> int:
+    """Три находки «от тебя» боевым `content_inbox.принять` (письмо D1).
+    Ссылка второй — адрес записи радара в сюжете: карточка обязана сказать
+    «уже в сюжете». Возвращает, сколько новых находок в базе."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    import content_inbox as cin
+    import database
+    from content_db import ContentInbox, ContentItem
+    движок = create_engine("sqlite:///" + база.replace("\\", "/"))
+    database.Base.metadata.create_all(движок)
+    db = sessionmaker(bind=движок)()
+    try:
+        запись = (db.query(ContentItem).filter(ContentItem.story_id.isnot(None))
+                  .order_by(ContentItem.id.desc()).first())
+        for тело in ({"kind": "forward", "text": "Проба: пересланный пост про GTA 6",
+                      "source_name": "Тест-канал", "tg_message_id": "probe-1"},
+                     {"kind": "link", "url": запись.url if запись else "https://example.com/probe",
+                      "text": "Проба: ссылка", "tg_message_id": "probe-2"},
+                     {"kind": "idea", "text": "Проба: идея-слух " + "длинная мысль " * 25,
+                      "rumor": True, "tg_message_id": "probe-3"}):
+            поля, ошибка = cin.разобрать(тело)
+            assert not ошибка, ошибка
+            cin.принять(db, поля)
+        return db.query(ContentInbox).filter(ContentInbox.state == "new").count()
+    finally:
+        db.close()
         движок.dispose()
 
 
@@ -469,6 +512,10 @@ def _сегодня(с, адрес, ширина, база, подлог):
             с.add_style_tag(content=подлог[4:])
         с.wait_for_timeout(700)
         з = с.evaluate(ЗАМЕР_СЕГОДНЯ)
+        # ожидание «от тебя» — из базы на момент снимка: «В работу» на 1920
+        # законно убирает одну карточку с экранов следующих ширин
+        з["находок"], з["находок_слух"] = _база(
+            база, "SELECT count(*), coalesce(sum(rumor), 0) FROM content_inbox WHERE state = 'new'")[0]
         з["строка"] = с.evaluate(ч67.ЗАМЕР_СТРОКИ, ч67.ПОТОЛОК_СТРОКИ)
         з["прокрутка"] = с.evaluate(ч67.ЗАМЕР_ПРОКРУТКИ)
         с.screenshot(path=os.path.join(КАДРЫ, "%d-today-%s.png" % (ширина, тип)), full_page=True)
@@ -479,7 +526,7 @@ def _сегодня(с, адрес, ширина, база, подлог):
     путь = {}
     с.goto(адрес + "/content?type=long", wait_until="load", timeout=45000)
     с.wait_for_timeout(700)
-    ряды = с.query_selector_all(".today-row")
+    ряды = с.query_selector_all(".today-pane .today-row")
     путь["рядов"] = len(ряды)
     if len(ряды) >= 2:
         idr = int(ряды[0].get_attribute("data-idea"))
@@ -489,7 +536,7 @@ def _сегодня(с, адрес, ширина, база, подлог):
         с.wait_for_timeout(700)
         путь["отказ"] = tuple(_база(база, "SELECT state, reason FROM content_ideas WHERE id = ?", idr)[0])
         видео_до = _база(база, "SELECT count(*) FROM content_videos")[0][0]
-        idp = int(с.query_selector(".today-row").get_attribute("data-idea"))
+        idp = int(с.query_selector(".today-pane .today-row").get_attribute("data-idea"))
         with с.expect_navigation(wait_until="load", timeout=15000):
             с.click(".today-row[data-idea='%d'] [data-act='plan']" % idp)
         с.wait_for_timeout(700)
@@ -513,6 +560,17 @@ def _сегодня(с, адрес, ширина, база, подлог):
     с.wait_for_load_state("load")
     путь["обновить"] = (видели, _база(база, "SELECT count(*) FROM content_runs WHERE kind = 'ideas'")[0][0]
                         - прогонов)
+    # «В работу» у первой находки (письмо D1) — итог из базы
+    с.goto(адрес + "/content?type=long", wait_until="load", timeout=45000)
+    с.wait_for_timeout(500)
+    кнопка = с.query_selector(".today-inbox-row:not(:has(.today-inbox-rumor)):not(:has(.today-inbox-story)) [data-act='inbox-work']")
+    if кнопка is not None:
+        номер = int(кнопка.get_attribute("data-id"))
+        with с.expect_navigation(wait_until="load", timeout=15000):
+            кнопка.click()
+        строка = _база(база, "SELECT i.state, d.sort, d.state FROM content_inbox i "
+                             "JOIN content_ideas d ON d.id = i.idea_id WHERE i.id = ?", номер)
+        путь["в_работу"] = tuple(строка[0]) if строка else None
     итог["путь"] = путь
     return итог
 
@@ -531,6 +589,7 @@ def замер(база, подлог=None):
     ждём = _ожидание(база)
     _засеять_идеи(база)
     ждём_сегодня = _ожидание_сегодня(база)
+    находок = _засеять_находки(база)
     п, адрес = _стенд(база)
     итог = []
     os.makedirs(КАДРЫ, exist_ok=True)
@@ -568,6 +627,7 @@ def замер(база, подлог=None):
                 пакет = _пакет(с, адрес, ширина, база, пакеты, подлог)
                 итог.append({"ширина": ширина, "вкладки": снимки, "каналы": каналы, "кухня": кухня,
                              "ждём": ждём, "сегодня": сегодня, "ждём_сегодня": ждём_сегодня,
+                             "находок": находок,
                              "пакет": пакет})
                 к.close()
             бр.close()
@@ -748,6 +808,13 @@ def оценить_сегодня(з):
         шаг("%d/сегодня/шапка %s" % (ш, тип), снимок["кухня"] and снимок["радар"]
             and снимок["плиток"] == 4, "кухня %s, радар %s, плиток конвейера %d"
             % (снимок["кухня"], снимок["радар"], снимок["плиток"]))
+        шаг("%d/сегодня/от тебя %s" % (ш, тип),
+            снимок["от_тебя"] == снимок["находок"] and снимок["слух"] == снимок["находок_слух"] >= 1
+            and снимок["в_сюжете"] == 1,
+            "карточек %d (в базе %d), «слух» %d (в базе %d), «уже в сюжете» %d"
+            % (снимок["от_тебя"], снимок["находок"], снимок["слух"], снимок["находок_слух"],
+               снимок["в_сюжете"]),
+            собрано=снимок["находок"])
         шаг("%d/сегодня/без оценок %s" % (ш, тип), not снимок["запрещено"],
             "на экране: %s" % (снимок["запрещено"] or "нет"))
         шаг("%d/сегодня/шире окна %s" % (ш, тип),
@@ -775,6 +842,9 @@ def оценить_сегодня(з):
         "в базе %s" % (путь.get("отказ"),), собрано=есть)
     шаг("сегодня/в план", путь.get("в_план") == (1, "planned"),
         "роликов +%s, идея %s" % (путь.get("в_план") or ("—", "—")), собрано=есть)
+    if "в_работу" in путь:
+        шаг("сегодня/в работу", путь["в_работу"] == ("work", "user", "planned"),
+            "находка, вид идеи, идея: %s" % (путь["в_работу"],))
     сп = путь.get("список") or (0, 0)
     шаг("сегодня/плитка", сп[0] == сп[1] and сп[1] > 0,
         "в списке %s, в базе %s" % сп, собрано=есть)
@@ -846,6 +916,8 @@ def _красные(з):
         (x["сегодня"].get("переключатель") or {}).get("после", {}).get("метка") for x in з),
     "ревью": lambda з: bool(з) and all(x["пакет"]["готов"]["ревью_в_базе"] for x in з)
                        and not any(x["пакет"]["готов"]["ревью_видно"] for x in з),
+    "от тебя": lambda з: bool(з) and all(x["находок"] for x in з)
+                         and not any(x["сегодня"]["long"]["от_тебя"] for x in з),
     "проверь": lambda з: bool(з) and all(x["пакет"]["готов"]["проверь_строк"] for x in з)
                          and not any(x["пакет"]["готов"]["проверь_видно"] for x in з),
 }
@@ -857,7 +929,8 @@ def _красные(з):
            "отказ": ("css:" + ПОДЛОГ_ОТКАЗА, "кухня/отказ кандидата"),
            "перезагрузка": ("перезагрузка", "сегодня/переключатель"),
            "проверь": ("css:" + ПОДЛОГ_ПРОВЕРЬ, "пакет/проверь"),
-           "ревью": ("css:" + ПОДЛОГ_РЕВЬЮ, "пакет/проверь перед записью")}
+           "ревью": ("css:" + ПОДЛОГ_РЕВЬЮ, "пакет/проверь перед записью"),
+           "от тебя": ("css:" + ПОДЛОГ_ОТ_ТЕБЯ, "сегодня/от тебя")}
 
 
 def main_():

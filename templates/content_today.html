@@ -146,6 +146,37 @@
   </div>
   {% endfor %}
 
+  {# ОТ ТЕБЯ (письмо D1, задача 383): находки владельца из бота второго
+     мозга — пересланный пост, ссылка, своя идея. Приходят машинным входом
+     `POST /content/inbox`; Telegram-каналы модуль сам не читает. Записей
+     нет — блока нет. «В работу» — идея вида «от тебя» в план, «Убрать» —
+     архив, не удаление. #}
+  {% if от_тебя %}
+  {% set значок_вида = {'forward': 'send', 'link': 'link', 'idea': 'lightbulb'} %}
+  <section class="today-more today-inbox" id="today-inbox" aria-labelledby="today-inbox-title">
+    <h2 class="today-h2" id="today-inbox-title">От тебя</h2>
+    <ul class="today-list" id="today-inbox-list">
+      {% for н in от_тебя %}
+      <li class="today-row today-inbox-row" data-inbox="{{ н.id }}" style="--n: {{ loop.index0 }}">
+        <span class="today-pill is-user" title="{{ н.вид }}">{{ значок(значок_вида.get(н.kind, 'lightbulb')) }} {{ н.вид }}</span>
+        <div class="today-row-text">
+          <span class="today-row-title today-inbox-text" data-short>{{ н.коротко or н.url }}</span>
+          {% if н.полностью %}
+          <span class="today-row-title today-inbox-text" data-full hidden>{{ н.полностью }}</span>
+          <button type="button" class="v2-btn v2-btn-quiet v2-btn-sm today-inbox-more" data-act="inbox-more" aria-expanded="false">Показать полностью</button>
+          {% endif %}
+          <span class="today-row-facts">{{ н.когда }}{% if н.источник %} · {{ н.источник }}{% endif %}{% if н.дата %} · пост {{ н.дата }}{% endif %}{% if н.url %} · <a href="{{ н.url }}" target="_blank" rel="noopener" class="today-inbox-url">{{ значок('arrow-up-right') }} источник</a>{% endif %}{% if н.rumor %} · <span class="today-row-risk today-inbox-rumor">слух</span>{% endif %}{% if н.сюжет %} · уже в сюжете: <a href="/content/kitchen#story-{{ н.сюжет.id }}" class="today-inbox-story">{{ н.сюжет.title }}</a>{% endif %}</span>
+        </div>
+        <div class="today-row-acts">
+          <button type="button" class="v2-btn v2-btn-secondary v2-btn-sm" data-act="inbox-work" data-id="{{ н.id }}">{{ значок('plus') }} В работу</button>
+          <button type="button" class="v2-btn v2-btn-quiet v2-btn-icon" data-act="inbox-archive" data-id="{{ н.id }}" title="Убрать" aria-label="Убрать">{{ значок('x') }}</button>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
   <section class="today-videos" aria-labelledby="today-videos-title">
     <div class="today-videos-head">
       <h2 class="today-h2" id="today-videos-title">Мои ролики</h2>
@@ -262,6 +293,22 @@
         к.disabled = true;
         await послать('/content/api/ideas/' + id, {action: к.dataset.act, reason: к.dataset.reason || null});
         await увести(к.closest('.today-row, .today-main'));
+        location.reload();
+        return;
+      }
+      if (к.dataset.act === 'inbox-more') {
+        const ряд = к.closest('.today-inbox-row');
+        const открыть = к.getAttribute('aria-expanded') !== 'true';
+        ряд.querySelector('[data-short]').hidden = открыть;
+        ряд.querySelector('[data-full]').hidden = !открыть;
+        к.setAttribute('aria-expanded', открыть ? 'true' : 'false');
+        к.textContent = открыть ? 'Свернуть' : 'Показать полностью';
+        return;
+      }
+      if (к.dataset.act === 'inbox-work' || к.dataset.act === 'inbox-archive') {
+        к.disabled = true;
+        await послать('/content/api/inbox/' + id, {action: к.dataset.act === 'inbox-work' ? 'work' : 'archive'});
+        await увести(к.closest('.today-row'));
         location.reload();
         return;
       }

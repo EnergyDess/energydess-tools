@@ -42,6 +42,10 @@
     {% endfor %}
   </ol>
   <p class="v2-error" id="pack-error"{{ ' hidden' if not (п.note and п.state not in ('running', 'suggest')) }}>{{ п.note or '' }}</p>
+  {% if п.rebuild_error and п.state != 'running' %}
+  {# Пересборка не вышла — показана прошлая версия (письмо D1, 1.1) #}
+  <p class="today-risk pack-warn" id="pack-rebuild-error">{{ значок('alert-triangle') }} Пересборка не удалась: {{ п.rebuild_error }}, показана прошлая версия.</p>
+  {% endif %}
   {% if п.state == 'suggest' %}
   {# Фактов меньше порога шкалы «Кухни»: длинный без явного выбора не собирается (письмо B3, 2.1) #}
   <section class="v2-card pack-block" id="pack-choose">
