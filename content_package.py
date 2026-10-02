@@ -1074,6 +1074,11 @@ def записать_факты(db, тема: str, сырые, по_id: dict, и
                 счёт["skipped"] += 1
                 continue
             статус = СТАТУС_БАЗА
+        if статус == СТАТУС_ОФИЦ:
+            # Пометка слуха от модели у официального факта — неправда в тексте
+            # (пруф: «…с руками человека (слух)» при статусе «официально»)
+            текст = re.sub(r"\s*\((?:слух|утечка)\)\s*$", "", ПО_СЛУХАМ.sub("", текст)).strip()
+            текст = текст[:1].upper() + текст[1:]
         сущ = [str(e).strip().lower() for e in (с.get("entities") or []) if str(e).strip()][:8]
         ф = ContentWaveFact(theme_id=тема, text=текст, status=статус, src=json.dumps(sorted(set(src))),
                             src_names=json.dumps(sorted({по_id[n]["source"] for n in src}), ensure_ascii=False),
