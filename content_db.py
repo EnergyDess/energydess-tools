@@ -423,6 +423,39 @@ class ContentPackage(Base):
     finished_at = Column(DateTime, nullable=True)
 
 
+class ContentWaveFact(Base):
+    """ФАКТ ВОЛНЫ (письмо B5, 1.1). Извлекается из источников ОДИН раз и
+    дальше берётся из таблицы: пересборка пакета статус не пересчитывает.
+    Новый источник только добавляет номера в src и повышает статус
+    (слух → официально), понизить его не может ничто. Пакеты одной темы
+    делят факты по общим записям — у одного факта один статус везде.
+    status: официально | слух | утечка | база; entities — слова сущности
+    факта-слуха (питомец, собака…): по ним слух не пускается в крючок."""
+    __tablename__ = "content_wave_facts"
+    id = Column(Integer, primary_key=True)
+    theme_id = Column(String, nullable=False, index=True)
+    text = Column(Text, nullable=False)
+    status = Column(String, nullable=False)
+    src = Column(Text, nullable=True)            # JSON: номера записей
+    src_names = Column(Text, nullable=True)      # JSON: названия источников
+    confirmed = Column(Boolean, default=False)   # подтверждён официальным источником
+    official_by = Column(String, nullable=True)
+    entities = Column(Text, nullable=True)       # JSON: слова сущности
+    first_seen_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ContentFactSource(Base):
+    """Запись, из которой факты волны уже извлечены. sig — отпечаток текста,
+    ушедшего в модель: у ролика справка Gemini приезжает позже, и тогда
+    запись разбирается ещё раз (только добавляя)."""
+    __tablename__ = "content_fact_sources"
+    item_id = Column(Integer, primary_key=True)
+    theme_id = Column(String, nullable=False, index=True)
+    sig = Column(String, nullable=True)
+    at = Column(DateTime, default=datetime.utcnow)
+
+
 # ── ПОМОЩНИКИ ─────────────────────────────────────────────────────────
 
 def из_json(текст, запас=None):

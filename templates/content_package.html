@@ -78,6 +78,24 @@
   {% if д.material.suggest %}<p class="today-risk pack-warn" id="pack-suggest">{{ значок('alert-triangle') }} {{ д.material.suggest }}</p>{% endif %}
   {% endif %}
 
+  {% if д.review is defined %}
+  {# «Проверь перед записью» (письмо B5, 2.1): строки, которые ведущему стоит
+     перечитать глазами. Меньше трёх пунктов — свёрнут, больше — раскрыт. #}
+  <details class="v2-card pack-block pack-review" id="pack-review"{{ ' open' if д.review | length >= 3 }}>
+    <summary class="pack-head"><h2 class="today-h2" id="pack-h-review">Проверь перед записью · {{ д.review | length }}</h2></summary>
+    {% if д.review %}
+    <ul class="pack-checklist" id="pack-review-list">
+      {% for р in д.review %}
+      <li class="pack-review-item"><b>{{ р.time }}</b> · {{ р.text }}
+        <span class="pack-review-why">{{ р.why }}{% if р.src %} · {% for n in р.src %}<a href="#pack-src-{{ n }}">[{{ n }}]</a>{% endfor %}{% endif %}</span></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="v2-hint" id="pack-review-clean">Всё чисто</p>
+    {% endif %}
+  </details>
+  {% endif %}
+
   <section class="v2-card pack-block" id="pack-titles" aria-labelledby="pack-h-titles">
     {{ шапка('titles', 'Названия и превью' if д.thumbnail else 'Названия') }}
     <ol class="pack-list">{% for т in д.titles %}<li>{{ т }}</li>{% endfor %}</ol>
@@ -105,6 +123,7 @@
         {% for л in с.lines %}
         <li class="pack-line{{ ' is-check' if л.check }}"{% if л.check %} title="проверь: {{ л.check }}"{% endif %}>
           {{ л.text }}
+          {% if л.status %}<span class="pack-src" title="статус по таблице фактов волны">[{{ л.status }}]</span>{% endif %}
           {% if л.src %}<span class="pack-src">{% for n in л.src %}<a href="#pack-src-{{ n }}">[{{ n }}]</a>{% endfor %}</span>{% endif %}
           {% if л.kb %}<span class="pack-src" title="пункт базы знаний серии">база {{ л.kb | join(', ') }}</span>{% endif %}
           {% if л.fixed %}<span class="v2-hint"> · переписано: {{ л.fixed }}</span>{% endif %}

@@ -157,7 +157,7 @@
    без источника — жёлтая черта слева и подпись «проверь». */
 .pack-meta { display: block; white-space: normal; margin-bottom: var(--v2-sp-4); line-height: var(--v2-lh-body); }
 .pack-meta a { color: var(--v2-text); }
-.pack-check-count, .pack-flag { color: var(--v2-warn); font-weight: var(--v2-fw-strong); }
+.pack-check-count, .pack-flag, .pack-review-why { color: var(--v2-warn); font-weight: var(--v2-fw-strong); }
 .pack-block { margin-bottom: var(--v2-sp-4); }
 .pack-head {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
@@ -177,7 +177,7 @@
 .pack-line.is-check { border-left-color: var(--v2-warn); }
 .pack-src { margin-left: var(--v2-sp-1); font-size: var(--v2-fs-sm); }
 .pack-src a { color: var(--v2-text-2); margin-right: var(--v2-sp-1); }
-.pack-flag { display: block; font-size: var(--v2-fs-sm); }
+.pack-flag, .pack-review-why { display: block; font-size: var(--v2-fs-sm); }
 /* «Кадр не сверен» (письмо B3, 2.3) — не подпись «проверь»: свой класс */
 .pack-unverified { font-size: var(--v2-fs-sm); color: var(--v2-warn); }
 .pack-warn { margin: 0 0 var(--v2-sp-3); }
@@ -191,6 +191,10 @@
 .pack-ci.is-ok .pack-ci-mark { background: var(--v2-ok); border-color: var(--v2-ok); color: var(--v2-ink-on-tool); }
 .pack-ci.is-look .pack-ci-mark { color: var(--v2-warn); border-color: var(--v2-warn); }
 .pack-sources li { overflow-wrap: anywhere; }
+/* «Проверь перед записью» (письмо B5, 2.1): сворачиваемый блок над сценарием */
+.pack-review > summary { cursor: pointer; }
+.pack-review:not([open]) > summary { margin-bottom: 0; }
+.pack-review-item { color: var(--v2-text); max-width: var(--v2-measure); overflow-wrap: anywhere; }
 
 /* Пункт съёмок, заменённый на «найди в трейлере» (письмо B2). */
 .pack-list li.is-check { color: var(--v2-warn); }
