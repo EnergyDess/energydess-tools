@@ -66,6 +66,10 @@ PACKAGE_MODEL = os.getenv("CONTENT_PACKAGE_MODEL", "anthropic/claude-opus-4-8")
 PACKAGE_MAX_TOKENS = int(os.getenv("CONTENT_PACKAGE_MAX_TOKENS", "12000"))
 PACKAGE_SMALL_TOKENS = int(os.getenv("CONTENT_PACKAGE_SMALL_TOKENS", "2500"))
 FACTCHECK_MAX_TOKENS = int(os.getenv("CONTENT_FACTCHECK_MAX_TOKENS", "6000"))
+# Извлечение фактов волны (письмо B5): у каждого факта ещё и слова сущности,
+# и 2500 на номер Game Informer не хватило — замер на проде 2026-10-02:
+# «сгенерировано 2500 из 2500», ответ оборван, факты не посчитаны.
+FACTS_MAX_TOKENS = int(os.getenv("CONTENT_FACTS_MAX_TOKENS", "6000"))
 
 ШАГИ = [("sources", "Читаю источники сюжета и его волны"),
         ("facts", "Считаю факты в источниках"),
@@ -1011,6 +1015,25 @@ def _сменить_статус(ф: ContentWaveFact, новый: str | None, к
     return True
 
 
+def похожий_факт(текст: str, все: list):
+    """Тот же факт другими словами: модель не всегда отмечает same (замер
+    на проде: «170 видов животных» лёг дважды). Решает код: общих основ
+    смысла не меньше трёх и не меньше 60 % у меньшей фразы, числа фраз
+    не противоречат (у обеих есть числа — они совпадают)."""
+    а = основы_смысла(текст, 4)
+    ча = числа_в(текст)
+    for ф in все:
+        б = основы_смысла(ф.text, 4)
+        общих = len(а & б)
+        if общих < 3 or общих < 0.6 * max(1, min(len(а), len(б))):
+            continue
+        чб = числа_в(ф.text)
+        if ча and чб and ча != чб:
+            continue
+        return ф
+    return None
+
+
 def записать_факты(db, тема: str, сырые, по_id: dict, известные: list,
                    формулировки: dict, база: dict[str, str]) -> dict:
     """Ответ модели о НОВЫХ записях → таблица. same: «F3» — уже известный
@@ -1036,7 +1059,7 @@ def записать_факты(db, тема: str, сырые, по_id: dict, и
         m = re.fullmatch(r"F(\d+)", str(с.get("same") or "").strip())
         if m and 0 < int(m.group(1)) <= len(известные):
             тот = известные[int(m.group(1)) - 1]
-        тот = тот or по_ключу.get(_ключ_факта(текст))
+        тот = тот or по_ключу.get(_ключ_факта(текст)) or похожий_факт(текст, все)
         if тот is not None:
             старые = cdb.из_json(тот.src, []) or []
             тот.src = json.dumps(sorted(set(старые) | set(src)))
@@ -1119,7 +1142,7 @@ async def факты_волны(клиент, к: dict) -> list[dict]:
                                                      enumerate(тексты_известных, 1)) + "\n" if тексты_известных else "")
                   + f"НОВЫЕ ИСТОЧНИКИ:\n{_список_источников(новые)}\n"
                   'Ответ JSON: {"facts": [{"text": "факт", "src": [номера], "same": null, "entities": ["слово"]}]}')
-        данные = await _модель(клиент, _система(к), вопрос, PACKAGE_SMALL_TOKENS)
+        данные = await _модель(клиент, _система(к), вопрос, FACTS_MAX_TOKENS)
         db = ce.SessionLocal()
         try:
             известные = [db.get(ContentWaveFact, n) for n in номера_известных]
