@@ -61,7 +61,7 @@
      перезагрузки, «Назад» браузера работает через popstate. #}
   {% macro панель(главная, ещё, тип) %}
   {% if главная %}
-  <section class="today-main" id="today-main-{{ тип }}" data-idea="{{ главная.id }}" aria-labelledby="today-main-title-{{ тип }}">
+  <section class="today-main m-wave" id="today-main-{{ тип }}" data-idea="{{ главная.id }}" aria-labelledby="today-main-title-{{ тип }}">
     <p class="today-kicker">Снимай это</p>
     <div class="today-pills">
       <span class="today-pill is-window">{{ главная.факты.окно }}</span>
@@ -96,7 +96,7 @@
     </div>
   </section>
   {% elif not есть_прогон %}
-  <section class="v2-card today-empty" id="today-empty-{{ тип }}">
+  <section class="v2-card today-empty m-wave" id="today-empty-{{ тип }}">
     <div class="v2-empty">
       <span class="v2-empty-icon">{{ значок('sparkles') }}</span>
       <p class="v2-empty-title">Первые идеи появятся после прогона в {{ время_генерации }}</p>
@@ -104,7 +104,7 @@
     </div>
   </section>
   {% else %}
-  <section class="v2-card today-empty" id="today-empty-{{ тип }}">
+  <section class="v2-card today-empty m-wave" id="today-empty-{{ тип }}">
     <div class="v2-empty">
       <span class="v2-empty-icon">{{ значок('check') }}</span>
       <p class="v2-empty-title">{{ 'Длинных' if тип == 'long' else 'Shorts' }}-идей в этом прогоне не осталось</p>
@@ -118,7 +118,7 @@
     <h2 class="today-h2" id="today-more-title-{{ тип }}">Ещё варианты</h2>
     <ul class="today-list" id="today-list-{{ тип }}">
       {% for и in ещё %}
-      <li class="today-row" data-idea="{{ и.id }}" style="--n: {{ loop.index0 }}">
+      <li class="today-row m-wave" data-idea="{{ и.id }}" style="--n: {{ loop.index0 }}">
         <span class="today-pill is-{{ и.sort }}">{{ и.вид }}</span>
         <div class="today-row-text">
           <span class="today-row-title">{{ и.title }}</span>
@@ -172,7 +172,7 @@
     <h2 class="today-h2" id="today-inbox-title">От тебя</h2>
     <ul class="today-list" id="today-inbox-list">
       {% for н in от_тебя %}
-      <li class="today-row today-inbox-row" data-inbox="{{ н.id }}" style="--n: {{ loop.index0 }}">
+      <li class="today-row today-inbox-row m-wave" data-inbox="{{ н.id }}" style="--n: {{ loop.index0 }}">
         <span class="today-pill is-user" title="{{ н.вид }}">{{ значок(значок_вида.get(н.kind, 'lightbulb')) }} {{ н.вид }}</span>
         <div class="today-row-text">
           <span class="today-row-title today-inbox-text" data-short>{{ н.коротко or н.url }}</span>
@@ -239,6 +239,12 @@
     </div>
   </section>
 </main>
+{# ПРОКРУТКА ПОСЛЕ ДЕЙСТВИЯ С ПЕРЕЗАГРУЗКОЙ (письмо M1b) — сразу за </main>,
+   до первого кадра: разметка выше уже разобрана, высоты хватает. Флаг
+   ставит `перезагрузить()` ниже; ранний скрипт каркаса выключил
+   родное восстановление (оно приезжало после кадра и проезжало вниз).
+   Без `behavior: smooth` — у <html> он стоит, здесь он и был бы проездом. #}
+<script>(function(){if(!document.documentElement.classList.contains('m-after'))return;try{var ф=JSON.parse(sessionStorage.getItem('m-after:'+location.pathname)||'{}');if(ф.y)window.scrollTo({top:ф.y,behavior:'instant'});}catch(e){}})();</script>
 
 <script>
 (function () {
@@ -257,6 +263,15 @@
   // Спрашивается при каждом вызове: motion.js стоит в хвосте страницы
   // и исполняется ПОЗЖЕ этого скрипта.
   function М() { return window.Motion || null; }
+  // ПЕРЕЗАГРУЗКА ПОСЛЕ ДЕЙСТВИЯ (письмо M1b): флаг для раннего скрипта
+  // каркаса — без волны, прокрутка на месте, тост показывается после.
+  function перезагрузить(тост_) {
+    try {
+      sessionStorage.setItem('m-after:' + location.pathname,
+                             JSON.stringify({y: Math.round(scrollY), toast: тост_ || '', t: Date.now()}));
+    } catch (e) { /* хранилище недоступно — обычная перезагрузка с волной */ }
+    location.reload();
+  }
   function увести(узел) {
     if (!узел) return Promise.resolve();
     if (М()) return М().leave(узел, 'live');
@@ -398,7 +413,7 @@
         к.disabled = true;
         await послать('/content/api/ideas/' + id, {action: к.dataset.act, reason: к.dataset.reason || null});
         await увести(к.closest('.today-row, .today-main'));
-        location.reload();
+        перезагрузить();
         return;
       }
       if (к.dataset.act === 'inbox-more') {
@@ -416,8 +431,7 @@
         await послать('/content/api/inbox/' + id, {action: вРаботу ? 'work' : 'archive'});
         await увести(к.closest('.today-row'));
         if (вРаботу || !М()) {
-          try { if (вРаботу) sessionStorage.setItem('today-toast', 'Взято в работу — идея в плане'); } catch (e) { /* без тоста */ }
-          location.reload();
+          перезагрузить(вРаботу ? 'Взято в работу — идея в плане' : '');
           return;
         }
         // «Убрать» — ряд уже ушёл и схлопнулся; пустой блок уходит следом
@@ -431,7 +445,7 @@
         к.disabled = true;
         await послать('/content/api/videos/' + id, {status: статус, url: ссылка || null});
         sessionStorage.setItem('today-open', статус);
-        location.reload();
+        перезагрузить('Сохранено');
       }
     } catch (err) {
       к.disabled = false;
@@ -500,7 +514,7 @@
     нарисовать(д.steps || []);
     if (д.busy) { setTimeout(ждать, 700); return; }
     if (д.state === 'error') { кнопка.disabled = false; сказать('Идеи не собрались: ' + (д.note || 'ошибка')); return; }
-    setTimeout(function () { location.reload(); }, 500);
+    setTimeout(function () { перезагрузить('Идеи обновлены'); }, 500);
   }
   кнопка.addEventListener('click', async function () {
     кнопка.disabled = true;
@@ -513,18 +527,34 @@
 
   // Появление: главная карточка — объект (с пружинкой), строки — без неё.
   // По DOMContentLoaded: к этому моменту motion.js из хвоста уже исполнен.
+  // Волна — только при ВХОДЕ на страницу; после действия с перезагрузкой
+  // (`m-after`) контент сразу на месте, показывается только тост (M1b).
   document.addEventListener('DOMContentLoaded', function () {
-    const м = М();
-    if (!м) return;
-    const тип0 = document.getElementById('content-today').dataset.type;
-    м.seg(переключатель, document.getElementById('today-type-' + тип0));
-    м.enter(document.querySelectorAll('.today-pane:not([hidden]) > .today-main'), 'live', {pop: true});
-    м.enter(document.querySelectorAll('.today-pane:not([hidden]) .today-row, .today-pane:not([hidden]) > .today-empty'), 'live');
-    м.enter(document.querySelectorAll('.today-inbox-row'), 'live');
+    const корень = document.documentElement;
+    let после = null;
     try {
-      const тост = sessionStorage.getItem('today-toast');
-      if (тост) { sessionStorage.removeItem('today-toast'); м.toast(тост); }
-    } catch (e) { /* хранилище недоступно — без тоста */ }
+      после = JSON.parse(sessionStorage.getItem('m-after:' + location.pathname) || 'null');
+      sessionStorage.removeItem('m-after:' + location.pathname);
+    } catch (e) { после = null; }
+    if (корень.classList.contains('m-after')) {
+      корень.classList.remove('m-after');
+      try { history.scrollRestoration = 'auto'; } catch (e) { /* старый браузер */ }
+    }
+    const м = М();
+    if (м) {
+      const тип0 = document.getElementById('content-today').dataset.type;
+      м.seg(переключатель, document.getElementById('today-type-' + тип0));
+      // `m-nowave` — страховка гейта уже показала всё: волна спрятала бы снова
+      if (!после && !корень.classList.contains('m-nowave')) {
+        м.enter(document.querySelectorAll('.today-pane:not([hidden]) > .today-main'), 'live', {pop: true});
+        м.enter(document.querySelectorAll('.today-pane:not([hidden]) .today-row, .today-pane:not([hidden]) > .today-empty'), 'live');
+        м.enter(document.querySelectorAll('.today-inbox-row'), 'live');
+      }
+    }
+    // гейт снимается В ТОМ ЖЕ задании, где созданы анимации волны: их
+    // состояние «до» уже действует, кадра «видно» между ними нет
+    корень.classList.remove('m-wait');
+    if (после && после.toast) тост(после.toast);
   });
 })();
 </script>

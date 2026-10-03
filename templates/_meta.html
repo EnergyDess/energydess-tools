@@ -150,8 +150,17 @@
   <link rel="stylesheet" href="{{ st('v2.css') }}">
   {#- Примитивы анимаций (письмо M1, №384) — ТОЛЬКО в каркасе: лендинг их не грузит. -#}
   <link rel="stylesheet" href="{{ st('motion.css') }}">
-  {#- МЕТКА «СКРИПТ ЕСТЬ» (письмо M1b, №385) — до первой отрисовки, ТОЛЬКО
-     в каркасе: лендинг этот блок не получает. `m-js` — постоянный: под ним
-     прячется то, что без JS обязано быть открытым (плашка причин «Не то»). -#}
-  <script>document.documentElement.classList.add('m-js');</script>
+  {#- РАННИЕ МЕТКИ ДВИЖЕНИЯ (письмо M1b, №385) — до первой отрисовки, ТОЛЬКО
+     в каркасе: лендинг этот блок не получает.
+     · `m-js` — постоянный: под ним прячется то, что без JS обязано быть
+       открытым (плашка причин «Не то»);
+     · `m-wait` — гейт волны появления: элементы `.m-wave` ждут её скрытыми,
+       иначе первый кадр показывал бы их, а волна прятала (вспышка
+       «видно → прозрачно → видно»). Снимает страница, начав волну; страховка —
+       таймер 1 с, и тогда же ставится `m-nowave`:
+       элементы уже показаны, волна их больше не прячет. Без JS гейта нет;
+     · `m-after` — страница перезагружена ДЕЙСТВИЕМ (флаг `m-after:<путь>`
+       в sessionStorage): волны нет, гейта нет, прокрутку восстанавливает
+       страница вручную до первого кадра. -#}
+  <script>(function(){var h=document.documentElement,f=null;h.classList.add('m-js');try{f=sessionStorage.getItem('m-after:'+location.pathname);}catch(e){}if(f){h.classList.add('m-after');try{history.scrollRestoration='manual';}catch(e){}}else{h.classList.add('m-wait');setTimeout(function(){if(h.classList.contains('m-wait')){h.classList.remove('m-wait');h.classList.add('m-nowave');}},1000);}})();</script>
   {%- endif %}
