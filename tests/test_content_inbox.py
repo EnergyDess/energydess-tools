@@ -182,7 +182,7 @@ def test_сегодня_карточки_слух_и_сюжет(вход):
     _шлю(к, {"kind": "link", "url": запись.url, "tg_message_id": "2"})
     _шлю(к, {"kind": "idea", "text": "Идея " + "очень длинная " * 30, "rumor": True, "tg_message_id": "3"})
     стр = к.get("/content").text
-    assert стр.count('class="today-row today-inbox-row"') == 3
+    assert стр.count('class="today-row today-inbox-row') == 3
     assert стр.count("today-inbox-rumor") == 1 and "Тест-канал" in стр
     assert "уже в сюжете: " in стр and сюжет.title in стр
     assert "Показать полностью" in стр
