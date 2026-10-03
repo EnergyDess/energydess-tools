@@ -1,0 +1,172 @@
+/* Примитивы анимаций залогиненной части (письмо M1, BACKLOG №384).
+   Правила — .claude/skills/energydess-motion/SKILL.md; он главнее.
+
+   Подключается ТОЛЬКО в каркасе залогиненной части (templates/_meta.html,
+   то же условие, что у v2.css). Лендинг этот файл не грузит.
+
+   ЗАПРЕТЫ, ради которых файл так устроен:
+   - ни одного глобального селектора: движение включается только классом
+     .m-* на конкретном элементе;
+   - анимируются transform, opacity, filter; высота — только у .m-collapse;
+   - в покое всё видно: начальных `opacity: 0` здесь нет, состояние «до»
+     появления задаёт вызов из motion.js на время своей задержки.
+
+   Все значения — токенами в :root ниже (прямых значений мимо переменных
+   нет: так считает и сторож проверки 47). motion.js читает эти же токены. */
+
+:root {
+  /* Живой — объекты */
+  --m-live-fast: 160ms;
+  --m-live-base: 280ms;
+  --m-live-slow: 440ms;
+  --m-live-ease: cubic-bezier(.22, 1, .36, 1);
+  --m-live-pop: cubic-bezier(.34, 1.56, .64, 1);
+  --m-live-stagger: 55ms;
+  --m-live-shift: 14px;
+  --m-live-scale: .95;
+  --m-live-lift: -5px;
+  --m-live-hover-scale: 1.015;
+  --m-live-press: .95;
+
+  /* Мягкий — текст, цифры, загрузка, переключатели. Без отскока */
+  --m-soft-fast: 180ms;
+  --m-soft-base: 320ms;
+  --m-soft-slow: 520ms;
+  --m-soft-ease: cubic-bezier(.22, 1, .36, 1);
+  --m-soft-stagger: 50ms;
+  --m-soft-shift: 10px;
+  --m-soft-scale: .99;
+  --m-soft-blur: 4px;
+  --m-soft-count: 950ms;
+
+  /* Кино — только главные моменты */
+  --m-cine-fast: 220ms;
+  --m-cine-base: 480ms;
+  --m-cine-slow: 760ms;
+  --m-cine-ease: cubic-bezier(.16, 1, .3, 1);
+  --m-cine-stagger: 90ms;
+  --m-cine-shift: 22px;
+  --m-cine-blur: 10px;
+  --m-cine-step: 480ms;
+  --m-cine-sheen: 1100ms;
+  --m-cine-glow: 1600ms;
+
+  /* Уход — во всех характерах длительность fast своего характера */
+  --m-exit-ease: cubic-bezier(.4, 0, 1, 1);
+
+  /* Служебное: прозрачность полосы мерцания и блика */
+  --m-shimmer: color-mix(in srgb, var(--v2-text) 8%, transparent);
+  --m-sheen: color-mix(in srgb, var(--v2-text) 18%, transparent);
+  --m-glow: color-mix(in srgb, var(--v2-tool-glow) 100%, transparent);
+  --m-pill-bg: var(--v2-surface-hover);
+  --m-pill-radius: var(--v2-r-sm);
+  --m-none: 0;
+}
+
+/* ---- Наведение и нажатие — Живой ---- */
+.m-hover-lift,
+.m-press {
+  transition:
+    transform var(--m-live-base) var(--m-live-pop),
+    box-shadow var(--m-live-base) var(--m-live-ease);
+}
+@media (hover: hover) {
+  .m-hover-lift:hover {
+    transform: translateY(var(--m-live-lift)) scale(var(--m-live-hover-scale));
+  }
+}
+.m-press:active {
+  transform: scale(var(--m-live-press));
+  transition-duration: var(--m-live-fast);
+}
+
+/* ---- Переключатель с едущей плашкой — Мягкий, без отскока ----
+   Разметка: контейнер .m-seg (position задаёт этот класс), внутри
+   кнопки и один .m-seg-pill. Положение плашки ставит Motion.seg(): она
+   едет transform-ом, ширина — scaleX от базовой, без перерасчёта раскладки. */
+.m-seg { position: relative; isolation: isolate; }
+.m-seg-pill {
+  position: absolute;
+  top: var(--m-none);
+  left: var(--m-none);
+  height: 100%;
+  width: 100%;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--m-pill-bg);
+  border-radius: var(--m-pill-radius);
+  transform-origin: left center;
+  transition: transform var(--m-soft-base) var(--m-soft-ease);
+}
+
+/* ---- Раскрытие — Живой; высота через сетку 0fr → 1fr ---- */
+.m-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--m-live-base) var(--m-live-ease);
+}
+.m-collapse.is-open { grid-template-rows: 1fr; }
+.m-collapse > .m-collapse-inner { min-height: var(--m-none); overflow: hidden; }
+
+/* ---- Скелетон — Мягкий: полоса мерцания едет transform-ом ---- */
+.m-skeleton { position: relative; overflow: hidden; }
+.m-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: var(--m-none);
+  background: linear-gradient(90deg, transparent, var(--m-shimmer), transparent);
+  transform: translateX(-100%);
+  animation: m-shimmer var(--m-cine-sheen) var(--m-soft-ease) infinite;
+}
+@keyframes m-shimmer { to { transform: translateX(100%); } }
+
+/* ---- Блик и свечение для «Кино» (вешает motion.js) ---- */
+.m-sheen { position: relative; overflow: hidden; }
+.m-sheen::after {
+  content: "";
+  position: absolute;
+  inset: var(--m-none);
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, var(--m-sheen), transparent 65%);
+  transform: translateX(-120%);
+  animation: m-sheen var(--m-cine-sheen) var(--m-cine-ease) 1 forwards;
+}
+@keyframes m-sheen { to { transform: translateX(120%); } }
+.m-glow { animation: m-glow var(--m-cine-glow) var(--m-cine-ease) 1; }
+@keyframes m-glow {
+  0%, 100% { filter: drop-shadow(0 0 0 transparent); }
+  40% { filter: drop-shadow(0 0 var(--m-cine-blur) var(--m-glow)); }
+}
+
+/* ---- Меньше движения: всё почти мгновенно, проявление opacity ≤ 120 мс
+   делает сам motion.js. Селекторы — только свои классы, не `*`. ---- */
+@media (prefers-reduced-motion: reduce) {
+  .m-hover-lift, .m-press, .m-seg-pill, .m-collapse {
+    transition-duration: 0.01ms;
+  }
+  .m-hover-lift:hover, .m-press:active { transform: none; }
+  .m-skeleton::after, .m-sheen::after, .m-glow { animation: none; }
+}
+
+/* ---- Тост — контейнер внизу; движение задаёт motion.js ---- */
+.m-toast-host {
+  position: fixed;
+  left: 50%;
+  bottom: var(--v2-sp-6);
+  translate: -50% 0;
+  z-index: 240;
+  display: grid;
+  gap: var(--v2-sp-2);
+  justify-items: center;
+  pointer-events: none;
+}
+.m-toast {
+  pointer-events: auto;
+  padding: var(--v2-sp-3) var(--v2-sp-4);
+  border-radius: var(--v2-r-md);
+  background: var(--v2-surface-pop);
+  border: 1px solid var(--v2-line-2);
+  color: var(--v2-text);
+  font-size: var(--v2-fs-sm);
+  box-shadow: var(--v2-shadow-pop);
+}

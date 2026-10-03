@@ -148,4 +148,6 @@
      вошедшему с подтверждённой почтой. Условие то же, что в `_header.html`. #}
   {%- if user is defined and user and user.is_verified and not (header_pf is defined and header_pf) and not (shell_off is defined and shell_off) %}
   <link rel="stylesheet" href="{{ st('v2.css') }}">
+  {#- Примитивы анимаций (письмо M1, №384) — ТОЛЬКО в каркасе: лендинг их не грузит. -#}
+  <link rel="stylesheet" href="{{ st('motion.css') }}">
   {%- endif %}
