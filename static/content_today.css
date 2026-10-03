@@ -46,7 +46,6 @@
   border-radius: var(--v2-r-xl);
   background: var(--v2-surface-2);
   margin-bottom: var(--v2-sp-6);
-  animation: today-in var(--v2-dur-enter) var(--v2-ease-out) both;
 }
 .today-kicker {
   margin: 0 0 var(--v2-sp-3); font-size: var(--v2-fs-xs); font-weight: var(--v2-fw-strong);
@@ -96,9 +95,6 @@
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center;
   gap: var(--v2-sp-2) var(--v2-sp-4); padding: var(--v2-sp-3) 0;
   border-bottom: 1px solid var(--v2-line-3);
-  animation: today-in var(--v2-dur-enter) var(--v2-ease-out) both;
-  animation-delay: calc(var(--n, 0) * 60ms);
-  transition: opacity var(--v2-dur-base) var(--v2-ease), transform var(--v2-dur-base) var(--v2-ease);
 }
 .today-row-text { display: grid; gap: var(--v2-sp-1); min-width: 0; }
 .today-row-title { color: var(--v2-text-strong); font-weight: var(--v2-fw-medium); }
@@ -112,8 +108,6 @@
 .today-inbox-url svg { width: var(--v2-sp-3); height: var(--v2-sp-3); vertical-align: middle; }
 .today-inbox-url, .today-inbox-story { color: var(--v2-text-2); }
 .today-reasons { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); }
-.today-main.is-leaving, .today-row.is-leaving { opacity: 0; transform: translateY(calc(-1 * var(--v2-sp-2))); }
-.today-main { transition: opacity var(--v2-dur-base) var(--v2-ease), transform var(--v2-dur-base) var(--v2-ease); }
 
 /* МОИ РОЛИКИ */
 .today-videos-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--v2-sp-3); }
@@ -137,13 +131,14 @@
 .today-pipe-ctl { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); align-items: center; }
 .today-url { flex: 1 1 16rem; min-width: 0; }
 
-/* Смена «Длинные / Shorts» — мягкое появление панели, без перезагрузки */
-.today-pane.is-in { animation: today-in var(--v2-dur-base) ease-out; }
-
-@keyframes today-in {
-  from { opacity: 0; transform: translateY(var(--v2-sp-4)); }
-  to { opacity: 1; transform: none; }
-}
+/* ДВИЖЕНИЕ (письмо M1, №384) — по скиллу energydess-motion: появление,
+   смена «Длинные / Shorts» и уход рядов делает static/motion.js; здесь
+   своих CSS-анимаций появления больше нет (они держали ряды невидимыми
+   на время задержки волны — то есть «невидимый покой» до анимации).
+   Плашка переключателя едет под выбранной кнопкой; пока скрипт её
+   не поставил (`.m-seg-ready`), выбранная кнопка закрашена сама. */
+.today-seg { --m-pill-radius: var(--v2-r-pill); }
+.today-seg.m-seg-ready .today-type.is-active { background: transparent; }
 
 @media (max-width: 768px) {
   .today-bar { display: grid; grid-template-columns: minmax(0, 1fr); }
@@ -158,7 +153,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .today-main, .today-row, .today-pane.is-in { animation: none; transition: none; }
   .today-tile, .today-step-mark { transition: none; }
 }
 

@@ -40,7 +40,7 @@
   </header>
 
   <div class="today-bar">
-    <div class="v2-seg today-seg" role="group" aria-label="Тип роликов">
+    <div class="v2-seg today-seg m-seg" role="group" aria-label="Тип роликов">
       <a class="v2-seg-btn today-type{{ ' is-active' if тип == 'long' }}" href="/content?type=long" id="today-type-long"
          {{ 'aria-current="page"' | safe if тип == 'long' }}>Длинные</a>
       <a class="v2-seg-btn today-type{{ ' is-active' if тип == 'shorts' }}" href="/content?type=shorts" id="today-type-shorts"
@@ -140,11 +140,13 @@
   {% endif %}
 
   {% endmacro %}
+  <div class="today-panes" id="today-panes">
   {% for т in ['long', 'shorts'] %}
   <div class="today-pane" data-pane="{{ т }}"{{ ' hidden' if т != тип }}>
   {{ панель(панели[т].главная, панели[т].ещё, т) }}
   </div>
   {% endfor %}
+  </div>
 
   {# ОТ ТЕБЯ (письмо D1, задача 383): находки владельца из бота второго
      мозга — пересланный пост, ссылка, своя идея. Приходят машинным входом
@@ -237,20 +239,31 @@
     if (!r.ok) throw new Error(д.error || ('HTTP ' + r.status));
     return д;
   }
+  // ДВИЖЕНИЕ (письмо M1, №384): примитивы `window.Motion` из static/motion.js.
+  // Без него страница работает как раньше, только без анимаций.
+  // Спрашивается при каждом вызове: motion.js стоит в хвосте страницы
+  // и исполняется ПОЗЖЕ этого скрипта.
+  function М() { return window.Motion || null; }
   function увести(узел) {
     if (!узел) return Promise.resolve();
-    узел.classList.add('is-leaving');
-    return new Promise(function (готово) { setTimeout(готово, 220); });
+    if (М()) return М().leave(узел, 'live');
+    return Promise.resolve();
   }
 
   // ПЕРЕКЛЮЧАТЕЛЬ ДЛИННЫЕ / SHORTS без перезагрузки (письмо A2)
   const панели = document.querySelectorAll('.today-pane');
+  const ящик = document.getElementById('today-panes');
+  const переключатель = document.querySelector('.today-seg');
+  const ПУНКТЫ = '.today-pane:not([hidden]) > *';
   function показать(тип, запомнить) {
-    панели.forEach(function (п) {
-      const этот = п.dataset.pane === тип;
-      п.hidden = !этот;
-      if (этот) { п.classList.remove('is-in'); void п.offsetWidth; п.classList.add('is-in'); }
-    });
+    // меняет панели ВНУТРИ переданного корня: swap сперва меряет новую
+    // высоту на невидимом клоне, потом применяет к настоящему ящику
+    const сменить = function (корень) {
+      (корень || ящик).querySelectorAll('.today-pane').forEach(function (п) { п.hidden = п.dataset.pane !== тип; });
+    };
+    // Мягкий swap: высота не прыгает, старое уходит, новое — волной
+    if (М()) М().swap(ящик, сменить, 'soft', {items: ПУНКТЫ}); else сменить();
+    if (М()) М().seg(переключатель, document.getElementById('today-type-' + тип));
     document.querySelectorAll('.today-type').forEach(function (к) {
       const этот = к.id === 'today-type-' + тип;
       к.classList.toggle('is-active', этот);
@@ -307,9 +320,17 @@
       }
       if (к.dataset.act === 'inbox-work' || к.dataset.act === 'inbox-archive') {
         к.disabled = true;
-        await послать('/content/api/inbox/' + id, {action: к.dataset.act === 'inbox-work' ? 'work' : 'archive'});
+        const вРаботу = к.dataset.act === 'inbox-work';
+        await послать('/content/api/inbox/' + id, {action: вРаботу ? 'work' : 'archive'});
         await увести(к.closest('.today-row'));
-        location.reload();
+        if (вРаботу || !М()) {
+          try { if (вРаботу) sessionStorage.setItem('today-toast', 'Взято в работу — идея в плане'); } catch (e) { /* без тоста */ }
+          location.reload();
+          return;
+        }
+        // «Убрать» — ряд уже ушёл и схлопнулся; пустой блок уходит следом
+        const блок = document.getElementById('today-inbox');
+        if (блок && !блок.querySelector('.today-inbox-row')) await М().leave(блок, 'live');
         return;
       }
       if (к.dataset.act === 'video') {
@@ -396,6 +417,22 @@
     ждать();
   });
   {% if идёт %}ждать();{% endif %}
+
+  // Появление: главная карточка — объект (с пружинкой), строки — без неё.
+  // По DOMContentLoaded: к этому моменту motion.js из хвоста уже исполнен.
+  document.addEventListener('DOMContentLoaded', function () {
+    const м = М();
+    if (!м) return;
+    const тип0 = document.getElementById('content-today').dataset.type;
+    м.seg(переключатель, document.getElementById('today-type-' + тип0));
+    м.enter(document.querySelectorAll('.today-pane:not([hidden]) > .today-main'), 'live', {pop: true});
+    м.enter(document.querySelectorAll('.today-pane:not([hidden]) .today-row, .today-pane:not([hidden]) > .today-empty'), 'live');
+    м.enter(document.querySelectorAll('.today-inbox-row'), 'live');
+    try {
+      const тост = sessionStorage.getItem('today-toast');
+      if (тост) { sessionStorage.removeItem('today-toast'); м.toast(тост); }
+    } catch (e) { /* хранилище недоступно — без тоста */ }
+  });
 })();
 </script>
 
