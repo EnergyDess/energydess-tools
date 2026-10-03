@@ -41,6 +41,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 ДЛИННЫЙ_КАДР = 50          # мс
 ПОТОЛОК_РЕДКО = 120        # мс — потолок движения при reduced-motion
 ПОВТОРОВ = 5
+ТОЛЬКО_СТРОКИ = "--строки" in sys.argv   # быстрый прогон одних строк (замер «до»)
 
 # Доказательство подлога (§6.0.3) — независимо от вердикта шага:
 ДОКАЗАТЕЛЬСТВА = {"фиксация-высоты": "наибольший скачок высоты ящика за кадр — чисто и с подлогом"}
@@ -59,7 +60,7 @@ def шаг(имя, условие, подробно="", собрано=None):
 # до скриптов страницы, поэтому видит и волну появления при загрузке.
 САМПЛЕР = r"""
 (() => {
-  const з = window.__м = {кадры: [], сдвиги: [], анимации: [], ящик: [], идёт: null};
+  const з = window.__м = {кадры: [], сдвиги: [], анимации: [], ящик: [], идёт: null, скролл: [], список: []};
   let прошлый = performance.now();
   const тик = (т) => {
     з.кадры.push([т, т - прошлый]); прошлый = т;
@@ -72,6 +73,16 @@ def шаг(имя, условие, подробно="", собрано=None):
       const в_анимации = пункты.some((п) => п.getAnimations().length > 0);
       з.ящик.push([т, я.getBoundingClientRect().height, видно, в_анимации]);
     }
+    // Строки «Ещё варианты» (письмо M1b): прокрутка — каждый кадр с начала
+    // документа (после перезагрузки так виден проезд), список и счётчик
+    // «В плане» — во время действия
+    з.скролл.push([т, scrollY]);
+    if (з.идёт) {
+      const сп = document.querySelector('.today-pane:not([hidden]) .today-more');
+      const сч = document.querySelector('.today-tile[data-status="plan"] .v2-tile-num');
+      з.список.push([т, сп ? сп.getBoundingClientRect().height : null,
+                     сч ? parseInt(сч.textContent.replace(/\D/g, '') || '0', 10) : null]);
+    }
     requestAnimationFrame(тик);
   };
   requestAnimationFrame(тик);
@@ -83,7 +94,7 @@ def шаг(имя, условие, подробно="", собрано=None):
   Element.prototype.animate = function (к, о) {
     const а = родной.call(this, к, о);
     const тт = а.effect.getTiming();
-    з.анимации.push([performance.now(), (+тт.duration || 0) + (+тт.delay || 0)]);
+    з.анимации.push([performance.now(), (+тт.duration || 0) + (+тт.delay || 0), String(this.className || '')]);
     return а;
   };
 })();
@@ -156,13 +167,18 @@ def замер_ширины(бр, адрес, токен, ширина, высо
       const б = п.hidden; п.hidden = false; const h = п.getBoundingClientRect().height; п.hidden = б; return Math.round(h); })""")
     итог["высоты_панелей"] = высоты
     перекл = []
-    for i in range(ПОВТОРОВ):
+    for i in range(0 if ТОЛЬКО_СТРОКИ else ПОВТОРОВ):
         for тип in ("shorts", "long"):
             з = _действие(с, lambda: с.click("#today-type-" + тип))
             з["видна"] = с.evaluate("(т) => !document.querySelector('.today-pane[data-pane=\"' + т + '\"]').hidden", тип)
             перекл.append(з)
     итог["переключения"] = перекл
-    if not подлог:
+    try:
+        _строки(с, итог)
+    except Exception as e:
+        итог["сбой_строк"] = "%s: %s" % (type(e).__name__, str(e)[:200])
+        print("    СБОЙ СТРОК:", итог["сбой_строк"])
+    if not подлог and not ТОЛЬКО_СТРОКИ:
         try:
             _находки(с, итог)
         except Exception as e:   # прежний код («до») перезагружает страницу на «Убрать»
@@ -193,6 +209,99 @@ def _находки(с, итог):
             з = с.evaluate(ОКНО, [0, до])
             з["тост"] = с.evaluate("() => (document.querySelector('.m-toast') || {}).textContent || ''")
             итог["в_работу"] = з
+
+
+# ── СТРОКИ «ЕЩЁ ВАРИАНТЫ» (письмо M1b) ─────────────────────────────────
+# Четыре сценария на первой строке длинной панели: «+ в план», «Не то»
+# (открыть плашку и закрыть повторным нажатием), выбор причины. Каждый —
+# со своими замерами: была ли навигация, проезд прокрутки, повтор волны
+# главной карточки, длинные кадры, скачок высоты списка и счётчик.
+СТРОКА = ".today-pane:not([hidden]) .today-row"
+
+ЗАМЕР_СТРОКИ = r"""([от, до, y0]) => {
+  const з = window.__м;
+  const кадры = з.кадры.filter(([т]) => т > от && т <= до).map(([, д]) => д);
+  const ск = з.скролл.filter(([т]) => т >= от).map(([, y]) => y);
+  const сп = з.список.filter(([т]) => т >= от && т <= до);
+  let скачок = 0;
+  for (let i = 1; i < сп.length; i++)
+    if (сп[i][1] != null && сп[i - 1][1] != null) скачок = Math.max(скачок, Math.abs(сп[i][1] - сп[i - 1][1]));
+  const сч = сп.map((р) => р[2]).filter((v) => v != null);
+  const волна = з.анимации.filter(([т, , к]) => т >= от && /today-main/.test(к)).length;
+  return {длинных: кадры.filter((д) => д > __ДЛ__).length, худший: кадры.length ? Math.round(Math.max(...кадры)) : 0,
+          y_после: Math.round(scrollY), проезд: ск.length ? Math.round(Math.max(...ск.map((y) => Math.abs(y - y0)))) : 0,
+          скачок: Math.round(скачок), счётчик: сч, волна: волна,
+          анимаций: з.анимации.filter(([т]) => т >= от - 5 && т <= до).length,
+          длиннее_потолка: з.анимации.filter(([т, д]) => т >= от - 5 && т <= до && д > __ПТ__).length};
+}""".replace("__ДЛ__", str(ДЛИННЫЙ_КАДР)).replace("__ПТ__", str(ПОТОЛОК_РЕДКО))
+
+
+def _строка_действие(с, имя, что):
+    """`что(ряд)` — нажатие. Навигация — по метке в окне: перезагрузка её стирает."""
+    ряд = с.query_selector(СТРОКА)
+    if not ряд:
+        return None
+    # мгновенно: у <html> scroll-behavior: smooth, и y0 иначе снимался бы посреди проезда
+    ряд.evaluate("(р) => { const y = р.getBoundingClientRect().top + scrollY - innerHeight / 2;"
+                 " window.scrollTo({top: y, behavior: 'instant'}); }")
+    с.wait_for_function("() => new Promise((ок) => { const a = scrollY;"
+                        " setTimeout(() => ок(scrollY === a), 120); })", timeout=5000)
+    до_нажатия = с.evaluate("""(сел) => {
+      window.__проба = 1;
+      const р = document.querySelector(сел);
+      const сч = document.querySelector('.today-tile[data-status="plan"] .v2-tile-num');
+      return {y0: Math.round(scrollY), высота: Math.round(р.getBoundingClientRect().height),
+              рядов: document.querySelectorAll(сел).length, id: р.dataset.idea,
+              счёт: сч ? parseInt(сч.textContent.replace(/[^0-9]/g, '') || '0', 10) : null};
+    }""", СТРОКА)
+    навигаций = []
+    обр = lambda f: навигаций.append(1) if f == с.main_frame else None
+    с.on("framenavigated", обр)
+    от = с.evaluate("() => { window.__м.идёт = true; return performance.now(); }")
+    что(ряд)
+    с.wait_for_timeout(150)
+    try:
+        с.wait_for_load_state("load", timeout=15000)
+    except Exception:
+        pass
+    y_сразу = с.evaluate("() => Math.round(scrollY)")
+    с.wait_for_timeout(1000)
+    y_1с = с.evaluate("() => Math.round(scrollY)")
+    до = с.evaluate(ДОЖДАТЬСЯ_ТИШИНЫ)
+    тот_же = с.evaluate("() => window.__проба === 1")
+    if not тот_же:
+        от = 0   # новый документ: всё с его начала
+    з = с.evaluate(ЗАМЕР_СТРОКИ, [от, до, до_нажатия["y0"]])
+    с.evaluate("() => { if (window.__м) window.__м.идёт = null; }")
+    с.remove_listener("framenavigated", обр)
+    з.update(до_нажатия)
+    з.update({"навигация": bool(навигаций) or not тот_же, "y_сразу": y_сразу, "y_1с": y_1с,
+              "рядов_после": с.evaluate("(сел) => document.querySelectorAll(сел).length", СТРОКА),
+              "тост": с.evaluate("() => [...document.querySelectorAll('.m-toast')].map((т) => т.textContent).join(' | ')"),
+              "плашка_открыта": с.evaluate("""(id) => { const р = document.querySelector('.today-row[data-idea="' + id + '"]');
+                  const п = р && р.querySelector('.today-reasons'); if (!п) return null;
+                  return п.getBoundingClientRect().height > 4 && getComputedStyle(п).visibility !== 'hidden'; }""",
+                                            до_нажатия["id"])})
+    print("    %-12s навигация %s, y %d → %d → %d, проезд %d, волна %d, длинных %d, скачок %d, рядов %d → %d%s" % (
+        имя, з["навигация"], з["y0"], з["y_сразу"], з["y_1с"], з["проезд"], з["волна"], з["длинных"],
+        з["скачок"], з["рядов"], з["рядов_после"], (", счётчик %s→%s" % (з["счёт"], з["счётчик"][-1:] or "?"))
+        if имя == "в план" else ""))
+    return з
+
+
+def _строки(с, итог):
+    итог["строки"] = {
+        "в план": _строка_действие(с, "в план", lambda р: р.query_selector("[data-act='plan']").click()),
+        "не то: открыть": _строка_действие(с, "не то: открыть", lambda р: р.query_selector("[data-act='reject-open']").click()),
+        "не то: закрыть": _строка_действие(с, "не то: закрыть", lambda р: р.query_selector("[data-act='reject-open']").click()),
+    }
+    # выбор причины: плашка открывается, затем нажата первая причина
+    ряд = с.query_selector(СТРОКА)
+    if ряд:
+        ряд.query_selector("[data-act='reject-open']").click()
+        с.wait_for_timeout(500)
+    итог["строки"]["не то: причина"] = _строка_действие(
+        с, "не то: причина", lambda р: р.query_selector("[data-act='reject']").click())
 
 
 def замер(подлог=False, редко=False):
@@ -287,6 +396,9 @@ def оценить(итог, редко=False):
 
 
 def main():
+    if ТОЛЬКО_СТРОКИ:
+        замер(редко="--редко" in sys.argv)
+        return 0
     if "--контроль" in sys.argv:
         print("КОНТРОЛЬ: фиксация высоты в swap вырезана из motion.js")
         чисто = замер()

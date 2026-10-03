@@ -261,6 +261,35 @@ def test_в_план_и_не_сегодня(стенд):
     assert к.post("/content/api/settings/week", json={"goal": 0}).status_code == 400
 
 
+def test_строка_без_js_формой(стенд):
+    """Путь без JS (письмо M1b, №385): кнопки строки — отправка формы,
+    сервер пишет то же, что JSON-маршрут, и возвращает на «Сегодня»."""
+    db, к, _, _, _, _ = стенд
+    _прогон()
+    db.expire_all()
+    запасные = db.query(ContentIdea).filter(ContentIdea.main.is_(False),
+                                            ContentIdea.state == "new").order_by(ContentIdea.id).all()
+    assert len(запасные) >= 2
+    страница = к.get("/content").text
+    assert f'action="/content/ideas/{запасные[0].id}"' in страница
+    assert 'name="action" value="plan"' in страница and 'name="reason" value="format"' in страница
+    r = к.post(f"/content/ideas/{запасные[0].id}", data={"action": "plan", "type": "long"},
+               headers={"Accept": "text/html"}, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].startswith("/content?type=long")
+    db.expire_all()
+    assert db.get(ContentIdea, запасные[0].id).state == "planned"
+    assert db.query(ContentVideo).filter(ContentVideo.idea_id == запасные[0].id).count() == 1
+    r = к.post(f"/content/ideas/{запасные[1].id}", data={"action": "reject", "reason": "boring",
+                                                        "type": "shorts"}, follow_redirects=False)
+    assert r.status_code == 303 and "type=shorts" in r.headers["location"]
+    db.expire_all()
+    и = db.get(ContentIdea, запасные[1].id)
+    assert и.state == "rejected" and и.reason == "boring"
+    # без причины — отказ, как у JSON-маршрута
+    assert к.post(f"/content/ideas/{запасные[0].id}", data={"action": "reject"},
+                  follow_redirects=False).status_code == 400
+
+
 # ── 4. РАДАР ──────────────────────────────────────────────────────────
 
 def test_радар_красный_если_источник_падает_дольше_2_ч(стенд):

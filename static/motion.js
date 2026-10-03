@@ -110,7 +110,10 @@
                    marginTop: с.marginTop, marginBottom: с.marginBottom, borderBottomWidth: с.borderBottomWidth };
       const в = { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', marginBottom: '0px', borderBottomWidth: '0px' };
       el.style.overflow = 'hidden';
-      return el.animate([из, в], { duration: х.base, easing: х.ease, fill: 'forwards' }).finished.catch(function () {});
+      // кривая схлопывания плавная в начале, длительность растёт с высотой:
+      // за кадр место уходит не больше чем на ~24 px (письмо M1b)
+      const длит = Math.max(х.base, Math.round(el.offsetHeight / 24 * 16.7 * 2.4));
+      return el.animate([из, в], { duration: длит, easing: т('collapse-ease') || х.ease, fill: 'forwards' }).finished.catch(function () {});
     }).then(убрать);
   }
 
@@ -191,12 +194,14 @@
                    { duration: х.base, easing: х.ease });
   }
 
-  /* countUp(el, to, decimals) — Мягкий счётчик, easeOutCubic, без перелёта:
+  /* countUp(el, to, decimals, from) — Мягкий счётчик, easeOutCubic, без перелёта:
      значение ограничено итогом, последний кадр ставит итог точно. */
-  function countUp(el, to, decimals) {
+  function countUp(el, to, decimals, from) {
     if (!el) return Promise.resolve();
     const знаков = decimals || 0;
     const итог = Number(to) || 0;
+    // `from` — с какого числа считать (обновление на месте: 3 → 4, а не 0 → 4)
+    const нач = Math.min(итог, Number(from) || 0);
     const показать = function (v) {
       el.textContent = v.toLocaleString('ru-RU', { minimumFractionDigits: знаков, maximumFractionDigits: знаков });
     };
@@ -207,7 +212,7 @@
       function кадр(сейчас) {
         const p = Math.min(1, (сейчас - старт) / длит);
         const e = 1 - Math.pow(1 - p, 3);
-        if (p < 1) { показать(Math.min(итог, итог * e)); requestAnimationFrame(кадр); }
+        if (p < 1) { показать(Math.min(итог, нач + (итог - нач) * e)); requestAnimationFrame(кадр); }
         else { показать(итог); готово(); }
       }
       requestAnimationFrame(кадр);

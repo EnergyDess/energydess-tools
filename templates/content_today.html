@@ -15,8 +15,9 @@
 
 {# «СЕГОДНЯ» (BACKLOG №371) — рабочий экран автора: открыл, за десять секунд
    понял, что снимать, положил в план. ВСЁ РИСУЕТ СЕРВЕР: идеи, факты
-   и конвейер приходят в первом кадре; браузер только зовёт действия
-   и после ответа перечитывает страницу — второго построителя нет.
+   и конвейер приходят в первом кадре; браузер только зовёт действия.
+   Строки «Ещё варианты» уходят на месте (письмо M1b), остальное после
+   ответа перечитывает страницу — второго построителя нет.
 
    ЦИФРЫ НА ЭКРАНЕ — ТОЛЬКО ФАКТЫ ИДЕИ, посчитанные кодом (`content_ideas`):
    спрос, конкуренция на русском, выстрел формата, окно. Оценок, роста
@@ -123,19 +124,31 @@
           <span class="today-row-title">{{ и.title }}</span>
           <span class="today-row-facts">{% if и.sort != 'evergreen' %}{{ и.факты.окно }} · спрос {{ и.факты.спрос_коротко }} · на русском {{ и.факты.конкуренция }}{% else %}в любой день{% endif %}{% if и.формат %} · {{ и.формат }} {{ и.факты.выстрел }}{% endif %}{% for р in и.риски %} · <span class="today-row-risk">{{ р }}</span>{% endfor %}</span>
         </div>
-        <div class="today-row-acts">
+        {# ДЕЙСТВИЯ СТРОКИ — формы (письмо M1b, №385): без JS кнопки отправляют
+           форму и сервер возвращает на «Сегодня»; со скриптом отправка
+           перехватывается, строка уходит без перезагрузки. #}
+        <form class="today-row-acts" method="post" action="/content/ideas/{{ и.id }}">
+          <input type="hidden" name="type" value="{{ тип }}">
           <button type="button" class="v2-btn v2-btn-quiet v2-btn-icon" data-act="pack" data-id="{{ и.id }}" title="Собрать пакет ролика" aria-label="Собрать пакет ролика">{{ значок('sparkles') }}</button>
-          <button type="button" class="v2-btn v2-btn-quiet v2-btn-icon" data-act="plan" data-id="{{ и.id }}" title="В план" aria-label="В план">{{ значок('plus') }}</button>
-          <button type="button" class="v2-btn v2-btn-quiet v2-btn-icon" data-act="reject-open" data-id="{{ и.id }}" title="Не то" aria-label="Не то">{{ значок('x') }}</button>
-        </div>
-        <div class="today-reasons" hidden>
-          {% for код, подпись in причины.items() %}
-          <button type="button" class="v2-chip" data-act="reject" data-reason="{{ код }}" data-id="{{ и.id }}">{{ подпись }}</button>
-          {% endfor %}
-        </div>
+          <button type="submit" name="action" value="plan" class="v2-btn v2-btn-quiet v2-btn-icon" data-act="plan" data-id="{{ и.id }}" title="В план" aria-label="В план">{{ значок('plus') }}</button>
+          <button type="button" class="v2-btn v2-btn-quiet v2-btn-icon" data-act="reject-open" data-id="{{ и.id }}" title="Не то" aria-label="Не то" aria-expanded="false" aria-controls="today-reasons-{{ и.id }}">{{ значок('x') }}</button>
+        </form>
+        {# Плашка причин: раскрытие сеткой 0fr → 1fr (.m-collapse). Без JS
+           (нет класса m-js на <html>) она открыта — выбор доступен. #}
+        <form class="today-reasons m-collapse" id="today-reasons-{{ и.id }}" method="post" action="/content/ideas/{{ и.id }}">
+          <div class="m-collapse-inner"><div class="today-reasons-in">
+            <input type="hidden" name="type" value="{{ тип }}">
+            <input type="hidden" name="action" value="reject">
+            {% for код, подпись in причины.items() %}
+            <button type="submit" name="reason" value="{{ код }}" class="v2-chip" data-act="reject" data-reason="{{ код }}" data-id="{{ и.id }}">{{ подпись }}</button>
+            {% endfor %}
+          </div></div>
+        </form>
       </li>
       {% endfor %}
     </ul>
+    {# Список опустел без перезагрузки — Motion.swap показывает эту строку #}
+    <p class="v2-hint today-more-empty" hidden>Запасных вариантов не осталось. Новые — после прогона в {{ время_генерации }}.</p>
   </section>
   {% endif %}
 
@@ -284,16 +297,95 @@
     показать(тип, false);
   });
 
+  // ДЕЙСТВИЯ СТРОК «ЕЩЁ ВАРИАНТЫ» БЕЗ ПЕРЕЗАГРУЗКИ (письмо M1b, №385).
+  // Кнопки — отправка формы (путь без JS); со скриптом отправка
+  // перехватывается и идёт JSON-маршрутом, строка уходит на месте.
+  function тост(текст) { if (М()) М().toast(текст); else сказать(текст); }
+  // Плашка причин «Не то»: раскрытие .m-collapse. Закрытая — `inert`:
+  // невидимые чипы не ловят Tab.
+  function плашка(ряд, открыть) {
+    const п = ряд.querySelector('.today-reasons');
+    const к = ряд.querySelector('[data-act="reject-open"]');
+    if (!п) return;
+    if (открыть === undefined) открыть = !п.classList.contains('is-open');
+    п.classList.toggle('is-open', открыть);
+    п.inert = !открыть;
+    if (к) к.setAttribute('aria-expanded', открыть ? 'true' : 'false');
+    if (открыть && М()) М().enter(п.querySelectorAll('.v2-chip'), 'soft');
+  }
+  document.querySelectorAll('.today-reasons').forEach(function (п) { п.inert = true; });
+  // Счётчик «В плане» и списки конвейера — из свежей разметки сервера
+  // (второго построителя нет). Не вышло — счётчик +1, списки прежние.
+  async function обновитьКонвейер(было) {
+    const ч = document.querySelector('.today-tile[data-status="plan"] .v2-tile-num');
+    let стало = было + 1;
+    try {
+      const r = await fetch(location.pathname + location.search, {headers: {'Accept': 'text/html'}});
+      const док = new DOMParser().parseFromString(await r.text(), 'text/html');
+      const н = док.querySelector('.today-tile[data-status="plan"] .v2-tile-num');
+      if (н) стало = parseInt(н.textContent.replace(/[^0-9]/g, '') || '0', 10);
+      док.querySelectorAll('.today-pipe-part').forEach(function (ч2) {
+        const здесь = document.querySelector('.today-pipe-part[data-part="' + ч2.dataset.part + '"]');
+        if (здесь) здесь.innerHTML = ч2.innerHTML;
+      });
+      document.querySelectorAll('.today-tile').forEach(function (п) {
+        if (п.dataset.status === 'plan') return;
+        const н2 = док.querySelector('.today-tile[data-status="' + п.dataset.status + '"] .v2-tile-num');
+        if (н2) п.querySelector('.v2-tile-num').textContent = н2.textContent;
+      });
+    } catch (e) { /* сеть — счётчик +1, списки обновятся при следующем входе */ }
+    if (!ч) return;
+    if (М()) М().countUp(ч, стало, 0, было); else ч.textContent = стало;
+  }
+  async function действиеСтроки(к) {
+    const ряд = к.closest('.today-row');
+    // повторное нажатие до ответа не уходит второй раз (1.4)
+    if (!ряд || ряд.dataset.busy) return;
+    ряд.dataset.busy = '1';
+    const кнопки = ряд.querySelectorAll('button');
+    кнопки.forEach(function (б) { б.disabled = true; });
+    const вПлан = к.dataset.act === 'plan';
+    const ч = document.querySelector('.today-tile[data-status="plan"] .v2-tile-num');
+    const было = ч ? parseInt(ч.textContent.replace(/[^0-9]/g, '') || '0', 10) : 0;
+    try {
+      await послать('/content/api/ideas/' + к.dataset.id, {action: к.dataset.act, reason: к.dataset.reason || null});
+    } catch (err) {
+      // строка на месте, ничего не потеряно
+      delete ряд.dataset.busy;
+      кнопки.forEach(function (б) { б.disabled = false; });
+      тост('Не вышло: ' + err.message);
+      return;
+    }
+    if (вПлан) тост('Взято в работу — идея в плане');
+    const список = ряд.parentElement;
+    const секция = ряд.closest('.today-more');
+    const последний = список.querySelectorAll('.today-row').length === 1;
+    const пусто = function (корень) {
+      корень.querySelector('.today-list').hidden = true;
+      const п = корень.querySelector('.today-more-empty');
+      if (п) п.hidden = false;
+    };
+    const ждать_ухода = последний && секция
+      ? (М() ? М().swap(секция, пусто, 'soft', {items: '.today-list:not([hidden]) > li, .today-more-empty:not([hidden])'})
+             : Promise.resolve(пусто(секция)))
+      : (М() ? М().leave(ряд, 'live') : Promise.resolve(ряд.remove()));
+    if (вПлан) await Promise.all([ждать_ухода, обновитьКонвейер(было)]);
+    else await ждать_ухода;
+  }
+
   // Реакции на идеи
   document.addEventListener('click', async function (e) {
     const к = e.target.closest('[data-act]');
     if (!к) return;
     const id = к.dataset.id;
+    if ((к.dataset.act === 'plan' || к.dataset.act === 'reject') && к.closest('.today-row')) {
+      e.preventDefault();   // форма не уходит: отправка — fetch
+      действиеСтроки(к);
+      return;
+    }
     try {
       if (к.dataset.act === 'reject-open') {
-        const ряд = к.closest('.today-row');
-        const причины = ряд.querySelector('.today-reasons');
-        причины.hidden = !причины.hidden;
+        плашка(к.closest('.today-row'));
         return;
       }
       if (к.dataset.act === 'pack') {
@@ -348,10 +440,11 @@
   });
 
   // Ссылка на YouTube — только у вышедшего
-  document.querySelectorAll('[data-video-status]').forEach(function (с) {
-    с.addEventListener('change', function () {
-      document.querySelector('[data-video-url="' + с.dataset.videoStatus + '"]').hidden = с.value !== 'published';
-    });
+  // делегированием: списки конвейера перерисовываются без перезагрузки
+  document.addEventListener('change', function (e) {
+    const с = e.target.closest('[data-video-status]');
+    if (!с) return;
+    document.querySelector('[data-video-url="' + с.dataset.videoStatus + '"]').hidden = с.value !== 'published';
   });
 
   // Плитки конвейера открывают свой список

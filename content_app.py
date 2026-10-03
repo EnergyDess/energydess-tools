@@ -5,6 +5,7 @@
     GET  /content/api/ideas/state    — идут ли идеи и их шаги
     POST /content/api/ideas/run      — «Обновить идеи»
     POST /content/api/ideas/{id}     — реакция: plan | reject (с причиной) | later
+    POST /content/ideas/{id}         — та же реакция обычной формой, путь без JS (M1b)
     POST /content/api/videos/{id}    — статус ролика конвейера (и ссылка у вышедшего)
     POST /content/api/settings/week  — цель роликов в неделю
     GET  /content/api/state          — идёт ли прогон и чем кончился последний
@@ -676,6 +677,26 @@ async def idea_react(idea_id: int, тело: Реакция, user=Depends(get_cu
     if итог.get("error"):
         return JSONResponse({"error": итог["error"]}, status_code=итог.get("code", 400))
     return итог
+
+
+@router.post("/content/ideas/{idea_id}")
+async def idea_react_form(idea_id: int, request: Request, user=Depends(get_current_user),
+                          db: Session = Depends(get_db)):
+    """ТА ЖЕ реакция обычной формой — путь без JS (письмо M1b, №385).
+    Со скриптом строка уходит без перезагрузки через JSON-маршрут выше;
+    без скрипта кнопки строки — кнопки отправки формы, и сервер отвечает
+    переходом обратно на «Сегодня». Логика записи одна — `ci.реакция`.
+    Тело разбирается из urlencoded вручную, а не разбором формы Starlette:
+    файлов здесь нет, а предел тела без файла задаёт общий заслон (§5.10)."""
+    if not _админ(user):
+        return PlainTextResponse(ОТКАЗ_НЕ_АДМИНУ, status_code=403)
+    from urllib.parse import parse_qs
+    поля = {к: в[0] for к, в in parse_qs((await request.body()).decode("utf-8", "replace")).items()}
+    тип = поля.get("type") if поля.get("type") in ("long", "shorts") else "long"
+    итог = ci.реакция(db, idea_id, поля.get("action", ""), поля.get("reason") or None)
+    if итог.get("error"):
+        return PlainTextResponse(итог["error"], status_code=итог.get("code", 400))
+    return Response(status_code=303, headers={"Location": "/content?type=" + тип + "#today-more-title-" + тип})
 
 
 # ── ПРИЁМ ИЗ БОТА ВТОРОГО МОЗГА (письмо D1, задача 383) ─────────────

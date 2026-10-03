@@ -93,7 +93,7 @@
 .today-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--v2-line-3); }
 .today-row {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center;
-  gap: var(--v2-sp-2) var(--v2-sp-4); padding: var(--v2-sp-3) 0;
+  gap: 0 var(--v2-sp-4); padding: var(--v2-sp-3) 0;
   border-bottom: 1px solid var(--v2-line-3);
 }
 .today-row-text { display: grid; gap: var(--v2-sp-1); min-width: 0; }
@@ -107,7 +107,13 @@
 .today-inbox-more { justify-self: start; }
 .today-inbox-url svg { width: var(--v2-sp-3); height: var(--v2-sp-3); vertical-align: middle; }
 .today-inbox-url, .today-inbox-story { color: var(--v2-text-2); }
-.today-reasons { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); }
+/* Плашка причин «Не то» (письмо M1b): раскрытие .m-collapse (0fr → 1fr).
+   Отступ сверху — ВНУТРИ, иначе он оставался бы у закрытой плашки.
+   Без JS (на <html> нет m-js) плашка открыта: выбор доступен формой. */
+.today-reasons { grid-column: 1 / -1; }
+.today-reasons-in { display: flex; flex-wrap: wrap; gap: var(--v2-sp-2); padding-top: var(--v2-sp-2); }
+html:not(.m-js) .today-reasons { grid-template-rows: 1fr; }
+.today-more-empty { margin: var(--v2-sp-3) 0 0; }
 
 /* МОИ РОЛИКИ */
 .today-videos-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--v2-sp-3); }

@@ -531,15 +531,16 @@ def _сегодня(с, адрес, ширина, база, подлог):
     if len(ряды) >= 2:
         idr = int(ряды[0].get_attribute("data-idea"))
         ряды[0].query_selector("[data-act='reject-open']").click()
-        with с.expect_navigation(wait_until="load", timeout=15000):
-            с.click(".today-row[data-idea='%d'] [data-reason='boring']" % idr)
-        с.wait_for_timeout(700)
+        # С письма M1b (№385) строка уходит БЕЗ перезагрузки: ждём, что она
+        # ушла из дерева; итог по-прежнему — из базы
+        с.click(".today-row[data-idea='%d'] [data-reason='boring']" % idr)
+        с.wait_for_selector(".today-row[data-idea='%d']" % idr, state="detached", timeout=15000)
         путь["отказ"] = tuple(_база(база, "SELECT state, reason FROM content_ideas WHERE id = ?", idr)[0])
         видео_до = _база(база, "SELECT count(*) FROM content_videos")[0][0]
         idp = int(с.query_selector(".today-pane .today-row").get_attribute("data-idea"))
-        with с.expect_navigation(wait_until="load", timeout=15000):
-            с.click(".today-row[data-idea='%d'] [data-act='plan']" % idp)
-        с.wait_for_timeout(700)
+        с.click(".today-row[data-idea='%d'] [data-act='plan']" % idp)
+        с.wait_for_selector(".today-row[data-idea='%d']" % idp, state="detached", timeout=15000)
+        с.wait_for_timeout(1200)   # конвейер перечитывается после ухода строки
         путь["в_план"] = (_база(база, "SELECT count(*) FROM content_videos")[0][0] - видео_до,
                           _база(база, "SELECT state FROM content_ideas WHERE id = ?", idp)[0][0])
         с.click(".today-tile[data-status='plan']")
